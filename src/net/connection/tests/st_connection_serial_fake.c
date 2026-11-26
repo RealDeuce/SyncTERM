@@ -5,34 +5,33 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "st_connection_serial_fake.h"
-
-#include "io_error.h"
-#include "st_threads.h"
-
 #include <stdint.h>
 #include <string.h>
 #include <time.h>
+
+#include "io_error.h"
+#include "st_connection_serial_fake.h"
+#include "st_threads.h"
 
 struct serial_port {
 	int unused;
 };
 
 static struct {
-	st_mutex_t mutex;
-	st_condition_t changed;
-	struct serial_port port;
+	st_mutex_t           mutex;
+	st_condition_t       changed;
+	struct serial_port   port;
 	struct serial_config config;
-	uint8_t input[4096];
-	uint8_t output[4096];
-	size_t input_count;
-	size_t output_count;
-	size_t open_attempts;
-	unsigned lines;
-	bool initialized;
-	bool open;
-	bool dtr;
-	bool rts;
+	uint8_t              input[4096];
+	uint8_t              output[4096];
+	size_t               input_count;
+	size_t               output_count;
+	size_t               open_attempts;
+	unsigned             lines;
+	bool                 initialized;
+	bool                 open;
+	bool                 dtr;
+	bool                 rts;
 } fake;
 
 static struct timespec
@@ -69,14 +68,14 @@ st_connection_serial_fake_reset(unsigned lines)
 		fake.initialized = true;
 	}
 	(void)st_mutex_lock(&fake.mutex);
-	fake.config = (struct serial_config){0};
-	fake.input_count = 0;
-	fake.output_count = 0;
+	fake.config        = (struct serial_config) {0};
+	fake.input_count   = 0;
+	fake.output_count  = 0;
 	fake.open_attempts = 0;
-	fake.lines = lines;
-	fake.open = false;
-	fake.dtr = false;
-	fake.rts = true;
+	fake.lines         = lines;
+	fake.open          = false;
+	fake.dtr           = false;
+	fake.rts           = true;
 	(void)st_mutex_unlock(&fake.mutex);
 }
 
@@ -186,7 +185,7 @@ serial_port_open(serial_port_t **result, const char *device)
 		return IO_ERROR_BUSY;
 	}
 	fake.open = true;
-	*result = &fake.port;
+	*result   = &fake.port;
 	(void)st_mutex_unlock(&fake.mutex);
 	return 0;
 }
@@ -215,12 +214,11 @@ serial_port_configure(serial_port_t *port, const struct serial_config *config)
 }
 
 ssize_t
-serial_port_read(serial_port_t *port, void *buffer, size_t size,
-	int64_t timeout_ms)
+serial_port_read(serial_port_t *port, void *buffer, size_t size, int64_t timeout_ms)
 {
 	struct timespec deadline;
-	size_t count;
-	int result;
+	size_t          count;
+	int             result;
 
 	if (port == NULL || (buffer == NULL && size != 0) || timeout_ms < -1)
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -234,10 +232,8 @@ serial_port_read(serial_port_t *port, void *buffer, size_t size,
 			(void)st_mutex_unlock(&fake.mutex);
 			return IO_ERROR_TIMED_OUT;
 		}
-		result = timeout_ms < 0
-		    ? st_condition_wait(&fake.changed, &fake.mutex)
-		    : st_condition_timedwait(&fake.changed, &fake.mutex,
-		    &deadline);
+		result = timeout_ms < 0 ? st_condition_wait(&fake.changed, &fake.mutex)
+		                        : st_condition_timedwait(&fake.changed, &fake.mutex, &deadline);
 		if (result == ST_THREAD_TIMED_OUT) {
 			(void)st_mutex_unlock(&fake.mutex);
 			return IO_ERROR_TIMED_OUT;
@@ -256,11 +252,10 @@ serial_port_read(serial_port_t *port, void *buffer, size_t size,
 }
 
 ssize_t
-serial_port_write(serial_port_t *port, const void *buffer, size_t size,
-	int64_t timeout_ms)
+serial_port_write(serial_port_t *port, const void *buffer, size_t size, int64_t timeout_ms)
 {
 	const uint8_t *bytes = buffer;
-	size_t count;
+	size_t         count;
 
 	if (port == NULL || (buffer == NULL && size != 0) || timeout_ms < -1)
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -269,15 +264,12 @@ serial_port_write(serial_port_t *port, const void *buffer, size_t size,
 		(void)st_mutex_unlock(&fake.mutex);
 		return IO_ERROR_NOT_CONNECTED;
 	}
-	count = size < sizeof(fake.output) - fake.output_count
-	    ? size : sizeof(fake.output) - fake.output_count;
+	count = size < sizeof(fake.output) - fake.output_count ? size : sizeof(fake.output) - fake.output_count;
 	memcpy(fake.output + fake.output_count, buffer, count);
 	fake.output_count += count;
-	if (fake.output_count >= 4
-	    && memcmp(fake.output + fake.output_count - 4, "ATZ\r", 4) == 0)
+	if (fake.output_count >= 4 && memcmp(fake.output + fake.output_count - 4, "ATZ\r", 4) == 0)
 		append_input_locked("ATZ\r\nOK\r", 8);
-	if (fake.output_count >= 8
-	    && memcmp(fake.output + fake.output_count - 8, "ATDT555\r", 8) == 0)
+	if (fake.output_count >= 8 && memcmp(fake.output + fake.output_count - 8, "ATDT555\r", 8) == 0)
 		append_input_locked("ATDT555\r\nCONNECT\r", 17);
 	(void)bytes;
 	(void)st_mutex_unlock(&fake.mutex);
@@ -320,8 +312,7 @@ serial_port_set_rts(serial_port_t *port, bool enabled)
 }
 
 int
-serial_port_get_baud_rates(serial_port_t *port, uint32_t *rates,
-	size_t capacity, size_t *count)
+serial_port_get_baud_rates(serial_port_t *port, uint32_t *rates, size_t capacity, size_t *count)
 {
 	(void)port;
 	(void)rates;

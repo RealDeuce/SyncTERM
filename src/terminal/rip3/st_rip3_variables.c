@@ -1,21 +1,20 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
-#include "st_rip3_variables.h"
-
-#include "io_error.h"
-
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "io_error.h"
+#include "st_rip3_variables.h"
+
 struct variable {
-	struct variable *next;
-	size_t hash;
+	struct variable              *next;
+	size_t                        hash;
 	struct st_rip3_variable_entry entry;
 };
 
 struct st_rip3_variables {
 	struct variable **buckets;
-	size_t capacity, count;
+	size_t            capacity, count;
 };
 
 static int
@@ -29,20 +28,19 @@ identifier(char result[21], size_t *hash, const char *name, size_t length)
 		return IO_ERROR_OUT_OF_RANGE;
 	for (size_t i = 0; i < length; i++) {
 		unsigned char ch = (unsigned char)name[i];
-		bool letter;
+		bool          letter;
 
 		if (ch >= 'a' && ch <= 'z')
 			ch = (unsigned char)(ch - 'a' + 'A');
 		letter = ch >= 'A' && ch <= 'Z';
-		if ((!letter && i == 0)
-		    || (!letter && ch != '_' && !(ch >= '0' && ch <= '9')))
+		if ((!letter && i == 0) || (!letter && ch != '_' && !(ch >= '0' && ch <= '9')))
 			return IO_ERROR_INVALID_FORMAT;
 		result[i] = (char)ch;
 		/* Unsigned size_t wrap is intentional; this is not a wire hash. */
 		value = value * 33 + ch;
 	}
 	result[length] = 0;
-	*hash = value;
+	*hash          = value;
 	return 0;
 }
 
@@ -50,8 +48,8 @@ static struct variable *
 find(const struct st_rip3_variables *variables, const char *name, size_t hash)
 {
 	if (variables->capacity != 0) {
-		for (struct variable *entry = variables->buckets[hash & (variables->capacity - 1)];
-		    entry != NULL; entry = entry->next) {
+		for (struct variable *entry = variables->buckets[hash & (variables->capacity - 1)]; entry != NULL;
+		    entry                   = entry->next) {
 			if (entry->hash == hash && strcmp(entry->entry.name, name) == 0)
 				return entry;
 		}
@@ -63,10 +61,9 @@ static int
 grow(struct st_rip3_variables *variables)
 {
 	struct variable **buckets;
-	size_t capacity;
+	size_t            capacity;
 
-	if (variables->capacity != 0
-	    && variables->count < variables->capacity - variables->capacity / 4)
+	if (variables->capacity != 0 && variables->count < variables->capacity - variables->capacity / 4)
 		return 0;
 	if (variables->capacity > SIZE_MAX / 2)
 		return IO_ERROR_OUT_OF_RANGE;
@@ -81,16 +78,16 @@ grow(struct st_rip3_variables *variables)
 		struct variable *entry = variables->buckets[i];
 
 		while (entry != NULL) {
-			struct variable *next = entry->next;
-			size_t bucket = entry->hash & (capacity - 1);
+			struct variable *next   = entry->next;
+			size_t           bucket = entry->hash & (capacity - 1);
 
-			entry->next = buckets[bucket];
+			entry->next     = buckets[bucket];
 			buckets[bucket] = entry;
-			entry = next;
+			entry           = next;
 		}
 	}
 	free(variables->buckets);
-	variables->buckets = buckets;
+	variables->buckets  = buckets;
 	variables->capacity = capacity;
 	return 0;
 }
@@ -129,11 +126,11 @@ st_rip3_variables_destroy(struct st_rip3_variables *variables)
 }
 
 static int
-prepare_entry(struct st_rip3_variables *variables, const char *name, size_t hash,
-    struct variable **result, bool *insert)
+prepare_entry(struct st_rip3_variables *variables, const char *name, size_t hash, struct variable **result,
+    bool *insert)
 {
 	struct variable *entry = find(variables, name, hash);
-	*insert = entry == NULL;
+	*insert                = entry == NULL;
 	if (*insert) {
 		entry = calloc(1, sizeof(*entry));
 		if (entry == NULL)
@@ -158,24 +155,23 @@ commit_entry(struct st_rip3_variables *variables, struct variable *entry, bool i
 	if (require_confirmation != NULL)
 		entry->entry.require_confirmation = *require_confirmation;
 	if (insert) {
-		size_t bucket = entry->hash & (variables->capacity - 1);
-		entry->next = variables->buckets[bucket];
+		size_t bucket              = entry->hash & (variables->capacity - 1);
+		entry->next                = variables->buckets[bucket];
 		variables->buckets[bucket] = entry;
 		variables->count++;
 	}
 }
 
 static int
-store(struct st_rip3_variables *variables, struct st_rip3_variables *persistent,
-    const char *name, size_t name_length, const uint8_t *value, size_t value_length,
-    const bool *require_confirmation)
+store(struct st_rip3_variables *variables, struct st_rip3_variables *persistent, const char *name,
+    size_t name_length, const uint8_t *value, size_t value_length, const bool *require_confirmation)
 {
 	struct st_rip3_variable_value replacement = {0};
-	struct variable *live, *saved = NULL;
-	bool insert_live, insert_saved = false;
-	char canonical[21];
-	size_t hash;
-	int status;
+	struct variable              *live, *saved              = NULL;
+	bool                          insert_live, insert_saved = false;
+	char                          canonical[21];
+	size_t                        hash;
+	int                           status;
 
 	if (variables == NULL || variables == persistent || (value == NULL && value_length != 0))
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -204,8 +200,8 @@ store(struct st_rip3_variables *variables, struct st_rip3_variables *persistent,
 }
 
 int
-st_rip3_variables_set(struct st_rip3_variables *variables,
-    const char *name, size_t name_length, const uint8_t *value, size_t value_length)
+st_rip3_variables_set(struct st_rip3_variables *variables, const char *name, size_t name_length,
+    const uint8_t *value, size_t value_length)
 {
 	return store(variables, NULL, name, name_length, value, value_length, NULL);
 }
@@ -218,13 +214,13 @@ st_rip3_variables_define(struct st_rip3_variables *variables, struct st_rip3_var
 }
 
 int
-st_rip3_variables_get_entry(const struct st_rip3_variables *variables,
-    const char *name, size_t name_length, struct st_rip3_variable_entry *result)
+st_rip3_variables_get_entry(const struct st_rip3_variables *variables, const char *name, size_t name_length,
+    struct st_rip3_variable_entry *result)
 {
 	const struct variable *entry;
-	char canonical[21];
-	size_t hash;
-	int status;
+	char                   canonical[21];
+	size_t                 hash;
+	int                    status;
 
 	if (variables == NULL || result == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -239,26 +235,25 @@ st_rip3_variables_get_entry(const struct st_rip3_variables *variables,
 }
 
 int
-st_rip3_variables_get(const struct st_rip3_variables *variables,
-    const char *name, size_t name_length, struct st_rip3_variable_value *result)
+st_rip3_variables_get(const struct st_rip3_variables *variables, const char *name, size_t name_length,
+    struct st_rip3_variable_value *result)
 {
 	if (result == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	struct st_rip3_variable_entry entry;
-	int status = st_rip3_variables_get_entry(variables, name, name_length, &entry);
+	int                           status = st_rip3_variables_get_entry(variables, name, name_length, &entry);
 	if (status == 0)
 		*result = entry.value;
 	return status;
 }
 
 int
-st_rip3_variables_remove(struct st_rip3_variables *variables,
-    const char *name, size_t name_length)
+st_rip3_variables_remove(struct st_rip3_variables *variables, const char *name, size_t name_length)
 {
 	struct variable **link, *entry;
-	char canonical[21];
-	size_t hash;
-	int status;
+	char              canonical[21];
+	size_t            hash;
+	int               status;
 
 	if (variables == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -268,8 +263,7 @@ st_rip3_variables_remove(struct st_rip3_variables *variables,
 	if (variables->capacity == 0)
 		return IO_ERROR_NOT_FOUND;
 	link = &variables->buckets[hash & (variables->capacity - 1)];
-	while (*link != NULL && ((*link)->hash != hash
-	    || strcmp((*link)->entry.name, canonical) != 0))
+	while (*link != NULL && ((*link)->hash != hash || strcmp((*link)->entry.name, canonical) != 0))
 		link = &(*link)->next;
 	entry = *link;
 	if (entry == NULL)
@@ -298,11 +292,10 @@ compare_entry(const void *first, const void *last)
 }
 
 int
-st_rip3_variables_snapshot(const struct st_rip3_variables *variables,
-    struct st_rip3_variable_snapshot *result)
+st_rip3_variables_snapshot(const struct st_rip3_variables *variables, struct st_rip3_variable_snapshot *result)
 {
 	struct st_rip3_variable_snapshot snapshot = {0};
-	size_t next = 0;
+	size_t                           next     = 0;
 
 	if (variables == NULL || result == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -313,14 +306,14 @@ st_rip3_variables_snapshot(const struct st_rip3_variables *variables,
 		if (snapshot.entries == NULL)
 			return IO_ERROR_OUT_OF_MEMORY;
 		for (size_t i = 0; i < variables->capacity; i++) {
-			for (const struct variable *entry = variables->buckets[i];
-			    entry != NULL; entry = entry->next)
+			for (const struct variable *entry = variables->buckets[i]; entry != NULL;
+			    entry                         = entry->next)
 				snapshot.entries[next++] = entry->entry;
 		}
 		qsort(snapshot.entries, next, sizeof(*snapshot.entries), compare_entry);
 	}
 	snapshot.count = next;
-	*result = snapshot;
+	*result        = snapshot;
 	return 0;
 }
 
@@ -330,18 +323,17 @@ st_rip3_variables_snapshot_free(struct st_rip3_variable_snapshot *snapshot)
 	if (snapshot == NULL)
 		return;
 	free(snapshot->entries);
-	*snapshot = (struct st_rip3_variable_snapshot){0};
+	*snapshot = (struct st_rip3_variable_snapshot) {0};
 }
 
 int
 st_rip3_variables_from_snapshot(struct st_rip3_variables **result,
-    const struct st_rip3_variable_snapshot *snapshot)
+    const struct st_rip3_variable_snapshot                *snapshot)
 {
 	struct st_rip3_variables *variables = NULL;
-	int status;
+	int                       status;
 
-	if (result == NULL || snapshot == NULL
-	    || (snapshot->entries == NULL && snapshot->count != 0))
+	if (result == NULL || snapshot == NULL || (snapshot->entries == NULL && snapshot->count != 0))
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (snapshot->count > SIZE_MAX / sizeof(*snapshot->entries))
 		return IO_ERROR_OUT_OF_RANGE;
@@ -350,9 +342,9 @@ st_rip3_variables_from_snapshot(struct st_rip3_variables **result,
 		return status;
 	for (size_t i = 0; i < snapshot->count; i++) {
 		const struct st_rip3_variable_entry *entry = &snapshot->entries[i];
-		const char *end = memchr(entry->name, 0, sizeof(entry->name));
-		char canonical[21];
-		size_t hash, length;
+		const char                          *end   = memchr(entry->name, 0, sizeof(entry->name));
+		char                                 canonical[21];
+		size_t                               hash, length;
 
 		status = IO_ERROR_INVALID_FORMAT;
 		if (end == NULL || entry->value.length >= sizeof(entry->value.bytes))
@@ -361,8 +353,8 @@ st_rip3_variables_from_snapshot(struct st_rip3_variables **result,
 		if (identifier(canonical, &hash, entry->name, length) != 0
 		    || find(variables, canonical, hash) != NULL)
 			goto failed;
-		status = st_rip3_variables_define(variables, NULL, canonical, length,
-		    entry->value.bytes, entry->value.length, entry->require_confirmation);
+		status = st_rip3_variables_define(variables, NULL, canonical, length, entry->value.bytes,
+		    entry->value.length, entry->require_confirmation);
 		if (status != 0)
 			goto failed;
 	}

@@ -17,9 +17,10 @@
 #define _CTERM_ATASCII_H_
 
 #include <stdint.h>
+
 #include "cterm.h"
 
 extern const uint8_t cterm_atascii_ctrl_bitmap[32];
-extern void (*const cterm_atascii_handlers[256])(struct cterminal *);
+extern void          (*const cterm_atascii_handlers[256])(struct cterminal *);
 
 #endif /* _CTERM_ATASCII_H_ */

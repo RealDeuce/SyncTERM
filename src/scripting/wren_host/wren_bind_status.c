@@ -5,13 +5,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "wren_host_internal.h"
+#include <stdlib.h>
+#include <string.h>
 
 #include "io_error.h"
 #include "st_term.h"
-
-#include <stdlib.h>
-#include <string.h>
+#include "wren_host_internal.h"
 
 static void
 status_handle_get(WrenVM *vm, WrenHandle *handle)
@@ -77,14 +76,15 @@ static void
 fn_status_hover_uri(WrenVM *vm)
 {
 	char *uri = st_wren_hover_uri(st_wren_context_from_vm(vm));
-	if (uri == NULL) wrenSetSlotNull(vm, 0);
-	else wrenSetSlotString(vm, 0, uri);
+	if (uri == NULL)
+		wrenSetSlotNull(vm, 0);
+	else
+		wrenSetSlotString(vm, 0, uri);
 	free(uri);
 }
 
 WrenForeignMethodFn
-st_wren_status_bind_method(const char *class_name, bool is_static,
-	const char *signature)
+st_wren_status_bind_method(const char *class_name, bool is_static, const char *signature)
 {
 	if (!is_static || strcmp(class_name, "Status") != 0)
 		return NULL;
@@ -104,43 +104,40 @@ st_wren_status_bind_method(const char *class_name, bool is_static,
 }
 
 static int
-blank_status_cell(struct st_wren_context *context,
-	struct st_console_cell *blank)
+blank_status_cell(struct st_wren_context *context, struct st_console_cell *blank)
 {
-	uint16_t font;
-	uint8_t columns;
+	uint16_t              font;
+	uint8_t               columns;
 	struct st_cterm_state state;
-	enum st_codepage codepage;
+	enum st_codepage      codepage;
 
 	/* RIPv3's status row follows the current text font and grid. Other emulations
 	 * retain the local UI font, independent of remote font assignments. */
-	if (context->cterm != NULL
-	    && st_cterm_state(context->cterm, &state) == 0
+	if (context->cterm != NULL && st_cterm_state(context->cterm, &state) == 0
 	    && state.graphics_mode == ST_CTERM_GRAPHICS_RIP_3) {
 		if (!st_cterm_font_info(context->cterm, 0, &font, &codepage))
 			return IO_ERROR_NOT_FOUND;
 	}
 	else if (!st_wren_font_identifier(context, 0, &font))
 		return IO_ERROR_NOT_FOUND;
-	*blank = (struct st_console_cell){
-		.foreground = ST_CONSOLE_COLOR_RGB_VALUE(255, 255, 84),
-		.background = ST_CONSOLE_COLOR_RGB_VALUE(0, 0, 168),
-		.font = font,
-		.glyph_font = font,
+	*blank = (struct st_console_cell) {
+	    .foreground = ST_CONSOLE_COLOR_RGB_VALUE(255, 255, 84),
+	    .background = ST_CONSOLE_COLOR_RGB_VALUE(0, 0, 168),
+	    .font       = font,
+	    .glyph_font = font,
 	};
-	return st_console_font_lookup(context->console, font, ' ',
-	    &blank->glyph_font, &blank->glyph, &columns);
+	return st_console_font_lookup(context->console, font, ' ', &blank->glyph_font, &blank->glyph, &columns);
 }
 
 int
 st_wren_status_render(WrenVM *vm, bool enabled)
 {
-	struct st_wren_context *context = st_wren_context_from_vm(vm);
-	struct st_console_cell blank;
-	struct st_console_rect row;
+	struct st_wren_context       *context = st_wren_context_from_vm(vm);
+	struct st_console_cell        blank;
+	struct st_console_rect        row;
 	const struct st_console_cell *cells;
-	uint32_t width, height;
-	int status;
+	uint32_t                      width, height;
+	int                           status;
 
 	context->status_enabled = enabled;
 	if (!enabled)
@@ -151,8 +148,7 @@ st_wren_status_render(WrenVM *vm, bool enabled)
 	status = blank_status_cell(context, &blank);
 	if (status != 0)
 		return status;
-	if (context->status_surface == NULL
-	    || context->status_surface_width != width) {
+	if (context->status_surface == NULL || context->status_surface_width != width) {
 		struct st_console_cell *owned = calloc(width, sizeof(*owned));
 
 		if (owned == NULL)
@@ -166,7 +162,7 @@ st_wren_status_render(WrenVM *vm, bool enabled)
 			return IO_ERROR_OUT_OF_MEMORY;
 		if (context->status_surface != NULL)
 			wrenReleaseHandle(vm, context->status_surface);
-		context->status_surface = surface;
+		context->status_surface       = surface;
 		context->status_surface_width = width;
 	}
 	wrenEnsureSlots(vm, 2);
@@ -191,19 +187,19 @@ st_wren_status_render(WrenVM *vm, bool enabled)
 		return IO_ERROR_INVALID_FORMAT;
 	if (st_term_session_has_status_overlay(context->session))
 		return st_console_write_status_row(context->console, cells, width);
-	row = (struct st_console_rect){0, height - 1, width, 1};
+	row = (struct st_console_rect) {0, height - 1, width, 1};
 	return st_console_write_cells(context->console, &row, cells, width);
 }
 
 void
 st_wren_status_dispose(WrenVM *vm)
 {
-	struct st_wren_context *context = st_wren_context_from_vm(vm);
-	WrenHandle **handles[] = {
-		&context->status_callable,
-		&context->status_details,
-		&context->status_surface,
-		&context->status_call,
+	struct st_wren_context *context   = st_wren_context_from_vm(vm);
+	WrenHandle            **handles[] = {
+	    &context->status_callable,
+	    &context->status_details,
+	    &context->status_surface,
+	    &context->status_call,
 	};
 
 	for (size_t i = 0; i < sizeof(handles) / sizeof(handles[0]); ++i) {

@@ -14,13 +14,13 @@ struct st_rip3_tone {
 /* A finite, copyable sequence, even for the original driver's WORD sweeps. */
 struct st_rip3_tones {
 	struct st_rip3_tone notes[6];
-	unsigned count, index;
-	uint16_t repeats, frequency, stop;
-	int32_t step;
+	unsigned            count, index;
+	uint16_t            repeats, frequency, stop;
+	int32_t             step;
 };
 
 /* NOT_SUPPORTED means the reference belongs to another variable family. */
-int st_rip3_tones_parse(struct st_rip3_tones *, const struct st_rip3_builtin_reference *);
+int  st_rip3_tones_parse(struct st_rip3_tones *, const struct st_rip3_builtin_reference *);
 bool st_rip3_tones_next(struct st_rip3_tones *, struct st_rip3_tone *);
 
 #endif

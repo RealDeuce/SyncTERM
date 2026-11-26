@@ -1,28 +1,29 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
-#include "st_rip3_palettes.h"
-#include "io_error.h"
-#include "st_pixels.h"
-
 #include <limits.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
-#define CHECK(expression) do { \
-	if (!(expression)) { \
-		fprintf(stderr, "check failed at line %d: %s\n", __LINE__, #expression); \
-		return 1; \
-	} \
-} while (0)
+#include "io_error.h"
+#include "st_pixels.h"
+#include "st_rip3_palettes.h"
+
+#define CHECK(expression)                                                                        \
+	do {                                                                                     \
+		if (!(expression)) {                                                             \
+			fprintf(stderr, "check failed at line %d: %s\n", __LINE__, #expression); \
+			return 1;                                                                \
+		}                                                                                \
+	} while (0)
 
 static int
 slots(void)
 {
-	struct st_rip3_palettes *palettes = NULL;
+	struct st_rip3_palettes    *palettes = NULL;
 	struct st_rip3_palette_info info;
-	struct st_rip3_palette palette, defaults;
-	unsigned current = UINT_MAX;
-	uint32_t color;
+	struct st_rip3_palette      palette, defaults;
+	unsigned                    current = UINT_MAX;
+	uint32_t                    color;
 
 	CHECK(st_rip3_palettes_create(&palettes) == 0);
 	CHECK(st_rip3_palettes_current(palettes, &current) == 0 && current == 0);
@@ -63,16 +64,16 @@ slots(void)
 static int
 protection_and_errors(void)
 {
-	struct st_rip3_palettes *palettes = NULL;
-	struct st_rip3_palettes *sentinel = NULL;
-	struct st_rip3_palette_info info = {true,true};
-	struct st_rip3_palette palette, previous;
-	const uint32_t colors[] = {0x123456,0x654321};
-	const uint32_t invalid[] = {0x000000,0x1000000};
-	const unsigned masters[] = {4,63};
-	const unsigned bad_masters[] = {64,1};
-	unsigned current = 77;
-	uint8_t index = 77;
+	struct st_rip3_palettes    *palettes = NULL;
+	struct st_rip3_palettes    *sentinel = NULL;
+	struct st_rip3_palette_info info     = {true, true};
+	struct st_rip3_palette      palette, previous;
+	const uint32_t              colors[]      = {0x123456, 0x654321};
+	const uint32_t              invalid[]     = {0x000000, 0x1000000};
+	const unsigned              masters[]     = {4, 63};
+	const unsigned              bad_masters[] = {64, 1};
+	unsigned                    current       = 77;
+	uint8_t                     index         = 77;
 
 	CHECK(st_rip3_palettes_create(&palettes) == 0);
 	CHECK(st_rip3_palettes_clone(&sentinel, NULL) == IO_ERROR_INVALID_ARGUMENT && sentinel == NULL);
@@ -116,11 +117,11 @@ protection_and_errors(void)
 static int
 backups(void)
 {
-	struct st_rip3_palettes *palettes = NULL, *saved = NULL;
-	struct st_rip3_palette palette;
+	struct st_rip3_palettes    *palettes = NULL, *saved = NULL;
+	struct st_rip3_palette      palette;
 	struct st_rip3_palette_info info;
-	const uint32_t red = 0xff0000, green = 0x00ff00, blue = 0x0000ff;
-	unsigned current;
+	const uint32_t              red = 0xff0000, green = 0x00ff00, blue = 0x0000ff;
+	unsigned                    current;
 
 	CHECK(st_rip3_palettes_create(&palettes) == 0);
 	CHECK(st_rip3_palettes_rgb(palettes, 1, 8, &red, 1) == 0);
@@ -157,13 +158,15 @@ static int
 cycling(void)
 {
 	struct st_rip3_palettes *palettes = NULL;
-	struct st_rip3_surface *surface = NULL;
-	struct st_pixel_buffer *capture = NULL, *original = NULL;
-	struct st_rip3_palette palette;
-	const uint32_t colors[] = {0x120000,0x003400,0x000056};
-	const uint32_t expected[] = {
-		ST_PIXEL_COLOR_RGB_VALUE(0x12,0,0), ST_PIXEL_COLOR_RGB_VALUE(0,0x34,0),
-		ST_PIXEL_COLOR_RGB_VALUE(0,0,0x56), ST_PIXEL_COLOR_RGB_VALUE(0x12,0,0),
+	struct st_rip3_surface  *surface  = NULL;
+	struct st_pixel_buffer  *capture = NULL, *original = NULL;
+	struct st_rip3_palette   palette;
+	const uint32_t           colors[]   = {0x120000, 0x003400, 0x000056};
+	const uint32_t           expected[] = {
+	    ST_PIXEL_COLOR_RGB_VALUE(0x12, 0, 0),
+	    ST_PIXEL_COLOR_RGB_VALUE(0, 0x34, 0),
+	    ST_PIXEL_COLOR_RGB_VALUE(0, 0, 0x56),
+	    ST_PIXEL_COLOR_RGB_VALUE(0x12, 0, 0),
 	};
 
 	CHECK(st_rip3_palettes_create(&palettes) == 0);
@@ -184,8 +187,8 @@ cycling(void)
 		CHECK(index == (x == 3 ? 0 : x));
 	}
 	CHECK(original->primary[0] == ST_PIXEL_COLOR_RGB_TAG);
-	CHECK(original->primary[1] == ST_PIXEL_COLOR_RGB_VALUE(0,0,170));
-	CHECK(original->primary[2] == ST_PIXEL_COLOR_RGB_VALUE(0,170,0));
+	CHECK(original->primary[1] == ST_PIXEL_COLOR_RGB_VALUE(0, 0, 170));
+	CHECK(original->primary[2] == ST_PIXEL_COLOR_RGB_VALUE(0, 170, 0));
 	CHECK(original->primary[3] == ST_PIXEL_COLOR_RGB_TAG);
 	st_pixel_buffer_destroy(original);
 	st_pixel_buffer_destroy(capture);

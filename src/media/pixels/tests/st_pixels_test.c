@@ -3,21 +3,20 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "st_pixels.h"
-
-#include "io_error.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#define CHECK(expression) do { \
-	if (!(expression)) { \
-		fprintf(stderr, "check failed at %s:%d: %s\n", \
-		    __FILE__, __LINE__, #expression); \
-		exit(EXIT_FAILURE); \
-	} \
-} while (false)
+#include "io_error.h"
+#include "st_pixels.h"
+
+#define CHECK(expression)                                                                                \
+	do {                                                                                             \
+		if (!(expression)) {                                                                     \
+			fprintf(stderr, "check failed at %s:%d: %s\n", __FILE__, __LINE__, #expression); \
+			exit(EXIT_FAILURE);                                                              \
+		}                                                                                        \
+	} while (false)
 
 extern size_t st_pixels_test_fail_allocation;
 extern size_t st_pixels_test_allocations;
@@ -31,37 +30,35 @@ position(const struct st_pixel_buffer *buffer, uint32_t x, uint32_t y)
 int
 main(void)
 {
-	struct st_pixel_buffer *empty = NULL;
-	struct st_pixel_mask *empty_mask = NULL;
+	struct st_pixel_buffer *empty      = NULL;
+	struct st_pixel_mask   *empty_mask = NULL;
 
 	CHECK(st_pixel_buffer_create(&empty, 0, 0, false) == 0);
-	CHECK(empty != NULL && empty->primary != NULL && empty->width == 0
-	    && empty->height == 0);
+	CHECK(empty != NULL && empty->primary != NULL && empty->width == 0 && empty->height == 0);
 	CHECK(st_pixel_buffer_ensure_alternate(empty) == 0);
 	CHECK(empty->alternate != NULL);
 	st_pixel_buffer_destroy(empty);
 	CHECK(st_pixel_mask_create(&empty_mask, 0, 0) == 0);
-	CHECK(empty_mask != NULL && empty_mask->bits != NULL
-	    && empty_mask->width == 0 && empty_mask->height == 0);
+	CHECK(empty_mask != NULL && empty_mask->bits != NULL && empty_mask->width == 0 && empty_mask->height == 0);
 	st_pixel_mask_destroy(empty_mask);
 
-	struct st_pixel_buffer *source = NULL;
+	struct st_pixel_buffer *source      = NULL;
 	struct st_pixel_buffer *destination = NULL;
-	struct st_pixel_buffer *copy = NULL;
-	struct st_rgb_buffer *rgb = NULL;
-	struct st_pixel_mask *mask = NULL;
-	struct st_pixel_blit blit = {
-		.source_x = 0,
-		.source_y = 0,
-		.width = 2,
-		.height = 2,
-		.destination_x = -1,
-		.destination_y = 1,
-		.scale_x = 2,
-		.scale_y = 2,
-		.mask_x = 0,
-		.mask_y = 0,
-		.flags = ST_PIXEL_BLIT_FLIP_X,
+	struct st_pixel_buffer *copy        = NULL;
+	struct st_rgb_buffer   *rgb         = NULL;
+	struct st_pixel_mask   *mask        = NULL;
+	struct st_pixel_blit    blit        = {
+	    .source_x      = 0,
+	    .source_y      = 0,
+	    .width         = 2,
+	    .height        = 2,
+	    .destination_x = -1,
+	    .destination_y = 1,
+	    .scale_x       = 2,
+	    .scale_y       = 2,
+	    .mask_x        = 0,
+	    .mask_y        = 0,
+	    .flags         = ST_PIXEL_BLIT_FLIP_X,
 	};
 	bool bit;
 
@@ -71,7 +68,7 @@ main(void)
 	CHECK(st_pixel_buffer_create(&destination, 4, 4, false) == 0);
 	CHECK(st_pixel_mask_create(&mask, 2, 2) == 0);
 	for (size_t i = 0; i < 4; ++i) {
-		source->primary[i] = (uint32_t)i + 1;
+		source->primary[i]   = (uint32_t)i + 1;
 		source->alternate[i] = (uint32_t)i + 11;
 	}
 	CHECK(st_pixel_buffer_fill(destination, 9, 19) == 0);
@@ -93,16 +90,16 @@ main(void)
 	CHECK(copy->primary != source->primary);
 	CHECK(copy->alternate != source->alternate);
 	CHECK(copy->primary[3] == 4 && copy->alternate[3] == 14);
-	blit = (struct st_pixel_blit){
-		.source_x = 0,
-		.source_y = 0,
-		.width = 2,
-		.height = 2,
-		.destination_x = 0,
-		.destination_y = 0,
-		.scale_x = 1,
-		.scale_y = 1,
-		.flags = ST_PIXEL_BLIT_FLIP_X | ST_PIXEL_BLIT_FLIP_Y,
+	blit = (struct st_pixel_blit) {
+	    .source_x      = 0,
+	    .source_y      = 0,
+	    .width         = 2,
+	    .height        = 2,
+	    .destination_x = 0,
+	    .destination_y = 0,
+	    .scale_x       = 1,
+	    .scale_y       = 1,
+	    .flags         = ST_PIXEL_BLIT_FLIP_X | ST_PIXEL_BLIT_FLIP_Y,
 	};
 	CHECK(st_pixel_buffer_blit(copy, copy, NULL, &blit) == 0);
 	CHECK(copy->primary[0] == 4 && copy->primary[3] == 1);
@@ -111,25 +108,24 @@ main(void)
 	CHECK(st_pixel_buffer_ensure_alternate(copy) == 0);
 	CHECK(copy->alternate[0] == copy->primary[0]);
 	blit.width = 3;
-	CHECK(st_pixel_buffer_blit(destination, source, NULL, &blit)
-	    == IO_ERROR_OUT_OF_RANGE);
+	CHECK(st_pixel_buffer_blit(destination, source, NULL, &blit) == IO_ERROR_OUT_OF_RANGE);
 
 	/* Alternate-plane allocation fails before publication or pixel changes. */
 	blit.width = 2;
 	st_pixel_buffer_remove_alternate(destination);
 	uint32_t saved_pixels[16];
 	memcpy(saved_pixels, destination->primary, sizeof(saved_pixels));
-	uint32_t *saved_primary = destination->primary;
-	st_pixels_test_allocations = 0;
+	uint32_t *saved_primary        = destination->primary;
+	st_pixels_test_allocations     = 0;
 	st_pixels_test_fail_allocation = 1;
 	CHECK(st_pixel_buffer_blit(destination, source, NULL, &blit) == IO_ERROR_OUT_OF_MEMORY);
 	CHECK(destination->alternate == NULL && destination->primary == saved_primary
-	    && memcmp(destination->primary, saved_pixels, sizeof(saved_pixels)) == 0);
+	      && memcmp(destination->primary, saved_pixels, sizeof(saved_pixels)) == 0);
 	CHECK(st_pixels_test_allocations == 1);
 	st_pixels_test_fail_allocation = 0;
 	/* A self-blit snapshots both planes. Fail each real clone allocation. */
 	for (size_t allocation = 1; allocation <= 3; ++allocation) {
-		st_pixels_test_allocations = 0;
+		st_pixels_test_allocations     = 0;
 		st_pixels_test_fail_allocation = allocation;
 		CHECK(st_pixel_buffer_blit(source, source, NULL, &blit) == IO_ERROR_OUT_OF_MEMORY);
 		for (size_t i = 0; i < 4; ++i)
@@ -137,10 +133,9 @@ main(void)
 		CHECK(st_pixels_test_allocations == allocation);
 	}
 	st_pixels_test_fail_allocation = 0;
-	st_pixels_test_allocations = 0;
+	st_pixels_test_allocations     = 0;
 	CHECK(st_pixel_buffer_blit(source, source, NULL, &blit) == 0);
-	CHECK(st_pixels_test_allocations == 3 && source->primary[0] == 4
-	    && source->alternate[0] == 14);
+	CHECK(st_pixels_test_allocations == 3 && source->primary[0] == 4 && source->alternate[0] == 14);
 	/* Ordinary distinct-buffer blits without a missing plane allocate nothing. */
 	st_pixels_test_allocations = 0;
 	CHECK(st_pixel_buffer_blit(destination, copy, NULL, &blit) == 0);

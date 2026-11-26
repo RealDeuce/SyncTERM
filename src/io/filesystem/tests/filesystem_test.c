@@ -3,31 +3,30 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "filesystem.h"
-
-#include "io_error.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 
+#include "filesystem.h"
+#include "io_error.h"
+
 #ifdef _WIN32
-#include <process.h>
-#include <windows.h>
+ #include <windows.h>
+ #include <process.h>
 #else
-#include <unistd.h>
+ #include <unistd.h>
 #endif
 
 static int failures;
 
-#define CHECK(expression) do { \
-	if (!(expression)) { \
-		fprintf(stderr, "%s:%d: check failed: %s\n", \
-		    __FILE__, __LINE__, #expression); \
-		failures++; \
-	} \
-} while (0)
+#define CHECK(expression)                                                                              \
+	do {                                                                                           \
+		if (!(expression)) {                                                                   \
+			fprintf(stderr, "%s:%d: check failed: %s\n", __FILE__, __LINE__, #expression); \
+			failures++;                                                                    \
+		}                                                                                      \
+	} while (0)
 
 static void
 make_path(char *result, size_t size, const char *directory, const char *name)
@@ -56,8 +55,7 @@ main(void)
 #else
 	long process_id = (long)getpid();
 #endif
-	int written = snprintf(directory, sizeof(directory),
-	    "filesystem-test-%ld", process_id);
+	int written = snprintf(directory, sizeof(directory), "filesystem-test-%ld", process_id);
 	CHECK(written >= 0 && (size_t)written < sizeof(directory));
 	if (written < 0 || (size_t)written >= sizeof(directory))
 		return EXIT_FAILURE;
@@ -73,10 +71,8 @@ main(void)
 	make_path(child, sizeof(child), nested, "child.txt");
 
 	struct fs_info untouched = {FS_ENTRY_OTHER, 42, 43};
-	CHECK(fs_get_info(&untouched, "path-that-does-not-exist") ==
-	    IO_ERROR_NOT_FOUND);
-	CHECK(untouched.kind == FS_ENTRY_OTHER && untouched.size == 42 &&
-	    untouched.modified_time == 43);
+	CHECK(fs_get_info(&untouched, "path-that-does-not-exist") == IO_ERROR_NOT_FOUND);
+	CHECK(untouched.kind == FS_ENTRY_OTHER && untouched.size == 42 && untouched.modified_time == 43);
 
 	write_text(source, "source contents");
 	FILE *exclusive = NULL;
@@ -150,8 +146,7 @@ main(void)
 	CHECK(fs_get_info(&info, destination) == 0);
 	CHECK(info.size == 0);
 	CHECK(fs_replace_file(NULL, "x", 1) == IO_ERROR_INVALID_ARGUMENT);
-	CHECK(fs_replace_file(destination, NULL, 1) ==
-	    IO_ERROR_INVALID_ARGUMENT);
+	CHECK(fs_replace_file(destination, NULL, 1) == IO_ERROR_INVALID_ARGUMENT);
 	CHECK(fs_open(&stream, destination, "r+b") == 0);
 	CHECK(fs_stream_position(stream) == 0);
 	CHECK(fs_stream_seek(stream, 0) == 0);
@@ -162,8 +157,7 @@ main(void)
 	{
 		char parent_file[512];
 
-		make_path(parent_file, sizeof(parent_file), directory,
-		    "parents/child/file.txt");
+		make_path(parent_file, sizeof(parent_file), directory, "parents/child/file.txt");
 		CHECK(fs_create_parent_directories(parent_file) == 0);
 		CHECK(fs_get_info(&info, parent_file) == IO_ERROR_NOT_FOUND);
 	}
@@ -208,14 +202,13 @@ main(void)
 	char link[512], dangling[512];
 	make_path(link, sizeof(link), directory, "source-link");
 	DWORD link_flags = 0;
-#ifdef SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE
+ #ifdef SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE
 	link_flags = SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE;
-#endif
+ #endif
 	BOOL made_link = CreateSymbolicLinkA(link, "source.txt", link_flags);
-	if (!made_link && link_flags != 0 &&
-	    GetLastError() == ERROR_INVALID_PARAMETER) {
+	if (!made_link && link_flags != 0 && GetLastError() == ERROR_INVALID_PARAMETER) {
 		link_flags = 0;
-		made_link = CreateSymbolicLinkA(link, "source.txt", 0);
+		made_link  = CreateSymbolicLinkA(link, "source.txt", 0);
 	}
 	if (made_link) {
 		CHECK(fs_get_link_info(&info, link) == 0);
@@ -223,8 +216,7 @@ main(void)
 		CHECK(fs_get_info(&info, link) == 0);
 		CHECK(info.kind == FS_ENTRY_FILE);
 		CHECK(fs_remove_file(link) == 0);
-		make_path(dangling, sizeof(dangling), directory,
-		    "dangling-link");
+		make_path(dangling, sizeof(dangling), directory, "dangling-link");
 		CHECK(CreateSymbolicLinkA(dangling, "missing", link_flags));
 		CHECK(fs_get_info(&info, dangling) == IO_ERROR_NOT_FOUND);
 		CHECK(fs_get_link_info(&info, dangling) == 0);
@@ -232,8 +224,7 @@ main(void)
 		CHECK(fs_remove_file(dangling) == 0);
 	}
 	else
-		fprintf(stderr, "Windows link tests skipped (error %lu)\n",
-		    (unsigned long)GetLastError());
+		fprintf(stderr, "Windows link tests skipped (error %lu)\n", (unsigned long)GetLastError());
 	make_path(exact, sizeof(exact), directory, "NUL");
 	write_text(exact, "exact");
 	CHECK(fs_get_info(&info, exact) == 0);
@@ -253,8 +244,7 @@ main(void)
 	    directory);
 	CHECK(fs_create_directories(long_directory) == 0);
 	char unicode[2300];
-	make_path(unicode, sizeof(unicode), long_directory,
-	    "unicode-\xf0\x9f\x98\x80.txt");
+	make_path(unicode, sizeof(unicode), long_directory, "unicode-\xf0\x9f\x98\x80.txt");
 	write_text(unicode, "utf8");
 	CHECK(fs_get_info(&info, unicode) == 0);
 	CHECK(fs_remove_file(unicode) == 0);

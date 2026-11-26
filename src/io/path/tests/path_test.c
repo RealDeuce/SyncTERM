@@ -3,30 +3,28 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "path.h"
-
-#include "io_error.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "io_error.h"
+#include "path.h"
+
 static int failures;
 
-#define CHECK(expression) do { \
-	if (!(expression)) { \
-		fprintf(stderr, "%s:%d: check failed: %s\n", \
-		    __FILE__, __LINE__, #expression); \
-		failures++; \
-	} \
-} while (0)
+#define CHECK(expression)                                                                              \
+	do {                                                                                           \
+		if (!(expression)) {                                                                   \
+			fprintf(stderr, "%s:%d: check failed: %s\n", __FILE__, __LINE__, #expression); \
+			failures++;                                                                    \
+		}                                                                                      \
+	} while (0)
 
 static void
-check_output(ptrdiff_t (*function)(char *, size_t, const char *),
-    const char *input, const char *expected)
+check_output(ptrdiff_t (*function)(char *, size_t, const char *), const char *input, const char *expected)
 {
-	char output[512];
-	char small[4] = "old";
+	char      output[512];
+	char      small[4] = "old";
 	ptrdiff_t required = function(NULL, 0, input);
 	CHECK(required == (ptrdiff_t)strlen(expected));
 	CHECK(function(output, sizeof(output), input) == required);
@@ -86,8 +84,7 @@ main(void)
 	char absolute[1024];
 	CHECK(path_make_absolute(absolute, sizeof(absolute), ".\\one\\..\\two") > 0);
 	CHECK(strstr(absolute, "\\two") != NULL);
-	CHECK(path_make_absolute(absolute, sizeof(absolute),
-	    "//server/share/one/../two") == 18);
+	CHECK(path_make_absolute(absolute, sizeof(absolute), "//server/share/one/../two") == 18);
 	CHECK(strcmp(absolute, "\\\\server\\share\\two") == 0);
 	CHECK(path_make_absolute(absolute, sizeof(absolute), "C:.") > 0);
 	CHECK(absolute[1] == ':' && absolute[2] == '\\');
@@ -119,11 +116,10 @@ main(void)
 	if (home == NULL || *home == '\0')
 		CHECK(path_expand_user(NULL, 0, "~/one") == IO_ERROR_NOT_FOUND);
 	else {
-		char expected[512];
-		size_t length = strlen(home);
-		const char *suffix = home[length - 1] == '/' ? "one" : "/one";
-		int written = snprintf(expected, sizeof(expected), "%s%s", home,
-		    suffix);
+		char        expected[512];
+		size_t      length  = strlen(home);
+		const char *suffix  = home[length - 1] == '/' ? "one" : "/one";
+		int         written = snprintf(expected, sizeof(expected), "%s%s", home, suffix);
 
 		CHECK(written >= 0 && (size_t)written < sizeof(expected));
 		if (written >= 0 && (size_t)written < sizeof(expected))

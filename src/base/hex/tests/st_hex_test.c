@@ -5,31 +5,31 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "st_hex.h"
-
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
-#define CHECK(expression) do { \
-	if (!(expression)) { \
-		fprintf(stderr, "check failed at %s:%d: %s\n", __FILE__, \
-		    __LINE__, #expression); \
-		return 1; \
-	} \
-} while (0)
+#include "st_hex.h"
+
+#define CHECK(expression)                                                                                \
+	do {                                                                                             \
+		if (!(expression)) {                                                                     \
+			fprintf(stderr, "check failed at %s:%d: %s\n", __FILE__, __LINE__, #expression); \
+			return 1;                                                                        \
+		}                                                                                        \
+	} while (0)
 
 int
 main(void)
 {
 	static const uint8_t known[] = {0x00, 0x01, 0xab, 0xcd, 0xef, 0xff};
-	uint8_t all[256];
-	uint8_t decoded[256];
-	char encoded[sizeof(all) * 2 + 1];
-	char unchanged[] = "unchanged";
-	char empty[1] = {'x'};
-	uint8_t byte = 0xa5;
-	uint8_t digit = 0xff;
+	uint8_t              all[256];
+	uint8_t              decoded[256];
+	char                 encoded[sizeof(all) * 2 + 1];
+	char                 unchanged[] = "unchanged";
+	char                 empty[1]    = {'x'};
+	uint8_t              byte        = 0xa5;
+	uint8_t              digit       = 0xff;
 
 	CHECK(st_hex_digit_value('0', &digit) && digit == 0);
 	CHECK(st_hex_digit_value('a', &digit) && digit == 10);
@@ -72,17 +72,16 @@ main(void)
 	/* All non-hex byte values, including embedded NUL and high bytes,
 	 * must reject the whole input without publishing a decoded prefix. */
 	for (unsigned int i = 0; i <= 255; ++i) {
-		bool valid = (i >= '0' && i <= '9') || (i >= 'a' && i <= 'f')
-		    || (i >= 'A' && i <= 'F');
-		digit = 0xff;
+		bool valid = (i >= '0' && i <= '9') || (i >= 'a' && i <= 'f') || (i >= 'A' && i <= 'F');
+		digit      = 0xff;
 		CHECK(st_hex_digit_value((unsigned char)i, &digit) == valid);
 		if (valid)
 			continue;
 		CHECK(digit == 0xff);
 		for (size_t offset = 0; offset < 4; ++offset) {
-			unsigned char input[] = {'0', '1', 'a', 'b'};
+			unsigned char input[]  = {'0', '1', 'a', 'b'};
 			unsigned char output[] = {0xa5, 0xa5, 0xa5};
-			input[offset] = (unsigned char)i;
+			input[offset]          = (unsigned char)i;
 			CHECK(!st_hex_decode(output, 2, (const char *)input, 4));
 			CHECK(output[0] == 0xa5 && output[1] == 0xa5 && output[2] == 0xa5);
 		}

@@ -3,7 +3,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 
-bool st_rip3_drawing_test_fail_calloc;
+bool     st_rip3_drawing_test_fail_calloc;
 unsigned st_rip3_drawing_test_calloc_countdown;
 
 static void *
@@ -13,8 +13,7 @@ test_calloc(size_t count, size_t size)
 		st_rip3_drawing_test_fail_calloc = false;
 		return NULL;
 	}
-	if (st_rip3_drawing_test_calloc_countdown != 0
-	    && --st_rip3_drawing_test_calloc_countdown == 0)
+	if (st_rip3_drawing_test_calloc_countdown != 0 && --st_rip3_drawing_test_calloc_countdown == 0)
 		return NULL;
 	return calloc(count, size);
 }

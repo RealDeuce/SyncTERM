@@ -1,6 +1,7 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
-#include "st_emoji_catalog.h"
 #include <string.h>
+
+#include "st_emoji_catalog.h"
 
 size_t
 st_emoji_find(const char *text)

@@ -1,20 +1,20 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
-#include "st_rip3_styles.h"
-#include "st_rip3_backup.h"
-#include "io_error.h"
-
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "io_error.h"
+#include "st_rip3_backup.h"
+#include "st_rip3_styles.h"
+
 struct style_entry {
 	struct st_rip3_style_info info;
-	struct st_rip3_style value;
+	struct st_rip3_style      value;
 };
 
 struct st_rip3_styles {
-	unsigned current;
+	unsigned           current;
 	struct style_entry entries[36];
 };
 
@@ -24,29 +24,40 @@ valid(const struct st_rip3_style *value)
 	struct st_rip3_classic_text_style font;
 
 	return value->drawing_color <= 0xffffff && value->background_color <= 0xffffff
-	    && value->fill_color <= 0xffffff && value->pen.pattern != 0 && value->line_type <= 4
-	    && value->fill_type >= ST_RIP3_FILL_CUSTOM && value->fill_type <= 11
-	    && value->pen.thickness > 0 && value->pen.thickness <= INT32_MAX
-	    && value->font_mode >= ST_RIP3_FONT_CLASSIC && value->font_mode <= ST_RIP3_FONT_OUTLINE
-	    && value->outline.compatibility_s <= 63 && value->outline.compatibility_f <= 63
-	    && value->outline.flags <= 0xffffff && value->outline.size <= 4095 && value->outline.shadow <= 4095
-	    && value->outline.string_rotation <= 2700 && value->outline.string_rotation%900 == 0
-	    && value->outline.character_rotation <= 2700 && value->outline.character_rotation%900 == 0
-	    && value->outline.spacing <= 4095 && (value->font_mode != ST_RIP3_FONT_OUTLINE || value->outline.spacing != 0)
-	    && value->outline.baseline <= INT32_MAX && memchr(value->outline.name,0,sizeof(value->outline.name)) != NULL
-	    && value->write_mode >= ST_RIP3_COPY && value->write_mode <= ST_RIP3_NOT
-	    && st_rip3_classic_text_style_set(&font, value->font.font,
-	    value->font.direction, value->font.magnification, value->font.flags) == 0;
+	       && value->fill_color <= 0xffffff && value->pen.pattern != 0 && value->line_type <= 4
+	       && value->fill_type >= ST_RIP3_FILL_CUSTOM && value->fill_type <= 11 && value->pen.thickness > 0
+	       && value->pen.thickness <= INT32_MAX && value->font_mode >= ST_RIP3_FONT_CLASSIC
+	       && value->font_mode <= ST_RIP3_FONT_OUTLINE && value->outline.compatibility_s <= 63
+	       && value->outline.compatibility_f <= 63 && value->outline.flags <= 0xffffff
+	       && value->outline.size <= 4095 && value->outline.shadow <= 4095
+	       && value->outline.string_rotation <= 2700 && value->outline.string_rotation % 900 == 0
+	       && value->outline.character_rotation <= 2700 && value->outline.character_rotation % 900 == 0
+	       && value->outline.spacing <= 4095
+	       && (value->font_mode != ST_RIP3_FONT_OUTLINE || value->outline.spacing != 0)
+	       && value->outline.baseline <= INT32_MAX
+	       && memchr(value->outline.name, 0, sizeof(value->outline.name)) != NULL
+	       && value->write_mode >= ST_RIP3_COPY && value->write_mode <= ST_RIP3_NOT
+	       && st_rip3_classic_text_style_set(&font, value->font.font, value->font.direction,
+		      value->font.magnification, value->font.flags)
+	              == 0;
 }
 
 int
 st_rip3_style_defaults(struct st_rip3_style *result)
 {
-	if (result == NULL) return IO_ERROR_INVALID_ARGUMENT;
-	struct st_rip3_style value = {.drawing_color=15,.fill_color=15,.fill_type=ST_RIP3_FILL_SOLID,
-	    .pen={.pattern=0xffff,.thickness=1},.font={0,0,1,0},
-	    .write_mode=ST_RIP3_COPY,.borders=true,.outline={.spacing=100}};
-	(void)st_rip3_fill_solid(&value.fill,true);
+	if (result == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	struct st_rip3_style value = {
+	    .drawing_color = 15,
+	    .fill_color    = 15,
+	    .fill_type     = ST_RIP3_FILL_SOLID,
+	    .pen           = {.pattern = 0xffff, .thickness = 1},
+	    .font          = {0, 0, 1, 0},
+	    .write_mode    = ST_RIP3_COPY,
+	    .borders       = true,
+	    .outline       = {.spacing = 100}
+        };
+	(void)st_rip3_fill_solid(&value.fill, true);
 	*result = value;
 	return 0;
 }
@@ -69,10 +80,12 @@ st_rip3_styles_reset_entry(struct st_rip3_styles *styles, unsigned number, bool 
 int
 st_rip3_styles_soft_reset(struct st_rip3_styles *styles)
 {
-	if (styles==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (styles == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
 	for (unsigned i = 0; i < 36; i++)
 		(void)st_rip3_styles_reset_entry(styles, i, false);
-	styles->current=0;return 0;
+	styles->current = 0;
+	return 0;
 }
 
 int
@@ -88,8 +101,8 @@ st_rip3_styles_create(struct st_rip3_styles **result, const struct st_rip3_style
 	if (styles == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
 	styles->entries[0].info.defined = true;
-	styles->entries[0].value = *initial;
-	*result = styles;
+	styles->entries[0].value        = *initial;
+	*result                         = styles;
 	return 0;
 }
 
@@ -191,20 +204,27 @@ st_rip3_styles_protect(struct st_rip3_styles *styles, unsigned number, bool prot
 }
 
 int
-st_rip3_styles_copy_entries(struct st_rip3_styles *styles, unsigned source,
-    const unsigned *destinations, size_t count)
+st_rip3_styles_copy_entries(struct st_rip3_styles *styles, unsigned source, const unsigned *destinations,
+    size_t count)
 {
-	if (styles==NULL || destinations==NULL || count==0) return IO_ERROR_INVALID_ARGUMENT;
-	if (source>=36) return IO_ERROR_OUT_OF_RANGE;
-	if (!styles->entries[source].info.defined) return IO_ERROR_NOT_FOUND;
-	for (size_t i=0;i<count;i++) {
-		if (destinations[i]>=36) return IO_ERROR_OUT_OF_RANGE;
-		if (destinations[i]==source) return IO_ERROR_INVALID_ARGUMENT;
-		if (styles->entries[destinations[i]].info.protected) return IO_ERROR_PERMISSION_DENIED;
+	if (styles == NULL || destinations == NULL || count == 0)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (source >= 36)
+		return IO_ERROR_OUT_OF_RANGE;
+	if (!styles->entries[source].info.defined)
+		return IO_ERROR_NOT_FOUND;
+	for (size_t i = 0; i < count; i++) {
+		if (destinations[i] >= 36)
+			return IO_ERROR_OUT_OF_RANGE;
+		if (destinations[i] == source)
+			return IO_ERROR_INVALID_ARGUMENT;
+		if (styles->entries[destinations[i]].info.protected)
+			return IO_ERROR_PERMISSION_DENIED;
 	}
-	for (size_t i=0;i<count;i++) {
-		styles->entries[destinations[i]]=styles->entries[source];
-		if (destinations[i]==0) styles->entries[0].info.protected=false;
+	for (size_t i = 0; i < count; i++) {
+		styles->entries[destinations[i]] = styles->entries[source];
+		if (destinations[i] == 0)
+			styles->entries[0].info.protected = false;
 	}
 	return 0;
 }
@@ -220,7 +240,7 @@ style_clone(const void *object, void **result)
 	if (snapshot == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
 	*snapshot = *(const struct st_rip3_styles *)object;
-	*result = snapshot;
+	*result   = snapshot;
 	return 0;
 }
 
@@ -229,10 +249,10 @@ style_restore(void *object, const void *saved)
 {
 	if (object == NULL || saved == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	struct st_rip3_styles *styles = object;
-	unsigned current = styles->current;
-	*styles = *(const struct st_rip3_styles *)saved;
-	return st_rip3_styles_switch(styles,current);
+	struct st_rip3_styles *styles  = object;
+	unsigned               current = styles->current;
+	*styles                        = *(const struct st_rip3_styles *)saved;
+	return st_rip3_styles_switch(styles, current);
 }
 
 static void
@@ -244,7 +264,7 @@ style_destroy(void *object)
 int
 st_rip3_styles_backup_create(struct st_rip3_backup **result)
 {
-	static const struct st_rip3_backup_ops ops = {style_clone,style_restore,style_destroy};
+	static const struct st_rip3_backup_ops ops = {style_clone, style_restore, style_destroy};
 
 	return st_rip3_backup_create(result, &ops);
 }
@@ -254,7 +274,7 @@ st_rip3_styles_header_prune(struct st_rip3_styles *styles, unsigned keep)
 {
 	for (unsigned i = 1; i < 36; ++i)
 		if (i != keep && !styles->entries[i].info.protected)
-			styles->entries[i] = (struct style_entry){0};
+			styles->entries[i] = (struct style_entry) {0};
 }
 
 void

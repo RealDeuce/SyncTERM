@@ -7,18 +7,16 @@
 static void
 dump_terminal_output(const unsigned char *output, size_t size)
 {
-	const char *term = getenv("TERM");
-	const char *terminfo = getenv("TERMINFO");
+	const char *term      = getenv("TERM");
+	const char *terminfo  = getenv("TERMINFO");
 	const char *colorterm = getenv("COLORTERM");
-	size_t start = size > 512 ? size - 512 : 0;
+	size_t      start     = size > 512 ? size - 512 : 0;
 
-	fprintf(stderr, "PTY bytes=%zu TERM=%.120s TERMINFO=%.120s COLORTERM=%.120s\n",
-	    size, term == NULL ? "(unset)" : term,
-	    terminfo == NULL ? "(unset)" : terminfo,
+	fprintf(stderr, "PTY bytes=%zu TERM=%.120s TERMINFO=%.120s COLORTERM=%.120s\n", size,
+	    term == NULL ? "(unset)" : term, terminfo == NULL ? "(unset)" : terminfo,
 	    colorterm == NULL ? "(unset)" : colorterm);
 	for (size_t i = start; i < size; ++i)
-		fprintf(stderr, "%02x%s", output[i],
-		    (i - start + 1) % 32 == 0 ? "\n" : " ");
+		fprintf(stderr, "%02x%s", output[i], (i - start + 1) % 32 == 0 ? "\n" : " ");
 	fputc('\n', stderr);
 }
 #endif

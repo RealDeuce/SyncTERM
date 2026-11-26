@@ -3,8 +3,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "st_connection_config.h"
-
 #include <poll.h>
 #include <signal.h>
 #include <stddef.h>
@@ -12,6 +10,8 @@
 #include <string.h>
 #include <termios.h>
 #include <unistd.h>
+
+#include "st_connection_config.h"
 
 static volatile sig_atomic_t interrupted;
 
@@ -43,26 +43,24 @@ write_environment(const char *name)
 {
 	const char *value = getenv(name);
 
-	return write_all(name) || write_all("=")
-	    || write_all(value != NULL ? value : "<unset>") || write_all("\n");
+	return write_all(name) || write_all("=") || write_all(value != NULL ? value : "<unset>")
+	       || write_all("\n");
 }
 
 int
 main(int argc, char **argv)
 {
 	struct termios attributes;
-	char input[32];
-	ssize_t count;
+	char           input[32];
+	ssize_t        count;
 
 	(void)argc;
 
 	if (tcgetattr(STDIN_FILENO, &attributes) != 0)
 		return 1;
-	if ((attributes.c_iflag & ICRNL) == 0
-	    || (attributes.c_iflag & (IXON | IXOFF)) != 0
+	if ((attributes.c_iflag & ICRNL) == 0 || (attributes.c_iflag & (IXON | IXOFF)) != 0
 	    || (attributes.c_oflag & OPOST) == 0
-	    || (attributes.c_lflag & (ECHO | ICANON | ISIG))
-	    != (ECHO | ICANON | ISIG)
+	    || (attributes.c_lflag & (ECHO | ICANON | ISIG)) != (ECHO | ICANON | ISIG)
 	    || attributes.c_cc[VERASE] != '\b')
 		return 2;
 #if ST_CONNECTION_HAVE_IXANY
@@ -74,15 +72,13 @@ main(int argc, char **argv)
 		return 2;
 #endif
 #if ST_CONNECTION_HAVE_B115200
-	if (cfgetispeed(&attributes) != B115200
-	    || cfgetospeed(&attributes) != B115200)
+	if (cfgetispeed(&attributes) != B115200 || cfgetospeed(&attributes) != B115200)
 		return 2;
 #endif
 	if (signal(SIGINT, handle_interrupt) == SIG_ERR)
 		return 3;
-	if (write_all("ARGV0=") || write_all(argv[0]) || write_all("\n")
-	    || write_environment("TERM") || write_environment("COLUMNS")
-	    || write_environment("LINES") || write_environment("TERMCAP")
+	if (write_all("ARGV0=") || write_all(argv[0]) || write_all("\n") || write_environment("TERM")
+	    || write_environment("COLUMNS") || write_environment("LINES") || write_environment("TERMCAP")
 	    || write_environment("MM_CHARSET"))
 		return 4;
 	if (write_all("flags-ok\nready\n") != 0)
@@ -92,8 +88,7 @@ main(int argc, char **argv)
 		return 5;
 	if (write_all("line-ok\nsignal-ready\n") != 0)
 		return 6;
-	for (unsigned int elapsed = 0; !interrupted && elapsed < 5000;
-	    elapsed += 10)
+	for (unsigned int elapsed = 0; !interrupted && elapsed < 5000; elapsed += 10)
 		(void)poll(NULL, 0, 10);
 	if (!interrupted)
 		return 7;

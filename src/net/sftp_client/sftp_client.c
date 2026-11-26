@@ -29,15 +29,15 @@
  */
 
 struct sftp_client_state {
-	bool (*send_cb)(uint8_t *buf, size_t len, void *cb_data);
-	sftp_rx_pkt_t rxp;
-	sftp_tx_pkt_t txp;
-	void *cb_data;
+	bool                  (*send_cb)(uint8_t *buf, size_t len, void *cb_data);
+	sftp_rx_pkt_t         rxp;
+	sftp_tx_pkt_t         txp;
+	void                 *cb_data;
 	struct sftpc_pending *pending;
-	st_mutex_t mtx;
-	uint32_t version;
-	uint32_t running;
-	uint32_t id;
+	st_mutex_t            mtx;
+	uint32_t              version;
+	uint32_t              running;
+	uint32_t              id;
 	/* `extensions` is set only inside sftpc_init's parse callback
 	 * under mtx and read thereafter without mtx by sftpc_get_extensions.
 	 * Callers must wait for sftpc_init to complete before issuing other
@@ -48,7 +48,7 @@ struct sftp_client_state {
 	 * NUL-terminated heap copy owned by the library; freed in
 	 * sftpc_finish.  NULL when the extension wasn't negotiated. */
 	char *pubdir;
-	bool terminating;
+	bool  terminating;
 };
 
 /* Pending list helpers; state->mtx must be held. */
@@ -118,13 +118,11 @@ parse_status_into_pending(struct sftpc_pending *p)
 	sftp_rx_pkt_t reply = p->reply;
 	if (reply->type != SSH_FXP_STATUS)
 		return false;
-	p->result = get32(reply);
-	sftp_str_t msg = getstring(reply);
+	p->result       = get32(reply);
+	sftp_str_t msg  = getstring(reply);
 	sftp_str_t lang = getstring(reply);
 	if (msg != NULL && msg->len > 0) {
-		pending_record_reply(p,
-		    (const char *)msg->c_str, msg->len,
-		    lang ? (const char *)lang->c_str : "",
+		pending_record_reply(p, (const char *)msg->c_str, msg->len, lang ? (const char *)lang->c_str : "",
 		    lang ? lang->len : 0);
 	}
 	free_sftp_str(msg);
@@ -173,8 +171,7 @@ front_send(sftpc_state_t state, struct sftpc_pending *p)
 	uint8_t *buf;
 	size_t   sz;
 	if (!prep_tx_packet(state->txp, &buf, &sz)) {
-		PENDING_RECORD(p, SFTP_ERR_PACKET_BUILD_FAILED,
-		    "prep_tx_packet failed");
+		PENDING_RECORD(p, SFTP_ERR_PACKET_BUILD_FAILED, "prep_tx_packet failed");
 		return false;
 	}
 	pend_add(state, p);
@@ -203,8 +200,7 @@ free_self_base(struct sftpc_pending *p)
 static void
 free_self_realpath(struct sftpc_pending *base)
 {
-	struct sftpc_realpath_pending *p =
-	    (struct sftpc_realpath_pending *)base;
+	struct sftpc_realpath_pending *p = (struct sftpc_realpath_pending *)base;
 	free_sftp_str(p->ret);
 	free(base->estr);
 	free(p);
@@ -240,8 +236,7 @@ free_self_stat(struct sftpc_pending *base)
 static void
 free_self_readdir(struct sftpc_pending *base)
 {
-	struct sftpc_readdir_pending *p =
-	    (struct sftpc_readdir_pending *)base;
+	struct sftpc_readdir_pending *p = (struct sftpc_readdir_pending *)base;
 	sftpc_free_dir_entries(p->entries, p->count);
 	free(base->estr);
 	free(p);
@@ -274,11 +269,9 @@ sftpc_pending_free(struct sftpc_pending *p)
  * ======================================================================== */
 
 sftpc_state_t
-sftpc_begin(bool (*send_cb)(uint8_t *buf, size_t len, void *cb_data),
-            void *cb_data)
+sftpc_begin(bool (*send_cb)(uint8_t *buf, size_t len, void *cb_data), void *cb_data)
 {
-	sftpc_state_t ret = (sftpc_state_t)calloc(1,
-	    sizeof(struct sftp_client_state));
+	sftpc_state_t ret = (sftpc_state_t)calloc(1, sizeof(struct sftp_client_state));
 	if (ret == NULL)
 		return NULL;
 	ret->send_cb = send_cb;
@@ -306,11 +299,11 @@ sftpc_finish(sftpc_state_t state)
 	 * to parse — pend_dispatch skips parse when aborted is set. */
 	while (state->pending != NULL) {
 		struct sftpc_pending *p = state->pending;
-		state->pending = p->next;
+		state->pending          = p->next;
 		if (state->pending != NULL)
 			state->pending->prev = NULL;
 		p->prev = p->next = NULL;
-		p->aborted = true;
+		p->aborted        = true;
 		PENDING_RECORD(p, SFTP_ERR_ABORTED, "session terminating");
 		pend_dispatch(p);
 	}
@@ -351,20 +344,23 @@ sftpc_recv(sftpc_state_t state, uint8_t *buf, uint32_t sz)
 	bool ok = rx_pkt_append(&state->rxp, buf, sz);
 	while (ok && state->rxp != NULL && have_pkt_sz(state->rxp)) {
 		uint32_t length = pkt_sz(state->rxp);
-		if (length < 1 || length > SFTP_MAX_PACKET_SIZE) { ok = false; break; }
-		if (!have_full_pkt(state->rxp)) break;
+		if (length < 1 || length > SFTP_MAX_PACKET_SIZE) {
+			ok = false;
+			break;
+		}
+		if (!have_full_pkt(state->rxp))
+			break;
 		sftp_rx_pkt_t completed = extract_packet(state->rxp);
 		if (completed == NULL)
 			break;
-		uint32_t req_id = (completed->type == SSH_FXP_VERSION) ? 0
-		                                                      : get32(completed);
-		struct sftpc_pending *p = pend_find(state, req_id);
+		uint32_t              req_id = (completed->type == SSH_FXP_VERSION) ? 0 : get32(completed);
+		struct sftpc_pending *p      = pend_find(state, req_id);
 		if (p == NULL) {
 			free_rx_pkt(completed);
 			continue;
 		}
 		pend_remove(state, p);
-		p->reply = completed;
+		p->reply     = completed;
 		p->delivered = true;
 		pend_dispatch(p);
 	}
@@ -398,24 +394,23 @@ sftpc_get_pubdir(sftpc_state_t state)
  * ======================================================================== */
 
 struct init_pending {
-	struct sftpc_pending  base;
-	sftpc_state_t         state;
-	void                (*user_cb)(struct sftpc_pending *);
-	void                 *user_cbdata;
+	struct sftpc_pending base;
+	sftpc_state_t        state;
+	void                 (*user_cb)(struct sftpc_pending *);
+	void                *user_cbdata;
 };
 
 static void
 parse_init(struct sftpc_pending *base)
 {
-	struct init_pending *p = (struct init_pending *)base;
-	sftp_rx_pkt_t reply = base->reply;
+	struct init_pending *p     = (struct init_pending *)base;
+	sftp_rx_pkt_t        reply = base->reply;
 	if (reply->type != SSH_FXP_VERSION) {
-		PENDING_RECORD(base, SFTP_ERR_REPLY_WRONG_TYPE,
-		    "expected SSH_FXP_VERSION, got %s",
+		PENDING_RECORD(base, SFTP_ERR_REPLY_WRONG_TYPE, "expected SSH_FXP_VERSION, got %s",
 		    sftp_get_type_name(reply->type));
 		return;
 	}
-	p->state->version = get32(reply);
+	p->state->version    = get32(reply);
 	p->state->extensions = 0;
 	uint32_t payload_len = pkt_sz(reply) - 1;
 	while (reply->cur + sizeof(uint32_t) <= payload_len) {
@@ -426,17 +421,14 @@ parse_init(struct sftpc_pending *base)
 			free_sftp_str(ext_data);
 			break;
 		}
-		p->state->extensions |=
-		    extension_match(ext_name, ext_data) & SFTP_EXT_ALL;
+		p->state->extensions |= extension_match(ext_name, ext_data) & SFTP_EXT_ALL;
 		/* pubdir@syncterm.net is asymmetric: the server's VERSION
 		 * reply puts the actual public-dir path in the data field,
 		 * so extension_match() doesn't fire here.  Recognise by
 		 * name and capture the data as a NUL-terminated C string,
 		 * setting the bit explicitly. */
-		if (p->state->pubdir == NULL &&
-		    ext_name->len == strlen(SFTP_EXT_NAME_PUBDIR) &&
-		    memcmp(ext_name->c_str, SFTP_EXT_NAME_PUBDIR,
-		        ext_name->len) == 0) {
+		if (p->state->pubdir == NULL && ext_name->len == strlen(SFTP_EXT_NAME_PUBDIR)
+		    && memcmp(ext_name->c_str, SFTP_EXT_NAME_PUBDIR, ext_name->len) == 0) {
 			char *s = malloc((size_t)ext_data->len + 1);
 			if (s != NULL) {
 				memcpy(s, ext_data->c_str, ext_data->len);
@@ -449,8 +441,7 @@ parse_init(struct sftpc_pending *base)
 		free_sftp_str(ext_data);
 	}
 	if (p->state->version > SFTP_VERSION) {
-		PENDING_RECORD(base, SFTP_ERR_PARSE_FAILED,
-		    "server VERSION %u above SFTP_VERSION %u",
+		PENDING_RECORD(base, SFTP_ERR_PARSE_FAILED, "server VERSION %u above SFTP_VERSION %u",
 		    p->state->version, SFTP_VERSION);
 	}
 	else {
@@ -476,32 +467,28 @@ free_self_init(struct sftpc_pending *base)
 }
 
 struct sftpc_pending *
-sftpc_init(sftpc_state_t state, void (*cb)(struct sftpc_pending *),
-           void *cbdata)
+sftpc_init(sftpc_state_t state, void (*cb)(struct sftpc_pending *), void *cbdata)
 {
 	struct init_pending *p = calloc(1, sizeof(*p));
 	if (p == NULL)
 		return NULL;
-	p->base.cb = init_trampoline;
-	p->base.cbdata = NULL;
-	p->base.parse = parse_init;
+	p->base.cb        = init_trampoline;
+	p->base.cbdata    = NULL;
+	p->base.parse     = parse_init;
 	p->base.free_self = free_self_init;
-	p->user_cb = cb;
-	p->user_cbdata = cbdata;
-	p->state = state;
+	p->user_cb        = cb;
+	p->user_cbdata    = cbdata;
+	p->state          = state;
 
 	if (!client_enter(state, &p->base)) {
 		init_trampoline(&p->base);
 		return &p->base;
 	}
-	p->base.req_id = 0;  /* INIT/VERSION carries no id on the wire */
+	p->base.req_id = 0; /* INIT/VERSION carries no id on the wire */
 
-	if (!tx_pkt_reset(&state->txp) ||
-	    !appendbyte(&state->txp, SSH_FXP_INIT) ||
-	    !append32(&state->txp, SFTP_VERSION) ||
-	    !append_extensions(&state->txp, SFTP_EXT_ALL)) {
-		PENDING_RECORD(&p->base, SFTP_ERR_PACKET_BUILD_FAILED,
-		    "init build failed");
+	if (!tx_pkt_reset(&state->txp) || !appendbyte(&state->txp, SSH_FXP_INIT)
+	    || !append32(&state->txp, SFTP_VERSION) || !append_extensions(&state->txp, SFTP_EXT_ALL)) {
+		PENDING_RECORD(&p->base, SFTP_ERR_PACKET_BUILD_FAILED, "init build failed");
 		client_exit(state);
 		init_trampoline(&p->base);
 		return &p->base;
@@ -535,14 +522,12 @@ fire_sync(struct sftpc_pending *p)
 static void
 parse_realpath(struct sftpc_pending *base)
 {
-	struct sftpc_realpath_pending *p =
-	    (struct sftpc_realpath_pending *)base;
-	sftp_rx_pkt_t reply = base->reply;
+	struct sftpc_realpath_pending *p     = (struct sftpc_realpath_pending *)base;
+	sftp_rx_pkt_t                  reply = base->reply;
 	if (reply->type == SSH_FXP_NAME && get32(reply) == 1) {
 		p->ret = getstring(reply);
 		if (p->ret == NULL) {
-			PENDING_RECORD(base, SFTP_ERR_REPLY_BAD_STRING,
-			    "getstring failed on NAME reply");
+			PENDING_RECORD(base, SFTP_ERR_REPLY_BAD_STRING, "getstring failed on NAME reply");
 			return;
 		}
 		base->result = SSH_FX_OK;
@@ -550,21 +535,19 @@ parse_realpath(struct sftpc_pending *base)
 	}
 	if (parse_status_into_pending(base))
 		return;
-	PENDING_RECORD(base, SFTP_ERR_REPLY_WRONG_TYPE,
-	    "expected SSH_FXP_NAME or SSH_FXP_STATUS, got %s",
+	PENDING_RECORD(base, SFTP_ERR_REPLY_WRONG_TYPE, "expected SSH_FXP_NAME or SSH_FXP_STATUS, got %s",
 	    sftp_get_type_name(reply->type));
 }
 
 struct sftpc_realpath_pending *
-sftpc_realpath(sftpc_state_t state, const char *path,
-               void (*cb)(struct sftpc_pending *), void *cbdata)
+sftpc_realpath(sftpc_state_t state, const char *path, void (*cb)(struct sftpc_pending *), void *cbdata)
 {
 	struct sftpc_realpath_pending *p = calloc(1, sizeof(*p));
 	if (p == NULL)
 		return NULL;
-	p->base.cb = cb;
-	p->base.cbdata = cbdata;
-	p->base.parse = parse_realpath;
+	p->base.cb        = cb;
+	p->base.cbdata    = cbdata;
+	p->base.parse     = parse_realpath;
 	p->base.free_self = free_self_realpath;
 
 	if (path == NULL) {
@@ -577,10 +560,8 @@ sftpc_realpath(sftpc_state_t state, const char *path,
 		return p;
 	}
 	p->base.req_id = next_req_id(state);
-	if (!appendheader(&state->txp, SSH_FXP_REALPATH, p->base.req_id) ||
-	    !appendcstring(&state->txp, path)) {
-		PENDING_RECORD(&p->base, SFTP_ERR_PACKET_BUILD_FAILED,
-		    "appendheader/appendcstring failed");
+	if (!appendheader(&state->txp, SSH_FXP_REALPATH, p->base.req_id) || !appendcstring(&state->txp, path)) {
+		PENDING_RECORD(&p->base, SFTP_ERR_PACKET_BUILD_FAILED, "appendheader/appendcstring failed");
 		client_exit(state);
 		fire_sync(&p->base);
 		return p;
@@ -601,13 +582,12 @@ sftpc_realpath(sftpc_state_t state, const char *path,
 static void
 parse_open(struct sftpc_pending *base)
 {
-	struct sftpc_open_pending *p = (struct sftpc_open_pending *)base;
-	sftp_rx_pkt_t reply = base->reply;
+	struct sftpc_open_pending *p     = (struct sftpc_open_pending *)base;
+	sftp_rx_pkt_t              reply = base->reply;
 	if (reply->type == SSH_FXP_HANDLE) {
 		p->handle = getstring(reply);
 		if (p->handle == NULL) {
-			PENDING_RECORD(base, SFTP_ERR_REPLY_BAD_STRING,
-			    "getstring failed on HANDLE reply");
+			PENDING_RECORD(base, SFTP_ERR_REPLY_BAD_STRING, "getstring failed on HANDLE reply");
 			return;
 		}
 		base->result = SSH_FX_OK;
@@ -615,21 +595,20 @@ parse_open(struct sftpc_pending *base)
 	}
 	if (parse_status_into_pending(base))
 		return;
-	PENDING_RECORD(base, SFTP_ERR_REPLY_WRONG_TYPE,
-	    "expected SSH_FXP_HANDLE or SSH_FXP_STATUS, got %s",
+	PENDING_RECORD(base, SFTP_ERR_REPLY_WRONG_TYPE, "expected SSH_FXP_HANDLE or SSH_FXP_STATUS, got %s",
 	    sftp_get_type_name(reply->type));
 }
 
 static struct sftpc_open_pending *
-do_open(sftpc_state_t state, uint8_t type, const char *path, uint32_t flags,
-        void (*cb)(struct sftpc_pending *), void *cbdata)
+do_open(sftpc_state_t state, uint8_t type, const char *path, uint32_t flags, void (*cb)(struct sftpc_pending *),
+    void *cbdata)
 {
 	struct sftpc_open_pending *p = calloc(1, sizeof(*p));
 	if (p == NULL)
 		return NULL;
-	p->base.cb = cb;
-	p->base.cbdata = cbdata;
-	p->base.parse = parse_open;
+	p->base.cb        = cb;
+	p->base.cbdata    = cbdata;
+	p->base.parse     = parse_open;
 	p->base.free_self = free_self_open;
 
 	if (path == NULL) {
@@ -642,22 +621,19 @@ do_open(sftpc_state_t state, uint8_t type, const char *path, uint32_t flags,
 		return p;
 	}
 	p->base.req_id = next_req_id(state);
-	bool built = appendheader(&state->txp, type, p->base.req_id) &&
-	             appendcstring(&state->txp, path);
+	bool built     = appendheader(&state->txp, type, p->base.req_id) && appendcstring(&state->txp, path);
 	if (built && type == SSH_FXP_OPEN) {
 		sftp_file_attr_t a = sftp_fattr_alloc();
 		if (a == NULL) {
 			built = false;
 		}
 		else {
-			built = append32(&state->txp, flags) &&
-			        appendfattr(&state->txp, a);
+			built = append32(&state->txp, flags) && appendfattr(&state->txp, a);
 			sftp_fattr_free(a);
 		}
 	}
 	if (!built) {
-		PENDING_RECORD(&p->base, SFTP_ERR_PACKET_BUILD_FAILED,
-		    "open build failed");
+		PENDING_RECORD(&p->base, SFTP_ERR_PACKET_BUILD_FAILED, "open build failed");
 		client_exit(state);
 		fire_sync(&p->base);
 		return p;
@@ -672,15 +648,13 @@ do_open(sftpc_state_t state, uint8_t type, const char *path, uint32_t flags,
 }
 
 struct sftpc_open_pending *
-sftpc_open(sftpc_state_t state, const char *path, uint32_t flags,
-           void (*cb)(struct sftpc_pending *), void *cbdata)
+sftpc_open(sftpc_state_t state, const char *path, uint32_t flags, void (*cb)(struct sftpc_pending *), void *cbdata)
 {
 	return do_open(state, SSH_FXP_OPEN, path, flags, cb, cbdata);
 }
 
 struct sftpc_open_pending *
-sftpc_opendir(sftpc_state_t state, const char *path,
-              void (*cb)(struct sftpc_pending *), void *cbdata)
+sftpc_opendir(sftpc_state_t state, const char *path, void (*cb)(struct sftpc_pending *), void *cbdata)
 {
 	return do_open(state, SSH_FXP_OPENDIR, path, 0, cb, cbdata);
 }
@@ -694,21 +668,19 @@ parse_status_only(struct sftpc_pending *p)
 {
 	if (parse_status_into_pending(p))
 		return;
-	PENDING_RECORD(p, SFTP_ERR_REPLY_WRONG_TYPE,
-	    "expected SSH_FXP_STATUS, got %s",
+	PENDING_RECORD(p, SFTP_ERR_REPLY_WRONG_TYPE, "expected SSH_FXP_STATUS, got %s",
 	    sftp_get_type_name(p->reply->type));
 }
 
 struct sftpc_pending *
-sftpc_close(sftpc_state_t state, sftp_str_t handle,
-            void (*cb)(struct sftpc_pending *), void *cbdata)
+sftpc_close(sftpc_state_t state, sftp_str_t handle, void (*cb)(struct sftpc_pending *), void *cbdata)
 {
 	struct sftpc_pending *p = calloc(1, sizeof(*p));
 	if (p == NULL)
 		return NULL;
-	p->cb = cb;
-	p->cbdata = cbdata;
-	p->parse = parse_status_only;
+	p->cb        = cb;
+	p->cbdata    = cbdata;
+	p->parse     = parse_status_only;
 	p->free_self = free_self_base;
 
 	if (handle == NULL) {
@@ -721,10 +693,8 @@ sftpc_close(sftpc_state_t state, sftp_str_t handle,
 		return p;
 	}
 	p->req_id = next_req_id(state);
-	if (!appendheader(&state->txp, SSH_FXP_CLOSE, p->req_id) ||
-	    !appendstring(&state->txp, handle)) {
-		PENDING_RECORD(p, SFTP_ERR_PACKET_BUILD_FAILED,
-		    "appendheader/appendstring failed");
+	if (!appendheader(&state->txp, SSH_FXP_CLOSE, p->req_id) || !appendstring(&state->txp, handle)) {
+		PENDING_RECORD(p, SFTP_ERR_PACKET_BUILD_FAILED, "appendheader/appendstring failed");
 		client_exit(state);
 		fire_sync(p);
 		return p;
@@ -739,15 +709,15 @@ sftpc_close(sftpc_state_t state, sftp_str_t handle,
 }
 
 struct sftpc_pending *
-sftpc_write(sftpc_state_t state, sftp_str_t handle, uint64_t offset,
-            sftp_str_t data, void (*cb)(struct sftpc_pending *), void *cbdata)
+sftpc_write(sftpc_state_t state, sftp_str_t handle, uint64_t offset, sftp_str_t data,
+    void (*cb)(struct sftpc_pending *), void *cbdata)
 {
 	struct sftpc_pending *p = calloc(1, sizeof(*p));
 	if (p == NULL)
 		return NULL;
-	p->cb = cb;
-	p->cbdata = cbdata;
-	p->parse = parse_status_only;
+	p->cb        = cb;
+	p->cbdata    = cbdata;
+	p->parse     = parse_status_only;
 	p->free_self = free_self_base;
 
 	if (handle == NULL) {
@@ -765,12 +735,9 @@ sftpc_write(sftpc_state_t state, sftp_str_t handle, uint64_t offset,
 		return p;
 	}
 	p->req_id = next_req_id(state);
-	if (!appendheader(&state->txp, SSH_FXP_WRITE, p->req_id) ||
-	    !appendstring(&state->txp, handle) ||
-	    !append64(&state->txp, offset) ||
-	    !appendstring(&state->txp, data)) {
-		PENDING_RECORD(p, SFTP_ERR_PACKET_BUILD_FAILED,
-		    "write build failed");
+	if (!appendheader(&state->txp, SSH_FXP_WRITE, p->req_id) || !appendstring(&state->txp, handle)
+	    || !append64(&state->txp, offset) || !appendstring(&state->txp, data)) {
+		PENDING_RECORD(p, SFTP_ERR_PACKET_BUILD_FAILED, "write build failed");
 		client_exit(state);
 		fire_sync(p);
 		return p;
@@ -785,15 +752,15 @@ sftpc_write(sftpc_state_t state, sftp_str_t handle, uint64_t offset,
 }
 
 struct sftpc_pending *
-sftpc_setstat(sftpc_state_t state, const char *path, sftp_file_attr_t attr,
-              void (*cb)(struct sftpc_pending *), void *cbdata)
+sftpc_setstat(sftpc_state_t state, const char *path, sftp_file_attr_t attr, void (*cb)(struct sftpc_pending *),
+    void *cbdata)
 {
 	struct sftpc_pending *p = calloc(1, sizeof(*p));
 	if (p == NULL)
 		return NULL;
-	p->cb = cb;
-	p->cbdata = cbdata;
-	p->parse = parse_status_only;
+	p->cb        = cb;
+	p->cbdata    = cbdata;
+	p->parse     = parse_status_only;
 	p->free_self = free_self_base;
 
 	if (path == NULL) {
@@ -811,11 +778,9 @@ sftpc_setstat(sftpc_state_t state, const char *path, sftp_file_attr_t attr,
 		return p;
 	}
 	p->req_id = next_req_id(state);
-	if (!appendheader(&state->txp, SSH_FXP_SETSTAT, p->req_id) ||
-	    !appendcstring(&state->txp, path) ||
-	    !appendfattr(&state->txp, attr)) {
-		PENDING_RECORD(p, SFTP_ERR_PACKET_BUILD_FAILED,
-		    "setstat build failed");
+	if (!appendheader(&state->txp, SSH_FXP_SETSTAT, p->req_id) || !appendcstring(&state->txp, path)
+	    || !appendfattr(&state->txp, attr)) {
+		PENDING_RECORD(p, SFTP_ERR_PACKET_BUILD_FAILED, "setstat build failed");
 		client_exit(state);
 		fire_sync(p);
 		return p;
@@ -834,15 +799,14 @@ sftpc_setstat(sftpc_state_t state, const char *path, sftp_file_attr_t attr,
  * ======================================================================== */
 
 static struct sftpc_pending *
-do_one_path(sftpc_state_t state, uint8_t type, const char *path,
-            void (*cb)(struct sftpc_pending *), void *cbdata)
+do_one_path(sftpc_state_t state, uint8_t type, const char *path, void (*cb)(struct sftpc_pending *), void *cbdata)
 {
 	struct sftpc_pending *p = calloc(1, sizeof(*p));
 	if (p == NULL)
 		return NULL;
-	p->cb = cb;
-	p->cbdata = cbdata;
-	p->parse = parse_status_only;
+	p->cb        = cb;
+	p->cbdata    = cbdata;
+	p->parse     = parse_status_only;
 	p->free_self = free_self_base;
 
 	if (path == NULL) {
@@ -855,10 +819,8 @@ do_one_path(sftpc_state_t state, uint8_t type, const char *path,
 		return p;
 	}
 	p->req_id = next_req_id(state);
-	if (!appendheader(&state->txp, type, p->req_id) ||
-	    !appendcstring(&state->txp, path)) {
-		PENDING_RECORD(p, SFTP_ERR_PACKET_BUILD_FAILED,
-		    "appendheader/appendcstring failed");
+	if (!appendheader(&state->txp, type, p->req_id) || !appendcstring(&state->txp, path)) {
+		PENDING_RECORD(p, SFTP_ERR_PACKET_BUILD_FAILED, "appendheader/appendcstring failed");
 		client_exit(state);
 		fire_sync(p);
 		return p;
@@ -873,29 +835,27 @@ do_one_path(sftpc_state_t state, uint8_t type, const char *path,
 }
 
 struct sftpc_pending *
-sftpc_rmdir(sftpc_state_t state, const char *path,
-            void (*cb)(struct sftpc_pending *), void *cbdata)
+sftpc_rmdir(sftpc_state_t state, const char *path, void (*cb)(struct sftpc_pending *), void *cbdata)
 {
 	return do_one_path(state, SSH_FXP_RMDIR, path, cb, cbdata);
 }
 
 struct sftpc_pending *
-sftpc_remove(sftpc_state_t state, const char *path,
-             void (*cb)(struct sftpc_pending *), void *cbdata)
+sftpc_remove(sftpc_state_t state, const char *path, void (*cb)(struct sftpc_pending *), void *cbdata)
 {
 	return do_one_path(state, SSH_FXP_REMOVE, path, cb, cbdata);
 }
 
 struct sftpc_pending *
-sftpc_mkdir(sftpc_state_t state, const char *path, sftp_file_attr_t attr,
-            void (*cb)(struct sftpc_pending *), void *cbdata)
+sftpc_mkdir(sftpc_state_t state, const char *path, sftp_file_attr_t attr, void (*cb)(struct sftpc_pending *),
+    void *cbdata)
 {
 	struct sftpc_pending *p = calloc(1, sizeof(*p));
 	if (p == NULL)
 		return NULL;
-	p->cb = cb;
-	p->cbdata = cbdata;
-	p->parse = parse_status_only;
+	p->cb        = cb;
+	p->cbdata    = cbdata;
+	p->parse     = parse_status_only;
 	p->free_self = free_self_base;
 
 	if (path == NULL) {
@@ -907,28 +867,25 @@ sftpc_mkdir(sftpc_state_t state, const char *path, sftp_file_attr_t attr,
 		fire_sync(p);
 		return p;
 	}
-	p->req_id = next_req_id(state);
-	sftp_file_attr_t a = attr;
-	bool need_free = false;
+	p->req_id                  = next_req_id(state);
+	sftp_file_attr_t a         = attr;
+	bool             need_free = false;
 	if (a == NULL) {
 		a = sftp_fattr_alloc();
 		if (a == NULL) {
-			PENDING_RECORD(p, SFTP_ERR_OOM,
-			    "sftp_fattr_alloc failed");
+			PENDING_RECORD(p, SFTP_ERR_OOM, "sftp_fattr_alloc failed");
 			client_exit(state);
 			fire_sync(p);
 			return p;
 		}
 		need_free = true;
 	}
-	bool built = appendheader(&state->txp, SSH_FXP_MKDIR, p->req_id) &&
-	             appendcstring(&state->txp, path) &&
-	             appendfattr(&state->txp, a);
+	bool built = appendheader(&state->txp, SSH_FXP_MKDIR, p->req_id) && appendcstring(&state->txp, path)
+	             && appendfattr(&state->txp, a);
 	if (need_free)
 		sftp_fattr_free(a);
 	if (!built) {
-		PENDING_RECORD(p, SFTP_ERR_PACKET_BUILD_FAILED,
-		    "mkdir build failed");
+		PENDING_RECORD(p, SFTP_ERR_PACKET_BUILD_FAILED, "mkdir build failed");
 		client_exit(state);
 		fire_sync(p);
 		return p;
@@ -943,20 +900,19 @@ sftpc_mkdir(sftpc_state_t state, const char *path, sftp_file_attr_t attr,
 }
 
 struct sftpc_pending *
-sftpc_rename(sftpc_state_t state, const char *oldpath, const char *newpath,
-             void (*cb)(struct sftpc_pending *), void *cbdata)
+sftpc_rename(sftpc_state_t state, const char *oldpath, const char *newpath, void (*cb)(struct sftpc_pending *),
+    void *cbdata)
 {
 	struct sftpc_pending *p = calloc(1, sizeof(*p));
 	if (p == NULL)
 		return NULL;
-	p->cb = cb;
-	p->cbdata = cbdata;
-	p->parse = parse_status_only;
+	p->cb        = cb;
+	p->cbdata    = cbdata;
+	p->parse     = parse_status_only;
 	p->free_self = free_self_base;
 
 	if (oldpath == NULL || newpath == NULL) {
-		PENDING_RECORD(p, SFTP_ERR_NULL_PATH,
-		    "oldpath/newpath == NULL");
+		PENDING_RECORD(p, SFTP_ERR_NULL_PATH, "oldpath/newpath == NULL");
 		fire_sync(p);
 		return p;
 	}
@@ -965,11 +921,9 @@ sftpc_rename(sftpc_state_t state, const char *oldpath, const char *newpath,
 		return p;
 	}
 	p->req_id = next_req_id(state);
-	if (!appendheader(&state->txp, SSH_FXP_RENAME, p->req_id) ||
-	    !appendcstring(&state->txp, oldpath) ||
-	    !appendcstring(&state->txp, newpath)) {
-		PENDING_RECORD(p, SFTP_ERR_PACKET_BUILD_FAILED,
-		    "rename build failed");
+	if (!appendheader(&state->txp, SSH_FXP_RENAME, p->req_id) || !appendcstring(&state->txp, oldpath)
+	    || !appendcstring(&state->txp, newpath)) {
+		PENDING_RECORD(p, SFTP_ERR_PACKET_BUILD_FAILED, "rename build failed");
 		client_exit(state);
 		fire_sync(p);
 		return p;
@@ -990,13 +944,12 @@ sftpc_rename(sftpc_state_t state, const char *oldpath, const char *newpath,
 static void
 parse_read(struct sftpc_pending *base)
 {
-	struct sftpc_read_pending *p = (struct sftpc_read_pending *)base;
-	sftp_rx_pkt_t reply = base->reply;
+	struct sftpc_read_pending *p     = (struct sftpc_read_pending *)base;
+	sftp_rx_pkt_t              reply = base->reply;
 	if (reply->type == SSH_FXP_DATA) {
 		p->data = getstring(reply);
 		if (p->data == NULL) {
-			PENDING_RECORD(base, SFTP_ERR_REPLY_BAD_STRING,
-			    "getstring failed on DATA reply");
+			PENDING_RECORD(base, SFTP_ERR_REPLY_BAD_STRING, "getstring failed on DATA reply");
 			return;
 		}
 		base->result = SSH_FX_OK;
@@ -1004,21 +957,20 @@ parse_read(struct sftpc_pending *base)
 	}
 	if (parse_status_into_pending(base))
 		return;
-	PENDING_RECORD(base, SFTP_ERR_REPLY_WRONG_TYPE,
-	    "expected SSH_FXP_DATA or SSH_FXP_STATUS, got %s",
+	PENDING_RECORD(base, SFTP_ERR_REPLY_WRONG_TYPE, "expected SSH_FXP_DATA or SSH_FXP_STATUS, got %s",
 	    sftp_get_type_name(reply->type));
 }
 
 struct sftpc_read_pending *
-sftpc_read(sftpc_state_t state, sftp_str_t handle, uint64_t offset,
-           uint32_t len, void (*cb)(struct sftpc_pending *), void *cbdata)
+sftpc_read(sftpc_state_t state, sftp_str_t handle, uint64_t offset, uint32_t len,
+    void (*cb)(struct sftpc_pending *), void *cbdata)
 {
 	struct sftpc_read_pending *p = calloc(1, sizeof(*p));
 	if (p == NULL)
 		return NULL;
-	p->base.cb = cb;
-	p->base.cbdata = cbdata;
-	p->base.parse = parse_read;
+	p->base.cb        = cb;
+	p->base.cbdata    = cbdata;
+	p->base.parse     = parse_read;
 	p->base.free_self = free_self_read;
 
 	if (handle == NULL) {
@@ -1031,12 +983,9 @@ sftpc_read(sftpc_state_t state, sftp_str_t handle, uint64_t offset,
 		return p;
 	}
 	p->base.req_id = next_req_id(state);
-	if (!appendheader(&state->txp, SSH_FXP_READ, p->base.req_id) ||
-	    !appendstring(&state->txp, handle) ||
-	    !append64(&state->txp, offset) ||
-	    !append32(&state->txp, len)) {
-		PENDING_RECORD(&p->base, SFTP_ERR_PACKET_BUILD_FAILED,
-		    "read build failed");
+	if (!appendheader(&state->txp, SSH_FXP_READ, p->base.req_id) || !appendstring(&state->txp, handle)
+	    || !append64(&state->txp, offset) || !append32(&state->txp, len)) {
+		PENDING_RECORD(&p->base, SFTP_ERR_PACKET_BUILD_FAILED, "read build failed");
 		client_exit(state);
 		fire_sync(&p->base);
 		return p;
@@ -1057,13 +1006,12 @@ sftpc_read(sftpc_state_t state, sftp_str_t handle, uint64_t offset,
 static void
 parse_stat(struct sftpc_pending *base)
 {
-	struct sftpc_stat_pending *p = (struct sftpc_stat_pending *)base;
-	sftp_rx_pkt_t reply = base->reply;
+	struct sftpc_stat_pending *p     = (struct sftpc_stat_pending *)base;
+	sftp_rx_pkt_t              reply = base->reply;
 	if (reply->type == SSH_FXP_ATTRS) {
 		p->attrs = getfattr(reply);
 		if (p->attrs == NULL) {
-			PENDING_RECORD(base, SFTP_ERR_REPLY_BAD_STRING,
-			    "getfattr failed on ATTRS reply");
+			PENDING_RECORD(base, SFTP_ERR_REPLY_BAD_STRING, "getfattr failed on ATTRS reply");
 			return;
 		}
 		base->result = SSH_FX_OK;
@@ -1071,21 +1019,19 @@ parse_stat(struct sftpc_pending *base)
 	}
 	if (parse_status_into_pending(base))
 		return;
-	PENDING_RECORD(base, SFTP_ERR_REPLY_WRONG_TYPE,
-	    "expected SSH_FXP_ATTRS or SSH_FXP_STATUS, got %s",
+	PENDING_RECORD(base, SFTP_ERR_REPLY_WRONG_TYPE, "expected SSH_FXP_ATTRS or SSH_FXP_STATUS, got %s",
 	    sftp_get_type_name(reply->type));
 }
 
 struct sftpc_stat_pending *
-sftpc_stat(sftpc_state_t state, const char *path,
-           void (*cb)(struct sftpc_pending *), void *cbdata)
+sftpc_stat(sftpc_state_t state, const char *path, void (*cb)(struct sftpc_pending *), void *cbdata)
 {
 	struct sftpc_stat_pending *p = calloc(1, sizeof(*p));
 	if (p == NULL)
 		return NULL;
-	p->base.cb = cb;
-	p->base.cbdata = cbdata;
-	p->base.parse = parse_stat;
+	p->base.cb        = cb;
+	p->base.cbdata    = cbdata;
+	p->base.parse     = parse_stat;
 	p->base.free_self = free_self_stat;
 
 	if (path == NULL) {
@@ -1098,10 +1044,8 @@ sftpc_stat(sftpc_state_t state, const char *path,
 		return p;
 	}
 	p->base.req_id = next_req_id(state);
-	if (!appendheader(&state->txp, SSH_FXP_STAT, p->base.req_id) ||
-	    !appendcstring(&state->txp, path)) {
-		PENDING_RECORD(&p->base, SFTP_ERR_PACKET_BUILD_FAILED,
-		    "stat build failed");
+	if (!appendheader(&state->txp, SSH_FXP_STAT, p->base.req_id) || !appendcstring(&state->txp, path)) {
+		PENDING_RECORD(&p->base, SFTP_ERR_PACKET_BUILD_FAILED, "stat build failed");
 		client_exit(state);
 		fire_sync(&p->base);
 		return p;
@@ -1135,8 +1079,8 @@ sftpc_free_dir_entries(struct sftpc_dir_entry *entries, uint32_t count)
 static void
 parse_readdir(struct sftpc_pending *base)
 {
-	struct sftpc_readdir_pending *p = (struct sftpc_readdir_pending *)base;
-	sftp_rx_pkt_t reply = base->reply;
+	struct sftpc_readdir_pending *p     = (struct sftpc_readdir_pending *)base;
+	sftp_rx_pkt_t                 reply = base->reply;
 	if (reply->type == SSH_FXP_NAME) {
 		uint32_t n = get32(reply);
 		if (n > (pkt_sz(reply) - 1 - reply->cur) / 12) {
@@ -1149,16 +1093,14 @@ parse_readdir(struct sftpc_pending *base)
 		}
 		p->entries = calloc(n, sizeof(*p->entries));
 		if (p->entries == NULL) {
-			PENDING_RECORD(base, SFTP_ERR_OOM,
-			    "calloc(%" PRIu32 " entries) failed", n);
+			PENDING_RECORD(base, SFTP_ERR_OOM, "calloc(%" PRIu32 " entries) failed", n);
 			return;
 		}
 		for (uint32_t i = 0; i < n; i++) {
 			p->entries[i].filename = getstring(reply);
 			if (p->entries[i].filename == NULL) {
 				PENDING_RECORD(base, SFTP_ERR_REPLY_BAD_STRING,
-				    "filename string failed at entry %"
-				    PRIu32 " of %" PRIu32, i, n);
+				    "filename string failed at entry %" PRIu32 " of %" PRIu32, i, n);
 				sftpc_free_dir_entries(p->entries, i + 1);
 				p->entries = NULL;
 				return;
@@ -1166,8 +1108,7 @@ parse_readdir(struct sftpc_pending *base)
 			p->entries[i].longname = getstring(reply);
 			if (p->entries[i].longname == NULL) {
 				PENDING_RECORD(base, SFTP_ERR_REPLY_BAD_STRING,
-				    "longname string failed at entry %"
-				    PRIu32 " of %" PRIu32, i, n);
+				    "longname string failed at entry %" PRIu32 " of %" PRIu32, i, n);
 				sftpc_free_dir_entries(p->entries, i + 1);
 				p->entries = NULL;
 				return;
@@ -1175,14 +1116,13 @@ parse_readdir(struct sftpc_pending *base)
 			p->entries[i].attrs = getfattr(reply);
 			if (p->entries[i].attrs == NULL) {
 				PENDING_RECORD(base, SFTP_ERR_PARSE_FAILED,
-				    "fattr parse failed at entry %"
-				    PRIu32 " of %" PRIu32, i, n);
+				    "fattr parse failed at entry %" PRIu32 " of %" PRIu32, i, n);
 				sftpc_free_dir_entries(p->entries, i + 1);
 				p->entries = NULL;
 				return;
 			}
 		}
-		p->count = n;
+		p->count     = n;
 		base->result = SSH_FX_OK;
 		return;
 	}
@@ -1191,21 +1131,19 @@ parse_readdir(struct sftpc_pending *base)
 			p->eof = true;
 		return;
 	}
-	PENDING_RECORD(base, SFTP_ERR_REPLY_WRONG_TYPE,
-	    "expected SSH_FXP_NAME or SSH_FXP_STATUS, got %s",
+	PENDING_RECORD(base, SFTP_ERR_REPLY_WRONG_TYPE, "expected SSH_FXP_NAME or SSH_FXP_STATUS, got %s",
 	    sftp_get_type_name(reply->type));
 }
 
 struct sftpc_readdir_pending *
-sftpc_readdir(sftpc_state_t state, sftp_str_t handle,
-              void (*cb)(struct sftpc_pending *), void *cbdata)
+sftpc_readdir(sftpc_state_t state, sftp_str_t handle, void (*cb)(struct sftpc_pending *), void *cbdata)
 {
 	struct sftpc_readdir_pending *p = calloc(1, sizeof(*p));
 	if (p == NULL)
 		return NULL;
-	p->base.cb = cb;
-	p->base.cbdata = cbdata;
-	p->base.parse = parse_readdir;
+	p->base.cb        = cb;
+	p->base.cbdata    = cbdata;
+	p->base.parse     = parse_readdir;
 	p->base.free_self = free_self_readdir;
 
 	if (handle == NULL) {
@@ -1218,10 +1156,8 @@ sftpc_readdir(sftpc_state_t state, sftp_str_t handle,
 		return p;
 	}
 	p->base.req_id = next_req_id(state);
-	if (!appendheader(&state->txp, SSH_FXP_READDIR, p->base.req_id) ||
-	    !appendstring(&state->txp, handle)) {
-		PENDING_RECORD(&p->base, SFTP_ERR_PACKET_BUILD_FAILED,
-		    "readdir build failed");
+	if (!appendheader(&state->txp, SSH_FXP_READDIR, p->base.req_id) || !appendstring(&state->txp, handle)) {
+		PENDING_RECORD(&p->base, SFTP_ERR_PACKET_BUILD_FAILED, "readdir build failed");
 		client_exit(state);
 		fire_sync(&p->base);
 		return p;
@@ -1242,13 +1178,12 @@ sftpc_readdir(sftpc_state_t state, sftp_str_t handle,
 static void
 parse_descs(struct sftpc_pending *base)
 {
-	struct sftpc_descs_pending *p = (struct sftpc_descs_pending *)base;
-	sftp_rx_pkt_t reply = base->reply;
+	struct sftpc_descs_pending *p     = (struct sftpc_descs_pending *)base;
+	sftp_rx_pkt_t               reply = base->reply;
 	if (reply->type == SSH_FXP_EXTENDED_REPLY) {
 		p->desc = getstring(reply);
 		if (p->desc == NULL) {
-			PENDING_RECORD(base, SFTP_ERR_REPLY_BAD_STRING,
-			    "getstring failed on EXTENDED_REPLY");
+			PENDING_RECORD(base, SFTP_ERR_REPLY_BAD_STRING, "getstring failed on EXTENDED_REPLY");
 			return;
 		}
 		base->result = SSH_FX_OK;
@@ -1257,20 +1192,18 @@ parse_descs(struct sftpc_pending *base)
 	if (parse_status_into_pending(base))
 		return;
 	PENDING_RECORD(base, SFTP_ERR_REPLY_WRONG_TYPE,
-	    "expected SSH_FXP_EXTENDED_REPLY or SSH_FXP_STATUS, got %s",
-	    sftp_get_type_name(reply->type));
+	    "expected SSH_FXP_EXTENDED_REPLY or SSH_FXP_STATUS, got %s", sftp_get_type_name(reply->type));
 }
 
 struct sftpc_descs_pending *
-sftpc_descs(sftpc_state_t state, const char *path,
-            void (*cb)(struct sftpc_pending *), void *cbdata)
+sftpc_descs(sftpc_state_t state, const char *path, void (*cb)(struct sftpc_pending *), void *cbdata)
 {
 	struct sftpc_descs_pending *p = calloc(1, sizeof(*p));
 	if (p == NULL)
 		return NULL;
-	p->base.cb = cb;
-	p->base.cbdata = cbdata;
-	p->base.parse = parse_descs;
+	p->base.cb        = cb;
+	p->base.cbdata    = cbdata;
+	p->base.parse     = parse_descs;
 	p->base.free_self = free_self_descs;
 
 	if (path == NULL) {
@@ -1283,11 +1216,9 @@ sftpc_descs(sftpc_state_t state, const char *path,
 		return p;
 	}
 	p->base.req_id = next_req_id(state);
-	if (!appendheader(&state->txp, SSH_FXP_EXTENDED, p->base.req_id) ||
-	    !appendcstring(&state->txp, SFTP_EXT_NAME_DESCS) ||
-	    !appendcstring(&state->txp, path)) {
-		PENDING_RECORD(&p->base, SFTP_ERR_PACKET_BUILD_FAILED,
-		    "descs build failed");
+	if (!appendheader(&state->txp, SSH_FXP_EXTENDED, p->base.req_id)
+	    || !appendcstring(&state->txp, SFTP_EXT_NAME_DESCS) || !appendcstring(&state->txp, path)) {
+		PENDING_RECORD(&p->base, SFTP_ERR_PACKET_BUILD_FAILED, "descs build failed");
 		client_exit(state);
 		fire_sync(&p->base);
 		return p;

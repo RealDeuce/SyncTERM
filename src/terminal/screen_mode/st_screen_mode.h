@@ -8,11 +8,11 @@
 #ifndef ST_SCREEN_MODE_H_
 #define ST_SCREEN_MODE_H_
 
-#include "st_console.h"
-#include "st_profile.h"
-
 #include <stddef.h>
 #include <stdint.h>
+
+#include "st_console.h"
+#include "st_profile.h"
 
 enum st_screen_palette {
 	ST_SCREEN_PALETTE_MONO,
@@ -27,35 +27,30 @@ enum st_screen_palette {
 };
 
 struct st_screen_mode_descriptor {
-	enum st_screen_mode mode;
-	const char *name;
-	const char *ini_name;
+	enum st_screen_mode      mode;
+	const char              *name;
+	const char              *ini_name;
 	struct st_console_config console;
-	enum st_screen_palette palette;
-	uint8_t palette_count;
-	const uint32_t *palette_rgb;
-	uint8_t default_attribute;
-	uint8_t font_selector;
+	enum st_screen_palette   palette;
+	uint8_t                  palette_count;
+	const uint32_t          *palette_rgb;
+	uint8_t                  default_attribute;
+	uint8_t                  font_selector;
 };
 
-size_t st_screen_mode_count(void);
+size_t                                  st_screen_mode_count(void);
 const struct st_screen_mode_descriptor *st_screen_mode_at(size_t index);
 /* Picker order; the returned descriptor retains its stable mode value. */
 const struct st_screen_mode_descriptor *st_screen_mode_choice_at(size_t index);
-const struct st_screen_mode_descriptor *st_screen_mode_get(
-	enum st_screen_mode mode);
-int st_screen_mode_custom(struct st_screen_mode_descriptor *result,
-	uint32_t columns, uint32_t rows, uint32_t font_height,
-	uint32_t aspect_width, uint32_t aspect_height);
+const struct st_screen_mode_descriptor *st_screen_mode_get(enum st_screen_mode mode);
+int st_screen_mode_custom(struct st_screen_mode_descriptor *result, uint32_t columns, uint32_t rows,
+    uint32_t font_height, uint32_t aspect_width, uint32_t aspect_height);
 /* Convert the descriptor's DOS attribute order to console palette indexes. */
-void st_screen_mode_console_palette(
-	const struct st_screen_mode_descriptor *mode, uint32_t result[16]);
+void st_screen_mode_console_palette(const struct st_screen_mode_descriptor *mode, uint32_t result[16]);
 /* Map DOS attribute nibbles to canonical console palette entries. */
-void st_screen_mode_palette_mapping(
-	const struct st_screen_mode_descriptor *mode, uint16_t result[16]);
+void st_screen_mode_palette_mapping(const struct st_screen_mode_descriptor *mode, uint16_t result[16]);
 /* Expand an abbreviated profile palette in its mode's native colour order. */
-void st_screen_mode_profile_palette(
-	const struct st_screen_mode_descriptor *mode, const uint32_t *palette,
-	size_t count, uint32_t result[16]);
+void st_screen_mode_profile_palette(const struct st_screen_mode_descriptor *mode, const uint32_t *palette,
+    size_t count, uint32_t result[16]);
 
 #endif

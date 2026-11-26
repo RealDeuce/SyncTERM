@@ -5,34 +5,32 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "st_file_lock_internal.h"
-
-#include "io_error.h"
-#include "string_compat.h"
-#include "st_threads.h"
-
 #include <stdlib.h>
 #include <string.h>
 
+#include "io_error.h"
+#include "st_file_lock_internal.h"
+#include "st_threads.h"
+#include "string_compat.h"
+
 struct st_local_lock {
-	char *path;
-	size_t readers;
-	size_t waiters;
-	bool writer;
-	st_condition_t condition;
+	char                 *path;
+	size_t                readers;
+	size_t                waiters;
+	bool                  writer;
+	st_condition_t        condition;
 	struct st_local_lock *next;
 };
 
-static st_once_flag_t lock_once = ST_ONCE_FLAG_INIT;
-static st_mutex_t lock_mutex;
-static bool lock_mutex_valid;
+static st_once_flag_t        lock_once = ST_ONCE_FLAG_INIT;
+static st_mutex_t            lock_mutex;
+static bool                  lock_mutex_valid;
 static struct st_local_lock *local_locks;
 
 static void
 initialize_locks(void)
 {
-	lock_mutex_valid = st_mutex_init(&lock_mutex, ST_MUTEX_PLAIN)
-	    == ST_THREAD_SUCCESS;
+	lock_mutex_valid = st_mutex_init(&lock_mutex, ST_MUTEX_PLAIN) == ST_THREAD_SUCCESS;
 }
 
 static struct st_local_lock *
@@ -56,13 +54,12 @@ create_local_lock(const char *path)
 	if (item == NULL)
 		return NULL;
 	item->path = strdup(path);
-	if (item->path == NULL
-	    || st_condition_init(&item->condition) != ST_THREAD_SUCCESS) {
+	if (item->path == NULL || st_condition_init(&item->condition) != ST_THREAD_SUCCESS) {
 		free(item->path);
 		free(item);
 		return NULL;
 	}
-	item->next = local_locks;
+	item->next  = local_locks;
 	local_locks = item;
 	return item;
 }
@@ -99,12 +96,11 @@ release_local_lock(struct st_local_lock *item, bool exclusive)
 }
 
 int
-st_file_lock_acquire(st_file_lock_t **result, const char *path,
-    bool exclusive)
+st_file_lock_acquire(st_file_lock_t **result, const char *path, bool exclusive)
 {
 	struct st_local_lock *local;
-	st_file_lock_t *lock;
-	int status;
+	st_file_lock_t       *lock;
+	int                   status;
 
 	if (result == NULL || path == NULL || path[0] == '\0')
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -135,9 +131,9 @@ st_file_lock_acquire(st_file_lock_t **result, const char *path,
 		local->readers++;
 	(void)st_mutex_unlock(&lock_mutex);
 
-	lock->local = local;
+	lock->local     = local;
 	lock->exclusive = exclusive;
-	status = st_file_lock_platform_acquire(lock, path, exclusive);
+	status          = st_file_lock_platform_acquire(lock, path, exclusive);
 	if (status < 0) {
 		release_local_lock(local, exclusive);
 		free(lock);

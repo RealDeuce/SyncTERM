@@ -3,15 +3,14 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "socket_internal.h"
-
-#include "io_error.h"
-#include "st_time.h"
-
+#include <ws2tcpip.h>
 #include <limits.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <ws2tcpip.h>
+
+#include "io_error.h"
+#include "socket_internal.h"
+#include "st_time.h"
 
 int
 socket_internal_map_error(int error)
@@ -70,7 +69,7 @@ int
 socket_runtime_init(void)
 {
 	WSADATA data;
-	int result = WSAStartup(MAKEWORD(2, 2), &data);
+	int     result = WSAStartup(MAKEWORD(2, 2), &data);
 
 	if (result != 0)
 		return socket_internal_map_error(result);
@@ -106,8 +105,7 @@ socket_close(socket_handle_t socket)
 }
 
 int
-socket_shutdown(socket_handle_t socket,
-    enum socket_shutdown_direction direction)
+socket_shutdown(socket_handle_t socket, enum socket_shutdown_direction direction)
 {
 	int how;
 
@@ -140,13 +138,11 @@ socket_set_blocking(socket_handle_t socket, bool blocking)
 }
 
 static int
-socket_set_boolean_option(socket_handle_t socket, int level, int option,
-    bool enabled)
+socket_set_boolean_option(socket_handle_t socket, int level, int option, bool enabled)
 {
 	BOOL value = enabled ? TRUE : FALSE;
 
-	if (setsockopt(socket, level, option, (const char *)&value,
-	    (int)sizeof(value)) == 0)
+	if (setsockopt(socket, level, option, (const char *)&value, (int)sizeof(value)) == 0)
 		return 0;
 	return socket_internal_map_error(WSAGetLastError());
 }
@@ -154,15 +150,13 @@ socket_set_boolean_option(socket_handle_t socket, int level, int option,
 int
 socket_set_keepalive(socket_handle_t socket, bool enabled)
 {
-	return socket_set_boolean_option(socket, SOL_SOCKET, SO_KEEPALIVE,
-	    enabled);
+	return socket_set_boolean_option(socket, SOL_SOCKET, SO_KEEPALIVE, enabled);
 }
 
 int
 socket_set_no_delay(socket_handle_t socket, bool enabled)
 {
-	return socket_set_boolean_option(socket, IPPROTO_TCP, TCP_NODELAY,
-	    enabled);
+	return socket_set_boolean_option(socket, IPPROTO_TCP, TCP_NODELAY, enabled);
 }
 
 static int
@@ -173,8 +167,7 @@ socket_set_buffer_size(socket_handle_t socket, int option, size_t size)
 	if (size > INT_MAX)
 		return IO_ERROR_OUT_OF_RANGE;
 	value = (int)size;
-	if (setsockopt(socket, SOL_SOCKET, option, (const char *)&value,
-	    (int)sizeof(value)) == 0)
+	if (setsockopt(socket, SOL_SOCKET, option, (const char *)&value, (int)sizeof(value)) == 0)
 		return 0;
 	return socket_internal_map_error(WSAGetLastError());
 }
@@ -207,14 +200,12 @@ socket_send(socket_handle_t socket, const void *buffer, size_t size)
 }
 
 ssize_t
-socket_receive(socket_handle_t socket, void *buffer, size_t size,
-    unsigned flags)
+socket_receive(socket_handle_t socket, void *buffer, size_t size, unsigned flags)
 {
 	int native_flags = 0;
 	int result;
 
-	if ((buffer == NULL && size != 0) ||
-	    (flags & ~(SOCKET_RECEIVE_PEEK | SOCKET_RECEIVE_URGENT)) != 0)
+	if ((buffer == NULL && size != 0) || (flags & ~(SOCKET_RECEIVE_PEEK | SOCKET_RECEIVE_URGENT)) != 0)
 		return IO_ERROR_INVALID_ARGUMENT;
 	/* Keep the receive contract identical to the POSIX implementation. */
 	if (flags == (SOCKET_RECEIVE_PEEK | SOCKET_RECEIVE_URGENT))
@@ -246,7 +237,7 @@ int
 socket_internal_now_ms(int64_t *result)
 {
 	uint64_t now;
-	int status;
+	int      status;
 
 	if (result == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -278,25 +269,23 @@ socket_internal_wait_capacity(void)
 }
 
 int
-socket_internal_wait_many(struct socket_wait_item *items, size_t count,
-    int64_t timeout_ms)
+socket_internal_wait_many(struct socket_wait_item *items, size_t count, int64_t timeout_ms)
 {
-	fd_set read_set;
-	fd_set write_set;
-	fd_set except_set;
-	struct timeval timeout;
+	fd_set          read_set;
+	fd_set          write_set;
+	fd_set          except_set;
+	struct timeval  timeout;
 	struct timeval *timeout_pointer = NULL;
-	int result;
+	int             result;
 
-	if ((items == NULL && count != 0) || count > FD_SETSIZE ||
-	    timeout_ms < -1)
+	if ((items == NULL && count != 0) || count > FD_SETSIZE || timeout_ms < -1)
 		return IO_ERROR_INVALID_ARGUMENT;
 	FD_ZERO(&read_set);
 	FD_ZERO(&write_set);
 	FD_ZERO(&except_set);
 	for (size_t index = 0; index < count; index++) {
 		items[index].events = 0;
-		items[index].error = 0;
+		items[index].error  = 0;
 		if ((items[index].interests & SOCKET_WAIT_READABLE) != 0)
 			FD_SET(items[index].socket, &read_set);
 		if ((items[index].interests & SOCKET_WAIT_WRITABLE) != 0)
@@ -306,46 +295,42 @@ socket_internal_wait_many(struct socket_wait_item *items, size_t count,
 	if (timeout_ms >= 0) {
 		if (timeout_ms > INT_MAX)
 			timeout_ms = INT_MAX;
-		timeout.tv_sec = (long)(timeout_ms / 1000);
+		timeout.tv_sec  = (long)(timeout_ms / 1000);
 		timeout.tv_usec = (long)((timeout_ms % 1000) * 1000);
 		timeout_pointer = &timeout;
 	}
-	result = select(0, &read_set, &write_set, &except_set,
-	    timeout_pointer);
+	result = select(0, &read_set, &write_set, &except_set, timeout_pointer);
 	if (result == SOCKET_ERROR)
 		return socket_internal_map_error(WSAGetLastError());
 	if (result == 0)
 		return IO_ERROR_TIMED_OUT;
 	for (size_t index = 0; index < count; index++) {
 		char byte;
-		int received;
+		int  received;
 		if (FD_ISSET(items[index].socket, &write_set))
 			items[index].events |= SOCKET_WAIT_WRITABLE;
 		if (FD_ISSET(items[index].socket, &read_set)) {
 			/* Match the common urgent-first contract: classify EOF only
 			 * after the caller has handled pending OOB. */
-			if (FD_ISSET(items[index].socket, &except_set) &&
-			    (items[index].interests & SOCKET_WAIT_URGENT) != 0) {
+			if (FD_ISSET(items[index].socket, &except_set)
+			    && (items[index].interests & SOCKET_WAIT_URGENT) != 0) {
 				if ((items[index].interests & SOCKET_WAIT_READABLE) != 0)
 					items[index].events |= SOCKET_WAIT_READABLE;
 			}
 			else {
 				received = recv(items[index].socket, &byte, 1, MSG_PEEK);
-				if (received > 0 &&
-				    (items[index].interests & SOCKET_WAIT_READABLE) != 0)
+				if (received > 0 && (items[index].interests & SOCKET_WAIT_READABLE) != 0)
 					items[index].events |= SOCKET_WAIT_READABLE;
 				else if (received == 0)
 					items[index].events |= SOCKET_WAIT_CLOSED;
 				else if (received == SOCKET_ERROR) {
 					items[index].events |= SOCKET_WAIT_ERROR;
-					items[index].error = socket_internal_map_error(
-					    WSAGetLastError());
+					items[index].error = socket_internal_map_error(WSAGetLastError());
 				}
 			}
 		}
 		if (FD_ISSET(items[index].socket, &except_set)) {
-			int socket_error = socket_internal_connect_result(
-			    items[index].socket);
+			int socket_error = socket_internal_connect_result(items[index].socket);
 			if (socket_error != 0) {
 				items[index].events |= SOCKET_WAIT_ERROR;
 				items[index].error = socket_error;
@@ -358,16 +343,14 @@ socket_internal_wait_many(struct socket_wait_item *items, size_t count,
 }
 
 int
-socket_wait(socket_handle_t socket, unsigned interests,
-    int64_t timeout_ms, unsigned *events)
+socket_wait(socket_handle_t socket, unsigned interests, int64_t timeout_ms, unsigned *events)
 {
-	struct socket_wait_item item = {socket, interests, 0, 0};
-	int64_t deadline = INT64_MAX;
-	int error;
+	struct socket_wait_item item     = {socket, interests, 0, 0};
+	int64_t                 deadline = INT64_MAX;
+	int                     error;
 
-	if (events == NULL || interests == 0 ||
-	    (interests & ~(SOCKET_WAIT_READABLE | SOCKET_WAIT_WRITABLE |
-	    SOCKET_WAIT_URGENT)) != 0)
+	if (events == NULL || interests == 0
+	    || (interests & ~(SOCKET_WAIT_READABLE | SOCKET_WAIT_WRITABLE | SOCKET_WAIT_URGENT)) != 0)
 		return IO_ERROR_INVALID_ARGUMENT;
 	*events = 0;
 	if (timeout_ms >= 0) {
@@ -375,8 +358,7 @@ socket_wait(socket_handle_t socket, unsigned interests,
 		error = socket_internal_now_ms(&now);
 		if (error != 0)
 			return error;
-		deadline = now > INT64_MAX - timeout_ms ?
-		    INT64_MAX : now + timeout_ms;
+		deadline = now > INT64_MAX - timeout_ms ? INT64_MAX : now + timeout_ms;
 	}
 	for (;;) {
 		int64_t wait = timeout_ms;
@@ -398,14 +380,13 @@ socket_wait(socket_handle_t socket, unsigned interests,
 }
 
 int
-socket_internal_start_connect(const void *address, size_t address_length,
-    int family, socket_handle_t *result, bool *complete)
+socket_internal_start_connect(const void *address, size_t address_length, int family, socket_handle_t *result,
+    bool *complete)
 {
 	socket_handle_t descriptor;
-	int error;
+	int             error;
 
-	if (address == NULL || result == NULL || complete == NULL ||
-	    address_length > INT_MAX)
+	if (address == NULL || result == NULL || complete == NULL || address_length > INT_MAX)
 		return IO_ERROR_INVALID_ARGUMENT;
 	descriptor = socket(family, SOCK_STREAM, IPPROTO_TCP);
 	if (!socket_handle_is_valid(descriptor))
@@ -416,7 +397,7 @@ socket_internal_start_connect(const void *address, size_t address_length,
 		return error;
 	}
 	if (connect(descriptor, address, (int)address_length) == 0) {
-		*result = descriptor;
+		*result   = descriptor;
 		*complete = true;
 		return 0;
 	}
@@ -425,7 +406,7 @@ socket_internal_start_connect(const void *address, size_t address_length,
 		(void)closesocket(descriptor);
 		return error;
 	}
-	*result = descriptor;
+	*result   = descriptor;
 	*complete = false;
 	return 0;
 }
@@ -434,7 +415,7 @@ int
 socket_internal_connect_result(socket_handle_t socket)
 {
 	int error = 0;
-	int size = (int)sizeof(error);
+	int size  = (int)sizeof(error);
 
 	if (getsockopt(socket, SOL_SOCKET, SO_ERROR, (char *)&error, &size) != 0)
 		return socket_internal_map_error(WSAGetLastError());

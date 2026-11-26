@@ -9,12 +9,12 @@
 
 struct st_rip3_condition_bytes {
 	const uint8_t *bytes;
-	size_t length;
+	size_t         length;
 };
 
 enum {
-	ST_RIP3_CONDITION_OPERAND_LIMIT = 255,
-	ST_RIP3_CONDITION_ENCODED_CAPACITY = ST_RIP3_CONDITION_OPERAND_LIMIT * 4,
+	ST_RIP3_CONDITION_OPERAND_LIMIT      = 255,
+	ST_RIP3_CONDITION_ENCODED_CAPACITY   = ST_RIP3_CONDITION_OPERAND_LIMIT * 4,
 	ST_RIP3_CONDITION_REFERENCE_CAPACITY = ST_RIP3_CONDITION_ENCODED_CAPACITY + 4,
 };
 
@@ -46,8 +46,9 @@ struct st_rip3_condition_comparison {
 
 struct st_rip3_condition_token {
 	enum st_rip3_condition_kind kind;
+
 	union {
-		bool boolean;
+		bool                                boolean;
 		struct st_rip3_condition_comparison comparison;
 	} value;
 };
@@ -70,7 +71,7 @@ struct st_rip3_condition_source {
  * C-string NUL ends each effective value, even inside an explicit borrowed span.
  * Quotes/whitespace are not removed here. Failures preserve result. */
 int st_rip3_condition_compare(bool *result, enum st_rip3_condition_operator operation,
-	const struct st_rip3_condition_bytes *left, const struct st_rip3_condition_bytes *right);
+    const struct st_rip3_condition_bytes *left, const struct st_rip3_condition_bytes *right);
 /* Check typed operand/operator/group structure without invoking a provider or
  * allocating. Inactive parents use this stage without evaluating comparisons.
  * It does not parse variable-reference spelling or the enclosing IF structure. */
@@ -83,7 +84,7 @@ int st_rip3_condition_validate(const struct st_rip3_condition_token *tokens, siz
  * Empty/malformed input and resource failures preserve result. Tokens and
  * bindings remain borrowed/unchanged; result must not alias them. Parser callers
  * absorb helper statuses. */
-int st_rip3_condition_evaluate(bool *result, const struct st_rip3_condition_token *tokens,
-	size_t count, const struct st_rip3_condition_source *source);
+int st_rip3_condition_evaluate(bool *result, const struct st_rip3_condition_token *tokens, size_t count,
+    const struct st_rip3_condition_source *source);
 
 #endif

@@ -17,22 +17,20 @@ cluster_columns(const uint8_t *bytes, size_t size)
 {
 	uint8_t isolated = 0;
 	while (size != 0) {
-		uint32_t scalar;
-		size_t consumed;
+		uint32_t                       scalar;
+		size_t                         consumed;
 		enum st_unicode_grapheme_break property;
-		uint8_t columns;
+		uint8_t                        columns;
 
 		if (st_utf8_decode_one(&scalar, &consumed, bytes, size) != 0)
 			break;
 		bytes += consumed;
 		size -= consumed;
 		property = st_unicode_grapheme_break(scalar);
-		columns = st_unicode_columns(scalar);
-		if (property != ST_UNICODE_GRAPHEME_EXTEND
-		    && property != ST_UNICODE_GRAPHEME_ZWJ && columns != 0)
+		columns  = st_unicode_columns(scalar);
+		if (property != ST_UNICODE_GRAPHEME_EXTEND && property != ST_UNICODE_GRAPHEME_ZWJ && columns != 0)
 			return columns;
-		if (!st_unicode_default_ignorable(scalar)
-		    && (st_unicode_nonspacing_mark(scalar) || columns != 0))
+		if (!st_unicode_default_ignorable(scalar) && (st_unicode_nonspacing_mark(scalar) || columns != 0))
 			isolated = 1;
 	}
 	return isolated;

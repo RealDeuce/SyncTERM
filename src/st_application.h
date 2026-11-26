@@ -3,9 +3,10 @@
 #ifndef ST_APPLICATION_H_
 #define ST_APPLICATION_H_
 
-#include "st_console.h"
-#include "st_audio_runtime.h"
 #include <stdbool.h>
+
+#include "st_audio_runtime.h"
+#include "st_console.h"
 
 struct st_application_host {
 	bool console_mode;
@@ -14,15 +15,13 @@ struct st_application_host {
 	const char *directory;
 	/* Called on the application worker. ready publishes borrowed handles;
 	 * release must revoke them before application cleanup can destroy either. */
-	void (*ready)(void *context, st_console_display_t *display,
-	    st_audio_runtime_t *audio);
-	void (*release)(void *context);
-	bool (*stopping)(void *context);
+	void  (*ready)(void *context, st_console_display_t *display, st_audio_runtime_t *audio);
+	void  (*release)(void *context);
+	bool  (*stopping)(void *context);
 	void *context;
 };
 
 /* One active application per process; the caller owns argv through return. */
-int st_application_run(int argc, char **argv,
-	const struct st_application_host *host);
+int st_application_run(int argc, char **argv, const struct st_application_host *host);
 
 #endif

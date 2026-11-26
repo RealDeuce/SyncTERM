@@ -8,11 +8,11 @@
 #ifndef ST_TLS_H_
 #define ST_TLS_H_
 
-#include "socket.h"
-
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+
+#include "socket.h"
 
 typedef struct st_tls_session st_tls_session_t;
 
@@ -46,16 +46,15 @@ enum st_tls_log_level {
 };
 
 struct st_tls_diagnostic {
-	int status;
-	unsigned long provider_status;
-	bool fatal;
-	const char *provider;
-	const char *message;
+	int                   status;
+	unsigned long         provider_status;
+	bool                  fatal;
+	const char           *provider;
+	const char           *message;
 	enum st_tls_log_level level;
 };
 
-typedef void (*st_tls_diagnostic_fn)(const struct st_tls_diagnostic *record,
-    void *context);
+typedef void (*st_tls_diagnostic_fn)(const struct st_tls_diagnostic *record, void *context);
 
 /* Display metadata and PEM are borrowed only during the callback. The
  * unauthenticated chain is reported even when certificate validation fails. */
@@ -67,30 +66,30 @@ struct st_tls_peer_certificate {
 	const char *fingerprint_sha256;
 	const char *pem;
 };
-typedef void (*st_tls_peer_chain_fn)(const struct st_tls_peer_certificate *chain,
-    size_t count, void *context);
+
+typedef void (*st_tls_peer_chain_fn)(const struct st_tls_peer_certificate *chain, size_t count, void *context);
 
 struct st_tls_client_options {
-	const char *server_name;
-	enum st_tls_server_auth server_auth;
-	const char *trusted_certificate_file;
-	const char *client_certificate_file;
-	const char *client_key_file;
-	const char *psk_identity;
-	const void *psk;
-	size_t psk_size;
+	const char                  *server_name;
+	enum st_tls_server_auth      server_auth;
+	const char                  *trusted_certificate_file;
+	const char                  *client_certificate_file;
+	const char                  *client_key_file;
+	const char                  *psk_identity;
+	const void                  *psk;
+	size_t                       psk_size;
 	enum st_tls_protocol_version psk_version;
-	enum st_tls_psk_policy psk_policy;
+	enum st_tls_psk_policy       psk_policy;
 	enum st_tls_protocol_version minimum_version;
 	enum st_tls_protocol_version maximum_version;
-	int64_t handshake_timeout_ms;
-	st_tls_diagnostic_fn diagnostic;
-	void *diagnostic_context;
+	int64_t                      handshake_timeout_ms;
+	st_tls_diagnostic_fn         diagnostic;
+	void                        *diagnostic_context;
 	/* Defaults to errors only. Debug includes handshake progress and alerts,
 	 * never record payloads, private keys, or PSK material. */
 	enum st_tls_log_level diagnostic_level;
-	st_tls_peer_chain_fn peer_chain;
-	void *peer_chain_context;
+	st_tls_peer_chain_fn  peer_chain;
+	void                 *peer_chain_context;
 };
 
 /*
@@ -102,24 +101,20 @@ struct st_tls_client_options {
  * Ownership of socket transfers only on success. Sessions make it
  * nonblocking internally and st_tls_close() closes it.
  */
-int st_tls_client_open(st_tls_session_t **result, socket_handle_t socket,
+int  st_tls_client_open(st_tls_session_t **result, socket_handle_t socket,
     const struct st_tls_client_options *options);
-int st_tls_send(st_tls_session_t *session, const void *data, size_t size,
-    int64_t timeout_ms, size_t *sent);
-int st_tls_receive(st_tls_session_t *session, void *data, size_t size,
-    int64_t timeout_ms, size_t *received);
-int st_tls_flush(st_tls_session_t *session, int64_t timeout_ms);
+int  st_tls_send(st_tls_session_t *session, const void *data, size_t size, int64_t timeout_ms, size_t *sent);
+int  st_tls_receive(st_tls_session_t *session, void *data, size_t size, int64_t timeout_ms, size_t *received);
+int  st_tls_flush(st_tls_session_t *session, int64_t timeout_ms);
 bool st_tls_has_pending(const st_tls_session_t *session);
-enum st_tls_protocol_version st_tls_protocol_version(
-    const st_tls_session_t *session);
-const char *st_tls_cipher(const st_tls_session_t *session);
-const char *st_tls_error(const st_tls_session_t *session);
+enum st_tls_protocol_version st_tls_protocol_version(const st_tls_session_t *session);
+const char                  *st_tls_cipher(const st_tls_session_t *session);
+const char                  *st_tls_error(const st_tls_session_t *session);
 /* Borrowed DER data remains valid until st_tls_close(). */
 size_t st_tls_peer_certificate_count(const st_tls_session_t *session);
-int st_tls_peer_certificate(const st_tls_session_t *session, size_t index,
-    const void **data, size_t *size);
-int st_tls_terminate(st_tls_session_t *session);
-void st_tls_close(st_tls_session_t *session);
+int    st_tls_peer_certificate(const st_tls_session_t *session, size_t index, const void **data, size_t *size);
+int    st_tls_terminate(st_tls_session_t *session);
+void   st_tls_close(st_tls_session_t *session);
 
 #ifdef __cplusplus
 }

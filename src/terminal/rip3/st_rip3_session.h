@@ -3,14 +3,14 @@
 #ifndef ST_RIP3_SESSION_H_
 #define ST_RIP3_SESSION_H_
 
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+
 #include "st_rip3_commands.h"
 #include "st_rip3_geometry.h"
 #include "st_rip3_ports.h"
 #include "st_rip3_text_commands.h"
-
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdint.h>
 
 struct st_rip3_session;
 struct st_rip3_pick_list;
@@ -28,7 +28,7 @@ struct st_rip3_rect;
 struct st_rip3_palette;
 
 struct st_rip3_session_source {
-	void *context;
+	void    *context;
 	uint64_t (*now_ns)(void *context);
 	/* Nonblocking: false means no byte available. The client owns its queue,
 	 * connection/EOF policy and bytes not yet taken by this callback. */
@@ -36,46 +36,46 @@ struct st_rip3_session_source {
 };
 
 struct st_rip3_session_sink {
-	void *context;
-	void (*text)(void *context, const uint8_t *bytes, size_t length);
-	void (*reply)(void *context, const uint8_t *bytes, size_t length);
-	bool (*at_line_start)(void *context);
-	bool (*ansi_owns_bang)(void *context);
+	void       *context;
+	void        (*text)(void *context, const uint8_t *bytes, size_t length);
+	void        (*reply)(void *context, const uint8_t *bytes, size_t length);
+	bool        (*at_line_start)(void *context);
+	bool        (*ansi_owns_bang)(void *context);
 	const bool *framing_enabled;
-	void (*diagnostic)(void *context, enum st_rip3_command_diagnostic kind);
-	void (*selection_required)(void *context, unsigned group);
+	void        (*diagnostic)(void *context, enum st_rip3_command_diagnostic kind);
+	void        (*selection_required)(void *context, unsigned group);
 	/* Commit pending ordinary text before changing graphics/window state. */
 	void (*before_command)(void *context);
 	/* Resource/renderer adapter. Prepare before committing a new view; the
 	 * parser consumes failures nonfatally and retains its prior layout/gate.
 	 * clear_rgb resolves current PAL index0 for extended flag16; ignored otherwise. */
 	int (*text_window)(void *context, const struct st_rip3_text_window_layout *layout, bool identical,
-		uint32_t clear_rgb);
+	    uint32_t clear_rgb);
 	/* First wire selection clones the source; first CUR selection supplies
 	 * fresh default geometry instead. Neither path copies pixels/history. */
 	int (*text_select)(void *context, unsigned number, bool first, bool active,
-		const struct st_rip3_text_window_layout *fresh);
+	    const struct st_rip3_text_window_layout *fresh);
 	/* Preliminary ANSI reset on the old current TW, then replace TW0 with
 	 * the supplied defaults and discard unprotected nonzero views. Protected
 	 * views retain their definitions/activation. Preserve connection ANSI syntax
 	 * and TW0 tabs on SOFT. HARD starts a fresh text window.
 	 * Preserve only protected nonzero views from keep[]. */
-	int (*text_reset)(void *context, const struct st_rip3_text_window_layout *layout,
-		const bool keep[36], bool old_active, bool hard);
+	int (*text_reset)(void *context, const struct st_rip3_text_window_layout *layout, const bool keep[36],
+	    bool old_active, bool hard);
 	/* Observe the specified native owner without selecting it or presenting. */
 	int (*text_snapshot)(void *context, unsigned number, struct st_rip3_text_window_snapshot *result);
 	/* One live TW definition copy, below complete permission preflight. Retain
 	 * current selection and connection ANSI syntax; replace destination metadata
 	 * without copying cells/history/pixels. The owner handles query/protection.
 	 * A later failed helper must not prevent subsequent destinations. */
-	int (*text_copy)(void *context,unsigned source,unsigned destination,bool active);
+	int (*text_copy)(void *context, unsigned source, unsigned destination, bool active);
 	/* Explicit whole-TW backup support. Capture owns native definitions/fonts,
 	 * not screen pixels, cells, history or connection parser syntax. Restore prepares
 	 * replacement views before publishing, preserves displayed pixels and
 	 * retains current partial ANSI input. All three or none; destroy has no
 	 * session dependency. Saved objects are private to this connection. */
-	int (*text_backup_capture)(void *context,const bool defined[36],void **result);
-	int (*text_backup_restore)(void *context,const void *saved,unsigned current,bool active);
+	int  (*text_backup_capture)(void *context, const bool defined[36], void **result);
+	int  (*text_backup_restore)(void *context, const void *saved, unsigned current, bool active);
 	void (*text_backup_destroy)(void *saved);
 	/* Native text-window cursor movement, without synthesized received bytes. */
 	int (*text_cursor)(void *context, unsigned number, const struct st_rip3_text_cursor_position *position);
@@ -99,18 +99,18 @@ struct st_rip3_session_sink {
 	/* Explicit screen backups only: merge native ANSI into a prepared raw
 	 * graphics capture; restore both planes without changing ANSI/window state.
 	 * Bind both or neither. Accessor reads are allowed, parser reentry is not. */
-	int (*screen_capture)(void *context,struct st_pixel_buffer *);
-	int (*screen_restore)(void *context,const struct st_pixel_buffer *,const struct st_rip3_palette *);
+	int (*screen_capture)(void *context, struct st_pixel_buffer *);
+	int (*screen_restore)(void *context, const struct st_pixel_buffer *, const struct st_rip3_palette *);
 	/* Enrich a bounded raw screen-source snapshot with native ANSI pixels.
 	 * Called only for protocol read transfers, never ordinary text rendering.
 	 * Preserve raw graphic indexes where native output agrees, and do not
 	 * replace graphics written by the current still-unpresented command. */
-	int (*screen_read)(void *context,const struct st_rip3_rect *,struct st_pixel_buffer *);
+	int (*screen_read)(void *context, const struct st_rip3_rect *, struct st_pixel_buffer *);
 	/* Publish a clipped physical screen patch, as used by RIP_SCROLL.
 	 * Primary is already stored. Resolve the owned scratch pixels in place
 	 * if needed to present both planes without repainting unrelated pixels. */
-	int (*screen_write)(void *context,const struct st_rip3_rect *,struct st_pixel_buffer *,
-	    const struct st_pixel_mask *,const struct st_rip3_palette *);
+	int (*screen_write)(void *context, const struct st_rip3_rect *, struct st_pixel_buffer *,
+	    const struct st_pixel_mask *, const struct st_rip3_palette *);
 	st_rip3_screen_drawing_fn screen_drawing;
 	/* Apply geometry to an eligible target and home it without painting,
 	 * changing selection or replacing other window state. */
@@ -120,27 +120,27 @@ struct st_rip3_session_sink {
 	 * selection. NULL deletes a nonzero native view; if selected, fall back to
 	 * the existing zero with zero_active, without resetting/activating it.
 	 * Failure preserves the target definition and current selection. */
-	int (*text_reset_entry)(void *context,unsigned number,
-		const struct st_rip3_text_window_layout *fresh,bool zero_active);
+	int (*text_reset_entry)(void *context, unsigned number, const struct st_rip3_text_window_layout *fresh,
+	    bool zero_active);
 	/* ESC7/8 native metadata only, separate from whole-table backups. Capture
 	 * owns logical font descriptors, not resources. Restore prepares a complete
 	 * current target before publication, paints nothing, and retains selection.
 	 * All three callbacks or none; destroy has no live-session dependency. */
-	int (*text_ansi_capture)(void *context,bool font_known,void **result);
-	int (*text_ansi_restore)(void *context,const void *saved);
+	int  (*text_ansi_capture)(void *context, bool font_known, void **result);
+	int  (*text_ansi_restore)(void *context, const void *saved);
 	void (*text_ansi_destroy)(void *saved);
 	/* Paired hooks suspend and resume only the terminal input syntax. Begin
 	 * runs after flushing caller text and must leave it unchanged on failure.
 	 * End consumes the saved object on EOF or cancellation. */
-	int (*scene_begin)(void *context, void **saved);
+	int  (*scene_begin)(void *context, void **saved);
 	void (*scene_end)(void *context, void *saved);
 	/* Optional conversion from the local scene's byte encoding to the
 	 * engine encoding. ASCII framing bytes are passed through unchanged. */
 	size_t (*scene_decode)(void *context, uint8_t byte, uint8_t output[4]);
-	void (*notice)(void *context, const char *title, const char *message);
-	int (*transfer)(void *context, bool upload, unsigned protocol, unsigned type,
-		const char *filenames, bool skip_lf);
-	bool (*transfer_active)(void *context);
+	void   (*notice)(void *context, const char *title, const char *message);
+	int    (*transfer)(void *context, bool upload, unsigned protocol, unsigned type, const char *filenames,
+	    bool skip_lf);
+	bool   (*transfer_active)(void *context);
 };
 
 struct st_rip3_session_config {
@@ -150,14 +150,14 @@ struct st_rip3_session_config {
 	uint32_t device_width, device_height;
 	/* Client's default MicroANSI font 0..4 and wrap preference for newly
 	 * defaulted windows. Independent of the entry raster and ordinary TTY. */
-	unsigned default_text_font;
-	bool default_text_wrap;
+	unsigned                   default_text_font;
+	bool                       default_text_wrap;
 	enum st_rip3_text_encoding encoding;
 	/* The terminal normalized a single-byte wire codepage to UTF-8. Graphical
 	 * limits still count original bytes; standalone byte parsers leave false. */
-	bool graphical_codepage_converted;
+	bool                          graphical_codepage_converted;
 	struct st_rip3_session_source source;
-	struct st_rip3_session_sink sink;
+	struct st_rip3_session_sink   sink;
 	/* Optional copied external service bindings. The frame, tables, input,
  * templates, text_windows, mouse and field_context must be NULL: this session
  * owns those.
@@ -167,11 +167,11 @@ struct st_rip3_session_config {
 	 * Otherwise private session/persistent memory stores and a processor are
 	 * created; their lifetime ends here, without implicit disk persistence. */
 	const struct st_rip3_host_variables *services;
-	uint32_t random_seed; /* Used only when no external generator is supplied. */
-	const struct st_rip3_classic_font *classic_font;
-	const struct st_rip3_rff *outline_font;
+	uint32_t                             random_seed; /* Used only when no external generator is supplied. */
+	const struct st_rip3_classic_font   *classic_font;
+	const struct st_rip3_rff            *outline_font;
 	const struct st_rip3_resource_paths *resources;
-	const uint64_t *offscreen_pixel_budget;
+	const uint64_t                      *offscreen_pixel_budget;
 	const struct st_rip3_bitmap_error_sink *bitmap_errors;
 	/* Bind the completed in-scene error renderer to this owner's PORT/PAL
 	 * tables when no external bitmap error sink is supplied. */
@@ -193,10 +193,9 @@ struct st_rip3_session_config {
  * graphical preprocessor. Metrics retain expanded TEXTDATA outside the tables;
  * exact r/@ sentinels read it without expansion. Full drawing resets empty it.
  * Immediate host queries include their angle preprocessor. */
-int st_rip3_session_create(struct st_rip3_session **result,
-	const struct st_rip3_session_config *config);
+int st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_session_config *config);
 /* Bind the initial text window once the connected text and graphics sinks are ready. */
-int st_rip3_session_start_text_window(struct st_rip3_session *session);
+int  st_rip3_session_start_text_window(struct st_rip3_session *session);
 void st_rip3_session_destroy(struct st_rip3_session *session);
 /* Take at most budget source bytes. Resume an owned host continuation before
  * taking more bytes, even when no new input is available. Pauses for delays or
@@ -215,7 +214,7 @@ bool st_rip3_session_status_bar(const struct st_rip3_session *session);
 /* CTerm calls through its owner after recognizing ESC7/8 and unwinding input.
  * One reusable connection save; failures are diagnosed here and consumed.
  * May be called from sink.text, but invokes no received-input/parser callback. */
-void st_rip3_session_ansi_window(struct st_rip3_session *session,bool restore);
+void st_rip3_session_ansi_window(struct st_rip3_session *session, bool restore);
 bool st_rip3_session_mouse_locked(const struct st_rip3_session *session);
 bool st_rip3_session_keyboard_locked(const struct st_rip3_session *session);
 bool st_rip3_session_mouse_active(const struct st_rip3_session *session);
@@ -224,11 +223,11 @@ bool st_rip3_session_mouse_pointer(const struct st_rip3_session *session, unsign
 /* Input/gesture failures are absorbed internally just like wire failures. */
 bool st_rip3_session_mouse(struct st_rip3_session *session, int32_t x, int32_t y, bool left);
 /* Physical movement only; shares pending()/prompt ownership with clicks. */
-void st_rip3_session_mouse_move(struct st_rip3_session *session,int32_t x,int32_t y);
-bool st_rip3_session_key(struct st_rip3_session *session, uint8_t byte);
-bool st_rip3_session_navigation(struct st_rip3_session *session, uint8_t key, bool backward);
+void     st_rip3_session_mouse_move(struct st_rip3_session *session, int32_t x, int32_t y);
+bool     st_rip3_session_key(struct st_rip3_session *session, uint8_t byte);
+bool     st_rip3_session_navigation(struct st_rip3_session *session, uint8_t key, bool backward);
 uint64_t st_rip3_session_press_token(const struct st_rip3_session *session);
-void st_rip3_session_mouse_cancel(struct st_rip3_session *session);
+void     st_rip3_session_mouse_cancel(struct st_rip3_session *session);
 /* Pointer-delivery boundary, distinct from capture-only cancellation. */
 void st_rip3_session_pointer_boundary(struct st_rip3_session *session);
 /* Also remove keyboard focus at a local focus loss or input-lock boundary. */
@@ -237,8 +236,7 @@ void st_rip3_session_focus_lost(struct st_rip3_session *session);
  * Damage is borrowed through unbind or destruction, one byte per canvas pixel;
  * see surface_damage. */
 uint64_t st_rip3_session_revision(const struct st_rip3_session *session);
-int st_rip3_session_damage(struct st_rip3_session *session,
-	uint8_t *damage, size_t length);
+int      st_rip3_session_damage(struct st_rip3_session *session, uint8_t *damage, size_t length);
 uint64_t st_rip3_session_wait_ns(const struct st_rip3_session *session);
 /* Local host work remains, independently of source availability. If ready
  * and not waiting for a prompt, schedule another pump even without new bytes. */
@@ -250,8 +248,8 @@ bool st_rip3_session_pending(const struct st_rip3_session *session);
 /* Queue a completed regular file for presentation or legacy conversion once
  * transport ownership returns. Copies names for files that need processing.
  * The terminal supplies trusted cache paths. */
-int st_rip3_session_receive_asset(struct st_rip3_session *session, const char *directory,
-	const char *cache_root, const char *name, unsigned file_type);
+int st_rip3_session_receive_asset(struct st_rip3_session *session, const char *directory, const char *cache_root,
+    const char *name, unsigned file_type);
 /* EOF/transport cancellation: discard incomplete framing and owned host/prompt
  * work, cancel the delay and stop the exclusive player. Never take queued bytes
  * or emit text/replies. Retain completed table/store/drawing/cache effects and
@@ -264,28 +262,27 @@ void st_rip3_session_disconnect(struct st_rip3_session *session);
 
 struct st_rip3_session_prompt {
 	const struct st_rip3_variable_reference *reference;
-	const struct st_rip3_variable_value *initial;
+	const struct st_rip3_variable_value     *initial;
 	/* For an explicit placement, each axis is a device pixel or -1 to center. */
 	int32_t position[2];
-	bool definition, reject_blank, require_confirmation, confirming_delete;
+	bool    definition, reject_blank, require_confirmation, confirming_delete;
 };
+
 /* Borrowed prompt views, invalidated by response/process/cancel/destruction.
  * Report only prompts owned by this session. */
-bool st_rip3_session_prompt(const struct st_rip3_session *session,
-	struct st_rip3_session_prompt *result);
-void st_rip3_session_respond(struct st_rip3_session *session,
-	const uint8_t *bytes, size_t length, bool cancelled);
-void st_rip3_session_accept_definition(struct st_rip3_session *session,
-	const uint8_t *bytes, size_t length, bool require_confirmation);
+bool st_rip3_session_prompt(const struct st_rip3_session *session, struct st_rip3_session_prompt *result);
+void st_rip3_session_respond(struct st_rip3_session *session, const uint8_t *bytes, size_t length, bool cancelled);
+void st_rip3_session_accept_definition(struct st_rip3_session *session, const uint8_t *bytes, size_t length,
+    bool require_confirmation);
 /* Abandon a 1D definition when its editor is unavailable or failed. */
 void st_rip3_session_abort_definition(struct st_rip3_session *session);
 
 /* Borrow the current ordinary/refresh query's modal list and its placement
  * frame. A list suspends that query until answered by its UI owner. */
 const struct st_rip3_pick_list *st_rip3_session_pick_list(const struct st_rip3_session *session,
-	struct st_rip3_frame *frame);
-bool st_rip3_session_choose(struct st_rip3_session *session, size_t index);
-void st_rip3_session_pick_list_failed(struct st_rip3_session *session, int status);
+    struct st_rip3_frame                                                               *frame);
+bool                            st_rip3_session_choose(struct st_rip3_session *session, size_t index);
+void                            st_rip3_session_pick_list_failed(struct st_rip3_session *session, int status);
 
 struct st_rip3_session_capture {
 	/* Owned full screen RGB view using the currently selected PAL record.
@@ -294,18 +291,18 @@ struct st_rip3_session_capture {
 	/* Accepted raw WORLD state can contain a zero dimension. Capture remains
 	 * valid; projection consumers separately require a nonzero frame. */
 	struct st_rip3_frame frame;
-	int64_t cursor_x, cursor_y;
-	unsigned environment, style, port, palette;
-	unsigned scene_revision;
-	uint64_t wait_ns;
-	bool viewport_active, query_pending, outline_cache_valid;
+	int64_t              cursor_x, cursor_y;
+	unsigned             environment, style, port, palette;
+	unsigned             scene_revision;
+	uint64_t             wait_ns;
+	bool                 viewport_active, query_pending, outline_cache_valid;
 };
+
 /* Resource/accessor service, not incoming-data processing. Failure preserves
  * result. The observation owns only pixels; release it before reuse. This
  * graphics-only view is not the native physical SCREEN capture; explicit
  * screen backups also use the paired sink services for ANSI/blink pixels. */
-int st_rip3_session_capture(const struct st_rip3_session *session,
-	struct st_rip3_session_capture *result);
+int  st_rip3_session_capture(const struct st_rip3_session *session, struct st_rip3_session_capture *result);
 void st_rip3_session_capture_dispose(struct st_rip3_session_capture *capture);
 
 #endif

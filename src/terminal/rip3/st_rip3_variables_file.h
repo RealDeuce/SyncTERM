@@ -25,9 +25,7 @@
  * prepares a new owned table and publishes it only after validation and close.
  * Missing files return NOT_FOUND; failures preserve caller results/live data.
  * No legacy 1.54 file is accessed implicitly. */
-int st_rip3_variables_save_file(const struct st_rip3_variables *variables,
-	const char *path);
-int st_rip3_variables_load_file(struct st_rip3_variables **result,
-	const char *path);
+int st_rip3_variables_save_file(const struct st_rip3_variables *variables, const char *path);
+int st_rip3_variables_load_file(struct st_rip3_variables **result, const char *path);
 
 #endif

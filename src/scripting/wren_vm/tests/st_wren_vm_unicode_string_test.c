@@ -1,14 +1,13 @@
 /* Copyright (c) 2026 Stephen Hurd
  * SPDX-License-Identifier: BSD-2-Clause */
 
-#include "wren.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "wren.h"
+
 static void
-report_error(WrenVM *vm, WrenErrorType type, const char *module,
-	int line, const char *message)
+report_error(WrenVM *vm, WrenErrorType type, const char *module, int line, const char *message)
 {
 	(void)vm;
 	(void)type;
@@ -21,7 +20,7 @@ main(void)
 	WrenConfiguration config;
 	wrenInitConfiguration(&config);
 	config.errorFn = report_error;
-	WrenVM *vm = wrenNewVM(&config);
+	WrenVM *vm     = wrenNewVM(&config);
 	if (vm == NULL)
 		return EXIT_FAILURE;
 	WrenInterpretResult result = wrenInterpret(vm, "unicode_string",

@@ -20,7 +20,7 @@ struct st_rip3_outline_width {
  * styles. A new/reset object is invalid and measures zero. The owner resets it
  * on a full drawing reset and destroys it at shutdown. Individual STYLE/PORT
  * changes and backend glyph-bitmap disposal do not reset it. */
-int st_rip3_outline_cache_create(struct st_rip3_outline_cache **result);
+int  st_rip3_outline_cache_create(struct st_rip3_outline_cache **result);
 void st_rip3_outline_cache_destroy(struct st_rip3_outline_cache *cache);
 void st_rip3_outline_cache_reset(struct st_rip3_outline_cache *cache);
 bool st_rip3_outline_cache_valid(const struct st_rip3_outline_cache *cache);
@@ -32,20 +32,20 @@ bool st_rip3_outline_cache_valid(const struct st_rip3_outline_cache *cache);
  * The text owner prepares after its nonempty/viewport gates, before cursor
  * measurement or raster presentation. A later ink failure retains the commit.
  * Internal metric-service statuses must remain inside the parser boundary. */
-int st_rip3_outline_cache_prepare(struct st_rip3_outline_cache *cache,
-	const struct st_rip3_outline_font *font, unsigned spacing);
+int st_rip3_outline_cache_prepare(struct st_rip3_outline_cache *cache, const struct st_rip3_outline_font *font,
+    unsigned spacing);
 /* Fit nonempty text using a realized upright face. Publish only the final
  * snapshot and return that realization and spacing for painting. */
-int st_rip3_outline_cache_fit(struct st_rip3_outline_cache **cache,
-	struct st_rip3_outline_font *font, unsigned *spacing, const struct st_rip3_frame *frame,
-	unsigned shadow, uint64_t width, uint64_t height, const uint8_t *text, size_t length);
+int st_rip3_outline_cache_fit(struct st_rip3_outline_cache **cache, struct st_rip3_outline_font *font,
+    unsigned *spacing, const struct st_rip3_frame *frame, unsigned shadow, uint64_t width, uint64_t height,
+    const uint8_t *text, size_t length);
 /* Bounded C-string measurement: stop at the first NUL or length. All codes are
  * unsigned, including 0x80..0xff. No 255-byte limit or intermediate WORD wrap.
  * NULL cache represents a cold/invalid snapshot; NULL text is valid only for
  * zero length. No allocation. Overflow/errors preserve result and snapshot.
  * This is a service below void parser entry points, not a session error API. */
-int st_rip3_outline_cache_measure(struct st_rip3_outline_width *result,
-	const struct st_rip3_outline_cache *cache, const uint8_t *text, size_t length);
+int st_rip3_outline_cache_measure(struct st_rip3_outline_width *result, const struct st_rip3_outline_cache *cache,
+    const uint8_t *text, size_t length);
 
 /* Font-global unrotated height from the same atomic snapshot; cold is zero. */
 uint64_t st_rip3_outline_cache_height(const struct st_rip3_outline_cache *cache);

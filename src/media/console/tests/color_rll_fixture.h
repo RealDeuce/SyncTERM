@@ -6,21 +6,20 @@
 
 #include <stdbool.h>
 #include <stddef.h>
-#include <string.h>
 #include <stdint.h>
+#include <string.h>
 
 /* Test/benchmark encoder. The caller supplies width * height * 4 + 2 bytes.
  * Return zero if the right-half offset cannot be represented. */
 static inline size_t
-encode_color_rll(const uint8_t *rgba, size_t stride, size_t width, size_t height,
-	uint8_t *encoded)
+encode_color_rll(const uint8_t *rgba, size_t stride, size_t width, size_t height, uint8_t *encoded)
 {
 	size_t size = 2;
 
 	for (size_t half = 0; half < 2; ++half) {
 		size_t first_x = half == 0 ? 0 : width / 2;
-		size_t span = half == 0 ? width / 2 : width - width / 2;
-		size_t end = span * height;
+		size_t span    = half == 0 ? width / 2 : width - width / 2;
+		size_t end     = span * height;
 		if (half == 1) {
 			if (size > UINT16_MAX)
 				return 0;
@@ -55,8 +54,7 @@ encode_color_rll(const uint8_t *rgba, size_t stride, size_t width, size_t height
 
 /* Independent reference expansion for comparisons with the streaming renderer. */
 static inline bool
-decode_color_rll(const uint8_t *data, size_t size, size_t width, size_t height,
-	uint8_t *rgba)
+decode_color_rll(const uint8_t *data, size_t size, size_t width, size_t height, uint8_t *rgba)
 {
 	if (size < 2)
 		return false;
@@ -65,11 +63,11 @@ decode_color_rll(const uint8_t *data, size_t size, size_t width, size_t height,
 		return false;
 	memset(rgba, 0, width * height * 4);
 	for (unsigned half = 0; half < 2; ++half) {
-		size_t pos = half == 0 ? 2 : offset;
-		size_t end = half == 0 ? offset : size;
+		size_t pos     = half == 0 ? 2 : offset;
+		size_t end     = half == 0 ? offset : size;
 		size_t first_x = half == 0 ? 0 : width / 2;
-		size_t span = half == 0 ? width / 2 : width - width / 2;
-		size_t pixel = 0;
+		size_t span    = half == 0 ? width / 2 : width - width / 2;
+		size_t pixel   = 0;
 		while (pos < end) {
 			if (data[pos] == 0) {
 				if (end - pos < 2)
@@ -83,8 +81,8 @@ decode_color_rll(const uint8_t *data, size_t size, size_t width, size_t height,
 			else {
 				if (end - pos < 4 || pixel >= span * height)
 					return false;
-				size_t target = (pixel / span * width + first_x + pixel % span) * 4;
-				rgba[target] = data[pos + 1];
+				size_t target    = (pixel / span * width + first_x + pixel % span) * 4;
+				rgba[target]     = data[pos + 1];
 				rgba[target + 1] = data[pos + 2];
 				rgba[target + 2] = data[pos + 3];
 				rgba[target + 3] = data[pos];

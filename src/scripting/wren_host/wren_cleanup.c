@@ -3,20 +3,20 @@
 /* Copyright (c) 2026 Stephen Hurd
  * SPDX-License-Identifier: BSD-2-Clause */
 
-#include "wren_host_internal.h"
-#include "wren_value.h"
-#include "wren_vm.h"
-
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "wren_host_internal.h"
+#include "wren_value.h"
+#include "wren_vm.h"
+
 struct st_wren_cleanup {
 	struct st_wren_context *context;
 	struct st_wren_cleanup *next;
-	WrenHandle *function;
-	WrenHandle *owner;
-	WrenHandle *body;
+	WrenHandle             *function;
+	WrenHandle             *owner;
+	WrenHandle             *body;
 };
 
 /* Only callbacks explicitly registered by the host library participate.
@@ -27,8 +27,7 @@ cleanup_target(struct st_wren_context *context, const WrenHandle *fiber)
 	for (;;) {
 		const WrenHandle *parent = NULL;
 
-		for (struct st_wren_cleanup *scope = context->cleanups;
-		    scope != NULL; scope = scope->next) {
+		for (struct st_wren_cleanup *scope = context->cleanups; scope != NULL; scope = scope->next) {
 			if (wrenValuesSame(scope->body->value, fiber->value)) {
 				parent = scope->owner;
 				break;
@@ -47,19 +46,16 @@ st_wren_cleanup_wake_target(WrenVM *vm, WrenHandle *fiber)
 }
 
 bool
-st_wren_fibers_same_scope(WrenVM *vm,
-	const WrenHandle *left, const WrenHandle *right)
+st_wren_fibers_same_scope(WrenVM *vm, const WrenHandle *left, const WrenHandle *right)
 {
 	struct st_wren_context *context = st_wren_context_from_vm(vm);
 
 	return IS_FIBER(left->value) && IS_FIBER(right->value)
-	    && wrenValuesSame(cleanup_target(context, left)->value,
-	    cleanup_target(context, right)->value);
+	       && wrenValuesSame(cleanup_target(context, left)->value, cleanup_target(context, right)->value);
 }
 
 static bool
-cleanup_belongs_to(struct st_wren_context *context,
-	const struct st_wren_cleanup *scope, const WrenHandle *fiber)
+cleanup_belongs_to(struct st_wren_context *context, const struct st_wren_cleanup *scope, const WrenHandle *fiber)
 {
 	const WrenHandle *owner = scope->owner;
 
@@ -68,8 +64,7 @@ cleanup_belongs_to(struct st_wren_context *context,
 
 		if (wrenValuesSame(owner->value, fiber->value))
 			return true;
-		for (struct st_wren_cleanup *next = context->cleanups;
-		    next != NULL; next = next->next) {
+		for (struct st_wren_cleanup *next = context->cleanups; next != NULL; next = next->next) {
 			if (wrenValuesSame(next->body->value, owner->value)) {
 				parent = next->owner;
 				break;
@@ -88,8 +83,7 @@ cleanup_detach(struct st_wren_cleanup *cleanup)
 
 	if (context == NULL)
 		return;
-	for (struct st_wren_cleanup **cursor = &context->cleanups;
-	    *cursor != NULL; cursor = &(*cursor)->next) {
+	for (struct st_wren_cleanup **cursor = &context->cleanups; *cursor != NULL; cursor = &(*cursor)->next) {
 		if (*cursor == cleanup) {
 			*cursor = cleanup->next;
 			break;
@@ -98,24 +92,22 @@ cleanup_detach(struct st_wren_cleanup *cleanup)
 	wrenReleaseHandle(context->vm, cleanup->function);
 	wrenReleaseHandle(context->vm, cleanup->owner);
 	wrenReleaseHandle(context->vm, cleanup->body);
-	cleanup->context = NULL;
+	cleanup->context  = NULL;
 	cleanup->function = NULL;
-	cleanup->owner = NULL;
-	cleanup->body = NULL;
+	cleanup->owner    = NULL;
+	cleanup->body     = NULL;
 }
 
 static void
 cleanup_allocate(WrenVM *vm)
 {
-	struct st_wren_context *context = st_wren_context_from_vm(vm);
-	WrenHandle *function = wrenGetSlotHandle(vm, 1);
-	WrenHandle *body = wrenGetSlotHandle(vm, 2);
-	WrenHandle *owner = wrenMakeHandle(vm, OBJ_VAL(vm->fiber));
+	struct st_wren_context *context  = st_wren_context_from_vm(vm);
+	WrenHandle             *function = wrenGetSlotHandle(vm, 1);
+	WrenHandle             *body     = wrenGetSlotHandle(vm, 2);
+	WrenHandle             *owner    = wrenMakeHandle(vm, OBJ_VAL(vm->fiber));
 
-	if (context->cleanup_closing || !IS_CLOSURE(function->value)
-	    || !IS_FIBER(body->value)
-	    || wrenValuesSame(cleanup_target(context, body)->value,
-	    cleanup_target(context, owner)->value)) {
+	if (context->cleanup_closing || !IS_CLOSURE(function->value) || !IS_FIBER(body->value)
+	    || wrenValuesSame(cleanup_target(context, body)->value, cleanup_target(context, owner)->value)) {
 		wrenReleaseHandle(vm, function);
 		wrenReleaseHandle(vm, body);
 		wrenReleaseHandle(vm, owner);
@@ -123,8 +115,7 @@ cleanup_allocate(WrenVM *vm)
 		return;
 	}
 	/* A callback has exactly one host driver while it is registered. */
-	for (struct st_wren_cleanup *scope = context->cleanups;
-	    scope != NULL; scope = scope->next) {
+	for (struct st_wren_cleanup *scope = context->cleanups; scope != NULL; scope = scope->next) {
 		if (wrenValuesSame(scope->body->value, body->value)) {
 			wrenReleaseHandle(vm, function);
 			wrenReleaseHandle(vm, body);
@@ -133,11 +124,13 @@ cleanup_allocate(WrenVM *vm)
 			return;
 		}
 	}
-	struct st_wren_cleanup *cleanup = wrenSetSlotNewForeign(vm, 0, 0,
-	    sizeof(*cleanup));
-	*cleanup = (struct st_wren_cleanup){
-		.context = context, .next = context->cleanups, .function = function,
-		.owner = owner, .body = body,
+	struct st_wren_cleanup *cleanup = wrenSetSlotNewForeign(vm, 0, 0, sizeof(*cleanup));
+	*cleanup                        = (struct st_wren_cleanup) {
+	    .context  = context,
+	    .next     = context->cleanups,
+	    .function = function,
+	    .owner    = owner,
+	    .body     = body,
 	};
 	context->cleanups = cleanup;
 }
@@ -166,19 +159,18 @@ cleanup_take(WrenVM *vm)
 static void
 cleanup_take_children(WrenVM *vm)
 {
-	struct st_wren_context *context = st_wren_context_from_vm(vm);
-	WrenHandle *fiber = wrenGetSlotHandle(vm, 1);
+	struct st_wren_context  *context = st_wren_context_from_vm(vm);
+	WrenHandle              *fiber   = wrenGetSlotHandle(vm, 1);
 	struct st_wren_cleanup **children;
-	size_t capacity = 0;
-	size_t count = 0;
+	size_t                   capacity = 0;
+	size_t                   count    = 0;
 
 	if (!IS_FIBER(fiber->value) || AS_FIBER(fiber->value) == vm->fiber) {
 		wrenReleaseHandle(vm, fiber);
 		st_wren_abort(vm, "cleanup cancellation requires a parked callback");
 		return;
 	}
-	for (struct st_wren_cleanup *scope = context->cleanups;
-	    scope != NULL; scope = scope->next)
+	for (struct st_wren_cleanup *scope = context->cleanups; scope != NULL; scope = scope->next)
 		capacity++;
 	children = capacity == 0 ? NULL : malloc(capacity * sizeof(*children));
 	if (capacity != 0 && children == NULL) {
@@ -187,8 +179,7 @@ cleanup_take_children(WrenVM *vm)
 		return;
 	}
 	/* Collect before detaching: parent links are needed for membership. */
-	for (struct st_wren_cleanup *scope = context->cleanups;
-	    scope != NULL; scope = scope->next) {
+	for (struct st_wren_cleanup *scope = context->cleanups; scope != NULL; scope = scope->next) {
 		if (cleanup_belongs_to(context, scope, fiber))
 			children[count++] = scope;
 	}
@@ -212,9 +203,9 @@ cleanup_take_children(WrenVM *vm)
 static void
 cleanup_is_current_scope(WrenVM *vm)
 {
-	WrenHandle *fiber = wrenGetSlotHandle(vm, 1);
+	WrenHandle *fiber   = wrenGetSlotHandle(vm, 1);
 	WrenHandle *current = wrenMakeHandle(vm, OBJ_VAL(vm->fiber));
-	bool same = st_wren_fibers_same_scope(vm, fiber, current);
+	bool        same    = st_wren_fibers_same_scope(vm, fiber, current);
 
 	wrenReleaseHandle(vm, current);
 	wrenReleaseHandle(vm, fiber);
@@ -225,7 +216,7 @@ void
 st_wren_cleanup_shutdown(WrenVM *vm)
 {
 	struct st_wren_context *context = st_wren_context_from_vm(vm);
-	WrenHandle *call;
+	WrenHandle             *call;
 
 	if (context->cleanup_closing)
 		return;
@@ -246,8 +237,7 @@ st_wren_cleanup_shutdown(WrenVM *vm)
 }
 
 WrenForeignMethodFn
-st_wren_cleanup_bind_method(const char *class_name, bool is_static,
-	const char *signature)
+st_wren_cleanup_bind_method(const char *class_name, bool is_static, const char *signature)
 {
 	if (strcmp(class_name, "Cleanup_") != 0)
 		return NULL;

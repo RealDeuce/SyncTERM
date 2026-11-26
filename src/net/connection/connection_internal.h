@@ -6,25 +6,25 @@
 #ifndef ST_CONNECTION_INTERNAL_H_
 #define ST_CONNECTION_INTERNAL_H_
 
-#include "st_connection.h"
-#include "st_threads.h"
-#include "st_event.h"
-
 #include <stdatomic.h>
 
-#define ST_CONNECTION_BUFFER_SIZE 16384
+#include "st_connection.h"
+#include "st_event.h"
+#include "st_threads.h"
+
+#define ST_CONNECTION_BUFFER_SIZE      16384
 #define ST_CONNECTION_INPUT_CHUNK_SIZE 4096
 
 struct st_connection_queue {
-	st_mutex_t mutex;
+	st_mutex_t     mutex;
 	st_condition_t changed;
-	st_event_t *activity; /* Input queue only. Immutable while workers run. */
-	uint8_t data[ST_CONNECTION_BUFFER_SIZE];
-	size_t head;
-	size_t count;
-	bool stopped;
-	bool eof;
-	bool paused; /* Holds delivery, never transport/control processing. */
+	st_event_t    *activity; /* Input queue only. Immutable while workers run. */
+	uint8_t        data[ST_CONNECTION_BUFFER_SIZE];
+	size_t         head;
+	size_t         count;
+	bool           stopped;
+	bool           eof;
+	bool           paused; /* Holds delivery, never transport/control processing. */
 };
 
 enum st_connection_input_control {
@@ -35,81 +35,69 @@ enum st_connection_input_control {
 
 struct st_connection_transport_ops {
 	/* SSH may retain side-band channels after its terminal EOF. */
-	bool retain_after_eof;
+	bool                           retain_after_eof;
 	const struct st_sftp_provider *(*sftp)(void *state);
-	bool (*auxiliary_alive)(void *state);
-	void (*bind)(void *state, st_connection_t *connection);
-	ssize_t (*read)(void *state, void *data, size_t size, int64_t timeout_ms);
-	ssize_t (*write)(void *state, const void *data, size_t size,
-		int64_t timeout_ms);
+	bool                           (*auxiliary_alive)(void *state);
+	void                           (*bind)(void *state, st_connection_t *connection);
+	ssize_t                        (*read)(void *state, void *data, size_t size, int64_t timeout_ms);
+	ssize_t                        (*write)(void *state, const void *data, size_t size, int64_t timeout_ms);
 	/* Input worker only, while its bounded queue is full. Ordinary reads
 	 * must either discard through a protocol flush boundary or retain data
 	 * in bounded transport-owned staging to make a pending control readable.
 	 * Returns an input-control result or negative IO_ERROR_*. DISCARD drops
 	 * the worker's not-yet-queued suffix; EOF releases local flow control but
 	 * preserves that suffix for delivery before the ordinary read sees EOF. */
-	int (*poll_input_control)(void *state);
+	int  (*poll_input_control)(void *state);
 	void (*interrupt)(void *state);
-	int (*update_terminal_size)(void *state,
-		const struct st_screen_geometry *geometry);
+	int  (*update_terminal_size)(void *state, const struct st_screen_geometry *geometry);
 	void (*destroy)(void *state);
-	int (*set_binary_mode)(void *state, bool enabled);
-	int (*process_requests)(void *state);
+	int  (*set_binary_mode)(void *state, bool enabled);
+	int  (*process_requests)(void *state);
 };
 
-typedef ssize_t (*st_connection_send_filter_fn)(st_connection_t *connection,
-	const void *data, size_t size, int64_t timeout_ms, bool atomic_write,
-	enum st_connection_send_kind kind);
+typedef ssize_t (*st_connection_send_filter_fn)(st_connection_t *connection, const void *data, size_t size,
+    int64_t timeout_ms, bool atomic_write, enum st_connection_send_kind kind);
 
 struct st_connection {
 	const struct st_connection_transport_ops *operations;
-	void *transport;
-	struct st_connection_hooks hooks;
-	struct st_connection_queue input;
-	struct st_connection_queue output;
-	st_thread_t input_thread;
-	st_thread_t output_thread;
-	uint64_t started_ms;
-	const char *log_source;
-	st_connection_send_filter_fn send_filter;
-	atomic_bool connected;
-	atomic_bool stopping;
-	atomic_bool binary_mode;
-	bool input_thread_started;
-	bool output_thread_started;
+	void                                     *transport;
+	struct st_connection_hooks                hooks;
+	struct st_connection_queue                input;
+	struct st_connection_queue                output;
+	st_thread_t                               input_thread;
+	st_thread_t                               output_thread;
+	uint64_t                                  started_ms;
+	const char                               *log_source;
+	st_connection_send_filter_fn              send_filter;
+	atomic_bool                               connected;
+	atomic_bool                               stopping;
+	atomic_bool                               binary_mode;
+	bool                                      input_thread_started;
+	bool                                      output_thread_started;
 };
 
-int st_connection_start(st_connection_t **result, void *transport,
-	const struct st_connection_transport_ops *operations, const char *source,
-	const struct st_connection_hooks *hooks,
-	st_connection_send_filter_fn send_filter,
-	struct st_connection_error *error);
-ssize_t st_connection_queue_output(st_connection_t *connection,
-	const void *data, size_t size, int64_t timeout_ms);
-ssize_t st_connection_queue_output_atomic(st_connection_t *connection,
-	const void *data, size_t size, int64_t timeout_ms);
+int     st_connection_start(st_connection_t **result, void *transport,
+    const struct st_connection_transport_ops *operations, const char *source,
+    const struct st_connection_hooks *hooks, st_connection_send_filter_fn send_filter,
+    struct st_connection_error *error);
+ssize_t st_connection_queue_output(st_connection_t *connection, const void *data, size_t size, int64_t timeout_ms);
+ssize_t st_connection_queue_output_atomic(st_connection_t *connection, const void *data, size_t size,
+    int64_t timeout_ms);
 /* Caller holds the queue mutex. */
 void st_connection_queue_changed(struct st_connection_queue *queue);
 void st_connection_clear_input(st_connection_t *connection);
-bool st_connection_consume_flow_control(st_connection_t *connection,
-	uint8_t byte);
-void st_connection_log(st_connection_t *connection,
-	enum st_connection_log_level level, const char *format, ...);
-void st_connection_log_hooks(const struct st_connection_hooks *hooks,
-	const char *source, enum st_connection_log_level level, const char *format, ...);
-void st_connection_socket_diagnostic(const struct st_connection_hooks *hooks,
-	const char *option, int status);
-bool st_connection_cancelled(const struct st_connection_hooks *hooks,
-	enum st_connection_setup_phase phase);
-int st_connection_fail(struct st_connection_error *error, int code,
-	enum st_connection_setup_phase phase, const char *detail);
-int st_connection_profile_geometry(const struct st_profile *profile,
-	const struct st_screen_geometry *current,
-	struct st_screen_geometry *result);
+bool st_connection_consume_flow_control(st_connection_t *connection, uint8_t byte);
+void st_connection_log(st_connection_t *connection, enum st_connection_log_level level, const char *format, ...);
+void st_connection_log_hooks(const struct st_connection_hooks *hooks, const char *source,
+    enum st_connection_log_level level, const char *format, ...);
+void st_connection_socket_diagnostic(const struct st_connection_hooks *hooks, const char *option, int status);
+bool st_connection_cancelled(const struct st_connection_hooks *hooks, enum st_connection_setup_phase phase);
+int  st_connection_fail(struct st_connection_error *error, int code, enum st_connection_setup_phase phase,
+    const char *detail);
+int  st_connection_profile_geometry(const struct st_profile *profile, const struct st_screen_geometry *current,
+    struct st_screen_geometry *result);
 const char *st_connection_terminal_name(const struct st_profile *profile);
-void st_connection_notice(const struct st_connection_hooks *hooks,
-	const char *title, const char *message);
-bool st_connection_error_dialog(const struct st_connection_hooks *hooks,
-	const char *title, const char *message);
+void        st_connection_notice(const struct st_connection_hooks *hooks, const char *title, const char *message);
+bool st_connection_error_dialog(const struct st_connection_hooks *hooks, const char *title, const char *message);
 
 #endif

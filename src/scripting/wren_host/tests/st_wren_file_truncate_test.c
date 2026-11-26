@@ -1,11 +1,5 @@
 /* File resizing: real Wren calls, grants, buffering and native failure paths. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
-#include "wren_host_internal.h"
-#include "filesystem.h"
-#include "io_error.h"
-#include "st_app_paths.h"
-#include "string_compat.h"
-
 #include <errno.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -13,18 +7,28 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define CHECK(e) do { if (!(e)) { \
-	fprintf(stderr, "%s:%d: %s\n", __FILE__, __LINE__, #e); \
-	exit(EXIT_FAILURE); } } while (false)
+#include "filesystem.h"
+#include "io_error.h"
+#include "st_app_paths.h"
+#include "string_compat.h"
+#include "wren_host_internal.h"
+
+#define CHECK(e)                                                                \
+	do {                                                                    \
+		if (!(e)) {                                                     \
+			fprintf(stderr, "%s:%d: %s\n", __FILE__, __LINE__, #e); \
+			exit(EXIT_FAILURE);                                     \
+		}                                                               \
+	} while (false)
 
 extern unsigned st_wren_test_truncate_positions, st_wren_test_truncate_seeks;
 extern unsigned st_wren_test_truncate_calls, st_wren_test_truncate_closes;
 extern uint64_t st_wren_test_truncate_length;
-extern int st_wren_test_truncate_position_error, st_wren_test_truncate_seek_error;
-extern int st_wren_test_truncate_error, st_wren_test_truncate_errno;
-extern WrenVM *st_wren_test_truncate_vm;
-void st_wren_test_truncate_grant(WrenVM *, const char *, enum st_wren_picker_disposition);
-void st_wren_test_truncate_invalidate(WrenVM *);
+extern int      st_wren_test_truncate_position_error, st_wren_test_truncate_seek_error;
+extern int      st_wren_test_truncate_error, st_wren_test_truncate_errno;
+extern WrenVM  *st_wren_test_truncate_vm;
+void            st_wren_test_truncate_grant(WrenVM *, const char *, enum st_wren_picker_disposition);
+void            st_wren_test_truncate_invalidate(WrenVM *);
 
 static void
 run(WrenVM *vm, const char *source)
@@ -68,61 +72,59 @@ static void
 denied(WrenVM *vm)
 {
 	unsigned positions = st_wren_test_truncate_positions;
-	unsigned seeks = st_wren_test_truncate_seeks;
-	unsigned calls = st_wren_test_truncate_calls;
+	unsigned seeks     = st_wren_test_truncate_seeks;
+	unsigned calls     = st_wren_test_truncate_calls;
 	run(vm, "TruncateChecks.denied()\n");
-	CHECK(st_wren_test_truncate_positions == positions
-	    && st_wren_test_truncate_seeks == seeks && st_wren_test_truncate_calls == calls);
+	CHECK(st_wren_test_truncate_positions == positions && st_wren_test_truncate_seeks == seeks
+	      && st_wren_test_truncate_calls == calls);
 }
 
 static void
 boundaries(WrenVM *vm)
 {
 	unsigned positions = st_wren_test_truncate_positions;
-	unsigned seeks = st_wren_test_truncate_seeks;
-	unsigned calls = st_wren_test_truncate_calls;
+	unsigned seeks     = st_wren_test_truncate_seeks;
+	unsigned calls     = st_wren_test_truncate_calls;
 	run(vm, "TruncateChecks.invalid()\n");
-	CHECK(st_wren_test_truncate_positions == positions
-	    && st_wren_test_truncate_seeks == seeks && st_wren_test_truncate_calls == calls);
+	CHECK(st_wren_test_truncate_positions == positions && st_wren_test_truncate_seeks == seeks
+	      && st_wren_test_truncate_calls == calls);
 	run(vm, "TruncateChecks.intact()\n");
 
 	char probe[160];
 	for (unsigned failure = 0; failure < 2; ++failure) {
-		positions = st_wren_test_truncate_positions;
-		seeks = st_wren_test_truncate_seeks;
-		calls = st_wren_test_truncate_calls;
+		positions                            = st_wren_test_truncate_positions;
+		seeks                                = st_wren_test_truncate_seeks;
+		calls                                = st_wren_test_truncate_calls;
 		st_wren_test_truncate_position_error = failure == 0 ? IO_ERROR_IO : 0;
-		st_wren_test_truncate_seek_error = failure == 1 ? IO_ERROR_NO_SPACE : 0;
+		st_wren_test_truncate_seek_error     = failure == 1 ? IO_ERROR_NO_SPACE : 0;
 		(void)snprintf(probe, sizeof(probe), "TruncateChecks.fail(2, %d, %d)\n",
 		    failure == 0 ? IO_ERROR_IO : IO_ERROR_NO_SPACE, failure == 0 ? EIO : ENOSPC);
 		run(vm, probe);
 		CHECK(st_wren_test_truncate_positions == positions + 1
-		    && st_wren_test_truncate_seeks == seeks + failure
-		    && st_wren_test_truncate_calls == calls);
+		      && st_wren_test_truncate_seeks == seeks + failure && st_wren_test_truncate_calls == calls);
 		st_wren_test_truncate_position_error = st_wren_test_truncate_seek_error = 0;
 		run(vm, "TruncateChecks.intact()\n");
 	}
-	const int statuses[] = {IO_ERROR_PERMISSION_DENIED, IO_ERROR_NO_SPACE,
-	    IO_ERROR_OUT_OF_RANGE, -701};
+	const int statuses[] = {IO_ERROR_PERMISSION_DENIED, IO_ERROR_NO_SPACE, IO_ERROR_OUT_OF_RANGE, -701};
 	for (size_t i = 0; i < sizeof(statuses) / sizeof(statuses[0]); ++i) {
-		positions = st_wren_test_truncate_positions;
-		seeks = st_wren_test_truncate_seeks;
-		calls = st_wren_test_truncate_calls;
+		positions                   = st_wren_test_truncate_positions;
+		seeks                       = st_wren_test_truncate_seeks;
+		calls                       = st_wren_test_truncate_calls;
 		st_wren_test_truncate_error = statuses[i];
 		st_wren_test_truncate_errno = i == 0 ? EACCES : 0;
-		(void)snprintf(probe, sizeof(probe), "TruncateChecks.fail(2, %d, %d)\n",
-		    statuses[i], st_wren_test_truncate_errno);
+		(void)snprintf(probe, sizeof(probe), "TruncateChecks.fail(2, %d, %d)\n", statuses[i],
+		    st_wren_test_truncate_errno);
 		run(vm, probe);
 		CHECK(st_wren_test_truncate_calls == calls + 1 && st_wren_test_truncate_length == 2);
-		CHECK(st_wren_test_truncate_positions == positions + 1
-		    && st_wren_test_truncate_seeks == seeks + 1);
+		CHECK(
+		    st_wren_test_truncate_positions == positions + 1 && st_wren_test_truncate_seeks == seeks + 1);
 		st_wren_test_truncate_error = 0;
 		run(vm, "TruncateChecks.intact()\n");
 	}
 	/* Validate full-width forwarding without asking a filesystem to grow huge files. */
 	st_wren_test_truncate_error = IO_ERROR_OUT_OF_RANGE;
 	st_wren_test_truncate_errno = 0;
-	const uint64_t sizes[] = {UINT64_C(4294967297), UINT64_C(9007199254740991)};
+	const uint64_t sizes[]      = {UINT64_C(4294967297), UINT64_C(9007199254740991)};
 	for (size_t i = 0; i < sizeof(sizes) / sizeof(sizes[0]); ++i) {
 		calls = st_wren_test_truncate_calls;
 		(void)snprintf(probe, sizeof(probe), "TruncateChecks.fail(%.0f, IOErr.outOfRange, 0)\n",
@@ -139,26 +141,28 @@ boundaries(WrenVM *vm)
 	(void)snprintf(probe, sizeof(probe), "TruncateChecks.fail(2, IOErr.noSpace, %d)\n", ENOSPC);
 	run(vm, probe);
 	st_wren_test_truncate_error = 0;
-	FILE *persisted = NULL;
-	char bytes[6];
+	FILE *persisted             = NULL;
+	char  bytes[6];
 	CHECK(fs_open(&persisted, ST_WREN_TRUNCATE_TEST_DIRECTORY "/truncate.bin", "rb") == 0);
 	CHECK(fread(bytes, 1, sizeof(bytes), persisted) == sizeof(bytes)
-	    && memcmp(bytes, "abcXYf", sizeof(bytes)) == 0 && fclose(persisted) == 0);
-	run(vm, "TruncateChecks.check(TruncateChecks.file.offset == 5)\n"
+	      && memcmp(bytes, "abcXYf", sizeof(bytes)) == 0 && fclose(persisted) == 0);
+	run(vm,
+	    "TruncateChecks.check(TruncateChecks.file.offset == 5)\n"
 	    "TruncateChecks.file.offset = 3\n");
 	positions = st_wren_test_truncate_positions;
-	seeks = st_wren_test_truncate_seeks;
-	calls = st_wren_test_truncate_calls;
+	seeks     = st_wren_test_truncate_seeks;
+	calls     = st_wren_test_truncate_calls;
 	run(vm, "TruncateChecks.check(TruncateChecks.file.truncate(6) == null)\n");
-	CHECK(st_wren_test_truncate_calls == calls + 1
-	    && st_wren_test_truncate_positions == positions + 1 && st_wren_test_truncate_seeks == seeks + 1);
+	CHECK(st_wren_test_truncate_calls == calls + 1 && st_wren_test_truncate_positions == positions + 1
+	      && st_wren_test_truncate_seeks == seeks + 1);
 	positions = st_wren_test_truncate_positions;
-	seeks = st_wren_test_truncate_seeks;
-	calls = st_wren_test_truncate_calls;
+	seeks     = st_wren_test_truncate_seeks;
+	calls     = st_wren_test_truncate_calls;
 	run(vm, "TruncateChecks.check(TruncateChecks.file.truncate(0) == null)\n");
-	CHECK(st_wren_test_truncate_calls == calls + 1
-	    && st_wren_test_truncate_positions == positions + 1 && st_wren_test_truncate_seeks == seeks + 1);
-	run(vm, "TruncateChecks.check(TruncateChecks.file.truncate(6) == null)\n"
+	CHECK(st_wren_test_truncate_calls == calls + 1 && st_wren_test_truncate_positions == positions + 1
+	      && st_wren_test_truncate_seeks == seeks + 1);
+	run(vm,
+	    "TruncateChecks.check(TruncateChecks.file.truncate(6) == null)\n"
 	    "TruncateChecks.check(TruncateChecks.file.offset == 3 && TruncateChecks.file.size == 6)\n"
 	    "TruncateChecks.check(TruncateChecks.file.readBytes(6, 0) == \"\\x00\" * 6)\n");
 }
@@ -166,23 +170,26 @@ boundaries(WrenVM *vm)
 int
 main(void)
 {
-	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
-	const struct st_console_config config = {.columns = 80, .rows = 25, .wrap = true};
-	struct st_app_paths paths = {0};
-	st_console_t *console = NULL;
-	st_wren_host_t *host = NULL;
-	st_hyperlink_registry_t *hyperlinks = NULL;
+	const struct st_console_display_config display    = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_config         config     = {.columns = 80, .rows = 25, .wrap = true};
+	struct st_app_paths                    paths      = {0};
+	st_console_t                          *console    = NULL;
+	st_wren_host_t                        *host       = NULL;
+	st_hyperlink_registry_t               *hyperlinks = NULL;
 	CHECK(fs_create_directories(ST_WREN_TRUNCATE_TEST_DIRECTORY) == 0);
-	paths.cache_directory = ST_WREN_TRUNCATE_TEST_DIRECTORY;
+	paths.cache_directory        = ST_WREN_TRUNCATE_TEST_DIRECTORY;
 	paths.system_cache_directory = ST_WREN_TRUNCATE_TEST_DIRECTORY;
-	paths.scripts_directory = ST_WREN_TRUNCATE_TEST_DIRECTORY;
-	paths.themes_directory = ST_WREN_TRUNCATE_TEST_DIRECTORY;
-	paths.download_directory = ST_WREN_TRUNCATE_TEST_DIRECTORY;
+	paths.scripts_directory      = ST_WREN_TRUNCATE_TEST_DIRECTORY;
+	paths.themes_directory       = ST_WREN_TRUNCATE_TEST_DIRECTORY;
+	paths.download_directory     = ST_WREN_TRUNCATE_TEST_DIRECTORY;
 	CHECK(st_console_create(&console, &display, &config) == 0);
 	CHECK(st_hyperlink_registry_create(&hyperlinks) == 0);
 	const struct st_wren_host_config host_config = {
-		.console = console, .paths = &paths, .safe_mode = true,
-		.application_title = "File truncate tests", .hyperlinks = hyperlinks,
+	    .console           = console,
+	    .paths             = &paths,
+	    .safe_mode         = true,
+	    .application_title = "File truncate tests",
+	    .hyperlinks        = hyperlinks,
 	};
 	CHECK(st_wren_host_create(&host, &host_config) == 0);
 	free(host->selected.download_directory);
@@ -195,7 +202,9 @@ main(void)
 	profile.download_directory = strdup(ST_WREN_TRUNCATE_TEST_DIRECTORY);
 	CHECK(profile.download_directory != NULL);
 	const struct st_wren_connected_config connected_config = {
-		.host = host, .console = console, .profile = &profile,
+	    .host    = host,
+	    .console = console,
+	    .profile = &profile,
 	};
 	st_wren_connected_t *connected = NULL;
 	CHECK(st_wren_connected_create(&connected, &connected_config) == 0);
@@ -205,10 +214,13 @@ main(void)
 		if (owner == 0) {
 			run(vm, source);
 			run(vm, "TruncateChecks.setup()\n");
-		} else {
+		}
+		else {
 			CHECK(st_wren_connected_interpret(connected, "file_truncate_test", source) == 0);
 			st_wren_test_truncate_vm = NULL;
-			CHECK(st_wren_connected_interpret(connected, "file_truncate_test", "TruncateChecks.setup()\n") == 0);
+			CHECK(st_wren_connected_interpret(connected, "file_truncate_test",
+				  "TruncateChecks.setup()\n")
+			      == 0);
 			vm = st_wren_test_truncate_vm;
 			CHECK(vm != NULL && vm != host->vm);
 		}
@@ -224,10 +236,10 @@ main(void)
 		denied(vm);
 		run(vm, "TruncateChecks.grantClose()\n");
 		struct fs_info info;
-		CHECK(fs_get_info(&info, ST_WREN_TRUNCATE_TEST_DIRECTORY "/consent.bin") == 0
-		    && info.size == 6);
+		CHECK(fs_get_info(&info, ST_WREN_TRUNCATE_TEST_DIRECTORY "/consent.bin") == 0 && info.size == 6);
 		for (unsigned create = 0; create < 2; ++create) {
-			grant(vm, create ? ST_WREN_PICKER_DISPOSITION_CREATE : ST_WREN_PICKER_DISPOSITION_OVERWRITE);
+			grant(vm,
+			    create ? ST_WREN_PICKER_DISPOSITION_CREATE : ST_WREN_PICKER_DISPOSITION_OVERWRITE);
 			denied(vm);
 			run(vm, "TruncateChecks.grantOpen()\nTruncateChecks.consent()\n");
 		}
@@ -248,7 +260,7 @@ main(void)
 		CHECK(st_wren_test_truncate_closes == closes + 1);
 		/* Keep the main stream open so both VM destruction paths must close it. */
 		run(vm, owner == 0 ? "TruncateChecks.keepOpen(\"teardown-menu.bin\")\n"
-		    : "TruncateChecks.keepOpen(\"teardown-connected.bin\")\n");
+		                   : "TruncateChecks.keepOpen(\"teardown-connected.bin\")\n");
 	}
 	free(source);
 	unsigned closes = st_wren_test_truncate_closes;

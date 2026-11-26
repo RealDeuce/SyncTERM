@@ -3,17 +3,18 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "st_threads.h"
-
+#include <windows.h>
 #include <process.h>
 #include <stdatomic.h>
 #include <stdlib.h>
-#include <windows.h>
+
+#include "st_threads.h"
 
 struct st_mutex_impl {
 	int type;
+
 	union {
-		SRWLOCK plain;
+		SRWLOCK          plain;
 		CRITICAL_SECTION recursive;
 	} native;
 };
@@ -23,21 +24,21 @@ struct st_condition_impl {
 };
 
 struct st_thread_storage_impl {
-	DWORD index;
+	DWORD                          index;
 	st_thread_storage_destructor_t destructor;
-	atomic_uint references;
-	atomic_bool active;
+	atomic_uint                    references;
+	atomic_bool                    active;
 };
 
 struct thread_storage_value {
 	struct st_thread_storage_impl *storage;
-	void *value;
-	struct thread_storage_value *next;
+	void                          *value;
+	struct thread_storage_value   *next;
 };
 
 struct thread_arguments {
 	st_thread_start_t function;
-	void *argument;
+	void             *argument;
 };
 
 struct once_arguments {
@@ -45,50 +46,44 @@ struct once_arguments {
 };
 
 static ST_THREAD_LOCAL struct thread_storage_value *thread_storage_values;
-static ST_THREAD_LOCAL bool thread_storage_cleanup_active;
+static ST_THREAD_LOCAL bool                         thread_storage_cleanup_active;
 
 static void thread_storage_cleanup(void);
 
-_Static_assert(sizeof(st_once_flag_t) == sizeof(INIT_ONCE),
-    "st_once_flag_t must hold INIT_ONCE");
-_Static_assert(_Alignof(st_once_flag_t) >= _Alignof(INIT_ONCE),
-    "st_once_flag_t must have INIT_ONCE alignment");
+_Static_assert(sizeof(st_once_flag_t) == sizeof(INIT_ONCE), "st_once_flag_t must hold INIT_ONCE");
+_Static_assert(_Alignof(st_once_flag_t) >= _Alignof(INIT_ONCE), "st_once_flag_t must have INIT_ONCE alignment");
 
 static bool
 valid_mutex_type(int type)
 {
-	return type == ST_MUTEX_PLAIN || type == ST_MUTEX_RECURSIVE
-	    || type == ST_MUTEX_TIMED
-	    || type == (ST_MUTEX_RECURSIVE | ST_MUTEX_TIMED);
+	return type == ST_MUTEX_PLAIN || type == ST_MUTEX_RECURSIVE || type == ST_MUTEX_TIMED
+	       || type == (ST_MUTEX_RECURSIVE | ST_MUTEX_TIMED);
 }
 
 static bool
 valid_timespec(const struct timespec *value)
 {
-	return value != NULL && value->tv_nsec >= 0
-	    && value->tv_nsec < 1000000000L;
+	return value != NULL && value->tv_nsec >= 0 && value->tv_nsec < 1000000000L;
 }
 
 static DWORD
 milliseconds_until(const struct timespec *deadline, bool *expired)
 {
 	struct timespec now;
-	uintmax_t seconds;
-	long nanoseconds;
-	uint64_t milliseconds;
+	uintmax_t       seconds;
+	long            nanoseconds;
+	uint64_t        milliseconds;
 
-	if (!valid_timespec(deadline)
-	    || timespec_get(&now, TIME_UTC) != TIME_UTC) {
+	if (!valid_timespec(deadline) || timespec_get(&now, TIME_UTC) != TIME_UTC) {
 		*expired = true;
 		return 0;
 	}
 	if (deadline->tv_sec < now.tv_sec
-	    || (deadline->tv_sec == now.tv_sec
-	    && deadline->tv_nsec <= now.tv_nsec)) {
+	    || (deadline->tv_sec == now.tv_sec && deadline->tv_nsec <= now.tv_nsec)) {
 		*expired = true;
 		return 0;
 	}
-	seconds = (uintmax_t)deadline->tv_sec - (uintmax_t)now.tv_sec;
+	seconds     = (uintmax_t)deadline->tv_sec - (uintmax_t)now.tv_sec;
 	nanoseconds = deadline->tv_nsec - now.tv_nsec;
 	if (nanoseconds < 0) {
 		--seconds;
@@ -119,7 +114,7 @@ static unsigned __stdcall
 thread_entry(void *argument)
 {
 	struct thread_arguments arguments = *(struct thread_arguments *)argument;
-	int result;
+	int                     result;
 
 	free(argument);
 	result = arguments.function(arguments.argument);
@@ -130,8 +125,7 @@ thread_entry(void *argument)
 static void
 thread_storage_release(struct st_thread_storage_impl *storage)
 {
-	if (atomic_fetch_sub_explicit(&storage->references, 1,
-	    memory_order_acq_rel) == 1)
+	if (atomic_fetch_sub_explicit(&storage->references, 1, memory_order_acq_rel) == 1)
 		free(storage);
 }
 
@@ -150,37 +144,34 @@ static void
 thread_storage_cleanup(void)
 {
 	struct thread_storage_value *stored;
-	unsigned iteration;
+	unsigned                     iteration;
 
 	thread_storage_cleanup_active = true;
-	for (iteration = 0;
-	    iteration < ST_THREAD_STORAGE_DESTRUCTOR_ITERATIONS; ++iteration) {
+	for (iteration = 0; iteration < ST_THREAD_STORAGE_DESTRUCTOR_ITERATIONS; ++iteration) {
 		bool invoked = false;
 
-		for (stored = thread_storage_values; stored != NULL;
-		    stored = stored->next) {
+		for (stored = thread_storage_values; stored != NULL; stored = stored->next) {
 			st_thread_storage_destructor_t destructor;
-			void *value;
+			void                          *value;
 
-			if (!atomic_load_explicit(&stored->storage->active,
-			    memory_order_acquire) || stored->value == NULL)
+			if (!atomic_load_explicit(&stored->storage->active, memory_order_acquire)
+			    || stored->value == NULL)
 				continue;
 			destructor = stored->storage->destructor;
 			if (destructor == NULL)
 				continue;
-			value = stored->value;
+			value         = stored->value;
 			stored->value = NULL;
-			invoked = true;
+			invoked       = true;
 			destructor(value);
 		}
 		if (!invoked)
 			break;
 	}
 	while (thread_storage_values != NULL) {
-		stored = thread_storage_values;
+		stored                = thread_storage_values;
 		thread_storage_values = stored->next;
-		if (atomic_load_explicit(&stored->storage->active,
-		    memory_order_acquire)
+		if (atomic_load_explicit(&stored->storage->active, memory_order_acquire)
 		    && TlsGetValue(stored->storage->index) == stored)
 			(void)TlsSetValue(stored->storage->index, NULL);
 		thread_storage_release(stored->storage);
@@ -231,11 +222,11 @@ st_condition_signal(st_condition_t *condition)
 }
 
 int
-st_condition_timedwait(st_condition_t *restrict condition,
-    st_mutex_t *restrict mutex, const struct timespec *restrict deadline)
+st_condition_timedwait(st_condition_t *restrict condition, st_mutex_t *restrict mutex,
+    const struct timespec *restrict deadline)
 {
-	bool expired;
-	BOOL result;
+	bool  expired;
+	BOOL  result;
 	DWORD timeout;
 
 	if (!valid_timespec(deadline))
@@ -245,11 +236,11 @@ st_condition_timedwait(st_condition_t *restrict condition,
 		if (expired)
 			return ST_THREAD_TIMED_OUT;
 		if (((*mutex)->type & ST_MUTEX_RECURSIVE) != 0)
-			result = SleepConditionVariableCS(&(*condition)->native,
-			    &(*mutex)->native.recursive, timeout);
+			result =
+			    SleepConditionVariableCS(&(*condition)->native, &(*mutex)->native.recursive, timeout);
 		else
-			result = SleepConditionVariableSRW(&(*condition)->native,
-			    &(*mutex)->native.plain, timeout, 0);
+			result =
+			    SleepConditionVariableSRW(&(*condition)->native, &(*mutex)->native.plain, timeout, 0);
 		if (result)
 			return ST_THREAD_SUCCESS;
 		if (GetLastError() != ERROR_TIMEOUT)
@@ -263,11 +254,9 @@ st_condition_wait(st_condition_t *condition, st_mutex_t *mutex)
 	BOOL result;
 
 	if (((*mutex)->type & ST_MUTEX_RECURSIVE) != 0)
-		result = SleepConditionVariableCS(&(*condition)->native,
-		    &(*mutex)->native.recursive, INFINITE);
+		result = SleepConditionVariableCS(&(*condition)->native, &(*mutex)->native.recursive, INFINITE);
 	else
-		result = SleepConditionVariableSRW(&(*condition)->native,
-		    &(*mutex)->native.plain, INFINITE, 0);
+		result = SleepConditionVariableSRW(&(*condition)->native, &(*mutex)->native.plain, INFINITE, 0);
 	return result ? ST_THREAD_SUCCESS : ST_THREAD_ERROR;
 }
 
@@ -310,22 +299,18 @@ st_mutex_lock(st_mutex_t *mutex)
 }
 
 int
-st_mutex_timedlock(st_mutex_t *restrict mutex,
-    const struct timespec *restrict deadline)
+st_mutex_timedlock(st_mutex_t *restrict mutex, const struct timespec *restrict deadline)
 {
 	bool expired;
 	bool locked;
 
-	if (((*mutex)->type & ST_MUTEX_TIMED) == 0
-	    || !valid_timespec(deadline))
+	if (((*mutex)->type & ST_MUTEX_TIMED) == 0 || !valid_timespec(deadline))
 		return ST_THREAD_ERROR;
 	for (;;) {
 		if (((*mutex)->type & ST_MUTEX_RECURSIVE) != 0)
-			locked = TryEnterCriticalSection(
-			    &(*mutex)->native.recursive) != 0;
+			locked = TryEnterCriticalSection(&(*mutex)->native.recursive) != 0;
 		else
-			locked = TryAcquireSRWLockExclusive(
-			    &(*mutex)->native.plain) != 0;
+			locked = TryAcquireSRWLockExclusive(&(*mutex)->native.plain) != 0;
 		if (locked)
 			return ST_THREAD_SUCCESS;
 		(void)milliseconds_until(deadline, &expired);
@@ -358,24 +343,23 @@ st_mutex_unlock(st_mutex_t *mutex)
 }
 
 int
-st_thread_create(st_thread_t *thread, st_thread_start_t function,
-    void *argument)
+st_thread_create(st_thread_t *thread, st_thread_start_t function, void *argument)
 {
 	struct thread_arguments *arguments = malloc(sizeof(*arguments));
-	uintptr_t handle;
-	unsigned id;
+	uintptr_t                handle;
+	unsigned                 id;
 
 	if (arguments == NULL)
 		return ST_THREAD_NO_MEMORY;
 	arguments->function = function;
 	arguments->argument = argument;
-	handle = _beginthreadex(NULL, 0, thread_entry, arguments, 0, &id);
+	handle              = _beginthreadex(NULL, 0, thread_entry, arguments, 0, &id);
 	if (handle == 0) {
 		free(arguments);
 		return ST_THREAD_ERROR;
 	}
 	thread->handle = handle;
-	thread->id = id;
+	thread->id     = id;
 	return ST_THREAD_SUCCESS;
 }
 
@@ -390,8 +374,7 @@ st_thread_current(void)
 int
 st_thread_detach(st_thread_t thread)
 {
-	if (thread.handle == 0
-	    || !CloseHandle((HANDLE)(uintptr_t)thread.handle))
+	if (thread.handle == 0 || !CloseHandle((HANDLE)(uintptr_t)thread.handle))
 		return ST_THREAD_ERROR;
 	return ST_THREAD_SUCCESS;
 }
@@ -414,7 +397,7 @@ int
 st_thread_join(st_thread_t thread, int *result)
 {
 	HANDLE handle = (HANDLE)(uintptr_t)thread.handle;
-	DWORD code;
+	DWORD  code;
 
 	if (handle == NULL || WaitForSingleObject(handle, INFINITE) != WAIT_OBJECT_0)
 		return ST_THREAD_ERROR;
@@ -433,7 +416,7 @@ int
 st_thread_sleep(const struct timespec *duration, struct timespec *remaining)
 {
 	time_t seconds;
-	DWORD milliseconds;
+	DWORD  milliseconds;
 
 	if (!valid_timespec(duration) || duration->tv_sec < 0)
 		return -1;
@@ -446,7 +429,7 @@ st_thread_sleep(const struct timespec *duration, struct timespec *remaining)
 	milliseconds += (DWORD)((duration->tv_nsec + 999999L) / 1000000L);
 	Sleep(milliseconds);
 	if (remaining != NULL) {
-		remaining->tv_sec = 0;
+		remaining->tv_sec  = 0;
 		remaining->tv_nsec = 0;
 	}
 	return 0;
@@ -459,8 +442,7 @@ st_thread_yield(void)
 }
 
 int
-st_thread_storage_create(st_thread_storage_t *storage,
-    st_thread_storage_destructor_t destructor)
+st_thread_storage_create(st_thread_storage_t *storage, st_thread_storage_destructor_t destructor)
 {
 	struct st_thread_storage_impl *created = malloc(sizeof(*created));
 
@@ -485,8 +467,7 @@ st_thread_storage_delete(st_thread_storage_t storage)
 
 	atomic_store_explicit(&storage->active, false, memory_order_release);
 	(void)TlsFree(storage->index);
-	if (!thread_storage_cleanup_active && stored != NULL
-	    && stored->storage == storage) {
+	if (!thread_storage_cleanup_active && stored != NULL && stored->storage == storage) {
 		thread_storage_unlink(stored);
 		thread_storage_release(storage);
 		free(stored);
@@ -502,8 +483,7 @@ st_thread_storage_get(st_thread_storage_t storage)
 	if (!atomic_load_explicit(&storage->active, memory_order_acquire))
 		return NULL;
 	stored = TlsGetValue(storage->index);
-	return stored == NULL || stored->storage != storage
-	    ? NULL : stored->value;
+	return stored == NULL || stored->storage != storage ? NULL : stored->value;
 }
 
 int
@@ -534,14 +514,13 @@ st_thread_storage_set(st_thread_storage_t storage, void *value)
 		if (stored == NULL)
 			return ST_THREAD_NO_MEMORY;
 		stored->storage = storage;
-		stored->value = value;
+		stored->value   = value;
 		if (!TlsSetValue(storage->index, stored)) {
 			free(stored);
 			return ST_THREAD_ERROR;
 		}
-		(void)atomic_fetch_add_explicit(&storage->references, 1,
-		    memory_order_relaxed);
-		stored->next = thread_storage_values;
+		(void)atomic_fetch_add_explicit(&storage->references, 1, memory_order_relaxed);
+		stored->next          = thread_storage_values;
 		thread_storage_values = stored;
 	}
 	stored->value = value;

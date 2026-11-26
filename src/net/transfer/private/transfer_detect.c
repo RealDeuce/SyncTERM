@@ -8,8 +8,10 @@ st_transfer_detect(struct st_transfer_detector *detector, uint8_t byte)
 
 	if (detector->matched == sizeof(prefix)) {
 		detector->matched = 0;
-		if (byte == '0') return 1;
-		if (byte == '1') return 2;
+		if (byte == '0')
+			return 1;
+		if (byte == '1')
+			return 2;
 	}
 	if (byte == prefix[detector->matched])
 		++detector->matched;

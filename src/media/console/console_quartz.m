@@ -7,30 +7,28 @@
 
 #import <AppKit/AppKit.h>
 #import <Carbon/Carbon.h>
-
-#include "console_internal.h"
-
-#include "console_config.h"
-#include "io_error.h"
-#include "st_time.h"
-#include "st_utf8.h"
-
 #include <stdatomic.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 
+#include "console_config.h"
+#include "console_internal.h"
+#include "io_error.h"
+#include "st_time.h"
+#include "st_utf8.h"
+
 struct quartz_state;
 
 @interface STConsoleQuartzView : NSView {
-@public
+      @public
 	struct quartz_state *consoleState;
 }
 @end
 
 @interface STConsoleQuartzDelegate : NSObject <NSWindowDelegate> {
-@public
+      @public
 	struct quartz_state *consoleState;
 }
 @end
@@ -41,32 +39,31 @@ struct quartz_state;
 
 struct quartz_state {
 	/* Only the backend thread changes or dereferences this pointer. */
-	st_console_t *console;
-	st_console_display_t *console_display;
-	struct st_console_bitmap_geometry window_geometry;
-	NSWindow *window;
-	STConsoleQuartzView *view;
-	STConsoleQuartzDelegate *delegate;
-	NSCursor *invisible_cursor;
-	NSCursor *watch_cursor;
-	NSCursor *wait_cursor;
+	st_console_t                       *console;
+	st_console_display_t               *console_display;
+	struct st_console_bitmap_geometry   window_geometry;
+	NSWindow                           *window;
+	STConsoleQuartzView                *view;
+	STConsoleQuartzDelegate            *delegate;
+	NSCursor                           *invisible_cursor;
+	NSCursor                           *watch_cursor;
+	NSCursor                           *wait_cursor;
 	struct st_console_bitmap_presenter *presenter;
-	struct st_console_bitmap_frame frame;
-	uint32_t *pixels;
-	uint32_t pixel_width;
-	uint32_t pixel_height;
-	uint32_t minimum_pixel_width;
-	uint32_t minimum_pixel_height;
-	uint32_t windowed_pixel_width;
-	uint32_t windowed_pixel_height;
-	struct st_console_rect damage;
-	bool have_damage;
-	bool pointer_visible;
-	enum st_console_pointer_shape pointer_shape;
-	bool fullscreen;
-	bool modifier_down[256];
+	struct st_console_bitmap_frame      frame;
+	uint32_t                           *pixels;
+	uint32_t                            pixel_width;
+	uint32_t                            pixel_height;
+	uint32_t                            minimum_pixel_width;
+	uint32_t                            minimum_pixel_height;
+	uint32_t                            windowed_pixel_width;
+	uint32_t                            windowed_pixel_height;
+	struct st_console_rect              damage;
+	bool                                have_damage;
+	bool                                pointer_visible;
+	enum st_console_pointer_shape       pointer_shape;
+	bool                                fullscreen;
+	bool                                modifier_down[256];
 };
-
 
 enum quartz_command_type {
 	QUARTZ_COMMAND_CREATE,
@@ -86,36 +83,40 @@ enum quartz_command_type {
 
 struct quartz_command {
 	enum quartz_command_type type;
-	struct quartz_state *state;
+	struct quartz_state     *state;
+
 	union {
 		st_console_t *console;
+
 		struct {
 			uint32_t width;
 			uint32_t height;
 			uint32_t minimum_width;
 			uint32_t minimum_height;
 		} size;
-		const char *text;
-		char **text_result;
-		double *scaling_result;
-		bool enabled;
+
+		const char                   *text;
+		char                        **text_result;
+		double                       *scaling_result;
+		bool                          enabled;
 		enum st_console_pointer_shape pointer_shape;
 	} data;
+
 	int result;
 };
 
 #if !ST_CONSOLE_HAVE_SDL
 struct application_call {
-	int argc;
+	int    argc;
 	char **argv;
-	int (*function)(int, char **);
+	int    (*function)(int, char **);
 };
 #endif
 
 static STConsoleQuartzCommandReceiver *command_receiver;
 #if !ST_CONSOLE_HAVE_SDL
 static atomic_bool application_done;
-static atomic_int application_result;
+static atomic_int  application_result;
 #endif
 static bool runner_active;
 
@@ -132,68 +133,127 @@ static uint16_t
 physical_key(unsigned short key)
 {
 	static const uint16_t map[128] = {
-		[kVK_ANSI_A] = 30, [kVK_ANSI_S] = 31,
-		[kVK_ANSI_D] = 32, [kVK_ANSI_F] = 33,
-		[kVK_ANSI_H] = 35, [kVK_ANSI_G] = 34,
-		[kVK_ANSI_Z] = 44, [kVK_ANSI_X] = 45,
-		[kVK_ANSI_C] = 46, [kVK_ANSI_V] = 47,
-		[kVK_ANSI_B] = 48, [kVK_ANSI_Q] = 16,
-		[kVK_ANSI_W] = 17, [kVK_ANSI_E] = 18,
-		[kVK_ANSI_R] = 19, [kVK_ANSI_Y] = 21,
-		[kVK_ANSI_T] = 20, [kVK_ANSI_1] = 2,
-		[kVK_ANSI_2] = 3, [kVK_ANSI_3] = 4,
-		[kVK_ANSI_4] = 5, [kVK_ANSI_6] = 7,
-		[kVK_ANSI_5] = 6, [kVK_ANSI_Equal] = 13,
-		[kVK_ANSI_9] = 10, [kVK_ANSI_7] = 8,
-		[kVK_ANSI_Minus] = 12, [kVK_ANSI_8] = 9,
-		[kVK_ANSI_0] = 11, [kVK_ANSI_RightBracket] = 27,
-		[kVK_ANSI_O] = 24, [kVK_ANSI_U] = 22,
-		[kVK_ANSI_LeftBracket] = 26, [kVK_ANSI_I] = 23,
-		[kVK_ANSI_P] = 25, [kVK_Return] = 28,
-		[kVK_ANSI_L] = 38, [kVK_ANSI_J] = 36,
-		[kVK_ANSI_Quote] = 40, [kVK_ANSI_K] = 37,
-		[kVK_ANSI_Semicolon] = 39, [kVK_ANSI_Backslash] = 43,
-		[kVK_ANSI_Comma] = 51, [kVK_ANSI_Slash] = 53,
-		[kVK_ANSI_N] = 49, [kVK_ANSI_M] = 50,
-		[kVK_ANSI_Period] = 52, [kVK_Tab] = 15,
-		[kVK_Space] = 57, [kVK_ANSI_Grave] = 41,
-		[kVK_Delete] = 14, [kVK_Escape] = 1,
-		[kVK_F1] = 59, [kVK_F2] = 60, [kVK_F3] = 61,
-		[kVK_F4] = 62, [kVK_F5] = 63, [kVK_F6] = 64,
-		[kVK_F7] = 65, [kVK_F8] = 66, [kVK_F9] = 67,
-		[kVK_F10] = 68, [kVK_F11] = 87, [kVK_F12] = 88,
-		[kVK_ANSI_KeypadDecimal] = 83,
-		[kVK_ANSI_KeypadMultiply] = 55,
-		[kVK_ANSI_KeypadPlus] = 78,
-		[kVK_ANSI_KeypadMinus] = 74,
-		[kVK_ANSI_Keypad0] = 82, [kVK_ANSI_Keypad1] = 79,
-		[kVK_ANSI_Keypad2] = 80, [kVK_ANSI_Keypad3] = 81,
-		[kVK_ANSI_Keypad4] = 75, [kVK_ANSI_Keypad5] = 76,
-		[kVK_ANSI_Keypad6] = 77, [kVK_ANSI_Keypad7] = 71,
-		[kVK_ANSI_Keypad8] = 72, [kVK_ANSI_Keypad9] = 73,
+	    [kVK_ANSI_A]              = 30,
+	    [kVK_ANSI_S]              = 31,
+	    [kVK_ANSI_D]              = 32,
+	    [kVK_ANSI_F]              = 33,
+	    [kVK_ANSI_H]              = 35,
+	    [kVK_ANSI_G]              = 34,
+	    [kVK_ANSI_Z]              = 44,
+	    [kVK_ANSI_X]              = 45,
+	    [kVK_ANSI_C]              = 46,
+	    [kVK_ANSI_V]              = 47,
+	    [kVK_ANSI_B]              = 48,
+	    [kVK_ANSI_Q]              = 16,
+	    [kVK_ANSI_W]              = 17,
+	    [kVK_ANSI_E]              = 18,
+	    [kVK_ANSI_R]              = 19,
+	    [kVK_ANSI_Y]              = 21,
+	    [kVK_ANSI_T]              = 20,
+	    [kVK_ANSI_1]              = 2,
+	    [kVK_ANSI_2]              = 3,
+	    [kVK_ANSI_3]              = 4,
+	    [kVK_ANSI_4]              = 5,
+	    [kVK_ANSI_6]              = 7,
+	    [kVK_ANSI_5]              = 6,
+	    [kVK_ANSI_Equal]          = 13,
+	    [kVK_ANSI_9]              = 10,
+	    [kVK_ANSI_7]              = 8,
+	    [kVK_ANSI_Minus]          = 12,
+	    [kVK_ANSI_8]              = 9,
+	    [kVK_ANSI_0]              = 11,
+	    [kVK_ANSI_RightBracket]   = 27,
+	    [kVK_ANSI_O]              = 24,
+	    [kVK_ANSI_U]              = 22,
+	    [kVK_ANSI_LeftBracket]    = 26,
+	    [kVK_ANSI_I]              = 23,
+	    [kVK_ANSI_P]              = 25,
+	    [kVK_Return]              = 28,
+	    [kVK_ANSI_L]              = 38,
+	    [kVK_ANSI_J]              = 36,
+	    [kVK_ANSI_Quote]          = 40,
+	    [kVK_ANSI_K]              = 37,
+	    [kVK_ANSI_Semicolon]      = 39,
+	    [kVK_ANSI_Backslash]      = 43,
+	    [kVK_ANSI_Comma]          = 51,
+	    [kVK_ANSI_Slash]          = 53,
+	    [kVK_ANSI_N]              = 49,
+	    [kVK_ANSI_M]              = 50,
+	    [kVK_ANSI_Period]         = 52,
+	    [kVK_Tab]                 = 15,
+	    [kVK_Space]               = 57,
+	    [kVK_ANSI_Grave]          = 41,
+	    [kVK_Delete]              = 14,
+	    [kVK_Escape]              = 1,
+	    [kVK_F1]                  = 59,
+	    [kVK_F2]                  = 60,
+	    [kVK_F3]                  = 61,
+	    [kVK_F4]                  = 62,
+	    [kVK_F5]                  = 63,
+	    [kVK_F6]                  = 64,
+	    [kVK_F7]                  = 65,
+	    [kVK_F8]                  = 66,
+	    [kVK_F9]                  = 67,
+	    [kVK_F10]                 = 68,
+	    [kVK_F11]                 = 87,
+	    [kVK_F12]                 = 88,
+	    [kVK_ANSI_KeypadDecimal]  = 83,
+	    [kVK_ANSI_KeypadMultiply] = 55,
+	    [kVK_ANSI_KeypadPlus]     = 78,
+	    [kVK_ANSI_KeypadMinus]    = 74,
+	    [kVK_ANSI_Keypad0]        = 82,
+	    [kVK_ANSI_Keypad1]        = 79,
+	    [kVK_ANSI_Keypad2]        = 80,
+	    [kVK_ANSI_Keypad3]        = 81,
+	    [kVK_ANSI_Keypad4]        = 75,
+	    [kVK_ANSI_Keypad5]        = 76,
+	    [kVK_ANSI_Keypad6]        = 77,
+	    [kVK_ANSI_Keypad7]        = 71,
+	    [kVK_ANSI_Keypad8]        = 72,
+	    [kVK_ANSI_Keypad9]        = 73,
 	};
 
 	switch (key) {
-	case kVK_ANSI_KeypadEnter: return 96;
-	case kVK_Control: return 29;
-	case kVK_RightControl: return 97;
-	case kVK_Option: return 56;
-	case kVK_RightOption: return 100;
-	case kVK_Shift: return 42;
-	case kVK_RightShift: return 54;
-	case kVK_Command: return 125;
-	case kVK_RightCommand: return 126;
-	case kVK_CapsLock: return 58;
-	case kVK_Home: return 102;
-	case kVK_PageUp: return 104;
-	case kVK_ForwardDelete: return 111;
-	case kVK_End: return 107;
-	case kVK_PageDown: return 109;
-	case kVK_LeftArrow: return 105;
-	case kVK_RightArrow: return 106;
-	case kVK_DownArrow: return 108;
-	case kVK_UpArrow: return 103;
-	default: return key < sizeof(map) / sizeof(map[0]) ? map[key] : 0;
+		case kVK_ANSI_KeypadEnter:
+			return 96;
+		case kVK_Control:
+			return 29;
+		case kVK_RightControl:
+			return 97;
+		case kVK_Option:
+			return 56;
+		case kVK_RightOption:
+			return 100;
+		case kVK_Shift:
+			return 42;
+		case kVK_RightShift:
+			return 54;
+		case kVK_Command:
+			return 125;
+		case kVK_RightCommand:
+			return 126;
+		case kVK_CapsLock:
+			return 58;
+		case kVK_Home:
+			return 102;
+		case kVK_PageUp:
+			return 104;
+		case kVK_ForwardDelete:
+			return 111;
+		case kVK_End:
+			return 107;
+		case kVK_PageDown:
+			return 109;
+		case kVK_LeftArrow:
+			return 105;
+		case kVK_RightArrow:
+			return 106;
+		case kVK_DownArrow:
+			return 108;
+		case kVK_UpArrow:
+			return 103;
+		default:
+			return key < sizeof(map) / sizeof(map[0]) ? map[key] : 0;
 	}
 }
 
@@ -201,34 +261,61 @@ static uint16_t
 translated_key(unsigned short key)
 {
 	switch (key) {
-	case kVK_F1: return ST_CONSOLE_KEY_F1;
-	case kVK_F2: return ST_CONSOLE_KEY_F2;
-	case kVK_F3: return ST_CONSOLE_KEY_F3;
-	case kVK_F4: return ST_CONSOLE_KEY_F4;
-	case kVK_F5: return ST_CONSOLE_KEY_F5;
-	case kVK_F6: return ST_CONSOLE_KEY_F6;
-	case kVK_F7: return ST_CONSOLE_KEY_F7;
-	case kVK_F8: return ST_CONSOLE_KEY_F8;
-	case kVK_F9: return ST_CONSOLE_KEY_F9;
-	case kVK_F10: return ST_CONSOLE_KEY_F10;
-	case kVK_F11: return ST_CONSOLE_KEY_F11;
-	case kVK_F12: return ST_CONSOLE_KEY_F12;
-	case kVK_Delete: return 8;
-	case kVK_Tab: return 9;
-	case kVK_Return:
-	case kVK_ANSI_KeypadEnter: return 13;
-	case kVK_Escape: return 27;
-	case kVK_Home: return ST_CONSOLE_KEY_HOME;
-	case kVK_LeftArrow: return ST_CONSOLE_KEY_LEFT;
-	case kVK_UpArrow: return ST_CONSOLE_KEY_UP;
-	case kVK_RightArrow: return ST_CONSOLE_KEY_RIGHT;
-	case kVK_DownArrow: return ST_CONSOLE_KEY_DOWN;
-	case kVK_Help: return ST_CONSOLE_KEY_INSERT;
-	case kVK_ForwardDelete: return ST_CONSOLE_KEY_DELETE;
-	case kVK_End: return ST_CONSOLE_KEY_END;
-	case kVK_PageUp: return ST_CONSOLE_KEY_PAGE_UP;
-	case kVK_PageDown: return ST_CONSOLE_KEY_PAGE_DOWN;
-	default: return 0;
+		case kVK_F1:
+			return ST_CONSOLE_KEY_F1;
+		case kVK_F2:
+			return ST_CONSOLE_KEY_F2;
+		case kVK_F3:
+			return ST_CONSOLE_KEY_F3;
+		case kVK_F4:
+			return ST_CONSOLE_KEY_F4;
+		case kVK_F5:
+			return ST_CONSOLE_KEY_F5;
+		case kVK_F6:
+			return ST_CONSOLE_KEY_F6;
+		case kVK_F7:
+			return ST_CONSOLE_KEY_F7;
+		case kVK_F8:
+			return ST_CONSOLE_KEY_F8;
+		case kVK_F9:
+			return ST_CONSOLE_KEY_F9;
+		case kVK_F10:
+			return ST_CONSOLE_KEY_F10;
+		case kVK_F11:
+			return ST_CONSOLE_KEY_F11;
+		case kVK_F12:
+			return ST_CONSOLE_KEY_F12;
+		case kVK_Delete:
+			return 8;
+		case kVK_Tab:
+			return 9;
+		case kVK_Return:
+		case kVK_ANSI_KeypadEnter:
+			return 13;
+		case kVK_Escape:
+			return 27;
+		case kVK_Home:
+			return ST_CONSOLE_KEY_HOME;
+		case kVK_LeftArrow:
+			return ST_CONSOLE_KEY_LEFT;
+		case kVK_UpArrow:
+			return ST_CONSOLE_KEY_UP;
+		case kVK_RightArrow:
+			return ST_CONSOLE_KEY_RIGHT;
+		case kVK_DownArrow:
+			return ST_CONSOLE_KEY_DOWN;
+		case kVK_Help:
+			return ST_CONSOLE_KEY_INSERT;
+		case kVK_ForwardDelete:
+			return ST_CONSOLE_KEY_DELETE;
+		case kVK_End:
+			return ST_CONSOLE_KEY_END;
+		case kVK_PageUp:
+			return ST_CONSOLE_KEY_PAGE_UP;
+		case kVK_PageDown:
+			return ST_CONSOLE_KEY_PAGE_DOWN;
+		default:
+			return 0;
 	}
 }
 
@@ -253,28 +340,27 @@ event_modifiers(NSEventModifierFlags flags)
 static bool
 post_physical(struct quartz_state *state, NSEvent *source, bool pressed)
 {
-	uint16_t key = physical_key(source.keyCode);
+	uint16_t                key = physical_key(source.keyCode);
 	struct st_console_event event;
 
 	if (key == 0)
 		return false;
-	event = (struct st_console_event){
-		.type = ST_CONSOLE_EVENT_PHYSICAL_KEY,
-		.data.physical_key = {
-			.evdev = key,
-			.modifiers = event_modifiers(source.modifierFlags),
-			.pressed = pressed,
-			/* FlagsChanged events do not support isARepeat. */
-			.repeat = pressed && source.type == NSEventTypeKeyDown
-			    && source.isARepeat,
-		},
+	event = (struct st_console_event) {
+	    .type = ST_CONSOLE_EVENT_PHYSICAL_KEY,
+	    .data.physical_key =
+		{
+				    .evdev     = key,
+				    .modifiers = event_modifiers(source.modifierFlags),
+				    .pressed   = pressed,
+				    /* FlagsChanged events do not support isARepeat. */
+		    .repeat = pressed && source.type == NSEventTypeKeyDown && source.isARepeat,
+				    },
 	};
 	return st_console_display_post_key_event(state->console_display, &event);
 }
 
 static void
-post_text(struct quartz_state *state, NSString *text,
-	NSEventModifierFlags modifier_flags)
+post_text(struct quartz_state *state, NSString *text, NSEventModifierFlags modifier_flags)
 {
 	NSUInteger length = text.length;
 
@@ -285,8 +371,7 @@ post_text(struct quartz_state *state, NSString *text,
 			uint32_t low = [text characterAtIndex:i + 1];
 
 			if (low >= 0xdc00 && low <= 0xdfff) {
-				codepoint = UINT32_C(0x10000)
-				    + ((codepoint - 0xd800) << 10) + low - 0xdc00;
+				codepoint = UINT32_C(0x10000) + ((codepoint - 0xd800) << 10) + low - 0xdc00;
 				++i;
 			}
 		}
@@ -295,13 +380,14 @@ post_text(struct quartz_state *state, NSString *text,
 		if (codepoint < 0x20 || codepoint == 0x7f)
 			continue;
 		(void)st_console_display_post_event(state->console_display,
-		    &(struct st_console_event){
+		    &(struct st_console_event) {
 			.type = ST_CONSOLE_EVENT_TEXT,
-			.data.text = {
-				.codepoint = codepoint,
-				.modifiers = event_modifiers(modifier_flags),
-			},
-		    });
+			.data.text =
+			    {
+					.codepoint = codepoint,
+					.modifiers = event_modifiers(modifier_flags),
+					},
+		});
 	}
 }
 
@@ -309,77 +395,71 @@ static void
 center_window(struct quartz_state *state)
 {
 	NSScreen *screen = state->window.screen;
-	NSRect frame;
-	NSRect available;
+	NSRect    frame;
+	NSRect    available;
 
 	if (screen == nil)
 		screen = NSScreen.mainScreen;
 	if (screen == nil)
 		return;
-	frame = state->window.frame;
-	available = screen.visibleFrame;
-	frame.origin.x = available.origin.x
-	    + (available.size.width - frame.size.width) / 2;
-	frame.origin.y = available.origin.y
-	    + (available.size.height - frame.size.height) / 2;
+	frame          = state->window.frame;
+	available      = screen.visibleFrame;
+	frame.origin.x = available.origin.x + (available.size.width - frame.size.width) / 2;
+	frame.origin.y = available.origin.y + (available.size.height - frame.size.height) / 2;
 	[state->window setFrameOrigin:frame.origin];
 }
 
 static void
 snap_window(struct quartz_state *state, bool larger)
 {
-	CGFloat scale = state->window.backingScaleFactor;
-	NSSize current = state->view.bounds.size;
-	NSRect available;
+	CGFloat  scale   = state->window.backingScaleFactor;
+	NSSize   current = state->view.bounds.size;
+	NSRect   available;
 	uint32_t width;
 	uint32_t height;
-	uint32_t maximum_width = 0;
+	uint32_t maximum_width  = 0;
 	uint32_t maximum_height = 0;
 
-	if (state->fullscreen
-	    || (state->window.styleMask & NSWindowStyleMaskFullScreen) != 0)
+	if (state->fullscreen || (state->window.styleMask & NSWindowStyleMaskFullScreen) != 0)
 		return;
 	if (scale <= 0)
 		scale = 1;
 	if (state->window.screen != nil) {
-		available = [NSWindow contentRectForFrameRect:
-		    state->window.screen.visibleFrame styleMask:state->window.styleMask];
+		available = [NSWindow contentRectForFrameRect:state->window.screen.visibleFrame
+						    styleMask:state->window.styleMask];
 		if (available.size.width > 0 && available.size.height > 0) {
-			maximum_width = (uint32_t)(available.size.width * scale);
+			maximum_width  = (uint32_t)(available.size.width * scale);
 			maximum_height = (uint32_t)(available.size.height * scale);
 		}
 	}
-	if (st_console_snap_geometry_size(&state->window_geometry,
-	    (uint32_t)(current.width * scale),
-	    (uint32_t)(current.height * scale), larger, maximum_width,
-	    maximum_height, &width, &height) != 0
-	    || (width == (uint32_t)(current.width * scale)
-	    && height == (uint32_t)(current.height * scale)))
+	if (st_console_snap_geometry_size(&state->window_geometry, (uint32_t)(current.width * scale),
+		(uint32_t)(current.height * scale), larger, maximum_width, maximum_height, &width, &height)
+	        != 0
+	    || (width == (uint32_t)(current.width * scale) && height == (uint32_t)(current.height * scale)))
 		return;
-	state->windowed_pixel_width = width;
+	state->windowed_pixel_width  = width;
 	state->windowed_pixel_height = height;
 	[state->window setContentSize:NSMakeSize(width / scale, height / scale)];
 }
 
 static void
-post_mouse(struct quartz_state *state, NSEvent *source,
-	enum st_console_mouse_action action)
+post_mouse(struct quartz_state *state, NSEvent *source, enum st_console_mouse_action action)
 {
-	NSPoint point = [state->view convertPoint:source.locationInWindow
-	    fromView:nil];
-	CGFloat scale = state->window.backingScaleFactor;
-	uint32_t buttons = 0;
-	NSUInteger native_buttons = [NSEvent pressedMouseButtons];
-	struct st_console_event event = {
-		.type = ST_CONSOLE_EVENT_MOUSE,
-		.data.mouse = {
-			.action = action,
-			.modifiers = event_modifiers(source.modifierFlags),
-		},
+	NSPoint                 point          = [state->view convertPoint:source.locationInWindow fromView:nil];
+	CGFloat                 scale          = state->window.backingScaleFactor;
+	uint32_t                buttons        = 0;
+	NSUInteger              native_buttons = [NSEvent pressedMouseButtons];
+	struct st_console_event event          = {
+	    .type = ST_CONSOLE_EVENT_MOUSE,
+	    .data.mouse =
+		{
+			     .action    = action,
+			     .modifiers = event_modifiers(source.modifierFlags),
+			     },
 	};
 	struct st_console_bitmap_frame frame = state->frame;
-	double x = point.x * scale;
-	double y = (state->view.bounds.size.height - point.y) * scale;
+	double                         x     = point.x * scale;
+	double                         y     = (state->view.bounds.size.height - point.y) * scale;
 
 	if ((native_buttons & (1UL << 0)) != 0)
 		buttons |= ST_CONSOLE_MOUSE_BUTTON_LEFT;
@@ -392,13 +472,10 @@ post_mouse(struct quartz_state *state, NSEvent *source,
 	if ((native_buttons & (1UL << 4)) != 0)
 		buttons |= ST_CONSOLE_MOUSE_BUTTON_X2;
 	event.data.mouse.buttons = buttons;
-	st_console_bitmap_mouse_position(&frame, (int64_t)x, (int64_t)y,
-	    &event);
+	st_console_bitmap_mouse_position(&frame, (int64_t)x, (int64_t)y, &event);
 	if (action == ST_CONSOLE_MOUSE_WHEEL) {
-		event.data.mouse.wheel_x = source.scrollingDeltaX > 0 ? 1
-		    : source.scrollingDeltaX < 0 ? -1 : 0;
-		event.data.mouse.wheel_y = source.scrollingDeltaY > 0 ? 1
-		    : source.scrollingDeltaY < 0 ? -1 : 0;
+		event.data.mouse.wheel_x = source.scrollingDeltaX > 0 ? 1 : source.scrollingDeltaX < 0 ? -1 : 0;
+		event.data.mouse.wheel_y = source.scrollingDeltaY > 0 ? 1 : source.scrollingDeltaY < 0 ? -1 : 0;
 		if (source.isDirectionInvertedFromDevice) {
 			event.data.mouse.wheel_x = -event.data.mouse.wheel_x;
 			event.data.mouse.wheel_y = -event.data.mouse.wheel_y;
@@ -449,13 +526,13 @@ post_mouse(struct quartz_state *state, NSEvent *source,
 - (void)drawRect:(NSRect)dirtyRect
 {
 	struct quartz_state *state = consoleState;
-	CGContextRef context;
-	CGColorSpaceRef colour_space;
-	CGDataProviderRef provider;
-	CGImageRef image;
-	CGFloat scale;
-	CGRect destination;
-	size_t bytes;
+	CGContextRef         context;
+	CGColorSpaceRef      colour_space;
+	CGDataProviderRef    provider;
+	CGImageRef           image;
+	CGFloat              scale;
+	CGRect               destination;
+	size_t               bytes;
 
 	(void)dirtyRect;
 	if (state == NULL)
@@ -463,17 +540,15 @@ post_mouse(struct quartz_state *state, NSEvent *source,
 	context = NSGraphicsContext.currentContext.CGContext;
 	CGContextSetRGBFillColor(context, 0, 0, 0, 1);
 	CGContextFillRect(context, NSRectToCGRect(self.bounds));
-	if (state->pixels == NULL || state->pixel_width == 0
-	    || state->pixel_height == 0)
+	if (state->pixels == NULL || state->pixel_width == 0 || state->pixel_height == 0)
 		return;
-	bytes = (size_t)state->pixel_width * state->pixel_height
-	    * sizeof(state->pixels[0]);
-	provider = CGDataProviderCreateWithData(NULL, state->pixels, bytes, NULL);
+	bytes        = (size_t)state->pixel_width * state->pixel_height * sizeof(state->pixels[0]);
+	provider     = CGDataProviderCreateWithData(NULL, state->pixels, bytes, NULL);
 	colour_space = CGColorSpaceCreateDeviceRGB();
-	image = CGImageCreate(state->pixel_width, state->pixel_height, 8, 32,
+	image        = CGImageCreate(state->pixel_width, state->pixel_height, 8, 32,
 	    (size_t)state->pixel_width * sizeof(state->pixels[0]), colour_space,
-	    kCGBitmapByteOrder32Little | kCGImageAlphaNoneSkipFirst, provider,
-	    NULL, false, kCGRenderingIntentDefault);
+	    kCGBitmapByteOrder32Little | kCGImageAlphaNoneSkipFirst, provider, NULL, false,
+	    kCGRenderingIntentDefault);
 	CGColorSpaceRelease(colour_space);
 	CGDataProviderRelease(provider);
 	if (image == NULL)
@@ -482,68 +557,59 @@ post_mouse(struct quartz_state *state, NSEvent *source,
 	if (scale <= 0)
 		scale = 1;
 	destination = CGRectMake(state->frame.destination.x / scale,
-	    self.bounds.size.height
-	    - (state->frame.destination.y + state->frame.destination.height)
-	    / scale,
-	    state->frame.destination.width / scale,
-	    state->frame.destination.height / scale);
-	CGContextSetInterpolationQuality(context,
-	    state->frame.scaling_mode == ST_CONSOLE_SCALING_EXTERNAL
-	    ? kCGInterpolationDefault : kCGInterpolationNone);
+	    self.bounds.size.height - (state->frame.destination.y + state->frame.destination.height) / scale,
+	    state->frame.destination.width / scale, state->frame.destination.height / scale);
+	CGContextSetInterpolationQuality(context, state->frame.scaling_mode == ST_CONSOLE_SCALING_EXTERNAL
+						      ? kCGInterpolationDefault
+						      : kCGInterpolationNone);
 	CGContextDrawImage(context, destination, image);
 	CGImageRelease(image);
 }
 
 - (void)keyDown:(NSEvent *)event
 {
-	uint16_t key;
-	NSEventModifierFlags modifiers = event.modifierFlags;
-	bool command = (modifiers & NSEventModifierFlagCommand) != 0;
-	bool control = (modifiers & NSEventModifierFlagControl) != 0;
-	bool option = (modifiers & NSEventModifierFlagOption) != 0;
-	bool control_key = false;
-	NSString *characters = event.charactersIgnoringModifiers;
-	unichar character = characters.length == 0
-	    ? 0 : [characters characterAtIndex:0];
+	uint16_t             key;
+	NSEventModifierFlags modifiers   = event.modifierFlags;
+	bool                 command     = (modifiers & NSEventModifierFlagCommand) != 0;
+	bool                 control     = (modifiers & NSEventModifierFlagControl) != 0;
+	bool                 option      = (modifiers & NSEventModifierFlagOption) != 0;
+	bool                 control_key = false;
+	NSString            *characters  = event.charactersIgnoringModifiers;
+	unichar              character   = characters.length == 0 ? 0 : [characters characterAtIndex:0];
 
-	if (command && !control && !option
-	    && (character == 'q' || character == 'Q')) {
+	if (command && !control && !option && (character == 'q' || character == 'Q')) {
 		(void)st_console_display_post_event(consoleState->console_display,
-		    &(struct st_console_event){.type = ST_CONSOLE_EVENT_CLOSE});
+		    &(struct st_console_event) {.type = ST_CONSOLE_EVENT_CLOSE});
 		return;
 	}
-	if (command && !control && !option
-	    && (character == 'v' || character == 'V')) {
+	if (command && !control && !option && (character == 'v' || character == 'V')) {
 		(void)st_console_display_post_event(consoleState->console_display,
-		    &(struct st_console_event){
+		    &(struct st_console_event) {
 			.type = ST_CONSOLE_EVENT_KEY_CODE,
-			.data.key = {
-				.code = ST_CONSOLE_KEY_INSERT,
-				.modifiers = ST_CONSOLE_MODIFIER_SHIFT,
-			},
-		    });
+			.data.key =
+			    {
+				       .code      = ST_CONSOLE_KEY_INSERT,
+				       .modifiers = ST_CONSOLE_MODIFIER_SHIFT,
+				       },
+		});
 		return;
 	}
-	if (command && control && !option
-	    && (character == 'f' || character == 'F')) {
+	if (command && control && !option && (character == 'f' || character == 'F')) {
 		[consoleState->window toggleFullScreen:nil];
 		return;
 	}
 	if (post_physical(consoleState, event, true))
 		return;
 	if (command || option) {
-		if ((event.keyCode == kVK_Return
-		    || event.keyCode == kVK_ANSI_KeypadEnter) && !event.isARepeat) {
+		if ((event.keyCode == kVK_Return || event.keyCode == kVK_ANSI_KeypadEnter) && !event.isARepeat) {
 			if (!consoleState->fullscreen) {
 				CGFloat scale = consoleState->window.backingScaleFactor;
-				NSSize size = consoleState->view.bounds.size;
+				NSSize  size  = consoleState->view.bounds.size;
 
 				if (scale <= 0)
 					scale = 1;
-				consoleState->windowed_pixel_width
-				    = (uint32_t)(size.width * scale);
-				consoleState->windowed_pixel_height
-				    = (uint32_t)(size.height * scale);
+				consoleState->windowed_pixel_width  = (uint32_t)(size.width * scale);
+				consoleState->windowed_pixel_height = (uint32_t)(size.height * scale);
 			}
 			[consoleState->window toggleFullScreen:nil];
 			return;
@@ -566,16 +632,15 @@ post_mouse(struct quartz_state *state, NSEvent *source,
 		control_key = st_console_control_key(character, &key);
 	if (key != 0 || control_key)
 		(void)st_console_display_post_event(consoleState->console_display,
-		    &(struct st_console_event){
+		    &(struct st_console_event) {
 			.type = ST_CONSOLE_EVENT_KEY_CODE,
-			.data.key = {
-				.code = key,
-				.modifiers = event_modifiers(event.modifierFlags),
-			},
-		    });
-	if (key == 0
-	    && (event.modifierFlags & (NSEventModifierFlagCommand
-	    | NSEventModifierFlagControl)) == 0)
+			.data.key =
+			    {
+				       .code      = key,
+				       .modifiers = event_modifiers(event.modifierFlags),
+				       },
+		});
+	if (key == 0 && (event.modifierFlags & (NSEventModifierFlagCommand | NSEventModifierFlagControl)) == 0)
 		post_text(consoleState, event.characters, event.modifierFlags);
 }
 
@@ -587,11 +652,11 @@ post_mouse(struct quartz_state *state, NSEvent *source,
 - (void)flagsChanged:(NSEvent *)event
 {
 	uint16_t key = physical_key(event.keyCode);
-	bool pressed;
+	bool     pressed;
 
 	if (key == 0 || key >= sizeof(consoleState->modifier_down))
 		return;
-	pressed = !consoleState->modifier_down[key];
+	pressed                          = !consoleState->modifier_down[key];
 	consoleState->modifier_down[key] = pressed;
 	(void)post_physical(consoleState, event, pressed);
 }
@@ -659,22 +724,20 @@ post_mouse(struct quartz_state *state, NSEvent *source,
 {
 	(void)sender;
 	(void)st_console_display_post_event(consoleState->console_display,
-	    &(struct st_console_event){.type = ST_CONSOLE_EVENT_CLOSE});
+	    &(struct st_console_event) {.type = ST_CONSOLE_EVENT_CLOSE});
 	return NO;
 }
 
 - (void)windowDidResize:(NSNotification *)notification
 {
 	CGFloat scale = consoleState->window.backingScaleFactor;
-	NSSize size = consoleState->view.bounds.size;
+	NSSize  size  = consoleState->view.bounds.size;
 
 	(void)notification;
 	if (scale <= 0)
 		scale = 1;
-	if (!consoleState->fullscreen
-	    && (consoleState->window.styleMask
-	    & NSWindowStyleMaskFullScreen) == 0) {
-		consoleState->windowed_pixel_width = (uint32_t)(size.width * scale);
+	if (!consoleState->fullscreen && (consoleState->window.styleMask & NSWindowStyleMaskFullScreen) == 0) {
+		consoleState->windowed_pixel_width  = (uint32_t)(size.width * scale);
 		consoleState->windowed_pixel_height = (uint32_t)(size.height * scale);
 	}
 	st_console_display_request_repaint(consoleState->console_display);
@@ -694,32 +757,28 @@ post_mouse(struct quartz_state *state, NSEvent *source,
 	(void)notification;
 	if (scale <= 0)
 		scale = 1;
-	[consoleState->window setContentSize:NSMakeSize(
-	    consoleState->windowed_pixel_width / scale,
-	    consoleState->windowed_pixel_height / scale)];
+	[consoleState->window setContentSize:NSMakeSize(consoleState->windowed_pixel_width / scale,
+						 consoleState->windowed_pixel_height / scale)];
 	consoleState->fullscreen = false;
 }
 
 - (void)windowDidBecomeKey:(NSNotification *)notification
 {
 	(void)notification;
-	(void)st_console_display_post_event(consoleState->console_display,
-	    &(struct st_console_event){
-		.type = ST_CONSOLE_EVENT_FOCUS,
-		.data.focus.focused = true,
-	    });
+	(void)st_console_display_post_event(consoleState->console_display, &(struct st_console_event) {
+									       .type = ST_CONSOLE_EVENT_FOCUS,
+									       .data.focus.focused = true,
+									   });
 }
 
 - (void)windowDidResignKey:(NSNotification *)notification
 {
 	(void)notification;
-	memset(consoleState->modifier_down, 0,
-	    sizeof(consoleState->modifier_down));
-	(void)st_console_display_post_event(consoleState->console_display,
-	    &(struct st_console_event){
-		.type = ST_CONSOLE_EVENT_FOCUS,
-		.data.focus.focused = false,
-	    });
+	memset(consoleState->modifier_down, 0, sizeof(consoleState->modifier_down));
+	(void)st_console_display_post_event(consoleState->console_display, &(struct st_console_event) {
+									       .type = ST_CONSOLE_EVENT_FOCUS,
+									       .data.focus.focused = false,
+									   });
 }
 
 - (void)windowDidChangeBackingProperties:(NSNotification *)notification
@@ -729,27 +788,24 @@ post_mouse(struct quartz_state *state, NSEvent *source,
 	(void)notification;
 	if (scale <= 0)
 		scale = 1;
-	consoleState->window.contentMinSize = NSMakeSize(
-	    consoleState->minimum_pixel_width / scale,
-	    consoleState->minimum_pixel_height / scale);
+	consoleState->window.contentMinSize =
+	    NSMakeSize(consoleState->minimum_pixel_width / scale, consoleState->minimum_pixel_height / scale);
 	if (!consoleState->fullscreen)
-		[consoleState->window setContentSize:NSMakeSize(
-		    consoleState->windowed_pixel_width / scale,
-		    consoleState->windowed_pixel_height / scale)];
+		[consoleState->window setContentSize:NSMakeSize(consoleState->windowed_pixel_width / scale,
+							 consoleState->windowed_pixel_height / scale)];
 	[consoleState->view setNeedsDisplay:YES];
 }
 
 @end
 
 static void
-add_damage(struct quartz_state *state,
-	const struct st_console_rect *rectangle)
+add_damage(struct quartz_state *state, const struct st_console_rect *rectangle)
 {
-	uint32_t right = rectangle->x + rectangle->width;
+	uint32_t right  = rectangle->x + rectangle->width;
 	uint32_t bottom = rectangle->y + rectangle->height;
 
 	if (!state->have_damage) {
-		state->damage = *rectangle;
+		state->damage      = *rectangle;
 		state->have_damage = true;
 		return;
 	}
@@ -768,12 +824,11 @@ add_damage(struct quartz_state *state,
 }
 
 static int
-upload(void *context, const struct st_rgb_buffer *pixels,
-	const struct st_console_rect *rectangle, const void *image_identity,
-	uint64_t generation)
+upload(void *context, const struct st_rgb_buffer *pixels, const struct st_console_rect *rectangle,
+    const void *image_identity, uint64_t generation)
 {
 	struct quartz_state *state = context;
-	size_t count;
+	size_t               count;
 
 	(void)image_identity;
 	(void)generation;
@@ -781,8 +836,7 @@ upload(void *context, const struct st_rgb_buffer *pixels,
 	if (pixels->height != 0 && pixels->width > SIZE_MAX / pixels->height)
 		return IO_ERROR_OUT_OF_RANGE;
 	count = (size_t)pixels->width * pixels->height;
-	if (state->pixel_width != pixels->width
-	    || state->pixel_height != pixels->height) {
+	if (state->pixel_width != pixels->width || state->pixel_height != pixels->height) {
 		uint32_t *replacement;
 
 		if (count > SIZE_MAX / sizeof(*replacement))
@@ -792,17 +846,15 @@ upload(void *context, const struct st_rgb_buffer *pixels,
 			return IO_ERROR_OUT_OF_MEMORY;
 		memcpy(replacement, pixels->pixels, count * sizeof(*replacement));
 		free(state->pixels);
-		state->pixels = replacement;
-		state->pixel_width = pixels->width;
+		state->pixels       = replacement;
+		state->pixel_width  = pixels->width;
 		state->pixel_height = pixels->height;
-		state->damage = (struct st_console_rect){0, 0,
-		    pixels->width, pixels->height};
-		state->have_damage = true;
+		state->damage       = (struct st_console_rect) {0, 0, pixels->width, pixels->height};
+		state->have_damage  = true;
 		return 0;
 	}
 	for (uint32_t y = 0; y < rectangle->height; ++y) {
-		size_t offset = (size_t)(rectangle->y + y) * pixels->width
-		    + rectangle->x;
+		size_t offset = (size_t)(rectangle->y + y) * pixels->width + rectangle->x;
 
 		memcpy(&state->pixels[offset], &pixels->pixels[offset],
 		    (size_t)rectangle->width * sizeof(state->pixels[0]));
@@ -814,33 +866,31 @@ upload(void *context, const struct st_rgb_buffer *pixels,
 static void
 invalidate_damage(struct quartz_state *state, bool forced)
 {
-	CGFloat scale = state->window.backingScaleFactor;
-	struct st_console_rect damage = state->damage;
-	struct st_console_bitmap_frame *frame = &state->frame;
-	double left;
-	double top;
-	double right;
-	double bottom;
+	CGFloat                         scale  = state->window.backingScaleFactor;
+	struct st_console_rect          damage = state->damage;
+	struct st_console_bitmap_frame *frame  = &state->frame;
+	double                          left;
+	double                          top;
+	double                          right;
+	double                          bottom;
 
-	if (forced || !state->have_damage || frame->pixels == NULL
-	    || frame->destination.width == 0 || frame->destination.height == 0) {
+	if (forced || !state->have_damage || frame->pixels == NULL || frame->destination.width == 0
+	    || frame->destination.height == 0) {
 		[state->view setNeedsDisplay:YES];
 		state->have_damage = false;
 		return;
 	}
 	if (scale <= 0)
 		scale = 1;
-	left = frame->destination.x + (double)damage.x
-	    * frame->destination.width / frame->pixels->width;
-	top = frame->destination.y + (double)damage.y
-	    * frame->destination.height / frame->pixels->height;
-	right = frame->destination.x + (double)(damage.x + damage.width)
-	    * frame->destination.width / frame->pixels->width;
-	bottom = frame->destination.y + (double)(damage.y + damage.height)
-	    * frame->destination.height / frame->pixels->height;
-	[state->view setNeedsDisplayInRect:NSMakeRect(left / scale,
-	    state->view.bounds.size.height - bottom / scale,
-	    (right - left) / scale, (bottom - top) / scale)];
+	left   = frame->destination.x + (double)damage.x * frame->destination.width / frame->pixels->width;
+	top    = frame->destination.y + (double)damage.y * frame->destination.height / frame->pixels->height;
+	right  = frame->destination.x
+	         + (double)(damage.x + damage.width) * frame->destination.width / frame->pixels->width;
+	bottom = frame->destination.y
+	         + (double)(damage.y + damage.height) * frame->destination.height / frame->pixels->height;
+	[state->view
+	    setNeedsDisplayInRect:NSMakeRect(left / scale, state->view.bounds.size.height - bottom / scale,
+				      (right - left) / scale, (bottom - top) / scale)];
 	state->have_damage = false;
 }
 
@@ -848,20 +898,20 @@ static int
 render(struct quartz_state *state, const st_console_t *console, bool forced)
 {
 	struct st_console_rect previous = state->frame.destination;
-	NSSize size = state->view.bounds.size;
-	CGFloat scale = state->window.backingScaleFactor;
-	uint32_t width;
-	uint32_t height;
-	int status;
+	NSSize                 size     = state->view.bounds.size;
+	CGFloat                scale    = state->window.backingScaleFactor;
+	uint32_t               width;
+	uint32_t               height;
+	int                    status;
 
 	if (size.width <= 0 || size.height <= 0)
 		return 0;
 	if (scale <= 0)
 		scale = 1;
-	width = (uint32_t)(size.width * scale);
+	width  = (uint32_t)(size.width * scale);
 	height = (uint32_t)(size.height * scale);
-	status = st_console_bitmap_presenter_frame(state->presenter, console,
-	    width, height, now_ms(), upload, state, &state->frame);
+	status = st_console_bitmap_presenter_frame(state->presenter, console, width, height, now_ms(), upload,
+	    state, &state->frame);
 	if (status == 0 && (state->frame.changed || forced))
 		invalidate_damage(state, forced || !st_console_rects_equal(&previous, &state->frame.destination));
 	return status;
@@ -870,9 +920,8 @@ render(struct quartz_state *state, const st_console_t *console, bool forced)
 static NSCursor *
 make_invisible_cursor(void)
 {
-	NSImage *image = [[NSImage alloc] initWithSize:NSMakeSize(1, 1)];
-	NSCursor *cursor = [[NSCursor alloc] initWithImage:image
-	    hotSpot:NSMakePoint(0, 0)];
+	NSImage  *image  = [[NSImage alloc] initWithSize:NSMakeSize(1, 1)];
+	NSCursor *cursor = [[NSCursor alloc] initWithImage:image hotSpot:NSMakePoint(0, 0)];
 
 	[image release];
 	return cursor;
@@ -882,34 +931,43 @@ static NSCursor *
 make_busy_cursor(bool hourglass)
 {
 	/* Draw our two busy indicators through public image/path APIs. */
-	NSImage *image = [NSImage imageWithSize:NSMakeSize(16,16) flipped:NO
-	    drawingHandler:^BOOL(NSRect rectangle) {
-		(void)rectangle;
-		[NSColor.whiteColor setFill];[NSColor.blackColor setStroke];
-		NSBezierPath *path;
-		if (hourglass) {
-			path = [NSBezierPath bezierPath];
-			[path moveToPoint:NSMakePoint(3,2)];
-			[path lineToPoint:NSMakePoint(13,2)];
-			[path lineToPoint:NSMakePoint(13,4)];
-			[path lineToPoint:NSMakePoint(9,8)];
-			[path lineToPoint:NSMakePoint(13,12)];
-			[path lineToPoint:NSMakePoint(13,14)];
-			[path lineToPoint:NSMakePoint(3,14)];
-			[path lineToPoint:NSMakePoint(3,12)];
-			[path lineToPoint:NSMakePoint(7,8)];
-			[path lineToPoint:NSMakePoint(3,4)];[path closePath];
-		}
-		else path = [NSBezierPath bezierPathWithOvalInRect:NSMakeRect(2,2,12,12)];
-		[path fill];[path stroke];
-		if (!hourglass) {
-			path = [NSBezierPath bezierPath];[path moveToPoint:NSMakePoint(8,12)];
-			[path lineToPoint:NSMakePoint(8,8)];[path lineToPoint:NSMakePoint(12,8)];[path stroke];
-		}
-		return YES;
-	}];
-	if (image == nil) return nil;
-	NSCursor *cursor = [[NSCursor alloc] initWithImage:image hotSpot:NSMakePoint(7,7)];
+	NSImage *image = [NSImage imageWithSize:NSMakeSize(16, 16)
+					flipped:NO
+				 drawingHandler:^BOOL(NSRect rectangle) {
+				   (void)rectangle;
+				   [NSColor.whiteColor setFill];
+				   [NSColor.blackColor setStroke];
+				   NSBezierPath *path;
+				   if (hourglass) {
+					   path = [NSBezierPath bezierPath];
+					   [path moveToPoint:NSMakePoint(3, 2)];
+					   [path lineToPoint:NSMakePoint(13, 2)];
+					   [path lineToPoint:NSMakePoint(13, 4)];
+					   [path lineToPoint:NSMakePoint(9, 8)];
+					   [path lineToPoint:NSMakePoint(13, 12)];
+					   [path lineToPoint:NSMakePoint(13, 14)];
+					   [path lineToPoint:NSMakePoint(3, 14)];
+					   [path lineToPoint:NSMakePoint(3, 12)];
+					   [path lineToPoint:NSMakePoint(7, 8)];
+					   [path lineToPoint:NSMakePoint(3, 4)];
+					   [path closePath];
+				   }
+				   else
+					   path = [NSBezierPath bezierPathWithOvalInRect:NSMakeRect(2, 2, 12, 12)];
+				   [path fill];
+				   [path stroke];
+				   if (!hourglass) {
+					   path = [NSBezierPath bezierPath];
+					   [path moveToPoint:NSMakePoint(8, 12)];
+					   [path lineToPoint:NSMakePoint(8, 8)];
+					   [path lineToPoint:NSMakePoint(12, 8)];
+					   [path stroke];
+				   }
+				   return YES;
+				 }];
+	if (image == nil)
+		return nil;
+	NSCursor *cursor = [[NSCursor alloc] initWithImage:image hotSpot:NSMakePoint(7, 7)];
 	return cursor;
 }
 
@@ -917,26 +975,28 @@ static void
 set_application_icon(struct quartz_state *state)
 {
 	const struct st_console_icon *icon = state->console_display->config.icon;
-	NSBitmapImageRep *representation;
-	NSImage *image;
+	NSBitmapImageRep             *representation;
+	NSImage                      *image;
 
 	if (icon == NULL)
 		return;
-	representation = [[NSBitmapImageRep alloc]
-	    initWithBitmapDataPlanes:NULL
-	    pixelsWide:(NSInteger)icon->width pixelsHigh:(NSInteger)icon->height
-	    bitsPerSample:8 samplesPerPixel:4 hasAlpha:YES isPlanar:NO
-	    colorSpaceName:NSDeviceRGBColorSpace
-	    bitmapFormat:NSBitmapFormatAlphaNonpremultiplied
-	    bytesPerRow:(NSInteger)icon->stride bitsPerPixel:32];
+	representation = [[NSBitmapImageRep alloc] initWithBitmapDataPlanes:NULL
+								 pixelsWide:(NSInteger)icon->width
+								 pixelsHigh:(NSInteger)icon->height
+							      bitsPerSample:8
+							    samplesPerPixel:4
+								   hasAlpha:YES
+								   isPlanar:NO
+							     colorSpaceName:NSDeviceRGBColorSpace
+							       bitmapFormat:NSBitmapFormatAlphaNonpremultiplied
+								bytesPerRow:(NSInteger)icon->stride
+							       bitsPerPixel:32];
 	if (representation == nil)
 		return;
 	for (uint32_t y = 0; y < icon->height; ++y)
 		memcpy(&representation.bitmapData[(size_t)y * representation.bytesPerRow],
-		    &icon->pixels[(size_t)y * icon->stride],
-		    (size_t)icon->width * 4);
-	image = [[NSImage alloc] initWithSize:NSMakeSize(icon->width,
-	    icon->height)];
+		    &icon->pixels[(size_t)y * icon->stride], (size_t)icon->width * 4);
+	image = [[NSImage alloc] initWithSize:NSMakeSize(icon->width, icon->height)];
 	if (image != nil) {
 		[image addRepresentation:representation];
 		[NSApp setApplicationIconImage:image];
@@ -949,53 +1009,56 @@ set_application_icon(struct quartz_state *state)
 static void destroy_state(struct quartz_state *state);
 
 static int
-create_state(struct quartz_state *state, uint32_t width, uint32_t height,
-	uint32_t minimum_width, uint32_t minimum_height)
+create_state(struct quartz_state *state, uint32_t width, uint32_t height, uint32_t minimum_width,
+    uint32_t minimum_height)
 {
-	CGFloat scale = NSScreen.mainScreen.backingScaleFactor;
-	NSRect content;
+	CGFloat    scale = NSScreen.mainScreen.backingScaleFactor;
+	NSRect     content;
 	NSUInteger style;
 
 	if (!runner_active)
 		return IO_ERROR_NOT_SUPPORTED;
 	if (scale <= 0)
 		scale = 1;
-	content = NSMakeRect(0, 0, width / scale, height / scale);
-	style = NSWindowStyleMaskTitled | NSWindowStyleMaskClosable
-	    | NSWindowStyleMaskMiniaturizable | NSWindowStyleMaskResizable;
-	state->window = [[NSWindow alloc] initWithContentRect:content
-	    styleMask:style backing:NSBackingStoreBuffered defer:NO];
-	state->view = [[STConsoleQuartzView alloc] initWithFrame:content];
+	content         = NSMakeRect(0, 0, width / scale, height / scale);
+	style           = NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskMiniaturizable
+	                  | NSWindowStyleMaskResizable;
+	state->window   = [[NSWindow alloc] initWithContentRect:content
+						      styleMask:style
+							backing:NSBackingStoreBuffered
+							  defer:NO];
+	state->view     = [[STConsoleQuartzView alloc] initWithFrame:content];
 	state->delegate = [[STConsoleQuartzDelegate alloc] init];
 	state->invisible_cursor = make_invisible_cursor();
 	if (state->window == nil || state->view == nil || state->delegate == nil
 	    || state->invisible_cursor == nil) {
 		[state->invisible_cursor release];
-		[state->watch_cursor release];[state->wait_cursor release];
+		[state->watch_cursor release];
+		[state->wait_cursor release];
 		[state->delegate release];
 		[state->view release];
 		[state->window release];
 		state->invisible_cursor = nil;
-		state->watch_cursor = nil;state->wait_cursor = nil;
-		state->delegate = nil;
-		state->view = nil;
-		state->window = nil;
+		state->watch_cursor     = nil;
+		state->wait_cursor      = nil;
+		state->delegate         = nil;
+		state->view             = nil;
+		state->window           = nil;
 		return IO_ERROR_OUT_OF_MEMORY;
 	}
-	state->view->consoleState = state;
-	state->delegate->consoleState = state;
+	state->view->consoleState        = state;
+	state->delegate->consoleState    = state;
 	state->window.releasedWhenClosed = NO;
-	state->window.contentView = state->view;
-	state->window.delegate = state->delegate;
-	state->window.title = @"SyncTERM";
+	state->window.contentView        = state->view;
+	state->window.delegate           = state->delegate;
+	state->window.title              = @"SyncTERM";
 	set_application_icon(state);
 	state->window.acceptsMouseMovedEvents = YES;
-	state->minimum_pixel_width = minimum_width;
-	state->minimum_pixel_height = minimum_height;
-	state->windowed_pixel_width = width;
-	state->windowed_pixel_height = height;
-	state->window.contentMinSize = NSMakeSize(minimum_width / scale,
-	    minimum_height / scale);
+	state->minimum_pixel_width            = minimum_width;
+	state->minimum_pixel_height           = minimum_height;
+	state->windowed_pixel_width           = width;
+	state->windowed_pixel_height          = height;
+	state->window.contentMinSize          = NSMakeSize(minimum_width / scale, minimum_height / scale);
 	[state->window center];
 	[state->window makeKeyAndOrderFront:nil];
 	int status = render(state, state->console, true);
@@ -1008,31 +1071,32 @@ create_state(struct quartz_state *state, uint32_t width, uint32_t height,
 static void
 destroy_state(struct quartz_state *state)
 {
-	state->view->consoleState = NULL;
+	state->view->consoleState     = NULL;
 	state->delegate->consoleState = NULL;
-	state->window.delegate = nil;
+	state->window.delegate        = nil;
 	[state->window orderOut:nil];
 	[state->window close];
 	[state->invisible_cursor release];
-	[state->watch_cursor release];[state->wait_cursor release];
+	[state->watch_cursor release];
+	[state->wait_cursor release];
 	[state->delegate release];
 	[state->view release];
 	[state->window release];
 	state->invisible_cursor = nil;
-	state->watch_cursor = nil;state->wait_cursor = nil;
-	state->delegate = nil;
-	state->view = nil;
-	state->window = nil;
+	state->watch_cursor     = nil;
+	state->wait_cursor      = nil;
+	state->delegate         = nil;
+	state->view             = nil;
+	state->window           = nil;
 }
 
 static int
 copy_clipboard(char **result)
 {
-	NSString *string = [NSPasteboard.generalPasteboard
-	    stringForType:NSPasteboardTypeString];
+	NSString   *string = [NSPasteboard.generalPasteboard stringForType:NSPasteboardTypeString];
 	const char *source;
-	size_t length;
-	char *copy;
+	size_t      length;
+	char       *copy;
 
 	if (string == nil)
 		return IO_ERROR_NOT_FOUND;
@@ -1040,7 +1104,7 @@ copy_clipboard(char **result)
 	if (source == NULL)
 		return IO_ERROR_IO;
 	length = strlen(source);
-	copy = malloc(length + 1);
+	copy   = malloc(length + 1);
 	if (copy == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
 	memcpy(copy, source, length + 1);
@@ -1052,131 +1116,129 @@ static int
 process_command(struct quartz_command *command)
 {
 	struct quartz_state *state = command->state;
-	NSString *string;
+	NSString            *string;
 
 	switch (command->type) {
-	case QUARTZ_COMMAND_CREATE:
-		return create_state(state, command->data.size.width,
-		    command->data.size.height, command->data.size.minimum_width,
-		    command->data.size.minimum_height);
-	case QUARTZ_COMMAND_DESTROY:
-		destroy_state(state);
-		return 0;
-	case QUARTZ_COMMAND_ACTIVATE:
-		state->console = command->data.console;
-		return 0;
-	case QUARTZ_COMMAND_PRESENT:
-		return render(state, NULL, false);
-	case QUARTZ_COMMAND_RESIZE: {
-		struct st_console_bitmap_geometry next = {
-			command->data.size.width, command->data.size.height,
-			state->console->aspect_width, state->console->aspect_height,
-			state->console->preserve_window_size};
-		CGFloat scale = state->window.backingScaleFactor;
-		uint32_t width;
-		uint32_t height;
-		uint32_t current_width;
-		uint32_t current_height;
-		uint32_t maximum_width = 0, maximum_height = 0;
-		NSSize current = state->view.bounds.size;
+		case QUARTZ_COMMAND_CREATE:
+			return create_state(state, command->data.size.width, command->data.size.height,
+			    command->data.size.minimum_width, command->data.size.minimum_height);
+		case QUARTZ_COMMAND_DESTROY:
+			destroy_state(state);
+			return 0;
+		case QUARTZ_COMMAND_ACTIVATE:
+			state->console = command->data.console;
+			return 0;
+		case QUARTZ_COMMAND_PRESENT:
+			return render(state, NULL, false);
+		case QUARTZ_COMMAND_RESIZE:
+		{
+			struct st_console_bitmap_geometry next  = {command->data.size.width,
+			    command->data.size.height, state->console->aspect_width, state->console->aspect_height,
+			    state->console->preserve_window_size};
+			CGFloat                           scale = state->window.backingScaleFactor;
+			uint32_t                          width;
+			uint32_t                          height;
+			uint32_t                          current_width;
+			uint32_t                          current_height;
+			uint32_t                          maximum_width = 0, maximum_height = 0;
+			NSSize                            current = state->view.bounds.size;
 
-		if (scale <= 0)
-			scale = 1;
-		current_width = state->fullscreen ? state->windowed_pixel_width
-		    : (uint32_t)(current.width * scale);
-		current_height = state->fullscreen ? state->windowed_pixel_height
-		    : (uint32_t)(current.height * scale);
-		if (state->window.screen != nil) {
-			NSRect available = [NSWindow contentRectForFrameRect:
-			    state->window.screen.visibleFrame styleMask:state->window.styleMask];
-			if (available.size.width > 0 && available.size.height > 0) {
-				maximum_width = (uint32_t)(available.size.width * scale);
-				maximum_height = (uint32_t)(available.size.height * scale);
+			if (scale <= 0)
+				scale = 1;
+			current_width =
+			    state->fullscreen ? state->windowed_pixel_width : (uint32_t)(current.width * scale);
+			current_height =
+			    state->fullscreen ? state->windowed_pixel_height : (uint32_t)(current.height * scale);
+			if (state->window.screen != nil) {
+				NSRect available =
+				    [NSWindow contentRectForFrameRect:state->window.screen.visibleFrame
+							    styleMask:state->window.styleMask];
+				if (available.size.width > 0 && available.size.height > 0) {
+					maximum_width  = (uint32_t)(available.size.width * scale);
+					maximum_height = (uint32_t)(available.size.height * scale);
+				}
 			}
+			if (st_console_mode_change_size(&state->window_geometry, &next, current_width,
+				current_height, maximum_width, maximum_height, &width, &height,
+				&state->minimum_pixel_width, &state->minimum_pixel_height)
+			    != 0)
+				return IO_ERROR_OUT_OF_RANGE;
+			state->windowed_pixel_width  = width;
+			state->windowed_pixel_height = height;
+			state->window_geometry       = next;
+			state->window.contentMinSize =
+			    NSMakeSize(state->minimum_pixel_width / scale, state->minimum_pixel_height / scale);
+			if (!state->fullscreen)
+				[state->window setContentSize:NSMakeSize(width / scale, height / scale)];
+			st_console_display_request_repaint(state->console_display);
+			return 0;
 		}
-		if (st_console_mode_change_size(&state->window_geometry, &next,
-		    current_width, current_height, maximum_width, maximum_height, &width, &height,
-		    &state->minimum_pixel_width,
-		    &state->minimum_pixel_height) != 0)
-			return IO_ERROR_OUT_OF_RANGE;
-		state->windowed_pixel_width = width;
-		state->windowed_pixel_height = height;
-		state->window_geometry = next;
-		state->window.contentMinSize = NSMakeSize(
-		    state->minimum_pixel_width / scale,
-		    state->minimum_pixel_height / scale);
-		if (!state->fullscreen)
-			[state->window setContentSize:NSMakeSize(width / scale,
-			    height / scale)];
-		st_console_display_request_repaint(state->console_display);
-		return 0;
-	}
-	case QUARTZ_COMMAND_GET_SCALING: {
-		CGFloat scale = state->window.backingScaleFactor;
-		NSSize size = state->view.bounds.size;
+		case QUARTZ_COMMAND_GET_SCALING:
+		{
+			CGFloat scale = state->window.backingScaleFactor;
+			NSSize  size  = state->view.bounds.size;
 
-		if (scale <= 0)
-			scale = 1;
-		return st_console_bitmap_geometry_scaling(&state->window_geometry,
-		    (uint32_t)(size.width * scale),
-		    (uint32_t)(size.height * scale),
-		    command->data.scaling_result);
-	}
-	case QUARTZ_COMMAND_TITLE:
-		string = [NSString stringWithUTF8String:command->data.text];
-		if (string == nil)
-			return IO_ERROR_INVALID_ARGUMENT;
-		state->window.title = string;
-		return 0;
-	case QUARTZ_COMMAND_CLIPBOARD_SET:
-		string = [NSString stringWithUTF8String:command->data.text];
-		if (string == nil)
-			return IO_ERROR_INVALID_ARGUMENT;
-		[NSPasteboard.generalPasteboard clearContents];
-		return [NSPasteboard.generalPasteboard writeObjects:@[string]]
-		    ? 0 : IO_ERROR_IO;
-	case QUARTZ_COMMAND_CLIPBOARD_GET:
-		return copy_clipboard(command->data.text_result);
-	case QUARTZ_COMMAND_OPEN_URL:
-		string = [NSString stringWithUTF8String:command->data.text];
-		if (string == nil)
-			return IO_ERROR_INVALID_ARGUMENT;
-		return [NSWorkspace.sharedWorkspace openURL:
-		    [NSURL URLWithString:string]] ? 0 : IO_ERROR_IO;
-	case QUARTZ_COMMAND_POINTER:
-		state->pointer_visible = command->data.enabled;
-		[state->window invalidateCursorRectsForView:state->view];
-		return 0;
-	case QUARTZ_COMMAND_POINTER_SHAPE:
-		if (command->data.pointer_shape == ST_CONSOLE_POINTER_WATCH && state->watch_cursor == nil) {
-			state->watch_cursor = make_busy_cursor(false);
-			if (state->watch_cursor == nil) return IO_ERROR_OUT_OF_MEMORY;
+			if (scale <= 0)
+				scale = 1;
+			return st_console_bitmap_geometry_scaling(&state->window_geometry,
+			    (uint32_t)(size.width * scale), (uint32_t)(size.height * scale),
+			    command->data.scaling_result);
 		}
-		if (command->data.pointer_shape == ST_CONSOLE_POINTER_WAIT && state->wait_cursor == nil) {
-			state->wait_cursor = make_busy_cursor(true);
-			if (state->wait_cursor == nil) return IO_ERROR_OUT_OF_MEMORY;
-		}
-		state->pointer_shape = command->data.pointer_shape;
-		[state->window invalidateCursorRectsForView:state->view];
-		return 0;
-	case QUARTZ_COMMAND_FULLSCREEN:
-		if (((state->window.styleMask & NSWindowStyleMaskFullScreen) != 0)
-		    != command->data.enabled) {
-			if (command->data.enabled) {
-				CGFloat scale = state->window.backingScaleFactor;
-				NSSize size = state->view.bounds.size;
-
-				if (scale <= 0)
-					scale = 1;
-				state->windowed_pixel_width
-				    = (uint32_t)(size.width * scale);
-				state->windowed_pixel_height
-				    = (uint32_t)(size.height * scale);
-				state->fullscreen = true;
+		case QUARTZ_COMMAND_TITLE:
+			string = [NSString stringWithUTF8String:command->data.text];
+			if (string == nil)
+				return IO_ERROR_INVALID_ARGUMENT;
+			state->window.title = string;
+			return 0;
+		case QUARTZ_COMMAND_CLIPBOARD_SET:
+			string = [NSString stringWithUTF8String:command->data.text];
+			if (string == nil)
+				return IO_ERROR_INVALID_ARGUMENT;
+			[NSPasteboard.generalPasteboard clearContents];
+			return [NSPasteboard.generalPasteboard writeObjects:@[string]] ? 0 : IO_ERROR_IO;
+		case QUARTZ_COMMAND_CLIPBOARD_GET:
+			return copy_clipboard(command->data.text_result);
+		case QUARTZ_COMMAND_OPEN_URL:
+			string = [NSString stringWithUTF8String:command->data.text];
+			if (string == nil)
+				return IO_ERROR_INVALID_ARGUMENT;
+			return [NSWorkspace.sharedWorkspace openURL:[NSURL URLWithString:string]] ? 0
+			                                                                          : IO_ERROR_IO;
+		case QUARTZ_COMMAND_POINTER:
+			state->pointer_visible = command->data.enabled;
+			[state->window invalidateCursorRectsForView:state->view];
+			return 0;
+		case QUARTZ_COMMAND_POINTER_SHAPE:
+			if (command->data.pointer_shape == ST_CONSOLE_POINTER_WATCH
+			    && state->watch_cursor == nil) {
+				state->watch_cursor = make_busy_cursor(false);
+				if (state->watch_cursor == nil)
+					return IO_ERROR_OUT_OF_MEMORY;
 			}
-			[state->window toggleFullScreen:nil];
-		}
-		return 0;
+			if (command->data.pointer_shape == ST_CONSOLE_POINTER_WAIT && state->wait_cursor == nil) {
+				state->wait_cursor = make_busy_cursor(true);
+				if (state->wait_cursor == nil)
+					return IO_ERROR_OUT_OF_MEMORY;
+			}
+			state->pointer_shape = command->data.pointer_shape;
+			[state->window invalidateCursorRectsForView:state->view];
+			return 0;
+		case QUARTZ_COMMAND_FULLSCREEN:
+			if (((state->window.styleMask & NSWindowStyleMaskFullScreen) != 0)
+			    != command->data.enabled) {
+				if (command->data.enabled) {
+					CGFloat scale = state->window.backingScaleFactor;
+					NSSize  size  = state->view.bounds.size;
+
+					if (scale <= 0)
+						scale = 1;
+					state->windowed_pixel_width  = (uint32_t)(size.width * scale);
+					state->windowed_pixel_height = (uint32_t)(size.height * scale);
+					state->fullscreen            = true;
+				}
+				[state->window toggleFullScreen:nil];
+			}
+			return 0;
 	}
 	return IO_ERROR_INVALID_ARGUMENT;
 }
@@ -1200,10 +1262,9 @@ submit_command(struct quartz_command *command)
 	if (NSThread.isMainThread)
 		command->result = process_command(command);
 	else
-		[command_receiver performSelectorOnMainThread:
-		    @selector(executeCommandValue:)
-		    withObject:[NSValue valueWithPointer:command]
-		    waitUntilDone:YES];
+		[command_receiver performSelectorOnMainThread:@selector(executeCommandValue:)
+						   withObject:[NSValue valueWithPointer:command]
+						waitUntilDone:YES];
 	return command->result;
 }
 
@@ -1214,13 +1275,15 @@ st_console_quartz_pump(void)
 		NSEvent *event;
 
 		event = [NSApp nextEventMatchingMask:NSEventMaskAny
-		    untilDate:[NSDate dateWithTimeIntervalSinceNow:0]
-		    inMode:NSDefaultRunLoopMode dequeue:YES];
+					   untilDate:[NSDate dateWithTimeIntervalSinceNow:0]
+					      inMode:NSDefaultRunLoopMode
+					     dequeue:YES];
 		while (event != nil) {
 			[NSApp sendEvent:event];
 			event = [NSApp nextEventMatchingMask:NSEventMaskAny
-			    untilDate:[NSDate dateWithTimeIntervalSinceNow:0]
-			    inMode:NSDefaultRunLoopMode dequeue:YES];
+						   untilDate:[NSDate dateWithTimeIntervalSinceNow:0]
+						      inMode:NSDefaultRunLoopMode
+						     dequeue:YES];
 		}
 		[NSApp updateWindows];
 	}
@@ -1230,8 +1293,8 @@ st_console_quartz_pump(void)
 static int
 application_worker(void *argument)
 {
-	struct application_call *call = argument;
-	int result = call->function(call->argc, call->argv);
+	struct application_call *call   = argument;
+	int                      result = call->function(call->argc, call->argv);
 
 	atomic_store_explicit(&application_result, result, memory_order_relaxed);
 	atomic_store_explicit(&application_done, true, memory_order_release);
@@ -1240,8 +1303,7 @@ application_worker(void *argument)
 #endif
 
 int
-st_console_quartz_run_application(int argc, char **argv,
-	int (*application_main)(int, char **))
+st_console_quartz_run_application(int argc, char **argv, int (*application_main)(int, char **))
 {
 	int result;
 
@@ -1252,30 +1314,25 @@ st_console_quartz_run_application(int argc, char **argv,
 		[NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
 		[NSApp finishLaunching];
 		command_receiver = [[STConsoleQuartzCommandReceiver alloc] init];
-		runner_active = true;
+		runner_active    = true;
 #if ST_CONSOLE_HAVE_SDL
-		result = st_console_sdl_run_application(argc, argv,
-		    application_main);
+		result = st_console_sdl_run_application(argc, argv, application_main);
 #else
 		struct application_call call = {argc, argv, application_main};
-		st_thread_t application;
+		st_thread_t             application;
 
-		atomic_store_explicit(&application_done, false,
-		    memory_order_relaxed);
-		atomic_store_explicit(&application_result, 1,
-		    memory_order_relaxed);
-		if (st_thread_create(&application, application_worker, &call)
-		    != ST_THREAD_SUCCESS)
+		atomic_store_explicit(&application_done, false, memory_order_relaxed);
+		atomic_store_explicit(&application_result, 1, memory_order_relaxed);
+		if (st_thread_create(&application, application_worker, &call) != ST_THREAD_SUCCESS)
 			result = 1;
 		else {
-			while (!atomic_load_explicit(&application_done,
-			    memory_order_acquire)) {
+			while (!atomic_load_explicit(&application_done, memory_order_acquire)) {
 				@autoreleasepool {
-					NSEvent *event = [NSApp
-					    nextEventMatchingMask:NSEventMaskAny
-					    untilDate:[NSDate
-						dateWithTimeIntervalSinceNow:0.01]
-					    inMode:NSDefaultRunLoopMode dequeue:YES];
+					NSEvent *event =
+					    [NSApp nextEventMatchingMask:NSEventMaskAny
+							       untilDate:[NSDate dateWithTimeIntervalSinceNow:0.01]
+								  inMode:NSDefaultRunLoopMode
+								 dequeue:YES];
 
 					if (event != nil)
 						[NSApp sendEvent:event];
@@ -1283,8 +1340,7 @@ st_console_quartz_run_application(int argc, char **argv,
 				st_console_quartz_pump();
 			}
 			(void)st_thread_join(application, NULL);
-			result = atomic_load_explicit(&application_result,
-			    memory_order_relaxed);
+			result = atomic_load_explicit(&application_result, memory_order_relaxed);
 		}
 #endif
 		runner_active = false;
@@ -1297,121 +1353,116 @@ st_console_quartz_run_application(int argc, char **argv,
 static int
 quartz_activate(st_console_t *console)
 {
-	return submit_command(&(struct quartz_command){
-		.type = QUARTZ_COMMAND_ACTIVATE,
-		.state = console->display->backend_state,
-		.data.console = console,
+	return submit_command(&(struct quartz_command) {
+	    .type         = QUARTZ_COMMAND_ACTIVATE,
+	    .state        = console->display->backend_state,
+	    .data.console = console,
 	});
 }
 
 static int
 quartz_show_frame(st_console_display_t *display)
 {
-	return submit_command(&(struct quartz_command){
-		.type = QUARTZ_COMMAND_PRESENT,
-		.state = display->backend_state,
+	return submit_command(&(struct quartz_command) {
+	    .type  = QUARTZ_COMMAND_PRESENT,
+	    .state = display->backend_state,
 	});
 }
 
 static int
 quartz_resize(st_console_t *console, uint32_t columns, uint32_t rows)
 {
-
-	if (columns > (UINT32_MAX - console->pixel_extra_width)
-	    / console->cell_width
-	    || rows > (UINT32_MAX - console->pixel_extra_height)
-	    / console->cell_height)
+	if (columns > (UINT32_MAX - console->pixel_extra_width) / console->cell_width
+	    || rows > (UINT32_MAX - console->pixel_extra_height) / console->cell_height)
 		return IO_ERROR_OUT_OF_RANGE;
-	return submit_command(&(struct quartz_command){
-		.type = QUARTZ_COMMAND_RESIZE,
-		.state = console->display->backend_state,
-		.data.size = {
-			.width = columns * console->cell_width
-			    + console->pixel_extra_width,
-			.height = rows * console->cell_height
-			    + console->pixel_extra_height,
-		},
+	return submit_command(&(struct quartz_command) {
+	    .type  = QUARTZ_COMMAND_RESIZE,
+	    .state = console->display->backend_state,
+	    .data.size =
+		{
+			    .width  = columns * console->cell_width + console->pixel_extra_width,
+			    .height = rows * console->cell_height + console->pixel_extra_height,
+			    },
 	});
 }
 
 static int
 quartz_set_title(st_console_display_t *display, const char *title)
 {
-	return submit_command(&(struct quartz_command){
-		.type = QUARTZ_COMMAND_TITLE,
-		.state = display->backend_state,
-		.data.text = title,
+	return submit_command(&(struct quartz_command) {
+	    .type      = QUARTZ_COMMAND_TITLE,
+	    .state     = display->backend_state,
+	    .data.text = title,
 	});
 }
 
 static int
 quartz_set_clipboard(st_console_display_t *display, const char *text)
 {
-	return submit_command(&(struct quartz_command){
-		.type = QUARTZ_COMMAND_CLIPBOARD_SET,
-		.state = display->backend_state,
-		.data.text = text,
+	return submit_command(&(struct quartz_command) {
+	    .type      = QUARTZ_COMMAND_CLIPBOARD_SET,
+	    .state     = display->backend_state,
+	    .data.text = text,
 	});
 }
 
 static int
 quartz_get_clipboard(st_console_display_t *display, char **result)
 {
-	return submit_command(&(struct quartz_command){
-		.type = QUARTZ_COMMAND_CLIPBOARD_GET,
-		.state = display->backend_state,
-		.data.text_result = result,
+	return submit_command(&(struct quartz_command) {
+	    .type             = QUARTZ_COMMAND_CLIPBOARD_GET,
+	    .state            = display->backend_state,
+	    .data.text_result = result,
 	});
 }
 
 static int
 quartz_open_url(st_console_display_t *display, const char *url)
 {
-	return submit_command(&(struct quartz_command){
-		.type = QUARTZ_COMMAND_OPEN_URL,
-		.state = display->backend_state,
-		.data.text = url,
+	return submit_command(&(struct quartz_command) {
+	    .type      = QUARTZ_COMMAND_OPEN_URL,
+	    .state     = display->backend_state,
+	    .data.text = url,
 	});
 }
 
 static int
 quartz_set_pointer(st_console_display_t *display, bool visible)
 {
-	return submit_command(&(struct quartz_command){
-		.type = QUARTZ_COMMAND_POINTER,
-		.state = display->backend_state,
-		.data.enabled = visible,
+	return submit_command(&(struct quartz_command) {
+	    .type         = QUARTZ_COMMAND_POINTER,
+	    .state        = display->backend_state,
+	    .data.enabled = visible,
 	});
 }
 
 static int
-quartz_set_pointer_shape(st_console_display_t *display,
-	enum st_console_pointer_shape shape)
+quartz_set_pointer_shape(st_console_display_t *display, enum st_console_pointer_shape shape)
 {
-	return submit_command(&(struct quartz_command){
-		.type = QUARTZ_COMMAND_POINTER_SHAPE,
-		.state = display->backend_state,
-		.data.pointer_shape = shape,
+	return submit_command(&(struct quartz_command) {
+	    .type               = QUARTZ_COMMAND_POINTER_SHAPE,
+	    .state              = display->backend_state,
+	    .data.pointer_shape = shape,
 	});
 }
 
 static int
 quartz_set_fullscreen(st_console_display_t *display, bool fullscreen)
 {
-	return submit_command(&(struct quartz_command){
-		.type = QUARTZ_COMMAND_FULLSCREEN,
-		.state = display->backend_state,
-		.data.enabled = fullscreen,
+	return submit_command(&(struct quartz_command) {
+	    .type         = QUARTZ_COMMAND_FULLSCREEN,
+	    .state        = display->backend_state,
+	    .data.enabled = fullscreen,
 	});
 }
 
 static int
 quartz_get_scaling(st_console_display_t *display, double *result)
 {
-	return submit_command(&(struct quartz_command){
-		.type = QUARTZ_COMMAND_GET_SCALING,
-		.state = display->backend_state,
-		.data.scaling_result = result,
+	return submit_command(&(struct quartz_command) {
+	    .type                = QUARTZ_COMMAND_GET_SCALING,
+	    .state               = display->backend_state,
+	    .data.scaling_result = result,
 	});
 }
 
@@ -1420,9 +1471,9 @@ quartz_destroy(st_console_display_t *display)
 {
 	struct quartz_state *state = display->backend_state;
 
-	(void)submit_command(&(struct quartz_command){
-		.type = QUARTZ_COMMAND_DESTROY,
-		.state = state,
+	(void)submit_command(&(struct quartz_command) {
+	    .type  = QUARTZ_COMMAND_DESTROY,
+	    .state = state,
 	});
 	st_console_bitmap_presenter_destroy(state->presenter);
 	free(state->pixels);
@@ -1431,63 +1482,62 @@ quartz_destroy(st_console_display_t *display)
 }
 
 static const struct st_console_backend_ops quartz_ops = {
-	.presents_pixels = true,
-	.deferred_present = true,
-	.animated_present = true,
-	.prepare_frame = st_console_bitmap_prepare_window,
-	.show_frame = quartz_show_frame,
-	.resize = quartz_resize,
-	.set_title = quartz_set_title,
-	.set_clipboard_text = quartz_set_clipboard,
-	.get_clipboard_text = quartz_get_clipboard,
-	.open_url = quartz_open_url,
-	.set_pointer_visible = quartz_set_pointer,
-	.set_pointer_shape = quartz_set_pointer_shape,
-	.set_fullscreen = quartz_set_fullscreen,
-	.get_scaling = quartz_get_scaling,
-	.activate = quartz_activate,
-	.destroy = quartz_destroy,
+    .presents_pixels     = true,
+    .deferred_present    = true,
+    .animated_present    = true,
+    .prepare_frame       = st_console_bitmap_prepare_window,
+    .show_frame          = quartz_show_frame,
+    .resize              = quartz_resize,
+    .set_title           = quartz_set_title,
+    .set_clipboard_text  = quartz_set_clipboard,
+    .get_clipboard_text  = quartz_get_clipboard,
+    .open_url            = quartz_open_url,
+    .set_pointer_visible = quartz_set_pointer,
+    .set_pointer_shape   = quartz_set_pointer_shape,
+    .set_fullscreen      = quartz_set_fullscreen,
+    .get_scaling         = quartz_get_scaling,
+    .activate            = quartz_activate,
+    .destroy             = quartz_destroy,
 };
 
 int
 st_console_quartz_init(st_console_t *console)
 {
 	struct quartz_state *state;
-	uint32_t minimum_width;
-	uint32_t minimum_height;
-	int status;
+	uint32_t             minimum_width;
+	uint32_t             minimum_height;
+	int                  status;
 
 	if (console->pixels == NULL)
 		return IO_ERROR_NOT_SUPPORTED;
-	status = st_console_aspect_correct_size(console->pixels->width,
-	    console->pixels->height, console->aspect_width,
-	    console->aspect_height, &minimum_width, &minimum_height);
+	status = st_console_aspect_correct_size(console->pixels->width, console->pixels->height,
+	    console->aspect_width, console->aspect_height, &minimum_width, &minimum_height);
 	if (status != 0)
 		return status;
 	state = calloc(1, sizeof(*state));
 	if (state == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
-	state->console = console;
-	state->window_geometry = (struct st_console_bitmap_geometry){
-		console->pixels->width, console->pixels->height,
-		console->aspect_width, console->aspect_height, console->preserve_window_size};
+	state->console         = console;
+	state->window_geometry = (struct st_console_bitmap_geometry) {console->pixels->width,
+	    console->pixels->height, console->aspect_width, console->aspect_height, console->preserve_window_size};
 	state->pointer_visible = true;
-	state->pointer_shape = ST_CONSOLE_POINTER_DEFAULT;
+	state->pointer_shape   = ST_CONSOLE_POINTER_DEFAULT;
 	state->console_display = console->display;
-	status = st_console_bitmap_presenter_create(&state->presenter, console);
+	status                 = st_console_bitmap_presenter_create(&state->presenter, console);
 	if (status != 0) {
 		free(state);
 		return status;
 	}
-	status = submit_command(&(struct quartz_command){
-		.type = QUARTZ_COMMAND_CREATE,
-		.state = state,
-		.data.size = {
-			.width = console->display->initial_window_width,
-			.height = console->display->initial_window_height,
-			.minimum_width = minimum_width,
-			.minimum_height = minimum_height,
-		},
+	status = submit_command(&(struct quartz_command) {
+	    .type  = QUARTZ_COMMAND_CREATE,
+	    .state = state,
+	    .data.size =
+		{
+			    .width          = console->display->initial_window_width,
+			    .height         = console->display->initial_window_height,
+			    .minimum_width  = minimum_width,
+			    .minimum_height = minimum_height,
+			    },
 	});
 	if (status != 0) {
 		st_console_bitmap_presenter_destroy(state->presenter);
@@ -1495,8 +1545,8 @@ st_console_quartz_init(st_console_t *console)
 		free(state);
 		return status;
 	}
-	console->display->backend_state = state;
+	console->display->backend_state    = state;
 	console->display->window_presenter = state->presenter;
-	console->display->backend_ops = &quartz_ops;
+	console->display->backend_ops      = &quartz_ops;
 	return 0;
 }

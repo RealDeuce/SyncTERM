@@ -1,18 +1,23 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 
-#include "io_error.h"
-
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "io_error.h"
+
 #ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
+ #define WIN32_LEAN_AND_MEAN
+ #include <windows.h>
 #endif
 
-#define CHECK(c) do { if (!(c)) { fprintf(stderr, "failed: %s:%d\n", \
-    __FILE__, __LINE__); return EXIT_FAILURE; } } while (0)
+#define CHECK(c)                                                                \
+	do {                                                                    \
+		if (!(c)) {                                                     \
+			fprintf(stderr, "failed: %s:%d\n", __FILE__, __LINE__); \
+			return EXIT_FAILURE;                                    \
+		}                                                               \
+	} while (0)
 
 int
 main(void)
@@ -28,37 +33,38 @@ main(void)
 	/* Exercise the Win32 namespace without touching devices or files. */
 	static const struct {
 		unsigned long native;
-		int expected;
+		int           expected;
 	} cases[] = {
-		{ERROR_SUCCESS, 0},
-		{ERROR_INVALID_PARAMETER, IO_ERROR_INVALID_ARGUMENT},
-		{ERROR_INVALID_HANDLE, IO_ERROR_INVALID_ARGUMENT},
-		{ERROR_NO_UNICODE_TRANSLATION, IO_ERROR_INVALID_ENCODING},
-		{ERROR_FILE_NOT_FOUND, IO_ERROR_NOT_FOUND},
-		{ERROR_PATH_NOT_FOUND, IO_ERROR_NOT_FOUND},
-		{ERROR_ACCESS_DENIED, IO_ERROR_PERMISSION_DENIED},
-		{ERROR_PRIVILEGE_NOT_HELD, IO_ERROR_PERMISSION_DENIED},
-		{ERROR_ALREADY_EXISTS, IO_ERROR_ALREADY_EXISTS},
-		{ERROR_DIRECTORY, IO_ERROR_NOT_DIRECTORY},
-		{ERROR_DIR_NOT_EMPTY, IO_ERROR_DIRECTORY_NOT_EMPTY},
-		{ERROR_NOT_ENOUGH_MEMORY, IO_ERROR_OUT_OF_MEMORY},
-		{ERROR_COMMITMENT_LIMIT, IO_ERROR_OUT_OF_MEMORY},
-		{ERROR_DISK_FULL, IO_ERROR_NO_SPACE},
-		{ERROR_HANDLE_DISK_FULL, IO_ERROR_NO_SPACE},
-		{ERROR_FILENAME_EXCED_RANGE, IO_ERROR_NAME_TOO_LONG},
-		{ERROR_ARITHMETIC_OVERFLOW, IO_ERROR_OUT_OF_RANGE},
-		{ERROR_NEGATIVE_SEEK, IO_ERROR_OUT_OF_RANGE},
-		{ERROR_BUSY, IO_ERROR_BUSY},
-		{ERROR_LOCK_VIOLATION, IO_ERROR_BUSY},
-		{ERROR_SHARING_VIOLATION, IO_ERROR_BUSY},
-		{ERROR_WRITE_PROTECT, IO_ERROR_READ_ONLY},
-		{ERROR_NOT_SAME_DEVICE, IO_ERROR_CROSS_DEVICE},
-		{ERROR_OPERATION_ABORTED, IO_ERROR_CANCELLED},
-		{ERROR_SEM_TIMEOUT, IO_ERROR_TIMED_OUT},
-		{ERROR_NOT_SUPPORTED, IO_ERROR_NOT_SUPPORTED},
-		{ERROR_CALL_NOT_IMPLEMENTED, IO_ERROR_NOT_SUPPORTED},
-		{0xffffffffUL, IO_ERROR_IO},
+	    {ERROR_SUCCESS,                0                           },
+	    {ERROR_INVALID_PARAMETER,      IO_ERROR_INVALID_ARGUMENT   },
+	    {ERROR_INVALID_HANDLE,         IO_ERROR_INVALID_ARGUMENT   },
+	    {ERROR_NO_UNICODE_TRANSLATION, IO_ERROR_INVALID_ENCODING   },
+	    {ERROR_FILE_NOT_FOUND,         IO_ERROR_NOT_FOUND          },
+	    {ERROR_PATH_NOT_FOUND,         IO_ERROR_NOT_FOUND          },
+	    {ERROR_ACCESS_DENIED,          IO_ERROR_PERMISSION_DENIED  },
+	    {ERROR_PRIVILEGE_NOT_HELD,     IO_ERROR_PERMISSION_DENIED  },
+	    {ERROR_ALREADY_EXISTS,         IO_ERROR_ALREADY_EXISTS     },
+	    {ERROR_DIRECTORY,              IO_ERROR_NOT_DIRECTORY      },
+	    {ERROR_DIR_NOT_EMPTY,          IO_ERROR_DIRECTORY_NOT_EMPTY},
+	    {ERROR_NOT_ENOUGH_MEMORY,      IO_ERROR_OUT_OF_MEMORY      },
+	    {ERROR_COMMITMENT_LIMIT,       IO_ERROR_OUT_OF_MEMORY      },
+	    {ERROR_DISK_FULL,              IO_ERROR_NO_SPACE           },
+	    {ERROR_HANDLE_DISK_FULL,       IO_ERROR_NO_SPACE           },
+	    {ERROR_FILENAME_EXCED_RANGE,   IO_ERROR_NAME_TOO_LONG      },
+	    {ERROR_ARITHMETIC_OVERFLOW,    IO_ERROR_OUT_OF_RANGE       },
+	    {ERROR_NEGATIVE_SEEK,          IO_ERROR_OUT_OF_RANGE       },
+	    {ERROR_BUSY,                   IO_ERROR_BUSY               },
+	    {ERROR_LOCK_VIOLATION,         IO_ERROR_BUSY               },
+	    {ERROR_SHARING_VIOLATION,      IO_ERROR_BUSY               },
+	    {ERROR_WRITE_PROTECT,          IO_ERROR_READ_ONLY          },
+	    {ERROR_NOT_SAME_DEVICE,        IO_ERROR_CROSS_DEVICE       },
+	    {ERROR_OPERATION_ABORTED,      IO_ERROR_CANCELLED          },
+	    {ERROR_SEM_TIMEOUT,            IO_ERROR_TIMED_OUT          },
+	    {ERROR_NOT_SUPPORTED,          IO_ERROR_NOT_SUPPORTED      },
+	    {ERROR_CALL_NOT_IMPLEMENTED,   IO_ERROR_NOT_SUPPORTED      },
+	    {0xffffffffUL,                 IO_ERROR_IO                 },
 	};
+
 	for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); ++i)
 		CHECK(io_error_from_windows(cases[i].native) == cases[i].expected);
 #endif

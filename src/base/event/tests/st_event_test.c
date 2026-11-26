@@ -3,20 +3,20 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "st_event.h"
-
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 
-#define CHECK(expression) do { \
-	if (!(expression)) { \
-		fprintf(stderr, "%s:%d: check failed: %s\n", \
-		    __FILE__, __LINE__, #expression); \
-		return false; \
-	} \
-} while (false)
+#include "st_event.h"
+
+#define CHECK(expression)                                                                              \
+	do {                                                                                           \
+		if (!(expression)) {                                                                   \
+			fprintf(stderr, "%s:%d: check failed: %s\n", __FILE__, __LINE__, #expression); \
+			return false;                                                                  \
+		}                                                                                      \
+	} while (false)
 
 static struct timespec
 deadline_after(long milliseconds)
@@ -37,11 +37,10 @@ deadline_after(long milliseconds)
 static bool
 test_initial_and_reset(void)
 {
-	st_event_t *event = NULL;
+	st_event_t     *event = NULL;
 	struct timespec deadline;
 
-	CHECK(st_event_create(&event, ST_EVENT_AUTO_RESET, true)
-	    == ST_THREAD_SUCCESS);
+	CHECK(st_event_create(&event, ST_EVENT_AUTO_RESET, true) == ST_THREAD_SUCCESS);
 	CHECK(st_event_trywait(event) == ST_THREAD_SUCCESS);
 	CHECK(st_event_trywait(event) == ST_THREAD_BUSY);
 	CHECK(st_event_set(event) == ST_THREAD_SUCCESS);
@@ -53,8 +52,7 @@ test_initial_and_reset(void)
 	st_event_destroy(event);
 
 	event = NULL;
-	CHECK(st_event_create(&event, ST_EVENT_MANUAL_RESET, true)
-	    == ST_THREAD_SUCCESS);
+	CHECK(st_event_create(&event, ST_EVENT_MANUAL_RESET, true) == ST_THREAD_SUCCESS);
 	CHECK(st_event_trywait(event) == ST_THREAD_SUCCESS);
 	CHECK(st_event_trywait(event) == ST_THREAD_SUCCESS);
 	CHECK(st_event_reset(event) == ST_THREAD_SUCCESS);
@@ -67,19 +65,20 @@ test_initial_and_reset(void)
 }
 
 #define WAITER_COUNT 5
+
 struct waiter_state {
-	st_event_t *event;
-	st_mutex_t mutex;
+	st_event_t    *event;
+	st_mutex_t     mutex;
 	st_condition_t condition;
-	int ready;
-	int completed;
+	int            ready;
+	int            completed;
 };
 
 static int
 waiter(void *argument)
 {
 	struct waiter_state *state = argument;
-	int status;
+	int                  status;
 
 	if (st_mutex_lock(&state->mutex) != ST_THREAD_SUCCESS)
 		return ST_THREAD_ERROR;
@@ -104,8 +103,7 @@ wait_for_count(struct waiter_state *state, int count)
 
 	CHECK(st_mutex_lock(&state->mutex) == ST_THREAD_SUCCESS);
 	while (state->completed < count) {
-		CHECK(st_condition_timedwait(&state->condition, &state->mutex,
-		    &deadline) == ST_THREAD_SUCCESS);
+		CHECK(st_condition_timedwait(&state->condition, &state->mutex, &deadline) == ST_THREAD_SUCCESS);
 	}
 	CHECK(st_mutex_unlock(&state->mutex) == ST_THREAD_SUCCESS);
 	return true;
@@ -120,12 +118,10 @@ start_waiters(struct waiter_state *state, st_thread_t *threads)
 	CHECK(st_condition_init(&state->condition) == ST_THREAD_SUCCESS);
 	CHECK(st_mutex_lock(&state->mutex) == ST_THREAD_SUCCESS);
 	for (index = 0; index < WAITER_COUNT; ++index) {
-		CHECK(st_thread_create(&threads[index], waiter, state)
-		    == ST_THREAD_SUCCESS);
+		CHECK(st_thread_create(&threads[index], waiter, state) == ST_THREAD_SUCCESS);
 	}
 	while (state->ready < WAITER_COUNT) {
-		CHECK(st_condition_wait(&state->condition, &state->mutex)
-		    == ST_THREAD_SUCCESS);
+		CHECK(st_condition_wait(&state->condition, &state->mutex) == ST_THREAD_SUCCESS);
 	}
 	CHECK(st_mutex_unlock(&state->mutex) == ST_THREAD_SUCCESS);
 	return true;
@@ -150,12 +146,11 @@ static bool
 test_auto_reset_waiters(void)
 {
 	struct waiter_state state = {0};
-	st_thread_t threads[WAITER_COUNT];
-	struct timespec pause = {0, 20000000L};
-	int expected;
+	st_thread_t         threads[WAITER_COUNT];
+	struct timespec     pause = {0, 20000000L};
+	int                 expected;
 
-	CHECK(st_event_create(&state.event, ST_EVENT_AUTO_RESET, false)
-	    == ST_THREAD_SUCCESS);
+	CHECK(st_event_create(&state.event, ST_EVENT_AUTO_RESET, false) == ST_THREAD_SUCCESS);
 	CHECK(start_waiters(&state, threads));
 	for (expected = 1; expected <= WAITER_COUNT; ++expected) {
 		CHECK(st_event_set(state.event) == ST_THREAD_SUCCESS);
@@ -176,10 +171,9 @@ static bool
 test_manual_reset_waiters(void)
 {
 	struct waiter_state state = {0};
-	st_thread_t threads[WAITER_COUNT];
+	st_thread_t         threads[WAITER_COUNT];
 
-	CHECK(st_event_create(&state.event, ST_EVENT_MANUAL_RESET, false)
-	    == ST_THREAD_SUCCESS);
+	CHECK(st_event_create(&state.event, ST_EVENT_MANUAL_RESET, false) == ST_THREAD_SUCCESS);
 	CHECK(start_waiters(&state, threads));
 	CHECK(st_event_set(state.event) == ST_THREAD_SUCCESS);
 	CHECK(wait_for_count(&state, WAITER_COUNT));
@@ -192,6 +186,7 @@ test_manual_reset_waiters(void)
 }
 
 #define HANDSHAKE_COUNT 1000
+
 struct handshake_state {
 	st_event_t *request;
 	st_event_t *response;
@@ -201,7 +196,7 @@ static int
 handshake_worker(void *argument)
 {
 	struct handshake_state *state = argument;
-	int iteration;
+	int                     iteration;
 
 	for (iteration = 0; iteration < HANDSHAKE_COUNT; ++iteration) {
 		if (st_event_wait(state->request) != ST_THREAD_SUCCESS)
@@ -216,16 +211,13 @@ static bool
 test_handshake(void)
 {
 	struct handshake_state state = {0};
-	st_thread_t thread;
-	int iteration;
-	int result;
+	st_thread_t            thread;
+	int                    iteration;
+	int                    result;
 
-	CHECK(st_event_create(&state.request, ST_EVENT_AUTO_RESET, false)
-	    == ST_THREAD_SUCCESS);
-	CHECK(st_event_create(&state.response, ST_EVENT_AUTO_RESET, false)
-	    == ST_THREAD_SUCCESS);
-	CHECK(st_thread_create(&thread, handshake_worker, &state)
-	    == ST_THREAD_SUCCESS);
+	CHECK(st_event_create(&state.request, ST_EVENT_AUTO_RESET, false) == ST_THREAD_SUCCESS);
+	CHECK(st_event_create(&state.response, ST_EVENT_AUTO_RESET, false) == ST_THREAD_SUCCESS);
+	CHECK(st_thread_create(&thread, handshake_worker, &state) == ST_THREAD_SUCCESS);
 	for (iteration = 0; iteration < HANDSHAKE_COUNT; ++iteration) {
 		CHECK(st_event_set(state.request) == ST_THREAD_SUCCESS);
 		CHECK(st_event_wait(state.response) == ST_THREAD_SUCCESS);
@@ -240,13 +232,11 @@ test_handshake(void)
 static bool
 test_errors(void)
 {
-	st_event_t *event = NULL;
+	st_event_t     *event    = NULL;
 	struct timespec deadline = deadline_after(1);
 
-	CHECK(st_event_create(NULL, ST_EVENT_AUTO_RESET, false)
-	    == ST_THREAD_ERROR);
-	CHECK(st_event_create(&event, (enum st_event_reset_mode)20, false)
-	    == ST_THREAD_ERROR);
+	CHECK(st_event_create(NULL, ST_EVENT_AUTO_RESET, false) == ST_THREAD_ERROR);
+	CHECK(st_event_create(&event, (enum st_event_reset_mode)20, false) == ST_THREAD_ERROR);
 	CHECK(event == NULL);
 	CHECK(st_event_set(NULL) == ST_THREAD_ERROR);
 	CHECK(st_event_reset(NULL) == ST_THREAD_ERROR);
@@ -262,10 +252,9 @@ static bool
 test_expired_deadline(void)
 {
 	const struct timespec expired = {0, 0};
-	st_event_t *event = NULL;
+	st_event_t           *event   = NULL;
 
-	CHECK(st_event_create(&event, ST_EVENT_AUTO_RESET, true)
-	    == ST_THREAD_SUCCESS);
+	CHECK(st_event_create(&event, ST_EVENT_AUTO_RESET, true) == ST_THREAD_SUCCESS);
 	CHECK(st_event_timedwait(event, &expired) == ST_THREAD_SUCCESS);
 	CHECK(st_event_timedwait(event, &expired) == ST_THREAD_TIMED_OUT);
 	CHECK(st_event_reset(event) == ST_THREAD_SUCCESS);
@@ -273,8 +262,7 @@ test_expired_deadline(void)
 	CHECK(st_event_timedwait(event, NULL) == ST_THREAD_ERROR);
 	CHECK(st_event_trywait(event) == ST_THREAD_SUCCESS);
 	st_event_destroy(event);
-	CHECK(st_event_create(&event, ST_EVENT_MANUAL_RESET, true)
-	    == ST_THREAD_SUCCESS);
+	CHECK(st_event_create(&event, ST_EVENT_MANUAL_RESET, true) == ST_THREAD_SUCCESS);
 	CHECK(st_event_timedwait(event, &expired) == ST_THREAD_SUCCESS);
 	CHECK(st_event_timedwait(event, &expired) == ST_THREAD_SUCCESS);
 	CHECK(st_event_reset(event) == ST_THREAD_SUCCESS);
@@ -286,9 +274,8 @@ test_expired_deadline(void)
 int
 main(void)
 {
-	if (!test_initial_and_reset() || !test_auto_reset_waiters()
-	    || !test_manual_reset_waiters() || !test_handshake()
-	    || !test_errors() || !test_expired_deadline())
+	if (!test_initial_and_reset() || !test_auto_reset_waiters() || !test_manual_reset_waiters()
+	    || !test_handshake() || !test_errors() || !test_expired_deadline())
 		return EXIT_FAILURE;
 	return EXIT_SUCCESS;
 }

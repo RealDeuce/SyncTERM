@@ -5,72 +5,74 @@
  */
 
 struct sftp_tx_pkt {
-	size_t sz;
+	size_t   sz;
 	uint32_t used;
-	uint8_t type;
-	uint8_t data[];
+	uint8_t  type;
+	uint8_t  data[];
 };
 
 struct sftp_rx_pkt {
-	bool malformed;
+	bool     malformed;
 	uint32_t cur;
-	size_t sz;
+	size_t   sz;
 	uint32_t used;
 	uint32_t len;
-	uint8_t type;
-	uint8_t data[];
+	uint8_t  type;
+	uint8_t  data[];
 };
 
 static const struct type_names {
 	const uint8_t type;
-	const char * name;
+	const char   *name;
 } type_names[] = {
-	{SSH_FXP_INIT, "INIT"},
-	{SSH_FXP_VERSION, "VERSION"},
-	{SSH_FXP_OPEN, "OPEN"},
-	{SSH_FXP_CLOSE, "CLOSE"},
-	{SSH_FXP_READ, "READ"},
-	{SSH_FXP_WRITE, "WRITE"},
-	{SSH_FXP_LSTAT, "LSTAT"},
-	{SSH_FXP_FSTAT, "FSTAT"},
-	{SSH_FXP_SETSTAT, "SETSTAT"},
-	{SSH_FXP_FSETSTAT, "FSETSTAT"},
-	{SSH_FXP_OPENDIR, "OPENDIR"},
-	{SSH_FXP_READDIR, "READDIR"},
-	{SSH_FXP_REMOVE, "REMOVE"},
-	{SSH_FXP_MKDIR, "MKDIR"},
-	{SSH_FXP_RMDIR, "RMDIR"},
-	{SSH_FXP_REALPATH, "REALPATH"},
-	{SSH_FXP_STAT, "STAT"},
-	{SSH_FXP_RENAME, "RENAME"},
-	{SSH_FXP_READLINK, "READLINK"},
-	{SSH_FXP_SYMLINK, "SYMLINK"},
-	{SSH_FXP_STATUS, "STATUS"},
-	{SSH_FXP_HANDLE, "HANDLE"},
-	{SSH_FXP_DATA, "DATA"},
-	{SSH_FXP_NAME, "NAME"},
-	{SSH_FXP_ATTRS, "ATTRS"},
-	{SSH_FXP_EXTENDED, "EXTENDED"},
-	{SSH_FXP_EXTENDED_REPLY, "EXTENDED REPLY"},
+    {SSH_FXP_INIT,           "INIT"          },
+    {SSH_FXP_VERSION,        "VERSION"       },
+    {SSH_FXP_OPEN,           "OPEN"          },
+    {SSH_FXP_CLOSE,          "CLOSE"         },
+    {SSH_FXP_READ,           "READ"          },
+    {SSH_FXP_WRITE,          "WRITE"         },
+    {SSH_FXP_LSTAT,          "LSTAT"         },
+    {SSH_FXP_FSTAT,          "FSTAT"         },
+    {SSH_FXP_SETSTAT,        "SETSTAT"       },
+    {SSH_FXP_FSETSTAT,       "FSETSTAT"      },
+    {SSH_FXP_OPENDIR,        "OPENDIR"       },
+    {SSH_FXP_READDIR,        "READDIR"       },
+    {SSH_FXP_REMOVE,         "REMOVE"        },
+    {SSH_FXP_MKDIR,          "MKDIR"         },
+    {SSH_FXP_RMDIR,          "RMDIR"         },
+    {SSH_FXP_REALPATH,       "REALPATH"      },
+    {SSH_FXP_STAT,           "STAT"          },
+    {SSH_FXP_RENAME,         "RENAME"        },
+    {SSH_FXP_READLINK,       "READLINK"      },
+    {SSH_FXP_SYMLINK,        "SYMLINK"       },
+    {SSH_FXP_STATUS,         "STATUS"        },
+    {SSH_FXP_HANDLE,         "HANDLE"        },
+    {SSH_FXP_DATA,           "DATA"          },
+    {SSH_FXP_NAME,           "NAME"          },
+    {SSH_FXP_ATTRS,          "ATTRS"         },
+    {SSH_FXP_EXTENDED,       "EXTENDED"      },
+    {SSH_FXP_EXTENDED_REPLY, "EXTENDED REPLY"},
 };
-static const char * notfound_type = "<UNKNOWN>";
+
+static const char *notfound_type = "<UNKNOWN>";
 
 static const struct errcode_names {
 	const uint32_t errcode;
-	const char * name;
+	const char    *name;
 } errcode_names[] = {
-	{SSH_FX_OK, "OK"},
-	{SSH_FX_EOF, "End Of File"},
-	{SSH_FX_NO_SUCH_FILE, "No Such File"},
-	{SSH_FX_PERMISSION_DENIED, "Permission Denied"},
-	{SSH_FX_FAILURE, "General Failure"},
-	{SSH_FX_BAD_MESSAGE, "Bad Message"},
-	{SSH_FX_NO_CONNECTION, "No Connection"},
-	{SSH_FX_CONNECTION_LOST, "Connection Lost"},
-	{SSH_FX_OP_UNSUPPORTED, "Operation Unsupported"},
+    {SSH_FX_OK,                "OK"                   },
+    {SSH_FX_EOF,               "End Of File"          },
+    {SSH_FX_NO_SUCH_FILE,      "No Such File"         },
+    {SSH_FX_PERMISSION_DENIED, "Permission Denied"    },
+    {SSH_FX_FAILURE,           "General Failure"      },
+    {SSH_FX_BAD_MESSAGE,       "Bad Message"          },
+    {SSH_FX_NO_CONNECTION,     "No Connection"        },
+    {SSH_FX_CONNECTION_LOST,   "Connection Lost"      },
+    {SSH_FX_OP_UNSUPPORTED,    "Operation Unsupported"},
 };
 
-static int type_cmp(const void *key, const void *name)
+static int
+type_cmp(const void *key, const void *name)
 {
 	int k = *(uint8_t *)key;
 	int n = *(uint8_t *)name;
@@ -81,14 +83,16 @@ static int type_cmp(const void *key, const void *name)
 const char *
 sftp_get_type_name(uint8_t type)
 {
-	struct type_names *t = (struct type_names *)(bsearch(&type, type_names, sizeof(type_names) / sizeof(type_names[0]), sizeof(type_names[0]), type_cmp));
+	struct type_names *t = (struct type_names *)(bsearch(&type, type_names,
+	    sizeof(type_names) / sizeof(type_names[0]), sizeof(type_names[0]), type_cmp));
 
 	if (t == NULL)
 		return notfound_type;
 	return t->name;
 }
 
-static int errcode_cmp(const void *key, const void *name)
+static int
+errcode_cmp(const void *key, const void *name)
 {
 	uint32_t k = *(const uint32_t *)key;
 	uint32_t n = *(const uint32_t *)name;
@@ -99,7 +103,8 @@ static int errcode_cmp(const void *key, const void *name)
 const char *
 sftp_get_errcode_name(uint32_t errcode)
 {
-	struct errcode_names *ec = (struct errcode_names *)(bsearch(&errcode, errcode_names, sizeof(errcode_names) / sizeof(errcode_names[0]), sizeof(errcode_names[0]), errcode_cmp));
+	struct errcode_names *ec = (struct errcode_names *)(bsearch(&errcode, errcode_names,
+	    sizeof(errcode_names) / sizeof(errcode_names[0]), sizeof(errcode_names[0]), errcode_cmp));
 
 	if (ec == NULL)
 		return notfound_type;
@@ -158,7 +163,7 @@ remove_packet(sftp_rx_pkt_t pkt)
 		uint32_t sz = pkt_sz(pkt);
 		assert(sz <= pkt->used);
 		uint32_t newsz = pkt->used - sz - sizeof(uint32_t);
-		uint8_t *src = (uint8_t *)&pkt->len;
+		uint8_t *src   = (uint8_t *)&pkt->len;
 		src += sizeof(uint32_t);
 		src += sz;
 		memmove(&pkt->len, src, newsz);
@@ -180,26 +185,27 @@ extract_packet(sftp_rx_pkt_t stream)
 {
 	if (!stream || !have_full_pkt(stream))
 		return NULL;
-	uint32_t sz = pkt_sz(stream);
-	size_t alloc_sz = offsetof(struct sftp_rx_pkt, len) + sizeof(uint32_t) + sz;
-	sftp_rx_pkt_t out = (sftp_rx_pkt_t)malloc(alloc_sz);
+	uint32_t      sz       = pkt_sz(stream);
+	size_t        alloc_sz = offsetof(struct sftp_rx_pkt, len) + sizeof(uint32_t) + sz;
+	sftp_rx_pkt_t out      = (sftp_rx_pkt_t)malloc(alloc_sz);
 	if (out == NULL)
 		return NULL;
-	out->cur = 0;
+	out->cur       = 0;
 	out->malformed = false;
-	out->sz = alloc_sz;
-	out->used = sizeof(uint32_t) + sz;
+	out->sz        = alloc_sz;
+	out->used      = sizeof(uint32_t) + sz;
 	memcpy(&out->len, &stream->len, out->used);
 	remove_packet(stream);
 	return out;
 }
 
-#define GET_FUNC_BODY                                                            \
-	assert(pkt);                                                              \
-	if (pkt->cur + sizeof(ret) > pkt_sz(pkt) - 1) { \
-		pkt->malformed = true; \
-		return 0; } \
-	memcpy(&ret, &pkt->data[pkt->cur], sizeof(ret));                             \
+#define GET_FUNC_BODY                                    \
+	assert(pkt);                                     \
+	if (pkt->cur + sizeof(ret) > pkt_sz(pkt) - 1) {  \
+		pkt->malformed = true;                   \
+		return 0;                                \
+	}                                                \
+	memcpy(&ret, &pkt->data[pkt->cur], sizeof(ret)); \
 	pkt->cur += sizeof(ret)
 
 static uint32_t
@@ -228,11 +234,11 @@ getstring(sftp_rx_pkt_t pkt)
 {
 	assert(pkt);
 	uint32_t saved_cur = pkt->cur;
-	uint32_t sz = get32(pkt);
+	uint32_t sz        = get32(pkt);
 	/* Does `sz` bytes fit in the remaining allocation past cur? */
 	if ((size_t)pkt->cur + sz > pkt_sz(pkt) - 1 || pkt->malformed) {
 		pkt->malformed = true;
-		pkt->cur = saved_cur;
+		pkt->cur       = saved_cur;
 		return NULL;
 	}
 	sftp_str_t ret = sftp_memdup(&pkt->data[pkt->cur], sz);
@@ -252,23 +258,23 @@ rx_pkt_append(sftp_rx_pkt_t *pktp, uint8_t *inbuf, uint32_t len)
 	assert(pktp);
 	if (!pktp)
 		return false;
-	size_t old_sz;
-	size_t new_sz;
-	uint32_t old_used;
-	uint32_t old_cur;
+	size_t        old_sz;
+	size_t        new_sz;
+	uint32_t      old_used;
+	uint32_t      old_cur;
 	sftp_rx_pkt_t pkt = *pktp;
 
 	if (pkt == NULL) {
-		old_sz = 0;
+		old_sz   = 0;
 		old_used = 0;
-		old_cur = 0;
-		new_sz = offsetof(struct sftp_rx_pkt, len) + len;
+		old_cur  = 0;
+		new_sz   = offsetof(struct sftp_rx_pkt, len) + len;
 	}
 	else {
 		old_used = pkt->used;
-		old_sz = pkt->sz;
-		old_cur = pkt->cur;
-		new_sz = offsetof(struct sftp_rx_pkt, len) + pkt->used + len;
+		old_sz   = pkt->sz;
+		old_cur  = pkt->cur;
+		new_sz   = offsetof(struct sftp_rx_pkt, len) + pkt->used + len;
 	}
 	/* One partial maximum-sized packet plus one incoming read batch. */
 	if (new_sz > offsetof(struct sftp_rx_pkt, len) + 2 * SFTP_MAX_PACKET_SIZE + 4)
@@ -283,9 +289,9 @@ rx_pkt_append(sftp_rx_pkt_t *pktp, uint8_t *inbuf, uint32_t len)
 			*pktp = NULL;
 			return false;
 		}
-		*pktp = new_buf;
-		pkt = *pktp;
-		pkt->sz = new_sz;
+		*pktp    = new_buf;
+		pkt      = *pktp;
+		pkt->sz  = new_sz;
 		pkt->cur = old_cur;
 	}
 	memcpy(&((uint8_t *)&(pkt->len))[old_used], inbuf, len);
@@ -306,12 +312,12 @@ grow_tx(sftp_tx_pkt_t *pktp, uint32_t need)
 	if (pktp == NULL)
 		return false;
 	sftp_tx_pkt_t pkt = *pktp;
-	size_t newsz;
-	size_t oldsz;
-	bool zero_used = false;
+	size_t        newsz;
+	size_t        oldsz;
+	bool          zero_used = false;
 	if (pkt == NULL) {
-		newsz = offsetof(struct sftp_tx_pkt, type) + need;
-		oldsz = 0;
+		newsz     = offsetof(struct sftp_tx_pkt, type) + need;
+		oldsz     = 0;
 		zero_used = true;
 	}
 	else {
@@ -330,7 +336,7 @@ grow_tx(sftp_tx_pkt_t *pktp, uint32_t need)
 		*pktp = (sftp_tx_pkt_t)new_buf;
 		if (zero_used)
 			(*pktp)->used = 0;
-		pkt = *pktp;
+		pkt     = *pktp;
 		pkt->sz = newsz;
 	}
 	assert(pkt->sz >= offsetof(struct sftp_tx_pkt, type) + pkt->used);
@@ -353,12 +359,12 @@ tx_pkt_reset(sftp_tx_pkt_t *pktp)
 
 #define APPEND_TX_DATA_PTR(pkt) (&((uint8_t *)pkt)[pkt->used + offsetof(struct sftp_tx_pkt, type)])
 
-#define APPEND_FUNC_BODY(var)                                                                     \
-	if (!grow_tx(pktp, sizeof(var)))                                                           \
-		return false;                                                                       \
-	sftp_tx_pkt_t pkt = *pktp;                                                                   \
+#define APPEND_FUNC_BODY(var)                               \
+	if (!grow_tx(pktp, sizeof(var)))                    \
+		return false;                               \
+	sftp_tx_pkt_t pkt = *pktp;                          \
 	memcpy(APPEND_TX_DATA_PTR(pkt), &var, sizeof(var)); \
-	pkt->used += sizeof(var);                                                                      \
+	pkt->used += sizeof(var);                           \
 	return true
 
 static bool
@@ -411,7 +417,7 @@ appendcstring(sftp_tx_pkt_t *pktp, const char *str)
 {
 	uint32_t oldused;
 	uint32_t len;
-	size_t sz;
+	size_t   sz;
 
 	assert(pktp);
 	if (*pktp == NULL)
@@ -446,9 +452,9 @@ prep_tx_packet(sftp_tx_pkt_t pkt, uint8_t **buf, size_t *sz)
 	assert(sz);
 	if (pkt == NULL || buf == NULL || sz == NULL)
 		return false;
-	*sz = pkt->used + sizeof(pkt->used);
+	*sz       = pkt->used + sizeof(pkt->used);
 	pkt->used = wire32(pkt->used);
-	*buf = (uint8_t *)&pkt->used;
+	*buf      = (uint8_t *)&pkt->used;
 	return true;
 }
 

@@ -2,11 +2,11 @@
 #ifndef ST_RIP3_STREAM_H_
 #define ST_RIP3_STREAM_H_
 
-#include "st_rip3_diagnostic.h"
-
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+
+#include "st_rip3_diagnostic.h"
 
 struct st_rip3_stream;
 struct st_rip3_environments;
@@ -17,7 +17,7 @@ struct st_rip3_environments;
  * CP437/UTF-8 conversion belongs to the client. */
 struct st_rip3_stream_sink {
 	void *context;
-	void (*text)(void *context, const uint8_t *bytes, size_t length);
+	void  (*text)(void *context, const uint8_t *bytes, size_t length);
 	/* Complete command ID and arguments, without introducer, delimiter or
 	 * physical line endings. CR, LF and FF each terminate commands. A CR also
 	 * consumes its optional LF across input calls; ordinary text is unchanged.
@@ -36,14 +36,14 @@ struct st_rip3_stream_sink {
 	/* The host ANSI decoder can claim a bang before RIP checks for !|.
 	 * Read the live framing flag ahead of each byte. Disabled input bypasses
 	 * framing and preserves any unfinished RIP command for re-enable. */
-	bool (*ansi_owns_bang)(void *context);
+	bool        (*ansi_owns_bang)(void *context);
 	const bool *framing_enabled;
 };
 
 /* Borrow the environment table for numeric widths and radix. Without a
  * table, use the initial settings (Base Math 36, XY=2, palette colors). */
-int st_rip3_stream_create(struct st_rip3_stream **result,
-	const struct st_rip3_stream_sink *sink, const struct st_rip3_environments *environments);
+int st_rip3_stream_create(struct st_rip3_stream **result, const struct st_rip3_stream_sink *sink,
+    const struct st_rip3_environments *environments);
 /* Destroy/reset discard unfinished input without executing it or invoking
  * callbacks. Reset starts a new session at line start, retaining buffer space.
  * No EOF-as-delimiter policy is inferred; the owner controls input lifetime. */
@@ -58,8 +58,7 @@ void st_rip3_stream_reset(struct st_rip3_stream *stream);
  * ANSI decoding, expansion, binary transfer modes and terminal routing are
  * external. ESC bytes remain in opaque command spans until their own
  * dispatcher can adjudicate them (#7). */
-void st_rip3_stream_process(struct st_rip3_stream *stream,
-	const uint8_t *bytes, size_t length);
+void st_rip3_stream_process(struct st_rip3_stream *stream, const uint8_t *bytes, size_t length);
 
 /* Transfer handoff may take responsibility for the optional LF of a CRLF. */
 bool st_rip3_stream_pending_lf(const struct st_rip3_stream *stream);

@@ -4,7 +4,9 @@
 #define ST_TRANSFER_DETECT_H
 #include <stdint.h>
 
-struct st_transfer_detector { unsigned matched; };
+struct st_transfer_detector {
+	unsigned matched;
+};
 
 /* Observe one byte. Return 1 for ZRQINIT, 2 for ZRINIT, or 0 otherwise.
  * The terminal receives every observed byte as it arrives. */

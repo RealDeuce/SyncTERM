@@ -3,39 +3,36 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "tcp_client_fake.h"
-
-#include "io_error.h"
-#include "socket_internal.h"
-#include "tcp_client_internal.h"
-
 #include <stdlib.h>
 #include <string.h>
 
-#define TCP_CLIENT_FAKE_MAX_ADDRESSES 8
-#define TCP_CLIENT_FAKE_HANDLE_BASE 100
+#include "io_error.h"
+#include "socket_internal.h"
+#include "tcp_client_fake.h"
+#include "tcp_client_internal.h"
 
-static struct tcp_client_fake_address fake_addresses[
-    TCP_CLIENT_FAKE_MAX_ADDRESSES];
-static size_t fake_address_count;
-static size_t fake_started[TCP_CLIENT_FAKE_MAX_ADDRESSES];
-static int64_t fake_start_times[TCP_CLIENT_FAKE_MAX_ADDRESSES];
-static size_t fake_starts;
-static int64_t fake_time;
-static size_t fake_closes;
-static bool fake_error_consumed[TCP_CLIENT_FAKE_MAX_ADDRESSES];
+#define TCP_CLIENT_FAKE_MAX_ADDRESSES 8
+#define TCP_CLIENT_FAKE_HANDLE_BASE   100
+
+static struct tcp_client_fake_address fake_addresses[TCP_CLIENT_FAKE_MAX_ADDRESSES];
+static size_t                         fake_address_count;
+static size_t                         fake_started[TCP_CLIENT_FAKE_MAX_ADDRESSES];
+static int64_t                        fake_start_times[TCP_CLIENT_FAKE_MAX_ADDRESSES];
+static size_t                         fake_starts;
+static int64_t                        fake_time;
+static size_t                         fake_closes;
+static bool                           fake_error_consumed[TCP_CLIENT_FAKE_MAX_ADDRESSES];
 
 void
-tcp_client_fake_reset(const struct tcp_client_fake_address *addresses,
-    size_t count)
+tcp_client_fake_reset(const struct tcp_client_fake_address *addresses, size_t count)
 {
 	if (count > TCP_CLIENT_FAKE_MAX_ADDRESSES)
 		count = TCP_CLIENT_FAKE_MAX_ADDRESSES;
 	memcpy(fake_addresses, addresses, count * sizeof(*addresses));
 	fake_address_count = count;
-	fake_starts = 0;
-	fake_time = 0;
-	fake_closes = 0;
+	fake_starts        = 0;
+	fake_time          = 0;
+	fake_closes        = 0;
 	memset(fake_error_consumed, 0, sizeof(fake_error_consumed));
 }
 
@@ -70,8 +67,7 @@ tcp_client_fake_close_count(void)
 }
 
 int
-tcp_client_resolve(struct tcp_client_address_list *result,
-    const char *host, uint16_t port,
+tcp_client_resolve(struct tcp_client_address_list *result, const char *host, uint16_t port,
     enum tcp_client_address_family family)
 {
 	(void)host;
@@ -82,10 +78,10 @@ tcp_client_resolve(struct tcp_client_address_list *result,
 		return IO_ERROR_OUT_OF_MEMORY;
 	result->count = fake_address_count;
 	for (size_t index = 0; index < fake_address_count; index++) {
-		result->items[index].family = fake_addresses[index].family;
+		result->items[index].family        = fake_addresses[index].family;
 		result->items[index].native_family = (int)index + 1;
-		result->items[index].length = 1;
-		result->items[index].storage[0] = (unsigned char)index;
+		result->items[index].length        = 1;
+		result->items[index].storage[0]    = (unsigned char)index;
 	}
 	return 0;
 }
@@ -112,53 +108,49 @@ socket_internal_wait_capacity(void)
 }
 
 int
-socket_internal_start_connect(const void *address, size_t address_length,
-    int family, socket_handle_t *result, bool *complete)
+socket_internal_start_connect(const void *address, size_t address_length, int family, socket_handle_t *result,
+    bool *complete)
 {
 	size_t index;
 
 	(void)family;
 	if (address_length != 1)
 		return IO_ERROR_INVALID_ARGUMENT;
-	index = *(const unsigned char *)address;
-	fake_started[fake_starts] = index;
+	index                           = *(const unsigned char *)address;
+	fake_started[fake_starts]       = index;
 	fake_start_times[fake_starts++] = fake_time;
 	if (fake_addresses[index].behavior == TCP_CLIENT_FAKE_FAIL_START)
 		return fake_addresses[index].error;
-	*result = (socket_handle_t)(TCP_CLIENT_FAKE_HANDLE_BASE + index);
-	*complete = fake_addresses[index].behavior ==
-	    TCP_CLIENT_FAKE_IMMEDIATE_SUCCESS;
+	*result   = (socket_handle_t)(TCP_CLIENT_FAKE_HANDLE_BASE + index);
+	*complete = fake_addresses[index].behavior == TCP_CLIENT_FAKE_IMMEDIATE_SUCCESS;
 	return 0;
 }
 
 int
-socket_internal_wait_many(struct socket_wait_item *items, size_t count,
-    int64_t timeout_ms)
+socket_internal_wait_many(struct socket_wait_item *items, size_t count, int64_t timeout_ms)
 {
-	int64_t wake = timeout_ms < 0 ? INT64_MAX : fake_time + timeout_ms;
-	bool ready = false;
+	int64_t wake  = timeout_ms < 0 ? INT64_MAX : fake_time + timeout_ms;
+	bool    ready = false;
 
 	for (size_t index = 0; index < count; index++) {
-		size_t address = (size_t)items[index].socket -
-		    TCP_CLIENT_FAKE_HANDLE_BASE;
+		size_t address      = (size_t)items[index].socket - TCP_CLIENT_FAKE_HANDLE_BASE;
 		items[index].events = 0;
-		items[index].error = 0;
-		if (fake_addresses[address].behavior != TCP_CLIENT_FAKE_NEVER &&
-		    fake_addresses[address].ready_at < wake)
+		items[index].error  = 0;
+		if (fake_addresses[address].behavior != TCP_CLIENT_FAKE_NEVER
+		    && fake_addresses[address].ready_at < wake)
 			wake = fake_addresses[address].ready_at;
 	}
 	if (wake == INT64_MAX)
 		return IO_ERROR_IO;
 	fake_time = wake;
 	for (size_t index = 0; index < count; index++) {
-		size_t address = (size_t)items[index].socket -
-		    TCP_CLIENT_FAKE_HANDLE_BASE;
-		if (fake_addresses[address].behavior != TCP_CLIENT_FAKE_NEVER &&
-		    fake_addresses[address].ready_at <= fake_time) {
+		size_t address = (size_t)items[index].socket - TCP_CLIENT_FAKE_HANDLE_BASE;
+		if (fake_addresses[address].behavior != TCP_CLIENT_FAKE_NEVER
+		    && fake_addresses[address].ready_at <= fake_time) {
 			items[index].events = SOCKET_WAIT_WRITABLE;
 			if (fake_addresses[address].behavior == TCP_CLIENT_FAKE_PENDING_FAILURE) {
 				items[index].events |= SOCKET_WAIT_ERROR;
-				items[index].error = fake_addresses[address].error;
+				items[index].error           = fake_addresses[address].error;
 				fake_error_consumed[address] = true;
 			}
 			ready = true;

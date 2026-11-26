@@ -5,12 +5,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "st_bbs_test_allocator.h"
-
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "st_bbs_test_allocator.h"
 
 static size_t attempt;
 static size_t failure = SIZE_MAX;
@@ -45,7 +45,7 @@ char *
 st_bbs_test_strdup(const char *string)
 {
 	size_t length = strlen(string);
-	char *copy;
+	char  *copy;
 
 	if (should_fail() || length == SIZE_MAX)
 		return NULL;

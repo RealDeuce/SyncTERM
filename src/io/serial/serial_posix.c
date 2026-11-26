@@ -3,11 +3,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "serial.h"
-
-#include "io_error.h"
-#include "serial_config.h"
-
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
@@ -18,76 +13,80 @@
 #include <termios.h>
 #include <unistd.h>
 
+#include "io_error.h"
+#include "serial.h"
+#include "serial_config.h"
+
 struct serial_port {
 	int descriptor;
 };
 
 struct serial_baud {
 	uint32_t rate;
-	speed_t value;
+	speed_t  value;
 };
 
-#define SERIAL_BAUD(rate_) { (rate_), B ## rate_ }
+#define SERIAL_BAUD(rate_) {(rate_), B##rate_}
 static const struct serial_baud serial_baud_rates[] = {
-	SERIAL_BAUD(50),
-	SERIAL_BAUD(75),
-	SERIAL_BAUD(110),
-	SERIAL_BAUD(134),
-	SERIAL_BAUD(150),
-	SERIAL_BAUD(200),
-	SERIAL_BAUD(300),
-	SERIAL_BAUD(600),
-	SERIAL_BAUD(1200),
-	SERIAL_BAUD(1800),
-	SERIAL_BAUD(2400),
-	SERIAL_BAUD(4800),
-	SERIAL_BAUD(9600),
-	SERIAL_BAUD(19200),
-	SERIAL_BAUD(38400),
+    SERIAL_BAUD(50),
+    SERIAL_BAUD(75),
+    SERIAL_BAUD(110),
+    SERIAL_BAUD(134),
+    SERIAL_BAUD(150),
+    SERIAL_BAUD(200),
+    SERIAL_BAUD(300),
+    SERIAL_BAUD(600),
+    SERIAL_BAUD(1200),
+    SERIAL_BAUD(1800),
+    SERIAL_BAUD(2400),
+    SERIAL_BAUD(4800),
+    SERIAL_BAUD(9600),
+    SERIAL_BAUD(19200),
+    SERIAL_BAUD(38400),
 #if ST_SERIAL_HAVE_B57600
-	SERIAL_BAUD(57600),
+    SERIAL_BAUD(57600),
 #endif
 #if ST_SERIAL_HAVE_B115200
-	SERIAL_BAUD(115200),
+    SERIAL_BAUD(115200),
 #endif
 #if ST_SERIAL_HAVE_B230400
-	SERIAL_BAUD(230400),
+    SERIAL_BAUD(230400),
 #endif
 #if ST_SERIAL_HAVE_B460800
-	SERIAL_BAUD(460800),
+    SERIAL_BAUD(460800),
 #endif
 #if ST_SERIAL_HAVE_B500000
-	SERIAL_BAUD(500000),
+    SERIAL_BAUD(500000),
 #endif
 #if ST_SERIAL_HAVE_B576000
-	SERIAL_BAUD(576000),
+    SERIAL_BAUD(576000),
 #endif
 #if ST_SERIAL_HAVE_B921600
-	SERIAL_BAUD(921600),
+    SERIAL_BAUD(921600),
 #endif
 #if ST_SERIAL_HAVE_B1000000
-	SERIAL_BAUD(1000000),
+    SERIAL_BAUD(1000000),
 #endif
 #if ST_SERIAL_HAVE_B1152000
-	SERIAL_BAUD(1152000),
+    SERIAL_BAUD(1152000),
 #endif
 #if ST_SERIAL_HAVE_B1500000
-	SERIAL_BAUD(1500000),
+    SERIAL_BAUD(1500000),
 #endif
 #if ST_SERIAL_HAVE_B2000000
-	SERIAL_BAUD(2000000),
+    SERIAL_BAUD(2000000),
 #endif
 #if ST_SERIAL_HAVE_B2500000
-	SERIAL_BAUD(2500000),
+    SERIAL_BAUD(2500000),
 #endif
 #if ST_SERIAL_HAVE_B3000000
-	SERIAL_BAUD(3000000),
+    SERIAL_BAUD(3000000),
 #endif
 #if ST_SERIAL_HAVE_B3500000
-	SERIAL_BAUD(3500000),
+    SERIAL_BAUD(3500000),
 #endif
 #if ST_SERIAL_HAVE_B4000000
-	SERIAL_BAUD(4000000),
+    SERIAL_BAUD(4000000),
 #endif
 };
 #undef SERIAL_BAUD
@@ -105,8 +104,8 @@ serial_port_open(serial_port_t **result, const char *device)
 {
 	serial_port_t *port;
 	struct termios attributes;
-	int descriptor;
-	int flags;
+	int            descriptor;
+	int            flags;
 
 	if (result == NULL || device == NULL || *device == '\0')
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -130,7 +129,7 @@ serial_port_open(serial_port_t **result, const char *device)
 		return IO_ERROR_OUT_OF_MEMORY;
 	}
 	port->descriptor = descriptor;
-	*result = port;
+	*result          = port;
 	return 0;
 }
 
@@ -152,8 +151,7 @@ serial_baud_value(uint32_t rate, speed_t *value)
 {
 	size_t i;
 
-	for (i = 0; i < sizeof(serial_baud_rates) /
-	    sizeof(serial_baud_rates[0]); i++) {
+	for (i = 0; i < sizeof(serial_baud_rates) / sizeof(serial_baud_rates[0]); i++) {
 		if (serial_baud_rates[i].rate == rate) {
 			*value = serial_baud_rates[i].value;
 			return true;
@@ -165,15 +163,14 @@ serial_baud_value(uint32_t rate, speed_t *value)
 static int
 serial_config_valid(const struct serial_config *config)
 {
-	const unsigned flow_mask = SERIAL_FLOW_CONTROL_RTS_CTS |
-	    SERIAL_FLOW_CONTROL_DTR_DSR | SERIAL_FLOW_CONTROL_XON_XOFF;
+	const unsigned flow_mask =
+	    SERIAL_FLOW_CONTROL_RTS_CTS | SERIAL_FLOW_CONTROL_DTR_DSR | SERIAL_FLOW_CONTROL_XON_XOFF;
 
-	if (config == NULL || config->data_bits < 5 || config->data_bits > 8 ||
-	    (config->stop_bits != 1 && config->stop_bits != 2) ||
-	    (config->parity != SERIAL_PARITY_NONE &&
-	    config->parity != SERIAL_PARITY_EVEN &&
-	    config->parity != SERIAL_PARITY_ODD) ||
-	    (config->flow_control & ~flow_mask) != 0)
+	if (config == NULL || config->data_bits < 5 || config->data_bits > 8
+	    || (config->stop_bits != 1 && config->stop_bits != 2)
+	    || (config->parity != SERIAL_PARITY_NONE && config->parity != SERIAL_PARITY_EVEN
+	        && config->parity != SERIAL_PARITY_ODD)
+	    || (config->flow_control & ~flow_mask) != 0)
 		return IO_ERROR_INVALID_ARGUMENT;
 	if ((config->flow_control & SERIAL_FLOW_CONTROL_DTR_DSR) != 0)
 		return IO_ERROR_NOT_SUPPORTED;
@@ -185,32 +182,30 @@ serial_config_valid(const struct serial_config *config)
 }
 
 int
-serial_port_configure(serial_port_t *port,
-	const struct serial_config *config)
+serial_port_configure(serial_port_t *port, const struct serial_config *config)
 {
 	struct termios attributes;
-	speed_t input_rate;
-	speed_t output_rate;
-	speed_t requested_rate = 0;
-	int result;
+	speed_t        input_rate;
+	speed_t        output_rate;
+	speed_t        requested_rate = 0;
+	int            result;
 
 	if (port == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	result = serial_config_valid(config);
 	if (result != 0)
 		return result;
-	if (config->baud_rate != 0 &&
-	    !serial_baud_value(config->baud_rate, &requested_rate))
+	if (config->baud_rate != 0 && !serial_baud_value(config->baud_rate, &requested_rate))
 		return IO_ERROR_NOT_SUPPORTED;
 	if (tcgetattr(port->descriptor, &attributes) != 0)
 		return serial_posix_error(errno);
-	input_rate = cfgetispeed(&attributes);
-	output_rate = cfgetospeed(&attributes);
-	attributes.c_iflag = IGNBRK | IGNPAR;
-	attributes.c_oflag = 0;
-	attributes.c_cflag = CREAD | CLOCAL | HUPCL;
-	attributes.c_lflag = 0;
-	attributes.c_cc[VMIN] = 0;
+	input_rate             = cfgetispeed(&attributes);
+	output_rate            = cfgetospeed(&attributes);
+	attributes.c_iflag     = IGNBRK | IGNPAR;
+	attributes.c_oflag     = 0;
+	attributes.c_cflag     = CREAD | CLOCAL | HUPCL;
+	attributes.c_lflag     = 0;
+	attributes.c_cc[VMIN]  = 0;
 	attributes.c_cc[VTIME] = 0;
 	switch (config->data_bits) {
 		case 5:
@@ -244,13 +239,10 @@ serial_port_configure(serial_port_t *port,
 #endif
 	if (config->baud_rate != 0)
 		input_rate = output_rate = requested_rate;
-	if (cfsetispeed(&attributes, input_rate) != 0 ||
-	    cfsetospeed(&attributes, output_rate) != 0)
-		return errno == EINVAL ? IO_ERROR_NOT_SUPPORTED :
-		    serial_posix_error(errno);
+	if (cfsetispeed(&attributes, input_rate) != 0 || cfsetospeed(&attributes, output_rate) != 0)
+		return errno == EINVAL ? IO_ERROR_NOT_SUPPORTED : serial_posix_error(errno);
 	if (tcsetattr(port->descriptor, TCSANOW, &attributes) != 0)
-		return errno == EINVAL ? IO_ERROR_NOT_SUPPORTED :
-		    serial_posix_error(errno);
+		return errno == EINVAL ? IO_ERROR_NOT_SUPPORTED : serial_posix_error(errno);
 	return 0;
 }
 
@@ -258,18 +250,18 @@ static int
 serial_wait(serial_port_t *port, short events, int64_t timeout_ms)
 {
 	struct pollfd item;
-	int64_t remaining = timeout_ms;
-	int timeout;
-	int result;
+	int64_t       remaining = timeout_ms;
+	int           timeout;
+	int           result;
 
 	if (timeout_ms < -1)
 		return IO_ERROR_INVALID_ARGUMENT;
-	item.fd = port->descriptor;
+	item.fd     = port->descriptor;
 	item.events = events;
 	for (;;) {
-		timeout = remaining > INT_MAX ? INT_MAX : (int)remaining;
+		timeout      = remaining > INT_MAX ? INT_MAX : (int)remaining;
 		item.revents = 0;
-		result = poll(&item, 1, timeout);
+		result       = poll(&item, 1, timeout);
 		if (result < 0)
 			return serial_posix_error(errno);
 		if (result != 0)
@@ -286,11 +278,10 @@ serial_wait(serial_port_t *port, short events, int64_t timeout_ms)
 }
 
 ssize_t
-serial_port_read(serial_port_t *port, void *buffer, size_t size,
-	int64_t timeout_ms)
+serial_port_read(serial_port_t *port, void *buffer, size_t size, int64_t timeout_ms)
 {
 	ssize_t result;
-	int wait_result;
+	int     wait_result;
 
 	if (port == NULL || (buffer == NULL && size != 0) || timeout_ms < -1)
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -308,11 +299,10 @@ serial_port_read(serial_port_t *port, void *buffer, size_t size,
 }
 
 ssize_t
-serial_port_write(serial_port_t *port, const void *buffer, size_t size,
-	int64_t timeout_ms)
+serial_port_write(serial_port_t *port, const void *buffer, size_t size, int64_t timeout_ms)
 {
 	ssize_t result;
-	int wait_result;
+	int     wait_result;
 
 	if (port == NULL || (buffer == NULL && size != 0) || timeout_ms < -1)
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -333,7 +323,7 @@ int
 serial_port_get_modem_lines(serial_port_t *port, unsigned *lines)
 {
 #if ST_SERIAL_HAVE_MODEM_STATUS
-	int status;
+	int      status;
 	unsigned result = 0;
 
 	if (port == NULL || lines == NULL)
@@ -344,27 +334,26 @@ serial_port_get_modem_lines(serial_port_t *port, unsigned *lines)
 		result |= SERIAL_MODEM_LINE_CTS;
 	if ((status & TIOCM_DSR) != 0)
 		result |= SERIAL_MODEM_LINE_DSR;
-#if ST_SERIAL_HAVE_TIOCM_CAR
+ #if ST_SERIAL_HAVE_TIOCM_CAR
 	if ((status & TIOCM_CAR) != 0)
 		result |= SERIAL_MODEM_LINE_DCD;
-#elif ST_SERIAL_HAVE_TIOCM_CD
+ #elif ST_SERIAL_HAVE_TIOCM_CD
 	if ((status & TIOCM_CD) != 0)
 		result |= SERIAL_MODEM_LINE_DCD;
-#endif
-#if ST_SERIAL_HAVE_TIOCM_RNG
+ #endif
+ #if ST_SERIAL_HAVE_TIOCM_RNG
 	if ((status & TIOCM_RNG) != 0)
 		result |= SERIAL_MODEM_LINE_RING;
-#elif ST_SERIAL_HAVE_TIOCM_RI
+ #elif ST_SERIAL_HAVE_TIOCM_RI
 	if ((status & TIOCM_RI) != 0)
 		result |= SERIAL_MODEM_LINE_RING;
-#endif
+ #endif
 	*lines = result;
 	return 0;
 #else
 	(void)port;
 	(void)lines;
-	return port == NULL || lines == NULL ? IO_ERROR_INVALID_ARGUMENT :
-	    IO_ERROR_NOT_SUPPORTED;
+	return port == NULL || lines == NULL ? IO_ERROR_INVALID_ARGUMENT : IO_ERROR_NOT_SUPPORTED;
 #endif
 }
 
@@ -374,8 +363,8 @@ serial_set_modem_line(serial_port_t *port, int line, bool enabled)
 #if ST_SERIAL_HAVE_MODEM_CONTROL
 	if (port == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	if ((enabled && ioctl(port->descriptor, TIOCMBIS, &line) == 0) ||
-	    (!enabled && ioctl(port->descriptor, TIOCMBIC, &line) == 0))
+	if ((enabled && ioctl(port->descriptor, TIOCMBIS, &line) == 0)
+	    || (!enabled && ioctl(port->descriptor, TIOCMBIC, &line) == 0))
 		return 0;
 	return serial_posix_error(errno);
 #else
@@ -406,11 +395,9 @@ serial_port_set_rts(serial_port_t *port, bool enabled)
 }
 
 int
-serial_port_get_baud_rates(serial_port_t *port, uint32_t *rates,
-	size_t capacity, size_t *count)
+serial_port_get_baud_rates(serial_port_t *port, uint32_t *rates, size_t capacity, size_t *count)
 {
-	size_t available = sizeof(serial_baud_rates) /
-	    sizeof(serial_baud_rates[0]);
+	size_t available = sizeof(serial_baud_rates) / sizeof(serial_baud_rates[0]);
 	size_t copied;
 	size_t i;
 

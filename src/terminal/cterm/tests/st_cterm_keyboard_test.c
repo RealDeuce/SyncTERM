@@ -3,25 +3,28 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "cterm.h"
-#include "io_error.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#define CHECK(expression) do { \
-	if (!(expression)) { \
-		fprintf(stderr, "%s:%d: %s\n", __FILE__, __LINE__, #expression); \
-		exit(EXIT_FAILURE); \
-	} \
-} while (false)
+#include "cterm.h"
+#include "io_error.h"
 
-struct output { uint8_t bytes[64]; size_t size; };
+#define CHECK(expression)                                                                \
+	do {                                                                             \
+		if (!(expression)) {                                                     \
+			fprintf(stderr, "%s:%d: %s\n", __FILE__, __LINE__, #expression); \
+			exit(EXIT_FAILURE);                                              \
+		}                                                                        \
+	} while (false)
+
+struct output {
+	uint8_t bytes[64];
+	size_t  size;
+};
 
 static void
-capture(void *context, enum st_cterm_output_origin origin,
-	const uint8_t *bytes, size_t size)
+capture(void *context, enum st_cterm_output_origin origin, const uint8_t *bytes, size_t size)
 {
 	struct output *output = context;
 
@@ -41,15 +44,14 @@ feed(st_cterm_t *terminal, const char *bytes)
 }
 
 static void
-compare_key(st_cterm_t *terminal, struct output *output,
-	uint16_t key, uint32_t modifiers, int reference)
+compare_key(st_cterm_t *terminal, struct output *output, uint16_t key, uint32_t modifiers, int reference)
 {
 	struct output actual;
 
-	*output = (struct output){0};
+	*output = (struct output) {0};
 	(void)st_cterm_handle_key(terminal, key, modifiers);
-	actual = *output;
-	*output = (struct output){0};
+	actual  = *output;
+	*output = (struct output) {0};
 	/* Numeric reference keys are from v1.10a's input layer. The unchanged
 	 * private encoder is the oracle, not the normalized-key adapter. */
 	(void)cterm_encode_key(terminal, reference);
@@ -60,48 +62,65 @@ compare_key(st_cterm_t *terminal, struct output *output,
 static void
 check_mappings(void)
 {
-	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
-	const struct st_console_config geometry = {
-		.columns = 40, .rows = 25, .cell_width = 8, .cell_height = 16,
+	const struct st_console_display_config display  = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_config         geometry = {
+	    .columns     = 40,
+	    .rows        = 25,
+	    .cell_width  = 8,
+	    .cell_height = 16,
 	};
-	const enum st_codepage codepages[] = {ST_CODEPAGE_CP437,
-	    ST_CODEPAGE_PETSCII_UPPER, ST_CODEPAGE_ATASCII, ST_CODEPAGE_PRESTEL,
-	    ST_CODEPAGE_PRESTEL, ST_CODEPAGE_ATARI_ST};
-	const uint32_t modifiers[] = {0, ST_CONSOLE_MODIFIER_SHIFT,
-	    ST_CONSOLE_MODIFIER_CONTROL, ST_CONSOLE_MODIFIER_ALT};
+
+	const enum st_codepage codepages[] = {ST_CODEPAGE_CP437, ST_CODEPAGE_PETSCII_UPPER, ST_CODEPAGE_ATASCII,
+	    ST_CODEPAGE_PRESTEL, ST_CODEPAGE_PRESTEL, ST_CODEPAGE_ATARI_ST};
+
+	const uint32_t modifiers[] = {0, ST_CONSOLE_MODIFIER_SHIFT, ST_CONSOLE_MODIFIER_CONTROL,
+	    ST_CONSOLE_MODIFIER_ALT};
 	/* Plain, Shift, Ctrl, Alt, in the normalized navigation enum order. */
 	const int navigation[][4] = {
-		{0x4800,0x91e0,0x8d00,0x9800}, {0x5000,0x96e0,0x9100,0xa000},
-		{0x4b00,0x93e0,0x7300,0xffff}, {0x4d00,0x94e0,0x7400,0xffff},
-		{0x5200,0x0500,0x0400,0xa200}, {0x5300,0x0700,0x0600,0xa300},
-		{0x4700,0x3700,0x7700,0xffff}, {0x4f00,0x95e0,0x7500,0xffff},
-		{0x4900,0x3900,0x8400,0xffff}, {0x5100,0x3300,0x7600,0xffff},
+	    {0x4800, 0x91e0, 0x8d00, 0x9800},
+	    {0x5000, 0x96e0, 0x9100, 0xa000},
+	    {0x4b00, 0x93e0, 0x7300, 0xffff},
+	    {0x4d00, 0x94e0, 0x7400, 0xffff},
+	    {0x5200, 0x0500, 0x0400, 0xa200},
+	    {0x5300, 0x0700, 0x0600, 0xa300},
+	    {0x4700, 0x3700, 0x7700, 0xffff},
+	    {0x4f00, 0x95e0, 0x7500, 0xffff},
+	    {0x4900, 0x3900, 0x8400, 0xffff},
+	    {0x5100, 0x3300, 0x7600, 0xffff},
 	};
-	st_console_t *console = NULL;
-	st_font_catalog_t *fonts = NULL;
-	struct output output = {0};
+	st_console_t      *console = NULL;
+	st_font_catalog_t *fonts   = NULL;
+	struct output      output  = {0};
 
 	CHECK(st_console_create(&console, &display, &geometry) == 0);
 	CHECK(st_font_catalog_create(&fonts, console) == 0);
 	for (unsigned mode = ST_CTERM_ANSI_BBS; mode <= ST_CTERM_ATARI_ST_VT52; ++mode) {
 		struct st_cterm_config config = {
-			.console = console, .fonts = fonts, .emulation = (enum st_cterm_emulation)mode,
-			.encoding = ST_CTERM_ENCODING_CODEPAGE, .codepage = codepages[mode],
-			.output = capture, .output_context = &output, .quiet = true,
+		    .console        = console,
+		    .fonts          = fonts,
+		    .emulation      = (enum st_cterm_emulation)mode,
+		    .encoding       = ST_CTERM_ENCODING_CODEPAGE,
+		    .codepage       = codepages[mode],
+		    .output         = capture,
+		    .output_context = &output,
+		    .quiet          = true,
 		};
 		st_cterm_t *terminal = NULL;
 
 		CHECK(st_cterm_create(&terminal, &config) == 0);
 		for (unsigned state = 0; state < 2; ++state) {
-			if (mode == ST_CTERM_PRESTEL) feed(terminal, state ? "\x11" : "\x14");
+			if (mode == ST_CTERM_PRESTEL)
+				feed(terminal, state ? "\x11" : "\x14");
 			if (mode == ST_CTERM_ANSI_BBS || mode == ST_CTERM_ATARI_ST_VT52)
 				feed(terminal, state ? "\x1b[?67h" : "\x1b[?67l");
 			for (unsigned modifier = 0; modifier < 4; ++modifier) {
 				for (unsigned number = 1; number <= 12; ++number) {
 					int scan = number <= 10 ? 0x3a + (int)number : 0x7a + (int)number;
 					if (modifier != 0)
-						scan += number <= 10 ? (modifier == 1 ? 0x19 : modifier == 2 ? 0x23 : 0x2d)
-						    : (int)modifier * 2;
+						scan += number <= 10 ? (modifier == 1      ? 0x19
+						                           : modifier == 2 ? 0x23
+						                                           : 0x2d)
+						                     : (int)modifier * 2;
 					compare_key(terminal, &output, (uint16_t)(ST_CONSOLE_KEY_F1 + number - 1),
 					    modifiers[modifier], scan << 8);
 				}
@@ -115,7 +134,7 @@ check_mappings(void)
 			compare_key(terminal, &output, '\t', ST_CONSOLE_MODIFIER_CONTROL, 0xffff);
 			for (unsigned byte = 0; byte <= 255; ++byte) {
 				uint8_t encoded;
-				int reference = (int)byte;
+				int     reference = (int)byte;
 
 				if (byte < 32 && st_codepage_from_unicode(&encoded, codepages[mode], byte))
 					reference = encoded;
@@ -127,46 +146,52 @@ check_mappings(void)
 			compare_key(terminal, &output, ST_CONSOLE_KEY_F1, ST_CONSOLE_MODIFIER_SHIFT, 0x5400);
 		}
 		for (unsigned byte = 32; byte < 256; ++byte) {
-			uint32_t scalar = st_codepage_to_unicode(codepages[mode], (uint8_t)byte, false);
-			uint8_t encoded;
+			uint32_t      scalar = st_codepage_to_unicode(codepages[mode], (uint8_t)byte, false);
+			uint8_t       encoded;
 			struct output actual;
 
 			if (!st_codepage_from_unicode(&encoded, codepages[mode], scalar))
 				continue;
-			output = (struct output){0};
+			output = (struct output) {0};
 			CHECK(st_cterm_handle_text_key(terminal, scalar));
 			actual = output;
-			output = (struct output){0};
+			output = (struct output) {0};
 			(void)cterm_encode_key(terminal, encoded);
 			CHECK(actual.size == output.size);
 			CHECK(memcmp(actual.bytes, output.bytes, actual.size) == 0);
 		}
 		if (mode == ST_CTERM_ATASCII) {
-			output = (struct output){0};
+			output = (struct output) {0};
 			CHECK(st_cterm_handle_key(terminal, '\r', 0));
 			CHECK(st_cterm_handle_key(terminal, '\b', 0));
 			CHECK(st_cterm_handle_key(terminal, '\t', 0));
 			CHECK(output.size == 3 && memcmp(output.bytes, "\x9b\x7e\x7f", 3) == 0);
 			const struct st_console_rect first = {0, 0, 1, 1};
-			struct st_console_cell initial;
-			feed(terminal, "\x7d" "A");
+			struct st_console_cell       initial;
+			feed(terminal,
+			    "\x7d"
+			    "A");
 			CHECK(st_console_read_cells(console, &first, &initial, 1) == 0);
 			CHECK(st_cterm_reset_terminal(terminal) == 0);
-			output = (struct output){0};
+			output = (struct output) {0};
 			CHECK(st_cterm_handle_text_key(terminal, 'A'));
 			CHECK(st_cterm_handle_key(terminal, '`', 0));
 			CHECK(st_cterm_atascii_inverse(terminal));
-			feed(terminal, "\x7d" "A\xc1" "A\x1b\x1c");
+			feed(terminal,
+			    "\x7d"
+			    "A\xc1"
+			    "A\x1b\x1c");
 			const struct st_console_rect area = {0, 0, 3, 1};
-			struct st_console_cell cells[3];
+			struct st_console_cell       cells[3];
 			CHECK(st_console_read_cells(console, &area, cells, 3) == 0);
 			for (size_t x = 0; x < 3; ++x) {
 				CHECK(cells[x].glyph == 'A');
-				CHECK(cells[x].foreground == initial.foreground && cells[x].background == initial.background);
+				CHECK(cells[x].foreground == initial.foreground
+				      && cells[x].background == initial.background);
 				CHECK(((cells[x].flags & ST_CONSOLE_CELL_REVERSE) != 0) == (x == 1));
 			}
-			FILE *snapshot = tmpfile();
-			int native_error = 0;
+			FILE *snapshot     = tmpfile();
+			int   native_error = 0;
 			CHECK(snapshot != NULL);
 			CHECK(st_cterm_save_binary(terminal, snapshot, false, NULL, NULL, &native_error) == 0);
 			rewind(snapshot);
@@ -183,10 +208,17 @@ check_mappings(void)
 			CHECK(st_cterm_handle_key(terminal, '\r', 0));
 			CHECK(st_cterm_handle_key(terminal, '`', 0));
 			CHECK(st_cterm_handle_text_key(terminal, 'A'));
-			CHECK(output.size == 6 && memcmp(output.bytes, "A\xc1\x80\x1c\x9b" "A", 6) == 0);
+			CHECK(output.size == 6
+			      && memcmp(output.bytes,
+				     "A\xc1\x80\x1c\x9b"
+				     "A",
+				     6)
+			             == 0);
 			feed(terminal, "\x1b");
 			CHECK(st_cterm_reset_terminal(terminal) == 0);
-			feed(terminal, "\x7d" "A");
+			feed(terminal,
+			    "\x7d"
+			    "A");
 			struct st_cterm_state state;
 			CHECK(st_cterm_state(terminal, &state) == 0 && state.x == 2 && state.y == 1);
 		}
@@ -199,30 +231,39 @@ check_mappings(void)
 static void
 check_reveal_pixels(void)
 {
-	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
-	const struct st_console_config geometry = {
-		.columns = 40, .rows = 25, .cell_width = 12, .cell_height = 20,
+	const struct st_console_display_config display  = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_config         geometry = {
+	    .columns     = 40,
+	    .rows        = 25,
+	    .cell_width  = 12,
+	    .cell_height = 20,
 	};
-	st_console_t *console = NULL;
-	st_font_catalog_t *fonts = NULL;
-	st_cterm_t *terminal = NULL;
-	struct st_pixel_buffer *hidden = NULL, *shown = NULL, *again = NULL;
-	const struct st_console_rect row = {0, 0, 480, 20};
-	struct output output = {0};
+	st_console_t                *console  = NULL;
+	st_font_catalog_t           *fonts    = NULL;
+	st_cterm_t                  *terminal = NULL;
+	struct st_pixel_buffer      *hidden = NULL, *shown = NULL, *again = NULL;
+	const struct st_console_rect row    = {0, 0, 480, 20};
+	struct output                output = {0};
 
 	CHECK(st_console_create(&console, &display, &geometry) == 0);
 	CHECK(st_font_catalog_create(&fonts, console) == 0);
 	const struct st_cterm_config config = {
-		.console = console, .fonts = fonts, .emulation = ST_CTERM_PRESTEL,
-		.encoding = ST_CTERM_ENCODING_CODEPAGE, .codepage = ST_CODEPAGE_PRESTEL,
-		.font_selector = 43, .quiet = true, .output = capture, .output_context = &output,
+	    .console        = console,
+	    .fonts          = fonts,
+	    .emulation      = ST_CTERM_PRESTEL,
+	    .encoding       = ST_CTERM_ENCODING_CODEPAGE,
+	    .codepage       = ST_CODEPAGE_PRESTEL,
+	    .font_selector  = 43,
+	    .quiet          = true,
+	    .output         = capture,
+	    .output_context = &output,
 	};
 	CHECK(st_cterm_create(&terminal, &config) == 0);
 	feed(terminal, "\x1bXA");
 	CHECK(st_console_get_pixels(&hidden, console, &row, false) == 0);
 	CHECK(st_cterm_handle_key(terminal, '\t', 0));
 	CHECK(output.size == 1 && output.bytes[0] == '\t');
-	output = (struct output){0};
+	output = (struct output) {0};
 	CHECK(st_cterm_handle_key(terminal, ST_CONSOLE_KEY_F3, 0));
 	CHECK(output.size == 0);
 	CHECK(st_console_get_pixels(&shown, console, &row, false) == 0);
@@ -233,7 +274,7 @@ check_reveal_pixels(void)
 	CHECK(memcmp(hidden->primary, again->primary, 480 * 20 * sizeof(uint32_t)) == 0);
 	CHECK(st_cterm_handle_key(terminal, '\r', ST_CONSOLE_MODIFIER_CONTROL));
 	CHECK(output.size == 1 && output.bytes[0] == '\r');
-	output = (struct output){0};
+	output = (struct output) {0};
 	CHECK(st_cterm_handle_text_key(terminal, '#'));
 	CHECK(st_cterm_handle_text_key(terminal, '_'));
 	CHECK(st_cterm_handle_text_key(terminal, '`'));

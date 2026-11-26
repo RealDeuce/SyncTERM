@@ -3,22 +3,21 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "file_map.h"
-
-#include "filesystem.h"
-#include "io_error.h"
-
+#include <windows.h>
 #include <errno.h>
 #include <io.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <windows.h>
+
+#include "file_map.h"
+#include "filesystem.h"
+#include "io_error.h"
 
 struct file_map {
-	const void *data;
-	size_t size;
-	HANDLE mapping;
+	const void   *data;
+	size_t        size;
+	HANDLE        mapping;
 	unsigned char empty;
 };
 
@@ -37,13 +36,13 @@ file_map_windows_error(DWORD error)
 int
 file_map_open_stream(file_map_t **result, FILE *stream)
 {
-	file_map_t *map;
+	file_map_t                *map;
 	BY_HANDLE_FILE_INFORMATION information;
-	LARGE_INTEGER length;
-	int descriptor;
-	intptr_t native_descriptor;
-	DWORD type;
-	HANDLE handle;
+	LARGE_INTEGER              length;
+	int                        descriptor;
+	intptr_t                   native_descriptor;
+	DWORD                      type;
+	HANDLE                     handle;
 
 	if (result == NULL || stream == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -71,24 +70,22 @@ file_map_open_stream(file_map_t **result, FILE *stream)
 	map = malloc(sizeof(*map));
 	if (map == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
-	map->size = (size_t)length.QuadPart;
+	map->size    = (size_t)length.QuadPart;
 	map->mapping = NULL;
-	map->empty = 0;
+	map->empty   = 0;
 	if (map->size == 0) {
 		map->data = &map->empty;
-		*result = map;
+		*result   = map;
 		return 0;
 	}
-	map->mapping = CreateFileMappingW(handle, NULL, PAGE_READONLY, 0, 0,
-	    NULL);
+	map->mapping = CreateFileMappingW(handle, NULL, PAGE_READONLY, 0, 0, NULL);
 	if (map->mapping == NULL) {
 		int error = file_map_windows_error(GetLastError());
 
 		free(map);
 		return error;
 	}
-	map->data = MapViewOfFile(map->mapping, FILE_MAP_READ, 0, 0,
-	    map->size);
+	map->data = MapViewOfFile(map->mapping, FILE_MAP_READ, 0, 0, map->size);
 	if (map->data == NULL) {
 		int error = file_map_windows_error(GetLastError());
 
@@ -103,10 +100,10 @@ file_map_open_stream(file_map_t **result, FILE *stream)
 int
 file_map_open(file_map_t **result, const char *path)
 {
-	FILE *stream = NULL;
-	file_map_t *map = NULL;
+	FILE          *stream = NULL;
+	file_map_t    *map    = NULL;
 	struct fs_info info;
-	int error;
+	int            error;
 
 	if (result == NULL || path == NULL || *path == '\0')
 		return IO_ERROR_INVALID_ARGUMENT;

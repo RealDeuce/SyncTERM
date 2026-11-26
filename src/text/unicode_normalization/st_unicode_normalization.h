@@ -20,11 +20,9 @@ uint8_t st_unicode_canonical_combining_class(uint32_t codepoint);
  * with no decomposition produces itself.  Output may be NULL only when
  * capacity is zero.
  */
-size_t st_unicode_canonical_decompose(uint32_t codepoint, uint32_t *output,
-	size_t capacity);
+size_t st_unicode_canonical_decompose(uint32_t codepoint, uint32_t *output, size_t capacity);
 
 /* Returns true only when the pair has a canonical NFC composition. */
-bool st_unicode_canonical_compose(uint32_t first, uint32_t second,
-	uint32_t *composition);
+bool st_unicode_canonical_compose(uint32_t first, uint32_t second, uint32_t *composition);
 
 #endif

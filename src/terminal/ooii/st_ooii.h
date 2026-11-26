@@ -15,16 +15,16 @@ struct st_ooii_config {
 	 * a mode, but must not reenter write() or destroy this parser. */
 	int (*pass)(void *context, const uint8_t *bytes, size_t size);
 	/* Embedded artwork and expanded text are always ANSI/CP437. */
-	int (*render)(void *context, const uint8_t *bytes, size_t size);
-	int (*reply)(void *context, const uint8_t *bytes, size_t size);
-	void (*sound)(void *context, const uint8_t *samples, size_t size);
+	int      (*render)(void *context, const uint8_t *bytes, size_t size);
+	int      (*reply)(void *context, const uint8_t *bytes, size_t size);
+	void     (*sound)(void *context, const uint8_t *samples, size_t size);
 	unsigned (*attributes)(void *context);
-	void *context;
+	void    *context;
 };
 
-int st_ooii_create(st_ooii_t **result, const struct st_ooii_config *config);
+int  st_ooii_create(st_ooii_t **result, const struct st_ooii_config *config);
 void st_ooii_destroy(st_ooii_t *ooii);
-int st_ooii_mode(const st_ooii_t *ooii);
+int  st_ooii_mode(const st_ooii_t *ooii);
 /* Clamps to 0..3 and discards a partial command or detection prefix. */
 void st_ooii_set_mode(st_ooii_t *ooii, int mode);
 /* Matches the legacy automatic mode-1/mode-2 banners even across reads.

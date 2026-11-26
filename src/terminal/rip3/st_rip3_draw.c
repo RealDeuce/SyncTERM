@@ -1,21 +1,19 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
-#include "st_rip3_draw.h"
-#include "st_rip3_draw_internal.h"
-
-#include "st_rip3_ports.h"
-#include "io_error.h"
-
 #include <math.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
 
+#include "io_error.h"
+#include "st_rip3_draw.h"
+#include "st_rip3_draw_internal.h"
+#include "st_rip3_ports.h"
+
 int
-st_rip3_pen_set(struct st_rip3_pen *pen, bool draw_background,
-    unsigned style, uint16_t custom, uint32_t thickness)
+st_rip3_pen_set(struct st_rip3_pen *pen, bool draw_background, unsigned style, uint16_t custom, uint32_t thickness)
 {
 	static const uint16_t patterns[] = {0xffff, 0x3333, 0x1e3f, 0x1f1f};
-	struct st_rip3_pen value;
+	struct st_rip3_pen    value;
 
 	if (pen == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -23,10 +21,10 @@ st_rip3_pen_set(struct st_rip3_pen *pen, bool draw_background,
 		return IO_ERROR_OUT_OF_RANGE;
 	if (style == 4 && custom == 0)
 		return IO_ERROR_INVALID_ARGUMENT;
-	value.pattern = style == 4 ? custom : patterns[style];
-	value.thickness = thickness;
+	value.pattern         = style == 4 ? custom : patterns[style];
+	value.thickness       = thickness;
 	value.draw_background = draw_background;
-	*pen = value;
+	*pen                  = value;
 	return 0;
 }
 
@@ -37,41 +35,41 @@ st_rip3_pen_init(struct st_rip3_pen *pen)
 }
 
 struct stroke_visit {
-	size_t last_edge;
+	size_t  last_edge;
 	uint8_t current, first, seen, odd, flags;
 };
 
 enum {
-	VISIT_END = 1, VISIT_START = 2, VISIT_FIRST_START = 4,
+	VISIT_END         = 1,
+	VISIT_START       = 2,
+	VISIT_FIRST_START = 4,
 };
 
 struct stroke_target {
-	struct st_rip3_ports *ports;
-	struct st_rip3_rect clip;
-	bool active;
-	uint32_t foreground;
-	uint32_t background;
+	struct st_rip3_ports   *ports;
+	struct st_rip3_rect     clip;
+	bool                    active;
+	uint32_t                foreground;
+	uint32_t                background;
 	enum st_rip3_write_mode mode;
 	/* NULL emits directly for a single segment. Geometry/text/border masks
 	 * collect union coverage; standalone paths use visits below instead. */
-	uint8_t *coverage;
-	size_t width;
-	size_t height;
+	uint8_t             *coverage;
+	size_t               width;
+	size_t               height;
 	struct stroke_visit *visits;
-	size_t edge;
+	size_t               edge;
 };
 
 static int
-stroke_init(struct stroke_target *target, struct st_rip3_ports *ports,
-    const struct st_rip3_pen *pen, uint32_t foreground, uint32_t background,
-    enum st_rip3_write_mode mode)
+stroke_init(struct stroke_target *target, struct st_rip3_ports *ports, const struct st_rip3_pen *pen,
+    uint32_t foreground, uint32_t background, enum st_rip3_write_mode mode)
 {
 	struct st_rip3_port_info info;
-	unsigned current;
-	int status;
+	unsigned                 current;
+	int                      status;
 
-	if (ports == NULL || pen == NULL || pen->pattern == 0
-	    || mode < ST_RIP3_COPY || mode > ST_RIP3_NOT)
+	if (ports == NULL || pen == NULL || pen->pattern == 0 || mode < ST_RIP3_COPY || mode > ST_RIP3_NOT)
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (pen->thickness == 0 || pen->thickness > INT32_MAX)
 		return IO_ERROR_OUT_OF_RANGE;
@@ -81,14 +79,13 @@ stroke_init(struct stroke_target *target, struct st_rip3_ports *ports,
 	status = st_rip3_ports_info(ports, current, &info);
 	if (status != 0)
 		return status;
-	*target = (struct stroke_target){
-		.ports = ports,
-		.clip = {0, 0, info.clip.x1,
-		    info.clip.y1},
-		.active = info.viewport_active && info.clip.x1 >= 0 && info.clip.y1 >= 0,
-		.foreground = foreground,
-		.background = background,
-		.mode = mode,
+	*target = (struct stroke_target) {
+	    .ports      = ports,
+	    .clip       = {0, 0, info.clip.x1, info.clip.y1},
+	    .active     = info.viewport_active && info.clip.x1 >= 0 && info.clip.y1 >= 0,
+	    .foreground = foreground,
+	    .background = background,
+	    .mode       = mode,
 	};
 	return 0;
 }
@@ -121,14 +118,16 @@ visit_draw(const struct stroke_target *target, const struct stroke_visit *visit,
 	/* Keep the two pen operands separate until the destination domain is
 	 * known. The palette lookup of a combined index would change the RGB mix. */
 	for (uint8_t kind = 1; kind <= 2; ++kind) {
-		if ((visit->seen & kind) == 0) continue;
+		if ((visit->seen & kind) == 0)
+			continue;
 		uint32_t source = kind == 2 ? target->foreground : target->background;
-		int status = st_rip3_ports_plot(target->ports, x, y, source, target->mode);
+		int      status = st_rip3_ports_plot(target->ports, x, y, source, target->mode);
 		/* Even visits cancel numerically but still store the result of a
 		 * drawing operation, including promotion over separate terminal ink. */
 		if (status == 0 && target->mode == ST_RIP3_XOR && (visit->odd & kind) == 0)
 			status = st_rip3_ports_plot(target->ports, x, y, source, target->mode);
-		if (status != 0) return status;
+		if (status != 0)
+			return status;
 	}
 	return 0;
 }
@@ -140,9 +139,11 @@ visit_flush(const struct stroke_target *target, struct stroke_visit *visit)
 	 * The remaining XOR/OR/AND/NOT operands commute; COPY keeps the latest. */
 	if (visit->first == 0) {
 		visit->first = visit->current;
-		if ((visit->flags&VISIT_START) != 0) visit->flags |= VISIT_FIRST_START;
+		if ((visit->flags & VISIT_START) != 0)
+			visit->flags |= VISIT_FIRST_START;
 	}
-	else visit_compose(target,visit,visit->current);
+	else
+		visit_compose(target, visit, visit->current);
 	visit->current = 0;
 }
 
@@ -150,56 +151,57 @@ static int
 stroke_pixel(struct stroke_target *target, int32_t x, int32_t y, bool on, bool start, bool end)
 {
 	if (target->visits != NULL) {
-		size_t offset = (size_t)(y-target->clip.y0)*target->width+(size_t)(x-target->clip.x0);
-		struct stroke_visit *visit = target->visits+offset;
-		uint8_t coverage = on ? 2 : 1;
-		bool joined = visit->current != 0 && visit->last_edge+1 == target->edge
-		    && (visit->flags&VISIT_END) != 0 && start;
+		size_t offset = (size_t)(y - target->clip.y0) * target->width + (size_t)(x - target->clip.x0);
+		struct stroke_visit *visit    = target->visits + offset;
+		uint8_t              coverage = on ? 2 : 1;
+		bool                 joined   = visit->current != 0 && visit->last_edge + 1 == target->edge
+		                                && (visit->flags & VISIT_END) != 0 && start;
 		if (!joined) {
-			if (visit->current != 0) visit_flush(target,visit);
+			if (visit->current != 0)
+				visit_flush(target, visit);
 			visit->current = coverage;
 			visit->flags &= (uint8_t)~VISIT_START;
-			if (target->edge == 1 && start) visit->flags |= VISIT_START;
+			if (target->edge == 1 && start)
+				visit->flags |= VISIT_START;
 		}
-		else if (visit->current < coverage) visit->current = coverage;
+		else if (visit->current < coverage)
+			visit->current = coverage;
 		visit->flags &= (uint8_t)~VISIT_END;
-		if (end) visit->flags |= VISIT_END;
+		if (end)
+			visit->flags |= VISIT_END;
 		visit->last_edge = target->edge;
 		return 0;
 	}
 	if (target->coverage != NULL) {
-		size_t offset = (size_t)(y - target->clip.y0) * target->width
-		    + (size_t)(x - target->clip.x0);
-		uint8_t value = on ? 2 : 1;
+		size_t  offset = (size_t)(y - target->clip.y0) * target->width + (size_t)(x - target->clip.x0);
+		uint8_t value  = on ? 2 : 1;
 
 		if (target->coverage[offset] < value)
 			target->coverage[offset] = value;
 		return 0;
 	}
-	return st_rip3_ports_plot(target->ports, x, y,
-	    on ? target->foreground : target->background, target->mode);
+	return st_rip3_ports_plot(target->ports, x, y, on ? target->foreground : target->background, target->mode);
 }
 
 static int
-stroke_segment(struct stroke_target *target,
-    const struct st_rip3_vector *first, const struct st_rip3_vector *last,
+stroke_segment(struct stroke_target *target, const struct st_rip3_vector *first, const struct st_rip3_vector *last,
     const struct st_rip3_pen *pen, unsigned initial_phase)
 {
 	int32_t left, right, top, bottom;
-	double ax, ay, bx, by, dx, dy, length, squared, major, radius;
-	double lower_x, lower_y, upper_x, upper_y;
-	int status;
+	double  ax, ay, bx, by, dx, dy, length, squared, major, radius;
+	double  lower_x, lower_y, upper_x, upper_y;
+	int     status;
 
-	ax = first->x;
-	ay = first->y;
-	bx = last->x;
-	by = last->y;
-	dx = bx - ax;
-	dy = by - ay;
-	length = hypot(dx, dy);
+	ax      = first->x;
+	ay      = first->y;
+	bx      = last->x;
+	by      = last->y;
+	dx      = bx - ax;
+	dy      = by - ay;
+	length  = hypot(dx, dy);
 	squared = dx * dx + dy * dy;
-	major = fmax(fabs(dx), fabs(dy));
-	radius = pen->thickness / 2.0;
+	major   = fmax(fabs(dx), fabs(dy));
+	radius  = pen->thickness / 2.0;
 	if ((pen->thickness & 1) == 0) {
 		double offset_x;
 		double offset_y;
@@ -223,10 +225,10 @@ stroke_segment(struct stroke_target *target,
 	}
 	/* Work is bounded by the visible viewport, even for extreme endpoints
 	 * or pen widths. No traversal of an enormous offscreen line is needed. */
-	left = target->clip.x0;
-	top = target->clip.y0;
-	right = target->clip.x1;
-	bottom = target->clip.y1;
+	left    = target->clip.x0;
+	top     = target->clip.y0;
+	right   = target->clip.x1;
+	bottom  = target->clip.y1;
 	lower_x = fmin(ax, bx) - radius;
 	lower_y = fmin(ay, by) - radius;
 	upper_x = fmax(ax, bx) + radius;
@@ -243,12 +245,12 @@ stroke_segment(struct stroke_target *target,
 		bottom = (int32_t)floor(upper_y);
 	for (int32_t y = top; y <= bottom; y++) {
 		for (int32_t x = left; x <= right; x++) {
-			double projection = squared == 0 ? 0
-			    : (((double)x - ax) * dx + ((double)y - ay) * dy) / squared;
-			double distance_x;
-			double distance_y;
+			double projection =
+			    squared == 0 ? 0 : (((double)x - ax) * dx + ((double)y - ay) * dy) / squared;
+			double   distance_x;
+			double   distance_y;
 			unsigned phase;
-			bool on;
+			bool     on;
 
 			if (projection < 0)
 				projection = 0;
@@ -259,13 +261,13 @@ stroke_segment(struct stroke_target *target,
 			if (distance_x * distance_x + distance_y * distance_y > radius * radius)
 				continue;
 			phase = (unsigned)fmod(floor(projection * major + 0.5) + initial_phase, 16.0);
-			on = (pen->pattern & (UINT16_C(0x8000) >> phase)) != 0;
+			on    = (pen->pattern & (UINT16_C(0x8000) >> phase)) != 0;
 			if (on || pen->draw_background) {
 				bool start = false, end = false;
 				if (target->visits != NULL) {
-					double sx = x-ax, sy = y-ay, ex = x-bx, ey = y-by;
-					start = sx*sx+sy*sy <= radius*radius;
-					end = ex*ex+ey*ey <= radius*radius;
+					double sx = x - ax, sy = y - ay, ex = x - bx, ey = y - by;
+					start = sx * sx + sy * sy <= radius * radius;
+					end   = ex * ex + ey * ey <= radius * radius;
 				}
 				status = stroke_pixel(target, x, y, on, start, end);
 				if (status != 0)
@@ -277,13 +279,11 @@ stroke_segment(struct stroke_target *target,
 }
 
 int
-st_rip3_draw_line(struct st_rip3_ports *ports,
-    const struct st_rip3_point *first, const struct st_rip3_point *last,
-    const struct st_rip3_pen *pen, uint32_t foreground, uint32_t background,
-    enum st_rip3_write_mode mode)
+st_rip3_draw_line(struct st_rip3_ports *ports, const struct st_rip3_point *first, const struct st_rip3_point *last,
+    const struct st_rip3_pen *pen, uint32_t foreground, uint32_t background, enum st_rip3_write_mode mode)
 {
 	struct stroke_target target;
-	int status;
+	int                  status;
 
 	if (first == NULL || last == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -299,8 +299,7 @@ st_rip3_draw_line(struct st_rip3_ports *ports,
 }
 
 int
-st_rip3_contours_validate(const struct st_rip3_contour *contours,
-    size_t count, size_t *vertices)
+st_rip3_contours_validate(const struct st_rip3_contour *contours, size_t count, size_t *vertices)
 {
 	size_t total = 0;
 
@@ -311,8 +310,7 @@ st_rip3_contours_validate(const struct st_rip3_contour *contours,
 	for (size_t i = 0; i < count; i++) {
 		if (contours[i].points == NULL)
 			return IO_ERROR_INVALID_ARGUMENT;
-		if (contours[i].count == 0 || contours[i].count > 4096
-		    || contours[i].count > SIZE_MAX - total)
+		if (contours[i].count == 0 || contours[i].count > 4096 || contours[i].count > SIZE_MAX - total)
 			return IO_ERROR_OUT_OF_RANGE;
 		total += contours[i].count;
 	}
@@ -321,8 +319,8 @@ st_rip3_contours_validate(const struct st_rip3_contour *contours,
 }
 
 static int
-stroke_bounds(struct stroke_target *target, const struct st_rip3_pen *pen,
-    double min_x, double min_y, double max_x, double max_y)
+stroke_bounds(struct stroke_target *target, const struct st_rip3_pen *pen, double min_x, double min_y,
+    double max_x, double max_y)
 {
 	double margin = pen->thickness / 2.0 + 1;
 
@@ -330,8 +328,8 @@ stroke_bounds(struct stroke_target *target, const struct st_rip3_pen *pen,
 	min_y -= margin;
 	max_x += margin;
 	max_y += margin;
-	if (min_x > target->clip.x1 || min_y > target->clip.y1
-	    || max_x < target->clip.x0 || max_y < target->clip.y0) {
+	if (min_x > target->clip.x1 || min_y > target->clip.y1 || max_x < target->clip.x0
+	    || max_y < target->clip.y0) {
 		return 0;
 	}
 	if (min_x > target->clip.x0)
@@ -342,7 +340,7 @@ stroke_bounds(struct stroke_target *target, const struct st_rip3_pen *pen,
 		target->clip.x1 = (int32_t)floor(max_x);
 	if (max_y < target->clip.y1)
 		target->clip.y1 = (int32_t)floor(max_y);
-	target->width = (size_t)(target->clip.x1 - target->clip.x0) + 1;
+	target->width  = (size_t)(target->clip.x1 - target->clip.x0) + 1;
 	target->height = (size_t)(target->clip.y1 - target->clip.y0) + 1;
 	if (target->width > SIZE_MAX / target->height)
 		return IO_ERROR_OUT_OF_RANGE;
@@ -350,11 +348,12 @@ stroke_bounds(struct stroke_target *target, const struct st_rip3_pen *pen,
 }
 
 static int
-stroke_allocate(struct stroke_target *target, const struct st_rip3_pen *pen,
-    double min_x, double min_y, double max_x, double max_y)
+stroke_allocate(struct stroke_target *target, const struct st_rip3_pen *pen, double min_x, double min_y,
+    double max_x, double max_y)
 {
-	int status = stroke_bounds(target,pen,min_x,min_y,max_x,max_y);
-	if (status != 0 || target->width == 0) return status;
+	int status = stroke_bounds(target, pen, min_x, min_y, max_x, max_y);
+	if (status != 0 || target->width == 0)
+		return status;
 	target->coverage = calloc(target->width * target->height, 1);
 	if (target->coverage == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
@@ -362,14 +361,13 @@ stroke_allocate(struct stroke_target *target, const struct st_rip3_pen *pen,
 }
 
 int
-st_rip3_stroke_collect(struct st_rip3_ports *ports,
-    const struct st_rip3_contour *contours, size_t count, bool closed,
-    const struct st_rip3_pen *pen, struct st_rip3_stroke_mask *result)
+st_rip3_stroke_collect(struct st_rip3_ports *ports, const struct st_rip3_contour *contours, size_t count,
+    bool closed, const struct st_rip3_pen *pen, struct st_rip3_stroke_mask *result)
 {
 	struct stroke_target target;
-	double min_x, min_y, max_x, max_y;
-	size_t total;
-	int status;
+	double               min_x, min_y, max_x, max_y;
+	size_t               total;
+	int                  status;
 
 	if (result == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -380,7 +378,7 @@ st_rip3_stroke_collect(struct st_rip3_ports *ports,
 	if (status != 0)
 		return status;
 	if (!target.active) {
-		*result = (struct st_rip3_stroke_mask){0};
+		*result = (struct st_rip3_stroke_mask) {0};
 		return 0;
 	}
 	min_x = max_x = contours[0].points[0].x;
@@ -397,19 +395,19 @@ st_rip3_stroke_collect(struct st_rip3_ports *ports,
 	if (status != 0)
 		return status;
 	if (target.coverage == NULL) {
-		*result = (struct st_rip3_stroke_mask){0};
+		*result = (struct st_rip3_stroke_mask) {0};
 		return 0;
 	}
 	for (size_t c = 0; c < count; c++) {
-		const struct st_rip3_point *points = contours[c].points;
-		size_t vertices = contours[c].count;
-		size_t segments = vertices == 1 ? 1 : (closed ? vertices : vertices - 1);
-		unsigned phase = 0;
+		const struct st_rip3_point *points   = contours[c].points;
+		size_t                      vertices = contours[c].count;
+		size_t                      segments = vertices == 1 ? 1 : (closed ? vertices : vertices - 1);
+		unsigned                    phase    = 0;
 
 		for (size_t i = 0; i < segments; i++) {
 			const struct st_rip3_point *first = &points[i];
-			const struct st_rip3_point *last = &points[(i + 1) % vertices];
-			double major;
+			const struct st_rip3_point *last  = &points[(i + 1) % vertices];
+			double                      major;
 
 			struct st_rip3_vector a = {first->x, first->y};
 			struct st_rip3_vector b = {last->x, last->y};
@@ -417,16 +415,15 @@ st_rip3_stroke_collect(struct st_rip3_ports *ports,
 			status = stroke_segment(&target, &a, &b, pen, phase);
 			if (status != 0)
 				goto failed;
-			major = fmax(fabs((double)last->x - first->x),
-			    fabs((double)last->y - first->y));
+			major = fmax(fabs((double)last->x - first->x), fabs((double)last->y - first->y));
 			phase = (phase + (unsigned)fmod(major, 16.0)) & 15;
 		}
 	}
-	*result = (struct st_rip3_stroke_mask){
-		.bounds = target.clip,
-		.width = target.width,
-		.height = target.height,
-		.coverage = target.coverage,
+	*result = (struct st_rip3_stroke_mask) {
+	    .bounds   = target.clip,
+	    .width    = target.width,
+	    .height   = target.height,
+	    .coverage = target.coverage,
 	};
 	return 0;
 failed:
@@ -435,21 +432,18 @@ failed:
 }
 
 int
-st_rip3_stroke_vectors(struct st_rip3_ports *ports,
-    const struct st_rip3_vector *vertices, size_t vertex_count,
-    const struct st_rip3_vector_run *runs, size_t run_count,
-    uint32_t thickness, struct st_rip3_stroke_mask *result)
+st_rip3_stroke_vectors(struct st_rip3_ports *ports, const struct st_rip3_vector *vertices, size_t vertex_count,
+    const struct st_rip3_vector_run *runs, size_t run_count, uint32_t thickness,
+    struct st_rip3_stroke_mask *result)
 {
 	struct stroke_target target;
-	struct st_rip3_pen pen;
-	double min_x, min_y, max_x, max_y;
-	int status;
+	struct st_rip3_pen   pen;
+	double               min_x, min_y, max_x, max_y;
+	int                  status;
 
-	if (result == NULL || (vertices == NULL && vertex_count != 0)
-	    || (runs == NULL && run_count != 0))
+	if (result == NULL || (vertices == NULL && vertex_count != 0) || (runs == NULL && run_count != 0))
 		return IO_ERROR_INVALID_ARGUMENT;
-	if (vertex_count > SIZE_MAX / sizeof(*vertices)
-	    || run_count > SIZE_MAX / sizeof(*runs))
+	if (vertex_count > SIZE_MAX / sizeof(*vertices) || run_count > SIZE_MAX / sizeof(*runs))
 		return IO_ERROR_OUT_OF_RANGE;
 	for (size_t r = 0; r < run_count; r++) {
 		if (runs[r].count == 0 || runs[r].first > vertex_count
@@ -459,8 +453,7 @@ st_rip3_stroke_vectors(struct st_rip3_ports *ports,
 	for (size_t i = 0; i < vertex_count; i++) {
 		/* Includes projected text placement and signed-32 curve bases. */
 		if (!isfinite(vertices[i].x) || !isfinite(vertices[i].y)
-		    || fabs(vertices[i].x) > 1024.0 * INT32_MAX
-		    || fabs(vertices[i].y) > 1024.0 * INT32_MAX)
+		    || fabs(vertices[i].x) > 1024.0 * INT32_MAX || fabs(vertices[i].y) > 1024.0 * INT32_MAX)
 			return IO_ERROR_OUT_OF_RANGE;
 	}
 	status = st_rip3_pen_set(&pen, false, 0, 0, thickness);
@@ -470,7 +463,7 @@ st_rip3_stroke_vectors(struct st_rip3_ports *ports,
 	if (status != 0)
 		return status;
 	if (!target.active || run_count == 0) {
-		*result = (struct st_rip3_stroke_mask){0};
+		*result = (struct st_rip3_stroke_mask) {0};
 		return 0;
 	}
 	min_x = max_x = vertices[0].x;
@@ -485,7 +478,7 @@ st_rip3_stroke_vectors(struct st_rip3_ports *ports,
 	if (status != 0)
 		return status;
 	if (target.coverage == NULL) {
-		*result = (struct st_rip3_stroke_mask){0};
+		*result = (struct st_rip3_stroke_mask) {0};
 		return 0;
 	}
 	for (size_t r = 0; r < run_count; r++) {
@@ -493,19 +486,19 @@ st_rip3_stroke_vectors(struct st_rip3_ports *ports,
 
 		for (size_t i = 0; i < segments; i++) {
 			const struct st_rip3_vector *first = &vertices[runs[r].first + i];
-			const struct st_rip3_vector *last = runs[r].count == 1
-			    ? first : &vertices[runs[r].first + i + 1];
+			const struct st_rip3_vector *last =
+			    runs[r].count == 1 ? first : &vertices[runs[r].first + i + 1];
 
 			status = stroke_segment(&target, first, last, &pen, 0);
 			if (status != 0)
 				goto failed;
 		}
 	}
-	*result = (struct st_rip3_stroke_mask){
-		.bounds = target.clip,
-		.width = target.width,
-		.height = target.height,
-		.coverage = target.coverage,
+	*result = (struct st_rip3_stroke_mask) {
+	    .bounds   = target.clip,
+	    .width    = target.width,
+	    .height   = target.height,
+	    .coverage = target.coverage,
 	};
 	return 0;
 failed:
@@ -514,25 +507,28 @@ failed:
 }
 
 int
-st_rip3_stroke_vector_contours(struct st_rip3_ports *ports,
-    const struct st_rip3_vector_contour *contours, size_t count, bool closed,
-    const struct st_rip3_pen *pen, struct st_rip3_stroke_mask *result)
+st_rip3_stroke_vector_contours(struct st_rip3_ports *ports, const struct st_rip3_vector_contour *contours,
+    size_t count, bool closed, const struct st_rip3_pen *pen, struct st_rip3_stroke_mask *result)
 {
 	struct stroke_target target;
-	double min_x, min_y, max_x, max_y;
-	size_t total = 0;
-	int status;
+	double               min_x, min_y, max_x, max_y;
+	size_t               total = 0;
+	int                  status;
 
-	if (result == NULL || contours == NULL) return IO_ERROR_INVALID_ARGUMENT;
-	if (count == 0 || count > 4096) return IO_ERROR_OUT_OF_RANGE;
+	if (result == NULL || contours == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (count == 0 || count > 4096)
+		return IO_ERROR_OUT_OF_RANGE;
 	for (size_t c = 0; c < count; c++) {
-		if (contours[c].points == NULL) return IO_ERROR_INVALID_ARGUMENT;
-		if (contours[c].count == 0 || contours[c].count > 4096-total) return IO_ERROR_OUT_OF_RANGE;
+		if (contours[c].points == NULL)
+			return IO_ERROR_INVALID_ARGUMENT;
+		if (contours[c].count == 0 || contours[c].count > 4096 - total)
+			return IO_ERROR_OUT_OF_RANGE;
 		total += contours[c].count;
 		for (size_t i = 0; i < contours[c].count; i++) {
-			const struct st_rip3_vector *point = contours[c].points+i;
-			if (!isfinite(point->x) || !isfinite(point->y)
-			    || fabs(point->x) > 1024.0*INT32_MAX || fabs(point->y) > 1024.0*INT32_MAX)
+			const struct st_rip3_vector *point = contours[c].points + i;
+			if (!isfinite(point->x) || !isfinite(point->y) || fabs(point->x) > 1024.0 * INT32_MAX
+			    || fabs(point->y) > 1024.0 * INT32_MAX)
 				return IO_ERROR_OUT_OF_RANGE;
 		}
 	}
@@ -540,141 +536,170 @@ st_rip3_stroke_vector_contours(struct st_rip3_ports *ports,
 	if (status != 0)
 		return status;
 	if (!target.active) {
-		*result = (struct st_rip3_stroke_mask){0};
+		*result = (struct st_rip3_stroke_mask) {0};
 		return 0;
 	}
 	min_x = max_x = contours[0].points[0].x;
 	min_y = max_y = contours[0].points[0].y;
-	for (size_t c = 0; c < count; c++) for (size_t i = 0; i < contours[c].count; i++) {
-		const struct st_rip3_vector *point = contours[c].points+i;
-		min_x = fmin(min_x,point->x); max_x = fmax(max_x,point->x);
-		min_y = fmin(min_y,point->y); max_y = fmax(max_y,point->y);
-	}
+	for (size_t c = 0; c < count; c++)
+		for (size_t i = 0; i < contours[c].count; i++) {
+			const struct st_rip3_vector *point = contours[c].points + i;
+			min_x                              = fmin(min_x, point->x);
+			max_x                              = fmax(max_x, point->x);
+			min_y                              = fmin(min_y, point->y);
+			max_y                              = fmax(max_y, point->y);
+		}
 	status = stroke_allocate(&target, pen, min_x, min_y, max_x, max_y);
 	if (status != 0)
 		return status;
 	if (target.coverage == NULL) {
-		*result = (struct st_rip3_stroke_mask){0};
+		*result = (struct st_rip3_stroke_mask) {0};
 		return 0;
 	}
 	for (size_t c = 0; c < count; c++) {
-		const struct st_rip3_vector *vertices = contours[c].points;
-		size_t vertices_count = contours[c].count;
-		unsigned phase = 0;
-		for (size_t i = 0; i < (vertices_count == 1 ? 1 : closed ? vertices_count : vertices_count-1); i++) {
-			const struct st_rip3_vector *first = vertices+i, *last = vertices+(i+1)%vertices_count;
-			double major = fmax(fabs(last->x-first->x),fabs(last->y-first->y));
-			status = stroke_segment(&target,first,last,pen,phase);
-			if (status != 0) {free(target.coverage);return status;}
-			phase = (phase+(unsigned)fmod(major,16.0))&15;
+		const struct st_rip3_vector *vertices       = contours[c].points;
+		size_t                       vertices_count = contours[c].count;
+		unsigned                     phase          = 0;
+		for (size_t i = 0; i < (vertices_count == 1 ? 1
+		                        : closed            ? vertices_count
+		                                            : vertices_count - 1);
+		    i++) {
+			const struct st_rip3_vector *first = vertices + i,
+						    *last  = vertices + (i + 1) % vertices_count;
+			double major = fmax(fabs(last->x - first->x), fabs(last->y - first->y));
+			status       = stroke_segment(&target, first, last, pen, phase);
+			if (status != 0) {
+				free(target.coverage);
+				return status;
+			}
+			phase = (phase + (unsigned)fmod(major, 16.0)) & 15;
 		}
 	}
-	*result = (struct st_rip3_stroke_mask){.bounds=target.clip,.width=target.width,
-	    .height=target.height,.coverage=target.coverage};
+	*result = (struct st_rip3_stroke_mask) {.bounds = target.clip,
+	    .width                                      = target.width,
+	    .height                                     = target.height,
+	    .coverage                                   = target.coverage};
 	return 0;
 }
 
 int
-st_rip3_stroke_path_vectors(struct st_rip3_ports *ports,
-    const struct st_rip3_vector *vertices, size_t count, bool closed,
-    const struct st_rip3_pen *pen, struct st_rip3_stroke_mask *result)
+st_rip3_stroke_path_vectors(struct st_rip3_ports *ports, const struct st_rip3_vector *vertices, size_t count,
+    bool closed, const struct st_rip3_pen *pen, struct st_rip3_stroke_mask *result)
 {
-	const struct st_rip3_vector_contour contour = {vertices,count};
-	return st_rip3_stroke_vector_contours(ports,&contour,1,closed,pen,result);
+	const struct st_rip3_vector_contour contour = {vertices, count};
+	return st_rip3_stroke_vector_contours(ports, &contour, 1, closed, pen, result);
 }
 
 int
-st_rip3_stroke_visits(struct st_rip3_ports *ports,
-    const struct st_rip3_vector *points, size_t count, bool closed,
-    const struct st_rip3_pen *pen, uint32_t foreground, uint32_t background,
-    enum st_rip3_write_mode mode)
+st_rip3_stroke_visits(struct st_rip3_ports *ports, const struct st_rip3_vector *points, size_t count, bool closed,
+    const struct st_rip3_pen *pen, uint32_t foreground, uint32_t background, enum st_rip3_write_mode mode)
 {
 	struct stroke_target target;
-	double min_x, min_y, max_x, max_y;
-	unsigned phase = 0;
-	int status;
-	if (points == NULL) return IO_ERROR_INVALID_ARGUMENT;
-	if (count == 0 || count > 4096) return IO_ERROR_OUT_OF_RANGE;
+	double               min_x, min_y, max_x, max_y;
+	unsigned             phase = 0;
+	int                  status;
+	if (points == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (count == 0 || count > 4096)
+		return IO_ERROR_OUT_OF_RANGE;
 	for (size_t i = 0; i < count; i++) {
-		if (!isfinite(points[i].x) || !isfinite(points[i].y)
-		    || fabs(points[i].x) > 1024.0*INT32_MAX || fabs(points[i].y) > 1024.0*INT32_MAX)
+		if (!isfinite(points[i].x) || !isfinite(points[i].y) || fabs(points[i].x) > 1024.0 * INT32_MAX
+		    || fabs(points[i].y) > 1024.0 * INT32_MAX)
 			return IO_ERROR_OUT_OF_RANGE;
 	}
-	status = stroke_init(&target,ports,pen,foreground,background,mode);
-	if (status != 0 || !target.active) return status;
-	min_x = max_x = points[0].x; min_y = max_y = points[0].y;
+	status = stroke_init(&target, ports, pen, foreground, background, mode);
+	if (status != 0 || !target.active)
+		return status;
+	min_x = max_x = points[0].x;
+	min_y = max_y = points[0].y;
 	for (size_t i = 1; i < count; i++) {
-		min_x = fmin(min_x,points[i].x); max_x = fmax(max_x,points[i].x);
-		min_y = fmin(min_y,points[i].y); max_y = fmax(max_y,points[i].y);
+		min_x = fmin(min_x, points[i].x);
+		max_x = fmax(max_x, points[i].x);
+		min_y = fmin(min_y, points[i].y);
+		max_y = fmax(max_y, points[i].y);
 	}
-	status = stroke_bounds(&target,pen,min_x,min_y,max_x,max_y);
-	if (status != 0 || target.width == 0) return status;
-	size_t pixels = target.width*target.height;
-	if (pixels > SIZE_MAX/sizeof(*target.visits)) return IO_ERROR_OUT_OF_RANGE;
-	target.visits = calloc(pixels,sizeof(*target.visits));
-	if (target.visits == NULL) return IO_ERROR_OUT_OF_MEMORY;
+	status = stroke_bounds(&target, pen, min_x, min_y, max_x, max_y);
+	if (status != 0 || target.width == 0)
+		return status;
+	size_t pixels = target.width * target.height;
+	if (pixels > SIZE_MAX / sizeof(*target.visits))
+		return IO_ERROR_OUT_OF_RANGE;
+	target.visits = calloc(pixels, sizeof(*target.visits));
+	if (target.visits == NULL)
+		return IO_ERROR_OUT_OF_MEMORY;
 	/* A two-vertex polygon is the documented degenerate single line. */
-	size_t edges = closed && count>2 ? count : count-1;
+	size_t edges = closed && count > 2 ? count : count - 1;
 	for (size_t i = 0; i < edges; i++) {
-		const struct st_rip3_vector *a = points+i, *b = points+(i+1)%count;
-		double major = fmax(fabs(b->x-a->x),fabs(b->y-a->y));
+		const struct st_rip3_vector *a = points + i, *b = points + (i + 1) % count;
+		double                       major = fmax(fabs(b->x - a->x), fabs(b->y - a->y));
 		/* Duplicate vertices have no traversed interval or phase advance. */
-		if (major == 0) continue;
+		if (major == 0)
+			continue;
 		target.edge++;
-		status = stroke_segment(&target,a,b,pen,phase);
-		if (status != 0) goto done;
-		phase = (phase+(unsigned)fmod(major,16.0))&15;
+		status = stroke_segment(&target, a, b, pen, phase);
+		if (status != 0)
+			goto done;
+		phase = (phase + (unsigned)fmod(major, 16.0)) & 15;
 	}
 	if (target.edge == 0) {
 		target.edge = 1;
-		status = stroke_segment(&target,points,points,pen,0);
-		if (status != 0) goto done;
+		status      = stroke_segment(&target, points, points, pen, 0);
+		if (status != 0)
+			goto done;
 	}
 	/* All contributions are collected before painting. A component crosses
 	 * an ordinary join only when both endpoint caps contain the pixel. Leaving
 	 * its coverage disk and returning is a distinct visit, even on adjacent
 	 * retracing edges. Close the cyclic seam without inventing another visit. */
-	for (size_t y = 0; y < target.height; y++) for (size_t x = 0; x < target.width; x++) {
-		struct stroke_visit *visit = target.visits+y*target.width+x;
-		if (visit->current == 0) continue;
-		if (visit->first == 0) visit_compose(&target,visit,visit->current);
-		else if (closed && (visit->flags&VISIT_FIRST_START) != 0
-		    && (visit->flags&VISIT_END) != 0 && visit->last_edge == target.edge) {
-			visit_compose(&target,visit,visit->current > visit->first ? visit->current : visit->first);
+	for (size_t y = 0; y < target.height; y++)
+		for (size_t x = 0; x < target.width; x++) {
+			struct stroke_visit *visit = target.visits + y * target.width + x;
+			if (visit->current == 0)
+				continue;
+			if (visit->first == 0)
+				visit_compose(&target, visit, visit->current);
+			else if (closed && (visit->flags & VISIT_FIRST_START) != 0
+			         && (visit->flags & VISIT_END) != 0 && visit->last_edge == target.edge) {
+				visit_compose(&target, visit,
+				    visit->current > visit->first ? visit->current : visit->first);
+			}
+			else {
+				visit_compose(&target, visit, visit->current);
+				if (mode != ST_RIP3_COPY)
+					visit_compose(&target, visit, visit->first);
+			}
+			status =
+			    visit_draw(&target, visit, target.clip.x0 + (int32_t)x, target.clip.y0 + (int32_t)y);
+			if (status != 0)
+				goto done;
 		}
-		else {
-			visit_compose(&target,visit,visit->current);
-			if (mode != ST_RIP3_COPY) visit_compose(&target,visit,visit->first);
-		}
-		status = visit_draw(&target, visit, target.clip.x0 + (int32_t)x, target.clip.y0 + (int32_t)y);
-		if (status != 0) goto done;
-	}
 done:
-	free(target.visits); return status;
+	free(target.visits);
+	return status;
 }
 
 struct stroke_paint {
-	struct st_rip3_ports *ports;
+	struct st_rip3_ports             *ports;
 	const struct st_rip3_stroke_mask *ink, *shadow;
-	uint32_t foreground, background;
-	enum st_rip3_write_mode mode;
+	uint32_t                          foreground, background;
+	enum st_rip3_write_mode           mode;
 };
 
 static int
 paint_stroke(void *context)
 {
-	const struct stroke_paint *paint = context;
-	const struct st_rip3_stroke_mask *mask = paint->ink;
+	const struct stroke_paint        *paint = context;
+	const struct st_rip3_stroke_mask *mask  = paint->ink;
 	for (size_t y = 0; y < mask->height; y++) {
 		for (size_t x = 0; x < mask->width; x++) {
 			uint8_t coverage = mask->coverage[y * mask->width + x];
-			int status;
+			int     status;
 
 			if (coverage == 0)
 				continue;
-			status = st_rip3_ports_plot(paint->ports,
-			    mask->bounds.x0 + (int32_t)x, mask->bounds.y0 + (int32_t)y,
-			    coverage == 2 ? paint->foreground : paint->background, paint->mode);
+			status = st_rip3_ports_plot(paint->ports, mask->bounds.x0 + (int32_t)x,
+			    mask->bounds.y0 + (int32_t)y, coverage == 2 ? paint->foreground : paint->background,
+			    paint->mode);
 			if (status != 0)
 				return status;
 		}
@@ -683,8 +708,7 @@ paint_stroke(void *context)
 }
 
 int
-st_rip3_stroke_apply(struct st_rip3_ports *ports,
-    const struct st_rip3_stroke_mask *mask, uint32_t foreground,
+st_rip3_stroke_apply(struct st_rip3_ports *ports, const struct st_rip3_stroke_mask *mask, uint32_t foreground,
     uint32_t background, enum st_rip3_write_mode mode)
 {
 	if (ports == NULL || mask == NULL || mode < ST_RIP3_COPY || mode > ST_RIP3_NOT)
@@ -698,19 +722,18 @@ st_rip3_stroke_apply(struct st_rip3_ports *ports,
 static bool
 mask_at(const struct st_rip3_stroke_mask *mask, int32_t x, int32_t y)
 {
-	if (mask->coverage == NULL || x < mask->bounds.x0 || x > mask->bounds.x1
-	    || y < mask->bounds.y0 || y > mask->bounds.y1)
+	if (mask->coverage == NULL || x < mask->bounds.x0 || x > mask->bounds.x1 || y < mask->bounds.y0
+	    || y > mask->bounds.y1)
 		return false;
-	return mask->coverage[(size_t)(y - mask->bounds.y0) * mask->width
-	    + (size_t)(x - mask->bounds.x0)] != 0;
+	return mask->coverage[(size_t)(y - mask->bounds.y0) * mask->width + (size_t)(x - mask->bounds.x0)] != 0;
 }
 
 static int
 paint_shadow(void *context)
 {
-	const struct stroke_paint *paint = context;
+	const struct stroke_paint        *paint = context;
 	const struct st_rip3_stroke_mask *ink = paint->ink, *shadow = paint->shadow;
-	struct st_rip3_rect bounds = ink->bounds;
+	struct st_rip3_rect               bounds = ink->bounds;
 	if (shadow->bounds.x0 < bounds.x0)
 		bounds.x0 = shadow->bounds.x0;
 	if (shadow->bounds.y0 < bounds.y0)
@@ -722,7 +745,7 @@ paint_shadow(void *context)
 	for (int32_t y = bounds.y0; y <= bounds.y1; y++) {
 		for (int32_t x = bounds.x0; x <= bounds.x1; x++) {
 			bool foreground_pixel = mask_at(ink, x, y);
-			int status;
+			int  status;
 
 			if (!foreground_pixel && !mask_at(shadow, x, y))
 				continue;
@@ -736,13 +759,11 @@ paint_shadow(void *context)
 }
 
 int
-st_rip3_stroke_shadow_apply(struct st_rip3_ports *ports,
-    const struct st_rip3_stroke_mask *ink,
-    const struct st_rip3_stroke_mask *shadow, uint32_t foreground,
-    uint32_t background, enum st_rip3_write_mode mode)
+st_rip3_stroke_shadow_apply(struct st_rip3_ports *ports, const struct st_rip3_stroke_mask *ink,
+    const struct st_rip3_stroke_mask *shadow, uint32_t foreground, uint32_t background,
+    enum st_rip3_write_mode mode)
 {
-	if (ports == NULL || ink == NULL || shadow == NULL
-	    || mode < ST_RIP3_COPY || mode > ST_RIP3_NOT)
+	if (ports == NULL || ink == NULL || shadow == NULL || mode < ST_RIP3_COPY || mode > ST_RIP3_NOT)
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (ink->coverage == NULL)
 		return st_rip3_stroke_apply(ports, shadow, background, background, mode);
@@ -758,47 +779,47 @@ st_rip3_stroke_free(struct st_rip3_stroke_mask *mask)
 	if (mask == NULL)
 		return;
 	free(mask->coverage);
-	*mask = (struct st_rip3_stroke_mask){0};
+	*mask = (struct st_rip3_stroke_mask) {0};
 }
 
 int
-st_rip3_draw_path(struct st_rip3_ports *ports,
-    const struct st_rip3_point *points, size_t count, bool closed,
-    const struct st_rip3_pen *pen, uint32_t foreground, uint32_t background,
-    enum st_rip3_write_mode mode)
+st_rip3_draw_path(struct st_rip3_ports *ports, const struct st_rip3_point *points, size_t count, bool closed,
+    const struct st_rip3_pen *pen, uint32_t foreground, uint32_t background, enum st_rip3_write_mode mode)
 {
 	struct st_rip3_vector *vectors;
-	int status;
-	if (points == NULL) return IO_ERROR_INVALID_ARGUMENT;
-	if (count == 0 || count > 4096) return IO_ERROR_OUT_OF_RANGE;
-	vectors = malloc(count*sizeof(*vectors));
-	if (vectors == NULL) return IO_ERROR_OUT_OF_MEMORY;
-	for (size_t i = 0; i < count; i++) vectors[i] = (struct st_rip3_vector){points[i].x,points[i].y};
-	status = st_rip3_stroke_visits(ports,vectors,count,closed,pen,foreground,background,mode);
-	free(vectors); return status;
+	int                    status;
+	if (points == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (count == 0 || count > 4096)
+		return IO_ERROR_OUT_OF_RANGE;
+	vectors = malloc(count * sizeof(*vectors));
+	if (vectors == NULL)
+		return IO_ERROR_OUT_OF_MEMORY;
+	for (size_t i = 0; i < count; i++)
+		vectors[i] = (struct st_rip3_vector) {points[i].x, points[i].y};
+	status = st_rip3_stroke_visits(ports, vectors, count, closed, pen, foreground, background, mode);
+	free(vectors);
+	return status;
 }
 
 int
-st_rip3_draw_rectangle(struct st_rip3_ports *ports,
-    const struct st_rip3_rect *area, const struct st_rip3_pen *pen,
+st_rip3_draw_rectangle(struct st_rip3_ports *ports, const struct st_rip3_rect *area, const struct st_rip3_pen *pen,
     uint32_t foreground, uint32_t background, enum st_rip3_write_mode mode)
 {
 	struct st_rip3_point corners[4];
-	int32_t x0, x1, y0, y1;
+	int32_t              x0, x1, y0, y1;
 
 	if (area == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	x0 = area->x0 < area->x1 ? area->x0 : area->x1;
-	x1 = area->x0 > area->x1 ? area->x0 : area->x1;
-	y0 = area->y0 < area->y1 ? area->y0 : area->y1;
-	y1 = area->y0 > area->y1 ? area->y0 : area->y1;
-	corners[0] = (struct st_rip3_point){x0, y0};
-	corners[1] = (struct st_rip3_point){x1, y0};
-	corners[2] = (struct st_rip3_point){x1, y1};
-	corners[3] = (struct st_rip3_point){x0, y1};
+	x0         = area->x0 < area->x1 ? area->x0 : area->x1;
+	x1         = area->x0 > area->x1 ? area->x0 : area->x1;
+	y0         = area->y0 < area->y1 ? area->y0 : area->y1;
+	y1         = area->y0 > area->y1 ? area->y0 : area->y1;
+	corners[0] = (struct st_rip3_point) {x0, y0};
+	corners[1] = (struct st_rip3_point) {x1, y0};
+	corners[2] = (struct st_rip3_point) {x1, y1};
+	corners[3] = (struct st_rip3_point) {x0, y1};
 	if (x0 == x1 || y0 == y1)
-		return st_rip3_draw_line(ports, &corners[0], &corners[2], pen,
-		    foreground, background, mode);
-	return st_rip3_draw_path(ports, corners, 4, true, pen, foreground,
-	    background, mode);
+		return st_rip3_draw_line(ports, &corners[0], &corners[2], pen, foreground, background, mode);
+	return st_rip3_draw_path(ports, corners, 4, true, pen, foreground, background, mode);
 }

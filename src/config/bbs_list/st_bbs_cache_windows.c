@@ -5,16 +5,14 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "st_bbs_list_internal.h"
-
 #include "filesystem.h"
 #include "io_error.h"
 #include "path_windows.h"
+#include "st_bbs_list_internal.h"
 #include "st_windows_utf.h"
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
-
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -35,8 +33,8 @@ wide_path(const char *path, wchar_t **result)
 static wchar_t *
 wide_join(const wchar_t *directory, const wchar_t *name)
 {
-	size_t a = wcslen(directory);
-	size_t b = wcslen(name);
+	size_t   a = wcslen(directory);
+	size_t   b = wcslen(name);
 	wchar_t *result;
 
 	if (a > SIZE_MAX / sizeof(*result) - b - 2)
@@ -54,10 +52,10 @@ static int
 remove_tree_wide(const wchar_t *path)
 {
 	WIN32_FILE_ATTRIBUTE_DATA attributes;
-	WIN32_FIND_DATAW entry;
-	wchar_t *pattern;
-	HANDLE search;
-	int status = 0;
+	WIN32_FIND_DATAW          entry;
+	wchar_t                  *pattern;
+	HANDLE                    search;
+	int                       status = 0;
 
 	if (!GetFileAttributesExW(path, GetFileExInfoStandard, &attributes)) {
 		status = windows_error(GetLastError());
@@ -76,12 +74,12 @@ remove_tree_wide(const wchar_t *path)
 		status = windows_error(GetLastError());
 		if (status != IO_ERROR_NOT_FOUND)
 			return status;
-	} else {
+	}
+	else {
 		do {
 			wchar_t *child;
 
-			if (wcscmp(entry.cFileName, L".") == 0
-			    || wcscmp(entry.cFileName, L"..") == 0)
+			if (wcscmp(entry.cFileName, L".") == 0 || wcscmp(entry.cFileName, L"..") == 0)
 				continue;
 			child = wide_join(path, entry.cFileName);
 			if (child == NULL) {
@@ -105,7 +103,7 @@ int
 st_bbs_cache_remove_tree(const char *path)
 {
 	wchar_t *wide;
-	int status = wide_path(path, &wide);
+	int      status = wide_path(path, &wide);
 
 	if (status == 0) {
 		status = remove_tree_wide(wide);
@@ -123,13 +121,12 @@ utf8_name(const wchar_t *name)
 }
 
 int
-st_bbs_cache_visit(const char *path,
-    int (*visit)(const char *key, void *context), void *context)
+st_bbs_cache_visit(const char *path, int (*visit)(const char *key, void *context), void *context)
 {
-	wchar_t *root = NULL, *pattern;
+	wchar_t         *root = NULL, *pattern;
 	WIN32_FIND_DATAW entry;
-	HANDLE search;
-	int status = wide_path(path, &root);
+	HANDLE           search;
+	int              status = wide_path(path, &root);
 
 	if (status < 0)
 		return status;
@@ -145,12 +142,14 @@ st_bbs_cache_visit(const char *path,
 	}
 	for (;;) {
 		char *name = utf8_name(entry.cFileName);
-		status = name == NULL ? IO_ERROR_INVALID_ENCODING : visit(name, context);
+		status     = name == NULL ? IO_ERROR_INVALID_ENCODING : visit(name, context);
 		free(name);
-		if (status < 0) break;
+		if (status < 0)
+			break;
 		if (!FindNextFileW(search, &entry)) {
 			DWORD error = GetLastError();
-			if (error != ERROR_NO_MORE_FILES) status = windows_error(error);
+			if (error != ERROR_NO_MORE_FILES)
+				status = windows_error(error);
 			break;
 		}
 	}

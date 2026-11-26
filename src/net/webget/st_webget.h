@@ -8,11 +8,11 @@
 #ifndef ST_WEBGET_H_
 #define ST_WEBGET_H_
 
-#include "st_tls.h"
-
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+
+#include "st_tls.h"
 
 #define ST_WEBGET_DEFAULT_MAX_SIZE (16U * 1024U * 1024U)
 
@@ -29,27 +29,26 @@ enum st_webget_phase {
 
 struct st_webget_progress {
 	enum st_webget_phase phase;
-	uint64_t received;
-	uint64_t total;
-	bool total_known;
+	uint64_t             received;
+	uint64_t             total;
+	bool                 total_known;
 };
 
-typedef bool (*st_webget_progress_fn)(const struct st_webget_progress *progress,
-    void *context);
-typedef int (*st_webget_validate_fn)(const char *path, void *context);
+typedef bool (*st_webget_progress_fn)(const struct st_webget_progress *progress, void *context);
+typedef int  (*st_webget_validate_fn)(const char *path, void *context);
 
 struct st_webget_request {
-	const char *url;
-	const char *cache_directory;
-	const char *cache_key;
-	const char *output_name;
-	int64_t connect_timeout_ms;
-	int64_t io_timeout_ms;
-	size_t maximum_size;
-	st_webget_progress_fn progress;
-	void *progress_context;
-	st_webget_validate_fn validate;
-	void *validate_context;
+	const char                         *url;
+	const char                         *cache_directory;
+	const char                         *cache_key;
+	const char                         *output_name;
+	int64_t                             connect_timeout_ms;
+	int64_t                             io_timeout_ms;
+	size_t                              maximum_size;
+	st_webget_progress_fn               progress;
+	void                               *progress_context;
+	st_webget_validate_fn               validate;
+	void                               *validate_context;
 	const struct st_tls_client_options *tls_options;
 };
 
@@ -61,7 +60,7 @@ enum st_webget_outcome {
 
 struct st_webget_result {
 	enum st_webget_outcome outcome;
-	uint64_t size;
+	uint64_t               size;
 };
 
 /*
@@ -70,7 +69,6 @@ struct st_webget_result {
  * older versions, or for a different URL, is revalidated without conditional
  * headers; an existing output remains untouched unless replacement succeeds.
  */
-int st_webget(struct st_webget_result *result,
-    const struct st_webget_request *request);
+int st_webget(struct st_webget_result *result, const struct st_webget_request *request);
 
 #endif

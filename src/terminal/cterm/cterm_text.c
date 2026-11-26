@@ -2,44 +2,44 @@
 /* Copyright (c) 2026 Stephen Hurd
  * SPDX-License-Identifier: BSD-2-Clause */
 
-#include "cterm_text.h"
-#include "cterm_skypix.h"
-#include "cterm.h"
-#include "cterm_internal.h"
-#include "cterm_input.h"
-#include "cterm_prestel.h"
-#include "io_error.h"
-#include "st_utf8.h"
-
-#include <stdlib.h>
 #include <inttypes.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+
+#include "cterm.h"
+#include "cterm_input.h"
+#include "cterm_internal.h"
+#include "cterm_prestel.h"
+#include "cterm_skypix.h"
+#include "cterm_text.h"
+#include "io_error.h"
+#include "st_utf8.h"
 
 static void
 log_missing(struct cterminal *cterm, const struct st_unicode_presentation_event *event)
 {
-	char scalars[768];
+	char   scalars[768];
 	size_t offset = 0, used = 0;
-	if (!cterm_log_enabled(cterm, ST_CTERM_LOG_DEBUG)) return;
+	if (!cterm_log_enabled(cterm, ST_CTERM_LOG_DEBUG))
+		return;
 	while (offset < event->size && used + 16 < sizeof(scalars)) {
 		uint32_t scalar;
-		size_t consumed;
-		if (st_utf8_decode_one(&scalar, &consumed, event->bytes + offset,
-		    event->size - offset) != 0) break;
-		int length = snprintf(scalars + used, sizeof(scalars) - used,
-		    "%sU+%04" PRIX32, used == 0 ? "" : " ", scalar);
-		if (length < 0) break;
+		size_t   consumed;
+		if (st_utf8_decode_one(&scalar, &consumed, event->bytes + offset, event->size - offset) != 0)
+			break;
+		int length = snprintf(scalars + used, sizeof(scalars) - used, "%sU+%04" PRIX32,
+		    used == 0 ? "" : " ", scalar);
+		if (length < 0)
+			break;
 		used += (size_t)length;
 		offset += consumed;
 	}
 	scalars[used] = '\0';
 	cterm_log(cterm, ST_CTERM_LOG_DEBUG,
 	    "Missing glyph (.noglyph): font=%u column=%u row=%u; %s%s (%zu UTF-8 bytes)",
-	    (unsigned)cterm->screen.missing_font,
-	    (unsigned)cterm->screen.provisional_x + 1,
-	    (unsigned)cterm->screen.provisional_y + 1,
-	    scalars, offset < event->size ? " ..." : "", event->size);
+	    (unsigned)cterm->screen.missing_font, (unsigned)cterm->screen.provisional_x + 1,
+	    (unsigned)cterm->screen.provisional_y + 1, scalars, offset < event->size ? " ..." : "", event->size);
 }
 
 static int
@@ -49,23 +49,23 @@ remember(struct cterminal *cterm, const uint8_t *bytes, size_t size)
 	if (text == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
 	memcpy(text, bytes, size);
-	cterm->last_text = text;
+	cterm->last_text      = text;
 	cterm->last_text_size = size;
 	return 0;
 }
 
 static int
-place(struct cterminal *cterm, const struct st_unicode_presentation_event *event,
-	bool provisional, uint32_t glyph_flags)
+place(struct cterminal *cterm, const struct st_unicode_presentation_event *event, bool provisional,
+    uint32_t glyph_flags)
 {
 	struct st_console_style style;
-	struct st_console_cell cells[2];
-	struct st_console_rect area = {.height = 1};
-	uint8_t columns = event->columns;
-	uint8_t old_columns = event->kind == ST_UNICODE_PRESENTATION_REVISE
-	    ? cterm->screen.provisional_columns : 0;
-	int x, y, right = TERM_MAXX;
-	int status;
+	struct st_console_cell  cells[2];
+	struct st_console_rect  area    = {.height = 1};
+	uint8_t                 columns = event->columns;
+	uint8_t                 old_columns =
+	    event->kind == ST_UNICODE_PRESENTATION_REVISE ? cterm->screen.provisional_columns : 0;
+	int  x, y, right = TERM_MAXX;
+	int  status;
 	bool missing = false;
 
 	if (columns == 0)
@@ -82,9 +82,8 @@ place(struct cterminal *cterm, const struct st_unicode_presentation_event *event
 		/* Scrolling tracks the glyph's screen position independently of the cursor. */
 		cterm->xpos = (int)cterm->screen.provisional_x + 1;
 		cterm->ypos = (int)cterm->screen.provisional_y + 1;
-		cterm_coord_conv_xy(cterm, CTERM_COORD_SCREEN, CTERM_COORD_ABSTERM,
-		    &cterm->xpos, &cterm->ypos);
-		cterm->last_column_flag = cterm->screen.provisional_lcf;
+		cterm_coord_conv_xy(cterm, CTERM_COORD_SCREEN, CTERM_COORD_ABSTERM, &cterm->xpos, &cterm->ypos);
+		cterm->last_column_flag           = cterm->screen.provisional_lcf;
 		cterm->screen.provisional_columns = 0;
 	}
 	x = cterm->xpos;
@@ -94,23 +93,25 @@ place(struct cterminal *cterm, const struct st_unicode_presentation_event *event
 	status = st_console_get_style(cterm->screen.console, &style);
 	if (status != 0)
 		return status;
-	cells[0] = (struct st_console_cell){
-		.foreground = style.foreground, .background = style.background,
-		.flags = style.flags | glyph_flags, .font = style.font,
-		.hyperlink = style.hyperlink,
+	cells[0] = (struct st_console_cell) {
+	    .foreground = style.foreground,
+	    .background = style.background,
+	    .flags      = style.flags | glyph_flags,
+	    .font       = style.font,
+	    .hyperlink  = style.hyperlink,
 	};
 	if (event->kind == ST_UNICODE_PRESENTATION_DECODE_ERROR) {
 		cells[0].glyph_font = 0;
-		status = st_console_font_lookup_decode_error(cterm->screen.console, &cells[0].glyph);
+		status              = st_console_font_lookup_decode_error(cterm->screen.console, &cells[0].glyph);
 	}
 	else
-		status = st_console_font_lookup_cluster_ex(cterm->screen.console,
-		    cells[0].font, (const char *)event->bytes, event->size, columns,
-		    &cells[0].glyph_font, &cells[0].glyph, &missing);
+		status = st_console_font_lookup_cluster_ex(cterm->screen.console, cells[0].font,
+		    (const char *)event->bytes, event->size, columns, &cells[0].glyph_font, &cells[0].glyph,
+		    &missing);
 	if (status != 0)
 		return status;
-	status = st_console_font_glyph_columns(cterm->screen.console,
-	    cells[0].glyph_font, cells[0].glyph, &columns);
+	status =
+	    st_console_font_glyph_columns(cterm->screen.console, cells[0].glyph_font, cells[0].glyph, &columns);
 	if (status != 0)
 		return status;
 	cterm_coord_conv_xy(cterm, CTERM_COORD_TERM, CTERM_COORD_CURR, &right, NULL);
@@ -120,8 +121,8 @@ place(struct cterminal *cterm, const struct st_unicode_presentation_event *event
 		right = cterm->width;
 		cterm_coord_conv_xy(cterm, CTERM_COORD_ABSTERM, CTERM_COORD_CURR, &right, NULL);
 	}
-	if ((cterm->last_column_flag & (CTERM_LCF_ENABLED | CTERM_LCF_SET))
-	    == (CTERM_LCF_ENABLED | CTERM_LCF_SET) && x == right) {
+	if ((cterm->last_column_flag & (CTERM_LCF_ENABLED | CTERM_LCF_SET)) == (CTERM_LCF_ENABLED | CTERM_LCF_SET)
+	    && x == right) {
 		cterm_advance_char(cterm, &x, &y, 1);
 		cterm_clear_lcf(cterm);
 	}
@@ -129,7 +130,10 @@ place(struct cterminal *cterm, const struct st_unicode_presentation_event *event
 		if (old_columns != 0) {
 			/* The narrow prefix already overwrote the margin cell. */
 			const struct st_console_rect vacated = {
-				cterm->screen.provisional_x, cterm->screen.provisional_y, 1, 1,
+			    cterm->screen.provisional_x,
+			    cterm->screen.provisional_y,
+			    1,
+			    1,
 			};
 			struct st_console_cell blank;
 			status = cterm_render_make_current_cell(cterm, &blank, ' ', style.hyperlink);
@@ -167,11 +171,11 @@ place(struct cterminal *cterm, const struct st_unicode_presentation_event *event
 	status = st_console_write_cells(cterm->screen.console, &area, cells, area.width);
 	if (status != 0)
 		return status;
-	cterm->screen.missing_glyph = missing;
-	cterm->screen.missing_font = cells[0].font;
-	cterm->screen.provisional_x = area.x;
-	cterm->screen.provisional_y = area.y;
-	cterm->screen.provisional_lcf = cterm->last_column_flag;
+	cterm->screen.missing_glyph       = missing;
+	cterm->screen.missing_font        = cells[0].font;
+	cterm->screen.provisional_x       = area.x;
+	cterm->screen.provisional_y       = area.y;
+	cterm->screen.provisional_lcf     = cterm->last_column_flag;
 	cterm->screen.provisional_columns = provisional ? columns : 0;
 	if (missing && !provisional)
 		log_missing(cterm, event);
@@ -190,7 +194,7 @@ static int
 present(void *context, const struct st_unicode_presentation_event *event)
 {
 	struct cterminal *cterm = context;
-	int status;
+	int               status;
 
 	if (event->kind == ST_UNICODE_PRESENTATION_COMMIT) {
 		if (cterm->log == CTERM_LOG_ASCII && cterm->logfile != NULL)
@@ -200,12 +204,13 @@ present(void *context, const struct st_unicode_presentation_event *event)
 			log_missing(cterm, event);
 		cterm->screen.provisional_columns = 0;
 		if (cterm->skypix_engine != NULL) {
-			bool handled; return cterm_skypix_present(cterm->skypix_engine,event,&handled);
+			bool handled;
+			return cterm_skypix_present(cterm->skypix_engine, event, &handled);
 		}
 		return 0;
 	}
 	if (event->kind == ST_UNICODE_PRESENTATION_BEGIN) {
-		cterm->screen.provisional_columns = 0;
+		cterm->screen.provisional_columns   = 0;
 		cterm->screen.provisional_discarded = false;
 	}
 	if (event->columns == 0)
@@ -223,8 +228,10 @@ present(void *context, const struct st_unicode_presentation_event *event)
 			return status;
 	}
 	if (cterm->skypix_engine != NULL) {
-		bool handled; status = cterm_skypix_present(cterm->skypix_engine,event,&handled);
-		if (status != 0 || handled) return status;
+		bool handled;
+		status = cterm_skypix_present(cterm->skypix_engine, event, &handled);
+		if (status != 0 || handled)
+			return status;
 	}
 	if (event->kind == ST_UNICODE_PRESENTATION_REVISE && cterm->screen.provisional_discarded)
 		return 0;
@@ -237,8 +244,9 @@ present(void *context, const struct st_unicode_presentation_event *event)
 int
 cterm_text_create(struct cterminal *cterm)
 {
-	return cterm->screen.unicode != NULL ? 0
-	    : st_unicode_presentation_create(&cterm->screen.unicode, present, cterm);
+	return cterm->screen.unicode != NULL
+		   ? 0
+		   : st_unicode_presentation_create(&cterm->screen.unicode, present, cterm);
 }
 
 int
@@ -246,8 +254,7 @@ cterm_text_boundary(struct cterminal *cterm)
 {
 	int status;
 	++cterm->input_depth;
-	status = cterm->screen.unicode == NULL ? 0
-	    : st_unicode_presentation_boundary(cterm->screen.unicode);
+	status = cterm->screen.unicode == NULL ? 0 : st_unicode_presentation_boundary(cterm->screen.unicode);
 	--cterm->input_depth;
 	return status;
 }
@@ -257,8 +264,7 @@ cterm_text_commit(struct cterminal *cterm)
 {
 	int status;
 	++cterm->input_depth;
-	status = cterm->screen.unicode == NULL ? 0
-	    : st_unicode_presentation_commit(cterm->screen.unicode);
+	status = cterm->screen.unicode == NULL ? 0 : st_unicode_presentation_commit(cterm->screen.unicode);
 	--cterm->input_depth;
 	return status;
 }
@@ -267,20 +273,19 @@ int
 cterm_text_feed(struct cterminal *cterm, const void *text, size_t size, size_t *consumed)
 {
 	int status = cterm_text_create(cterm);
-	*consumed = 0;
-	return status != 0 ? status
-	    : st_unicode_presentation_feed(cterm->screen.unicode, text, size, consumed);
+	*consumed  = 0;
+	return status != 0 ? status : st_unicode_presentation_feed(cterm->screen.unicode, text, size, consumed);
 }
 
 void
 cterm_text_byte(struct cterminal *cterm, uint8_t byte)
 {
-	char text[4];
-	size_t consumed;
-	ptrdiff_t size = st_utf8_encode_one(text, sizeof(text),
-	    st_codepage_to_unicode(cterm->screen.codepage, byte, true));
-	cterm_render_record_error(cterm, size < 0 ? IO_ERROR_INVALID_ENCODING
-	    : cterm_text_feed(cterm, text, (size_t)size, &consumed));
+	char      text[4];
+	size_t    consumed;
+	ptrdiff_t size =
+	    st_utf8_encode_one(text, sizeof(text), st_codepage_to_unicode(cterm->screen.codepage, byte, true));
+	cterm_render_record_error(cterm,
+	    size < 0 ? IO_ERROR_INVALID_ENCODING : cterm_text_feed(cterm, text, (size_t)size, &consumed));
 }
 
 void
@@ -292,12 +297,13 @@ cterm_text_literal(struct cterminal *cterm, uint8_t byte)
 static void
 place_literal(struct cterminal *cterm, uint32_t scalar, uint32_t glyph_flags, bool received)
 {
-	char text[4];
-	ptrdiff_t size = st_utf8_encode_one(text, sizeof(text), scalar);
+	char                                 text[4];
+	ptrdiff_t                            size  = st_utf8_encode_one(text, sizeof(text), scalar);
 	struct st_unicode_presentation_event event = {
-		.kind = ST_UNICODE_PRESENTATION_BEGIN,
-		.bytes = (const uint8_t *)text, .size = size > 0 ? (size_t)size : 0,
-		.columns = 1,
+	    .kind    = ST_UNICODE_PRESENTATION_BEGIN,
+	    .bytes   = (const uint8_t *)text,
+	    .size    = size > 0 ? (size_t)size : 0,
+	    .columns = 1,
 	};
 	int status = cterm_text_boundary(cterm);
 	cterm_coord_get_xy(cterm, CTERM_COORD_ABSTERM, &cterm->xpos, &cterm->ypos);
@@ -333,9 +339,9 @@ cterm_text_atascii_byte(struct cterminal *cterm, uint8_t byte)
 void
 cterm_text_repeat(struct cterminal *cterm, size_t count)
 {
-	int status = cterm_text_boundary(cterm);
-	size_t size = cterm->last_text_size;
-	char *text;
+	int    status = cterm_text_boundary(cterm);
+	size_t size   = cterm->last_text_size;
+	char  *text;
 	if (status != 0 || size == 0 || count == 0) {
 		cterm_render_record_error(cterm, status);
 		return;
@@ -361,7 +367,7 @@ void
 cterm_text_forget(struct cterminal *cterm)
 {
 	free(cterm->last_text);
-	cterm->last_text = NULL;
+	cterm->last_text      = NULL;
 	cterm->last_text_size = 0;
 }
 
@@ -375,12 +381,11 @@ cterm_text_destroy(struct cterminal *cterm)
 void
 cterm_text_scrolled(struct cterminal *cterm, int top, int bottom)
 {
-	if (cterm->screen.provisional_columns == 0
-	    || cterm->screen.provisional_y < (uint32_t)(top - 1)
+	if (cterm->screen.provisional_columns == 0 || cterm->screen.provisional_y < (uint32_t)(top - 1)
 	    || cterm->screen.provisional_y >= (uint32_t)bottom)
 		return;
 	if (cterm->screen.provisional_y == (uint32_t)(top - 1)) {
-		cterm->screen.provisional_columns = 0;
+		cterm->screen.provisional_columns   = 0;
 		cterm->screen.provisional_discarded = true;
 	}
 	else

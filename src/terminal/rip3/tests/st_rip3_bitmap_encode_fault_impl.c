@@ -11,7 +11,7 @@ test_calloc(size_t count, size_t size)
 		st_rip3_bitmap_encode_test_fail_allocate = false;
 		return NULL;
 	}
-	return calloc(count,size);
+	return calloc(count, size);
 }
 
 #define calloc test_calloc

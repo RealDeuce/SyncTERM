@@ -3,10 +3,10 @@
 /* Copyright (c) 2026 Stephen Hurd
  * SPDX-License-Identifier: BSD-2-Clause */
 
-#include "wren_host_internal.h"
-
 #include <math.h>
 #include <stdint.h>
+
+#include "wren_host_internal.h"
 
 bool
 st_wren_u64_exact(uint64_t value)
@@ -17,8 +17,7 @@ st_wren_u64_exact(uint64_t value)
 bool
 st_wren_i64_exact(int64_t value)
 {
-	return value >= -(int64_t)ST_WREN_MAX_INTEGER
-	    && value <= (int64_t)ST_WREN_MAX_INTEGER;
+	return value >= -(int64_t)ST_WREN_MAX_INTEGER && value <= (int64_t)ST_WREN_MAX_INTEGER;
 }
 
 bool
@@ -29,8 +28,7 @@ st_wren_number_i64(WrenVM *vm, int slot, int64_t *result)
 	if (wrenGetSlotType(vm, slot) != WREN_TYPE_NUM)
 		return false;
 	value = wrenGetSlotDouble(vm, slot);
-	if (!isfinite(value) || trunc(value) != value
-	    || value < -(double)ST_WREN_MAX_INTEGER
+	if (!isfinite(value) || trunc(value) != value || value < -(double)ST_WREN_MAX_INTEGER
 	    || value > (double)ST_WREN_MAX_INTEGER)
 		return false;
 	*result = (int64_t)value;

@@ -5,9 +5,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "wren_directory.h"
-
 #include <stdlib.h>
+
+#include "wren_directory.h"
 
 void
 st_wren_directory_entries_dispose(struct st_wren_directory_entries *entries)
@@ -17,5 +17,5 @@ st_wren_directory_entries_dispose(struct st_wren_directory_entries *entries)
 	for (size_t i = 0; i < entries->count; ++i)
 		free(entries->items[i].name);
 	free(entries->items);
-	*entries = (struct st_wren_directory_entries){0};
+	*entries = (struct st_wren_directory_entries) {0};
 }

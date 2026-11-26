@@ -12,7 +12,7 @@ struct st_rip3_ports;
  * consumers do not change either field. The bound PORT owner captures/restores
  * this record by value as part of its table backup. */
 struct st_rip3_clipboard_selection {
-	bool set;
+	bool     set;
 	unsigned port;
 };
 
@@ -38,16 +38,14 @@ struct st_rip3_clipboard_area {
  * sized default is inferred. Low-WORD allocation counts are preserved; wrapped
  * zero counts remain unsupported before mutation pending their allocation case.
  * This is a state/storage service status; the void wire parser consumes it. */
-int st_rip3_clipboard_capture(struct st_rip3_ports *ports,
-	struct st_rip3_clipboard_selection *selection,
-	const struct st_rip3_clipboard_area *area, uint64_t pixel_budget);
+int st_rip3_clipboard_capture(struct st_rip3_ports *ports, struct st_rip3_clipboard_selection *selection,
+    const struct st_rip3_clipboard_area *area, uint64_t pixel_budget);
 
 /* Button auto-stamp uses the same allocation/failure ownership with an exact
  * half-open logical footprint and COPY padding at the original source offset.
  * The button renderer checks the documented same-destination guard first. */
-int st_rip3_clipboard_capture_button(struct st_rip3_ports *ports,
-	struct st_rip3_clipboard_selection *selection,
-	const struct st_rip3_clipboard_area *area, uint64_t pixel_budget);
+int st_rip3_clipboard_capture_button(struct st_rip3_ports *ports, struct st_rip3_clipboard_selection *selection,
+    const struct st_rip3_clipboard_area *area, uint64_t pixel_budget);
 
 /* LOAD_BITMAP's explicit post-draw duplicate route. Zero uses shared capture;
  * >35 and same-current nonzero selectors skip duplication. A different defined
@@ -56,8 +54,7 @@ int st_rip3_clipboard_capture_button(struct st_rip3_ports *ports,
  * returns PERMISSION_DENIED without deletion/selection change. Creation failure
  * leaves the target undefined; the caller may still perform wallpaper. Copy
  * failures are ignored after allocation. Ordinary extents have no extra unit. */
-int st_rip3_clipboard_duplicate(struct st_rip3_ports *ports,
-	struct st_rip3_clipboard_selection *selection, unsigned number,
-	const struct st_rip3_clipboard_area *area, uint64_t pixel_budget);
+int st_rip3_clipboard_duplicate(struct st_rip3_ports *ports, struct st_rip3_clipboard_selection *selection,
+    unsigned number, const struct st_rip3_clipboard_area *area, uint64_t pixel_budget);
 
 #endif

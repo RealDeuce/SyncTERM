@@ -7,28 +7,27 @@
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
-
-#include "path.h"
-#include "path_windows.h"
-#include "io_error.h"
-
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <wchar.h>
 
-#define CHECK(expression) do { \
-	if (!(expression)) { \
-		fprintf(stderr, "failed: %s:%d: %s\n", __FILE__, __LINE__, \
-		    #expression); \
-		return 1; \
-	} \
-} while (0)
+#include "io_error.h"
+#include "path.h"
+#include "path_windows.h"
+
+#define CHECK(expression)                                                                        \
+	do {                                                                                     \
+		if (!(expression)) {                                                             \
+			fprintf(stderr, "failed: %s:%d: %s\n", __FILE__, __LINE__, #expression); \
+			return 1;                                                                \
+		}                                                                                \
+	} while (0)
 
 static unsigned int current_directory_calls;
 static unsigned int full_path_calls;
-static bool fail_query;
+static bool         fail_query;
 
 static DWORD WINAPI
 test_get_current_directory(DWORD size, LPWSTR buffer)
@@ -49,8 +48,7 @@ test_get_current_directory(DWORD size, LPWSTR buffer)
 }
 
 static DWORD WINAPI
-test_get_full_path_name(LPCWSTR path, DWORD size, LPWSTR buffer,
-    LPWSTR *file_part)
+test_get_full_path_name(LPCWSTR path, DWORD size, LPWSTR buffer, LPWSTR *file_part)
 {
 	static const wchar_t value[] = L"D:\\base";
 
@@ -71,7 +69,7 @@ test_get_full_path_name(LPCWSTR path, DWORD size, LPWSTR buffer,
 }
 
 #define GetCurrentDirectoryW test_get_current_directory
-#define GetFullPathNameW test_get_full_path_name
+#define GetFullPathNameW     test_get_full_path_name
 #include "../path_windows.c"
 #undef GetFullPathNameW
 #undef GetCurrentDirectoryW
@@ -79,7 +77,7 @@ test_get_full_path_name(LPCWSTR path, DWORD size, LPWSTR buffer,
 int
 main(void)
 {
-	char absolute[64];
+	char     absolute[64];
 	wchar_t *extended = NULL;
 
 	CHECK(path_make_absolute(absolute, sizeof(absolute), "child") == 13);

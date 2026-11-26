@@ -5,7 +5,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "st_theme.h"
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "filesystem.h"
 #include "ini.h"
@@ -14,23 +17,19 @@
 #include "st_app_paths.h"
 #include "st_codepage.h"
 #include "st_settings.h"
-#include "st_utf8.h"
+#include "st_theme.h"
 #include "st_unicode_compare.h"
+#include "st_utf8.h"
 #include "string_compat.h"
 #include "string_util.h"
 #include "theme_internal.h"
 
-#include <stdarg.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
 struct style_template {
 	const char *role;
-	int font;
-	int legacy_attr;
-	int foreground;
-	int background;
+	int         font;
+	int         legacy_attr;
+	int         foreground;
+	int         background;
 };
 
 static bool
@@ -38,8 +37,7 @@ text_equal_span(const char *left, size_t left_size, const char *right)
 {
 	bool equal;
 
-	return st_unicode_caseless_equal(&equal, left, left_size, right,
-	    strlen(right)) == 0 && equal;
+	return st_unicode_caseless_equal(&equal, left, left_size, right, strlen(right)) == 0 && equal;
 }
 
 static bool
@@ -53,20 +51,19 @@ section_suffix(const char *name, const char *prefix)
 {
 	const char *colon = strchr(name, ':');
 
-	return colon != NULL && text_equal_span(name, (size_t)(colon - name),
-	    prefix) ? colon + 1 : NULL;
+	return colon != NULL && text_equal_span(name, (size_t)(colon - name), prefix) ? colon + 1 : NULL;
 }
 
 struct glyph_template {
 	const char *name;
-	uint8_t cp437;
-	uint8_t ascii;
+	uint8_t     cp437;
+	uint8_t     ascii;
 };
 
 int
 theme_read_stream_exact(FILE *stream, size_t size, char **result)
 {
-	char *data;
+	char  *data;
 	size_t read_size;
 
 	if (stream == NULL || result == NULL) {
@@ -90,16 +87,16 @@ theme_read_stream_exact(FILE *stream, size_t size, char **result)
 		return IO_ERROR_IO;
 	}
 	data[size] = '\0';
-	*result = data;
+	*result    = data;
 	return 0;
 }
 
 int
 theme_read_file(const char *path, char **result, size_t *result_size)
 {
-	FILE *stream = NULL;
+	FILE   *stream = NULL;
 	int64_t size;
-	int status;
+	int     status;
 
 	if (path == NULL || result == NULL || result_size == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -117,65 +114,64 @@ theme_read_file(const char *path, char **result, size_t *result_size)
 	return status;
 }
 
-#define S(role, font, attribute, foreground, background) \
-	{role, font, attribute, foreground, background}
+#define S(role, font, attribute, foreground, background) {role, font, attribute, foreground, background}
 
 static const struct style_template default_styles[] = {
-	S("default", 0, 0x1f, 0xffffff, 0x0000a8),
-	S("default.inactive", -1, 0x3f, 0xffffff, 0x00aaaa),
-	S("shadow", -1, 0x08, 0x202020, 0x000000),
-	S("frame", -1, 0x1e, 0xffff55, -1),
-	S("frame.inactive", -1, 0x3f, 0xffffff, 0x00aaaa),
-	S("title", -1, 0x1e, 0xffff55, -1),
-	S("title.inactive", -1, 0x3f, 0xffffff, 0x00aaaa),
-	S("menu.item", -1, 0x1f, -1, -1),
-	S("menu.item.focused", -1, 0x70, 0x000000, 0xaaaaaa),
-	S("menu.item.disabled", -1, 0x18, 0x808080, -1),
-	S("list.item", -1, 0x1f, -1, -1),
-	S("list.item.focused", -1, 0x70, 0x000000, 0xaaaaaa),
-	S("list.item.disabled", -1, 0x18, 0x808080, -1),
-	S("list.item.focused.inactive", -1, 0x3e, 0xffff55, 0x00aaaa),
-	S("list.item.focused.indicator", -1, -1, -1, -1),
-	S("list.item.focused.indicator.inactive", -1, -1, -1, -1),
-	S("input", -1, 0x70, 0x000000, 0xaaaaaa),
-	S("input.focused", -1, 0x70, 0x000000, 0xffffff),
-	S("button", -1, 0x1f, -1, -1),
-	S("button.hotkey", -1, 0x1e, 0xffff55, -1),
-	S("button.focused", -1, 0x70, 0x000000, 0xaaaaaa),
-	S("button.focused.hotkey", -1, 0x78, 0x555555, -1),
-	S("tab", -1, 0x1f, -1, -1),
-	S("tab.selected", -1, 0x30, 0x000000, 0x00aaaa),
-	S("tab.focused", -1, 0x70, 0x000000, 0xaaaaaa),
-	S("tab.selected.focused", -1, 0x70, 0x000000, 0xaaaaaa),
-	S("statusbar", -1, 0x30, 0x000000, 0x00aaaa),
-	S("disconnected", -1, 0x4f, 0xffffff, 0xaa0000),
-	S("checkbox", -1, 0x1f, -1, -1),
-	S("checkbox.focused", -1, 0x70, 0x000000, 0xaaaaaa),
-	S("radio.item", -1, 0x1f, -1, -1),
-	S("radio.item.focused", -1, 0x70, 0x000000, 0xaaaaaa),
-	S("spinbox", -1, 0x70, 0x000000, 0xaaaaaa),
-	S("spinbox.focused", -1, 0x70, 0x000000, 0xffffff),
-	S("menubar", -1, 0x70, 0x000000, 0xaaaaaa),
-	S("menubar.item", -1, 0x70, 0x000000, 0xaaaaaa),
-	S("menubar.item.focused", -1, 0x07, 0xaaaaaa, 0x000000),
-	S("scrollbar.track", -1, 0x17, 0xaaaaaa, 0x0000a8),
-	S("scrollbar.thumb", -1, 0x1f, 0xffffff, 0x0000a8),
-	S("progress.fill", -1, 0x1b, 0x55ffff, 0x0000a8),
-	S("logview.info", -1, 0x1f, 0xffffff, 0x0000a8),
-	S("logview.notice", -1, 0x1e, 0xffff55, 0x0000a8),
-	S("logview.warning", -1, 0x1d, 0xff55ff, 0x0000a8),
-	S("logview.error", -1, 0x1c, 0xff5555, 0x0000a8),
-	S("help", -1, 0x1f, 0xffffff, 0x0000a8),
-	S("help.text", -1, -1, -1, -1),
-	S("help.bold", -1, 0x1e, 0xffff55, -1),
-	S("help.code", -1, 0x1e, 0xffff55, -1),
-	S("help.heading.1", -1, 0x31, 0x0000a8, 0x00aaaa),
-	S("help.heading.2", -1, 0x31, 0x0000a8, 0x00aaaa),
-	S("help.heading.3", -1, 0x31, 0x0000a8, 0x00aaaa),
-	S("help.bullet", -1, 0x1f, 0xffffff, -1),
-	S("popup", -1, 0x4e, 0xffff55, 0xaa0000),
-	S("popup.frame", -1, 0x4f, 0xffffff, 0xaa0000),
-	S("popup.frame.inactive", -1, 0x47, 0xaaaaaa, -1),
+    S("default", 0, 0x1f, 0xffffff, 0x0000a8),
+    S("default.inactive", -1, 0x3f, 0xffffff, 0x00aaaa),
+    S("shadow", -1, 0x08, 0x202020, 0x000000),
+    S("frame", -1, 0x1e, 0xffff55, -1),
+    S("frame.inactive", -1, 0x3f, 0xffffff, 0x00aaaa),
+    S("title", -1, 0x1e, 0xffff55, -1),
+    S("title.inactive", -1, 0x3f, 0xffffff, 0x00aaaa),
+    S("menu.item", -1, 0x1f, -1, -1),
+    S("menu.item.focused", -1, 0x70, 0x000000, 0xaaaaaa),
+    S("menu.item.disabled", -1, 0x18, 0x808080, -1),
+    S("list.item", -1, 0x1f, -1, -1),
+    S("list.item.focused", -1, 0x70, 0x000000, 0xaaaaaa),
+    S("list.item.disabled", -1, 0x18, 0x808080, -1),
+    S("list.item.focused.inactive", -1, 0x3e, 0xffff55, 0x00aaaa),
+    S("list.item.focused.indicator", -1, -1, -1, -1),
+    S("list.item.focused.indicator.inactive", -1, -1, -1, -1),
+    S("input", -1, 0x70, 0x000000, 0xaaaaaa),
+    S("input.focused", -1, 0x70, 0x000000, 0xffffff),
+    S("button", -1, 0x1f, -1, -1),
+    S("button.hotkey", -1, 0x1e, 0xffff55, -1),
+    S("button.focused", -1, 0x70, 0x000000, 0xaaaaaa),
+    S("button.focused.hotkey", -1, 0x78, 0x555555, -1),
+    S("tab", -1, 0x1f, -1, -1),
+    S("tab.selected", -1, 0x30, 0x000000, 0x00aaaa),
+    S("tab.focused", -1, 0x70, 0x000000, 0xaaaaaa),
+    S("tab.selected.focused", -1, 0x70, 0x000000, 0xaaaaaa),
+    S("statusbar", -1, 0x30, 0x000000, 0x00aaaa),
+    S("disconnected", -1, 0x4f, 0xffffff, 0xaa0000),
+    S("checkbox", -1, 0x1f, -1, -1),
+    S("checkbox.focused", -1, 0x70, 0x000000, 0xaaaaaa),
+    S("radio.item", -1, 0x1f, -1, -1),
+    S("radio.item.focused", -1, 0x70, 0x000000, 0xaaaaaa),
+    S("spinbox", -1, 0x70, 0x000000, 0xaaaaaa),
+    S("spinbox.focused", -1, 0x70, 0x000000, 0xffffff),
+    S("menubar", -1, 0x70, 0x000000, 0xaaaaaa),
+    S("menubar.item", -1, 0x70, 0x000000, 0xaaaaaa),
+    S("menubar.item.focused", -1, 0x07, 0xaaaaaa, 0x000000),
+    S("scrollbar.track", -1, 0x17, 0xaaaaaa, 0x0000a8),
+    S("scrollbar.thumb", -1, 0x1f, 0xffffff, 0x0000a8),
+    S("progress.fill", -1, 0x1b, 0x55ffff, 0x0000a8),
+    S("logview.info", -1, 0x1f, 0xffffff, 0x0000a8),
+    S("logview.notice", -1, 0x1e, 0xffff55, 0x0000a8),
+    S("logview.warning", -1, 0x1d, 0xff55ff, 0x0000a8),
+    S("logview.error", -1, 0x1c, 0xff5555, 0x0000a8),
+    S("help", -1, 0x1f, 0xffffff, 0x0000a8),
+    S("help.text", -1, -1, -1, -1),
+    S("help.bold", -1, 0x1e, 0xffff55, -1),
+    S("help.code", -1, 0x1e, 0xffff55, -1),
+    S("help.heading.1", -1, 0x31, 0x0000a8, 0x00aaaa),
+    S("help.heading.2", -1, 0x31, 0x0000a8, 0x00aaaa),
+    S("help.heading.3", -1, 0x31, 0x0000a8, 0x00aaaa),
+    S("help.bullet", -1, 0x1f, 0xffffff, -1),
+    S("popup", -1, 0x4e, 0xffff55, 0xaa0000),
+    S("popup.frame", -1, 0x4f, 0xffffff, 0xaa0000),
+    S("popup.frame.inactive", -1, 0x47, 0xaaaaaa, -1),
 };
 
 #undef S
@@ -183,51 +179,57 @@ static const struct style_template default_styles[] = {
 #define G(name, cp437, ascii) {name, cp437, ascii}
 
 static const struct glyph_template default_glyphs[] = {
-	G("background", 0x20, ' '),
-	G("classic.backdrop", 0xb0, ':'),
-	G("frame.display.topLeft", 0xda, '+'),
-	G("frame.display.top", 0xc4, '-'),
-	G("frame.display.topRight", 0xbf, '+'),
-	G("frame.display.left", 0xb3, '|'),
-	G("frame.display.right", 0xb3, '|'),
-	G("frame.display.bottomLeft", 0xc0, '+'),
-	G("frame.display.bottom", 0xc4, '-'),
-	G("frame.display.bottomRight", 0xd9, '+'),
-	G("frame.display.tee.left", 0xc3, '+'),
-	G("frame.display.tee.right", 0xb4, '+'),
-	G("frame.display.title.left", 0xb4, '-'),
-	G("frame.display.title.right", 0xc3, '-'),
-	G("frame.display.tee.top", 0xc2, '+'),
-	G("frame.display.tee.bottom", 0xc1, '+'),
-	G("frame.display.cross", 0xc5, '+'),
-	G("frame.display.separator", 0xc4, '-'),
-	G("frame.control.topLeft", 0xc9, '+'),
-	G("frame.control.top", 0xcd, '='),
-	G("frame.control.topRight", 0xbb, '+'),
-	G("frame.control.left", 0xba, '|'),
-	G("frame.control.right", 0xba, '|'),
-	G("frame.control.bottomLeft", 0xc8, '+'),
-	G("frame.control.bottom", 0xcd, '='),
-	G("frame.control.bottomRight", 0xbc, '+'),
-	G("frame.control.tee.left", 0xcc, '+'),
-	G("frame.control.tee.right", 0xb9, '+'),
-	G("frame.control.title.left", 0xb5, '='),
-	G("frame.control.title.right", 0xc6, '='),
-	G("frame.control.tee.top", 0xcb, '+'),
-	G("frame.control.tee.bottom", 0xca, '+'),
-	G("frame.control.cross", 0xce, '+'),
-	G("frame.control.separator", 0xcd, '='),
-	G("scrollbar.track", 0xb0, ':'),
-	G("scrollbar.thumb", 0xdb, '#'),
-	G("scrollbar.up", 0x1e, '^'),
-	G("scrollbar.down", 0x1f, 'v'),
-	G("scrollbar.separator", 0xb3, '|'),
-	G("arrow.up", 0x18, '^'), G("arrow.down", 0x19, 'v'),
-	G("arrow.right", 0x10, '>'), G("arrow.left", 0x11, '<'),
-	G("focus.left", 0x10, '>'), G("focus.right", 0x11, '<'),
-	G("check.on", 0xfb, 'X'), G("check.off", 0x20, ' '),
-	G("radio.on", 0x07, '*'), G("radio.off", 0x09, 'o'),
-	G("tag.on", 0xaf, '>'), G("tag.off", 0x20, ' '),
+    G("background", 0x20, ' '),
+    G("classic.backdrop", 0xb0, ':'),
+    G("frame.display.topLeft", 0xda, '+'),
+    G("frame.display.top", 0xc4, '-'),
+    G("frame.display.topRight", 0xbf, '+'),
+    G("frame.display.left", 0xb3, '|'),
+    G("frame.display.right", 0xb3, '|'),
+    G("frame.display.bottomLeft", 0xc0, '+'),
+    G("frame.display.bottom", 0xc4, '-'),
+    G("frame.display.bottomRight", 0xd9, '+'),
+    G("frame.display.tee.left", 0xc3, '+'),
+    G("frame.display.tee.right", 0xb4, '+'),
+    G("frame.display.title.left", 0xb4, '-'),
+    G("frame.display.title.right", 0xc3, '-'),
+    G("frame.display.tee.top", 0xc2, '+'),
+    G("frame.display.tee.bottom", 0xc1, '+'),
+    G("frame.display.cross", 0xc5, '+'),
+    G("frame.display.separator", 0xc4, '-'),
+    G("frame.control.topLeft", 0xc9, '+'),
+    G("frame.control.top", 0xcd, '='),
+    G("frame.control.topRight", 0xbb, '+'),
+    G("frame.control.left", 0xba, '|'),
+    G("frame.control.right", 0xba, '|'),
+    G("frame.control.bottomLeft", 0xc8, '+'),
+    G("frame.control.bottom", 0xcd, '='),
+    G("frame.control.bottomRight", 0xbc, '+'),
+    G("frame.control.tee.left", 0xcc, '+'),
+    G("frame.control.tee.right", 0xb9, '+'),
+    G("frame.control.title.left", 0xb5, '='),
+    G("frame.control.title.right", 0xc6, '='),
+    G("frame.control.tee.top", 0xcb, '+'),
+    G("frame.control.tee.bottom", 0xca, '+'),
+    G("frame.control.cross", 0xce, '+'),
+    G("frame.control.separator", 0xcd, '='),
+    G("scrollbar.track", 0xb0, ':'),
+    G("scrollbar.thumb", 0xdb, '#'),
+    G("scrollbar.up", 0x1e, '^'),
+    G("scrollbar.down", 0x1f, 'v'),
+    G("scrollbar.separator", 0xb3, '|'),
+    G("arrow.up", 0x18, '^'),
+    G("arrow.down", 0x19, 'v'),
+    G("arrow.right", 0x10, '>'),
+    G("arrow.left", 0x11, '<'),
+    G("focus.left", 0x10, '>'),
+    G("focus.right", 0x11, '<'),
+    G("check.on", 0xfb, 'X'),
+    G("check.off", 0x20, ' '),
+    G("radio.on", 0x07, '*'),
+    G("radio.off", 0x09, 'o'),
+    G("tag.on", 0xaf, '>'),
+    G("tag.off", 0x20, ' '),
 };
 
 #undef G
@@ -284,8 +286,7 @@ theme_clone(const struct st_theme *source)
 	if (theme == NULL)
 		return NULL;
 	if (!replace_string(&theme->filename, source->filename)
-	    || !replace_string(&theme->package, source->package)
-	    || !replace_string(&theme->name, source->name)
+	    || !replace_string(&theme->package, source->package) || !replace_string(&theme->name, source->name)
 	    || !replace_string(&theme->author, source->author)
 	    || !replace_string(&theme->description, source->description)
 	    || !replace_string(&theme->version, source->version))
@@ -295,7 +296,7 @@ theme_clone(const struct st_theme *source)
 		if (theme->styles == NULL)
 			goto failed;
 		for (size_t i = 0; i < source->style_count; ++i) {
-			theme->styles[i] = source->styles[i];
+			theme->styles[i]      = source->styles[i];
 			theme->styles[i].role = strdup(source->styles[i].role);
 			if (theme->styles[i].role == NULL)
 				goto failed;
@@ -307,7 +308,7 @@ theme_clone(const struct st_theme *source)
 		if (theme->glyphs == NULL)
 			goto failed;
 		for (size_t i = 0; i < source->glyph_count; ++i) {
-			theme->glyphs[i] = source->glyphs[i];
+			theme->glyphs[i]      = source->glyphs[i];
 			theme->glyphs[i].name = strdup(source->glyphs[i].name);
 			if (theme->glyphs[i].name == NULL)
 				goto failed;
@@ -328,37 +329,31 @@ build_default_theme(void)
 
 	if (theme == NULL)
 		return NULL;
-	theme->name = strdup("SyncTERM Default");
-	theme->styles = calloc(sizeof(default_styles) / sizeof(default_styles[0]),
-	    sizeof(theme->styles[0]));
-	theme->glyphs = calloc(sizeof(default_glyphs) / sizeof(default_glyphs[0]),
-	    sizeof(theme->glyphs[0]));
+	theme->name   = strdup("SyncTERM Default");
+	theme->styles = calloc(sizeof(default_styles) / sizeof(default_styles[0]), sizeof(theme->styles[0]));
+	theme->glyphs = calloc(sizeof(default_glyphs) / sizeof(default_glyphs[0]), sizeof(theme->glyphs[0]));
 	if (theme->name == NULL || theme->styles == NULL || theme->glyphs == NULL)
 		goto failed;
-	for (size_t i = 0; i < sizeof(default_styles) / sizeof(default_styles[0]);
-	    ++i) {
-		theme->styles[i] = (struct st_theme_style){
-			.role = strdup(default_styles[i].role),
-			.font = default_styles[i].font,
-			.legacy_attr = default_styles[i].legacy_attr,
-			.foreground = default_styles[i].foreground,
-			.background = default_styles[i].background,
+	for (size_t i = 0; i < sizeof(default_styles) / sizeof(default_styles[0]); ++i) {
+		theme->styles[i] = (struct st_theme_style) {
+		    .role        = strdup(default_styles[i].role),
+		    .font        = default_styles[i].font,
+		    .legacy_attr = default_styles[i].legacy_attr,
+		    .foreground  = default_styles[i].foreground,
+		    .background  = default_styles[i].background,
 		};
 		if (theme->styles[i].role == NULL)
 			goto failed;
 		++theme->style_count;
 	}
-	for (size_t i = 0; i < sizeof(default_glyphs) / sizeof(default_glyphs[0]);
-	    ++i) {
-		theme->glyphs[i] = (struct st_theme_glyph){
-			.name = strdup(default_glyphs[i].name),
-			.cp437 = default_glyphs[i].cp437,
-			.ascii = default_glyphs[i].ascii,
-			.present = (1u << ST_THEME_GLYPH_CP437)
-			    | (1u << ST_THEME_GLYPH_ASCII),
+	for (size_t i = 0; i < sizeof(default_glyphs) / sizeof(default_glyphs[0]); ++i) {
+		theme->glyphs[i] = (struct st_theme_glyph) {
+		    .name    = strdup(default_glyphs[i].name),
+		    .cp437   = default_glyphs[i].cp437,
+		    .ascii   = default_glyphs[i].ascii,
+		    .present = (1u << ST_THEME_GLYPH_CP437) | (1u << ST_THEME_GLYPH_ASCII),
 		};
-		if (theme->glyphs[i].name == NULL
-		    || !resolve_glyph(&theme->glyphs[i]))
+		if (theme->glyphs[i].name == NULL || !resolve_glyph(&theme->glyphs[i]))
 			goto failed;
 		++theme->glyph_count;
 	}
@@ -383,18 +378,18 @@ add_style(struct st_theme *theme, const char *role)
 {
 	if (theme->style_count == SIZE_MAX / sizeof(theme->styles[0]))
 		return NULL;
-	struct st_theme_style *styles = realloc(theme->styles,
-	    (theme->style_count + 1) * sizeof(theme->styles[0]));
+	struct st_theme_style *styles =
+	    realloc(theme->styles, (theme->style_count + 1) * sizeof(theme->styles[0]));
 	if (styles == NULL)
 		return NULL;
-	theme->styles = styles;
+	theme->styles                = styles;
 	struct st_theme_style *style = &styles[theme->style_count];
-	*style = (struct st_theme_style){
-		.role = strdup(role),
-		.font = ST_THEME_INHERIT,
-		.legacy_attr = ST_THEME_INHERIT,
-		.foreground = ST_THEME_INHERIT,
-		.background = ST_THEME_INHERIT,
+	*style                       = (struct st_theme_style) {
+	    .role        = strdup(role),
+	    .font        = ST_THEME_INHERIT,
+	    .legacy_attr = ST_THEME_INHERIT,
+	    .foreground  = ST_THEME_INHERIT,
+	    .background  = ST_THEME_INHERIT,
 	};
 	if (style->role == NULL)
 		return NULL;
@@ -416,13 +411,13 @@ add_glyph(struct st_theme *theme, const char *name)
 {
 	if (theme->glyph_count == SIZE_MAX / sizeof(theme->glyphs[0]))
 		return NULL;
-	struct st_theme_glyph *glyphs = realloc(theme->glyphs,
-	    (theme->glyph_count + 1) * sizeof(theme->glyphs[0]));
+	struct st_theme_glyph *glyphs =
+	    realloc(theme->glyphs, (theme->glyph_count + 1) * sizeof(theme->glyphs[0]));
 	if (glyphs == NULL)
 		return NULL;
-	theme->glyphs = glyphs;
+	theme->glyphs                = glyphs;
 	struct st_theme_glyph *glyph = &glyphs[theme->glyph_count];
-	*glyph = (struct st_theme_glyph){.name = strdup(name)};
+	*glyph                       = (struct st_theme_glyph) {.name = strdup(name)};
 	if (glyph->name == NULL)
 		return NULL;
 	++theme->glyph_count;
@@ -432,15 +427,13 @@ add_glyph(struct st_theme *theme, const char *name)
 bool
 resolve_glyph(struct st_theme_glyph *glyph)
 {
-	if (glyph == NULL
-	    || (glyph->present & (1u << ST_THEME_GLYPH_ASCII)) == 0)
+	if (glyph == NULL || (glyph->present & (1u << ST_THEME_GLYPH_ASCII)) == 0)
 		return false;
 	if ((glyph->present & (1u << ST_THEME_GLYPH_CP437)) == 0)
 		glyph->cp437 = glyph->ascii;
 	if ((glyph->present & (1u << ST_THEME_GLYPH_CODEPOINT)) != 0)
 		return st_unicode_scalar_valid(glyph->codepoint);
-	glyph->codepoint = st_codepage_to_unicode(ST_CODEPAGE_CP437,
-	    glyph->cp437, true);
+	glyph->codepoint = st_codepage_to_unicode(ST_CODEPAGE_CP437, glyph->cp437, true);
 	return true;
 }
 
@@ -451,14 +444,25 @@ classic_colour(unsigned value, unsigned sentinel, int fallback)
 }
 
 static bool
-set_complete_style(struct st_theme *theme, const char *role, int foreground,
-	int background)
+set_complete_style(struct st_theme *theme, const char *role, int foreground, int background)
 {
 	static const int rgb[] = {
-		0x000000, 0x0000aa, 0x00aa00, 0x00aaaa,
-		0xaa0000, 0xaa00aa, 0xaa5500, 0xaaaaaa,
-		0x555555, 0x5555ff, 0x55ff55, 0x55ffff,
-		0xff5555, 0xff55ff, 0xffff55, 0xffffff,
+	    0x000000,
+	    0x0000aa,
+	    0x00aa00,
+	    0x00aaaa,
+	    0xaa0000,
+	    0xaa00aa,
+	    0xaa5500,
+	    0xaaaaaa,
+	    0x555555,
+	    0x5555ff,
+	    0x55ff55,
+	    0x55ffff,
+	    0xff5555,
+	    0xff55ff,
+	    0xffff55,
+	    0xffffff,
 	};
 	struct st_theme_style *style = find_style(theme, role);
 
@@ -466,44 +470,58 @@ set_complete_style(struct st_theme *theme, const char *role, int foreground,
 		style = add_style(theme, role);
 	if (style == NULL)
 		return false;
-	style->font = 0;
+	style->font        = 0;
 	style->legacy_attr = (background << 4) | foreground;
-	style->foreground = rgb[foreground];
-	style->background = rgb[background];
+	style->foreground  = rgb[foreground];
+	style->background  = rgb[background];
 	return true;
 }
 
 struct st_theme *
-build_classic_theme(const struct st_theme *default_theme,
-	const struct st_settings *settings)
+build_classic_theme(const struct st_theme *default_theme, const struct st_settings *settings)
 {
 	static const char *const normal[] = {
-		"default", "menu.item", "list.item", "button", "checkbox",
-		"radio.item", "help", "help.bullet", "tab",
+	    "default",
+	    "menu.item",
+	    "list.item",
+	    "button",
+	    "checkbox",
+	    "radio.item",
+	    "help",
+	    "help.bullet",
+	    "tab",
 	};
 	static const char *const inactive[] = {
-		"default.inactive", "frame.inactive", "title.inactive",
+	    "default.inactive",
+	    "frame.inactive",
+	    "title.inactive",
 	};
 	static const char *const selected[] = {
-		"menu.item.focused", "list.item.focused", "input",
-		"input.focused", "button.focused", "button.focused.hotkey",
-		"checkbox.focused", "radio.item.focused", "spinbox",
-		"spinbox.focused", "tab.focused", "tab.selected.focused",
+	    "menu.item.focused",
+	    "list.item.focused",
+	    "input",
+	    "input.focused",
+	    "button.focused",
+	    "button.focused.hotkey",
+	    "checkbox.focused",
+	    "radio.item.focused",
+	    "spinbox",
+	    "spinbox.focused",
+	    "tab.focused",
+	    "tab.selected.focused",
 	};
-	struct st_theme *theme = theme_clone(default_theme);
-	int frame = classic_colour(settings->theme_frame_color, 16, 14);
-	int text = classic_colour(settings->theme_text_color, 16, 15);
-	int background = classic_colour(settings->theme_background_color, 8, 1);
-	int inverse = classic_colour(settings->theme_inverse_color, 8, 3);
-	int lightbar = classic_colour(settings->theme_lightbar_color, 16, 1);
-	int lightbar_background = classic_colour(
-	    settings->theme_lightbar_background_color, 8, 7);
+	struct st_theme *theme               = theme_clone(default_theme);
+	int              frame               = classic_colour(settings->theme_frame_color, 16, 14);
+	int              text                = classic_colour(settings->theme_text_color, 16, 15);
+	int              background          = classic_colour(settings->theme_background_color, 8, 1);
+	int              inverse             = classic_colour(settings->theme_inverse_color, 8, 3);
+	int              lightbar            = classic_colour(settings->theme_lightbar_color, 16, 1);
+	int              lightbar_background = classic_colour(settings->theme_lightbar_background_color, 8, 7);
 
 	if (theme == NULL || !replace_string(&theme->filename, "")
-	    || !replace_string(&theme->name, "Classic Theme")
-	    || !replace_string(&theme->author, "SyncTERM")
+	    || !replace_string(&theme->name, "Classic Theme") || !replace_string(&theme->author, "SyncTERM")
 	    || !replace_string(&theme->description,
-	    "The built-in SyncTERM theme using the configured Classic colours"))
+		"The built-in SyncTERM theme using the configured Classic colours"))
 		goto failed;
 	for (size_t i = 0; i < sizeof(normal) / sizeof(normal[0]); ++i)
 		if (!set_complete_style(theme, normal[i], text, background))
@@ -512,8 +530,7 @@ build_classic_theme(const struct st_theme *default_theme,
 		if (!set_complete_style(theme, inactive[i], text, inverse))
 			goto failed;
 	for (size_t i = 0; i < sizeof(selected) / sizeof(selected[0]); ++i)
-		if (!set_complete_style(theme, selected[i], lightbar,
-		    lightbar_background))
+		if (!set_complete_style(theme, selected[i], lightbar, lightbar_background))
 			goto failed;
 	if (!set_complete_style(theme, "list.item.focused.inactive", frame, inverse)
 	    || !set_complete_style(theme, "frame", frame, background)
@@ -542,14 +559,13 @@ failed:
 }
 
 static bool
-parse_number(const char *text, long minimum, long maximum, bool inherit,
-	int *result)
+parse_number(const char *text, long minimum, long maximum, bool inherit, int *result)
 {
-	size_t begin;
-	size_t end;
-	unsigned base = 10;
+	size_t        begin;
+	size_t        end;
+	unsigned      base  = 10;
 	unsigned long value = 0;
-	bool any = false;
+	bool          any   = false;
 
 	string_ascii_trim_span(text, strlen(text), &begin, &end);
 	if (inherit && text_equal_span(text + begin, end - begin, "inherit")) {
@@ -558,8 +574,7 @@ parse_number(const char *text, long minimum, long maximum, bool inherit,
 	}
 	if (begin < end && text[begin] == '+')
 		++begin;
-	if (end - begin >= 2 && text[begin] == '0'
-	    && (text[begin + 1] == 'x' || text[begin + 1] == 'X')) {
+	if (end - begin >= 2 && text[begin] == '0' && (text[begin + 1] == 'x' || text[begin + 1] == 'X')) {
 		base = 16;
 		begin += 2;
 	}
@@ -568,7 +583,7 @@ parse_number(const char *text, long minimum, long maximum, bool inherit,
 		++begin;
 	}
 	for (size_t i = begin; i < end; ++i) {
-		unsigned digit;
+		unsigned      digit;
 		unsigned char character = (unsigned char)text[i];
 
 		if (character >= '0' && character <= '9')
@@ -582,30 +597,34 @@ parse_number(const char *text, long minimum, long maximum, bool inherit,
 		if (digit >= base || value > ((unsigned long)maximum - digit) / base)
 			return false;
 		value = value * base + digit;
-		any = true;
+		any   = true;
 	}
-	if (!any || value < (unsigned long)minimum
-	    || value > (unsigned long)maximum)
+	if (!any || value < (unsigned long)minimum || value > (unsigned long)maximum)
 		return false;
 	*result = (int)value;
 	return true;
 }
 
 static bool
-metadata_destination(const char *key, struct st_theme *theme,
-	char ***destination, unsigned *bit)
+metadata_destination(const char *key, struct st_theme *theme, char ***destination, unsigned *bit)
 {
 	static const char *const names[] = {
-		"Name", "Author", "Description", "Version",
+	    "Name",
+	    "Author",
+	    "Description",
+	    "Version",
 	};
 	char **destinations[] = {
-		&theme->name, &theme->author, &theme->description, &theme->version,
+	    &theme->name,
+	    &theme->author,
+	    &theme->description,
+	    &theme->version,
 	};
 
 	for (unsigned i = 0; i < sizeof(names) / sizeof(names[0]); ++i) {
 		if (text_equal(key, names[i])) {
 			*destination = destinations[i];
-			*bit = 1u << i;
+			*bit         = 1u << i;
 			return true;
 		}
 	}
@@ -613,22 +632,20 @@ metadata_destination(const char *key, struct st_theme *theme,
 }
 
 static bool
-parse_metadata(ini_document_t *document, struct st_theme *theme, char *error,
-	size_t error_size)
+parse_metadata(ini_document_t *document, struct st_theme *theme, char *error, size_t error_size)
 {
 	ini_section_t *root = ini_document_root(document);
-	unsigned seen = 0;
+	unsigned       seen = 0;
 
 	for (size_t i = 0; i < ini_section_count(root); ++i) {
 		const struct name_value *pair = ini_section_at(root, i);
-		char **destination;
-		unsigned bit;
+		char                   **destination;
+		unsigned                 bit;
 
 		if (!metadata_destination(pair->name, theme, &destination, &bit))
 			continue;
 		if ((seen & bit) != 0) {
-			set_error(error, error_size, "duplicate metadata key: %s",
-			    pair->name);
+			set_error(error, error_size, "duplicate metadata key: %s", pair->name);
 			return false;
 		}
 		seen |= bit;
@@ -645,13 +662,12 @@ parse_metadata(ini_document_t *document, struct st_theme *theme, char *error,
 }
 
 static bool
-parse_style(ini_section_t *section, struct st_theme *theme, char *error,
-	size_t error_size)
+parse_style(ini_section_t *section, struct st_theme *theme, char *error, size_t error_size)
 {
-	const char *section_name = ini_section_name(section);
-	const char *role = section_suffix(section_name, "Style");
+	const char            *section_name = ini_section_name(section);
+	const char            *role         = section_suffix(section_name, "Style");
 	struct st_theme_style *style;
-	unsigned seen = 0;
+	unsigned               seen = 0;
 
 	if (*role == '\0') {
 		set_error(error, error_size, "empty Style role");
@@ -665,42 +681,40 @@ parse_style(ini_section_t *section, struct st_theme *theme, char *error,
 		return false;
 	}
 	for (size_t i = 0; i < ini_section_count(section); ++i) {
-		const struct name_value *pair = ini_section_at(section, i);
-		int *destination = NULL;
-		long maximum = 0;
-		unsigned bit = 0;
+		const struct name_value *pair        = ini_section_at(section, i);
+		int                     *destination = NULL;
+		long                     maximum     = 0;
+		unsigned                 bit         = 0;
 
 		if (text_equal(pair->name, "Font")) {
 			destination = &style->font;
-			maximum = 255;
-			bit = 1u;
+			maximum     = 255;
+			bit         = 1u;
 		}
 		else if (text_equal(pair->name, "LegacyAttr")) {
 			destination = &style->legacy_attr;
-			maximum = 255;
-			bit = 2u;
+			maximum     = 255;
+			bit         = 2u;
 		}
 		else if (text_equal(pair->name, "Foreground")) {
 			destination = &style->foreground;
-			maximum = 0xffffff;
-			bit = 4u;
+			maximum     = 0xffffff;
+			bit         = 4u;
 		}
 		else if (text_equal(pair->name, "Background")) {
 			destination = &style->background;
-			maximum = 0xffffff;
-			bit = 8u;
+			maximum     = 0xffffff;
+			bit         = 8u;
 		}
 		if (destination == NULL)
 			continue;
 		if ((seen & bit) != 0) {
-			set_error(error, error_size, "duplicate %s in [%s]",
-			    pair->name, section_name);
+			set_error(error, error_size, "duplicate %s in [%s]", pair->name, section_name);
 			return false;
 		}
 		seen |= bit;
 		if (!parse_number(pair->value, 0, maximum, true, destination)) {
-			set_error(error, error_size, "invalid %s in [%s]",
-			    pair->name, section_name);
+			set_error(error, error_size, "invalid %s in [%s]", pair->name, section_name);
 			return false;
 		}
 	}
@@ -708,20 +722,19 @@ parse_style(ini_section_t *section, struct st_theme *theme, char *error,
 }
 
 static bool
-parse_glyph(ini_section_t *section, struct st_theme *theme, char *error,
-	size_t error_size)
+parse_glyph(ini_section_t *section, struct st_theme *theme, char *error, size_t error_size)
 {
-	const char *section_name = ini_section_name(section);
-	const char *name = section_suffix(section_name, "Glyph");
+	const char            *section_name = ini_section_name(section);
+	const char            *name         = section_suffix(section_name, "Glyph");
 	struct st_theme_glyph *glyph;
-	bool is_new;
-	unsigned seen = 0;
+	bool                   is_new;
+	unsigned               seen = 0;
 
 	if (*name == '\0') {
 		set_error(error, error_size, "empty Glyph name");
 		return false;
 	}
-	glyph = find_glyph(theme, name);
+	glyph  = find_glyph(theme, name);
 	is_new = glyph == NULL;
 	if (glyph == NULL)
 		glyph = add_glyph(theme, name);
@@ -730,43 +743,40 @@ parse_glyph(ini_section_t *section, struct st_theme *theme, char *error,
 		return false;
 	}
 	for (size_t i = 0; i < ini_section_count(section); ++i) {
-		const struct name_value *pair = ini_section_at(section, i);
-		long minimum = 0;
-		long maximum = 255;
-		unsigned bit = 0;
-		unsigned field;
-		int parsed;
+		const struct name_value *pair    = ini_section_at(section, i);
+		long                     minimum = 0;
+		long                     maximum = 255;
+		unsigned                 bit     = 0;
+		unsigned                 field;
+		int                      parsed;
 
 		if (text_equal(pair->name, "CP437")) {
 			field = ST_THEME_GLYPH_CP437;
 		}
 		else if (text_equal(pair->name, "ASCII")) {
-			field = ST_THEME_GLYPH_ASCII;
+			field   = ST_THEME_GLYPH_ASCII;
 			minimum = 0x20;
 			maximum = 0x7e;
 		}
 		else if (text_equal(pair->name, "Codepoint")) {
-			field = ST_THEME_GLYPH_CODEPOINT;
+			field   = ST_THEME_GLYPH_CODEPOINT;
 			maximum = 0x10ffff;
 		}
 		else
 			continue;
 		bit = 1u << field;
 		if ((seen & bit) != 0) {
-			set_error(error, error_size, "duplicate %s in [%s]",
-			    pair->name, section_name);
+			set_error(error, error_size, "duplicate %s in [%s]", pair->name, section_name);
 			return false;
 		}
 		seen |= bit;
 		if (!parse_number(pair->value, minimum, maximum, false, &parsed)) {
-			set_error(error, error_size, "invalid %s in [%s]",
-			    pair->name, section_name);
+			set_error(error, error_size, "invalid %s in [%s]", pair->name, section_name);
 			return false;
 		}
 		if (field == ST_THEME_GLYPH_CODEPOINT) {
 			if (!st_unicode_scalar_valid((uint32_t)parsed)) {
-				set_error(error, error_size, "invalid %s in [%s]",
-				    pair->name, section_name);
+				set_error(error, error_size, "invalid %s in [%s]", pair->name, section_name);
 				return false;
 			}
 			glyph->codepoint = (uint32_t)parsed;
@@ -778,13 +788,11 @@ parse_glyph(ini_section_t *section, struct st_theme *theme, char *error,
 		glyph->present |= bit;
 	}
 	if (is_new && (seen & (1u << ST_THEME_GLYPH_ASCII)) == 0) {
-		set_error(error, error_size,
-		    "new glyph [%s] requires ASCII", section_name);
+		set_error(error, error_size, "new glyph [%s] requires ASCII", section_name);
 		return false;
 	}
 	if (!resolve_glyph(glyph)) {
-		set_error(error, error_size, "glyph [%s] has no ASCII fallback",
-		    section_name);
+		set_error(error, error_size, "glyph [%s] has no ASCII fallback", section_name);
 		return false;
 	}
 	return true;
@@ -797,21 +805,20 @@ default_complete(const struct st_theme *theme)
 		const struct st_theme_style *style = &theme->styles[i];
 
 		if (strcmp(style->role, "default") == 0)
-			return style->font >= 0 && style->legacy_attr >= 0
-			    && style->foreground >= 0 && style->background >= 0;
+			return style->font >= 0 && style->legacy_attr >= 0 && style->foreground >= 0
+			       && style->background >= 0;
 	}
 	return false;
 }
 
 int
-load_path(const struct st_theme_manager *manager, const char *path,
-	const char *filename, struct st_theme **result, char *error,
-	size_t error_size)
+load_path(const struct st_theme_manager *manager, const char *path, const char *filename, struct st_theme **result,
+    char *error, size_t error_size)
 {
-	ini_document_t *document = NULL;
-	struct st_theme *theme = NULL;
-	FILE *stream = NULL;
-	int status;
+	ini_document_t  *document = NULL;
+	struct st_theme *theme    = NULL;
+	FILE            *stream   = NULL;
+	int              status;
 
 	(void)manager;
 	status = fs_open(&stream, path, "rb");
@@ -830,10 +837,8 @@ load_path(const struct st_theme_manager *manager, const char *path,
 		status = IO_ERROR_OUT_OF_MEMORY;
 		goto failed;
 	}
-	if (!replace_string(&theme->filename, filename)
-	    || !replace_string(&theme->name, NULL)
-	    || !replace_string(&theme->author, NULL)
-	    || !replace_string(&theme->description, NULL)
+	if (!replace_string(&theme->filename, filename) || !replace_string(&theme->name, NULL)
+	    || !replace_string(&theme->author, NULL) || !replace_string(&theme->description, NULL)
 	    || !replace_string(&theme->version, NULL)) {
 		status = IO_ERROR_OUT_OF_MEMORY;
 		goto failed;
@@ -844,15 +849,14 @@ load_path(const struct st_theme_manager *manager, const char *path,
 	}
 	for (size_t i = 0; i < ini_document_section_count(document); ++i) {
 		ini_section_t *section = ini_document_section_at(document, i);
-		const char *name = ini_section_name(section);
-		bool style = section_suffix(name, "Style") != NULL;
-		bool glyph = section_suffix(name, "Glyph") != NULL;
+		const char    *name    = ini_section_name(section);
+		bool           style   = section_suffix(name, "Style") != NULL;
+		bool           glyph   = section_suffix(name, "Glyph") != NULL;
 
 		if (!style && !glyph)
 			continue;
 		for (size_t prior = 0; prior < i; ++prior) {
-			const char *prior_name = ini_section_name(
-			    ini_document_section_at(document, prior));
+			const char *prior_name = ini_section_name(ini_document_section_at(document, prior));
 			if (text_equal(name, prior_name)) {
 				set_error(error, error_size, "duplicate section [%s]", name);
 				status = IO_ERROR_INVALID_FORMAT;
@@ -860,7 +864,7 @@ load_path(const struct st_theme_manager *manager, const char *path,
 			}
 		}
 		if (!(style ? parse_style(section, theme, error, error_size)
-		    : parse_glyph(section, theme, error, error_size))) {
+		            : parse_glyph(section, theme, error, error_size))) {
 			status = IO_ERROR_INVALID_FORMAT;
 			goto failed;
 		}
@@ -894,11 +898,11 @@ st_theme_valid_filename(const char *filename)
 }
 
 int
-load_file(const struct st_theme_manager *manager, const char *filename,
-	struct st_theme **result, char *error, size_t error_size)
+load_file(const struct st_theme_manager *manager, const char *filename, struct st_theme **result, char *error,
+    size_t error_size)
 {
 	char *path = NULL;
-	int status;
+	int   status;
 
 	if (!st_theme_valid_filename(filename)) {
 		set_error(error, error_size, "invalid theme filename");
@@ -922,46 +926,41 @@ install_theme(struct st_theme_manager *manager, struct st_theme *theme)
 }
 
 int
-st_theme_manager_create(struct st_theme_manager **result,
-	const struct st_app_paths *paths, const struct st_settings *settings,
-	char *error, size_t error_size)
+st_theme_manager_create(struct st_theme_manager **result, const struct st_app_paths *paths,
+    const struct st_settings *settings, char *error, size_t error_size)
 {
 	struct st_theme_manager *manager;
-	struct st_theme *selected = NULL;
+	struct st_theme         *selected = NULL;
 
-	if (result == NULL || paths == NULL || paths->themes_directory == NULL
-	    || settings == NULL)
+	if (result == NULL || paths == NULL || paths->themes_directory == NULL || settings == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	manager = calloc(1, sizeof(*manager));
 	if (manager == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
 	st_settings_init(&manager->classic_settings);
 	manager->directory = strdup(paths->themes_directory);
-	manager->system_cache_directory = paths->system_cache_directory == NULL
-	    ? NULL : strdup(paths->system_cache_directory);
+	manager->system_cache_directory =
+	    paths->system_cache_directory == NULL ? NULL : strdup(paths->system_cache_directory);
 	manager->default_theme = build_default_theme();
-	if (manager->directory == NULL || (paths->system_cache_directory != NULL
-	    && manager->system_cache_directory == NULL)
-	    || manager->default_theme == NULL
-	    || !st_settings_copy(&manager->classic_settings, settings)) {
+	if (manager->directory == NULL
+	    || (paths->system_cache_directory != NULL && manager->system_cache_directory == NULL)
+	    || manager->default_theme == NULL || !st_settings_copy(&manager->classic_settings, settings)) {
 		st_theme_manager_free(&manager);
 		return IO_ERROR_OUT_OF_MEMORY;
 	}
-	manager->committed_theme = build_classic_theme(manager->default_theme,
-	    settings);
+	manager->committed_theme = build_classic_theme(manager->default_theme, settings);
 	if (manager->committed_theme == NULL) {
 		st_theme_manager_free(&manager);
 		return IO_ERROR_OUT_OF_MEMORY;
 	}
 	manager->generation = 1;
 	if (settings->theme_package != NULL && settings->theme_package[0] != '\0') {
-		if (st_theme_cloud_load_package(manager, settings->theme_package,
-		    &selected, error, error_size) == 0)
+		if (st_theme_cloud_load_package(manager, settings->theme_package, &selected, error, error_size)
+		    == 0)
 			install_theme(manager, selected);
 	}
 	else if (settings->theme_file != NULL && settings->theme_file[0] != '\0') {
-		if (load_file(manager, settings->theme_file, &selected, error,
-		    error_size) == 0)
+		if (load_file(manager, settings->theme_file, &selected, error, error_size) == 0)
 			install_theme(manager, selected);
 	}
 	/* Restore the browser's cached packages without a network request. The
@@ -989,7 +988,7 @@ static void
 free_catalog(struct st_theme_manager *manager)
 {
 	dispose_catalog(manager->catalog, manager->catalog_count);
-	manager->catalog = NULL;
+	manager->catalog       = NULL;
 	manager->catalog_count = 0;
 }
 
@@ -1018,8 +1017,7 @@ st_theme_active(const struct st_theme_manager *manager)
 {
 	if (manager == NULL)
 		return NULL;
-	return manager->preview_theme != NULL ? manager->preview_theme
-	    : manager->committed_theme;
+	return manager->preview_theme != NULL ? manager->preview_theme : manager->committed_theme;
 }
 
 const struct st_theme *
@@ -1035,7 +1033,7 @@ st_theme_generation(const struct st_theme_manager *manager)
 }
 
 struct st_theme_prepared {
-	struct st_theme *theme;
+	struct st_theme   *theme;
 	struct st_settings classic_settings;
 };
 
@@ -1054,34 +1052,31 @@ st_theme_prepared_free(struct st_theme_prepared **prepared_ptr)
 }
 
 int
-st_theme_prepare_settings(struct st_theme_prepared **result,
-	struct st_theme_manager *manager, const struct st_settings *settings,
-	char *error, size_t error_size)
+st_theme_prepare_settings(struct st_theme_prepared **result, struct st_theme_manager *manager,
+    const struct st_settings *settings, char *error, size_t error_size)
 {
 	struct st_theme_prepared *prepared;
-	int status;
+	int                       status;
 
 	if (result == NULL || manager == NULL || settings == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	*result = NULL;
+	*result  = NULL;
 	prepared = calloc(1, sizeof(*prepared));
 	if (prepared == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
 	st_settings_init(&prepared->classic_settings);
 	if (settings->theme_package != NULL && settings->theme_package[0] != '\0') {
-		status = st_theme_cloud_load_package(manager, settings->theme_package,
-		    &prepared->theme, error, error_size);
+		status = st_theme_cloud_load_package(manager, settings->theme_package, &prepared->theme, error,
+		    error_size);
 	}
 	else if (settings->theme_file == NULL || settings->theme_file[0] == '\0') {
 		prepared->theme = build_classic_theme(manager->default_theme, settings);
-		status = prepared->theme == NULL ? IO_ERROR_OUT_OF_MEMORY : 0;
+		status          = prepared->theme == NULL ? IO_ERROR_OUT_OF_MEMORY : 0;
 	}
 	else {
-		status = load_file(manager, settings->theme_file, &prepared->theme,
-		    error, error_size);
+		status = load_file(manager, settings->theme_file, &prepared->theme, error, error_size);
 	}
-	if (status == 0
-	    && !st_settings_copy(&prepared->classic_settings, settings))
+	if (status == 0 && !st_settings_copy(&prepared->classic_settings, settings))
 		status = IO_ERROR_OUT_OF_MEMORY;
 	if (status != 0) {
 		st_theme_prepared_free(&prepared);
@@ -1092,16 +1087,15 @@ st_theme_prepare_settings(struct st_theme_prepared **result,
 }
 
 void
-st_theme_install_prepared(struct st_theme_manager *manager,
-	struct st_theme_prepared **prepared_ptr)
+st_theme_install_prepared(struct st_theme_manager *manager, struct st_theme_prepared **prepared_ptr)
 {
 	struct st_theme_prepared *prepared;
-	struct st_settings previous;
+	struct st_settings        previous;
 
 	if (manager == NULL || prepared_ptr == NULL || *prepared_ptr == NULL)
 		return;
-	prepared = *prepared_ptr;
-	previous = manager->classic_settings;
+	prepared                  = *prepared_ptr;
+	previous                  = manager->classic_settings;
 	manager->classic_settings = prepared->classic_settings;
 	st_settings_init(&prepared->classic_settings);
 	st_settings_dispose(&previous);
@@ -1111,51 +1105,43 @@ st_theme_install_prepared(struct st_theme_manager *manager,
 }
 
 int
-st_theme_apply_settings(struct st_theme_manager *manager,
-	const struct st_settings *settings, char *error, size_t error_size)
+st_theme_apply_settings(struct st_theme_manager *manager, const struct st_settings *settings, char *error,
+    size_t error_size)
 {
 	struct st_theme_prepared *prepared = NULL;
-	int status;
+	int                       status;
 
-	status = st_theme_prepare_settings(&prepared, manager, settings, error,
-	    error_size);
+	status = st_theme_prepare_settings(&prepared, manager, settings, error, error_size);
 	if (status == 0)
 		st_theme_install_prepared(manager, &prepared);
 	return status;
 }
 
 static int
-append_catalog(struct st_theme_catalog_entry **catalog_ptr, size_t *count_ptr,
-	const char *filename,
-	const struct st_theme *theme, const char *load_error)
+append_catalog(struct st_theme_catalog_entry **catalog_ptr, size_t *count_ptr, const char *filename,
+    const struct st_theme *theme, const char *load_error)
 {
 	struct st_theme_catalog_entry *catalog = *catalog_ptr;
-	size_t count = *count_ptr;
+	size_t                         count   = *count_ptr;
 
 	if (count == SIZE_MAX / sizeof(catalog[0]))
 		return IO_ERROR_OUT_OF_MEMORY;
-	struct st_theme_catalog_entry *resized = realloc(catalog,
-	    (count + 1) * sizeof(catalog[0]));
+	struct st_theme_catalog_entry *resized = realloc(catalog, (count + 1) * sizeof(catalog[0]));
 	if (resized == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
-	*catalog_ptr = resized;
+	*catalog_ptr                         = resized;
 	struct st_theme_catalog_entry *entry = &resized[count];
-	*entry = (struct st_theme_catalog_entry){
-		.filename = strdup(filename),
-		.name = strdup(theme != NULL && theme->name != NULL ? theme->name
-		    : filename),
-		.author = theme != NULL && theme->author != NULL
-		    ? strdup(theme->author) : NULL,
-		.description = theme != NULL && theme->description != NULL
-		    ? strdup(theme->description) : NULL,
-		.version = theme != NULL && theme->version != NULL
-		    ? strdup(theme->version) : NULL,
-		.error = load_error != NULL ? strdup(load_error) : NULL,
+	*entry                               = (struct st_theme_catalog_entry) {
+	    .filename    = strdup(filename),
+	    .name        = strdup(theme != NULL && theme->name != NULL ? theme->name : filename),
+	    .author      = theme != NULL && theme->author != NULL ? strdup(theme->author) : NULL,
+	    .description = theme != NULL && theme->description != NULL ? strdup(theme->description) : NULL,
+	    .version     = theme != NULL && theme->version != NULL ? strdup(theme->version) : NULL,
+	    .error       = load_error != NULL ? strdup(load_error) : NULL,
 	};
 	if (entry->filename == NULL || entry->name == NULL
 	    || (theme != NULL && theme->author != NULL && entry->author == NULL)
-	    || (theme != NULL && theme->description != NULL
-	    && entry->description == NULL)
+	    || (theme != NULL && theme->description != NULL && entry->description == NULL)
 	    || (theme != NULL && theme->version != NULL && entry->version == NULL)
 	    || (load_error != NULL && entry->error == NULL)) {
 		free(entry->filename);
@@ -1173,7 +1159,7 @@ append_catalog(struct st_theme_catalog_entry **catalog_ptr, size_t *count_ptr,
 static int
 catalog_compare(const void *left_ptr, const void *right_ptr)
 {
-	const struct st_theme_catalog_entry *left = left_ptr;
+	const struct st_theme_catalog_entry *left  = left_ptr;
 	const struct st_theme_catalog_entry *right = right_ptr;
 
 	if (left->filename[0] == '\0')
@@ -1182,33 +1168,31 @@ catalog_compare(const void *left_ptr, const void *right_ptr)
 		return 1;
 	int compared;
 
-	if (st_unicode_collate(&compared, left->name, strlen(left->name),
-	    right->name, strlen(right->name),
-	    ST_UNICODE_COLLATION_CASE_INSENSITIVE) != 0)
+	if (st_unicode_collate(&compared, left->name, strlen(left->name), right->name, strlen(right->name),
+		ST_UNICODE_COLLATION_CASE_INSENSITIVE)
+	    != 0)
 		compared = strcmp(left->name, right->name);
 	if (compared != 0)
 		return compared;
-	if (st_unicode_collate(&compared, left->filename, strlen(left->filename),
-	    right->filename, strlen(right->filename),
-	    ST_UNICODE_COLLATION_CASE_INSENSITIVE) != 0)
+	if (st_unicode_collate(&compared, left->filename, strlen(left->filename), right->filename,
+		strlen(right->filename), ST_UNICODE_COLLATION_CASE_INSENSITIVE)
+	    != 0)
 		compared = strcmp(left->filename, right->filename);
 	return compared;
 }
 
 int
-st_theme_catalog_refresh(struct st_theme_manager *manager, char *error,
-	size_t error_size)
+st_theme_catalog_refresh(struct st_theme_manager *manager, char *error, size_t error_size)
 {
-	struct st_theme_directory directory = {0};
-	struct st_theme_catalog_entry *catalog = NULL;
-	size_t catalog_count = 0;
-	struct st_theme *classic;
-	int status;
+	struct st_theme_directory      directory     = {0};
+	struct st_theme_catalog_entry *catalog       = NULL;
+	size_t                         catalog_count = 0;
+	struct st_theme               *classic;
+	int                            status;
 
 	if (manager == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	classic = build_classic_theme(manager->default_theme,
-	    &manager->classic_settings);
+	classic = build_classic_theme(manager->default_theme, &manager->classic_settings);
 	if (classic == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
 	status = append_catalog(&catalog, &catalog_count, "", classic, NULL);
@@ -1219,15 +1203,13 @@ st_theme_catalog_refresh(struct st_theme_manager *manager, char *error,
 		set_error(error, error_size, "unable to enumerate the themes directory");
 	}
 	for (size_t i = 0; status == 0 && i < directory.count; ++i) {
-		struct st_theme *theme = NULL;
-		char load_error[256] = "";
+		struct st_theme *theme           = NULL;
+		char             load_error[256] = "";
 
 		if (!st_theme_valid_filename(directory.entries[i].name))
 			continue;
-		status = load_file(manager, directory.entries[i].name, &theme,
-		    load_error, sizeof(load_error));
-		status = append_catalog(&catalog, &catalog_count,
-		    directory.entries[i].name, theme,
+		status = load_file(manager, directory.entries[i].name, &theme, load_error, sizeof(load_error));
+		status = append_catalog(&catalog, &catalog_count, directory.entries[i].name, theme,
 		    status == 0 ? NULL : load_error);
 		theme_free(theme);
 	}
@@ -1238,7 +1220,7 @@ st_theme_catalog_refresh(struct st_theme_manager *manager, char *error,
 	}
 	qsort(catalog, catalog_count, sizeof(catalog[0]), catalog_compare);
 	free_catalog(manager);
-	manager->catalog = catalog;
+	manager->catalog       = catalog;
 	manager->catalog_count = catalog_count;
 	return 0;
 }
@@ -1252,22 +1234,19 @@ st_theme_catalog_count(const struct st_theme_manager *manager)
 const struct st_theme_catalog_entry *
 st_theme_catalog_at(const struct st_theme_manager *manager, size_t index)
 {
-	return manager == NULL || index >= manager->catalog_count ? NULL
-	    : &manager->catalog[index];
+	return manager == NULL || index >= manager->catalog_count ? NULL : &manager->catalog[index];
 }
 
 int
-st_theme_preview(struct st_theme_manager *manager, const char *filename,
-	char *error, size_t error_size)
+st_theme_preview(struct st_theme_manager *manager, const char *filename, char *error, size_t error_size)
 {
 	struct st_theme *theme = NULL;
-	int status;
+	int              status;
 
 	if (manager == NULL || filename == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (filename[0] == '\0') {
-		theme = build_classic_theme(manager->default_theme,
-		    &manager->classic_settings);
+		theme  = build_classic_theme(manager->default_theme, &manager->classic_settings);
 		status = theme == NULL ? IO_ERROR_OUT_OF_MEMORY : 0;
 	}
 	else
@@ -1291,17 +1270,15 @@ st_theme_cancel_preview(struct st_theme_manager *manager)
 }
 
 int
-st_theme_select(struct st_theme_manager *manager, const char *filename,
-	char *error, size_t error_size)
+st_theme_select(struct st_theme_manager *manager, const char *filename, char *error, size_t error_size)
 {
 	struct st_theme *theme = NULL;
-	int status;
+	int              status;
 
 	if (manager == NULL || filename == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (filename[0] == '\0') {
-		theme = build_classic_theme(manager->default_theme,
-		    &manager->classic_settings);
+		theme  = build_classic_theme(manager->default_theme, &manager->classic_settings);
 		status = theme == NULL ? IO_ERROR_OUT_OF_MEMORY : 0;
 	}
 	else
@@ -1312,11 +1289,10 @@ st_theme_select(struct st_theme_manager *manager, const char *filename,
 }
 
 int
-st_theme_delete(struct st_theme_manager *manager, const char *filename,
-	char *error, size_t error_size)
+st_theme_delete(struct st_theme_manager *manager, const char *filename, char *error, size_t error_size)
 {
 	char *path = NULL;
-	int status;
+	int   status;
 
 	if (manager == NULL || !st_theme_valid_filename(filename)) {
 		set_error(error, error_size, "invalid theme filename");

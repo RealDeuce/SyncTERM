@@ -8,16 +8,15 @@
 struct st_rip3_resource_match {
 	const char *directory;
 	const char *key;
-	size_t key_size;
-	char *path;
-	bool writing; /* Detect non-file collisions without following final links. */
-	bool existence_only;
+	size_t      key_size;
+	char       *path;
+	bool        writing; /* Detect non-file collisions without following final links. */
+	bool        existence_only;
 };
 
 /* Platform code enumerates names only. Matching and regular-file policy
  * belong to the shared implementation. The caller owns match->path. */
-int st_rip3_resource_consider(struct st_rip3_resource_match *match,
-    const char *name);
+int st_rip3_resource_consider(struct st_rip3_resource_match *match, const char *name);
 int st_rip3_resource_directory_scan(struct st_rip3_resource_match *match);
 
 #endif

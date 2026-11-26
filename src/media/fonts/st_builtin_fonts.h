@@ -8,18 +8,18 @@
 #ifndef ST_BUILTIN_FONTS_H_
 #define ST_BUILTIN_FONTS_H_
 
-#include "st_codepage.h"
-#include "st_console.h"
-
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
+#include "st_codepage.h"
+#include "st_console.h"
+
 #define ST_BUILTIN_FONT_COUNT 46U
 
-size_t st_builtin_font_count(void);
-const char *st_builtin_font_name(size_t selector);
-bool st_builtin_font_broken_vertical(size_t selector);
+size_t           st_builtin_font_count(void);
+const char      *st_builtin_font_name(size_t selector);
+bool             st_builtin_font_broken_vertical(size_t selector);
 enum st_codepage st_builtin_font_codepage(size_t selector);
 
 /* Attach a Unicode mapping to a font whose glyph indexes are encoded bytes. */
@@ -29,7 +29,6 @@ bool st_builtin_font_map_codepage(enum st_codepage codepage, struct st_console_f
  * Returns a borrowed font matching the exact cell dimensions. Bitmap and
  * mapping storage remain valid for the life of the process.
  */
-bool st_builtin_font_get(size_t selector, uint32_t width, uint32_t height,
-	struct st_console_font *font);
+bool st_builtin_font_get(size_t selector, uint32_t width, uint32_t height, struct st_console_font *font);
 
 #endif

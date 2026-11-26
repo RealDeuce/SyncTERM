@@ -1,10 +1,10 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
-#include "st_rip3_maf.h"
-#include "st_rip3_font_data.h"
-#include "io_error.h"
-
 #include <stdbool.h>
 #include <string.h>
+
+#include "io_error.h"
+#include "st_rip3_font_data.h"
+#include "st_rip3_maf.h"
 
 static unsigned
 word(const uint8_t *data)
@@ -15,43 +15,40 @@ word(const uint8_t *data)
 static uint32_t
 dword(const uint8_t *data)
 {
-	return (uint32_t)data[0] | (uint32_t)data[1] << 8
-	    | (uint32_t)data[2] << 16 | (uint32_t)data[3] << 24;
+	return (uint32_t)data[0] | (uint32_t)data[1] << 8 | (uint32_t)data[2] << 16 | (uint32_t)data[3] << 24;
 }
 
 static int
-read_font(struct st_rip3_maf_font *result, const uint8_t *data,
-	size_t size, size_t offset)
+read_font(struct st_rip3_maf_font *result, const uint8_t *data, size_t size, size_t offset)
 {
 	struct st_rip3_maf_font font;
 
 	if (offset < 60 || offset > size || size - offset < 50)
 		return IO_ERROR_INVALID_FORMAT;
-	font.width = word(data + offset);
-	font.height = word(data + offset + 2);
-	font.row_bytes = (font.width + 7U) / 8U;
+	font.width      = word(data + offset);
+	font.height     = word(data + offset + 2);
+	font.row_bytes  = (font.width + 7U) / 8U;
 	font.glyph_size = word(data + offset + 36);
-	if (font.width == 0 || font.height == 0 || font.glyph_size == 0
-	    || word(data + offset + 34) != 255
-	    || font.row_bytes * font.height != font.glyph_size
-	    || (size - offset - 50) / font.glyph_size < 255)
+	if (font.width == 0 || font.height == 0 || font.glyph_size == 0 || word(data + offset + 34) != 255
+	    || font.row_bytes * font.height != font.glyph_size || (size - offset - 50) / font.glyph_size < 255)
 		return IO_ERROR_INVALID_FORMAT;
 	font.glyphs = data + offset + 50;
-	*result = font;
+	*result     = font;
 	return 0;
 }
 
 int
 st_rip3_maf_open(struct st_rip3_maf *result, const void *bytes, size_t size)
 {
-	static const char magic[] = "\004 RIPterm v2.0 MicroANSI Font File \004\n\r\0\032";
-	const uint8_t *data = bytes;
+	static const char  magic[] = "\004 RIPterm v2.0 MicroANSI Font File \004\n\r\0\032";
+	const uint8_t     *data    = bytes;
 	struct st_rip3_maf file;
 
-	if (result == NULL || data == NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (result == NULL || data == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
 	if (size < 60 || memcmp(data, magic, sizeof(magic) - 1) != 0)
 		return IO_ERROR_INVALID_FORMAT;
-	file = (struct st_rip3_maf){data, size, dword(data + 42), word(data + 40)};
+	file = (struct st_rip3_maf) {data, size, dword(data + 42), word(data + 40)};
 	if (file.resolutions == 0 || file.directory < 60 || file.directory > size
 	    || file.resolutions > (size - file.directory) / 60)
 		return IO_ERROR_INVALID_FORMAT;
@@ -62,7 +59,8 @@ st_rip3_maf_open(struct st_rip3_maf *result, const void *bytes, size_t size)
 		for (size_t mode = 0; mode < 5; ++mode) {
 			struct st_rip3_maf_font font;
 			int status = read_font(&font, data, size, dword(record + 4 + 4 * mode));
-			if (status != 0) return status;
+			if (status != 0)
+				return status;
 		}
 	}
 	*result = file;
@@ -70,18 +68,15 @@ st_rip3_maf_open(struct st_rip3_maf *result, const void *bytes, size_t size)
 }
 
 int
-st_rip3_maf_find(struct st_rip3_maf_font *result,
-	const struct st_rip3_maf *file, unsigned width, unsigned height,
-	enum st_rip3_maf_mode mode)
+st_rip3_maf_find(struct st_rip3_maf_font *result, const struct st_rip3_maf *file, unsigned width, unsigned height,
+    enum st_rip3_maf_mode mode)
 {
-	if (result == NULL || file == NULL || file->data == NULL
-	    || (unsigned)mode > ST_RIP3_MAF_40X25)
+	if (result == NULL || file == NULL || file->data == NULL || (unsigned)mode > ST_RIP3_MAF_40X25)
 		return IO_ERROR_INVALID_ARGUMENT;
 	for (size_t i = 0; i < file->resolutions; ++i) {
 		const uint8_t *record = file->data + file->directory + 60 * i;
 		if (word(record) == width && word(record + 2) == height)
-			return read_font(result, file->data, file->size,
-			    dword(record + 4 + 4 * (unsigned)mode));
+			return read_font(result, file->data, file->size, dword(record + 4 + 4 * (unsigned)mode));
 	}
 	return IO_ERROR_NOT_FOUND;
 }
@@ -89,51 +84,65 @@ st_rip3_maf_find(struct st_rip3_maf_font *result,
 const uint8_t *
 st_rip3_maf_glyph(const struct st_rip3_maf_font *font, uint8_t character)
 {
-	if (font == NULL || font->glyphs == NULL || character == 0) return NULL;
+	if (font == NULL || font->glyphs == NULL || character == 0)
+		return NULL;
 	return font->glyphs + (size_t)(character - 1) * font->glyph_size;
 }
 
 static int
-builtin_font(struct st_rip3_maf_font *result, unsigned width, unsigned height,
-    enum st_rip3_maf_mode mode, bool fallback)
+builtin_font(struct st_rip3_maf_font *result, unsigned width, unsigned height, enum st_rip3_maf_mode mode,
+    bool fallback)
 {
-	if (result==NULL || width==0 || height==0) return IO_ERROR_INVALID_ARGUMENT;
-	const struct st_rip3_font_asset *asset=NULL;
-	for (size_t i=0;i<st_rip3_font_asset_count();i++) {
-		const struct st_rip3_font_asset *candidate=st_rip3_font_asset_at(i);
-		if (strcmp(candidate->filename,"RIPscrip.maf")==0) {asset=candidate;break;}
-	}
-	if (asset==NULL) return IO_ERROR_NOT_FOUND;
-	struct st_rip3_maf file;
-	int status=st_rip3_maf_open(&file,asset->data,asset->size);
-	if (status!=0) return status;
-	/* The three smaller MAF keys describe inclusive client-size ranges. */
-	static const struct { unsigned min_w,max_w,min_h,max_h; } ranges[]={
-		{560,639,430,479},{640,799,516,599},{880,1023,688,767}
-	};
-	for (size_t i=0;i<sizeof(ranges)/sizeof(ranges[0]);i++) {
-		if (width>=ranges[i].min_w && width<=ranges[i].max_w
-		    && height>=ranges[i].min_h && height<=ranges[i].max_h) {
-			width=ranges[i].max_w;
-			height=ranges[i].max_h;
+	if (result == NULL || width == 0 || height == 0)
+		return IO_ERROR_INVALID_ARGUMENT;
+	const struct st_rip3_font_asset *asset = NULL;
+	for (size_t i = 0; i < st_rip3_font_asset_count(); i++) {
+		const struct st_rip3_font_asset *candidate = st_rip3_font_asset_at(i);
+		if (strcmp(candidate->filename, "RIPscrip.maf") == 0) {
+			asset = candidate;
 			break;
 		}
 	}
-	status=st_rip3_maf_find(result,&file,width,height,mode);
-	if (status==IO_ERROR_NOT_FOUND && fallback) status=st_rip3_maf_find(result,&file,640,480,mode);
+	if (asset == NULL)
+		return IO_ERROR_NOT_FOUND;
+	struct st_rip3_maf file;
+	int                status = st_rip3_maf_open(&file, asset->data, asset->size);
+	if (status != 0)
+		return status;
+
+	/* The three smaller MAF keys describe inclusive client-size ranges. */
+	static const struct {
+		unsigned min_w, max_w, min_h, max_h;
+	} ranges[] = {
+	    {560, 639,  430, 479},
+            {640, 799,  516, 599},
+            {880, 1023, 688, 767}
+        };
+
+	for (size_t i = 0; i < sizeof(ranges) / sizeof(ranges[0]); i++) {
+		if (width >= ranges[i].min_w && width <= ranges[i].max_w && height >= ranges[i].min_h
+		    && height <= ranges[i].max_h) {
+			width  = ranges[i].max_w;
+			height = ranges[i].max_h;
+			break;
+		}
+	}
+	status = st_rip3_maf_find(result, &file, width, height, mode);
+	if (status == IO_ERROR_NOT_FOUND && fallback)
+		status = st_rip3_maf_find(result, &file, 640, 480, mode);
 	return status;
 }
 
 int
-st_rip3_maf_builtin_font(struct st_rip3_maf_font *result,
-    unsigned width, unsigned height, enum st_rip3_maf_mode mode)
+st_rip3_maf_builtin_font(struct st_rip3_maf_font *result, unsigned width, unsigned height,
+    enum st_rip3_maf_mode mode)
 {
-	return builtin_font(result,width,height,mode,true);
+	return builtin_font(result, width, height, mode, true);
 }
 
 int
-st_rip3_maf_device_font(struct st_rip3_maf_font *result,
-    unsigned width, unsigned height, enum st_rip3_maf_mode mode)
+st_rip3_maf_device_font(struct st_rip3_maf_font *result, unsigned width, unsigned height,
+    enum st_rip3_maf_mode mode)
 {
-	return builtin_font(result,width,height,mode,false);
+	return builtin_font(result, width, height, mode, false);
 }

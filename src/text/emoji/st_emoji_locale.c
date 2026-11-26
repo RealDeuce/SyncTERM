@@ -1,25 +1,24 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
-#include "st_emoji_locale.h"
-#include "st_emoji_locale_internal.h"
-#include "st_emoji_catalog.h"
-#include "st_unicode_compare.h"
-#include "io_error.h"
-
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "io_error.h"
+#include "st_emoji_catalog.h"
+#include "st_emoji_locale.h"
+#include "st_emoji_locale_internal.h"
+#include "st_unicode_compare.h"
+
 struct st_emoji_locale {
-	char **buffers;
+	char       **buffers;
 	const char **names;
 	const char **keywords;
 	const char **english_keywords;
-	char **search_keys;
+	char       **search_keys;
 };
 
 static bool
-unpack_length(size_t *length, const unsigned char *input, size_t packed_size,
-	size_t *position, size_t available)
+unpack_length(size_t *length, const unsigned char *input, size_t packed_size, size_t *position, size_t available)
 {
 	if (*length == 15) {
 		unsigned char extra;
@@ -37,18 +36,16 @@ unpack_length(size_t *length, const unsigned char *input, size_t packed_size,
 }
 
 int
-st_emoji_unpack(unsigned char *output, size_t size,
-	const unsigned char *input, size_t packed_size)
+st_emoji_unpack(unsigned char *output, size_t size, const unsigned char *input, size_t packed_size)
 {
 	size_t in = 0, out = 0;
 
 	while (in < packed_size) {
-		unsigned char token = input[in++];
-		size_t length = token >> 4;
-		size_t offset;
+		unsigned char token  = input[in++];
+		size_t        length = token >> 4;
+		size_t        offset;
 
-		if (!unpack_length(&length, input, packed_size, &in, size - out)
-		    || length > packed_size - in)
+		if (!unpack_length(&length, input, packed_size, &in, size - out) || length > packed_size - in)
 			return IO_ERROR_INVALID_FORMAT;
 		memcpy(output + out, input + in, length);
 		out += length;
@@ -60,9 +57,8 @@ st_emoji_unpack(unsigned char *output, size_t size,
 		offset = input[in] | ((size_t)input[in + 1] << 8);
 		in += 2;
 		length = token & 15;
-		if (!unpack_length(&length, input, packed_size, &in, size - out)
-		    || size - out < 4 || length > size - out - 4
-		    || offset == 0 || offset > out)
+		if (!unpack_length(&length, input, packed_size, &in, size - out) || size - out < 4
+		    || length > size - out - 4 || offset == 0 || offset > out)
 			return IO_ERROR_INVALID_FORMAT;
 		length += 4;
 		/* LZ4 matches may overlap, including runs with a one-byte offset. */
@@ -77,8 +73,8 @@ st_emoji_unpack(unsigned char *output, size_t size,
 static size_t
 find_locale(const char *language)
 {
-	char tag[256];
-	size_t size = strlen(language);
+	char   tag[256];
+	size_t size    = strlen(language);
 	size_t minimum = 0;
 
 	if (size == 0 || size >= sizeof(tag))
@@ -97,12 +93,11 @@ find_locale(const char *language)
 		while (end < size && tag[end] != '-')
 			end++;
 		if (start > 0 && end - start == 1) {
-			size = start - 1;
+			size      = start - 1;
 			tag[size] = 0;
 			break;
 		}
-		if (start > 0 && end - start == 4
-		    && tag[start] >= 'a' && tag[start] <= 'z')
+		if (start > 0 && end - start == 4 && tag[start] >= 'a' && tag[start] <= 'z')
 			minimum = end;
 		start = end + 1;
 	}
@@ -110,8 +105,8 @@ find_locale(const char *language)
 		size_t low = 0, high = st_emoji_locale_alias_count;
 
 		while (low < high) {
-			size_t middle = low + (high - low) / 2;
-			int compared = strcmp(tag, st_emoji_locale_aliases[middle].tag);
+			size_t middle   = low + (high - low) / 2;
+			int    compared = strcmp(tag, st_emoji_locale_aliases[middle].tag);
 			if (compared == 0)
 				return st_emoji_locale_aliases[middle].locale;
 			if (compared < 0)
@@ -124,7 +119,7 @@ find_locale(const char *language)
 		char *hyphen = strrchr(tag, '-');
 		if (hyphen == NULL)
 			break;
-		size = (size_t)(hyphen - tag);
+		size    = (size_t)(hyphen - tag);
 		*hyphen = 0;
 	}
 	return st_emoji_locale_count;
@@ -133,27 +128,25 @@ find_locale(const char *language)
 static int
 load_locale(st_emoji_locale_t *locale, size_t index)
 {
-	const struct st_emoji_locale_data *data = &st_emoji_locales[index];
-	bool english = strcmp(data->tag, "en") == 0;
-	char *buffer = malloc(data->size == 0 ? 1 : data->size);
-	size_t position = 0;
-	int status;
+	const struct st_emoji_locale_data *data     = &st_emoji_locales[index];
+	bool                               english  = strcmp(data->tag, "en") == 0;
+	char                              *buffer   = malloc(data->size == 0 ? 1 : data->size);
+	size_t                             position = 0;
+	int                                status;
 
 	if (buffer == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
 	locale->buffers[index] = buffer;
-	status = st_emoji_unpack((unsigned char *)buffer, data->size,
-	    data->packed, data->packed_size);
+	status = st_emoji_unpack((unsigned char *)buffer, data->size, data->packed, data->packed_size);
 	if (status != 0)
 		return status;
 	while (position < data->size) {
-		size_t id;
+		size_t      id;
 		const char *fields[2];
 
 		if (data->size - position < 2)
 			return IO_ERROR_INVALID_FORMAT;
-		id = (unsigned char)buffer[position]
-		    | ((size_t)(unsigned char)buffer[position + 1] << 8);
+		id = (unsigned char)buffer[position] | ((size_t)(unsigned char)buffer[position + 1] << 8);
 		position += 2;
 		if (id >= st_emoji_entry_count)
 			return IO_ERROR_INVALID_FORMAT;
@@ -162,7 +155,7 @@ load_locale(st_emoji_locale_t *locale, size_t index)
 			if (end == NULL)
 				return IO_ERROR_INVALID_FORMAT;
 			fields[field] = buffer + position;
-			position = (size_t)(end - buffer) + 1;
+			position      = (size_t)(end - buffer) + 1;
 		}
 		if (locale->names[id] == NULL && fields[0][0] != 0)
 			locale->names[id] = english ? st_emoji_entries[id].name : fields[0];
@@ -182,7 +175,7 @@ load_preferences(st_emoji_locale_t *locale, size_t index)
 		if (status != 0)
 			return status;
 		int parent = st_emoji_locales[index].parent;
-		index = parent < 0 ? st_emoji_locale_count : (size_t)parent;
+		index      = parent < 0 ? st_emoji_locale_count : (size_t)parent;
 	}
 	return 0;
 }
@@ -197,11 +190,10 @@ search_fields(const st_emoji_locale_t *locale, size_t id, const char *fields[4])
 }
 
 int
-st_emoji_locale_create(st_emoji_locale_t **result,
-	const char *const *languages, size_t count)
+st_emoji_locale_create(st_emoji_locale_t **result, const char *const *languages, size_t count)
 {
 	st_emoji_locale_t *locale;
-	int status = IO_ERROR_OUT_OF_MEMORY;
+	int                status = IO_ERROR_OUT_OF_MEMORY;
 
 	if (result == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -211,11 +203,11 @@ st_emoji_locale_create(st_emoji_locale_t **result,
 	locale = calloc(1, sizeof(*locale));
 	if (locale == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
-	locale->buffers = calloc(st_emoji_locale_count, sizeof(*locale->buffers));
-	locale->names = calloc(st_emoji_entry_count, sizeof(*locale->names));
-	locale->keywords = calloc(st_emoji_entry_count, sizeof(*locale->keywords));
+	locale->buffers          = calloc(st_emoji_locale_count, sizeof(*locale->buffers));
+	locale->names            = calloc(st_emoji_entry_count, sizeof(*locale->names));
+	locale->keywords         = calloc(st_emoji_entry_count, sizeof(*locale->keywords));
 	locale->english_keywords = calloc(st_emoji_entry_count, sizeof(*locale->english_keywords));
-	locale->search_keys = calloc(st_emoji_entry_count, sizeof(*locale->search_keys));
+	locale->search_keys      = calloc(st_emoji_entry_count, sizeof(*locale->search_keys));
 	if (locale->buffers == NULL || locale->names == NULL || locale->keywords == NULL
 	    || locale->english_keywords == NULL || locale->search_keys == NULL)
 		goto fail;
@@ -233,8 +225,8 @@ st_emoji_locale_create(st_emoji_locale_t **result,
 		goto fail;
 	for (size_t i = 0; i < st_emoji_entry_count; i++) {
 		const char *fields[4];
-		size_t size = 0, key_size;
-		char *text, *position;
+		size_t      size = 0, key_size;
+		char       *text, *position;
 
 		if (locale->names[i] == NULL)
 			locale->names[i] = st_emoji_entries[i].name;
@@ -254,7 +246,7 @@ st_emoji_locale_create(st_emoji_locale_t **result,
 			*position++ = '\x1f';
 		}
 		*position = 0;
-		status = st_unicode_caseless_key(&locale->search_keys[i], &key_size, text, size);
+		status    = st_unicode_caseless_key(&locale->search_keys[i], &key_size, text, size);
 		free(text);
 		if (status != 0)
 			goto fail;
@@ -306,12 +298,11 @@ st_emoji_english_keywords(const st_emoji_locale_t *locale, size_t id)
 }
 
 int
-st_emoji_search(const st_emoji_locale_t *locale, const void *query,
-	size_t size, size_t **indexes, size_t *count)
+st_emoji_search(const st_emoji_locale_t *locale, const void *query, size_t size, size_t **indexes, size_t *count)
 {
-	char *key;
+	char  *key;
 	size_t key_size;
-	int status;
+	int    status;
 
 	if (indexes != NULL)
 		*indexes = NULL;

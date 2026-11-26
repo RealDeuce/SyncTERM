@@ -5,32 +5,30 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "value_convert.h"
-
-#include "decimal_double.h"
-#include "string_util.h"
-#include "value_convert_time.h"
-
 #include <float.h>
 #include <math.h>
 #include <stdint.h>
 #include <string.h>
 
+#include "decimal_double.h"
+#include "string_util.h"
+#include "value_convert.h"
+#include "value_convert_time.h"
+
 #if defined(VALUE_CONVERT_TEST_NO_DBL_DECIMAL_DIG)
-	#undef DBL_DECIMAL_DIG
+ #undef DBL_DECIMAL_DIG
 #endif
 
 #if defined(DBL_DECIMAL_DIG)
-	#define VALUE_DOUBLE_DECIMAL_DIG DBL_DECIMAL_DIG
+ #define VALUE_DOUBLE_DECIMAL_DIG DBL_DECIMAL_DIG
 #elif FLT_RADIX == 2 && DBL_MANT_DIG == 53
-	/* C17 requires DBL_DECIMAL_DIG, but some otherwise usable headers omit it. */
-	#define VALUE_DOUBLE_DECIMAL_DIG 17
+ /* C17 requires DBL_DECIMAL_DIG, but some otherwise usable headers omit it. */
+ #define VALUE_DOUBLE_DECIMAL_DIG 17
 #else
-	#error "DBL_DECIMAL_DIG is unavailable for an unsupported double format"
+ #error "DBL_DECIMAL_DIG is unavailable for an unsupported double format"
 #endif
 
-_Static_assert(VALUE_DOUBLE_DECIMAL_DIG <= 19,
-    "the double formatter supports at most 19 significant digits");
+_Static_assert(VALUE_DOUBLE_DECIMAL_DIG <= 19, "the double formatter supports at most 19 significant digits");
 
 static bool
 trimmed_span(const char *text, const char **begin, const char **end)
@@ -44,7 +42,7 @@ trimmed_span(const char *text, const char **begin, const char **end)
 	if (first == last)
 		return false;
 	*begin = text + first;
-	*end = text + last;
+	*end   = text + last;
 	return true;
 }
 
@@ -67,15 +65,13 @@ digit_value(unsigned char character, unsigned base)
 }
 
 static bool
-parse_magnitude(const char *text, const char *end, uint64_t limit,
-    uint64_t *result)
+parse_magnitude(const char *text, const char *end, uint64_t limit, uint64_t *result)
 {
-	unsigned base = 10;
+	unsigned base  = 10;
 	uint64_t value = 0;
-	bool any = false;
+	bool     any   = false;
 
-	if (end - text >= 2 && text[0] == '0'
-	    && (text[1] == 'x' || text[1] == 'X')) {
+	if (end - text >= 2 && text[0] == '0' && (text[1] == 'x' || text[1] == 'X')) {
 		base = 16;
 		text += 2;
 	}
@@ -85,7 +81,7 @@ parse_magnitude(const char *text, const char *end, uint64_t limit,
 		if (digit < 0 || value > (limit - (unsigned)digit) / base)
 			return false;
 		value = value * base + (unsigned)digit;
-		any = true;
+		any   = true;
 	}
 	if (!any)
 		return false;
@@ -98,7 +94,7 @@ value_parse_uint64(const char *text, uint64_t *result)
 {
 	const char *begin;
 	const char *end;
-	uint64_t value;
+	uint64_t    value;
 
 	if (result == NULL || !trimmed_span(text, &begin, &end))
 		return false;
@@ -117,9 +113,9 @@ value_parse_int64(const char *text, int64_t *result)
 {
 	const char *begin;
 	const char *end;
-	uint64_t magnitude;
-	uint64_t limit = INT64_MAX;
-	bool negative = false;
+	uint64_t    magnitude;
+	uint64_t    limit    = INT64_MAX;
+	bool        negative = false;
 
 	if (result == NULL || !trimmed_span(text, &begin, &end))
 		return false;
@@ -150,15 +146,13 @@ value_parse_bool(const char *text, bool *result)
 		return false;
 	if (ascii_case_span_equal(begin, (size_t)(end - begin), "true")
 	    || ascii_case_span_equal(begin, (size_t)(end - begin), "yes")
-	    || ascii_case_span_equal(begin, (size_t)(end - begin), "on")
-	    || (end - begin == 1 && *begin == '1')) {
+	    || ascii_case_span_equal(begin, (size_t)(end - begin), "on") || (end - begin == 1 && *begin == '1')) {
 		*result = true;
 		return true;
 	}
 	if (ascii_case_span_equal(begin, (size_t)(end - begin), "false")
 	    || ascii_case_span_equal(begin, (size_t)(end - begin), "no")
-	    || ascii_case_span_equal(begin, (size_t)(end - begin), "off")
-	    || (end - begin == 1 && *begin == '0')) {
+	    || ascii_case_span_equal(begin, (size_t)(end - begin), "off") || (end - begin == 1 && *begin == '0')) {
 		*result = false;
 		return true;
 	}
@@ -171,8 +165,7 @@ value_parse_double(const char *text, double *result)
 	const char *begin;
 	const char *end;
 
-	return result != NULL && trimmed_span(text, &begin, &end)
-	    && decimal_parse_double(begin, end, result);
+	return result != NULL && trimmed_span(text, &begin, &end) && decimal_parse_double(begin, end, result);
 }
 
 static bool
@@ -188,8 +181,8 @@ copy_result(char *buffer, size_t size, const char *source, size_t length)
 bool
 value_format_uint64(char *buffer, size_t size, uint64_t value)
 {
-	char reverse[32];
-	char output[32];
+	char   reverse[32];
+	char   output[32];
 	size_t length = 0;
 
 	do {
@@ -218,8 +211,7 @@ value_format_int64(char *buffer, size_t size, int64_t value)
 bool
 value_format_double(char *buffer, size_t size, double value)
 {
-	return decimal_format_double(buffer, size, value,
-	    VALUE_DOUBLE_DECIMAL_DIG);
+	return decimal_format_double(buffer, size, value, VALUE_DOUBLE_DECIMAL_DIG);
 }
 
 static bool
@@ -230,7 +222,7 @@ append_suffix(char *buffer, size_t size, const char *number, char suffix)
 	if (buffer == NULL || length + 2 > size)
 		return false;
 	memcpy(buffer, number, length);
-	buffer[length] = suffix;
+	buffer[length]     = suffix;
 	buffer[length + 1] = '\0';
 	return true;
 }
@@ -240,14 +232,15 @@ value_format_byte_estimate(char *buffer, size_t size, uint64_t bytes)
 {
 	static const struct {
 		uint64_t divisor;
-		char suffix;
+		char     suffix;
 	} units[] = {
-		{UINT64_C(1) << 50, 'P'},
-		{UINT64_C(1) << 40, 'T'},
-		{UINT64_C(1) << 30, 'G'},
-		{UINT64_C(1) << 20, 'M'},
-		{UINT64_C(1) << 10, 'K'},
+	    {UINT64_C(1) << 50, 'P'},
+	    {UINT64_C(1) << 40, 'T'},
+	    {UINT64_C(1) << 30, 'G'},
+	    {UINT64_C(1) << 20, 'M'},
+	    {UINT64_C(1) << 10, 'K'},
 	};
+
 	char number[32];
 
 	for (size_t index = 0; index < sizeof(units) / sizeof(units[0]); index++) {
@@ -256,17 +249,16 @@ value_format_byte_estimate(char *buffer, size_t size, uint64_t bytes)
 		uint64_t scaled_remainder;
 		uint64_t whole;
 		unsigned tenth;
-		size_t length;
+		size_t   length;
 
 		if (bytes < divisor)
 			continue;
-		whole = bytes / divisor;
-		remainder = bytes % divisor;
+		whole            = bytes / divisor;
+		remainder        = bytes % divisor;
 		scaled_remainder = remainder * 10;
-		tenth = (unsigned)(scaled_remainder / divisor);
-		remainder = scaled_remainder % divisor;
-		if (remainder > divisor / 2
-		    || (remainder == divisor / 2 && (tenth & 1) != 0)) {
+		tenth            = (unsigned)(scaled_remainder / divisor);
+		remainder        = scaled_remainder % divisor;
+		if (remainder > divisor / 2 || (remainder == divisor / 2 && (tenth & 1) != 0)) {
 			if (++tenth == 10) {
 				tenth = 0;
 				whole++;
@@ -279,7 +271,7 @@ value_format_byte_estimate(char *buffer, size_t size, uint64_t bytes)
 			return false;
 		number[length++] = '.';
 		number[length++] = (char)('0' + tenth);
-		number[length] = '\0';
+		number[length]   = '\0';
 		return append_suffix(buffer, size, number, units[index].suffix);
 	}
 	return value_format_uint64(buffer, size, bytes);
@@ -290,15 +282,16 @@ value_format_duration_estimate(char *buffer, size_t size, double seconds)
 {
 	static const struct {
 		double divisor;
-		char suffix;
+		char   suffix;
 	} units[] = {
-		{365.0 * 24.0 * 60.0 * 60.0, 'y'},
-		{24.0 * 60.0 * 60.0, 'd'},
-		{60.0 * 60.0, 'h'},
-		{60.0, 'm'},
+	    {365.0 * 24.0 * 60.0 * 60.0, 'y'},
+	    {24.0 * 60.0 * 60.0,         'd'},
+	    {60.0 * 60.0,                'h'},
+	    {60.0,                       'm'},
 	};
+
 	char number[64];
-	char suffix = 's';
+	char suffix  = 's';
 	bool compact = true;
 
 	if (!(seconds >= 0.0))
@@ -308,7 +301,7 @@ value_format_duration_estimate(char *buffer, size_t size, double seconds)
 	for (size_t index = 0; index < sizeof(units) / sizeof(units[0]); index++) {
 		if (seconds >= units[index].divisor) {
 			seconds /= units[index].divisor;
-			suffix = units[index].suffix;
+			suffix  = units[index].suffix;
 			compact = false;
 			break;
 		}
@@ -318,8 +311,7 @@ value_format_duration_estimate(char *buffer, size_t size, double seconds)
 	if (compact) {
 		size_t length = strlen(number);
 
-		if (length >= 2 && number[length - 2] == '.'
-		    && number[length - 1] == '0')
+		if (length >= 2 && number[length - 2] == '.' && number[length - 1] == '0')
 			number[length - 2] = '\0';
 	}
 	return append_suffix(buffer, size, number, suffix);
@@ -331,32 +323,43 @@ value_parse_duration(const char *text, double *seconds)
 	const char *begin;
 	const char *end;
 	const char *number_end;
-	double value;
-	double multiplier = 1.0;
+	double      value;
+	double      multiplier = 1.0;
 
 	if (seconds == NULL || !trimmed_span(text, &begin, &end))
 		return false;
 	number_end = end;
-	if (end > begin && ((* (end - 1) >= 'A' && *(end - 1) <= 'Z')
-	    || (*(end - 1) >= 'a' && *(end - 1) <= 'z'))) {
+	if (end > begin
+	    && ((*(end - 1) >= 'A' && *(end - 1) <= 'Z') || (*(end - 1) >= 'a' && *(end - 1) <= 'z'))) {
 		unsigned char suffix = ascii_to_lower((unsigned char)*(end - 1));
 
 		number_end--;
 		switch (suffix) {
-		case 's': multiplier = 1.0; break;
-		case 'm': multiplier = 60.0; break;
-		case 'h': multiplier = 60.0 * 60.0; break;
-		case 'd': multiplier = 24.0 * 60.0 * 60.0; break;
-		case 'w': multiplier = 7.0 * 24.0 * 60.0 * 60.0; break;
-		case 'y': multiplier = 365.0 * 24.0 * 60.0 * 60.0; break;
-		default: return false;
+			case 's':
+				multiplier = 1.0;
+				break;
+			case 'm':
+				multiplier = 60.0;
+				break;
+			case 'h':
+				multiplier = 60.0 * 60.0;
+				break;
+			case 'd':
+				multiplier = 24.0 * 60.0 * 60.0;
+				break;
+			case 'w':
+				multiplier = 7.0 * 24.0 * 60.0 * 60.0;
+				break;
+			case 'y':
+				multiplier = 365.0 * 24.0 * 60.0 * 60.0;
+				break;
+			default:
+				return false;
 		}
 	}
-	while (number_end > begin
-	    && ascii_is_space((unsigned char)number_end[-1]))
+	while (number_end > begin && ascii_is_space((unsigned char)number_end[-1]))
 		number_end--;
-	if (!decimal_parse_double(begin, number_end, &value)
-	    || !isfinite(value * multiplier))
+	if (!decimal_parse_double(begin, number_end, &value) || !isfinite(value * multiplier))
 		return false;
 	*seconds = value * multiplier;
 	return true;
@@ -367,23 +370,24 @@ value_format_duration(char *buffer, size_t size, double seconds)
 {
 	static const struct {
 		double multiplier;
-		char suffix;
+		char   suffix;
 	} units[] = {
-		{365.0 * 24.0 * 60.0 * 60.0, 'y'},
-		{7.0 * 24.0 * 60.0 * 60.0, 'w'},
-		{24.0 * 60.0 * 60.0, 'd'},
-		{60.0 * 60.0, 'h'},
-		{60.0, 'm'},
+	    {365.0 * 24.0 * 60.0 * 60.0, 'y'},
+	    {7.0 * 24.0 * 60.0 * 60.0,   'w'},
+	    {24.0 * 60.0 * 60.0,         'd'},
+	    {60.0 * 60.0,                'h'},
+	    {60.0,                       'm'},
 	};
-	char number[VALUE_DOUBLE_DECIMAL_DIG + 20];
-	double value = seconds;
-	char suffix = 's';
+
+	char   number[VALUE_DOUBLE_DECIMAL_DIG + 20];
+	double value  = seconds;
+	char   suffix = 's';
 
 	if (!isfinite(seconds))
 		return false;
 	for (size_t i = 0; seconds != 0.0 && i < sizeof(units) / sizeof(units[0]); i++) {
 		if (fmod(seconds, units[i].multiplier) == 0.0) {
-			value = seconds / units[i].multiplier;
+			value  = seconds / units[i].multiplier;
 			suffix = units[i].suffix;
 			break;
 		}
@@ -393,7 +397,7 @@ value_format_duration(char *buffer, size_t size, double seconds)
 	if (strlen(number) + 2 > size || buffer == NULL)
 		return false;
 	memcpy(buffer, number, strlen(number));
-	buffer[strlen(number)] = suffix;
+	buffer[strlen(number)]     = suffix;
 	buffer[strlen(number) + 1] = '\0';
 	return true;
 }
@@ -415,10 +419,8 @@ parse_fixed_uint(const char *text, size_t length, int *result)
 static int
 month_number(const char *text)
 {
-	static const char *const months[] = {
-		"Jan", "Feb", "Mar", "Apr", "May", "Jun",
-		"Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-	};
+	static const char *const months[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct",
+	    "Nov", "Dec"};
 
 	for (int i = 0; i < 12; i++) {
 		if (ascii_case_ncompare(text, months[i], 3) == 0)
@@ -441,24 +443,22 @@ static bool
 finish_datetime(struct tm *parts, time_t *result)
 {
 	struct tm checked;
-	int year = parts->tm_year;
-	int month = parts->tm_mon;
-	int day = parts->tm_mday;
-	int hour = parts->tm_hour;
-	int minute = parts->tm_min;
-	int second = parts->tm_sec;
-	time_t value;
+	int       year   = parts->tm_year;
+	int       month  = parts->tm_mon;
+	int       day    = parts->tm_mday;
+	int       hour   = parts->tm_hour;
+	int       minute = parts->tm_min;
+	int       second = parts->tm_sec;
+	time_t    value;
 
-	if (parts->tm_mon < 0 || parts->tm_mon > 11 || parts->tm_mday < 1
-	    || parts->tm_mday > 31 || parts->tm_hour < 0 || parts->tm_hour > 23
-	    || parts->tm_min < 0 || parts->tm_min > 59 || parts->tm_sec < 0
-	    || parts->tm_sec > 60)
+	if (parts->tm_mon < 0 || parts->tm_mon > 11 || parts->tm_mday < 1 || parts->tm_mday > 31
+	    || parts->tm_hour < 0 || parts->tm_hour > 23 || parts->tm_min < 0 || parts->tm_min > 59
+	    || parts->tm_sec < 0 || parts->tm_sec > 60)
 		return false;
 	parts->tm_isdst = -1;
-	value = mktime(parts);
-	if (value == (time_t)-1 || !value_convert_localtime(value, &checked)
-	    || checked.tm_year != year || checked.tm_mon != month
-	    || checked.tm_mday != day || checked.tm_hour != hour
+	value           = mktime(parts);
+	if (value == (time_t)-1 || !value_convert_localtime(value, &checked) || checked.tm_year != year
+	    || checked.tm_mon != month || checked.tm_mday != day || checked.tm_hour != hour
 	    || checked.tm_min != minute || checked.tm_sec != second)
 		return false;
 	*result = value;
@@ -469,30 +469,26 @@ static bool
 parse_compact_datetime(const char *text, size_t length, time_t *result)
 {
 	struct tm parts = {0};
-	int year;
-	int month;
-	int day;
-	int hour = 0;
-	int minute = 0;
-	int second = 0;
+	int       year;
+	int       month;
+	int       day;
+	int       hour   = 0;
+	int       minute = 0;
+	int       second = 0;
 
-	if ((length != 8 && length != 15)
-	    || !parse_fixed_uint(text, 4, &year)
-	    || !parse_fixed_uint(text + 4, 2, &month)
-	    || !parse_fixed_uint(text + 6, 2, &day))
+	if ((length != 8 && length != 15) || !parse_fixed_uint(text, 4, &year)
+	    || !parse_fixed_uint(text + 4, 2, &month) || !parse_fixed_uint(text + 6, 2, &day))
 		return false;
 	if (length == 15
-	    && (text[8] != 'T'
-	    || !parse_fixed_uint(text + 9, 2, &hour)
-	    || !parse_fixed_uint(text + 11, 2, &minute)
-	    || !parse_fixed_uint(text + 13, 2, &second)))
+	    && (text[8] != 'T' || !parse_fixed_uint(text + 9, 2, &hour) || !parse_fixed_uint(text + 11, 2, &minute)
+	        || !parse_fixed_uint(text + 13, 2, &second)))
 		return false;
 	parts.tm_year = year - 1900;
-	parts.tm_mon = month - 1;
+	parts.tm_mon  = month - 1;
 	parts.tm_mday = day;
 	parts.tm_hour = hour;
-	parts.tm_min = minute;
-	parts.tm_sec = second;
+	parts.tm_min  = minute;
+	parts.tm_sec  = second;
 	return finish_datetime(&parts, result);
 }
 
@@ -501,14 +497,14 @@ value_parse_datetime(const char *text, time_t *result)
 {
 	const char *begin;
 	const char *end;
-	size_t length;
-	struct tm parts = {0};
-	int year;
-	int day;
-	int hour = 0;
-	int minute = 0;
-	int second = 0;
-	int64_t epoch;
+	size_t      length;
+	struct tm   parts = {0};
+	int         year;
+	int         day;
+	int         hour   = 0;
+	int         minute = 0;
+	int         second = 0;
+	int64_t     epoch;
 
 	if (result == NULL || !trimmed_span(text, &begin, &end))
 		return false;
@@ -523,50 +519,42 @@ value_parse_datetime(const char *text, time_t *result)
 		*result = (time_t)epoch;
 		return true;
 	}
-	if ((length == 11 || length == 20) && month_number(begin) >= 0
-	    && begin[3] == ' ' && begin[6] == ' '
-	    && parse_day_field(begin + 4, &day)
-	    && parse_fixed_uint(begin + 7, 4, &year)) {
+	if ((length == 11 || length == 20) && month_number(begin) >= 0 && begin[3] == ' ' && begin[6] == ' '
+	    && parse_day_field(begin + 4, &day) && parse_fixed_uint(begin + 7, 4, &year)) {
 		if (length == 20) {
 			if (begin[11] != ' ' || begin[14] != ':' || begin[17] != ':'
-			    || !parse_fixed_uint(begin + 12, 2, &hour)
-			    || !parse_fixed_uint(begin + 15, 2, &minute)
+			    || !parse_fixed_uint(begin + 12, 2, &hour) || !parse_fixed_uint(begin + 15, 2, &minute)
 			    || !parse_fixed_uint(begin + 18, 2, &second))
 				return false;
 		}
 		parts.tm_year = year - 1900;
-		parts.tm_mon = month_number(begin);
+		parts.tm_mon  = month_number(begin);
 		parts.tm_mday = day;
 		parts.tm_hour = hour;
-		parts.tm_min = minute;
-		parts.tm_sec = second;
+		parts.tm_min  = minute;
+		parts.tm_sec  = second;
 		return finish_datetime(&parts, result);
 	}
 	return false;
 }
 
 bool
-value_format_datetime(char *buffer, size_t size, time_t value,
-    bool include_time)
+value_format_datetime(char *buffer, size_t size, time_t value, bool include_time)
 {
-	static const char *const months[] = {
-		"Jan", "Feb", "Mar", "Apr", "May", "Jun",
-		"Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-	};
-	struct tm parts;
-	char year[16];
-	char fields[6][3];
-	size_t needed = include_time ? 20 : 11;
+	static const char *const months[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct",
+	    "Nov", "Dec"};
+	struct tm                parts;
+	char                     year[16];
+	char                     fields[6][3];
+	size_t                   needed = include_time ? 20 : 11;
 
 	if (value == (time_t)0)
 		return copy_result(buffer, size, "Never", 5);
-	if (!value_convert_localtime(value, &parts) || parts.tm_mon < 0
-	    || parts.tm_mon > 11 || !value_format_int64(year, sizeof(year),
-	    (int64_t)parts.tm_year + 1900) || strlen(year) != 4
+	if (!value_convert_localtime(value, &parts) || parts.tm_mon < 0 || parts.tm_mon > 11
+	    || !value_format_int64(year, sizeof(year), (int64_t)parts.tm_year + 1900) || strlen(year) != 4
 	    || buffer == NULL || size <= needed)
 		return false;
-	fields[0][0] = parts.tm_mday < 10 ? ' '
-	    : (char)('0' + parts.tm_mday / 10);
+	fields[0][0] = parts.tm_mday < 10 ? ' ' : (char)('0' + parts.tm_mday / 10);
 	fields[0][1] = (char)('0' + parts.tm_mday % 10);
 	fields[1][0] = (char)('0' + parts.tm_hour / 10);
 	fields[1][1] = (char)('0' + parts.tm_hour % 10);

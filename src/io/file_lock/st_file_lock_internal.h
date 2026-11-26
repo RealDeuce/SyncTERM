@@ -8,20 +8,19 @@
 #ifndef ST_FILE_LOCK_INTERNAL_H_
 #define ST_FILE_LOCK_INTERNAL_H_
 
-#include "st_file_lock.h"
-
 #include <stdint.h>
+
+#include "st_file_lock.h"
 
 struct st_local_lock;
 
 struct st_file_lock {
 	struct st_local_lock *local;
-	intptr_t native;
-	bool exclusive;
+	intptr_t              native;
+	bool                  exclusive;
 };
 
-int st_file_lock_platform_acquire(st_file_lock_t *lock, const char *path,
-    bool exclusive);
+int  st_file_lock_platform_acquire(st_file_lock_t *lock, const char *path, bool exclusive);
 void st_file_lock_platform_release(st_file_lock_t *lock);
 
 #endif

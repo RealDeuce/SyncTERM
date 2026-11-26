@@ -3,14 +3,14 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "console_curses_locale.h"
-#include "console_config.h"
-#include "io_error.h"
-
 #include <stdlib.h>
 
+#include "console_config.h"
+#include "console_curses_locale.h"
+#include "io_error.h"
+
 #if ST_CONSOLE_HAVE_THREAD_LOCALE
-#include <locale.h>
+ #include <locale.h>
 
 struct st_curses_locale {
 	locale_t value;
@@ -50,13 +50,12 @@ st_curses_locale_destroy(struct st_curses_locale *locale)
 }
 
 int
-st_curses_locale_call(struct st_curses_locale *locale,
-	int (*call)(void *), void *argument)
+st_curses_locale_call(struct st_curses_locale *locale, int (*call)(void *), void *argument)
 {
 #if ST_CONSOLE_HAVE_THREAD_LOCALE
 	if (locale != NULL) {
 		locale_t previous = uselocale(locale->value);
-		int status;
+		int      status;
 
 		if (previous == (locale_t)0)
 			return IO_ERROR_IO;

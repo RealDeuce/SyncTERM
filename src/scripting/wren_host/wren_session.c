@@ -3,18 +3,18 @@
 /* Copyright (c) 2026 Stephen Hurd
  * SPDX-License-Identifier: BSD-2-Clause */
 
-#include "wren_host_internal.h"
-
 #include <stdbool.h>
 #include <stddef.h>
 #include <string.h>
+
+#include "wren_host_internal.h"
 
 struct session_value {
 	struct st_wren_context *context;
 };
 
 struct st_wren_session_lease {
-	struct st_wren_context *context;
+	struct st_wren_context       *context;
 	struct st_wren_session_lease *previous;
 	struct st_wren_session_lease *next;
 };
@@ -30,9 +30,9 @@ release_lease(struct st_wren_session_lease *lease)
 		lease->previous->next = lease->next;
 	if (lease->next != NULL)
 		lease->next->previous = lease->previous;
-	lease->context = NULL;
+	lease->context  = NULL;
 	lease->previous = NULL;
-	lease->next = NULL;
+	lease->next     = NULL;
 	return true;
 }
 
@@ -45,24 +45,21 @@ finalize_lease(void *data)
 static void
 allocate_session(WrenVM *vm)
 {
-	struct session_value *session = wrenSetSlotNewForeign(vm, 0, 0,
-	    sizeof(*session));
-	*session = (struct session_value){.context = st_wren_context_from_vm(vm)};
+	struct session_value *session = wrenSetSlotNewForeign(vm, 0, 0, sizeof(*session));
+	*session                      = (struct session_value) {.context = st_wren_context_from_vm(vm)};
 }
 
 static void
 allocate_lease(WrenVM *vm)
 {
-	struct st_wren_session_lease *lease = wrenSetSlotNewForeign(vm, 0, 0,
-	    sizeof(*lease));
-	*lease = (struct st_wren_session_lease){0};
+	struct st_wren_session_lease *lease = wrenSetSlotNewForeign(vm, 0, 0, sizeof(*lease));
+	*lease                              = (struct st_wren_session_lease) {0};
 }
 
 struct st_wren_context *
 st_wren_session_context(WrenVM *vm)
 {
-	struct session_value *session = st_wren_foreign_require(vm, 0,
-	    "syncterm", "Session");
+	struct session_value   *session = st_wren_foreign_require(vm, 0, "syncterm", "Session");
 	struct st_wren_context *context = st_wren_context_from_vm(vm);
 
 	if (session == NULL)
@@ -95,24 +92,33 @@ static void
 fn_session_profile(WrenVM *vm)
 {
 	struct st_wren_context *context = st_wren_session_context(vm);
-	if (context == NULL) return;
+	if (context == NULL)
+		return;
 	if (context->profile_value == NULL) {
 		if (!st_wren_profile_push(vm, 0, context->profile, true)) {
-			st_wren_abort(vm, "could not snapshot session profile"); return;
+			st_wren_abort(vm, "could not snapshot session profile");
+			return;
 		}
 		context->profile_value = wrenGetSlotHandle(vm, 0);
 	}
-	else wrenSetSlotHandle(vm, 0, context->profile_value);
+	else
+		wrenSetSlotHandle(vm, 0, context->profile_value);
 }
-static void fn_session_name(WrenVM *vm)
+
+static void
+fn_session_name(WrenVM *vm)
 {
 	struct st_wren_context *context = st_wren_session_context(vm);
-	if (context != NULL) wrenSetSlotString(vm, 0, context->profile->name);
+	if (context != NULL)
+		wrenSetSlotString(vm, 0, context->profile->name);
 }
-#define SESSION_METADATA(name, field) \
-	static void fn_session_##name(WrenVM *vm) { \
+
+#define SESSION_METADATA(name, field)                                          \
+	static void fn_session_##name(WrenVM *vm)                              \
+	{                                                                      \
 		struct st_wren_context *context = st_wren_session_context(vm); \
-		if (context != NULL) st_wren_return_i64(vm, context->profile->field); \
+		if (context != NULL)                                           \
+			st_wren_return_i64(vm, context->profile->field);       \
 	}
 SESSION_METADATA(entry_id, identifier)
 SESSION_METADATA(entry_source, source)
@@ -124,7 +130,7 @@ SESSION_METADATA(calls, calls)
 static void
 fn_session_hold(WrenVM *vm)
 {
-	struct st_wren_context *context = st_wren_session_context(vm);
+	struct st_wren_context       *context = st_wren_session_context(vm);
 	struct st_wren_session_lease *lease;
 
 	if (context == NULL)
@@ -135,9 +141,10 @@ fn_session_hold(WrenVM *vm)
 	}
 	wrenEnsureSlots(vm, 2);
 	wrenGetVariable(vm, "syncterm", "SessionLease", 1);
-	lease = wrenSetSlotNewForeign(vm, 0, 1, sizeof(*lease));
-	*lease = (struct st_wren_session_lease){
-		.context = context, .next = context->session_leases,
+	lease  = wrenSetSlotNewForeign(vm, 0, 1, sizeof(*lease));
+	*lease = (struct st_wren_session_lease) {
+	    .context = context,
+	    .next    = context->session_leases,
 	};
 	if (lease->next != NULL)
 		lease->next->previous = lease;
@@ -148,12 +155,11 @@ static void
 fn_session_hold_count(WrenVM *vm)
 {
 	struct st_wren_context *context = st_wren_session_context(vm);
-	size_t count = 0;
+	size_t                  count   = 0;
 
 	if (context == NULL)
 		return;
-	for (struct st_wren_session_lease *lease = context->session_leases;
-	    lease != NULL; lease = lease->next)
+	for (struct st_wren_session_lease *lease = context->session_leases; lease != NULL; lease = lease->next)
 		++count;
 	wrenSetSlotDouble(vm, 0, (double)count);
 }
@@ -161,11 +167,9 @@ fn_session_hold_count(WrenVM *vm)
 static struct st_wren_session_lease *
 lease_value(WrenVM *vm)
 {
-	struct st_wren_session_lease *lease = st_wren_foreign_require(vm, 0,
-	    "syncterm", "SessionLease");
+	struct st_wren_session_lease *lease = st_wren_foreign_require(vm, 0, "syncterm", "SessionLease");
 
-	if (lease != NULL && lease->context != NULL
-	    && lease->context != st_wren_context_from_vm(vm)) {
+	if (lease != NULL && lease->context != NULL && lease->context != st_wren_context_from_vm(vm)) {
 		st_wren_abort(vm, "SessionLease: invalid owner");
 		return NULL;
 	}
@@ -219,27 +223,33 @@ WrenForeignClassMethods
 st_wren_session_object_bind_class(const char *class_name)
 {
 	if (strcmp(class_name, "Session") == 0)
-		return (WrenForeignClassMethods){allocate_session, NULL};
+		return (WrenForeignClassMethods) {allocate_session, NULL};
 	if (strcmp(class_name, "SessionLease") == 0)
-		return (WrenForeignClassMethods){allocate_lease, finalize_lease};
-	return (WrenForeignClassMethods){NULL, NULL};
+		return (WrenForeignClassMethods) {allocate_lease, finalize_lease};
+	return (WrenForeignClassMethods) {NULL, NULL};
 }
 
 WrenForeignMethodFn
-st_wren_session_object_bind_method(const char *class_name, bool is_static,
-	const char *signature)
+st_wren_session_object_bind_method(const char *class_name, bool is_static, const char *signature)
 {
 	if (strcmp(class_name, "Session") == 0) {
 		if (is_static && strcmp(signature, "current") == 0)
 			return fn_session_current;
 		if (!is_static) {
-			if (strcmp(signature, "profile") == 0) return fn_session_profile;
-			if (strcmp(signature, "name") == 0) return fn_session_name;
-			if (strcmp(signature, "entryId") == 0) return fn_session_entry_id;
-			if (strcmp(signature, "entrySource") == 0) return fn_session_entry_source;
-			if (strcmp(signature, "added") == 0) return fn_session_added;
-			if (strcmp(signature, "lastConnected") == 0) return fn_session_last_connected;
-			if (strcmp(signature, "calls") == 0) return fn_session_calls;
+			if (strcmp(signature, "profile") == 0)
+				return fn_session_profile;
+			if (strcmp(signature, "name") == 0)
+				return fn_session_name;
+			if (strcmp(signature, "entryId") == 0)
+				return fn_session_entry_id;
+			if (strcmp(signature, "entrySource") == 0)
+				return fn_session_entry_source;
+			if (strcmp(signature, "added") == 0)
+				return fn_session_added;
+			if (strcmp(signature, "lastConnected") == 0)
+				return fn_session_last_connected;
+			if (strcmp(signature, "calls") == 0)
+				return fn_session_calls;
 		}
 		if (!is_static && strcmp(signature, "hold()") == 0)
 			return fn_session_hold;

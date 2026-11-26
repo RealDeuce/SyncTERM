@@ -9,10 +9,8 @@
 #include "st_console_test.h"
 
 int st_console_application_main(int argc, char **argv);
-int st_console_sdl_run_application(int argc, char **argv,
-	int (*application_main)(int, char **));
-int st_console_quartz_run_application(int argc, char **argv,
-	int (*application_main)(int, char **));
+int st_console_sdl_run_application(int argc, char **argv, int (*application_main)(int, char **));
+int st_console_quartz_run_application(int argc, char **argv, int (*application_main)(int, char **));
 
 int
 main(int argc, char **argv)
@@ -22,10 +20,8 @@ main(int argc, char **argv)
 		return st_console_application_main(argc, argv);
 #endif
 #if ST_CONSOLE_HAVE_QUARTZ
-	return st_console_quartz_run_application(argc, argv,
-	    st_console_application_main);
+	return st_console_quartz_run_application(argc, argv, st_console_application_main);
 #else
-	return st_console_sdl_run_application(argc, argv,
-	    st_console_application_main);
+	return st_console_sdl_run_application(argc, argv, st_console_application_main);
 #endif
 }

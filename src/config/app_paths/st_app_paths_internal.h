@@ -10,7 +10,7 @@
 
 #include "st_app_paths.h"
 
-int st_app_paths_platform_init(struct st_app_paths *paths);
+int   st_app_paths_platform_init(struct st_app_paths *paths);
 char *st_app_path_join(const char *directory, const char *name);
 char *st_app_path_copy(const char *path);
 

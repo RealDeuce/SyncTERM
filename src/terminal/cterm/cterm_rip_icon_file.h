@@ -13,9 +13,7 @@
 
 /* Output buffers are allocated; the caller frees them. Extra file bytes are
  * allowed because legacy icon readers ignore the optional trailing marker. */
-int cterm_rip_icon_decode(uint8_t **pixels, uint32_t *width,
-    uint32_t *height, const uint8_t *bytes, size_t size);
-int cterm_rip_icon_encode(uint8_t **bytes, size_t *size,
-    const uint8_t *pixels, uint32_t width, uint32_t height);
+int cterm_rip_icon_decode(uint8_t **pixels, uint32_t *width, uint32_t *height, const uint8_t *bytes, size_t size);
+int cterm_rip_icon_encode(uint8_t **bytes, size_t *size, const uint8_t *pixels, uint32_t width, uint32_t height);
 
 #endif

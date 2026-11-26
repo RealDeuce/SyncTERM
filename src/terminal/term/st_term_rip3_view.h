@@ -8,11 +8,9 @@
 
 struct st_term_rip3_view;
 /* Construct completely before publishing. No parent pixels are changed. */
-int st_term_rip3_view_create(struct st_term_rip3_view **result,
-	const struct st_cterm_config *text_config,
-	const struct st_rip3_text_window_layout *layout,
-	uint32_t device_width, uint32_t device_height);
-void st_term_rip3_view_destroy(struct st_term_rip3_view *view);
+int         st_term_rip3_view_create(struct st_term_rip3_view **result, const struct st_cterm_config *text_config,
+    const struct st_rip3_text_window_layout *layout, uint32_t device_width, uint32_t device_height);
+void        st_term_rip3_view_destroy(struct st_term_rip3_view *view);
 st_cterm_t *st_term_rip3_view_text(struct st_term_rip3_view *view);
 st_console_t *st_term_rip3_view_console(struct st_term_rip3_view *view);
 /* Borrowed immutable geometry, valid until the view is destroyed. */

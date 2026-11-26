@@ -8,16 +8,16 @@
 #ifndef ST_FONT_CATALOG_H_
 #define ST_FONT_CATALOG_H_
 
-#include "st_amiga_font.h"
-#include "st_codepage.h"
-#include "st_console.h"
-
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
+#include "st_amiga_font.h"
+#include "st_codepage.h"
+#include "st_console.h"
+
 #define ST_FONT_CATALOG_SELECTOR_COUNT (UINT8_MAX + 1U)
-#define ST_FONT_CATALOG_FIRST_CUSTOM 46U
+#define ST_FONT_CATALOG_FIRST_CUSTOM   46U
 
 typedef struct st_font_catalog st_font_catalog_t;
 
@@ -30,10 +30,11 @@ enum st_font_load_failure {
 	ST_FONT_LOAD_CODEPAGE,
 	ST_FONT_LOAD_REGISTRATION,
 };
+
 struct st_font_load_error {
 	enum st_font_load_failure failure;
-	int status;
-	int native_error;
+	int                       status;
+	int                       native_error;
 };
 
 /*
@@ -44,8 +45,8 @@ struct st_font_load_error {
 int st_font_catalog_create(st_font_catalog_t **result, st_console_t *console);
 /* Register a native Amiga strike for the console's cell geometry. Glyph
  * positions use the chosen byte encoding; native raster metrics stay separate. */
-int st_font_catalog_load_amiga(st_font_catalog_t *catalog, uint8_t selector,
-	const st_amiga_font_t *font, enum st_codepage codepage);
+int  st_font_catalog_load_amiga(st_font_catalog_t *catalog, uint8_t selector, const st_amiga_font_t *font,
+    enum st_codepage codepage);
 void st_font_catalog_destroy(st_font_catalog_t *catalog);
 
 /*
@@ -54,29 +55,23 @@ void st_font_catalog_destroy(st_font_catalog_t *catalog);
  * mapping; the codepage variant maps each custom glyph for one session.
  * A failed load leaves the previous selector registration unchanged.
  */
-int st_font_catalog_load_custom(st_font_catalog_t *catalog, uint8_t selector,
-	const char *path);
-int st_font_catalog_load_custom_codepage(st_font_catalog_t *catalog,
-	uint8_t selector, const char *path, enum st_codepage codepage);
+int st_font_catalog_load_custom(st_font_catalog_t *catalog, uint8_t selector, const char *path);
+int st_font_catalog_load_custom_codepage(st_font_catalog_t *catalog, uint8_t selector, const char *path,
+    enum st_codepage codepage);
 /* Register a client-owned 256-glyph bitmap without a temporary font file.
  * The console copies its raster/mappings. Native source dimensions may differ
  * from the cell; the bitmap renderer supplies its existing cell scaling.
  * Only custom selectors are replaced; failure preserves their registration. */
-int st_font_catalog_load_bitmap(st_font_catalog_t *catalog, uint8_t selector,
-	const struct st_console_font *font, enum st_codepage codepage);
+int st_font_catalog_load_bitmap(st_font_catalog_t *catalog, uint8_t selector, const struct st_console_font *font,
+    enum st_codepage codepage);
 /* Shared loader used by hosts that retain their own selector tables. */
-int st_font_catalog_register_custom(st_console_t *console, const char *path,
-	uint16_t *identifier);
-int st_font_catalog_register_custom_codepage(st_console_t *console,
-	const char *path, enum st_codepage codepage, uint16_t *identifier,
-	struct st_font_load_error *error);
-bool st_font_catalog_identifier(const st_font_catalog_t *catalog,
-	uint8_t selector, uint16_t *identifier);
-bool st_font_catalog_selector(const st_font_catalog_t *catalog,
-	uint16_t identifier, uint8_t *selector);
+int  st_font_catalog_register_custom(st_console_t *console, const char *path, uint16_t *identifier);
+int  st_font_catalog_register_custom_codepage(st_console_t *console, const char *path, enum st_codepage codepage,
+    uint16_t *identifier, struct st_font_load_error *error);
+bool st_font_catalog_identifier(const st_font_catalog_t *catalog, uint8_t selector, uint16_t *identifier);
+bool st_font_catalog_selector(const st_font_catalog_t *catalog, uint16_t identifier, uint8_t *selector);
 /* Returns ST_CODEPAGE_COUNT for an unavailable selector. */
-enum st_codepage st_font_catalog_codepage(const st_font_catalog_t *catalog,
-	uint8_t selector);
-st_console_t *st_font_catalog_console(const st_font_catalog_t *catalog);
+enum st_codepage st_font_catalog_codepage(const st_font_catalog_t *catalog, uint8_t selector);
+st_console_t    *st_font_catalog_console(const st_font_catalog_t *catalog);
 
 #endif

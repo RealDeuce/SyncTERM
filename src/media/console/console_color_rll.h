@@ -39,9 +39,8 @@ st_console_color_rll_valid(const uint8_t *data, size_t size, size_t width, size_
 		return false;
 	size_t offset = st_console_color_rll_half_offset(data);
 	return offset >= 2 && offset <= size
-	    && st_console_color_rll_stream_valid(data + 2, offset - 2, width / 2 * height)
-	    && st_console_color_rll_stream_valid(data + offset, size - offset,
-	    (width - width / 2) * height);
+	       && st_console_color_rll_stream_valid(data + 2, offset - 2, width / 2 * height)
+	       && st_console_color_rll_stream_valid(data + offset, size - offset, (width - width / 2) * height);
 }
 
 /* Registration validates both streams. Seek only moves forward; callers save
@@ -49,7 +48,7 @@ st_console_color_rll_valid(const uint8_t *data, size_t size, size_t width, size_
 struct st_console_color_rll_cursor {
 	const uint8_t *next;
 	const uint8_t *pixel;
-	size_t end;
+	size_t         end;
 };
 
 static inline const uint8_t *

@@ -5,52 +5,53 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "wren_host_internal.h"
-
-#include "io_error.h"
-#include "st_console.h"
-#include "st_cterm.h"
-#include "st_builtin_fonts.h"
-#include "st_term.h"
-
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "io_error.h"
+#include "st_builtin_fonts.h"
+#include "st_console.h"
+#include "st_cterm.h"
+#include "st_term.h"
+#include "wren_host_internal.h"
+
 struct text_selection {
-	struct st_wren_context *context;
-	st_console_t *console;
-	struct st_console_cell *original;
-	struct st_console_cell *displayed;
-	uint8_t *selected;
-	uint32_t *palette;
-	uint32_t columns;
-	uint32_t rows;
-	int32_t start_x;
-	int32_t start_y;
-	int32_t end_x;
-	int32_t end_y;
-	bool rectangular;
+	struct st_wren_context  *context;
+	st_console_t            *console;
+	struct st_console_cell  *original;
+	struct st_console_cell  *displayed;
+	uint8_t                 *selected;
+	uint32_t                *palette;
+	uint32_t                 columns;
+	uint32_t                 rows;
+	int32_t                  start_x;
+	int32_t                  start_y;
+	int32_t                  end_x;
+	int32_t                  end_y;
+	bool                     rectangular;
 	struct st_term_text_view view;
 };
 
 static int32_t
 window_coordinate(int32_t pixel, uint64_t origin, uint32_t cell_size)
 {
-	if (pixel<0 || (uint64_t)pixel<origin) return 0;
-	uint64_t cell=((uint64_t)pixel-origin)/cell_size;
-	return cell>INT32_MAX ? INT32_MAX : (int32_t)cell;
+	if (pixel < 0 || (uint64_t)pixel < origin)
+		return 0;
+	uint64_t cell = ((uint64_t)pixel - origin) / cell_size;
+	return cell > INT32_MAX ? INT32_MAX : (int32_t)cell;
 }
 
 static void
-selection_end(struct text_selection *selection, int32_t x, int32_t y,
-    int32_t pixel_x, int32_t pixel_y)
+selection_end(struct text_selection *selection, int32_t x, int32_t y, int32_t pixel_x, int32_t pixel_y)
 {
-	selection->end_x=selection->view.console==NULL ? x
-	    : window_coordinate(pixel_x,selection->view.x,selection->view.cell_width);
-	selection->end_y=selection->view.console==NULL ? y
-	    : window_coordinate(pixel_y,selection->view.y,selection->view.cell_height);
+	selection->end_x = selection->view.console == NULL
+	                       ? x
+	                       : window_coordinate(pixel_x, selection->view.x, selection->view.cell_width);
+	selection->end_y = selection->view.console == NULL
+	                       ? y
+	                       : window_coordinate(pixel_y, selection->view.y, selection->view.cell_height);
 }
 
 static uint32_t
@@ -62,39 +63,35 @@ colour_value(const struct text_selection *selection, uint32_t colour)
 }
 
 static uint8_t
-nearest_legacy_colour(const struct text_selection *selection, uint32_t colour,
-	uint8_t count)
+nearest_legacy_colour(const struct text_selection *selection, uint32_t colour, uint8_t count)
 {
-	uint32_t value = colour_value(selection, colour);
+	uint32_t value         = colour_value(selection, colour);
 	uint32_t best_distance = UINT32_MAX;
-	uint8_t best = 0;
+	uint8_t  best          = 0;
 
 	for (uint8_t index = 0; index < count; ++index) {
 		uint32_t candidate = selection->palette[index];
-		int32_t red = (int32_t)((value >> 16) & UINT32_C(0xff))
-		    - (int32_t)((candidate >> 16) & UINT32_C(0xff));
-		int32_t green = (int32_t)((value >> 8) & UINT32_C(0xff))
-		    - (int32_t)((candidate >> 8) & UINT32_C(0xff));
-		int32_t blue = (int32_t)(value & UINT32_C(0xff))
-		    - (int32_t)(candidate & UINT32_C(0xff));
-		uint32_t distance = (uint32_t)(red * red + green * green
-		    + blue * blue);
+		int32_t  red =
+		    (int32_t)((value >> 16) & UINT32_C(0xff)) - (int32_t)((candidate >> 16) & UINT32_C(0xff));
+		int32_t green =
+		    (int32_t)((value >> 8) & UINT32_C(0xff)) - (int32_t)((candidate >> 8) & UINT32_C(0xff));
+		int32_t  blue     = (int32_t)(value & UINT32_C(0xff)) - (int32_t)(candidate & UINT32_C(0xff));
+		uint32_t distance = (uint32_t)(red * red + green * green + blue * blue);
 
 		if (distance < best_distance) {
 			best_distance = distance;
-			best = index;
+			best          = index;
 		}
 	}
 	return best;
 }
 
 static void
-highlight_cell(const struct text_selection *selection,
-	struct st_console_cell *cell)
+highlight_cell(const struct text_selection *selection, struct st_console_cell *cell)
 {
 	uint32_t foreground = cell->foreground;
 	uint32_t background = cell->background;
-	uint8_t selected_background;
+	uint8_t  selected_background;
 
 	/* Apply reverse before replacing it with the selection colours. */
 	if ((cell->flags & ST_CONSOLE_CELL_REVERSE) != 0) {
@@ -104,10 +101,8 @@ highlight_cell(const struct text_selection *selection,
 		background = temporary;
 		cell->flags &= ~ST_CONSOLE_CELL_REVERSE;
 	}
-	selected_background = nearest_legacy_colour(selection, background, 8)
-	    == 4 ? 3 : 4;
-	if (nearest_legacy_colour(selection, foreground, 16)
-	    == selected_background)
+	selected_background = nearest_legacy_colour(selection, background, 8) == 4 ? 3 : 4;
+	if (nearest_legacy_colour(selection, foreground, 16) == selected_background)
 		foreground = selected_background | 8;
 	cell->foreground = foreground;
 	cell->background = selected_background;
@@ -126,29 +121,28 @@ clamp_coordinate(int32_t value, uint32_t limit)
 static bool
 cell_selected(const struct text_selection *selection, uint32_t x, uint32_t y)
 {
-	uint32_t start_x = clamp_coordinate(selection->start_x,
-	    selection->columns);
+	uint32_t start_x = clamp_coordinate(selection->start_x, selection->columns);
 	uint32_t start_y = clamp_coordinate(selection->start_y, selection->rows);
-	uint32_t end_x = clamp_coordinate(selection->end_x, selection->columns);
-	uint32_t end_y = clamp_coordinate(selection->end_y, selection->rows);
+	uint32_t end_x   = clamp_coordinate(selection->end_x, selection->columns);
+	uint32_t end_y   = clamp_coordinate(selection->end_y, selection->rows);
 
 	if (selection->rectangular) {
-		uint32_t left = start_x < end_x ? start_x : end_x;
-		uint32_t right = start_x > end_x ? start_x : end_x;
-		uint32_t top = start_y < end_y ? start_y : end_y;
+		uint32_t left   = start_x < end_x ? start_x : end_x;
+		uint32_t right  = start_x > end_x ? start_x : end_x;
+		uint32_t top    = start_y < end_y ? start_y : end_y;
 		uint32_t bottom = start_y > end_y ? start_y : end_y;
 
 		return x >= left && x <= right && y >= top && y <= bottom;
 	}
 	size_t position = (size_t)y * selection->columns + x;
-	size_t start = (size_t)start_y * selection->columns + start_x;
-	size_t end = (size_t)end_y * selection->columns + end_x;
+	size_t start    = (size_t)start_y * selection->columns + start_x;
+	size_t end      = (size_t)end_y * selection->columns + end_x;
 
 	if (start > end) {
 		size_t temporary = start;
 
 		start = end;
-		end = temporary;
+		end   = temporary;
 	}
 	return position >= start && position <= end;
 }
@@ -164,12 +158,12 @@ paint_selection(struct text_selection *selection)
 		bool changed = false;
 
 		for (uint32_t x = 0; x < selection->columns; ++x) {
-			size_t offset = (size_t)y * selection->columns + x;
-			bool selected = cell_selected(selection, x, y);
+			size_t offset   = (size_t)y * selection->columns + x;
+			bool   selected = cell_selected(selection, x, y);
 
 			if (selection->selected[offset] == selected)
 				continue;
-			selection->selected[offset] = selected;
+			selection->selected[offset]  = selected;
 			selection->displayed[offset] = selection->original[offset];
 			if (selected)
 				highlight_cell(selection, &selection->displayed[offset]);
@@ -177,14 +171,13 @@ paint_selection(struct text_selection *selection)
 		}
 		if (changed) {
 			struct st_console_rect row = {
-				.x = 0,
-				.y = y,
-				.width = selection->columns,
-				.height = 1,
+			    .x      = 0,
+			    .y      = y,
+			    .width  = selection->columns,
+			    .height = 1,
 			};
 			result = st_console_write_cells(selection->console, &row,
-			    &selection->displayed[(size_t)y * selection->columns],
-			    selection->columns);
+			    &selection->displayed[(size_t)y * selection->columns], selection->columns);
 		}
 	}
 	int end_result = st_console_end_update(selection->console);
@@ -197,48 +190,44 @@ paint_selection(struct text_selection *selection)
 }
 
 static bool
-copy_broken_bar(struct st_wren_context *context,
-	const struct st_console_cell *cell)
+copy_broken_bar(struct st_wren_context *context, const struct st_console_cell *cell)
 {
-	uint8_t selector;
+	uint8_t  selector;
 	uint16_t wren_selector;
 
 	if (cell->glyph != 0x7c)
 		return false;
 	if (context->session != NULL
-	    && st_term_session_font_selector(context->session,
-	    cell->glyph_font, &selector))
+	    && st_term_session_font_selector(context->session, cell->glyph_font, &selector))
 		return st_builtin_font_broken_vertical(selector);
 	wren_selector = st_wren_font_selector(context, cell->glyph_font);
-	return wren_selector < ST_BUILTIN_FONT_COUNT
-	    && context->fonts.catalog_valid[wren_selector]
-	    && context->fonts.catalog[wren_selector] == cell->glyph_font
-	    && st_builtin_font_broken_vertical(wren_selector);
+	return wren_selector < ST_BUILTIN_FONT_COUNT && context->fonts.catalog_valid[wren_selector]
+	       && context->fonts.catalog[wren_selector] == cell->glyph_font
+	       && st_builtin_font_broken_vertical(wren_selector);
 }
 
 static int
-append_cell(st_console_t *console, char **text, size_t *capacity,
-	size_t *length, const struct st_console_cell *cell, bool *nonspace,
-	struct st_wren_context *context)
+append_cell(st_console_t *console, char **text, size_t *capacity, size_t *length,
+    const struct st_console_cell *cell, bool *nonspace, struct st_wren_context *context)
 {
 	static const char replacement[] = "\xef\xbf\xbd";
-	static const char broken_bar[] = "\xc2\xa6";
-	size_t amount;
-	int status;
-	bool broken;
+	static const char broken_bar[]  = "\xc2\xa6";
+	size_t            amount;
+	int               status;
+	bool              broken;
 
 	*nonspace = false;
 	if ((cell->flags & ST_CONSOLE_CELL_CONTINUATION) != 0)
 		return 0;
 	/* Font identifiers belong to their console. A positioned RIP3 grid's
 	 * bitmap mapping must not be interpreted through the entry font catalog. */
-	broken = console==context->console && copy_broken_bar(context, cell);
+	broken = console == context->console && copy_broken_bar(context, cell);
 	if (broken) {
 		status = 0;
 		amount = sizeof(broken_bar) - 1;
-	} else {
-		status = st_console_font_glyph_text(console, cell->glyph_font,
-		    cell->glyph, NULL, 0, &amount);
+	}
+	else {
+		status = st_console_font_glyph_text(console, cell->glyph_font, cell->glyph, NULL, 0, &amount);
 	}
 	if (!broken && status == IO_ERROR_NOT_FOUND)
 		amount = sizeof(replacement) - 1;
@@ -248,7 +237,7 @@ append_cell(st_console_t *console, char **text, size_t *capacity,
 		return IO_ERROR_OUT_OF_RANGE;
 	if (*length + amount + 1 > *capacity) {
 		size_t fresh_capacity = *capacity == 0 ? 256 : *capacity;
-		char *fresh;
+		char  *fresh;
 
 		while (fresh_capacity < *length + amount + 1) {
 			if (fresh_capacity > SIZE_MAX / 2) {
@@ -260,7 +249,7 @@ append_cell(st_console_t *console, char **text, size_t *capacity,
 		fresh = realloc(*text, fresh_capacity);
 		if (fresh == NULL)
 			return IO_ERROR_OUT_OF_MEMORY;
-		*text = fresh;
+		*text     = fresh;
 		*capacity = fresh_capacity;
 	}
 	if (broken)
@@ -268,8 +257,8 @@ append_cell(st_console_t *console, char **text, size_t *capacity,
 	else if (status == IO_ERROR_NOT_FOUND)
 		memcpy(*text + *length, replacement, amount);
 	else {
-		status = st_console_font_glyph_text(console, cell->glyph_font,
-		    cell->glyph, *text + *length, amount, &amount);
+		status = st_console_font_glyph_text(console, cell->glyph_font, cell->glyph, *text + *length,
+		    amount, &amount);
 		if (status != 0)
 			return status;
 	}
@@ -282,25 +271,24 @@ static int
 copy_selection(struct text_selection *selection)
 {
 	size_t capacity = 0;
-	size_t length = 0;
-	char *text = NULL;
-	int result = 0;
+	size_t length   = 0;
+	char  *text     = NULL;
+	int    result   = 0;
 
 	for (uint32_t y = 0; y < selection->rows; ++y) {
 		size_t last_text = length;
-		bool have_row = false;
+		bool   have_row  = false;
 
 		for (uint32_t x = 0; x < selection->columns; ++x) {
-			size_t offset = (size_t)y * selection->columns + x;
-			const struct st_console_cell *cell =
-			    &selection->original[offset];
-			bool nonspace;
+			size_t                        offset = (size_t)y * selection->columns + x;
+			const struct st_console_cell *cell   = &selection->original[offset];
+			bool                          nonspace;
 
 			if (!cell_selected(selection, x, y))
 				continue;
 			have_row = true;
-			result = append_cell(selection->console, &text, &capacity,
-			    &length, cell, &nonspace, selection->context);
+			result   = append_cell(selection->console, &text, &capacity, &length, cell, &nonspace,
+			    selection->context);
 			if (result != 0)
 				goto done;
 			if (nonspace)
@@ -308,8 +296,7 @@ copy_selection(struct text_selection *selection)
 		}
 		if (!have_row)
 			continue;
-		if (selection->rectangular
-		    || cell_selected(selection, selection->columns - 1, y)) {
+		if (selection->rectangular || cell_selected(selection, selection->columns - 1, y)) {
 			length = last_text;
 			if (length + 2 > capacity) {
 				char *fresh = realloc(text, length + 2);
@@ -318,7 +305,7 @@ copy_selection(struct text_selection *selection)
 					result = IO_ERROR_OUT_OF_MEMORY;
 					goto done;
 				}
-				text = fresh;
+				text     = fresh;
 				capacity = length + 2;
 			}
 			text[length++] = '\n';
@@ -346,17 +333,17 @@ int
 st_wren_mouse_drag_select(struct st_wren_context *context, bool rectangular)
 {
 	struct text_selection selection = {
-		.context = context,
-		.console = context == NULL ? NULL : context->console,
-		.rectangular = rectangular,
+	    .context     = context,
+	    .console     = context == NULL ? NULL : context->console,
+	    .rectangular = rectangular,
 	};
-	struct st_console_event event;
-	struct st_console_rect screen;
+	struct st_console_event       event;
+	struct st_console_rect        screen;
 	struct st_wren_mouse_gesture *gesture;
-	st_console_snapshot_t *snapshot = NULL;
-	size_t count;
-	bool copy = false;
-	int result;
+	st_console_snapshot_t        *snapshot = NULL;
+	size_t                        count;
+	bool                          copy = false;
+	int                           result;
 
 	if (context == NULL || context->console == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -364,21 +351,17 @@ st_wren_mouse_drag_select(struct st_wren_context *context, bool rectangular)
 	if (!gesture->pressed || !gesture->dragging)
 		return 0;
 	/* The gesture keeps press-time modifiers, so the mode stays fixed. */
-	selection.rectangular = rectangular
-	    != ((gesture->modifiers & ST_CONSOLE_MODIFIER_ALT) != 0);
+	selection.rectangular = rectangular != ((gesture->modifiers & ST_CONSOLE_MODIFIER_ALT) != 0);
 	if (!context->cterm_suspended
-	    && st_term_session_text_view(context->session,context->console,&selection.view))
-		selection.console=selection.view.console;
-	result = st_console_size(selection.console, &selection.columns,
-	    &selection.rows);
+	    && st_term_session_text_view(context->session, context->console, &selection.view))
+		selection.console = selection.view.console;
+	result = st_console_size(selection.console, &selection.columns, &selection.rows);
 	if (result != 0 || selection.columns == 0 || selection.rows == 0)
 		return result != 0 ? result : IO_ERROR_OUT_OF_RANGE;
-	selection.palette = malloc((UINT16_MAX + 1U)
-	    * sizeof(selection.palette[0]));
+	selection.palette = malloc((UINT16_MAX + 1U) * sizeof(selection.palette[0]));
 	if (selection.palette == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
-	result = st_console_get_palette(selection.console, 0, selection.palette,
-	    UINT16_MAX + 1U);
+	result = st_console_get_palette(selection.console, 0, selection.palette, UINT16_MAX + 1U);
 	if (result != 0)
 		goto done;
 	if (selection.columns > SIZE_MAX / selection.rows) {
@@ -390,17 +373,15 @@ st_wren_mouse_drag_select(struct st_wren_context *context, bool rectangular)
 		result = IO_ERROR_OUT_OF_RANGE;
 		goto done;
 	}
-	selection.original = malloc(count * sizeof(*selection.original));
+	selection.original  = malloc(count * sizeof(*selection.original));
 	selection.displayed = malloc(count * sizeof(*selection.displayed));
-	selection.selected = calloc(count, sizeof(*selection.selected));
-	if (selection.original == NULL || selection.displayed == NULL
-	    || selection.selected == NULL) {
+	selection.selected  = calloc(count, sizeof(*selection.selected));
+	if (selection.original == NULL || selection.displayed == NULL || selection.selected == NULL) {
 		result = IO_ERROR_OUT_OF_MEMORY;
 		goto done;
 	}
-	screen = (struct st_console_rect){0, 0, selection.columns, selection.rows};
-	result = st_console_read_cells(selection.console, &screen,
-	    selection.original, selection.columns);
+	screen = (struct st_console_rect) {0, 0, selection.columns, selection.rows};
+	result = st_console_read_cells(selection.console, &screen, selection.original, selection.columns);
 	if (result != 0)
 		goto done;
 	/* Repainting text replaces pixel graphics, including unselected cells
@@ -410,12 +391,11 @@ st_wren_mouse_drag_select(struct st_wren_context *context, bool rectangular)
 		goto done;
 	for (size_t index = 0; index < count; ++index)
 		selection.displayed[index] = selection.original[index];
-	selection_end(&selection,gesture->start_x,gesture->start_y,
-	    gesture->start_pixel_x,gesture->start_pixel_y);
+	selection_end(&selection, gesture->start_x, gesture->start_y, gesture->start_pixel_x,
+	    gesture->start_pixel_y);
 	selection.start_x = selection.end_x;
 	selection.start_y = selection.end_y;
-	selection_end(&selection,gesture->end_x,gesture->end_y,
-	    gesture->end_pixel_x,gesture->end_pixel_y);
+	selection_end(&selection, gesture->end_x, gesture->end_y, gesture->end_pixel_x, gesture->end_pixel_y);
 	result = paint_selection(&selection);
 	while (result == 0) {
 		result = st_console_event_wait(context->console, &event);
@@ -427,36 +407,35 @@ st_wren_mouse_drag_select(struct st_wren_context *context, bool rectangular)
 		}
 		context->mouse_buttons = event.data.mouse.buttons;
 		if (event.data.mouse.action == ST_CONSOLE_MOUSE_MOVE
-		    && (event.data.mouse.buttons
-		    & ST_CONSOLE_MOUSE_BUTTON_LEFT) != 0) {
-			selection_end(&selection,event.data.mouse.x,event.data.mouse.y,
-			    event.data.mouse.pixel_x,event.data.mouse.pixel_y);
-			gesture->end_x = event.data.mouse.x;
-			gesture->end_y = event.data.mouse.y;
+		    && (event.data.mouse.buttons & ST_CONSOLE_MOUSE_BUTTON_LEFT) != 0) {
+			selection_end(&selection, event.data.mouse.x, event.data.mouse.y, event.data.mouse.pixel_x,
+			    event.data.mouse.pixel_y);
+			gesture->end_x       = event.data.mouse.x;
+			gesture->end_y       = event.data.mouse.y;
 			gesture->end_pixel_x = event.data.mouse.pixel_x;
 			gesture->end_pixel_y = event.data.mouse.pixel_y;
-			result = paint_selection(&selection);
+			result               = paint_selection(&selection);
 		}
 		else if (event.data.mouse.action == ST_CONSOLE_MOUSE_BUTTON
-		    && (event.data.mouse.buttons
-		    & ST_CONSOLE_MOUSE_BUTTON_LEFT) == 0) {
-			st_cterm_sync_mouse_buttons(context->session==NULL ? context->cterm : st_term_session_cterm(context->session),
+		         && (event.data.mouse.buttons & ST_CONSOLE_MOUSE_BUTTON_LEFT) == 0) {
+			st_cterm_sync_mouse_buttons(context->session == NULL
+							? context->cterm
+							: st_term_session_cterm(context->session),
 			    event.data.mouse.buttons);
-			selection_end(&selection,event.data.mouse.x,event.data.mouse.y,
-			    event.data.mouse.pixel_x,event.data.mouse.pixel_y);
-			gesture->end_x = event.data.mouse.x;
-			gesture->end_y = event.data.mouse.y;
+			selection_end(&selection, event.data.mouse.x, event.data.mouse.y, event.data.mouse.pixel_x,
+			    event.data.mouse.pixel_y);
+			gesture->end_x       = event.data.mouse.x;
+			gesture->end_y       = event.data.mouse.y;
 			gesture->end_pixel_x = event.data.mouse.pixel_x;
 			gesture->end_pixel_y = event.data.mouse.pixel_y;
-			gesture->pressed = false;
-			gesture->dragging = false;
-			copy = true;
+			gesture->pressed     = false;
+			gesture->dragging    = false;
+			copy                 = true;
 			break;
 		}
 	}
 	{
-		int restore_result = st_console_snapshot_restore(selection.console,
-		    snapshot, NULL);
+		int restore_result = st_console_snapshot_restore(selection.console, snapshot, NULL);
 
 		if (result == 0)
 			result = restore_result;

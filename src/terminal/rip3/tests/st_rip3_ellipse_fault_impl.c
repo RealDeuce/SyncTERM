@@ -7,8 +7,7 @@ unsigned st_rip3_ellipse_test_realloc_countdown;
 static void *
 test_realloc(void *pointer, size_t size)
 {
-	if (st_rip3_ellipse_test_realloc_countdown != 0
-	    && --st_rip3_ellipse_test_realloc_countdown == 0)
+	if (st_rip3_ellipse_test_realloc_countdown != 0 && --st_rip3_ellipse_test_realloc_countdown == 0)
 		return NULL;
 	return realloc(pointer, size);
 }

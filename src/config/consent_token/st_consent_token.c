@@ -5,40 +5,37 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "st_consent_token.h"
-
-#include "file_map.h"
-#include "st_base64.h"
-#include "st_crypto.h"
-#include "st_digest.h"
-
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "file_map.h"
+#include "st_base64.h"
+#include "st_consent_token.h"
+#include "st_crypto.h"
+#include "st_digest.h"
+
 #define TOKEN_HEADER_SIZE 4U
 #define TOKEN_DIGEST_SIZE 32U
-#define TOKEN_TAG_SIZE 32U
-#define TOKEN_FIXED_SIZE \
-	(TOKEN_HEADER_SIZE + TOKEN_DIGEST_SIZE + TOKEN_TAG_SIZE)
-#define HMAC_BLOCK_SIZE 64U
+#define TOKEN_TAG_SIZE    32U
+#define TOKEN_FIXED_SIZE  (TOKEN_HEADER_SIZE + TOKEN_DIGEST_SIZE + TOKEN_TAG_SIZE)
+#define HMAC_BLOCK_SIZE   64U
 
 static int
 sha256(const void *data, size_t size, uint8_t result[TOKEN_DIGEST_SIZE])
 {
-	return st_digest(ST_DIGEST_SHA256, data, size, result,
-	    TOKEN_DIGEST_SIZE);
+	return st_digest(ST_DIGEST_SHA256, data, size, result, TOKEN_DIGEST_SIZE);
 }
 
 static int
-hmac_sha256(const uint8_t key[ST_CONSENT_TOKEN_KEY_SIZE],
-	const void *data, size_t size, uint8_t result[TOKEN_TAG_SIZE])
+hmac_sha256(const uint8_t key[ST_CONSENT_TOKEN_KEY_SIZE], const void *data, size_t size,
+    uint8_t result[TOKEN_TAG_SIZE])
 {
-	uint8_t inner[TOKEN_DIGEST_SIZE];
-	uint8_t inner_input[HMAC_BLOCK_SIZE + TOKEN_DIGEST_SIZE];
+	uint8_t  inner[TOKEN_DIGEST_SIZE];
+	uint8_t  inner_input[HMAC_BLOCK_SIZE + TOKEN_DIGEST_SIZE];
 	uint8_t *input;
-	int status;
+	int      status;
 
 	if (size > SIZE_MAX - HMAC_BLOCK_SIZE)
 		return ST_CRYPTO_ERR_INVALID;
@@ -68,7 +65,7 @@ static int
 file_sha256(const char *path, uint8_t result[TOKEN_DIGEST_SIZE])
 {
 	file_map_t *mapping = NULL;
-	int status = file_map_open(&mapping, path);
+	int         status  = file_map_open(&mapping, path);
 
 	if (status != 0)
 		return ST_CRYPTO_ERR;
@@ -96,20 +93,19 @@ st_consent_token_generate_key(uint8_t key[ST_CONSENT_TOKEN_KEY_SIZE])
 }
 
 int
-st_consent_token_sign(char **result,
-	const uint8_t key[ST_CONSENT_TOKEN_KEY_SIZE], const char *path)
+st_consent_token_sign(char **result, const uint8_t key[ST_CONSENT_TOKEN_KEY_SIZE], const char *path)
 {
-	uint8_t digest[TOKEN_DIGEST_SIZE];
+	uint8_t  digest[TOKEN_DIGEST_SIZE];
 	uint8_t *binary;
-	char *encoded;
-	size_t path_size;
-	size_t binary_size;
-	size_t encoded_size;
-	int status;
+	char    *encoded;
+	size_t   path_size;
+	size_t   binary_size;
+	size_t   encoded_size;
+	int      status;
 
 	if (result == NULL || key == NULL || path == NULL || path[0] == '\0')
 		return ST_CRYPTO_ERR_INVALID;
-	*result = NULL;
+	*result   = NULL;
 	path_size = strlen(path);
 	if (path_size > UINT16_MAX)
 		return ST_CRYPTO_ERR_INVALID;
@@ -117,7 +113,7 @@ st_consent_token_sign(char **result,
 	if (status != ST_CRYPTO_OK)
 		return status;
 	binary_size = TOKEN_FIXED_SIZE + path_size;
-	binary = malloc(binary_size);
+	binary      = malloc(binary_size);
 	if (binary == NULL)
 		return ST_CRYPTO_ERR;
 	binary[0] = (uint8_t)(path_size >> 24);
@@ -126,15 +122,13 @@ st_consent_token_sign(char **result,
 	binary[3] = (uint8_t)path_size;
 	memcpy(binary + TOKEN_HEADER_SIZE, path, path_size);
 	memcpy(binary + TOKEN_HEADER_SIZE + path_size, digest, sizeof(digest));
-	status = hmac_sha256(key, binary,
-	    TOKEN_HEADER_SIZE + path_size + TOKEN_DIGEST_SIZE,
+	status = hmac_sha256(key, binary, TOKEN_HEADER_SIZE + path_size + TOKEN_DIGEST_SIZE,
 	    binary + TOKEN_HEADER_SIZE + path_size + TOKEN_DIGEST_SIZE);
 	if (status != ST_CRYPTO_OK) {
 		free(binary);
 		return status;
 	}
-	if (!st_base64_encoded_size(binary_size, &encoded_size)
-	    || encoded_size == SIZE_MAX) {
+	if (!st_base64_encoded_size(binary_size, &encoded_size) || encoded_size == SIZE_MAX) {
 		free(binary);
 		return ST_CRYPTO_ERR_INVALID;
 	}
@@ -154,24 +148,22 @@ st_consent_token_sign(char **result,
 }
 
 int
-st_consent_token_verify(char **result,
-	const uint8_t key[ST_CONSENT_TOKEN_KEY_SIZE], const char *token)
+st_consent_token_verify(char **result, const uint8_t key[ST_CONSENT_TOKEN_KEY_SIZE], const char *token)
 {
-	uint8_t expected[TOKEN_TAG_SIZE];
-	uint8_t digest[TOKEN_DIGEST_SIZE];
+	uint8_t  expected[TOKEN_TAG_SIZE];
+	uint8_t  digest[TOKEN_DIGEST_SIZE];
 	uint8_t *binary;
-	char *path;
-	size_t token_size;
-	size_t binary_size;
-	size_t path_size;
-	int status;
+	char    *path;
+	size_t   token_size;
+	size_t   binary_size;
+	size_t   path_size;
+	int      status;
 
 	if (result == NULL || key == NULL || token == NULL)
 		return ST_CRYPTO_ERR_INVALID;
-	*result = NULL;
+	*result    = NULL;
 	token_size = strlen(token);
-	if (!st_base64_decoded_size(token, token_size, &binary_size)
-	    || binary_size < TOKEN_FIXED_SIZE)
+	if (!st_base64_decoded_size(token, token_size, &binary_size) || binary_size < TOKEN_FIXED_SIZE)
 		return ST_CRYPTO_ERR_FORMAT;
 	binary = malloc(binary_size);
 	if (binary == NULL)
@@ -180,22 +172,19 @@ st_consent_token_verify(char **result,
 		free(binary);
 		return ST_CRYPTO_ERR_FORMAT;
 	}
-	path_size = ((size_t)binary[0] << 24) | ((size_t)binary[1] << 16)
-	    | ((size_t)binary[2] << 8) | binary[3];
+	path_size = ((size_t)binary[0] << 24) | ((size_t)binary[1] << 16) | ((size_t)binary[2] << 8) | binary[3];
 	if (path_size == 0 || binary_size != TOKEN_FIXED_SIZE + path_size
 	    || memchr(binary + TOKEN_HEADER_SIZE, '\0', path_size) != NULL) {
 		free(binary);
 		return ST_CRYPTO_ERR_FORMAT;
 	}
-	status = hmac_sha256(key, binary,
-	    TOKEN_HEADER_SIZE + path_size + TOKEN_DIGEST_SIZE, expected);
+	status = hmac_sha256(key, binary, TOKEN_HEADER_SIZE + path_size + TOKEN_DIGEST_SIZE, expected);
 	if (status != ST_CRYPTO_OK) {
 		free(binary);
 		return status;
 	}
-	if (!equal_constant_time(expected,
-	    binary + TOKEN_HEADER_SIZE + path_size + TOKEN_DIGEST_SIZE,
-	    TOKEN_TAG_SIZE)) {
+	if (!equal_constant_time(expected, binary + TOKEN_HEADER_SIZE + path_size + TOKEN_DIGEST_SIZE,
+		TOKEN_TAG_SIZE)) {
 		free(binary);
 		return ST_CRYPTO_ERR_VERIFY;
 	}
@@ -206,9 +195,9 @@ st_consent_token_verify(char **result,
 	}
 	memcpy(path, binary + TOKEN_HEADER_SIZE, path_size);
 	path[path_size] = '\0';
-	status = file_sha256(path, digest);
-	if (status == ST_CRYPTO_OK && !equal_constant_time(digest,
-	    binary + TOKEN_HEADER_SIZE + path_size, TOKEN_DIGEST_SIZE))
+	status          = file_sha256(path, digest);
+	if (status == ST_CRYPTO_OK
+	    && !equal_constant_time(digest, binary + TOKEN_HEADER_SIZE + path_size, TOKEN_DIGEST_SIZE))
 		status = ST_CRYPTO_ERR_VERIFY;
 	free(binary);
 	if (status != ST_CRYPTO_OK) {

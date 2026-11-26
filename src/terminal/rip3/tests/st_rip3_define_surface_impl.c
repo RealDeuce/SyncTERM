@@ -9,10 +9,9 @@ static void *
 test_calloc(size_t count, size_t size)
 {
 	st_rip3_define_test_allocations++;
-	if (st_rip3_define_test_fail_calloc != 0
-	    && --st_rip3_define_test_fail_calloc == 0)
+	if (st_rip3_define_test_fail_calloc != 0 && --st_rip3_define_test_fail_calloc == 0)
 		return NULL;
-	return calloc(count,size);
+	return calloc(count, size);
 }
 
 #define calloc test_calloc

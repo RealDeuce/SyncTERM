@@ -1,24 +1,25 @@
 /* Independent RIP TERMINFO replies and nonfatal reference recovery. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
-#include "st_rip3_host_variables.h"
-#include "st_rip3_host_internal.h"
-#include "io_error.h"
-
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 
-#define CHECK(expression) do { \
-	if (!(expression)) { \
-		fprintf(stderr, "check failed at line %d: %s\n", __LINE__, #expression); \
-		return 1; \
-	} \
-} while (0)
+#include "io_error.h"
+#include "st_rip3_host_internal.h"
+#include "st_rip3_host_variables.h"
+
+#define CHECK(expression)                                                                        \
+	do {                                                                                     \
+		if (!(expression)) {                                                             \
+			fprintf(stderr, "check failed at line %d: %s\n", __LINE__, #expression); \
+			return 1;                                                                \
+		}                                                                                \
+	} while (0)
 
 struct observations {
-	const char *expected;
-	size_t replies, diagnostics;
-	bool mismatch;
+	const char                  *expected;
+	size_t                       replies, diagnostics;
+	bool                         mismatch;
 	enum st_rip3_host_diagnostic last;
 };
 
@@ -27,24 +28,23 @@ reply(void *context, const uint8_t *text, size_t length)
 {
 	struct observations *observed = context;
 	observed->replies++;
-	observed->mismatch = observed->expected == NULL
-	    || strlen(observed->expected) != length
-	    || memcmp(observed->expected, text, length) != 0;
+	observed->mismatch = observed->expected == NULL || strlen(observed->expected) != length
+	                     || memcmp(observed->expected, text, length) != 0;
 }
 
 static void
 diagnostic(void *context, enum st_rip3_host_diagnostic kind)
 {
 	struct observations *observed = context;
-	observed->diagnostics++; observed->last = kind;
+	observed->diagnostics++;
+	observed->last = kind;
 }
 
 static int
-run(const struct st_rip3_host_variables *host, const char *command,
-    const char *expected, int error)
+run(const struct st_rip3_host_variables *host, const char *command, const char *expected, int error)
 {
-	struct observations observed = {.expected = expected};
-	const struct st_rip3_host_sink sink = {&observed,reply,diagnostic};
+	struct observations            observed = {.expected = expected};
+	const struct st_rip3_host_sink sink     = {&observed, reply, diagnostic};
 
 	st_rip3_host_variables_process(host, &sink, (const uint8_t *)command, strlen(command));
 	CHECK(!observed.mismatch);
@@ -58,21 +58,30 @@ run(const struct st_rip3_host_variables *host, const char *command,
 int
 main(void)
 {
-	struct st_rip3_terminal_identity identity = {"SyncTERM","Test vendor","1.2.3"};
-	struct st_rip3_host_variables host = {.identity=&identity}, absent = {0};
-	static const struct {const char *command, *expected;} cases[] = {
-		{"$TERMINFO$","SyncTERM"}, {"$TERMINFO()$","SyncTERM"},
-		{"$TERMINFO( )$","NONE"}, {"$TERMINFO(NAME)$","SyncTERM"},
-		{"$TERMINFO(,)$","SyncTERM"},
-		{"$tErMiNfO(vEnDoR)$","Test vendor"}, {"$TERMINFO( VERSION )$","1.2.3"},
-		{"$TERMINFO(LIST)$","LIST,NAME,VENDOR,VERSION"},
-		{"$TERMINFO(GOOSE)$","NONE"}, {"$TERMINFO(ABCDEFGHIJKL)$","NONE"},
-		{"$TERMINFO(ABCDEFGHIJKLM)$","NONE"}, {"$TERMINFO(ABCDEFGHIJKLMNOPQRST)$","NONE"},
+	struct st_rip3_terminal_identity identity = {"SyncTERM", "Test vendor", "1.2.3"};
+	struct st_rip3_host_variables    host = {.identity = &identity}, absent = {0};
+
+	static const struct {
+		const char *command, *expected;
+	} cases[] = {
+	    {"$TERMINFO$",                       "SyncTERM"                },
+	    {"$TERMINFO()$",                     "SyncTERM"                },
+	    {"$TERMINFO( )$",                    "NONE"                    },
+	    {"$TERMINFO(NAME)$",                 "SyncTERM"                },
+	    {"$TERMINFO(,)$",                    "SyncTERM"                },
+	    {"$tErMiNfO(vEnDoR)$",               "Test vendor"             },
+	    {"$TERMINFO( VERSION )$",            "1.2.3"                   },
+	    {"$TERMINFO(LIST)$",                 "LIST,NAME,VENDOR,VERSION"},
+	    {"$TERMINFO(GOOSE)$",                "NONE"                    },
+	    {"$TERMINFO(ABCDEFGHIJKL)$",         "NONE"                    },
+	    {"$TERMINFO(ABCDEFGHIJKLM)$",        "NONE"                    },
+	    {"$TERMINFO(ABCDEFGHIJKLMNOPQRST)$", "NONE"                    },
 	};
+
 	for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++)
 		CHECK(run(&host, cases[i].command, cases[i].expected, -1) == 0);
-	static const char *const invalid[] = {"$TERMINFO(NAME,VENDOR)$",
-	    "$TERMINFO(ABCDEFGHIJKLMNOPQRSTU)$","$TERMINFO(NAME$","$TERMINFO((NAME))$"};
+	static const char *const invalid[] = {"$TERMINFO(NAME,VENDOR)$", "$TERMINFO(ABCDEFGHIJKLMNOPQRSTU)$",
+	    "$TERMINFO(NAME$", "$TERMINFO((NAME))$"};
 	for (size_t i = 0; i < sizeof(invalid) / sizeof(invalid[0]); i++) {
 		CHECK(run(&host, invalid[i], NULL, ST_RIP3_HOST_INVALID_REFERENCE) == 0);
 		CHECK(run(&host, "$TERMINFO(NAME)$", "SyncTERM", -1) == 0);
@@ -80,13 +89,16 @@ main(void)
 	CHECK(run(&absent, "$TERMINFO$", NULL, ST_RIP3_HOST_UNSUPPORTED_REFERENCE) == 0);
 	CHECK(run(&absent, "$TERMINFO(LIST)$", NULL, ST_RIP3_HOST_UNSUPPORTED_REFERENCE) == 0);
 	CHECK(run(&absent, "$TERMINFO(NAME,VERSION)$", NULL, ST_RIP3_HOST_INVALID_REFERENCE) == 0);
-	struct st_rip3_terminal_identity incomplete[] = {{NULL,"Vendor","1"},
-	    {"Name",NULL,"1"},{"Name","Vendor",NULL}};
+	struct st_rip3_terminal_identity incomplete[] = {
+	    {NULL,   "Vendor", "1" },
+            {"Name", NULL,     "1" },
+            {"Name", "Vendor", NULL}
+        };
 	for (size_t i = 0; i < sizeof(incomplete) / sizeof(incomplete[0]); i++) {
 		host.identity = &incomplete[i];
 		CHECK(run(&host, "$TERMINFO(LIST)$", NULL, ST_RIP3_HOST_UNSUPPORTED_REFERENCE) == 0);
 	}
-	host.identity = &identity;
+	host.identity   = &identity;
 	identity.vendor = NULL;
 	CHECK(run(&host, "$TERMINFO(NAME)$", NULL, ST_RIP3_HOST_UNSUPPORTED_REFERENCE) == 0);
 	identity.vendor = "";
@@ -97,11 +109,12 @@ main(void)
 	CHECK(run(&host, "$TERMINFO(\303\251)$", "NONE", -1) == 0);
 	/* Borrowed text is emitted whole, beyond the numeric/table scratch size. */
 	char long_name[5001];
-	memset(long_name, 'N', sizeof(long_name) - 1); long_name[5000] = 0;
-	identity.name = long_name;
+	memset(long_name, 'N', sizeof(long_name) - 1);
+	long_name[5000] = 0;
+	identity.name   = long_name;
 	CHECK(run(&host, "$TERMINFO$", long_name, -1) == 0);
 	struct st_rip3_builtin_reference reference;
-	char output[8] = "KEEP";
+	char                             output[8] = "KEEP";
 	CHECK(st_rip3_builtin_reference_parse(&reference, (const uint8_t *)"$TERMINFO$", 10) == 0);
 	CHECK(st_rip3_host_variables_execute(&host, &reference, output, sizeof(output)) == IO_ERROR_OUT_OF_RANGE);
 	CHECK(strcmp(output, "KEEP") == 0);

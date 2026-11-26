@@ -3,22 +3,21 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "st_console.h"
-
 #include "io_error.h"
+#include "st_console.h"
 #include "st_time.h"
 
 #if ST_CONSOLE_TEST_HAVE_PTY_H
-	#include <pty.h>
+ #include <pty.h>
 #elif ST_CONSOLE_TEST_HAVE_UTIL_H
-	#include <util.h>
+ #include <util.h>
 #elif ST_CONSOLE_TEST_HAVE_LIBUTIL_H
-	#include <libutil.h>
+ #include <libutil.h>
 #endif
 
 #include <errno.h>
-#include <locale.h>
 #include <limits.h>
+#include <locale.h>
 #include <poll.h>
 #include <signal.h>
 #include <stdint.h>
@@ -34,7 +33,7 @@
 #include "pty_diagnostics.h"
 
 static unsigned char terminal_output[65536];
-static size_t terminal_output_size;
+static size_t        terminal_output_size;
 
 static bool
 select_utf8_locale(void)
@@ -42,11 +41,10 @@ select_utf8_locale(void)
 	static const char *const names[] = {"C.UTF-8", "en_US.UTF-8", "UTF-8"};
 
 	for (size_t i = 0; i < sizeof(names) / sizeof(names[0]); ++i) {
-		char text[MB_LEN_MAX];
+		char      text[MB_LEN_MAX];
 		mbstate_t state = {0};
 
-		if (setlocale(LC_CTYPE, names[i]) != NULL
-		    && wcrtomb(text, (wchar_t)UINT32_C(0x00e9), &state) == 2
+		if (setlocale(LC_CTYPE, names[i]) != NULL && wcrtomb(text, (wchar_t)UINT32_C(0x00e9), &state) == 2
 		    && memcmp(text, "\xc3\xa9", 2) == 0)
 			return true;
 	}
@@ -78,7 +76,7 @@ output_contains(const char *text)
 static bool
 wait_for_output(int descriptor, const char *text, size_t read_size, int timeout_ms)
 {
-	unsigned char bytes[4096];
+	unsigned char      bytes[4096];
 	struct st_deadline deadline;
 
 	if (read_size == 0 || st_deadline_start(&deadline, timeout_ms) != 0)
@@ -88,9 +86,9 @@ wait_for_output(int descriptor, const char *text, size_t read_size, int timeout_
 	/* Per-character flushes can make hundreds of reads immediately ready. */
 	while (!output_contains(text)) {
 		struct pollfd output = {.fd = descriptor, .events = POLLIN};
-		int64_t remaining;
-		int status;
-		ssize_t count;
+		int64_t       remaining;
+		int           status;
+		ssize_t       count;
 
 		if (st_deadline_remaining_ms(&deadline, &remaining) != 0 || remaining == 0)
 			return false;
@@ -118,7 +116,7 @@ test_fragmented_output(void)
 	memcpy(frame + 128, "REPAINT", 7);
 	/* Exercise fragmented success, EOF before the marker, and an idle writer. */
 	for (unsigned scenario = 0; scenario < 3; ++scenario) {
-		int descriptors[2];
+		int    descriptors[2];
 		size_t size = scenario == 0 ? sizeof(frame) : scenario == 1 ? 128 : 0;
 
 		terminal_output_size = 0;
@@ -131,15 +129,14 @@ test_fragmented_output(void)
 		}
 		if (scenario != 2)
 			(void)close(descriptors[1]);
-		bool found = wait_for_output(descriptors[0], "REPAINT", 1,
-		    scenario == 2 ? 20 : 5000);
+		bool found = wait_for_output(descriptors[0], "REPAINT", 1, scenario == 2 ? 20 : 5000);
 		(void)close(descriptors[0]);
 		if (scenario == 2)
 			(void)close(descriptors[1]);
 		if (found != (scenario == 0) || terminal_output_size != size
 		    || memcmp(terminal_output, frame, size) != 0) {
-			fprintf(stderr, "fragmented repaint capture case %u: found=%d bytes=%zu\n",
-			    scenario, found, terminal_output_size);
+			fprintf(stderr, "fragmented repaint capture case %u: found=%d bytes=%zu\n", scenario,
+			    found, terminal_output_size);
 			return EXIT_FAILURE;
 		}
 	}
@@ -164,8 +161,7 @@ output_selects_colour(unsigned index)
 	if (output_contains(sequence))
 		return true;
 	if (index < 16) {
-		(void)snprintf(sequence, sizeof(sequence), "\033[%um",
-		    index < 8 ? 30 + index : 90 + index - 8);
+		(void)snprintf(sequence, sizeof(sequence), "\033[%um", index < 8 ? 30 + index : 90 + index - 8);
 		if (output_contains(sequence))
 			return true;
 	}
@@ -176,9 +172,9 @@ static bool
 output_programs_colour(unsigned red, unsigned green, unsigned blue)
 {
 	for (size_t i = 0; i + 4 < terminal_output_size; ++i) {
-		char command[80];
+		char     command[80];
 		unsigned index, r, g, b;
-		size_t size = terminal_output_size - i - 4;
+		size_t   size = terminal_output_size - i - 4;
 
 		if (memcmp(terminal_output + i, "\033]4;", 4) != 0)
 			continue;
@@ -189,10 +185,8 @@ output_programs_colour(unsigned red, unsigned green, unsigned blue)
 		/* xterm initc converts ncurses' 0..1000 channels back to 0..255;
 		 * allow its one-unit rounding, but still require the programmed
 		 * slot to be selected for output. */
-		if (sscanf(command, "%u;rgb:%2x/%2x/%2x", &index, &r, &g, &b) == 4
-		    && abs((int)r - (int)red) <= 1
-		    && abs((int)g - (int)green) <= 1
-		    && abs((int)b - (int)blue) <= 1
+		if (sscanf(command, "%u;rgb:%2x/%2x/%2x", &index, &r, &g, &b) == 4 && abs((int)r - (int)red) <= 1
+		    && abs((int)g - (int)green) <= 1 && abs((int)b - (int)blue) <= 1
 		    && output_selects_colour(index))
 			return true;
 	}
@@ -229,80 +223,94 @@ child_result(int descriptor, unsigned char result)
 static void
 child_test(int report, bool cp437)
 {
-	size_t caller_mb_max = (size_t)MB_CUR_MAX;
-	static const uint8_t bitmap[128] = {0};
-	static const uint8_t wide_bitmap[2] = {0};
-	static const char joystick[] = "\xf0\x9f\x95\xb9\xef\xb8\x8f";
-	static const struct st_console_font_cluster_mapping clusters[] = {
-		{joystick, sizeof(joystick) - 1, 128},
+	size_t                                              caller_mb_max  = (size_t)MB_CUR_MAX;
+	static const uint8_t                                bitmap[128]    = {0};
+	static const uint8_t                                wide_bitmap[2] = {0};
+	static const char                                   joystick[]     = "\xf0\x9f\x95\xb9\xef\xb8\x8f";
+	static const struct st_console_font_cluster_mapping clusters[]     = {
+	    {joystick, sizeof(joystick) - 1, 128},
 	};
 	static const struct st_console_font_mapping mapping[] = {
-		{'?', '?'},
-		{'A', 'A'}, {'B', 'B'}, {'C', 'C'}, {'D', 'D'}, {'E', 'E'},
-		{'F', 'F'}, {'G', 'G'}, {'H', 'H'}, {'I', 'I'}, {'J', 'J'},
-		{'K', 'K'}, {'L', 'L'}, {'M', 'M'}, {'N', 'N'}, {'O', 'O'},
-		{'P', 'P'}, {'Q', 'Q'}, {'R', 'R'}, {'S', 'S'}, {'T', 'T'},
-		{'U', 'U'}, {'V', 'V'}, {'W', 'W'}, {'X', 'X'}, {'Y', 'Y'},
-		{'Z', 'Z'},
-		{UINT32_C(0x00e9), 127},
-		{UINT32_C(0x2502), 126},
+	    {'?',              '?'},
+	    {'A',              'A'},
+	    {'B',              'B'},
+	    {'C',              'C'},
+	    {'D',              'D'},
+	    {'E',              'E'},
+	    {'F',              'F'},
+	    {'G',              'G'},
+	    {'H',              'H'},
+	    {'I',              'I'},
+	    {'J',              'J'},
+	    {'K',              'K'},
+	    {'L',              'L'},
+	    {'M',              'M'},
+	    {'N',              'N'},
+	    {'O',              'O'},
+	    {'P',              'P'},
+	    {'Q',              'Q'},
+	    {'R',              'R'},
+	    {'S',              'S'},
+	    {'T',              'T'},
+	    {'U',              'U'},
+	    {'V',              'V'},
+	    {'W',              'W'},
+	    {'X',              'X'},
+	    {'Y',              'Y'},
+	    {'Z',              'Z'},
+	    {UINT32_C(0x00e9), 127},
+	    {UINT32_C(0x2502), 126},
 	};
 	static const struct st_console_font font = {
-		.bitmap = bitmap,
-		.bitmap_size = sizeof(bitmap),
-		.width = 8,
-		.height = 1,
-		.glyph_count = 128,
-		.row_stride = 1,
-		.glyph_stride = 1,
-		.wide_bitmap = wide_bitmap,
-		.wide_bitmap_size = sizeof(wide_bitmap),
-		.wide_glyph_count = 1,
-		.wide_row_stride = 2,
-		.wide_glyph_stride = 2,
-		.mapping = mapping,
-		.mapping_count = sizeof(mapping) / sizeof(mapping[0]),
-		.cluster_mapping = clusters,
-		.cluster_mapping_count = 1,
-		.fallback_glyph = '?',
+	    .bitmap                = bitmap,
+	    .bitmap_size           = sizeof(bitmap),
+	    .width                 = 8,
+	    .height                = 1,
+	    .glyph_count           = 128,
+	    .row_stride            = 1,
+	    .glyph_stride          = 1,
+	    .wide_bitmap           = wide_bitmap,
+	    .wide_bitmap_size      = sizeof(wide_bitmap),
+	    .wide_glyph_count      = 1,
+	    .wide_row_stride       = 2,
+	    .wide_glyph_stride     = 2,
+	    .mapping               = mapping,
+	    .mapping_count         = sizeof(mapping) / sizeof(mapping[0]),
+	    .cluster_mapping       = clusters,
+	    .cluster_mapping_count = 1,
+	    .fallback_glyph        = '?',
 	};
 	struct st_console_config config = {
-		.columns = 8,
-		.rows = 3,
-		.wrap = true,
+	    .columns = 8,
+	    .rows    = 3,
+	    .wrap    = true,
 	};
-	st_console_t *console = NULL;
-	st_console_t *peer = NULL;
-	st_console_display_t *display = NULL;
+	st_console_t                          *console        = NULL;
+	st_console_t                          *peer           = NULL;
+	st_console_display_t                  *display        = NULL;
 	const struct st_console_display_config display_config = {
-		.backend = ST_CONSOLE_BACKEND_NCURSES,
-		.text_presentation = cp437 ? ST_CONSOLE_TEXT_CP437
-		    : ST_CONSOLE_TEXT_UNICODE,
+	    .backend           = ST_CONSOLE_BACKEND_NCURSES,
+	    .text_presentation = cp437 ? ST_CONSOLE_TEXT_CP437 : ST_CONSOLE_TEXT_UNICODE,
 	};
-	struct st_console_event event;
+	struct st_console_event      event;
 	const struct st_console_rect cells_rect = {0, 0, 7, 1};
-	struct st_console_cell cells[7] = {
-		{.glyph = 'A', .foreground = 9, .background = 0},
-		{.glyph = 'B',
-		    .foreground = ST_CONSOLE_COLOR_RGB_VALUE(0, 215, 175),
-		    .background = 0},
-		{.glyph = 'C', .foreground = 7, .background = 0,
-		    .flags = ST_CONSOLE_CELL_BOLD},
-		{.glyph = 127, .foreground = 7, .background = 0},
-		{.glyph = 126, .foreground = 7, .background = 0},
-		{.glyph = 128, .foreground = 7, .background = 0},
-		{.glyph = 128, .foreground = 7, .background = 0,
-		    .flags = ST_CONSOLE_CELL_CONTINUATION},
+	struct st_console_cell       cells[7]   = {
+	    {.glyph = 'A', .foreground = 9, .background = 0},
+	    {.glyph = 'B', .foreground = ST_CONSOLE_COLOR_RGB_VALUE(0, 215, 175), .background = 0},
+	    {.glyph = 'C', .foreground = 7, .background = 0, .flags = ST_CONSOLE_CELL_BOLD},
+	    {.glyph = 127, .foreground = 7, .background = 0},
+	    {.glyph = 126, .foreground = 7, .background = 0},
+	    {.glyph = 128, .foreground = 7, .background = 0},
+	    {.glyph = 128, .foreground = 7, .background = 0, .flags = ST_CONSOLE_CELL_CONTINUATION},
 	};
 	struct timespec deadline;
-	uint32_t columns;
-	uint32_t rows;
-	uint32_t capabilities;
-	const char *colorterm = getenv("COLORTERM");
-	bool expect_direct = colorterm != NULL
-	    && (strcmp(colorterm, "truecolor") == 0
-	    || strcmp(colorterm, "24bit") == 0);
-	int status;
+	uint32_t        columns;
+	uint32_t        rows;
+	uint32_t        capabilities;
+	const char     *colorterm = getenv("COLORTERM");
+	bool            expect_direct =
+	    colorterm != NULL && (strcmp(colorterm, "truecolor") == 0 || strcmp(colorterm, "24bit") == 0);
+	int      status;
 	uint16_t font_identifier;
 
 	status = st_console_display_create(&display, &display_config);
@@ -320,16 +328,14 @@ child_test(int report, bool cp437)
 		child_result(report, 'L');
 		_exit(1);
 	}
-	if (st_console_register_static_font(console, &font, &font_identifier) != 0
-	    || font_identifier != 0) {
+	if (st_console_register_static_font(console, &font, &font_identifier) != 0 || font_identifier != 0) {
 		child_result(report, 'G');
 		st_console_destroy(console);
 		_exit(1);
 	}
 	for (size_t i = 0; i < sizeof(cells) / sizeof(cells[0]); ++i)
 		cells[i].font = font_identifier;
-	if (st_console_size(console, &columns, &rows) != 0
-	    || columns != 91 || rows != 37) {
+	if (st_console_size(console, &columns, &rows) != 0 || columns != 91 || rows != 37) {
 		child_result(report, 'D');
 		st_console_destroy(console);
 		_exit(1);
@@ -338,19 +344,17 @@ child_test(int report, bool cp437)
 	    || (capabilities & ST_CONSOLE_CAP_TEXT_TERMINAL) == 0
 	    || (capabilities & ST_CONSOLE_CAP_LOCAL_CONTROL_KEYS) == 0
 	    || (expect_direct
-	    && ((capabilities & ST_CONSOLE_CAP_PALETTE_CHANGE) == 0
-	    || (capabilities & ST_CONSOLE_CAP_EXTENDED_PALETTE) == 0))) {
+	        && ((capabilities & ST_CONSOLE_CAP_PALETTE_CHANGE) == 0
+	            || (capabilities & ST_CONSOLE_CAP_EXTENDED_PALETTE) == 0))) {
 		child_result(report, 'T');
 		st_console_destroy(console);
 		_exit(1);
 	}
-	config.cell_width = 8;
+	config.cell_width  = 8;
 	config.cell_height = 16;
 	if (st_console_create_on_display(&peer, display, &config) != 0
-	    || st_console_capabilities(peer, &capabilities) != 0
-	    || (capabilities & ST_CONSOLE_CAP_PIXELS) != 0
-	    || st_console_cell_pixel_size(peer, &columns, &rows) != 0
-	    || columns != 0 || rows != 0) {
+	    || st_console_capabilities(peer, &capabilities) != 0 || (capabilities & ST_CONSOLE_CAP_PIXELS) != 0
+	    || st_console_cell_pixel_size(peer, &columns, &rows) != 0 || columns != 0 || rows != 0) {
 		child_result(report, 'A');
 		_exit(1);
 	}
@@ -358,8 +362,7 @@ child_test(int report, bool cp437)
 	child_result(report, 'R');
 	deadline_after(&deadline, 5);
 	status = st_console_event_timedwait(console, &event, &deadline);
-	if (status != 0 || event.type != ST_CONSOLE_EVENT_KEY_CODE
-	    || event.data.key.code != 13) {
+	if (status != 0 || event.type != ST_CONSOLE_EVENT_KEY_CODE || event.data.key.code != 13) {
 		child_result(report, 'K');
 		st_console_destroy(console);
 		_exit(1);
@@ -378,8 +381,7 @@ child_test(int report, bool cp437)
 	for (size_t i = 0; i < sizeof(shortcuts) / sizeof(shortcuts[0]); ++i) {
 		deadline_after(&deadline, 5);
 		status = st_console_event_timedwait(console, &event, &deadline);
-		if (status != 0 || event.type != ST_CONSOLE_EVENT_KEY_CODE
-		    || event.data.key.code != shortcuts[i]
+		if (status != 0 || event.type != ST_CONSOLE_EVENT_KEY_CODE || event.data.key.code != shortcuts[i]
 		    || event.data.key.modifiers != ST_CONSOLE_MODIFIER_CONTROL) {
 			child_result(report, 'H');
 			st_console_destroy(console);
@@ -391,16 +393,15 @@ child_test(int report, bool cp437)
 	 * Nonblocking keypad reads do not guarantee that on every curses. */
 	deadline_after(&deadline, 5);
 	status = st_console_event_timedwait(console, &event, &deadline);
-	if (status != 0 || event.type != ST_CONSOLE_EVENT_KEY_CODE
-	    || event.data.key.code != 27 || event.data.key.modifiers != 0) {
+	if (status != 0 || event.type != ST_CONSOLE_EVENT_KEY_CODE || event.data.key.code != 27
+	    || event.data.key.modifiers != 0) {
 		child_result(report, 'X');
 		_exit(1);
 	}
 	child_result(report, 'e');
 	deadline_after(&deadline, 5);
 	status = st_console_event_timedwait(console, &event, &deadline);
-	if (status != 0 || event.type != ST_CONSOLE_EVENT_KEY_CODE
-	    || event.data.key.code != ST_CONSOLE_KEY_UP) {
+	if (status != 0 || event.type != ST_CONSOLE_EVENT_KEY_CODE || event.data.key.code != ST_CONSOLE_KEY_UP) {
 		child_result(report, 'U');
 		_exit(1);
 	}
@@ -432,20 +433,19 @@ child_test(int report, bool cp437)
 		child_result(report, 't');
 		deadline_after(&deadline, 5);
 		status = st_console_event_timedwait(console, &event, &deadline);
-		if (status != 0 || event.type != ST_CONSOLE_EVENT_TEXT
-		    || event.data.text.codepoint != 'Z') {
+		if (status != 0 || event.type != ST_CONSOLE_EVENT_TEXT || event.data.text.codepoint != 'Z') {
 			child_result(report, 'M');
 			_exit(1);
 		}
 		child_result(report, 'r');
 	}
 	{
-		const char text[] = "REPAINT";
+		const char                   text[]    = "REPAINT";
 		const struct st_console_rect rectangle = {0, 1, 7, 1};
-		struct st_console_cell marker[7] = {0};
+		struct st_console_cell       marker[7] = {0};
 
 		for (size_t i = 0; i < 7; ++i) {
-			marker[i].glyph = (uint32_t)text[i];
+			marker[i].glyph      = (uint32_t)text[i];
 			marker[i].foreground = 7;
 		}
 		if (st_console_write_cells(console, &rectangle, marker, 7) != 0)
@@ -472,10 +472,8 @@ child_test(int report, bool cp437)
 		if (status != 0 || event.type == ST_CONSOLE_EVENT_RESIZE)
 			break;
 	}
-	if (status != 0 || event.data.resize.columns != 101
-	    || event.data.resize.rows != 43
-	    || st_console_size(console, &columns, &rows) != 0
-	    || columns != 91 || rows != 37) {
+	if (status != 0 || event.data.resize.columns != 101 || event.data.resize.rows != 43
+	    || st_console_size(console, &columns, &rows) != 0 || columns != 91 || rows != 37) {
 		child_result(report, 'W');
 		st_console_destroy(console);
 		_exit(1);
@@ -493,8 +491,7 @@ child_test(int report, bool cp437)
 	child_result(report, 'e');
 	deadline_after(&deadline, 5);
 	status = st_console_event_timedwait(console, &event, &deadline);
-	if (status != 0 || event.type != ST_CONSOLE_EVENT_KEY_CODE
-	    || event.data.key.code != 13) {
+	if (status != 0 || event.type != ST_CONSOLE_EVENT_KEY_CODE || event.data.key.code != 13) {
 		child_result(report, 'I');
 		_exit(1);
 	}
@@ -525,8 +522,8 @@ static int
 wait_report(int report, int master, unsigned char expected)
 {
 	struct pollfd descriptors[2] = {
-		{.fd = report, .events = POLLIN},
-		{.fd = master, .events = POLLIN},
+	    {.fd = report, .events = POLLIN},
+	    {.fd = master, .events = POLLIN},
 	};
 	unsigned char buffer[4096];
 
@@ -536,8 +533,8 @@ wait_report(int report, int master, unsigned char expected)
 		if (status < 0 && errno == EINTR)
 			continue;
 		if (status <= 0) {
-			fprintf(stderr, "ncurses waiting for stage %c: poll=%d errno=%d\n",
-			    expected, status, status < 0 ? errno : 0);
+			fprintf(stderr, "ncurses waiting for stage %c: poll=%d errno=%d\n", expected, status,
+			    status < 0 ? errno : 0);
 			return -1;
 		}
 		if ((descriptors[1].revents & POLLIN) != 0) {
@@ -561,10 +558,9 @@ wait_report(int report, int master, unsigned char expected)
 			}
 			for (;;) {
 				struct pollfd output = {.fd = master, .events = POLLIN};
-				ssize_t count;
+				ssize_t       count;
 
-				if (poll(&output, 1, 0) <= 0
-				    || (output.revents & POLLIN) == 0)
+				if (poll(&output, 1, 0) <= 0 || (output.revents & POLLIN) == 0)
 					break;
 				count = read(master, buffer, sizeof(buffer));
 				if (count <= 0)
@@ -574,8 +570,8 @@ wait_report(int report, int master, unsigned char expected)
 			return 0;
 		}
 		if ((descriptors[0].revents & (POLLERR | POLLHUP | POLLNVAL)) != 0) {
-			fprintf(stderr, "ncurses report closed before stage %c: revents=%x\n",
-			    expected, (unsigned)descriptors[0].revents);
+			fprintf(stderr, "ncurses report closed before stage %c: revents=%x\n", expected,
+			    (unsigned)descriptors[0].revents);
 			return -1;
 		}
 	}
@@ -594,8 +590,7 @@ wait_child(pid_t child, int master, int *child_status)
 			return true;
 		if (result < 0)
 			return false;
-		if (poll(&descriptor, 1, 50) > 0
-		    && (descriptor.revents & POLLIN) != 0) {
+		if (poll(&descriptor, 1, 50) > 0 && (descriptor.revents & POLLIN) != 0) {
 			if (read(master, buffer, sizeof(buffer)) == 0)
 				return waitpid(child, child_status, 0) == child;
 		}
@@ -608,17 +603,16 @@ wait_child(pid_t child, int master, int *child_status)
 int
 main(int argc, char **argv)
 {
-	struct winsize size = {.ws_row = 37, .ws_col = 91};
-	const char *colorterm = getenv("COLORTERM");
-	bool direct_colour = colorterm != NULL
-	    && (strcmp(colorterm, "truecolor") == 0
-	    || strcmp(colorterm, "24bit") == 0);
-	int report[2];
-	int master;
+	struct winsize size      = {.ws_row = 37, .ws_col = 91};
+	const char    *colorterm = getenv("COLORTERM");
+	bool           direct_colour =
+	    colorterm != NULL && (strcmp(colorterm, "truecolor") == 0 || strcmp(colorterm, "24bit") == 0);
+	int   report[2];
+	int   master;
 	pid_t child;
-	int child_status;
-	int status;
-	bool cp437;
+	int   child_status;
+	int   status;
+	bool  cp437;
 
 	(void)setlocale(LC_CTYPE, "");
 
@@ -656,39 +650,34 @@ main(int argc, char **argv)
 		(void)waitpid(child, &child_status, 0);
 		return 77;
 	}
-	if (status != 0 || write(master, cp437 ? "\r\x82" : "\r", cp437 ? 2 : 1)
-	    != (cp437 ? 2 : 1)
-	    || wait_report(report[0], master, 'E') != 0
-	    || write(master, "\006\023\004\007\021", 5) != 5
+	if (status != 0 || write(master, cp437 ? "\r\x82" : "\r", cp437 ? 2 : 1) != (cp437 ? 2 : 1)
+	    || wait_report(report[0], master, 'E') != 0 || write(master, "\006\023\004\007\021", 5) != 5
 	    || wait_report(report[0], master, 'h') != 0)
 		goto failed;
-	if (write(master, "\033", 1) != 1
-	    || wait_report(report[0], master, 'e') != 0
-	    || write(master, "\033OA", 3) != 3
-	    || wait_report(report[0], master, 'u') != 0)
+	if (write(master, "\033", 1) != 1 || wait_report(report[0], master, 'e') != 0
+	    || write(master, "\033OA", 3) != 3 || wait_report(report[0], master, 'u') != 0)
 		goto failed;
 	if (!cp437) {
-		static const char continuation[] = "\xa9\xce\xa9\xe4\xb8\xad\xf0\x9f\x99\x82" "e\xcc\x81";
-		if (write(master, "\xc3", 1) != 1
-		    || wait_report(report[0], master, 'p') != 0
+		static const char continuation[] =
+		    "\xa9\xce\xa9\xe4\xb8\xad\xf0\x9f\x99\x82"
+		    "e\xcc\x81";
+		if (write(master, "\xc3", 1) != 1 || wait_report(report[0], master, 'p') != 0
 		    || write(master, continuation, sizeof(continuation) - 1) != (ssize_t)sizeof(continuation) - 1
-		    || wait_report(report[0], master, 't') != 0
-		    || write(master, "\xffZ", 2) != 2
+		    || wait_report(report[0], master, 't') != 0 || write(master, "\xffZ", 2) != 2
 		    || wait_report(report[0], master, 'r') != 0)
 			goto failed;
 	}
 	if (wait_report(report[0], master, 'O') != 0)
 		goto failed;
 	if ((!direct_colour
-	    && ((!output_selects_colour(203) && !output_programs_colour(255, 84, 84))
-	    || (!output_selects_colour(43) && !output_programs_colour(0, 215, 175))))
+	        && ((!output_selects_colour(203) && !output_programs_colour(255, 84, 84))
+	            || (!output_selects_colour(43) && !output_programs_colour(0, 215, 175))))
 	    || (direct_colour
-	    && (!output_contains("\033[38;2;255;84;84m")
-	    || !output_contains("\033[38;2;0;215;175m")))
+	        && (!output_contains("\033[38;2;255;84;84m") || !output_contains("\033[38;2;0;215;175m")))
 	    || (!output_contains("\033[1m") && !output_contains("\033[0;1m"))
-	    || (cp437 && (!output_contains_byte(0x82)
-	    || !output_contains_byte(0xb3)
-	    || output_contains("\xc2\x82") || output_contains("\xc2\xb3")))) {
+	    || (cp437
+	        && (!output_contains_byte(0x82) || !output_contains_byte(0xb3) || output_contains("\xc2\x82")
+	            || output_contains("\xc2\xb3")))) {
 		fprintf(stderr, "ncurses emitted the wrong cell representation\n");
 		goto failed;
 	}
@@ -697,21 +686,20 @@ main(int argc, char **argv)
 		fprintf(stderr, "ncurses lost the joystick emoji presentation selector\n");
 		goto failed;
 	}
-	size.ws_row = 43;
-	size.ws_col = 101;
+	size.ws_row          = 43;
+	size.ws_col          = 101;
 	terminal_output_size = 0;
 	if (ioctl(master, TIOCSWINSZ, &size) != 0 || kill(child, SIGWINCH) != 0
 	    || wait_report(report[0], master, 'Z') != 0)
 		goto failed;
-	if (!wait_for_output(master, "REPAINT", 4096, 5000)
-	    || write(master, "\033", 1) != 1
+	if (!wait_for_output(master, "REPAINT", 4096, 5000) || write(master, "\033", 1) != 1
 	    || wait_report(report[0], master, 'e') != 0
 	    || write(master, cp437 ? "\r" : "\r\xc3", cp437 ? 1 : 2) != (cp437 ? 1 : 2)
 	    || wait_report(report[0], master, 'F') != 0)
 		goto failed;
 	(void)close(report[0]);
-	if (!wait_child(child, master, &child_status)
-	    || !WIFEXITED(child_status) || WEXITSTATUS(child_status) != 0)
+	if (!wait_child(child, master, &child_status) || !WIFEXITED(child_status)
+	    || WEXITSTATUS(child_status) != 0)
 		goto failed_after_report;
 	if (!cursor_visible_at_end()) {
 		fprintf(stderr, "ncurses left the terminal cursor hidden\n");
@@ -732,8 +720,10 @@ failed_after_report:
 			if (WIFSIGNALED(child_status))
 				fprintf(stderr, "ncurses child died from signal %d\n", WTERMSIG(child_status));
 			else if (WIFEXITED(child_status))
-				fprintf(stderr, "ncurses child exited with status %d\n", WEXITSTATUS(child_status));
-		} else if (result == 0) {
+				fprintf(stderr, "ncurses child exited with status %d\n",
+				    WEXITSTATUS(child_status));
+		}
+		else if (result == 0) {
 			(void)kill(child, SIGKILL);
 			(void)waitpid(child, &child_status, 0);
 		}

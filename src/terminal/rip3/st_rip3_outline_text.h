@@ -2,13 +2,13 @@
 #ifndef ST_RIP3_OUTLINE_TEXT_H_
 #define ST_RIP3_OUTLINE_TEXT_H_
 
-#include "st_rip3_geometry.h"
-#include "st_rip3_rff.h"
-#include "st_rip3_surface.h"
-
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+
+#include "st_rip3_geometry.h"
+#include "st_rip3_rff.h"
+#include "st_rip3_surface.h"
 
 struct st_rip3_ports;
 struct st_rip3_outline_font;
@@ -26,10 +26,10 @@ struct st_rip3_rff_text_style {
 	 * Normal em-sized text uses {em/units_per_em,0,0,em/units_per_em}.
 	 * World scaling, orientation and justification are caller policy. */
 	double xx, xy, yx, yy;
-	bool kerning;
+	bool   kerning;
 	/* One device-space displaced copy; {0,0} disables it. The displacement
 	 * is independent of the glyph matrix. Foreground takes precedence. */
-	struct st_rip3_point shadow;
+	struct st_rip3_point           shadow;
 	enum st_rip3_outline_fill_rule fill_rule;
 	/* Positive device-pixel width for hollow faces, independent of scaling.
 	 * Ignored for solid faces. Outline-font realization supplies the wire
@@ -42,8 +42,8 @@ struct st_rip3_rff_text_style {
  * glyphs retain their declared advance and have no ink. Explicit font codes,
  * including zero; missing characters have zero advance. Every intermediate
  * advance must fit int32_t. Result is unchanged on failure. */
-int st_rip3_rff_text_measure(const struct st_rip3_rff *font,
-	const uint8_t *text, size_t length, bool kerning, int32_t *result);
+int st_rip3_rff_text_measure(const struct st_rip3_rff *font, const uint8_t *text, size_t length, bool kerning,
+    int32_t *result);
 
 /* Explicit whole-text union coverage: contours combine inside each glyph by
  * fill_rule, then glyph ink is united. Hollow faces stroke implicitly closed
@@ -59,10 +59,9 @@ int st_rip3_rff_text_measure(const struct st_rip3_rff *font,
  * treating original per-glyph fixed-copy observations as historical behavior.
  * Parser processing must absorb any helper failure at its nonfatal boundary.
  */
-int st_rip3_draw_rff_text(struct st_rip3_ports *ports,
-	const struct st_rip3_rff *font, const uint8_t *text, size_t length,
-	const struct st_rip3_point *origin, const struct st_rip3_rff_text_style *style,
-	uint32_t foreground, uint32_t background, enum st_rip3_write_mode mode);
+int st_rip3_draw_rff_text(struct st_rip3_ports *ports, const struct st_rip3_rff *font, const uint8_t *text,
+    size_t length, const struct st_rip3_point *origin, const struct st_rip3_rff_text_style *style,
+    uint32_t foreground, uint32_t background, enum st_rip3_write_mode mode);
 
 /* Rasterize already-positioned bytes using the same coverage/atomicity policy.
  * positions supplies one viewport-relative device origin per byte; it is not
@@ -73,10 +72,9 @@ int st_rip3_draw_rff_text(struct st_rip3_ports *ports,
  * and damaged codes retain their positions but contribute no ink. All supplied
  * origins and transformed vertices must be finite and fit +/-4*INT32_MAX.
  * Empty text permits NULL text/positions. No cursor or font state changes. */
-int st_rip3_draw_rff_positioned(struct st_rip3_ports *ports,
-	const struct st_rip3_rff *font, const uint8_t *text, size_t length,
-	const struct st_rip3_text_position *positions, const struct st_rip3_rff_text_style *style,
-	uint32_t foreground, uint32_t background, enum st_rip3_write_mode mode);
+int st_rip3_draw_rff_positioned(struct st_rip3_ports *ports, const struct st_rip3_rff *font, const uint8_t *text,
+    size_t length, const struct st_rip3_text_position *positions, const struct st_rip3_rff_text_style *style,
+    uint32_t foreground, uint32_t background, enum st_rip3_write_mode mode);
 
 /* Prepared-font rendering for an already laid-out byte string. Derive the
  * glyph matrix from the realized point/DPI scales and independent character
@@ -101,9 +99,9 @@ int st_rip3_draw_rff_positioned(struct st_rip3_ports *ports,
  * a described renderer choice, not a RIPtel pixel oracle. Parser entry points
  * must absorb all service failures nonfatally. Other validation,
  * atomicity and coverage contracts are those of draw_rff_positioned above. */
-int st_rip3_draw_outline_positioned(struct st_rip3_ports *ports,
-	const struct st_rip3_outline_font *font, const struct st_rip3_outline_layout *layout,
-	const uint8_t *text, size_t length, const struct st_rip3_text_position *positions,
-	uint32_t foreground, uint32_t background, enum st_rip3_write_mode mode);
+int st_rip3_draw_outline_positioned(struct st_rip3_ports *ports, const struct st_rip3_outline_font *font,
+    const struct st_rip3_outline_layout *layout, const uint8_t *text, size_t length,
+    const struct st_rip3_text_position *positions, uint32_t foreground, uint32_t background,
+    enum st_rip3_write_mode mode);
 
 #endif

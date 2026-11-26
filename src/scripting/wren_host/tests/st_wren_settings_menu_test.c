@@ -4,33 +4,33 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "wren_host_internal.h"
-#include "st_wren_menu_test_bindings.h"
-#include "filesystem.h"
-#include "io_error.h"
-#include "st_app_paths.h"
-#include "st_audio_runtime.h"
-#include "st_builtin_fonts.h"
-#include "st_bbs_list.h"
-#include "st_digest.h"
-#include "st_crypto.h"
-#include "st_presentation_font.h"
-#include "st_session_history.h"
-#include "st_theme.h"
-#include "theme_internal.h"
-
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#define CHECK(expression) do { \
-	if (!(expression)) { \
-		fprintf(stderr, "check failed at %s:%d: %s\n", \
-		    __FILE__, __LINE__, #expression); \
-		exit(EXIT_FAILURE); \
-	} \
-} while (false)
+#include "filesystem.h"
+#include "io_error.h"
+#include "st_app_paths.h"
+#include "st_audio_runtime.h"
+#include "st_bbs_list.h"
+#include "st_builtin_fonts.h"
+#include "st_crypto.h"
+#include "st_digest.h"
+#include "st_presentation_font.h"
+#include "st_session_history.h"
+#include "st_theme.h"
+#include "st_wren_menu_test_bindings.h"
+#include "theme_internal.h"
+#include "wren_host_internal.h"
+
+#define CHECK(expression)                                                                                \
+	do {                                                                                             \
+		if (!(expression)) {                                                                     \
+			fprintf(stderr, "check failed at %s:%d: %s\n", __FILE__, __LINE__, #expression); \
+			exit(EXIT_FAILURE);                                                              \
+		}                                                                                        \
+	} while (false)
 
 static void
 write_text(const char *path, const char *text)
@@ -90,12 +90,12 @@ test_transfer_timeout_settings(struct st_wren_host *host)
 	    "snapshot.transferFailureKeypressTimeout = 0\n"
 	    "if (snapshot.save() != null || snapshot.dirty) Fiber.abort(\"save transfer timeouts\")\n");
 	CHECK(st_settings.transfer_success_keypress_timeout == INT_MAX
-	    && st_settings.transfer_failure_keypress_timeout == 0);
+	      && st_settings.transfer_failure_keypress_timeout == 0);
 	st_settings.transfer_success_keypress_timeout = 1;
 	st_settings.transfer_failure_keypress_timeout = 1;
 	CHECK(st_settings_reload() == 0);
 	CHECK(st_settings.transfer_success_keypress_timeout == INT_MAX
-	    && st_settings.transfer_failure_keypress_timeout == 0);
+	      && st_settings.transfer_failure_keypress_timeout == 0);
 	interpret(host, "transfer_timeout_settings",
 	    "var loaded = Menu.settings\n"
 	    "if (loaded.transferSuccessKeypressTimeout != 2147483647 || loaded.transferFailureKeypressTimeout != 0) Fiber.abort(\"transfer timeout persistence\")\n"
@@ -105,32 +105,35 @@ test_transfer_timeout_settings(struct st_wren_host *host)
 }
 
 static void
-test_entry_provenance(struct st_wren_host *host, struct st_app_paths *paths,
-	const char *personal)
+test_entry_provenance(struct st_wren_host *host, struct st_app_paths *paths, const char *personal)
 {
-	char shared[sizeof(ST_WREN_SETTINGS_TEST_DIRECTORY) + 64];
-	char named[sizeof(ST_WREN_SETTINGS_TEST_DIRECTORY) + 64];
-	char source[16384];
-	FILE *stream;
+	char   shared[sizeof(ST_WREN_SETTINGS_TEST_DIRECTORY) + 64];
+	char   named[sizeof(ST_WREN_SETTINGS_TEST_DIRECTORY) + 64];
+	char   source[16384];
+	FILE  *stream;
 	size_t size;
 
 	CHECK(paths->shared_list == NULL && st_settings_web_download_count() == 0);
-	CHECK(snprintf(shared, sizeof(shared), "%s/provenance-shared.lst",
-	    ST_WREN_SETTINGS_TEST_DIRECTORY) < (int)sizeof(shared));
-	CHECK(snprintf(named, sizeof(named), "%s/Caf\xc3\xa9.lst",
-	    ST_WREN_SETTINGS_TEST_DIRECTORY) < (int)sizeof(named));
-	write_text(personal, "[Personal]\nAddress=personal.example\n"
+	CHECK(snprintf(shared, sizeof(shared), "%s/provenance-shared.lst", ST_WREN_SETTINGS_TEST_DIRECTORY)
+	      < (int)sizeof(shared));
+	CHECK(snprintf(named, sizeof(named), "%s/Caf\xc3\xa9.lst", ST_WREN_SETTINGS_TEST_DIRECTORY)
+	      < (int)sizeof(named));
+	write_text(personal,
+	    "[Personal]\nAddress=personal.example\n"
 	    "[Overlap]\nAddress=personal.example\n");
-	write_text(shared, "[Shared]\nAddress=shared.example\n"
+	write_text(shared,
+	    "[Shared]\nAddress=shared.example\n"
 	    "[Overlap]\nAddress=shared.example\n[Dual]\nAddress=shared-dual.example\n");
-	write_text(paths->cached_system_list, "[SystemWeb]\nAddress=system.example\n"
+	write_text(paths->cached_system_list,
+	    "[SystemWeb]\nAddress=system.example\n"
 	    "[Overlap]\nAddress=ignored-system.example\n[Dual]\nAddress=system-dual.example\n");
-	write_text(named, "[Named]\nAddress=named.example\n"
+	write_text(named,
+	    "[Named]\nAddress=named.example\n"
 	    "[Overlap]\nAddress=ignored-named.example\n[Dual]\nAddress=ignored-named.example\n");
 	paths->shared_list = shared;
 	CHECK(st_settings_web_download_append("Caf\xc3\xa9", "https://invalid/") == 0);
-	stream = fopen(ST_WREN_SETTINGS_SOURCE_DIRECTORY
-	    "/src/scripting/wren_host/tests/bbs_provenance.wren", "rb");
+	stream =
+	    fopen(ST_WREN_SETTINGS_SOURCE_DIRECTORY "/src/scripting/wren_host/tests/bbs_provenance.wren", "rb");
 	CHECK(stream != NULL);
 	size = fread(source, 1, sizeof(source) - 1, stream);
 	CHECK(!ferror(stream) && feof(stream) && fclose(stream) == 0);
@@ -142,9 +145,9 @@ test_entry_provenance(struct st_wren_host *host, struct st_app_paths *paths,
 			shared_record = host->bbs_model.entries[i];
 	}
 	CHECK(shared_record != NULL);
-	char *original_name = shared_record->source_name;
-	char decomposed[] = "Cafe\xcc\x81";
-	char malformed[] = "\xff";
+	char *original_name        = shared_record->source_name;
+	char  decomposed[]         = "Cafe\xcc\x81";
+	char  malformed[]          = "\xff";
 	shared_record->source_name = decomposed;
 	interpret(host, "bbs_provenance",
 	    "var normalized = ProvenanceTest.shared.sourceName\n"
@@ -154,15 +157,15 @@ test_entry_provenance(struct st_wren_host *host, struct st_app_paths *paths,
 	interpret(host, "bbs_provenance",
 	    "var invalidName = ProvenanceTest.shared.sourceName\n"
 	    "if (!(invalidName is MenuError) || invalidName.code != IOErr.invalidEncoding || invalidName.nativeCode != IOErr.invalidEncoding || normalized != \"Caf\\u00e9\") Fiber.abort(\"source name conversion result\")\n");
-	shared_record->source_name = original_name;
+	shared_record->source_name          = original_name;
 	st_wren_test_diagnostic_copy_status = IO_ERROR_OUT_OF_MEMORY;
 	interpret(host, "bbs_provenance",
 	    "var allocation = ProvenanceTest.shared.sourceName\n"
 	    "if (!(allocation is MenuError) || allocation.code != IOErr.outOfMemory || allocation.nativeCode != IOErr.outOfMemory) Fiber.abort(\"source name allocation result\")\n"
 	    "if (ProvenanceTest.shared.source != BBSListSource.shared) Fiber.abort(\"conversion invalidated source\")\n");
 	st_wren_test_diagnostic_copy_status = 0;
-	int *failures[] = {&st_wren_test_list_open_status,
-	    &st_wren_test_list_sort_status, &st_wren_test_model_build_status};
+	int *failures[]                     = {&st_wren_test_list_open_status, &st_wren_test_list_sort_status,
+	    &st_wren_test_model_build_status};
 	for (size_t i = 0; i < sizeof(failures) / sizeof(*failures); ++i) {
 		*failures[i] = IO_ERROR_IO;
 		interpret(host, "bbs_provenance",
@@ -184,15 +187,15 @@ test_entry_provenance(struct st_wren_host *host, struct st_app_paths *paths,
 	wrenEnsureSlots(host->vm, 1);
 	wrenGetVariable(host->vm, "bbs_provenance", "selectedHidden", 0);
 	CHECK(st_wren_menu_copy_profile(host->vm, 0, &selected));
-	CHECK(selected.source == ST_PROFILE_SOURCE_SYSTEM
-	    && strcmp(selected.address, "system-dual.example") == 0);
+	CHECK(selected.source == ST_PROFILE_SOURCE_SYSTEM && strcmp(selected.address, "system-dual.example") == 0);
 	st_profile_dispose(&selected);
 	CHECK(st_settings_web_download_remove(0) == 0);
 	paths->shared_list = NULL;
 	CHECK(fs_remove_file(shared) == 0 && fs_remove_file(named) == 0);
 	write_text(paths->cached_system_list, "");
 	write_text(personal, "[Existing]\nAddress=existing.example\n");
-	interpret(host, "bbs_provenance", "if (Menu.load(null) != null) Fiber.abort(\"restore provenance fixture\")\n");
+	interpret(host, "bbs_provenance",
+	    "if (Menu.load(null) != null) Fiber.abort(\"restore provenance fixture\")\n");
 }
 
 static void
@@ -201,56 +204,57 @@ test_cloud_theme_views(struct st_wren_host *host)
 	char directory[sizeof(ST_WREN_SETTINGS_TEST_DIRECTORY) + 64];
 	char manifest[sizeof(directory) + 32], path[sizeof(directory) + 32];
 	char warning[256], source[32768];
-	CHECK(snprintf(directory, sizeof(directory), "%s/themes/official",
-	    ST_WREN_SETTINGS_TEST_DIRECTORY) < (int)sizeof(directory));
+	CHECK(snprintf(directory, sizeof(directory), "%s/themes/official", ST_WREN_SETTINGS_TEST_DIRECTORY)
+	      < (int)sizeof(directory));
 	CHECK(snprintf(manifest, sizeof(manifest), "%s/manifest.lst", directory) < (int)sizeof(manifest));
 	CHECK(snprintf(path, sizeof(path), "%s/blue.ini", directory) < (int)sizeof(path));
 	CHECK(fs_create_directories(directory) == 0);
 	write_text(path, "Name=Cloud Theme\n[Style:frame]\nForeground=0x654321\n");
-	write_text(manifest, "Repository=official\n[Theme:blue]\nName=Cloud Theme\n"
+	write_text(manifest,
+	    "Repository=official\n[Theme:blue]\nName=Cloud Theme\n"
 	    "Author=Jose\xcc\x81\nDescription=Blue skies\nVersion=1\n"
 	    "URI=https://example.invalid/blue.ini\n"
 	    "SHA256=1891D225F61EF1AAA8DF82E47F540561A4829FB5CC62535A34B1454F9BB0BFD5\n");
 	CHECK(st_theme_cloud_refresh(host->themes, false, "", warning, sizeof(warning)) == 0);
-	FILE *stream = fopen(ST_WREN_SETTINGS_SOURCE_DIRECTORY
-	    "/src/scripting/wren_host/tests/cloud_theme_views.wren", "rb");
+	FILE *stream =
+	    fopen(ST_WREN_SETTINGS_SOURCE_DIRECTORY "/src/scripting/wren_host/tests/cloud_theme_views.wren", "rb");
 	CHECK(stream != NULL);
 	size_t size = fread(source, 1, sizeof(source) - 1, stream);
 	CHECK(!ferror(stream) && feof(stream) && fclose(stream) == 0);
 	source[size] = '\0';
 	/* A separate host models a restart with ThemePackage already saved. No
 	 * explicit cloud refresh is allowed before opening the shipped browser. */
-	char *previous_package = st_settings.theme_package;
-	char *previous_file = st_settings.theme_file;
+	char *previous_package    = st_settings.theme_package;
+	char *previous_file       = st_settings.theme_file;
 	st_settings.theme_package = strdup("official/blue");
-	st_settings.theme_file = NULL;
+	st_settings.theme_file    = NULL;
 	CHECK(st_settings.theme_package != NULL);
 	struct st_wren_host_config startup_config = host->config;
-	startup_config.safe_mode = true;
-	st_wren_host_t *startup_host = NULL;
+	startup_config.safe_mode                  = true;
+	st_wren_host_t *startup_host              = NULL;
 	CHECK(st_wren_host_create(&startup_host, &startup_config) == 0);
 	CHECK(strcmp(st_theme_active(startup_host->themes)->name, "Cloud Theme") == 0);
 	interpret(startup_host, "cloud_theme_views", source);
 	unsigned char startup_digest[32];
-	bool startup_hash = st_digest(ST_DIGEST_SHA256, "", 0, startup_digest,
-	    sizeof(startup_digest)) == ST_CRYPTO_OK;
-	interpret(startup_host, "cloud_theme_views", startup_hash
-	    ? "CloudThemeTest.startup_(true)\n" : "CloudThemeTest.startup_(false)\n");
+	bool          startup_hash =
+	    st_digest(ST_DIGEST_SHA256, "", 0, startup_digest, sizeof(startup_digest)) == ST_CRYPTO_OK;
+	interpret(startup_host, "cloud_theme_views",
+	    startup_hash ? "CloudThemeTest.startup_(true)\n" : "CloudThemeTest.startup_(false)\n");
 	CHECK(strcmp(st_theme_active(startup_host->themes)->name, "Cloud Theme") == 0);
 	st_wren_host_destroy(startup_host);
 	free(st_settings.theme_package);
 	free(st_settings.theme_file);
 	st_settings.theme_package = previous_package;
-	st_settings.theme_file = previous_file;
+	st_settings.theme_file    = previous_file;
 	interpret(host, "cloud_theme_views", source);
 	unsigned char digest[32];
-	bool verify_hash = st_digest(ST_DIGEST_SHA256, "", 0, digest, sizeof(digest)) == ST_CRYPTO_OK;
-	interpret(host, "cloud_theme_views", verify_hash
-	    ? "CloudThemeTest.run(true)\n" : "CloudThemeTest.run(false)\n");
-	uint64_t generation = st_theme_cloud_generation(host->themes);
-	struct st_cloud_theme_entry *native = &host->themes->cloud_catalog[0];
-	char *original_author = native->author;
-	char decomposed[] = "Jose\xcc\x81", malformed[] = "\xff";
+	bool          verify_hash = st_digest(ST_DIGEST_SHA256, "", 0, digest, sizeof(digest)) == ST_CRYPTO_OK;
+	interpret(host, "cloud_theme_views",
+	    verify_hash ? "CloudThemeTest.run(true)\n" : "CloudThemeTest.run(false)\n");
+	uint64_t                     generation      = st_theme_cloud_generation(host->themes);
+	struct st_cloud_theme_entry *native          = &host->themes->cloud_catalog[0];
+	char                        *original_author = native->author;
+	char                         decomposed[] = "Jose\xcc\x81", malformed[] = "\xff";
 	native->author = decomposed;
 	interpret(host, "cloud_theme_views",
 	    "if (CloudThemeTest.blue.author != \"Jos\\u00e9\") Fiber.abort(\"cloud NFC conversion\")\n");
@@ -260,10 +264,10 @@ test_cloud_theme_views(struct st_wren_host *host)
 	    "var invalid = CloudThemeTest.blue.author\n"
 	    "if (!(invalid is MenuError) || invalid.code != IOErr.invalidEncoding || invalid.nativeCode != IOErr.invalidEncoding) Fiber.abort(\"cloud malformed text result\")\n");
 	native->author = original_author;
-	native->error = decomposed;
+	native->error  = decomposed;
 	interpret(host, "cloud_theme_views",
 	    "if (CloudThemeTest.blue.error != \"Jos\\u00e9\") Fiber.abort(\"live cloud diagnostic\")\n");
-	native->error = NULL;
+	native->error                       = NULL;
 	st_wren_test_diagnostic_copy_status = IO_ERROR_OUT_OF_MEMORY;
 	interpret(host, "cloud_theme_views",
 	    "var lazy = Menu.cloudThemes\n"
@@ -274,19 +278,20 @@ test_cloud_theme_views(struct st_wren_host *host)
 	    "var errorApp = CloudErrorApp.new()\n"
 	    "SettingsMenu.themes_(errorApp, null)\n"
 	    "if (errorApp.alerts != 1) Fiber.abort(\"installed catalog error handling\")\n");
-	native->cached = false;
+	native->cached             = false;
 	st_wren_test_theme_warning = "";
 	interpret(host, "cloud_theme_views",
 	    "SettingsMenu.cloudThemes_(errorApp, null)\n"
 	    "if (errorApp.alerts != 2) Fiber.abort(\"online catalog error handling\")\n");
-	st_wren_test_theme_warning = NULL;
-	native->cached = true;
+	st_wren_test_theme_warning          = NULL;
+	native->cached                      = true;
 	st_wren_test_diagnostic_copy_status = 0;
 	interpret(host, "cloud_theme_views",
 	    "if (Menu.deleteCloudTheme(\"official/blue\") != null || CloudThemeTest.blue.cached || CloudThemeTest.blue.updateAvailable || CloudThemeTest.blue.error != null) Fiber.abort(\"cloud deletion invalidated live state\")\n");
 	write_text(path, "Name=Cloud Theme\n[Style:frame]\nForeground=0x654321\n");
-	if (verify_hash) interpret(host, "cloud_theme_views",
-	    "if (Menu.cacheCloudTheme(\"official/blue\") != null || !CloudThemeTest.blue.cached) Fiber.abort(\"cloud cache invalidated live state\")\n");
+	if (verify_hash)
+		interpret(host, "cloud_theme_views",
+		    "if (Menu.cacheCloudTheme(\"official/blue\") != null || !CloudThemeTest.blue.cached) Fiber.abort(\"cloud cache invalidated live state\")\n");
 	CHECK(st_theme_cloud_generation(host->themes) == generation);
 	char backup[sizeof(manifest) + 16];
 	CHECK(snprintf(backup, sizeof(backup), "%s.backup", manifest) < (int)sizeof(backup));
@@ -302,24 +307,26 @@ test_cloud_theme_views(struct st_wren_host *host)
 	    "var missing = CloudThemeTest.named_(\"official/missing\")\n"
 	    "if (missing.sourceUri != null || missing.expectedSha256 != null || missing.author != null || missing.version != null || missing.description != null || missing.cached || missing.error == null) Fiber.abort(\"cloud placeholder metadata\")\n");
 	st_wren_test_theme_refresh_cached = true;
-	st_wren_test_theme_warning = "cached manifest retained";
+	st_wren_test_theme_warning        = "cached manifest retained";
 	interpret(host, "cloud_theme_views",
 	    "if (Menu.refreshCloudThemes() != \"cached manifest retained\") Fiber.abort(\"cloud warning fixture\")\n"
 	    "CloudThemeTest.replaced_()\n"
 	    "if (!(Fiber.new { missing.cached }.try() is String)) Fiber.abort(\"removed placeholder view revived\")\n");
-	st_wren_test_theme_warning = NULL;
+	st_wren_test_theme_warning        = NULL;
 	st_wren_test_theme_refresh_cached = false;
 	CHECK(st_theme_cloud_generation(host->themes) == ++generation);
-	CHECK(wrenInterpret(host->picker_vm, "no_cloud_view",
-	    "import \"syncterm_menu\" for CloudThemeEntry\n") != WREN_RESULT_SUCCESS);
+	CHECK(wrenInterpret(host->picker_vm, "no_cloud_view", "import \"syncterm_menu\" for CloudThemeEntry\n")
+	      != WREN_RESULT_SUCCESS);
 	struct st_profile profile;
 	st_profile_init(&profile);
-	const struct st_wren_connected_config config = {
-	    .host = host, .console = host->config.console, .profile = &profile};
-	st_wren_connected_t *connected = NULL;
+	const struct st_wren_connected_config config    = {.host = host,
+	    .console                                          = host->config.console,
+	    .profile                                          = &profile};
+	st_wren_connected_t                  *connected = NULL;
 	CHECK(st_wren_connected_create(&connected, &config) == 0);
 	CHECK(st_wren_connected_interpret(connected, "no_cloud_view",
-	    "import \"syncterm_menu\" for CloudThemeEntry\n") != 0);
+		  "import \"syncterm_menu\" for CloudThemeEntry\n")
+	      != 0);
 	st_wren_connected_destroy(connected);
 	st_profile_dispose(&profile);
 	stream = fopen(ST_WREN_SETTINGS_SOURCE_DIRECTORY "/scripts/menu_theme_editor_test.wren", "rb");
@@ -357,12 +364,24 @@ test_menu_results(struct st_wren_host *host)
 	    "var draft = Menu.create(\"Result Draft\")\n"
 	    "if (!(draft is DirectoryEntry) || draft.rename(\"Result Renamed\") != null || draft.delete() != null) Fiber.abort(\"draft result contract\")\n");
 	char constants[4096];
-	CHECK(snprintf(constants, sizeof(constants),
-	    "var codes = [IOErr.invalidArgument,IOErr.invalidEncoding,IOErr.notFound,IOErr.permissionDenied,IOErr.alreadyExists,IOErr.notDirectory,IOErr.isDirectory,IOErr.directoryNotEmpty,IOErr.outOfMemory,IOErr.noSpace,IOErr.nameTooLong,IOErr.outOfRange,IOErr.busy,IOErr.readOnly,IOErr.crossDevice,IOErr.tooManyLinks,IOErr.interrupted,IOErr.notSupported,IOErr.io,IOErr.timedOut,IOErr.cancelled,IOErr.wouldBlock,IOErr.inProgress,IOErr.nameResolution,IOErr.connectionRefused,IOErr.connectionReset,IOErr.connectionAborted,IOErr.notConnected,IOErr.networkUnreachable,IOErr.hostUnreachable,IOErr.addressInUse,IOErr.addressNotAvailable,IOErr.messageTooLarge,IOErr.protocol,IOErr.passwordRequired,IOErr.decryptionFailed,IOErr.invalidFormat,IOErr.conflict]\n"
-	    "var expected = [%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d]\n"
-	    "if (codes.count != expected.count) Fiber.abort(\"portable codes differ from C\")\n"
-	    "for (i in 0...codes.count) if (codes[i] != expected[i]) Fiber.abort(\"portable code value\")\n",
-	    IO_ERROR_INVALID_ARGUMENT, IO_ERROR_INVALID_ENCODING, IO_ERROR_NOT_FOUND, IO_ERROR_PERMISSION_DENIED, IO_ERROR_ALREADY_EXISTS, IO_ERROR_NOT_DIRECTORY, IO_ERROR_IS_DIRECTORY, IO_ERROR_DIRECTORY_NOT_EMPTY, IO_ERROR_OUT_OF_MEMORY, IO_ERROR_NO_SPACE, IO_ERROR_NAME_TOO_LONG, IO_ERROR_OUT_OF_RANGE, IO_ERROR_BUSY, IO_ERROR_READ_ONLY, IO_ERROR_CROSS_DEVICE, IO_ERROR_TOO_MANY_LINKS, IO_ERROR_INTERRUPTED, IO_ERROR_NOT_SUPPORTED, IO_ERROR_IO, IO_ERROR_TIMED_OUT, IO_ERROR_CANCELLED, IO_ERROR_WOULD_BLOCK, IO_ERROR_IN_PROGRESS, IO_ERROR_NAME_RESOLUTION, IO_ERROR_CONNECTION_REFUSED, IO_ERROR_CONNECTION_RESET, IO_ERROR_CONNECTION_ABORTED, IO_ERROR_NOT_CONNECTED, IO_ERROR_NETWORK_UNREACHABLE, IO_ERROR_HOST_UNREACHABLE, IO_ERROR_ADDRESS_IN_USE, IO_ERROR_ADDRESS_NOT_AVAILABLE, IO_ERROR_MESSAGE_TOO_LARGE, IO_ERROR_PROTOCOL, IO_ERROR_PASSWORD_REQUIRED, IO_ERROR_DECRYPTION_FAILED, IO_ERROR_INVALID_FORMAT, IO_ERROR_CONFLICT) < (int)sizeof(constants));
+	CHECK(
+	    snprintf(constants, sizeof(constants),
+		"var codes = [IOErr.invalidArgument,IOErr.invalidEncoding,IOErr.notFound,IOErr.permissionDenied,IOErr.alreadyExists,IOErr.notDirectory,IOErr.isDirectory,IOErr.directoryNotEmpty,IOErr.outOfMemory,IOErr.noSpace,IOErr.nameTooLong,IOErr.outOfRange,IOErr.busy,IOErr.readOnly,IOErr.crossDevice,IOErr.tooManyLinks,IOErr.interrupted,IOErr.notSupported,IOErr.io,IOErr.timedOut,IOErr.cancelled,IOErr.wouldBlock,IOErr.inProgress,IOErr.nameResolution,IOErr.connectionRefused,IOErr.connectionReset,IOErr.connectionAborted,IOErr.notConnected,IOErr.networkUnreachable,IOErr.hostUnreachable,IOErr.addressInUse,IOErr.addressNotAvailable,IOErr.messageTooLarge,IOErr.protocol,IOErr.passwordRequired,IOErr.decryptionFailed,IOErr.invalidFormat,IOErr.conflict]\n"
+		"var expected = [%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d]\n"
+		"if (codes.count != expected.count) Fiber.abort(\"portable codes differ from C\")\n"
+		"for (i in 0...codes.count) if (codes[i] != expected[i]) Fiber.abort(\"portable code value\")\n",
+		IO_ERROR_INVALID_ARGUMENT, IO_ERROR_INVALID_ENCODING, IO_ERROR_NOT_FOUND,
+		IO_ERROR_PERMISSION_DENIED, IO_ERROR_ALREADY_EXISTS, IO_ERROR_NOT_DIRECTORY, IO_ERROR_IS_DIRECTORY,
+		IO_ERROR_DIRECTORY_NOT_EMPTY, IO_ERROR_OUT_OF_MEMORY, IO_ERROR_NO_SPACE, IO_ERROR_NAME_TOO_LONG,
+		IO_ERROR_OUT_OF_RANGE, IO_ERROR_BUSY, IO_ERROR_READ_ONLY, IO_ERROR_CROSS_DEVICE,
+		IO_ERROR_TOO_MANY_LINKS, IO_ERROR_INTERRUPTED, IO_ERROR_NOT_SUPPORTED, IO_ERROR_IO,
+		IO_ERROR_TIMED_OUT, IO_ERROR_CANCELLED, IO_ERROR_WOULD_BLOCK, IO_ERROR_IN_PROGRESS,
+		IO_ERROR_NAME_RESOLUTION, IO_ERROR_CONNECTION_REFUSED, IO_ERROR_CONNECTION_RESET,
+		IO_ERROR_CONNECTION_ABORTED, IO_ERROR_NOT_CONNECTED, IO_ERROR_NETWORK_UNREACHABLE,
+		IO_ERROR_HOST_UNREACHABLE, IO_ERROR_ADDRESS_IN_USE, IO_ERROR_ADDRESS_NOT_AVAILABLE,
+		IO_ERROR_MESSAGE_TOO_LARGE, IO_ERROR_PROTOCOL, IO_ERROR_PASSWORD_REQUIRED,
+		IO_ERROR_DECRYPTION_FAILED, IO_ERROR_INVALID_FORMAT, IO_ERROR_CONFLICT)
+	    < (int)sizeof(constants));
 	interpret(host, "menu_results", constants);
 	CHECK(!wrenHasVariable(host->vm, "syncterm", "FileErr"));
 	host->config.safe_mode = true;
@@ -392,8 +411,8 @@ test_menu_native_failures(struct st_wren_host *host, const char *personal)
 	    "var preflight = existing.save()\n"
 	    "if (!(preflight is MenuError) || preflight.code != null || preflight.nativeCode != null || !existing.dirty) Fiber.abort(\"Boolean preflight invented integer status\")\n");
 	st_wren_test_prepare_save_failure = false;
-	st_wren_test_font_insert_status = 0;
-	unsigned calls = st_wren_test_activation_calls;
+	st_wren_test_font_insert_status   = 0;
+	unsigned calls                    = st_wren_test_activation_calls;
 	interpret(host, "native_menu_results",
 	    "var font = Menu.createFont(\"Result Font\", 0)\n"
 	    "if (Menu.saveFonts() != null || Menu.fontsDirty) Fiber.abort(\"font persistence\")\n");
@@ -407,8 +426,7 @@ test_menu_native_failures(struct st_wren_host *host, const char *personal)
 	interpret(host, "native_menu_results", "var grants = []\n");
 	wrenEnsureSlots(host->vm, 2);
 	wrenGetVariable(host->vm, "native_menu_results", "grants", 0);
-	CHECK(st_wren_file_push(host->vm, 1, personal,
-	    ST_WREN_PICKER_DISPOSITION_READ, true));
+	CHECK(st_wren_file_push(host->vm, 1, personal, ST_WREN_PICKER_DISPOSITION_READ, true));
 	wrenInsertInList(host->vm, 0, -1, 1);
 	interpret(host, "native_menu_results",
 	    "if (font.setFile(2, grants[0]) != null || font.path(2) != grants[0].path || !Menu.fontsDirty) Fiber.abort(\"readable font grant was rejected\")\n"
@@ -431,7 +449,8 @@ test_menu_native_failures(struct st_wren_host *host, const char *personal)
 	    "var sortError = Menu.updateSortProfile(sortIndex, \"Changed Profile\", [1])\n"
 	    "if (!(sortError is MenuError) || sortError.code != null || sortError.nativeCode != -1 || Menu.sortProfiles[sortIndex][0] != \"Changed Profile\") Fiber.abort(\"partial native collection result\")\n");
 	st_wren_test_sort_update_failure = false;
-	interpret(host, "native_menu_results", "if (Menu.deleteSortProfile(sortIndex) != null) Fiber.abort(\"sort cleanup\")\n");
+	interpret(host, "native_menu_results",
+	    "if (Menu.deleteSortProfile(sortIndex) != null) Fiber.abort(\"sort cleanup\")\n");
 	st_wren_test_emoji_status = IO_ERROR_IO;
 	interpret(host, "native_menu_results",
 	    "var snapshot = Menu.settings\n"
@@ -447,7 +466,8 @@ test_menu_native_failures(struct st_wren_host *host, const char *personal)
 	    "var conflict = existing.save()\n"
 	    "if (!(conflict is MenuError) || conflict.code != IOErr.conflict || conflict.nativeCode != IOErr.conflict || !existing.dirty) Fiber.abort(\"native conflict was discarded\")\n");
 	write_text(personal, "[Existing]\nAddress=existing.example\n");
-	interpret(host, "native_menu_results", "if (Menu.load(null) != null) Fiber.abort(\"conflict fixture reload\")\n");
+	interpret(host, "native_menu_results",
+	    "if (Menu.load(null) != null) Fiber.abort(\"conflict fixture reload\")\n");
 	if (!st_list_crypto_encryption_available())
 		return;
 	interpret(host, "native_menu_results",
@@ -461,7 +481,8 @@ test_menu_native_failures(struct st_wren_host *host, const char *personal)
 	    "System.gc()\nSystem.gc()\n"
 	    "if (generic.nativeCode != -1 || conflict.code != IOErr.conflict) Fiber.abort(\"retained error lifetime\")\n");
 	st_wren_test_settings_save_status = 0;
-	interpret(host, "native_menu_results", "if (Menu.setEncryption(0, 0, null) != null) Fiber.abort(\"partial rewrite cleanup\")\n");
+	interpret(host, "native_menu_results",
+	    "if (Menu.setEncryption(0, 0, null) != null) Fiber.abort(\"partial rewrite cleanup\")\n");
 }
 
 static void
@@ -469,15 +490,13 @@ test_default_cursor(struct st_wren_host *host, st_console_t *console)
 {
 	for (size_t index = 0; index < st_screen_mode_count(); ++index) {
 		const struct st_screen_mode_descriptor *mode = st_screen_mode_at(index);
-		struct st_console_custom_cursor actual;
-		char module[40];
+		struct st_console_custom_cursor         actual;
+		char                                    module[40];
 
-		if (mode->mode == ST_SCREEN_MODE_CURRENT
-		    || mode->mode == ST_SCREEN_MODE_CUSTOM)
+		if (mode->mode == ST_SCREEN_MODE_CURRENT || mode->mode == ST_SCREEN_MODE_CUSTOM)
 			continue;
 		CHECK(st_wren_host_set_screen_mode(host, mode->mode) == 0);
-		CHECK(snprintf(module, sizeof(module), "cursor_apply_%zu", index)
-		    < (int)sizeof(module));
+		CHECK(snprintf(module, sizeof(module), "cursor_apply_%zu", index) < (int)sizeof(module));
 		interpret(host, module,
 		    "import \"syncterm_menu\" for Menu\n"
 		    "var s = Menu.settings\n"
@@ -523,25 +542,26 @@ test_safe_kdf(struct st_wren_host *host)
 static void
 test_encryption_metadata(struct st_wren_host *host)
 {
-	struct st_list_crypto_info *info = (struct st_list_crypto_info *)
-	    st_bbs_list_crypto_info(host->bbs_list);
+	struct st_list_crypto_info *info = (struct st_list_crypto_info *)st_bbs_list_crypto_info(host->bbs_list);
 	const struct st_list_crypto_info saved = *info;
+
 	static const struct {
 		enum st_list_cipher cipher;
-		uint32_t bits;
-		const char *name;
-		bool writable;
+		uint32_t            bits;
+		const char         *name;
+		bool                writable;
 	} cases[] = {
-		{ST_LIST_CIPHER_3DES, 192, "3DES", false},
-		{ST_LIST_CIPHER_IDEA, 128, "IDEA", false},
-		{ST_LIST_CIPHER_CAST, 40, "CAST-40", false},
-		{ST_LIST_CIPHER_RC2, 256, "RC2-256", false},
-		{ST_LIST_CIPHER_RC4, 128, "RC4-128", false},
-		{ST_LIST_CIPHER_AES, 128, "AES-128", true},
-		{ST_LIST_CIPHER_AES, 192, "AES-192", false},
-		{ST_LIST_CIPHER_AES, 256, "AES-256", true},
-		{ST_LIST_CIPHER_CHACHA20, 256, "ChaCha20", true},
+	    {ST_LIST_CIPHER_3DES,     192, "3DES",     false},
+	    {ST_LIST_CIPHER_IDEA,     128, "IDEA",     false},
+	    {ST_LIST_CIPHER_CAST,     40,  "CAST-40",  false},
+	    {ST_LIST_CIPHER_RC2,      256, "RC2-256",  false},
+	    {ST_LIST_CIPHER_RC4,      128, "RC4-128",  false},
+	    {ST_LIST_CIPHER_AES,      128, "AES-128",  true },
+	    {ST_LIST_CIPHER_AES,      192, "AES-192",  false},
+	    {ST_LIST_CIPHER_AES,      256, "AES-256",  true },
+	    {ST_LIST_CIPHER_CHACHA20, 256, "ChaCha20", true },
 	};
+
 	char source[2048], module[64];
 
 	interpret(host, "metadata_plain",
@@ -563,7 +583,7 @@ test_encryption_metadata(struct st_wren_host *host)
 	    "}\n"
 	    "if (MenuEncryption.tripleDes != 1 || MenuEncryption.idea != 2 || MenuEncryption.cast != 3 || MenuEncryption.rc2 != 4 || MenuEncryption.rc4 != 5) Fiber.abort(\"cipher enum\")\n");
 	struct st_bbs_list *list = host->bbs_list;
-	host->bbs_list = NULL;
+	host->bbs_list           = NULL;
 	interpret(host, "metadata_absent",
 	    "import \"syncterm_menu\" for Menu\n"
 	    "import \"menu_settings_ui\" for SettingsMenu\n"
@@ -573,27 +593,36 @@ test_encryption_metadata(struct st_wren_host *host)
 	    "if (SettingsMenu.encryption_(app) || app.alerts != 1) Fiber.abort(\"absent list UI\")\n");
 	host->bbs_list = list;
 	for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); ++i) {
-		*info = (struct st_list_crypto_info){
-			.format = ST_LIST_CRYPTO_V1, .cipher = cases[i].cipher,
-			.kdf = ST_LIST_KDF_PBKDF2_SHA256, .key_bits = cases[i].bits,
-			.iterations = 50001, .rewrite_recommended = true,
+		*info = (struct st_list_crypto_info) {
+		    .format              = ST_LIST_CRYPTO_V1,
+		    .cipher              = cases[i].cipher,
+		    .kdf                 = ST_LIST_KDF_PBKDF2_SHA256,
+		    .key_bits            = cases[i].bits,
+		    .iterations          = 50001,
+		    .rewrite_recommended = true,
 		};
 		CHECK(snprintf(module, sizeof(module), "metadata_cipher_%zu", i) < (int)sizeof(module));
-		CHECK(snprintf(source, sizeof(source),
-		    "import \"syncterm_menu\" for Menu, ListEncryptionFormat, ListEncryptionKdf\n"
-		    "import \"menu_settings_ui_test\" for SettingsMenuTest\n"
-		    "var info = Menu.encryptionInfo\n"
-		    "if (info.format != ListEncryptionFormat.v1 || info.algorithm != %d || info.keyBits != %u || info.name != \"%s\" || info.kdf != ListEncryptionKdf.pbkdf2Sha256 || info.iterations != 50001 || !info.rewriteRecommended) Fiber.abort(\"legacy metadata\")\n"
-		    "if (info.costLog2 != null || info.blockSize != null || info.parallelism != null) Fiber.abort(\"PBKDF fields\")\n"
-		    "SettingsMenuTest.inspectEncryption_(\"Currently %s\", %s)\n",
-		    (int)cases[i].cipher, cases[i].bits, cases[i].name,
-		    cases[i].name, cases[i].writable ? "Menu.encryptionAvailable" : "false") < (int)sizeof(source));
+		CHECK(
+		    snprintf(source, sizeof(source),
+			"import \"syncterm_menu\" for Menu, ListEncryptionFormat, ListEncryptionKdf\n"
+			"import \"menu_settings_ui_test\" for SettingsMenuTest\n"
+			"var info = Menu.encryptionInfo\n"
+			"if (info.format != ListEncryptionFormat.v1 || info.algorithm != %d || info.keyBits != %u || info.name != \"%s\" || info.kdf != ListEncryptionKdf.pbkdf2Sha256 || info.iterations != 50001 || !info.rewriteRecommended) Fiber.abort(\"legacy metadata\")\n"
+			"if (info.costLog2 != null || info.blockSize != null || info.parallelism != null) Fiber.abort(\"PBKDF fields\")\n"
+			"SettingsMenuTest.inspectEncryption_(\"Currently %s\", %s)\n",
+			(int)cases[i].cipher, cases[i].bits, cases[i].name, cases[i].name,
+			cases[i].writable ? "Menu.encryptionAvailable" : "false")
+		    < (int)sizeof(source));
 		interpret(host, module, source);
 	}
-	*info = (struct st_list_crypto_info){
-		.format = ST_LIST_CRYPTO_V2, .cipher = ST_LIST_CIPHER_AES,
-		.kdf = ST_LIST_KDF_SCRYPT, .key_bits = 256,
-		.cost_log2 = 10, .block_size = 4, .parallelism = 2,
+	*info = (struct st_list_crypto_info) {
+	    .format      = ST_LIST_CRYPTO_V2,
+	    .cipher      = ST_LIST_CIPHER_AES,
+	    .kdf         = ST_LIST_KDF_SCRYPT,
+	    .key_bits    = 256,
+	    .cost_log2   = 10,
+	    .block_size  = 4,
+	    .parallelism = 2,
 	};
 	interpret(host, "metadata_scrypt",
 	    "import \"syncterm_menu\" for Menu, ListEncryptionFormat, ListEncryptionKdf\n"
@@ -601,12 +630,12 @@ test_encryption_metadata(struct st_wren_host *host)
 	    "if (snapshot.format != ListEncryptionFormat.v2 || snapshot.kdf != ListEncryptionKdf.scrypt || snapshot.iterations != null || snapshot.costLog2 != 10 || snapshot.blockSize != 4 || snapshot.parallelism != 2 || snapshot.rewriteRecommended) Fiber.abort(\"scrypt metadata\")\n"
 	    "if (Menu.settings.kdfShift != 8) Fiber.abort(\"configured policy confused with loaded KDF\")\n");
 	info->iterations = ST_WREN_MAX_INTEGER;
-	info->kdf = ST_LIST_KDF_PBKDF2_SHA256;
+	info->kdf        = ST_LIST_KDF_PBKDF2_SHA256;
 	interpret(host, "metadata_exact_max",
 	    "import \"syncterm_menu\" for Menu\n"
 	    "if (Menu.encryptionInfo.iterations != 9007199254740991) Fiber.abort(\"exact native integer\")\n");
 	info->iterations = UINT64_MAX;
-	info->kdf = ST_LIST_KDF_PBKDF2_SHA256;
+	info->kdf        = ST_LIST_KDF_PBKDF2_SHA256;
 	interpret(host, "metadata_inexact",
 	    "import \"syncterm_menu\" for Menu\n"
 	    "var bad = Fiber.new { Menu.encryptionInfo }\n"
@@ -618,7 +647,7 @@ test_encryption_metadata(struct st_wren_host *host)
 	    "var bad = Fiber.new { Menu.encryptionInfo }\n"
 	    "bad.try()\n"
 	    "if (bad.error == null) Fiber.abort(\"unknown KDF\")\n");
-	*info = saved;
+	*info        = saved;
 	info->cipher = (enum st_list_cipher)99;
 	interpret(host, "metadata_bad_cipher",
 	    "import \"syncterm_menu\" for Menu\n"
@@ -733,11 +762,10 @@ test_save_retry(struct st_wren_host *host, const char *settings)
 static void
 post_key(st_console_t *console, uint16_t key)
 {
-	const struct st_console_event event = key >= 32 && key < 127
-	    ? (struct st_console_event){.type = ST_CONSOLE_EVENT_TEXT,
-		.data.text.codepoint = key}
-	    : (struct st_console_event){.type = ST_CONSOLE_EVENT_KEY_CODE,
-		.data.key.code = key};
+	const struct st_console_event event =
+	    key >= 32 && key < 127
+	        ? (struct st_console_event) {.type = ST_CONSOLE_EVENT_TEXT, .data.text.codepoint = key}
+	        : (struct st_console_event) {.type = ST_CONSOLE_EVENT_KEY_CODE, .data.key.code = key};
 	CHECK(st_console_post_event(console, &event) == 0);
 }
 
@@ -745,29 +773,29 @@ static void
 test_offer_save(struct st_wren_host *host, st_console_t *console)
 {
 	struct st_profile source;
-	bool saved;
-	bool old_prompt = st_settings.prompt_save;
+	bool              saved;
+	bool              old_prompt = st_settings.prompt_save;
 
 	st_profile_init(&source);
 	strcpy(source.name, "Offered");
 	strcpy(source.address, "offered.example");
 	strcpy(source.username, "guest");
-	source.identifier = -1;
-	source.connection_type = ST_CONNECTION_RAW;
-	source.port = 23;
-	source.screen_mode = ST_SCREEN_MODE_80X25;
-	source.encoding = ST_PROFILE_ENCODING_UTF8;
-	source.calls = 3;
+	source.identifier       = -1;
+	source.connection_type  = ST_CONNECTION_RAW;
+	source.port             = 23;
+	source.screen_mode      = ST_SCREEN_MODE_80X25;
+	source.encoding         = ST_PROFILE_ENCODING_UTF8;
+	source.calls            = 3;
 	st_settings.prompt_save = false;
 	CHECK(st_wren_host_offer_save_profile(host, &source, &saved) == 0 && !saved);
 	st_settings.prompt_save = true;
-	host->config.safe_mode = true;
+	host->config.safe_mode  = true;
 	CHECK(st_wren_host_offer_save_profile(host, &source, &saved) == 0 && !saved);
 	host->config.safe_mode = false;
-	source.hide_popups = true;
+	source.hide_popups     = true;
 	CHECK(st_wren_host_offer_save_profile(host, &source, &saved) == 0 && !saved);
 	source.hide_popups = false;
-	source.identifier = 1;
+	source.identifier  = 1;
 	CHECK(st_wren_host_offer_save_profile(host, &source, &saved) == 0 && !saved);
 	source.identifier = -1;
 	post_key(console, 27);
@@ -777,29 +805,28 @@ test_offer_save(struct st_wren_host *host, st_console_t *console)
 	post_key(console, 27);
 	CHECK(st_wren_host_offer_save_profile(host, &source, &saved) == 0 && saved);
 	const struct st_bbs_entry *entry = st_bbs_list_find(host->bbs_list, "Offered");
-	CHECK(entry != NULL && strcmp(entry->profile->username, "guest") == 0
-	    && entry->profile->calls == 0 && source.calls == 3);
+	CHECK(entry != NULL && strcmp(entry->profile->username, "guest") == 0 && entry->profile->calls == 0
+	      && source.calls == 3);
 	st_settings.prompt_save = old_prompt;
 	st_profile_dispose(&source);
 }
 
 static void
-test_load_results(struct st_wren_host *host, struct st_app_paths *paths,
-	const char *personal, st_console_t *console)
+test_load_results(struct st_wren_host *host, struct st_app_paths *paths, const char *personal,
+    st_console_t *console)
 {
-	static const char long_section[] =
-	    "[1234567890123456789012345678901]\nAddress=skipped.example\n";
-	char shared[sizeof(ST_WREN_SETTINGS_TEST_DIRECTORY) + 32];
-	char named[sizeof(ST_WREN_SETTINGS_TEST_DIRECTORY) + 32];
-	char script[1024];
+	static const char       long_section[] = "[1234567890123456789012345678901]\nAddress=skipped.example\n";
+	char                    shared[sizeof(ST_WREN_SETTINGS_TEST_DIRECTORY) + 32];
+	char                    named[sizeof(ST_WREN_SETTINGS_TEST_DIRECTORY) + 32];
+	char                    script[1024];
 	struct st_console_event pending;
-	CHECK(snprintf(shared, sizeof(shared), "%s/shared.lst",
-	    ST_WREN_SETTINGS_TEST_DIRECTORY) < (int)sizeof(shared));
-	CHECK(snprintf(named, sizeof(named), "%s/Caf\xc3\xa9.lst",
-	    ST_WREN_SETTINGS_TEST_DIRECTORY) < (int)sizeof(named));
+	CHECK(snprintf(shared, sizeof(shared), "%s/shared.lst", ST_WREN_SETTINGS_TEST_DIRECTORY)
+	      < (int)sizeof(shared));
+	CHECK(snprintf(named, sizeof(named), "%s/Caf\xc3\xa9.lst", ST_WREN_SETTINGS_TEST_DIRECTORY)
+	      < (int)sizeof(named));
 	CHECK(st_settings_web_download_count() == 0);
-	CHECK(snprintf(script, sizeof(script), "[Existing]\nAddress=existing.example\n%s",
-	    long_section) < (int)sizeof(script));
+	CHECK(snprintf(script, sizeof(script), "[Existing]\nAddress=existing.example\n%s", long_section)
+	      < (int)sizeof(script));
 	write_text(personal, script);
 	write_text(shared, long_section);
 	write_text(paths->cached_system_list, "\xff");
@@ -838,19 +865,24 @@ test_load_results(struct st_wren_host *host, struct st_app_paths *paths,
 	    "var message = MainMenu.loadWarnings_()\n"
 	    "if (!message.contains(\"Caf\xc3\xa9\") || !message.contains(\"System List\") || !message.contains(\"1234567890123456789012345678901\") || !message.contains(\"Invalid encoding\") || !message.contains(\"truncated\") || MainMenu.loadWarningsAutomatic_() != message) Fiber.abort(\"warning summary lost detail\")\n");
 	CHECK(!wrenHasVariable(host->vm, "syncterm_menu", "MenuReadStatus"));
-	st_bbs_list_t *original = host->bbs_list;
-	uint64_t generation = host->bbs_model.generation;
-	int *controls[] = {&st_wren_test_list_open_status,
-	    &st_wren_test_list_sort_status, &st_wren_test_model_build_status};
-	const int statuses[] = {IO_ERROR_PASSWORD_REQUIRED, IO_ERROR_DECRYPTION_FAILED,
-	    IO_ERROR_INVALID_FORMAT, IO_ERROR_PERMISSION_DENIED};
+	st_bbs_list_t *original   = host->bbs_list;
+	uint64_t       generation = host->bbs_model.generation;
+	int           *controls[] = {&st_wren_test_list_open_status, &st_wren_test_list_sort_status,
+	    &st_wren_test_model_build_status};
+	const int statuses[] = {IO_ERROR_PASSWORD_REQUIRED, IO_ERROR_DECRYPTION_FAILED, IO_ERROR_INVALID_FORMAT,
+	    IO_ERROR_PERMISSION_DENIED};
 	for (size_t stage = 0; stage < 3; ++stage) {
 		for (size_t i = 0; i < sizeof(statuses) / sizeof(statuses[0]); ++i) {
 			*controls[stage] = statuses[i];
-			CHECK(snprintf(script, sizeof(script),
-			    "{\nvar failure = Menu.load(null)\n"
-			    "if (!(failure is MenuError) || failure.code != %d || failure.nativeCode != %d || !failure.message.contains(\"%s\") || Menu.loadDiagnostics.count != 4) Fiber.abort(\"load reason or retained warnings\")\n}\n",
-			    statuses[i], statuses[i], stage == 0 ? "loaded" : stage == 1 ? "sorted" : "constructed") < (int)sizeof(script));
+			CHECK(
+			    snprintf(script, sizeof(script),
+				"{\nvar failure = Menu.load(null)\n"
+				"if (!(failure is MenuError) || failure.code != %d || failure.nativeCode != %d || !failure.message.contains(\"%s\") || Menu.loadDiagnostics.count != 4) Fiber.abort(\"load reason or retained warnings\")\n}\n",
+				statuses[i], statuses[i],
+				stage == 0   ? "loaded"
+				: stage == 1 ? "sorted"
+				             : "constructed")
+			    < (int)sizeof(script));
 			interpret(host, "load_diagnostics", script);
 			CHECK(host->bbs_list == original && host->bbs_model.generation == generation);
 			*controls[stage] = 0;
@@ -861,9 +893,10 @@ test_load_results(struct st_wren_host *host, struct st_app_paths *paths,
 	    "var cacheEntries = oldCache.list\n"
 	    "if (oldCache.delete(\"load-result.tmp\") != null) Fiber.abort(\"grant fixture cleanup\")\n");
 	struct st_bbs_diagnostic injected = {
-		.source = ST_BBS_SOURCE_WEB_NAMED,
-		.source_name = "Cafe\xcc\x81", .section_name = "A\xcc\x8a",
-		.status = IO_ERROR_PERMISSION_DENIED,
+	    .source       = ST_BBS_SOURCE_WEB_NAMED,
+	    .source_name  = "Cafe\xcc\x81",
+	    .section_name = "A\xcc\x8a",
+	    .status       = IO_ERROR_PERMISSION_DENIED,
 	};
 	st_wren_test_diagnostic = &injected;
 	interpret(host, "load_diagnostics",
@@ -878,14 +911,14 @@ test_load_results(struct st_wren_host *host, struct st_app_paths *paths,
 	post_key(console, 13);
 	interpret(host, "load_diagnostics",
 	    "if (!MainMenu.prepare_(false)) Fiber.abort(\"warning retrieval failed the load\")\n");
-	st_wren_test_diagnostic = NULL;
+	st_wren_test_diagnostic             = NULL;
 	st_wren_test_diagnostic_copy_status = IO_ERROR_OUT_OF_MEMORY;
 	interpret(host, "load_diagnostics",
 	    "if (Menu.load(null) != null) Fiber.abort(\"load eagerly copied warning text\")\n"
 	    "var allocation = Fiber.new { Menu.loadDiagnostics }.try()\n"
 	    "if (!(allocation is MenuError) || allocation.code != IOErr.outOfMemory || Menu.entries.where {|entry| entry.name == \"Existing\" }.count != 1) Fiber.abort(\"diagnostic allocation failure\")\n");
 	st_wren_test_diagnostic_copy_status = 0;
-	host->config.safe_mode = true;
+	host->config.safe_mode              = true;
 	post_key(console, 0x5100);
 	post_key(console, 13);
 	interpret(host, "load_diagnostics",
@@ -894,13 +927,13 @@ test_load_results(struct st_wren_host *host, struct st_app_paths *paths,
 	post_key(console, 13);
 	interpret(host, "load_diagnostics",
 	    "if (!MainMenu.prepare_(false) || Menu.loadDiagnostics.count != 4 || MainMenu.loadWarnings_() == null) Fiber.abort(\"repeat load lost warnings\")\n");
-	CHECK(st_console_event_try(console, &pending) == 0
-	    && pending.type == ST_CONSOLE_EVENT_KEY_CODE && pending.data.key.code == 13);
+	CHECK(st_console_event_try(console, &pending) == 0 && pending.type == ST_CONSOLE_EVENT_KEY_CODE
+	      && pending.data.key.code == 13);
 	post_key(console, 27);
 	interpret(host, "load_diagnostics",
 	    "if (!MainMenu.prepare_(true)) Fiber.abort(\"repeat exit warning load failed\")\n");
-	CHECK(st_console_event_try(console, &pending) == 0
-	    && pending.type == ST_CONSOLE_EVENT_KEY_CODE && pending.data.key.code == 27);
+	CHECK(st_console_event_try(console, &pending) == 0 && pending.type == ST_CONSOLE_EVENT_KEY_CODE
+	      && pending.data.key.code == 27);
 	/* Retrieval failures still show every time, even after acknowledging warnings. */
 	st_wren_test_diagnostic_copy_status = IO_ERROR_OUT_OF_MEMORY;
 	for (unsigned attempt = 0; attempt < 2; ++attempt) {
@@ -966,15 +999,15 @@ test_load_results(struct st_wren_host *host, struct st_app_paths *paths,
 	interpret(host, "load_diagnostics",
 	    "if (!MainMenu.prepare_(false) || Menu.loadDiagnostics.count != 2 || MainMenu.loadWarningsAutomatic_() != null) Fiber.abort(\"web warnings opened dialog\")\n"
 	    "if (!MainMenu.loadWarnings_().contains(\"truncated\") || !MainMenu.loadWarnings_().contains(\"System List\")) Fiber.abort(\"web warnings hidden\")\n");
-	CHECK(st_console_event_try(console, &pending) == 0
-	    && pending.type == ST_CONSOLE_EVENT_KEY_CODE && pending.data.key.code == 13);
+	CHECK(st_console_event_try(console, &pending) == 0 && pending.type == ST_CONSOLE_EVENT_KEY_CODE
+	      && pending.data.key.code == 13);
 	/* An unrelated failure must still open a dialog with only web warnings. */
 	st_wren_test_list_open_status = IO_ERROR_PERMISSION_DENIED;
 	post_key(console, 13);
 	interpret(host, "load_diagnostics",
 	    "if (MainMenu.prepare_(false)) Fiber.abort(\"web warnings hid fatal load error\")\n");
 	CHECK(st_console_event_try(console, &pending) == IO_ERROR_WOULD_BLOCK);
-	st_wren_test_list_open_status = 0;
+	st_wren_test_list_open_status       = 0;
 	st_wren_test_diagnostic_copy_status = IO_ERROR_OUT_OF_MEMORY;
 	post_key(console, 13);
 	interpret(host, "load_diagnostics",
@@ -1012,19 +1045,19 @@ test_settings_reload_running(struct st_wren_host *host, const char *settings)
 	char contents[128];
 	bool running = st_settings.confirm_close;
 
-	CHECK(snprintf(backup, sizeof(backup), "%s.reload-backup", settings)
-	    < (int)sizeof(backup));
+	CHECK(snprintf(backup, sizeof(backup), "%s.reload-backup", settings) < (int)sizeof(backup));
 	CHECK(rename(settings, backup) == 0);
-	CHECK(snprintf(contents, sizeof(contents),
-	    "[SyncTERM]\nAudioModes=0\nMidiModes=0\nConfirmClose=%s\n",
-	    running ? "false" : "true") < (int)sizeof(contents));
+	CHECK(snprintf(contents, sizeof(contents), "[SyncTERM]\nAudioModes=0\nMidiModes=0\nConfirmClose=%s\n",
+		  running ? "false" : "true")
+	      < (int)sizeof(contents));
 	write_text(settings, contents);
-	bool passed = wrenInterpret(host->vm, "settings_reload_external",
-	    "import \"syncterm_menu\" for Menu\n"
-	    "var snapshot = Menu.settings\n"
-	    "var before = snapshot.confirmClose\n"
-	    "snapshot.confirmClose = !before\n"
-	    "if (!snapshot.dirty || snapshot.reload() != null || snapshot.confirmClose != before || snapshot.dirty || Menu.settings.confirmClose != before) Fiber.abort(\"snapshot reload read external settings\")\n")
+	bool passed =
+	    wrenInterpret(host->vm, "settings_reload_external",
+		"import \"syncterm_menu\" for Menu\n"
+		"var snapshot = Menu.settings\n"
+		"var before = snapshot.confirmClose\n"
+		"snapshot.confirmClose = !before\n"
+		"if (!snapshot.dirty || snapshot.reload() != null || snapshot.confirmClose != before || snapshot.dirty || Menu.settings.confirmClose != before) Fiber.abort(\"snapshot reload read external settings\")\n")
 	    == WREN_RESULT_SUCCESS;
 	CHECK(fs_remove_file(settings) == 0);
 	CHECK(rename(backup, settings) == 0);
@@ -1065,27 +1098,32 @@ test_theme_results(struct st_wren_host *host, const char *directory)
 	    "  bad.try()\n"
 	    "  if (bad.error == null) Fiber.abort(\"invalid theme arguments accepted\")\n"
 	    "}\n");
-	CHECK(snprintf(source, sizeof(source),
-	    "if ([ThemeSaveErr.ok,ThemeSaveErr.invalid,ThemeSaveErr.conflict,ThemeSaveErr.exists,ThemeSaveErr.readOnly,ThemeSaveErr.io].join() != [%d,%d,%d,%d,%d,%d].join()) Fiber.abort(\"theme save enum drift\")\n",
-	    ST_THEME_DOCUMENT_OK, ST_THEME_DOCUMENT_INVALID, ST_THEME_DOCUMENT_CONFLICT,
-	    ST_THEME_DOCUMENT_EXISTS, ST_THEME_DOCUMENT_READ_ONLY, ST_THEME_DOCUMENT_IO) < (int)sizeof(source));
+	CHECK(
+	    snprintf(source, sizeof(source),
+		"if ([ThemeSaveErr.ok,ThemeSaveErr.invalid,ThemeSaveErr.conflict,ThemeSaveErr.exists,ThemeSaveErr.readOnly,ThemeSaveErr.io].join() != [%d,%d,%d,%d,%d,%d].join()) Fiber.abort(\"theme save enum drift\")\n",
+		ST_THEME_DOCUMENT_OK, ST_THEME_DOCUMENT_INVALID, ST_THEME_DOCUMENT_CONFLICT,
+		ST_THEME_DOCUMENT_EXISTS, ST_THEME_DOCUMENT_READ_ONLY, ST_THEME_DOCUMENT_IO)
+	    < (int)sizeof(source));
 	interpret(host, "theme_results", source);
 	for (int result = ST_THEME_DOCUMENT_INVALID; result <= ST_THEME_DOCUMENT_IO; ++result) {
 		st_wren_test_theme_save_result = result;
-		CHECK(snprintf(source, sizeof(source),
-		    "{\nvar result = doc.save(\"theme-result.ini\", false)\n"
-		    "if (!(result is MenuError) || result.code != null || result.nativeCode != %d || !doc.dirty) Fiber.abort(\"document enum was classified as portable I/O\")\n}\n", result) < (int)sizeof(source));
+		CHECK(
+		    snprintf(source, sizeof(source),
+			"{\nvar result = doc.save(\"theme-result.ini\", false)\n"
+			"if (!(result is MenuError) || result.code != null || result.nativeCode != %d || !doc.dirty) Fiber.abort(\"document enum was classified as portable I/O\")\n}\n",
+			result)
+		    < (int)sizeof(source));
 		interpret(host, "theme_results", source);
 	}
 	st_wren_test_theme_save_result = 0;
-	host->config.safe_mode = true;
-	unsigned saves = st_wren_test_theme_save_calls;
+	host->config.safe_mode         = true;
+	unsigned saves                 = st_wren_test_theme_save_calls;
 	interpret(host, "theme_results",
 	    "var blocked = doc.save(\"theme-result.ini\", true)\n"
 	    "if (!(blocked is MenuError) || blocked.code != IOErr.readOnly || blocked.nativeCode != null) Fiber.abort(\"theme safe save result\")\n"
 	    "for (failure in [Menu.deleteTheme(\"theme-result.ini\"),Menu.deleteCloudTheme(\"official/missing\")]) if (!(failure is MenuError) || failure.code != IOErr.readOnly || failure.nativeCode != null) Fiber.abort(\"theme safe deletion\")\n");
 	CHECK(st_wren_test_theme_save_calls == saves);
-	host->config.safe_mode = false;
+	host->config.safe_mode            = false;
 	st_wren_test_theme_catalog_status = IO_ERROR_PERMISSION_DENIED;
 	interpret(host, "theme_results",
 	    "var catalog = Menu.themes\n"
@@ -1094,9 +1132,9 @@ test_theme_results(struct st_wren_host *host, const char *directory)
 	    "SettingsMenu.themes_(catalogApp, null)\n"
 	    "if (catalogApp.alerts != 1) Fiber.abort(\"browser used failed catalog\")\n");
 	st_wren_test_theme_catalog_status = 0;
-	st_wren_test_theme_create_status = IO_ERROR_OUT_OF_MEMORY;
-	st_wren_test_theme_open_status = IO_ERROR_IO;
-	st_wren_test_theme_copy_status = IO_ERROR_PROTOCOL;
+	st_wren_test_theme_create_status  = IO_ERROR_OUT_OF_MEMORY;
+	st_wren_test_theme_open_status    = IO_ERROR_IO;
+	st_wren_test_theme_copy_status    = IO_ERROR_PROTOCOL;
 	interpret(host, "theme_results",
 	    "var constructors = [Menu.newThemeDocument(),Menu.openThemeDocument(\"theme-result.ini\"),Menu.copyCloudTheme(\"official/missing\")]\n"
 	    "var reasons = [IOErr.outOfMemory,IOErr.io,IOErr.protocol]\n"
@@ -1104,15 +1142,15 @@ test_theme_results(struct st_wren_host *host, const char *directory)
 	    "var newApp = SettingsTestApp.new([Fn.new {|pane| pane.handle(KeyEvent.new(Key.insert)) },SettingsMenuTest.cancel_])\n"
 	    "SettingsMenu.themes_(newApp, null)\n"
 	    "if (newApp.alerts != 1 || newApp.remaining != 0) Fiber.abort(\"browser used failed constructor\")\n");
-	st_wren_test_theme_create_status = 0;
-	st_wren_test_theme_open_status = 0;
-	st_wren_test_theme_copy_status = 0;
+	st_wren_test_theme_create_status         = 0;
+	st_wren_test_theme_open_status           = 0;
+	st_wren_test_theme_copy_status           = 0;
 	st_wren_test_theme_settings_copy_failure = true;
 	interpret(host, "theme_results",
 	    "var copyFailure = Menu.selectTheme(\"theme-result.ini\")\n"
 	    "if (!(copyFailure is MenuError) || copyFailure.code != null || copyFailure.nativeCode != null) Fiber.abort(\"theme Boolean failure invented native status\")\n");
 	st_wren_test_theme_settings_copy_failure = false;
-	st_wren_test_theme_warning = "cached manifest retained";
+	st_wren_test_theme_warning               = "cached manifest retained";
 	interpret(host, "theme_results",
 	    "if (Menu.refreshCloudThemes() != \"cached manifest retained\") Fiber.abort(\"success warning became failure\")\n"
 	    "var warningApp = SettingsTestApp.new([])\n"
@@ -1126,25 +1164,27 @@ test_theme_results(struct st_wren_host *host, const char *directory)
 	    "SettingsMenu.cloudThemes_(refreshApp, null)\n"
 	    "if (refreshApp.alerts != 1) Fiber.abort(\"cloud failure display\")\n");
 	st_wren_test_theme_refresh_status = 0;
-	st_wren_test_theme_warning = "";
+	st_wren_test_theme_warning        = "";
 	interpret(host, "theme_results",
 	    "if (Menu.refreshCloudThemes() != null) Fiber.abort(\"clean refresh result\")\n"
 	    "if (doc.save(\"theme-result.ini\", false) != null || doc.dirty || doc.canUndo) Fiber.abort(\"save result\")\n"
 	    "if (Menu.selectTheme(doc.filename) != null || doc.setMetadata(0, \"Edited Theme\") != null || doc.save(null, false) != null) Fiber.abort(\"selected save setup\")\n");
 	CHECK(strcmp(st_theme_active(host->themes)->name, "New Theme") == 0);
 	CHECK(fs_remove_file(path) == 0);
-	host->config.safe_mode = true;
-	uint64_t theme_generation = st_theme_generation(host->themes);
+	host->config.safe_mode       = true;
+	uint64_t theme_generation    = st_theme_generation(host->themes);
 	uint64_t settings_generation = host->settings_generation;
-	interpret(host, "theme_results", "if (doc.activate() != null) Fiber.abort(\"activation reread file or rejected safe mode\")\n");
+	interpret(host, "theme_results",
+	    "if (doc.activate() != null) Fiber.abort(\"activation reread file or rejected safe mode\")\n");
 	CHECK(st_theme_generation(host->themes) == theme_generation + 1);
 	CHECK(host->settings_generation == settings_generation);
 	CHECK(strcmp(st_theme_active(host->themes)->name, "Edited Theme") == 0);
 	host->config.safe_mode = false;
-	interpret(host, "theme_results", "if (doc.save(null, true) != null || doc.setMetadata(2, \"Editor save\") != null) Fiber.abort(\"editor setup\")\n");
+	interpret(host, "theme_results",
+	    "if (doc.save(null, true) != null || doc.setMetadata(2, \"Editor save\") != null) Fiber.abort(\"editor setup\")\n");
 	st_wren_test_theme_activate_status = IO_ERROR_OUT_OF_MEMORY;
-	saves = st_wren_test_theme_save_calls;
-	unsigned activations = st_wren_test_theme_activate_calls;
+	saves                              = st_wren_test_theme_save_calls;
+	unsigned activations               = st_wren_test_theme_activate_calls;
 	interpret(host, "theme_results",
 	    "var editorApp = SettingsTestApp.new([])\n"
 	    "if (!ThemeEditor.save_(editorApp, doc, false) || editorApp.alerts != 1 || doc.dirty) Fiber.abort(\"activation failure repeated persistence\")\n");
@@ -1167,7 +1207,7 @@ test_theme_results(struct st_wren_host *host, const char *directory)
 	    "var saveAs = SettingsTestApp.new([SettingsMenuTest.answer_(\"theme-other.ini\"),SettingsMenuTest.answer_(false)])\n"
 	    "if (ThemeEditor.save_(saveAs, doc, true) || doc.filename != \"theme-result.ini\") Fiber.abort(\"exists confirmation\")\n");
 	theme_generation = st_theme_generation(host->themes);
-	saves = st_wren_test_theme_save_calls;
+	saves            = st_wren_test_theme_save_calls;
 	interpret(host, "theme_results",
 	    "var replaceOther = SettingsTestApp.new([SettingsMenuTest.answer_(\"theme-other.ini\"),SettingsMenuTest.answer_(true)])\n"
 	    "if (!ThemeEditor.save_(replaceOther, doc, true) || doc.dirty || doc.filename != \"theme-other.ini\" || Menu.selectedThemeFile != \"theme-result.ini\" || replaceOther.alerts != 0) Fiber.abort(\"save-as changed selection or failed explicit replacement\")\n");
@@ -1190,31 +1230,34 @@ test_theme_results(struct st_wren_host *host, const char *directory)
 int
 main(void)
 {
-	static const char directory[] = ST_WREN_SETTINGS_TEST_DIRECTORY;
-	char global_rip[] = ST_WREN_SETTINGS_TEST_DIRECTORY "/RIP";
-	char settings[sizeof(directory) + 32];
-	char personal[sizeof(directory) + 32];
-	char cached[sizeof(directory) + 32];
-	struct st_app_paths paths = {0};
+	static const char                      directory[]  = ST_WREN_SETTINGS_TEST_DIRECTORY;
+	char                                   global_rip[] = ST_WREN_SETTINGS_TEST_DIRECTORY "/RIP";
+	char                                   settings[sizeof(directory) + 32];
+	char                                   personal[sizeof(directory) + 32];
+	char                                   cached[sizeof(directory) + 32];
+	struct st_app_paths                    paths   = {0};
 	const struct st_console_display_config display = {
-		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	    .backend = ST_CONSOLE_BACKEND_HEADLESS,
 	};
 	const struct st_console_config geometry = {
-		.columns = 80, .rows = 25, .cell_width = 8, .cell_height = 16,
+	    .columns     = 80,
+	    .rows        = 25,
+	    .cell_width  = 8,
+	    .cell_height = 16,
 	};
-	st_console_t *console = NULL;
-	st_console_t *picker = NULL;
-	st_console_display_t *console_display = NULL;
-	st_wren_host_t *host = NULL;
-	st_hyperlink_registry_t *hyperlinks = NULL;
-	st_session_history_t *history = NULL;
-	st_audio_runtime_t *audio = NULL;
-	struct st_console_font builtin;
+	st_console_t               *console         = NULL;
+	st_console_t               *picker          = NULL;
+	st_console_display_t       *console_display = NULL;
+	st_wren_host_t             *host            = NULL;
+	st_hyperlink_registry_t    *hyperlinks      = NULL;
+	st_session_history_t       *history         = NULL;
+	st_audio_runtime_t         *audio           = NULL;
+	struct st_console_font      builtin;
 	struct st_presentation_font presentation = {0};
-	uint16_t font;
-	char source[32768];
-	FILE *stream;
-	size_t size;
+	uint16_t                    font;
+	char                        source[32768];
+	FILE                       *stream;
+	size_t                      size;
 
 	CHECK(fs_create_directories(directory) == 0);
 	CHECK(snprintf(settings, sizeof(settings), "%s/settings.ini", directory) < (int)sizeof(settings));
@@ -1226,15 +1269,15 @@ main(void)
 	write_text(settings, "[SyncTERM]\nAudioModes=0\nMidiModes=0\n");
 	write_text(personal, "[Existing]\nAddress=existing.example\n");
 	write_text(cached, "");
-	paths.settings_file = settings;
-	paths.personal_list = personal;
-	paths.cached_system_list = cached;
-	paths.scripts_directory = (char *)directory;
-	paths.themes_directory = (char *)directory;
-	paths.cache_directory = (char *)directory;
+	paths.settings_file          = settings;
+	paths.personal_list          = personal;
+	paths.cached_system_list     = cached;
+	paths.scripts_directory      = (char *)directory;
+	paths.themes_directory       = (char *)directory;
+	paths.cache_directory        = (char *)directory;
 	paths.system_cache_directory = (char *)directory;
-	paths.download_directory = (char *)directory;
-	paths.rip_data_directory = global_rip;
+	paths.download_directory     = (char *)directory;
+	paths.rip_data_directory     = global_rip;
 	CHECK(st_settings_load(&paths) == 0);
 	CHECK(st_settings.color_emoji);
 	CHECK(st_console_display_create(&console_display, &display) == 0);
@@ -1248,10 +1291,13 @@ main(void)
 	CHECK(st_hyperlink_registry_create(&hyperlinks) == 0);
 	CHECK(st_audio_runtime_create(&audio, 0) == 0);
 	const struct st_wren_host_config config = {
-		.display = console_display, .console = console,
-		.picker_console = picker, .paths = &paths, .session_history = history,
-		.hyperlinks = hyperlinks,
-		.audio_runtime = audio,
+	    .display         = console_display,
+	    .console         = console,
+	    .picker_console  = picker,
+	    .paths           = &paths,
+	    .session_history = history,
+	    .hyperlinks      = hyperlinks,
+	    .audio_runtime   = audio,
 	};
 	CHECK(st_wren_host_create(&host, &config) == 0);
 	interpret(host, "load_result_contract",
@@ -1293,10 +1339,10 @@ main(void)
 	    "state.confirmClose = !state.confirmClose\n"
 	    "var app = SettingsTestApp.new([])\n"
 	    "if (!SettingsMenu.applySettings_(app, state) || app.alerts != 1 || state.dirty || Menu.settings.confirmClose != state.confirmClose) Fiber.abort(\"editor dropped installed settings after runtime failure\")\n");
-	st_wren_test_emoji_status = 0;
+	st_wren_test_emoji_status           = 0;
 	st_wren_test_font_activation_status = IO_ERROR_OUT_OF_MEMORY;
-	unsigned saved_calls = st_wren_test_font_save_calls;
-	unsigned activation_calls = st_wren_test_activation_calls;
+	unsigned saved_calls                = st_wren_test_font_save_calls;
+	unsigned activation_calls           = st_wren_test_activation_calls;
 	interpret(host, "font_editor_result",
 	    "import \"menu_settings_ui\" for SettingsMenu\n"
 	    "import \"menu_settings_ui_test\" for SettingsTestApp, SettingsMenuTest\n"
@@ -1306,7 +1352,7 @@ main(void)
 	    "SettingsMenu.fonts_(app)\n"
 	    "if (app.alerts != 1 || app.remaining != 0 || Menu.fontsDirty) Fiber.abort(\"font editor result handling\")\n");
 	CHECK(st_wren_test_font_save_calls == saved_calls + 1
-	    && st_wren_test_activation_calls == activation_calls + 1);
+	      && st_wren_test_activation_calls == activation_calls + 1);
 	st_wren_test_font_activation_status = 0;
 	interpret(host, "font_editor_result",
 	    "if (font.delete() != null || Menu.saveFonts() != null || Menu.activateFonts() != null) Fiber.abort(\"editor fixture cleanup\")\n");
@@ -1331,7 +1377,7 @@ main(void)
 	CHECK(st_settings.midi_output_modes == 5);
 	CHECK(!st_settings.color_emoji);
 	CHECK(st_settings.scrollback_lines == 123 && st_settings.custom_rows == 30
-	    && st_settings.custom_columns == 100 && st_settings.theme_frame_color == 1);
+	      && st_settings.custom_columns == 100 && st_settings.theme_frame_color == 1);
 	host->config.safe_mode = true;
 	interpret(host, "settings_safe_licenses",
 	    "import \"menu_settings_ui_test\" for SettingsMenuTest\n"
@@ -1361,8 +1407,8 @@ main(void)
 	interpret(host, "bbs_editor_results",
 	    "import \"menu_bbs_editor_test\" for MenuTest\n"
 	    "if (MenuTest.run()[1] != 0) Fiber.abort(\"BBS editor regressions\")\n");
-	CHECK(wrenInterpret(host->picker_vm, "forbidden_menu_error",
-	    "import \"syncterm_menu\" for MenuError\n") != WREN_RESULT_SUCCESS);
+	CHECK(wrenInterpret(host->picker_vm, "forbidden_menu_error", "import \"syncterm_menu\" for MenuError\n")
+	      != WREN_RESULT_SUCCESS);
 	st_wren_host_destroy(host);
 	st_audio_runtime_destroy(audio);
 	st_session_history_destroy(history);

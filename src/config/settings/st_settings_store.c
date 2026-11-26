@@ -5,30 +5,28 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "st_settings.h"
-
-#include "st_settings_internal.h"
-#include "st_unicode_compare.h"
-#include "st_emoji_catalog.h"
-
-#include "filesystem.h"
-#include "ini.h"
-#include "io_error.h"
-#include "path.h"
-#include "st_app_paths.h"
-#include "st_file_lock.h"
-#include "string_compat.h"
-#include "string_util.h"
-
 #include <limits.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "filesystem.h"
+#include "ini.h"
+#include "io_error.h"
+#include "path.h"
+#include "st_app_paths.h"
+#include "st_emoji_catalog.h"
+#include "st_file_lock.h"
+#include "st_settings.h"
+#include "st_settings_internal.h"
+#include "st_unicode_compare.h"
+#include "string_compat.h"
+#include "string_util.h"
+
 static size_t recent_emoji[ST_SETTINGS_RECENT_EMOJI_MAX];
 static size_t recent_emoji_count;
-static bool recent_emoji_loaded;
+static bool   recent_emoji_loaded;
 
 static void
 emoji_append(size_t *ids, size_t *count, size_t id)
@@ -59,90 +57,78 @@ names_equal(const char *left, const char *right)
 {
 	bool equal;
 
-	return st_unicode_caseless_equal(&equal, left, strlen(left), right,
-	    strlen(right)) == 0 && equal;
+	return st_unicode_caseless_equal(&equal, left, strlen(left), right, strlen(right)) == 0 && equal;
 }
 
 static const char *
 section_suffix(const char *name, const char *prefix)
 {
 	const char *colon = strchr(name, ':');
-	bool equal;
+	bool        equal;
 
-	if (colon == NULL || st_unicode_caseless_equal(&equal, name,
-	    (size_t)(colon - name), prefix, strlen(prefix)) != 0 || !equal)
+	if (colon == NULL
+	    || st_unicode_caseless_equal(&equal, name, (size_t)(colon - name), prefix, strlen(prefix)) != 0
+	    || !equal)
 		return NULL;
 	return colon + 1;
 }
 
 #ifdef ST_SETTINGS_STORE_TEST_COPY
-#include "st_settings_test_copy.h"
-#define STORE_SETTINGS_COPY(result, source) \
-	st_settings_test_copy((result), (source))
+ #include "st_settings_test_copy.h"
+ #define STORE_SETTINGS_COPY(result, source) st_settings_test_copy((result), (source))
 #else
-#define STORE_SETTINGS_COPY(result, source) \
-	st_settings_copy((result), (source))
+ #define STORE_SETTINGS_COPY(result, source) st_settings_copy((result), (source))
 #endif
 
-static char *settings_path;
-static char *cached_system_list;
-static char *personal_list_path;
-static ini_document_t *baseline_document;
+static char              *settings_path;
+static char              *cached_system_list;
+static char              *personal_list_path;
+static ini_document_t    *baseline_document;
 static struct st_settings baseline_settings;
-static bool baseline_initialized;
+static bool               baseline_initialized;
 
-static const char *screen_modes[] = {
-	"Current", "80x25", "LCD80x25", "80x28", "80x30", "80x43",
-	"80x50", "80x60", "132x37", "132x52", "132x25", "132x28",
-	"132x30", "132x34", "132x43", "132x50", "132x60", "C64",
-	"C128-40col", "C128-80col", "Atari", "Atari-XEP80", "Custom",
-	"EGA80x25", "VGA80x25", "Prestel", "BBCMicro7", "AtariST40x25",
-	"AtariST80x25", "AtariST80x25Mono", "Amiga640x200", "Amiga640x400", "CGA80x25", NULL
-};
+static const char *screen_modes[] = {"Current", "80x25", "LCD80x25", "80x28", "80x30", "80x43", "80x50", "80x60",
+    "132x37", "132x52", "132x25", "132x28", "132x30", "132x34", "132x43", "132x50", "132x60", "C64", "C128-40col",
+    "C128-80col", "Atari", "Atari-XEP80", "Custom", "EGA80x25", "VGA80x25", "Prestel", "BBCMicro7", "AtariST40x25",
+    "AtariST80x25", "AtariST80x25Mono", "Amiga640x200", "Amiga640x400", "CGA80x25", NULL};
 
-static const char *output_modes[] = {
-	"Autodetect", "Curses", "Curses437", "CursesAscii", "ANSI", "X11",
-	"X11Fullscreen", "WinConsole", "WinConsoleFullscreen", "SDL",
-	"SDLFullscreen", "GDI", "GDIFullscreen", "Retro", "Wayland",
-	"WaylandFullscreen", "Quartz", "QuartzFullscreen", NULL
-};
+static const char *output_modes[] = {"Autodetect", "Curses", "Curses437", "CursesAscii", "ANSI", "X11",
+    "X11Fullscreen", "WinConsole", "WinConsoleFullscreen", "SDL", "SDLFullscreen", "GDI", "GDIFullscreen", "Retro",
+    "Wayland", "WaylandFullscreen", "Quartz", "QuartzFullscreen", NULL};
 
 static const char *main_uis[] = {"Classic", "Retro", NULL};
 
-static const char *cursor_types[] = {
-	"Default", "BlinkingUnderline", "SolidUnderline", "BlinkingBlock",
-	"SolidBlock", NULL
-};
+static const char *cursor_types[] = {"Default", "BlinkingUnderline", "SolidUnderline", "BlinkingBlock",
+    "SolidBlock", NULL};
 
-static const char *colors[] = {
-	"Black", "Blue", "Green", "Cyan", "Red", "Magenta", "Brown",
-	"LightGray", "DarkGray", "LightBlue", "LightGreen", "LightCyan",
-	"LightRed", "LightMagenta", "Yellow", "White", "Default", NULL
-};
+static const char *colors[] = {"Black", "Blue", "Green", "Cyan", "Red", "Magenta", "Brown", "LightGray",
+    "DarkGray", "LightBlue", "LightGreen", "LightCyan", "LightRed", "LightMagenta", "Yellow", "White", "Default",
+    NULL};
 
-static const char *background_colors[] = {
-	"Black", "Blue", "Green", "Cyan", "Red", "Magenta", "Brown",
-	"LightGray", "Default", NULL
-};
+static const char *background_colors[] = {"Black", "Blue", "Green", "Cyan", "Red", "Magenta", "Brown", "LightGray",
+    "Default", NULL};
 
 #define ENUM_COUNT(table) (sizeof(table) / sizeof((table)[0]) - 1)
 #define ENUM_NAMES(table) (table), ENUM_COUNT(table)
 
 static const struct ini_bit_name audio_modes[] = {
-	{ 1U << 6, "CoreAudio" },
-	{ 1U << 0, "WASAPI" },
-	{ 1U << 0, "WaveOut" },
-	{ 1U << 4, "PortAudio" },
-	{ 1U << 7, "PipeWire" },
-	{ 1U << 3, "SDL" },
-	{ 1U << 5, "PulseAudio" },
-	{ 1U << 1, "ALSA" },
-	{ 1U << 2, "OSS" },
+    {1U << 6, "CoreAudio" },
+    {1U << 0, "WASAPI"    },
+    {1U << 0, "WaveOut"   },
+    {1U << 4, "PortAudio" },
+    {1U << 7, "PipeWire"  },
+    {1U << 3, "SDL"       },
+    {1U << 5, "PulseAudio"},
+    {1U << 1, "ALSA"      },
+    {1U << 2, "OSS"       },
 };
 
 static const struct ini_bit_name midi_modes[] = {
-	{1U << 0, "ALSA"}, {1U << 1, "FluidSynth"}, {1U << 2, "libADLMIDI"},
-	{1U << 3, "WinMM"}, {1U << 4, "AppleDLS"},
+    {1U << 0, "ALSA"      },
+    {1U << 1, "FluidSynth"},
+    {1U << 2, "libADLMIDI"},
+    {1U << 3, "WinMM"     },
+    {1U << 4, "AppleDLS"  },
 };
 
 struct setting_key {
@@ -151,50 +137,50 @@ struct setting_key {
 };
 
 static const struct setting_key known_keys[] = {
-	{ "SyncTERM", "MainUI" },
-	{ "SyncTERM", "ConfirmClose" },
-	{ "SyncTERM", "PromptSave" },
-	{ "SyncTERM", "ScreenMode" },
-	{ "SyncTERM", "OutputMode" },
-	{ "SyncTERM", "DefaultCursor" },
-	{ "SyncTERM", "AudioModes" },
-	{ "SyncTERM", "MidiModes" },
-	{ "SyncTERM", "AtariSTKeyClicks" },
-	{ "SyncTERM", "ScrollBackLines" },
-	{ "SyncTERM", "TransferSuccessKeypressTimeout" },
-	{ "SyncTERM", "TransferFailureKeypressTimeout" },
-	{ "SyncTERM", "ModemDevice" },
-	{ "SyncTERM", "ModemComRate" },
-	{ "SyncTERM", "ModemInit" },
-	{ "SyncTERM", "ModemDial" },
-	{ "SyncTERM", "ListPath" },
-	{ "SyncTERM", "TLSClientCertificate" },
-	{ "SyncTERM", "TLSClientKey" },
-	{ "SyncTERM", "TERM" },
-	{ "SyncTERM", "ScalingFactor" },
-	{ "SyncTERM", "BlockyScaling" },
-	{ "SyncTERM", "ExternalScaling" },
-	{ "SyncTERM", "InvertMouseWheel" },
-	{ "SyncTERM", "ColorEmoji" },
-	{ "SyncTERM", "LeftJustify" },
-	{ "SyncTERM", "KeyDerivationIterations" },
-	{ "SyncTERM", "CustomRows" },
-	{ "SyncTERM", "CustomColumns" },
-	{ "SyncTERM", "CustomFontHeight" },
-	{ "SyncTERM", "CustomAspectWidth" },
-	{ "SyncTERM", "CustomAspectHeight" },
-	{ "SyncTERM", "WindowWidth" },
-	{ "SyncTERM", "WindowHeight" },
-	{ "SyncTERM", "ThemeFile" },
-	{ "SyncTERM", "ThemePackage" },
-	{ "SyncTERM", "SortOrder" },
-	{ "SyncTERM", "ActiveSortProfile" },
-	{ "ClassicTheme", "FrameColour" },
-	{ "ClassicTheme", "TextColour" },
-	{ "ClassicTheme", "BackgroundColour" },
-	{ "ClassicTheme", "InverseColour" },
-	{ "ClassicTheme", "LightbarColour" },
-	{ "ClassicTheme", "LightbarBackgroundColour" },
+    {"SyncTERM",     "MainUI"                        },
+    {"SyncTERM",     "ConfirmClose"                  },
+    {"SyncTERM",     "PromptSave"                    },
+    {"SyncTERM",     "ScreenMode"                    },
+    {"SyncTERM",     "OutputMode"                    },
+    {"SyncTERM",     "DefaultCursor"                 },
+    {"SyncTERM",     "AudioModes"                    },
+    {"SyncTERM",     "MidiModes"                     },
+    {"SyncTERM",     "AtariSTKeyClicks"              },
+    {"SyncTERM",     "ScrollBackLines"               },
+    {"SyncTERM",     "TransferSuccessKeypressTimeout"},
+    {"SyncTERM",     "TransferFailureKeypressTimeout"},
+    {"SyncTERM",     "ModemDevice"                   },
+    {"SyncTERM",     "ModemComRate"                  },
+    {"SyncTERM",     "ModemInit"                     },
+    {"SyncTERM",     "ModemDial"                     },
+    {"SyncTERM",     "ListPath"                      },
+    {"SyncTERM",     "TLSClientCertificate"          },
+    {"SyncTERM",     "TLSClientKey"                  },
+    {"SyncTERM",     "TERM"                          },
+    {"SyncTERM",     "ScalingFactor"                 },
+    {"SyncTERM",     "BlockyScaling"                 },
+    {"SyncTERM",     "ExternalScaling"               },
+    {"SyncTERM",     "InvertMouseWheel"              },
+    {"SyncTERM",     "ColorEmoji"                    },
+    {"SyncTERM",     "LeftJustify"                   },
+    {"SyncTERM",     "KeyDerivationIterations"       },
+    {"SyncTERM",     "CustomRows"                    },
+    {"SyncTERM",     "CustomColumns"                 },
+    {"SyncTERM",     "CustomFontHeight"              },
+    {"SyncTERM",     "CustomAspectWidth"             },
+    {"SyncTERM",     "CustomAspectHeight"            },
+    {"SyncTERM",     "WindowWidth"                   },
+    {"SyncTERM",     "WindowHeight"                  },
+    {"SyncTERM",     "ThemeFile"                     },
+    {"SyncTERM",     "ThemePackage"                  },
+    {"SyncTERM",     "SortOrder"                     },
+    {"SyncTERM",     "ActiveSortProfile"             },
+    {"ClassicTheme", "FrameColour"                   },
+    {"ClassicTheme", "TextColour"                    },
+    {"ClassicTheme", "BackgroundColour"              },
+    {"ClassicTheme", "InverseColour"                 },
+    {"ClassicTheme", "LightbarColour"                },
+    {"ClassicTheme", "LightbarBackgroundColour"      },
 };
 
 static int
@@ -222,16 +208,13 @@ replace_text(char **result, const char *value)
 }
 
 static int
-bounded_int(const ini_section_t *section, const char *key, int fallback,
-    int minimum, int maximum)
+bounded_int(const ini_section_t *section, const char *key, int fallback, int minimum, int maximum)
 {
-	return (int)ini_section_get_bounded_int64(section, key, fallback,
-	    minimum, maximum);
+	return (int)ini_section_get_bounded_int64(section, key, fallback, minimum, maximum);
 }
 
 static uint32_t
-bounded_uint32(const ini_section_t *section, const char *key,
-    uint32_t fallback)
+bounded_uint32(const ini_section_t *section, const char *key, uint32_t fallback)
 {
 	uint64_t value = ini_section_get_uint64(section, key, fallback);
 
@@ -239,21 +222,19 @@ bounded_uint32(const ini_section_t *section, const char *key,
 }
 
 static unsigned
-bounded_enum(const ini_section_t *section, const char *key,
-    const char *const *names, size_t name_count, unsigned fallback)
+bounded_enum(const ini_section_t *section, const char *key, const char *const *names, size_t name_count,
+    unsigned fallback)
 {
-	size_t value = ini_section_get_enum_names(section, key, names, name_count,
-	    fallback);
+	size_t value = ini_section_get_enum_names(section, key, names, name_count, fallback);
 
 	return value < name_count ? (unsigned)value : fallback;
 }
 
 static unsigned
-classic_color(ini_document_t *document, const char *key,
-    const char *const *names, size_t name_count, unsigned fallback)
+classic_color(ini_document_t *document, const char *key, const char *const *names, size_t name_count,
+    unsigned fallback)
 {
-	ini_section_t *section = ini_document_find_section(document,
-	    "ClassicTheme");
+	ini_section_t *section = ini_document_find_section(document, "ClassicTheme");
 
 	if (section == NULL || !ini_section_has_key(section, key))
 		section = ini_document_find_section(document, "UIFC");
@@ -265,58 +246,51 @@ classic_color(ini_document_t *document, const char *key,
 static void
 load_classic_colors(struct st_settings *value, ini_document_t *document)
 {
-	value->theme_frame_color = classic_color(document, "FrameColour",
-	    ENUM_NAMES(colors), 16);
-	value->theme_text_color = classic_color(document, "TextColour",
-	    ENUM_NAMES(colors), 16);
-	value->theme_background_color = classic_color(document,
-	    "BackgroundColour", ENUM_NAMES(background_colors), 8);
-	value->theme_inverse_color = classic_color(document, "InverseColour",
-	    ENUM_NAMES(background_colors), 8);
-	value->theme_lightbar_color = classic_color(document, "LightbarColour",
-	    ENUM_NAMES(colors), 16);
-	value->theme_lightbar_background_color = classic_color(document,
-	    "LightbarBackgroundColour", ENUM_NAMES(background_colors), 8);
+	value->theme_frame_color = classic_color(document, "FrameColour", ENUM_NAMES(colors), 16);
+	value->theme_text_color  = classic_color(document, "TextColour", ENUM_NAMES(colors), 16);
+	value->theme_background_color =
+	    classic_color(document, "BackgroundColour", ENUM_NAMES(background_colors), 8);
+	value->theme_inverse_color  = classic_color(document, "InverseColour", ENUM_NAMES(background_colors), 8);
+	value->theme_lightbar_color = classic_color(document, "LightbarColour", ENUM_NAMES(colors), 16);
+	value->theme_lightbar_background_color =
+	    classic_color(document, "LightbarBackgroundColour", ENUM_NAMES(background_colors), 8);
 }
 
 static void
 settings_defaults(struct st_settings *value, const char *personal_list)
 {
 	st_settings_init(value);
-	value->stored_list_path = strdup(personal_list);
-	value->list_path = strdup(personal_list);
-	value->sort_order = strdup("29,5,1");
+	value->stored_list_path    = strdup(personal_list);
+	value->list_path           = strdup(personal_list);
+	value->sort_order          = strdup("29,5,1");
 	value->active_sort_profile = strdup("Name");
 	(void)name_value_list_append(&value->sort_profiles, "Name", "29,1");
-	(void)name_value_list_append(&value->sort_profiles, "Last Connected",
-	    "29,3,1");
-	(void)name_value_list_append(&value->sort_profiles, "Most Called",
-	    "29,4,1");
-	(void)name_value_list_append(&value->sort_profiles, "Date Added",
-	    "29,2,1");
-	value->confirm_close = false;
-	value->prompt_save = true;
-	value->startup_mode = 0;
-	value->output_mode = 0;
-	value->audio_output_modes = UINT32_MAX;
-	value->midi_output_modes = UINT32_MAX;
-	value->atari_st_key_clicks = true;
-	value->scrollback_lines = 2000;
+	(void)name_value_list_append(&value->sort_profiles, "Last Connected", "29,3,1");
+	(void)name_value_list_append(&value->sort_profiles, "Most Called", "29,4,1");
+	(void)name_value_list_append(&value->sort_profiles, "Date Added", "29,2,1");
+	value->confirm_close                     = false;
+	value->prompt_save                       = true;
+	value->startup_mode                      = 0;
+	value->output_mode                       = 0;
+	value->audio_output_modes                = UINT32_MAX;
+	value->midi_output_modes                 = UINT32_MAX;
+	value->atari_st_key_clicks               = true;
+	value->scrollback_lines                  = 2000;
 	value->transfer_success_keypress_timeout = 0;
 	value->transfer_failure_keypress_timeout = 60;
-	value->custom_columns = 80;
-	value->custom_rows = 25;
-	value->custom_font_height = 16;
-	value->custom_aspect_width = 4;
-	value->custom_aspect_height = 3;
-	value->blocky_scaling = true;
-	value->color_emoji = true;
-	value->theme_frame_color = 16;
-	value->theme_text_color = 16;
-	value->theme_background_color = 8;
-	value->theme_inverse_color = 8;
-	value->theme_lightbar_color = 16;
-	value->theme_lightbar_background_color = 8;
+	value->custom_columns                    = 80;
+	value->custom_rows                       = 25;
+	value->custom_font_height                = 16;
+	value->custom_aspect_width               = 4;
+	value->custom_aspect_height              = 3;
+	value->blocky_scaling                    = true;
+	value->color_emoji                       = true;
+	value->theme_frame_color                 = 16;
+	value->theme_text_color                  = 16;
+	value->theme_background_color            = 8;
+	value->theme_inverse_color               = 8;
+	value->theme_lightbar_color              = 16;
+	value->theme_lightbar_background_color   = 8;
 	(void)strcpy(value->modem_init_string, "AT&F&C1&D2");
 	(void)strcpy(value->modem_dial_string, "ATDT");
 	(void)strcpy(value->terminal_type, "syncterm");
@@ -324,16 +298,13 @@ settings_defaults(struct st_settings *value, const char *personal_list)
 }
 
 static int
-copy_ini_string(char **destination, const ini_section_t *section,
-    const char *key)
+copy_ini_string(char **destination, const ini_section_t *section, const char *key)
 {
-	return replace_string(destination,
-	    ini_section_get_string(section, key, ""));
+	return replace_string(destination, ini_section_get_string(section, key, ""));
 }
 
 static void
-copy_fixed(char *destination, size_t size, const ini_section_t *section,
-    const char *key, const char *fallback)
+copy_fixed(char *destination, size_t size, const ini_section_t *section, const char *key, const char *fallback)
 {
 	const char *value = ini_section_get_string(section, key, fallback);
 
@@ -343,113 +314,84 @@ copy_fixed(char *destination, size_t size, const ini_section_t *section,
 }
 
 static int
-decode_settings(struct st_settings *value, ini_document_t *document,
-    const char *personal_list, const char *system_cache)
+decode_settings(struct st_settings *value, ini_document_t *document, const char *personal_list,
+    const char *system_cache)
 {
 	ini_section_t *section;
 	ini_section_t *web;
 	ini_section_t *sort_profiles;
-	const char *list_path;
-	bool have_sort_profiles = false;
-	int status;
+	const char    *list_path;
+	bool           have_sort_profiles = false;
+	int            status;
 
 	settings_defaults(value, personal_list);
-	if (value->stored_list_path == NULL || value->list_path == NULL
-	    || value->sort_order == NULL || value->active_sort_profile == NULL
-	    || name_value_list_count(value->sort_profiles) != 4)
+	if (value->stored_list_path == NULL || value->list_path == NULL || value->sort_order == NULL
+	    || value->active_sort_profile == NULL || name_value_list_count(value->sort_profiles) != 4)
 		return IO_ERROR_OUT_OF_MEMORY;
 	section = ini_document_find_section(document, "SyncTERM");
 	if (section != NULL) {
-		size_t main_ui = ini_section_get_enum_names(section, "MainUI",
-		    ENUM_NAMES(main_uis), ST_MAIN_UI_CLASSIC);
+		size_t main_ui =
+		    ini_section_get_enum_names(section, "MainUI", ENUM_NAMES(main_uis), ST_MAIN_UI_CLASSIC);
 		if (names_equal(ini_section_get_string(section, "MainUI", ""), "DOS"))
 			main_ui = ST_MAIN_UI_DOS;
-		value->main_ui = main_ui < ENUM_COUNT(main_uis)
-		    ? (enum st_main_ui)main_ui : ST_MAIN_UI_CLASSIC;
-		value->confirm_close = ini_section_get_bool(section, "ConfirmClose",
-		    value->confirm_close);
-		value->prompt_save = ini_section_get_bool(section, "PromptSave",
-		    value->prompt_save);
-		value->startup_mode = (int)ini_section_get_enum_names(section,
-		    "VideoMode", ENUM_NAMES(screen_modes),
-		    (size_t)value->startup_mode);
-		value->startup_mode = (int)ini_section_get_enum_names(section,
-		    "ScreenMode", ENUM_NAMES(screen_modes),
-		    (size_t)value->startup_mode);
-		value->output_mode = (int)ini_section_get_enum_names(section,
-		    "OutputMode", ENUM_NAMES(output_modes),
-		    (size_t)value->output_mode);
-		value->default_cursor = (int)ini_section_get_enum_names(section,
-		    "DefaultCursor", ENUM_NAMES(cursor_types),
-		    (size_t)value->default_cursor);
-		value->audio_output_modes = (uint32_t)ini_section_get_bitfield(section,
-		    "AudioModes", audio_modes,
-		    sizeof(audio_modes) / sizeof(audio_modes[0]),
-		    value->audio_output_modes);
-		value->midi_output_modes = (uint32_t)ini_section_get_bitfield(section,
-		    "MidiModes", midi_modes, sizeof(midi_modes) / sizeof(midi_modes[0]),
-		    value->midi_output_modes);
-		value->atari_st_key_clicks = ini_section_get_bool(section,
-		    "AtariSTKeyClicks", value->atari_st_key_clicks);
-		value->scrollback_lines = bounded_int(section, "ScrollBackLines", 2000,
-		    0, INT_MAX);
-		value->transfer_success_keypress_timeout = bounded_int(section,
-		    "TransferSuccessKeypressTimeout", 0, 0, INT_MAX);
-		value->transfer_failure_keypress_timeout = bounded_int(section,
-		    "TransferFailureKeypressTimeout", 60, 0, INT_MAX);
-		value->custom_columns = bounded_int(section, "CustomColumns", 80, 1,
-		    INT_MAX);
-		value->custom_rows = bounded_int(section, "CustomRows", 25, 1, INT_MAX);
-		value->custom_font_height = bounded_int(section, "CustomFontHeight", 16,
-		    1, INT_MAX);
-		value->custom_aspect_width = bounded_int(section, "CustomAspectWidth", 4,
-		    1, INT_MAX);
-		value->custom_aspect_height = bounded_int(section, "CustomAspectHeight",
-		    3, 1, INT_MAX);
-		value->window_width = bounded_int(section, "WindowWidth", 0, 0,
-		    INT_MAX);
-		value->window_height = bounded_int(section, "WindowHeight", 0, 0,
-		    INT_MAX);
-		value->scaling_factor = ini_section_get_double(section, "ScalingFactor",
-		    0.0);
+		value->main_ui = main_ui < ENUM_COUNT(main_uis) ? (enum st_main_ui)main_ui : ST_MAIN_UI_CLASSIC;
+		value->confirm_close      = ini_section_get_bool(section, "ConfirmClose", value->confirm_close);
+		value->prompt_save        = ini_section_get_bool(section, "PromptSave", value->prompt_save);
+		value->startup_mode       = (int)ini_section_get_enum_names(section, "VideoMode",
+		    ENUM_NAMES(screen_modes), (size_t)value->startup_mode);
+		value->startup_mode       = (int)ini_section_get_enum_names(section, "ScreenMode",
+		    ENUM_NAMES(screen_modes), (size_t)value->startup_mode);
+		value->output_mode        = (int)ini_section_get_enum_names(section, "OutputMode",
+		    ENUM_NAMES(output_modes), (size_t)value->output_mode);
+		value->default_cursor     = (int)ini_section_get_enum_names(section, "DefaultCursor",
+		    ENUM_NAMES(cursor_types), (size_t)value->default_cursor);
+		value->audio_output_modes = (uint32_t)ini_section_get_bitfield(section, "AudioModes", audio_modes,
+		    sizeof(audio_modes) / sizeof(audio_modes[0]), value->audio_output_modes);
+		value->midi_output_modes  = (uint32_t)ini_section_get_bitfield(section, "MidiModes", midi_modes,
+		    sizeof(midi_modes) / sizeof(midi_modes[0]), value->midi_output_modes);
+		value->atari_st_key_clicks =
+		    ini_section_get_bool(section, "AtariSTKeyClicks", value->atari_st_key_clicks);
+		value->scrollback_lines = bounded_int(section, "ScrollBackLines", 2000, 0, INT_MAX);
+		value->transfer_success_keypress_timeout =
+		    bounded_int(section, "TransferSuccessKeypressTimeout", 0, 0, INT_MAX);
+		value->transfer_failure_keypress_timeout =
+		    bounded_int(section, "TransferFailureKeypressTimeout", 60, 0, INT_MAX);
+		value->custom_columns       = bounded_int(section, "CustomColumns", 80, 1, INT_MAX);
+		value->custom_rows          = bounded_int(section, "CustomRows", 25, 1, INT_MAX);
+		value->custom_font_height   = bounded_int(section, "CustomFontHeight", 16, 1, INT_MAX);
+		value->custom_aspect_width  = bounded_int(section, "CustomAspectWidth", 4, 1, INT_MAX);
+		value->custom_aspect_height = bounded_int(section, "CustomAspectHeight", 3, 1, INT_MAX);
+		value->window_width         = bounded_int(section, "WindowWidth", 0, 0, INT_MAX);
+		value->window_height        = bounded_int(section, "WindowHeight", 0, 0, INT_MAX);
+		value->scaling_factor       = ini_section_get_double(section, "ScalingFactor", 0.0);
 		if (value->scaling_factor < 0.0)
 			value->scaling_factor = 0.0;
-		value->blocky_scaling = ini_section_get_bool(section, "BlockyScaling",
-		    true);
-		value->external_scaling = ini_section_get_bool(section,
-		    "ExternalScaling", false);
-		value->color_emoji = ini_section_get_bool(section, "ColorEmoji",
-		    value->color_emoji);
-		value->invert_wheel = ini_section_get_bool(section, "InvertMouseWheel",
-		    false);
-		value->left_justify = ini_section_get_bool(section, "LeftJustify", false);
-		value->modem_rate = bounded_uint32(section, "ModemComRate", 0);
-		copy_fixed(value->modem_init_string, sizeof(value->modem_init_string),
-		    section, "ModemInit", "AT&F&C1&D2");
-		copy_fixed(value->modem_dial_string, sizeof(value->modem_dial_string),
-		    section, "ModemDial", "ATDT");
-		copy_fixed(value->terminal_type, sizeof(value->terminal_type), section,
-		    "TERM", "syncterm");
-		copy_fixed(value->key_derivation_iterations,
-		    sizeof(value->key_derivation_iterations), section,
+		value->blocky_scaling   = ini_section_get_bool(section, "BlockyScaling", true);
+		value->external_scaling = ini_section_get_bool(section, "ExternalScaling", false);
+		value->color_emoji      = ini_section_get_bool(section, "ColorEmoji", value->color_emoji);
+		value->invert_wheel     = ini_section_get_bool(section, "InvertMouseWheel", false);
+		value->left_justify     = ini_section_get_bool(section, "LeftJustify", false);
+		value->modem_rate       = bounded_uint32(section, "ModemComRate", 0);
+		copy_fixed(value->modem_init_string, sizeof(value->modem_init_string), section, "ModemInit",
+		    "AT&F&C1&D2");
+		copy_fixed(value->modem_dial_string, sizeof(value->modem_dial_string), section, "ModemDial",
+		    "ATDT");
+		copy_fixed(value->terminal_type, sizeof(value->terminal_type), section, "TERM", "syncterm");
+		copy_fixed(value->key_derivation_iterations, sizeof(value->key_derivation_iterations), section,
 		    "KeyDerivationIterations", "scrypt-N15");
 		status = copy_ini_string(&value->modem_device, section, "ModemDevice");
 		if (status == 0)
-			status = copy_ini_string(&value->tls_client_certificate, section,
-			    "TLSClientCertificate");
+			status = copy_ini_string(&value->tls_client_certificate, section, "TLSClientCertificate");
 		if (status == 0)
-			status = copy_ini_string(&value->tls_client_key, section,
-			    "TLSClientKey");
+			status = copy_ini_string(&value->tls_client_key, section, "TLSClientKey");
 		if (status == 0)
 			status = copy_ini_string(&value->theme_file, section, "ThemeFile");
 		if (status == 0)
-			status = copy_ini_string(&value->theme_package, section,
-			    "ThemePackage");
+			status = copy_ini_string(&value->theme_package, section, "ThemePackage");
 		if (status == 0 && ini_section_has_key(section, "SortOrder"))
-			status = replace_text(&value->sort_order,
-			    ini_section_get_string(section, "SortOrder", ""));
-		if (status == 0 && ini_section_has_key(section,
-		    "ActiveSortProfile"))
+			status =
+			    replace_text(&value->sort_order, ini_section_get_string(section, "SortOrder", ""));
+		if (status == 0 && ini_section_has_key(section, "ActiveSortProfile"))
 			status = replace_text(&value->active_sort_profile,
 			    ini_section_get_string(section, "ActiveSortProfile", ""));
 		if (status < 0)
@@ -460,7 +402,7 @@ decode_settings(struct st_settings *value, ini_document_t *document,
 		if (ascii_case_starts_with(list_path, "http://")
 		    || ascii_case_starts_with(list_path, "https://")) {
 			value->download_system_list = true;
-			list_path = system_cache;
+			list_path                   = system_cache;
 		}
 		if (replace_string(&value->list_path, list_path) < 0)
 			return IO_ERROR_OUT_OF_MEMORY;
@@ -487,17 +429,14 @@ decode_settings(struct st_settings *value, ini_document_t *document,
 	if (have_sort_profiles) {
 		bool active_found = false;
 
-		for (size_t i = 0;
-		    i < name_value_list_count(value->sort_profiles); ++i) {
-			if (names_equal(value->sort_profiles[i]->name,
-			    value->active_sort_profile)) {
+		for (size_t i = 0; i < name_value_list_count(value->sort_profiles); ++i) {
+			if (names_equal(value->sort_profiles[i]->name, value->active_sort_profile)) {
 				active_found = true;
 				break;
 			}
 		}
 		if (!active_found && name_value_list_count(value->sort_profiles) != 0) {
-			status = replace_string(&value->active_sort_profile,
-			    value->sort_profiles[0]->name);
+			status = replace_string(&value->active_sort_profile, value->sort_profiles[0]->name);
 			if (status < 0)
 				return status;
 		}
@@ -505,34 +444,27 @@ decode_settings(struct st_settings *value, ini_document_t *document,
 	else {
 		size_t active = SIZE_MAX;
 
-		for (size_t i = 0;
-		    i < name_value_list_count(value->sort_profiles); ++i) {
-			if (strcmp(value->sort_profiles[i]->value,
-			    value->sort_order) == 0) {
+		for (size_t i = 0; i < name_value_list_count(value->sort_profiles); ++i) {
+			if (strcmp(value->sort_profiles[i]->value, value->sort_order) == 0) {
 				active = i;
 				break;
 			}
 		}
-		if (active == SIZE_MAX && value->sort_order[0] != '\0'
-		    && strcmp(value->sort_order, "0") != 0) {
-			if (!name_value_list_append(&value->sort_profiles, "Custom",
-			    value->sort_order))
+		if (active == SIZE_MAX && value->sort_order[0] != '\0' && strcmp(value->sort_order, "0") != 0) {
+			if (!name_value_list_append(&value->sort_profiles, "Custom", value->sort_order))
 				return IO_ERROR_OUT_OF_MEMORY;
 		}
 		if (active != SIZE_MAX) {
-			status = replace_string(&value->active_sort_profile,
-			    value->sort_profiles[active]->name);
+			status = replace_string(&value->active_sort_profile, value->sort_profiles[active]->name);
 			if (status < 0)
 				return status;
 		}
 	}
 	for (size_t i = 0; i < ini_document_section_count(document); ++i) {
-		ini_section_t *font_section = ini_document_section_at(document, i);
-		const char *name = ini_section_name(font_section);
-		const char *font_name = section_suffix(name, "Font");
-		static const char *const keys[] = {
-			"Path8x8", "Path8x14", "Path8x16", "Path12x20"
-		};
+		ini_section_t           *font_section = ini_document_section_at(document, i);
+		const char              *name         = ini_section_name(font_section);
+		const char              *font_name    = section_suffix(name, "Font");
+		static const char *const keys[]       = {"Path8x8", "Path8x14", "Path8x16", "Path12x20"};
 
 		if (font_name == NULL)
 			continue;
@@ -541,11 +473,9 @@ decode_settings(struct st_settings *value, ini_document_t *document,
 		{
 			bool duplicate = false;
 
-			for (size_t existing = 0;
-			    existing < st_settings_font_list_count(value->custom_fonts);
+			for (size_t existing = 0; existing < st_settings_font_list_count(value->custom_fonts);
 			    ++existing) {
-				if (names_equal(value->custom_fonts[existing]->name,
-				    font_name)) {
+				if (names_equal(value->custom_fonts[existing]->name, font_name)) {
 					duplicate = true;
 					break;
 				}
@@ -553,8 +483,7 @@ decode_settings(struct st_settings *value, ini_document_t *document,
 			if (duplicate)
 				continue;
 		}
-		if (st_settings_font_list_count(value->custom_fonts)
-		    >= ST_SETTINGS_CUSTOM_FONT_MAX)
+		if (st_settings_font_list_count(value->custom_fonts) >= ST_SETTINGS_CUSTOM_FONT_MAX)
 			return IO_ERROR_OUT_OF_RANGE;
 		{
 			struct st_settings_font *font = calloc(1, sizeof(*font));
@@ -568,13 +497,10 @@ decode_settings(struct st_settings *value, ini_document_t *document,
 				return IO_ERROR_OUT_OF_MEMORY;
 			}
 
-			for (size_t path = 0;
-			    path < ST_SETTINGS_FONT_PATH_COUNT; ++path) {
-				const char *text = ini_section_get_string(font_section,
-				    keys[path], "");
+			for (size_t path = 0; path < ST_SETTINGS_FONT_PATH_COUNT; ++path) {
+				const char *text = ini_section_get_string(font_section, keys[path], "");
 
-				if (text[0] != '\0'
-				    && (font->path[path] = strdup(text)) == NULL)
+				if (text[0] != '\0' && (font->path[path] = strdup(text)) == NULL)
 					return IO_ERROR_OUT_OF_MEMORY;
 			}
 		}
@@ -583,17 +509,20 @@ decode_settings(struct st_settings *value, ini_document_t *document,
 }
 
 static int
-ensure_section(ini_document_t *document, const char *name,
-    ini_section_t **result)
+ensure_section(ini_document_t *document, const char *name, ini_section_t **result)
 {
 	*result = ini_document_find_section(document, name);
 	if (*result != NULL)
 		return 0;
-	return ini_document_add_section(document, name, &ini_default_style,
-	    result);
+	return ini_document_add_section(document, name, &ini_default_style, result);
 }
 
-#define SET(call) do { status = (call); if (status < 0) return status; } while (0)
+#define SET(call)                      \
+	do {                           \
+		status = (call);       \
+		if (status < 0)        \
+			return status; \
+	} while (0)
 
 static unsigned
 valid_color(unsigned value, size_t count, unsigned fallback)
@@ -605,30 +534,22 @@ static int
 set_classic_colors(ini_document_t *document, const struct st_settings *value)
 {
 	ini_section_t *classic;
-	int status;
+	int            status;
 
 	SET(ensure_section(document, "ClassicTheme", &classic));
 	SET(ini_section_set_enum_names(classic, "FrameColour", ENUM_NAMES(colors),
-	    valid_color(value->theme_frame_color, ENUM_COUNT(colors), 16),
-	    &ini_default_style));
+	    valid_color(value->theme_frame_color, ENUM_COUNT(colors), 16), &ini_default_style));
 	SET(ini_section_set_enum_names(classic, "TextColour", ENUM_NAMES(colors),
-	    valid_color(value->theme_text_color, ENUM_COUNT(colors), 16),
+	    valid_color(value->theme_text_color, ENUM_COUNT(colors), 16), &ini_default_style));
+	SET(ini_section_set_enum_names(classic, "BackgroundColour", ENUM_NAMES(background_colors),
+	    valid_color(value->theme_background_color, ENUM_COUNT(background_colors), 8), &ini_default_style));
+	SET(ini_section_set_enum_names(classic, "InverseColour", ENUM_NAMES(background_colors),
+	    valid_color(value->theme_inverse_color, ENUM_COUNT(background_colors), 8), &ini_default_style));
+	SET(ini_section_set_enum_names(classic, "LightbarColour", ENUM_NAMES(colors),
+	    valid_color(value->theme_lightbar_color, ENUM_COUNT(colors), 16), &ini_default_style));
+	SET(ini_section_set_enum_names(classic, "LightbarBackgroundColour", ENUM_NAMES(background_colors),
+	    valid_color(value->theme_lightbar_background_color, ENUM_COUNT(background_colors), 8),
 	    &ini_default_style));
-	SET(ini_section_set_enum_names(classic, "BackgroundColour",
-	    ENUM_NAMES(background_colors),
-	    valid_color(value->theme_background_color,
-	        ENUM_COUNT(background_colors), 8), &ini_default_style));
-	SET(ini_section_set_enum_names(classic, "InverseColour",
-	    ENUM_NAMES(background_colors),
-	    valid_color(value->theme_inverse_color, ENUM_COUNT(background_colors),
-	        8), &ini_default_style));
-	SET(ini_section_set_enum_names(classic, "LightbarColour",
-	    ENUM_NAMES(colors), valid_color(value->theme_lightbar_color,
-	        ENUM_COUNT(colors), 16), &ini_default_style));
-	SET(ini_section_set_enum_names(classic, "LightbarBackgroundColour",
-	    ENUM_NAMES(background_colors),
-	    valid_color(value->theme_lightbar_background_color,
-	        ENUM_COUNT(background_colors), 8), &ini_default_style));
 	return 0;
 }
 
@@ -636,8 +557,8 @@ static int
 migrate_classic_colors(ini_document_t *document)
 {
 	struct st_settings value = {0};
-	ini_section_t *legacy;
-	int status;
+	ini_section_t     *legacy;
+	int                status;
 
 	load_classic_colors(&value, document);
 	status = set_classic_colors(document, &value);
@@ -661,29 +582,25 @@ encode_fonts(ini_document_t *document, st_settings_font_list_t fonts)
 			(void)ini_document_remove_section(document, candidate);
 	}
 	for (size_t i = 0; i < st_settings_font_list_count(fonts); ++i) {
-		static const char *const keys[] = {
-			"Path8x8", "Path8x14", "Path8x16", "Path12x20"
-		};
-		const struct st_settings_font *font = fonts[i];
-		char *section_name;
-		size_t name_length = strlen(font->name);
-		int status;
+		static const char *const       keys[] = {"Path8x8", "Path8x14", "Path8x16", "Path12x20"};
+		const struct st_settings_font *font   = fonts[i];
+		char                          *section_name;
+		size_t                         name_length = strlen(font->name);
+		int                            status;
 
 		section_name = malloc(name_length + sizeof("Font:"));
 		if (section_name == NULL)
 			return IO_ERROR_OUT_OF_MEMORY;
 		memcpy(section_name, "Font:", 5);
 		memcpy(section_name + 5, font->name, name_length + 1);
-		status = ini_document_add_section(document, section_name,
-		    &ini_default_style, &section);
+		status = ini_document_add_section(document, section_name, &ini_default_style, &section);
 		free(section_name);
 		if (status < 0)
 			return status;
 		for (size_t path = 0; path < ST_SETTINGS_FONT_PATH_COUNT; ++path) {
 			if (font->path[path] == NULL)
 				continue;
-			status = ini_section_set_string(section, keys[path],
-			    font->path[path], &ini_default_style);
+			status = ini_section_set_string(section, keys[path], font->path[path], &ini_default_style);
 			if (status < 0)
 				return status;
 		}
@@ -694,41 +611,34 @@ encode_fonts(ini_document_t *document, st_settings_font_list_t fonts)
 static int
 encode_settings(ini_document_t *document, const struct st_settings *value)
 {
-	ini_section_t *section;
-	ini_section_t *web;
-	ini_section_t *profiles;
+	ini_section_t    *section;
+	ini_section_t    *web;
+	ini_section_t    *profiles;
 	name_value_list_t old_pairs = NULL;
-	size_t i;
-	int status;
+	size_t            i;
+	int               status;
 
 	SET(ensure_section(document, "SyncTERM", &section));
-	SET(ini_section_set_enum_names(section, "MainUI", ENUM_NAMES(main_uis),
-	    (size_t)value->main_ui, &ini_default_style));
-	SET(ini_section_set_bool(section, "ConfirmClose", value->confirm_close,
+	SET(ini_section_set_enum_names(section, "MainUI", ENUM_NAMES(main_uis), (size_t)value->main_ui,
 	    &ini_default_style));
-	SET(ini_section_set_bool(section, "PromptSave", value->prompt_save,
-	    &ini_default_style));
+	SET(ini_section_set_bool(section, "ConfirmClose", value->confirm_close, &ini_default_style));
+	SET(ini_section_set_bool(section, "PromptSave", value->prompt_save, &ini_default_style));
 	SET(ini_section_set_enum_names(section, "ScreenMode", ENUM_NAMES(screen_modes),
 	    (size_t)value->startup_mode, &ini_default_style));
-	SET(ini_section_set_enum_names(section, "OutputMode", ENUM_NAMES(output_modes),
-	    (size_t)value->output_mode, &ini_default_style));
+	SET(ini_section_set_enum_names(section, "OutputMode", ENUM_NAMES(output_modes), (size_t)value->output_mode,
+	    &ini_default_style));
 	SET(ini_section_set_enum_names(section, "DefaultCursor", ENUM_NAMES(cursor_types),
 	    (size_t)value->default_cursor, &ini_default_style));
 	SET(ini_section_set_bitfield(section, "AudioModes", audio_modes,
-	    sizeof(audio_modes) / sizeof(audio_modes[0]), value->audio_output_modes,
-	    &ini_default_style));
-	SET(ini_section_set_bitfield(section, "MidiModes", midi_modes,
-	    sizeof(midi_modes) / sizeof(midi_modes[0]), value->midi_output_modes,
-	    &ini_default_style));
-	SET(ini_section_set_bool(section, "AtariSTKeyClicks",
-	    value->atari_st_key_clicks, &ini_default_style));
-#define SET_INT(key, member) SET(ini_section_set_int64(section, key, \
-	    value->member, &ini_default_style))
+	    sizeof(audio_modes) / sizeof(audio_modes[0]), value->audio_output_modes, &ini_default_style));
+	SET(ini_section_set_bitfield(section, "MidiModes", midi_modes, sizeof(midi_modes) / sizeof(midi_modes[0]),
+	    value->midi_output_modes, &ini_default_style));
+	SET(ini_section_set_bool(section, "AtariSTKeyClicks", value->atari_st_key_clicks, &ini_default_style));
+#define SET_INT(key, member) SET(ini_section_set_int64(section, key, value->member, &ini_default_style))
 	SET_INT("ScrollBackLines", scrollback_lines);
 	SET_INT("TransferSuccessKeypressTimeout", transfer_success_keypress_timeout);
 	SET_INT("TransferFailureKeypressTimeout", transfer_failure_keypress_timeout);
-	SET(ini_section_set_uint64(section, "ModemComRate", value->modem_rate,
-	    &ini_default_style));
+	SET(ini_section_set_uint64(section, "ModemComRate", value->modem_rate, &ini_default_style));
 	SET_INT("CustomColumns", custom_columns);
 	SET_INT("CustomRows", custom_rows);
 	SET_INT("CustomFontHeight", custom_font_height);
@@ -737,8 +647,8 @@ encode_settings(ini_document_t *document, const struct st_settings *value)
 	SET_INT("WindowWidth", window_width);
 	SET_INT("WindowHeight", window_height);
 #undef SET_INT
-#define SET_STRING(key, member) SET(ini_section_set_string(section, key, \
-	    value->member == NULL ? "" : value->member, &ini_default_style))
+#define SET_STRING(key, member) \
+	SET(ini_section_set_string(section, key, value->member == NULL ? "" : value->member, &ini_default_style))
 	SET_STRING("ModemDevice", modem_device);
 	SET_STRING("ListPath", stored_list_path);
 	SET_STRING("TLSClientCertificate", tls_client_certificate);
@@ -748,26 +658,17 @@ encode_settings(ini_document_t *document, const struct st_settings *value)
 	SET_STRING("SortOrder", sort_order);
 	SET_STRING("ActiveSortProfile", active_sort_profile);
 #undef SET_STRING
-	SET(ini_section_set_string(section, "ModemInit", value->modem_init_string,
+	SET(ini_section_set_string(section, "ModemInit", value->modem_init_string, &ini_default_style));
+	SET(ini_section_set_string(section, "ModemDial", value->modem_dial_string, &ini_default_style));
+	SET(ini_section_set_string(section, "TERM", value->terminal_type, &ini_default_style));
+	SET(ini_section_set_string(section, "KeyDerivationIterations", value->key_derivation_iterations,
 	    &ini_default_style));
-	SET(ini_section_set_string(section, "ModemDial", value->modem_dial_string,
-	    &ini_default_style));
-	SET(ini_section_set_string(section, "TERM", value->terminal_type,
-	    &ini_default_style));
-	SET(ini_section_set_string(section, "KeyDerivationIterations",
-	    value->key_derivation_iterations, &ini_default_style));
-	SET(ini_section_set_double(section, "ScalingFactor", value->scaling_factor,
-	    &ini_default_style));
-	SET(ini_section_set_bool(section, "BlockyScaling", value->blocky_scaling,
-	    &ini_default_style));
-	SET(ini_section_set_bool(section, "ExternalScaling",
-	    value->external_scaling, &ini_default_style));
-	SET(ini_section_set_bool(section, "ColorEmoji", value->color_emoji,
-	    &ini_default_style));
-	SET(ini_section_set_bool(section, "InvertMouseWheel", value->invert_wheel,
-	    &ini_default_style));
-	SET(ini_section_set_bool(section, "LeftJustify", value->left_justify,
-	    &ini_default_style));
+	SET(ini_section_set_double(section, "ScalingFactor", value->scaling_factor, &ini_default_style));
+	SET(ini_section_set_bool(section, "BlockyScaling", value->blocky_scaling, &ini_default_style));
+	SET(ini_section_set_bool(section, "ExternalScaling", value->external_scaling, &ini_default_style));
+	SET(ini_section_set_bool(section, "ColorEmoji", value->color_emoji, &ini_default_style));
+	SET(ini_section_set_bool(section, "InvertMouseWheel", value->invert_wheel, &ini_default_style));
+	SET(ini_section_set_bool(section, "LeftJustify", value->left_justify, &ini_default_style));
 
 	SET(set_classic_colors(document, value));
 
@@ -777,8 +678,8 @@ encode_settings(ini_document_t *document, const struct st_settings *value)
 		(void)ini_section_remove_key(web, old_pairs[i]->name);
 	name_value_list_free(&old_pairs);
 	for (i = 0; i < name_value_list_count(value->web_downloads); ++i) {
-		SET(ini_section_set_string(web, value->web_downloads[i]->name,
-		    value->web_downloads[i]->value, &ini_default_style));
+		SET(ini_section_set_string(web, value->web_downloads[i]->name, value->web_downloads[i]->value,
+		    &ini_default_style));
 	}
 
 	SET(ensure_section(document, "SortProfiles", &profiles));
@@ -788,8 +689,8 @@ encode_settings(ini_document_t *document, const struct st_settings *value)
 		(void)ini_section_remove_key(profiles, old_pairs[i]->name);
 	name_value_list_free(&old_pairs);
 	for (i = 0; i < name_value_list_count(value->sort_profiles); ++i) {
-		SET(ini_section_set_string(profiles, value->sort_profiles[i]->name,
-		    value->sort_profiles[i]->value, &ini_default_style));
+		SET(ini_section_set_string(profiles, value->sort_profiles[i]->name, value->sort_profiles[i]->value,
+		    &ini_default_style));
 	}
 	return 0;
 }
@@ -800,7 +701,7 @@ static int
 read_document(ini_document_t **result, const char *path)
 {
 	FILE *stream;
-	int status = fs_open(&stream, path, "rb");
+	int   status = fs_open(&stream, path, "rb");
 
 	if (status == IO_ERROR_NOT_FOUND)
 		return ini_document_create(result);
@@ -814,10 +715,10 @@ read_document(ini_document_t **result, const char *path)
 static int
 write_document(const ini_document_t *document, const char *path)
 {
-	char *data = NULL;
+	char  *data = NULL;
 	size_t size = 0;
-	FILE *stream;
-	int status;
+	FILE  *stream;
+	int    status;
 
 	status = ini_document_serialize(document, &data, &size);
 	if (status < 0)
@@ -838,13 +739,11 @@ write_document(const ini_document_t *document, const char *path)
 static bool
 same_value(const char *left, const char *right)
 {
-	return left == NULL ? right == NULL
-	    : right != NULL && strcmp(left, right) == 0;
+	return left == NULL ? right == NULL : right != NULL && strcmp(left, right) == 0;
 }
 
 static const char *
-document_value(ini_document_t *document, const char *section_name,
-    const char *key)
+document_value(ini_document_t *document, const char *section_name, const char *key)
 {
 	ini_section_t *section = ini_document_find_section(document, section_name);
 
@@ -852,21 +751,18 @@ document_value(ini_document_t *document, const char *section_name,
 }
 
 static int
-merge_key(ini_document_t *remote, ini_document_t *remote_compare,
-    ini_document_t *base, ini_document_t *local,
+merge_key(ini_document_t *remote, ini_document_t *remote_compare, ini_document_t *base, ini_document_t *local,
     const struct setting_key *key)
 {
-	const char *base_value = document_value(base, key->section, key->key);
-	const char *local_value = document_value(local, key->section, key->key);
-	const char *remote_value = document_value(remote_compare, key->section,
-	    key->key);
+	const char    *base_value   = document_value(base, key->section, key->key);
+	const char    *local_value  = document_value(local, key->section, key->key);
+	const char    *remote_value = document_value(remote_compare, key->section, key->key);
 	ini_section_t *section;
-	int status;
+	int            status;
 
 	if (same_value(base_value, local_value))
 		return 0;
-	if (!same_value(base_value, remote_value)
-	    && !same_value(local_value, remote_value))
+	if (!same_value(base_value, remote_value) && !same_value(local_value, remote_value))
 		return IO_ERROR_CONFLICT;
 	status = ensure_section(remote, key->section, &section);
 	if (status < 0)
@@ -875,8 +771,7 @@ merge_key(ini_document_t *remote, ini_document_t *remote_compare,
 		(void)ini_section_remove_key(section, key->key);
 		return 0;
 	}
-	return ini_section_set_string(section, key->key, local_value,
-	    &ini_default_style);
+	return ini_section_set_string(section, key->key, local_value, &ini_default_style);
 }
 
 static bool
@@ -892,22 +787,20 @@ same_pairs(const ini_section_t *left, const ini_section_t *right)
 		const struct name_value *a = ini_section_at(left, i);
 		const struct name_value *b = ini_section_at(right, i);
 
-		if (strcmp(a->name, b->name) != 0
-		    || strcmp(a->value, b->value) != 0)
+		if (strcmp(a->name, b->name) != 0 || strcmp(a->value, b->value) != 0)
 			return false;
 	}
 	return true;
 }
 
 static int
-replace_named_section(ini_document_t *remote, ini_document_t *local,
-	const char *name)
+replace_named_section(ini_document_t *remote, ini_document_t *local, const char *name)
 {
-	ini_section_t *destination;
-	ini_section_t *source = ini_document_find_section(local, name);
-	name_value_list_t old = NULL;
-	size_t i;
-	int status;
+	ini_section_t    *destination;
+	ini_section_t    *source = ini_document_find_section(local, name);
+	name_value_list_t old    = NULL;
+	size_t            i;
+	int               status;
 
 	status = ensure_section(remote, name, &destination);
 	if (status < 0)
@@ -923,8 +816,7 @@ replace_named_section(ini_document_t *remote, ini_document_t *local,
 	for (i = 0; i < ini_section_count(source); ++i) {
 		const struct name_value *pair = ini_section_at(source, i);
 
-		status = ini_section_set_string(destination, pair->name, pair->value,
-		    &ini_default_style);
+		status = ini_section_set_string(destination, pair->name, pair->value, &ini_default_style);
 		if (status < 0)
 			return status;
 	}
@@ -934,17 +826,16 @@ replace_named_section(ini_document_t *remote, ini_document_t *local,
 static int
 load_locked(const char *personal_list)
 {
-	ini_document_t *document = NULL;
+	ini_document_t    *document = NULL;
 	struct st_settings baseline;
 	struct st_settings value;
-	int status;
+	int                status;
 
 	st_settings_init(&baseline);
 	st_settings_init(&value);
 	status = read_document(&document, settings_path);
 	if (status == 0)
-		status = decode_settings(&value, document, personal_list,
-		    cached_system_list);
+		status = decode_settings(&value, document, personal_list, cached_system_list);
 	if (status == 0 && !STORE_SETTINGS_COPY(&baseline, &value))
 		status = IO_ERROR_OUT_OF_MEMORY;
 	if (status < 0) {
@@ -960,9 +851,9 @@ load_locked(const char *personal_list)
 	baseline_settings = baseline;
 	st_settings_init(&baseline);
 	ini_document_free(&baseline_document);
-	baseline_document = document;
+	baseline_document    = document;
 	baseline_initialized = true;
-	recent_emoji_loaded = false;
+	recent_emoji_loaded  = false;
 	return 0;
 }
 
@@ -970,16 +861,16 @@ int
 st_settings_load(const struct st_app_paths *paths)
 {
 	st_file_lock_t *lock = NULL;
-	char *new_path;
-	char *new_cache;
-	char *new_personal;
-	int status;
+	char           *new_path;
+	char           *new_cache;
+	char           *new_personal;
+	int             status;
 
-	if (paths == NULL || paths->settings_file == NULL
-	    || paths->personal_list == NULL || paths->cached_system_list == NULL)
+	if (paths == NULL || paths->settings_file == NULL || paths->personal_list == NULL
+	    || paths->cached_system_list == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	new_path = strdup(paths->settings_file);
-	new_cache = strdup(paths->cached_system_list);
+	new_path     = strdup(paths->settings_file);
+	new_cache    = strdup(paths->cached_system_list);
 	new_personal = strdup(paths->personal_list);
 	if (new_path == NULL || new_cache == NULL || new_personal == NULL) {
 		free(new_path);
@@ -988,14 +879,15 @@ st_settings_load(const struct st_app_paths *paths)
 		return IO_ERROR_OUT_OF_MEMORY;
 	}
 	st_settings_shutdown();
-	settings_path = new_path;
+	settings_path      = new_path;
 	cached_system_list = new_cache;
 	personal_list_path = new_personal;
-	status = st_file_lock_acquire(&lock, settings_path, false);
+	status             = st_file_lock_acquire(&lock, settings_path, false);
 	if (status == IO_ERROR_NOT_FOUND) {
 		/* The absent parent is valid until the first save. */
 		status = load_locked(paths->personal_list);
-	} else if (status == 0) {
+	}
+	else if (status == 0) {
 		status = load_locked(paths->personal_list);
 		st_file_lock_release(lock);
 	}
@@ -1008,7 +900,7 @@ int
 st_settings_reload(void)
 {
 	st_file_lock_t *lock = NULL;
-	int status;
+	int             status;
 
 	if (settings_path == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -1016,7 +908,8 @@ st_settings_reload(void)
 	if (status == 0) {
 		status = load_locked(personal_list_path);
 		st_file_lock_release(lock);
-	} else if (status == IO_ERROR_NOT_FOUND)
+	}
+	else if (status == IO_ERROR_NOT_FOUND)
 		status = load_locked(personal_list_path);
 	return status;
 }
@@ -1024,10 +917,10 @@ st_settings_reload(void)
 int
 st_settings_font_draft_reload(struct st_settings_font_draft *draft)
 {
-	st_file_lock_t *lock = NULL;
-	ini_document_t *document = NULL;
+	st_file_lock_t    *lock     = NULL;
+	ini_document_t    *document = NULL;
 	struct st_settings loaded;
-	int status;
+	int                status;
 
 	if (draft == NULL || settings_path == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -1040,10 +933,8 @@ st_settings_font_draft_reload(struct st_settings_font_draft *draft)
 	else if (status == IO_ERROR_NOT_FOUND)
 		status = read_document(&document, settings_path);
 	if (status == 0)
-		status = decode_settings(&loaded, document, personal_list_path,
-		    cached_system_list);
-	if (status == 0 && st_settings_font_draft_replace(draft,
-	    loaded.custom_fonts) < 0)
+		status = decode_settings(&loaded, document, personal_list_path, cached_system_list);
+	if (status == 0 && st_settings_font_draft_replace(draft, loaded.custom_fonts) < 0)
 		status = IO_ERROR_OUT_OF_MEMORY;
 	ini_document_free(&document);
 	st_settings_dispose(&loaded);
@@ -1063,24 +954,24 @@ st_settings_install(struct st_settings *replacement)
 int
 st_settings_save_value(const struct st_settings *value)
 {
-	ini_document_t *remote = NULL;
-	ini_document_t *local = NULL;
-	ini_document_t *canonical_base = NULL;
-	ini_document_t *canonical_remote = NULL;
-	ini_section_t *base_web;
-	ini_section_t *local_web;
-	ini_section_t *remote_web;
-	ini_section_t *base_profiles;
-	ini_section_t *local_profiles;
-	ini_section_t *remote_profiles;
-	st_file_lock_t *lock = NULL;
-	struct st_settings installed;
-	struct st_settings saved;
-	struct st_settings remote_settings;
+	ini_document_t         *remote           = NULL;
+	ini_document_t         *local            = NULL;
+	ini_document_t         *canonical_base   = NULL;
+	ini_document_t         *canonical_remote = NULL;
+	ini_section_t          *base_web;
+	ini_section_t          *local_web;
+	ini_section_t          *remote_web;
+	ini_section_t          *base_profiles;
+	ini_section_t          *local_profiles;
+	ini_section_t          *remote_profiles;
+	st_file_lock_t         *lock = NULL;
+	struct st_settings      installed;
+	struct st_settings      saved;
+	struct st_settings      remote_settings;
 	st_settings_font_list_t installed_fonts = NULL;
-	st_settings_font_list_t saved_fonts = NULL;
-	size_t i;
-	int status;
+	st_settings_font_list_t saved_fonts     = NULL;
+	size_t                  i;
+	int                     status;
 
 	if (!baseline_initialized || settings_path == NULL || value == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -1100,38 +991,28 @@ st_settings_save_value(const struct st_settings *value)
 		status = encode_settings(local, value);
 	st_settings_init(&remote_settings);
 	if (status == 0)
-		status = decode_settings(&remote_settings, remote,
-		    personal_list_path, cached_system_list);
+		status = decode_settings(&remote_settings, remote, personal_list_path, cached_system_list);
 	if (status == 0)
 		status = ini_document_clone(&canonical_remote, remote);
 	if (status == 0)
 		status = encode_settings(canonical_remote, &remote_settings);
-	for (i = 0; status == 0
-	    && i < sizeof(known_keys) / sizeof(known_keys[0]); ++i)
-		status = merge_key(remote, canonical_remote, canonical_base, local,
-		    &known_keys[i]);
-	base_web = canonical_base == NULL ? NULL
-	    : ini_document_find_section(canonical_base, "WebLists");
-	local_web = local == NULL ? NULL
-	    : ini_document_find_section(local, "WebLists");
-	remote_web = canonical_remote == NULL ? NULL
-	    : ini_document_find_section(canonical_remote, "WebLists");
+	for (i = 0; status == 0 && i < sizeof(known_keys) / sizeof(known_keys[0]); ++i)
+		status = merge_key(remote, canonical_remote, canonical_base, local, &known_keys[i]);
+	base_web   = canonical_base == NULL ? NULL : ini_document_find_section(canonical_base, "WebLists");
+	local_web  = local == NULL ? NULL : ini_document_find_section(local, "WebLists");
+	remote_web = canonical_remote == NULL ? NULL : ini_document_find_section(canonical_remote, "WebLists");
 	if (status == 0 && !same_pairs(base_web, local_web)) {
-		if (!same_pairs(base_web, remote_web)
-		    && !same_pairs(local_web, remote_web))
+		if (!same_pairs(base_web, remote_web) && !same_pairs(local_web, remote_web))
 			status = IO_ERROR_CONFLICT;
 		else
 			status = replace_named_section(remote, local, "WebLists");
 	}
-	base_profiles = canonical_base == NULL ? NULL
-	    : ini_document_find_section(canonical_base, "SortProfiles");
-	local_profiles = local == NULL ? NULL
-	    : ini_document_find_section(local, "SortProfiles");
-	remote_profiles = canonical_remote == NULL ? NULL
-	    : ini_document_find_section(canonical_remote, "SortProfiles");
+	base_profiles  = canonical_base == NULL ? NULL : ini_document_find_section(canonical_base, "SortProfiles");
+	local_profiles = local == NULL ? NULL : ini_document_find_section(local, "SortProfiles");
+	remote_profiles =
+	    canonical_remote == NULL ? NULL : ini_document_find_section(canonical_remote, "SortProfiles");
 	if (status == 0 && !same_pairs(base_profiles, local_profiles)) {
-		if (!same_pairs(base_profiles, remote_profiles)
-		    && !same_pairs(local_profiles, remote_profiles))
+		if (!same_pairs(base_profiles, remote_profiles) && !same_pairs(local_profiles, remote_profiles))
 			status = IO_ERROR_CONFLICT;
 		else
 			status = replace_named_section(remote, local, "SortProfiles");
@@ -1142,10 +1023,8 @@ st_settings_save_value(const struct st_settings *value)
 	st_settings_init(&saved);
 	/* Ordinary settings snapshots may predate the separate font draft. */
 	if (status == 0
-	    && (!st_settings_fonts_copy(&installed_fonts,
-	    remote_settings.custom_fonts)
-	    || !st_settings_fonts_copy(&saved_fonts,
-	    remote_settings.custom_fonts)))
+	    && (!st_settings_fonts_copy(&installed_fonts, remote_settings.custom_fonts)
+	        || !st_settings_fonts_copy(&saved_fonts, remote_settings.custom_fonts)))
 		status = IO_ERROR_OUT_OF_MEMORY;
 	if (status == 0 && !STORE_SETTINGS_COPY(&installed, value))
 		status = IO_ERROR_OUT_OF_MEMORY;
@@ -1154,10 +1033,10 @@ st_settings_save_value(const struct st_settings *value)
 	if (status == 0) {
 		st_settings_fonts_free(&installed.custom_fonts);
 		installed.custom_fonts = installed_fonts;
-		installed_fonts = NULL;
+		installed_fonts        = NULL;
 		st_settings_fonts_free(&saved.custom_fonts);
 		saved.custom_fonts = saved_fonts;
-		saved_fonts = NULL;
+		saved_fonts        = NULL;
 	}
 	if (status == 0)
 		status = write_document(remote, settings_path);
@@ -1167,7 +1046,7 @@ st_settings_save_value(const struct st_settings *value)
 		st_settings_init(&installed);
 		ini_document_free(&baseline_document);
 		baseline_document = remote;
-		remote = NULL;
+		remote            = NULL;
 		st_settings_dispose(&baseline_settings);
 		baseline_settings = saved;
 		st_settings_init(&saved);
@@ -1194,13 +1073,12 @@ st_settings_save(void)
 int
 st_settings_persist_scaling_factor(double scaling_factor)
 {
-	st_file_lock_t *lock = NULL;
+	st_file_lock_t *lock     = NULL;
 	ini_document_t *document = NULL;
-	ini_section_t *section = NULL;
-	int status;
+	ini_section_t  *section  = NULL;
+	int             status;
 
-	if (!baseline_initialized || settings_path == NULL
-	    || !isfinite(scaling_factor) || scaling_factor < 1.0)
+	if (!baseline_initialized || settings_path == NULL || !isfinite(scaling_factor) || scaling_factor < 1.0)
 		return IO_ERROR_INVALID_ARGUMENT;
 	status = fs_create_parent_directories(settings_path);
 	if (status == 0)
@@ -1210,8 +1088,7 @@ st_settings_persist_scaling_factor(double scaling_factor)
 	if (status == 0)
 		status = ensure_section(document, "SyncTERM", &section);
 	if (status == 0)
-		status = ini_section_set_double(section, "ScalingFactor",
-		    scaling_factor, &ini_default_style);
+		status = ini_section_set_double(section, "ScalingFactor", scaling_factor, &ini_default_style);
 	if (status == 0)
 		status = write_document(document, settings_path);
 	ini_document_free(&document);
@@ -1222,14 +1099,14 @@ st_settings_persist_scaling_factor(double scaling_factor)
 int
 st_settings_font_draft_save(struct st_settings_font_draft *draft)
 {
-	st_file_lock_t *lock = NULL;
-	ini_document_t *remote = NULL;
-	ini_document_t *new_baseline_document = NULL;
-	struct st_settings remote_before;
+	st_file_lock_t         *lock                  = NULL;
+	ini_document_t         *remote                = NULL;
+	ini_document_t         *new_baseline_document = NULL;
+	struct st_settings      remote_before;
 	st_settings_font_list_t installed_fonts = NULL;
-	st_settings_font_list_t baseline_fonts = NULL;
-	st_settings_font_list_t draft_baseline = NULL;
-	int status;
+	st_settings_font_list_t baseline_fonts  = NULL;
+	st_settings_font_list_t draft_baseline  = NULL;
+	int                     status;
 
 	if (draft == NULL || settings_path == NULL || !baseline_initialized)
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -1240,40 +1117,36 @@ st_settings_font_draft_save(struct st_settings_font_draft *draft)
 	if (status == 0)
 		status = read_document(&remote, settings_path);
 	if (status == 0)
-		status = decode_settings(&remote_before, remote, personal_list_path,
-		    cached_system_list);
-	if (status == 0
-	    && !st_settings_fonts_equal(remote_before.custom_fonts,
-	    draft->baseline)
+		status = decode_settings(&remote_before, remote, personal_list_path, cached_system_list);
+	if (status == 0 && !st_settings_fonts_equal(remote_before.custom_fonts, draft->baseline)
 	    && !st_settings_fonts_equal(remote_before.custom_fonts, draft->fonts))
 		status = IO_ERROR_CONFLICT;
 	if (status == 0)
 		status = encode_fonts(remote, draft->fonts);
 	if (status == 0)
-		status = ini_document_clone(&new_baseline_document,
-		    baseline_document);
+		status = ini_document_clone(&new_baseline_document, baseline_document);
 	if (status == 0)
 		status = encode_fonts(new_baseline_document, draft->fonts);
 	if (status == 0
 	    && (!st_settings_fonts_copy(&installed_fonts, draft->fonts)
-	    || !st_settings_fonts_copy(&baseline_fonts, draft->fonts)
-	    || !st_settings_fonts_copy(&draft_baseline, draft->fonts)))
+	        || !st_settings_fonts_copy(&baseline_fonts, draft->fonts)
+	        || !st_settings_fonts_copy(&draft_baseline, draft->fonts)))
 		status = IO_ERROR_OUT_OF_MEMORY;
 	if (status == 0)
 		status = write_document(remote, settings_path);
 	if (status == 0) {
 		st_settings_fonts_free(&st_settings.custom_fonts);
 		st_settings.custom_fonts = installed_fonts;
-		installed_fonts = NULL;
+		installed_fonts          = NULL;
 		st_settings_fonts_free(&baseline_settings.custom_fonts);
 		baseline_settings.custom_fonts = baseline_fonts;
-		baseline_fonts = NULL;
+		baseline_fonts                 = NULL;
 		ini_document_free(&baseline_document);
-		baseline_document = new_baseline_document;
+		baseline_document     = new_baseline_document;
 		new_baseline_document = NULL;
 		st_settings_fonts_free(&draft->baseline);
 		draft->baseline = draft_baseline;
-		draft_baseline = NULL;
+		draft_baseline  = NULL;
 	}
 	st_settings_fonts_free(&installed_fonts);
 	st_settings_fonts_free(&baseline_fonts);
@@ -1289,11 +1162,11 @@ void
 st_settings_shutdown(void)
 {
 	recent_emoji_loaded = false;
-	recent_emoji_count = 0;
+	recent_emoji_count  = 0;
 	free(settings_path);
 	free(cached_system_list);
 	free(personal_list_path);
-	settings_path = NULL;
+	settings_path      = NULL;
 	cached_system_list = NULL;
 	personal_list_path = NULL;
 	ini_document_free(&baseline_document);
@@ -1317,20 +1190,19 @@ st_settings_recent_emoji_count(void)
 const char *
 st_settings_recent_emoji_at(size_t index)
 {
-	return index < st_settings_recent_emoji_count()
-	    ? st_emoji_entries[recent_emoji[index]].text : NULL;
+	return index < st_settings_recent_emoji_count() ? st_emoji_entries[recent_emoji[index]].text : NULL;
 }
 
 int
 st_settings_remember_emoji(const char *text, bool persist)
 {
-	size_t id = st_emoji_find(text);
-	size_t merged[ST_SETTINGS_RECENT_EMOJI_MAX];
-	size_t count = 0;
+	size_t          id = st_emoji_find(text);
+	size_t          merged[ST_SETTINGS_RECENT_EMOJI_MAX];
+	size_t          count    = 0;
 	ini_document_t *document = NULL;
-	ini_section_t *section = NULL;
-	st_file_lock_t *lock = NULL;
-	int status;
+	ini_section_t  *section  = NULL;
+	st_file_lock_t *lock     = NULL;
+	int             status;
 
 	if (id == st_emoji_entry_count)
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -1364,8 +1236,8 @@ st_settings_remember_emoji(const char *text, bool persist)
 		/* One digit per value bit also bounds the decimal representation. */
 		char key[sizeof(size_t) * CHAR_BIT + 1];
 		(void)snprintf(key, sizeof(key), "%zu", i + 1);
-		status = ini_section_set_string(section, key, st_emoji_entries[merged[i]].text,
-		    &ini_default_style);
+		status =
+		    ini_section_set_string(section, key, st_emoji_entries[merged[i]].text, &ini_default_style);
 	}
 	if (status == 0)
 		status = write_document(document, settings_path);
@@ -1396,8 +1268,7 @@ static bool
 web_download_name_available(const char *name, size_t except)
 {
 	for (size_t i = 0; i < st_settings_web_download_count(); ++i) {
-		if (i != except && names_equal(st_settings.web_downloads[i]->name,
-		    name))
+		if (i != except && names_equal(st_settings.web_downloads[i]->name, name))
 			return false;
 	}
 	return !names_equal(name, "System List");
@@ -1410,14 +1281,13 @@ st_settings_web_download_set(size_t index, const char *name, const char *url)
 	struct name_value *previous;
 
 	if (index >= name_value_list_count(st_settings.web_downloads)
-	    || !st_unicode_name_valid(name, 50, 100, "=:")
-	    || name[0] == ';' || name[0] == '[' || url == NULL
+	    || !st_unicode_name_valid(name, 50, 100, "=:") || name[0] == ';' || name[0] == '[' || url == NULL
 	    || !web_download_name_available(name, index))
 		return IO_ERROR_INVALID_ARGUMENT;
 	replacement = name_value_create(name, url);
 	if (replacement == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
-	previous = st_settings.web_downloads[index];
+	previous                         = st_settings.web_downloads[index];
 	st_settings.web_downloads[index] = replacement;
 	name_value_free_item(previous);
 	return 0;
@@ -1426,27 +1296,24 @@ st_settings_web_download_set(size_t index, const char *name, const char *url)
 int
 st_settings_web_download_append(const char *name, const char *url)
 {
-	if (!st_unicode_name_valid(name, 50, 100, "=:")
-	    || name[0] == ';' || name[0] == '[' || url == NULL
+	if (!st_unicode_name_valid(name, 50, 100, "=:") || name[0] == ';' || name[0] == '[' || url == NULL
 	    || !web_download_name_available(name, SIZE_MAX))
 		return IO_ERROR_INVALID_ARGUMENT;
-	return name_value_list_append(&st_settings.web_downloads, name, url)
-	    ? 0 : IO_ERROR_OUT_OF_MEMORY;
+	return name_value_list_append(&st_settings.web_downloads, name, url) ? 0 : IO_ERROR_OUT_OF_MEMORY;
 }
 
 int
 st_settings_web_download_remove(size_t index)
 {
-	return name_value_list_remove(st_settings.web_downloads, index)
-	    ? 0 : IO_ERROR_INVALID_ARGUMENT;
+	return name_value_list_remove(st_settings.web_downloads, index) ? 0 : IO_ERROR_INVALID_ARGUMENT;
 }
 
 int
 st_settings_web_download_move(size_t from, size_t to)
 {
-	name_value_list_t list = st_settings.web_downloads;
+	name_value_list_t  list = st_settings.web_downloads;
 	struct name_value *item;
-	size_t count = name_value_list_count(list);
+	size_t             count = name_value_list_count(list);
 
 	if (from >= count || to >= count)
 		return IO_ERROR_INVALID_ARGUMENT;

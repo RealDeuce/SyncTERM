@@ -3,10 +3,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "st_language_internal.h"
-#include "st_language_config.h"
-
 #include <stdlib.h>
+
+#include "st_language_config.h"
+#include "st_language_internal.h"
 
 int
 st_language_platform(struct st_language_preferences *result)
@@ -17,6 +17,6 @@ st_language_platform(struct st_language_preferences *result)
 	if (status != 0 || result->count != 0)
 		return status;
 #endif
-	return st_language_environment(result, getenv("LANGUAGE"),
-	    getenv("LC_ALL"), getenv("LC_MESSAGES"), getenv("LANG"));
+	return st_language_environment(result, getenv("LANGUAGE"), getenv("LC_ALL"), getenv("LC_MESSAGES"),
+	    getenv("LANG"));
 }

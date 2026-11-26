@@ -7,6 +7,6 @@
  * upper Y starts, equal Y preserves caller order, pattern bit0 is first.
  * Non-null borrowed pattern/phase/callback; phase is0..15 and is updated.
  * Clipping, width, colour, writes and callback failure belong to callers. */
-void st_bgi_thin_line(int x1, int y1, int x2, int y2,
-	const uint16_t *pattern, int *phase, void (*pixel)(void *, int, int), void *context);
+void st_bgi_thin_line(int x1, int y1, int x2, int y2, const uint16_t *pattern, int *phase,
+    void (*pixel)(void *, int, int), void *context);
 #endif

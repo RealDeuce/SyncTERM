@@ -2,21 +2,27 @@
 #ifndef ST_RIP3_TABLE_HOST_H_
 #define ST_RIP3_TABLE_HOST_H_
 
-#include "st_rip3_builtin_reference.h"
-
 #include <stdbool.h>
 #include <stddef.h>
+
+#include "st_rip3_builtin_reference.h"
 
 struct st_rip3_backup;
 
 enum st_rip3_table_type {
-	ST_RIP3_TABLE_TW, ST_RIP3_TABLE_BUT, ST_RIP3_TABLE_STYLE,
-	ST_RIP3_TABLE_PAL, ST_RIP3_TABLE_PORT, ST_RIP3_TABLE_MOUSE,
-	ST_RIP3_TABLE_ENV, ST_RIP3_TABLE_SCREEN, ST_RIP3_TABLE_COUNT,
+	ST_RIP3_TABLE_TW,
+	ST_RIP3_TABLE_BUT,
+	ST_RIP3_TABLE_STYLE,
+	ST_RIP3_TABLE_PAL,
+	ST_RIP3_TABLE_PORT,
+	ST_RIP3_TABLE_MOUSE,
+	ST_RIP3_TABLE_ENV,
+	ST_RIP3_TABLE_SCREEN,
+	ST_RIP3_TABLE_COUNT,
 };
 
 struct st_rip3_table_binding {
-	void *live;
+	void                  *live;
 	struct st_rip3_backup *backup;
 };
 
@@ -25,16 +31,16 @@ struct st_rip3_table_binding {
  * both alive and invoke this dispatcher on their single owner thread. */
 struct st_rip3_table_host {
 	struct st_rip3_table_binding tables[ST_RIP3_TABLE_COUNT];
-	void *reset_context;
-	int (*soft_reset)(void *context);
-	int (*hard_reset)(void *context);
-	int (*stop_waveform)(void *context);
-	int (*reset_scene_input)(void *context, bool mouse);
-	int (*reset_port_entry)(void *context, unsigned number);
+	void                        *reset_context;
+	int                          (*soft_reset)(void *context);
+	int                          (*hard_reset)(void *context);
+	int                          (*stop_waveform)(void *context);
+	int                          (*reset_scene_input)(void *context, bool mouse);
+	int                          (*reset_port_entry)(void *context, unsigned number);
 	/* Valid action callbacks report lower-level failure without a variable error
 	 * or returned value; malformed syntax still returns private preflight status. */
 	void *operation_context;
-	void (*operation_failed)(void *context,int status);
+	void  (*operation_failed)(void *context, int status);
 };
 
 /* The RIP parser's internal dispatcher handles BACKSTAT, whole-table COPY,

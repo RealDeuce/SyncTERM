@@ -20,19 +20,18 @@ enum st_builtin_font_bitmap_size {
 
 struct st_builtin_font_bitmap {
 	const uint8_t *data;
-	size_t size;
+	size_t         size;
 };
 
 struct st_builtin_font_record {
-	const char *name;
-	struct st_builtin_font_bitmap bitmap[ST_BUILTIN_FONT_BITMAP_SIZE_COUNT];
+	const char                           *name;
+	struct st_builtin_font_bitmap         bitmap[ST_BUILTIN_FONT_BITMAP_SIZE_COUNT];
 	const struct st_console_font_mapping *mapping;
-	size_t mapping_count;
-	bool broken_vertical;
-	bool remapped; /* Glyph indexes differ from encoded bytes. */
+	size_t                                mapping_count;
+	bool                                  broken_vertical;
+	bool                                  remapped; /* Glyph indexes differ from encoded bytes. */
 };
 
-extern const struct st_builtin_font_record
-	st_builtin_font_records[ST_BUILTIN_FONT_COUNT];
+extern const struct st_builtin_font_record st_builtin_font_records[ST_BUILTIN_FONT_COUNT];
 
 #endif

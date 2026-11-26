@@ -1,42 +1,64 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
-#include "st_rip3_features.h"
-
-#include "io_error.h"
-
 #include <string.h>
 
+#include "io_error.h"
+#include "st_rip3_features.h"
+
 enum category {
-	AUDIO, EMULATIONS, IMAGE, LANGUAGES, MISC, PROTOCOLS, CATEGORY_COUNT,
+	AUDIO,
+	EMULATIONS,
+	IMAGE,
+	LANGUAGES,
+	MISC,
+	PROTOCOLS,
+	CATEGORY_COUNT,
 };
 
 static const char *const categories[] = {
-	"_AUDIO", "_EMULATIONS", "_IMAGE", "_LANGUAGES", "_MISC", "_PROTOCOLS",
+    "_AUDIO",
+    "_EMULATIONS",
+    "_IMAGE",
+    "_LANGUAGES",
+    "_MISC",
+    "_PROTOCOLS",
 };
 
 /* Wire names are ordered alphabetically, independently of locale. */
 static const struct {
-	const char *name;
+	const char   *name;
 	enum category category;
 } entries[] = {
-	{"ANSI",EMULATIONS}, {"BMP",IMAGE}, {"CISQUICKB",PROTOCOLS},
-	{"DOORWAY",EMULATIONS}, {"ENG",LANGUAGES}, {"EXTAPPS",MISC},
-	{"JPEG",IMAGE}, {"KERMIT",PROTOCOLS}, {"RIPSCRIP",EMULATIONS},
-	{"SUPERKERMIT",PROTOCOLS}, {"VT102",EMULATIONS}, {"WAV",AUDIO},
-	{"XMODEM",PROTOCOLS}, {"XMODEM1K",PROTOCOLS}, {"XMODEM1KG",PROTOCOLS},
-	{"XMODEMCRC",PROTOCOLS}, {"YMODEM",PROTOCOLS}, {"YMODEMG",PROTOCOLS},
-	{"ZMODEM",PROTOCOLS}, {"ZMODEMCR",PROTOCOLS},
+    {"ANSI",        EMULATIONS},
+    {"BMP",         IMAGE     },
+    {"CISQUICKB",   PROTOCOLS },
+    {"DOORWAY",     EMULATIONS},
+    {"ENG",         LANGUAGES },
+    {"EXTAPPS",     MISC      },
+    {"JPEG",        IMAGE     },
+    {"KERMIT",      PROTOCOLS },
+    {"RIPSCRIP",    EMULATIONS},
+    {"SUPERKERMIT", PROTOCOLS },
+    {"VT102",       EMULATIONS},
+    {"WAV",         AUDIO     },
+    {"XMODEM",      PROTOCOLS },
+    {"XMODEM1K",    PROTOCOLS },
+    {"XMODEM1KG",   PROTOCOLS },
+    {"XMODEMCRC",   PROTOCOLS },
+    {"YMODEM",      PROTOCOLS },
+    {"YMODEMG",     PROTOCOLS },
+    {"ZMODEM",      PROTOCOLS },
+    {"ZMODEMCR",    PROTOCOLS },
 };
 
 _Static_assert(sizeof(entries) / sizeof(*entries) == ST_RIP3_FEATURE_COUNT,
     "Every feature needs a wire keyword/category");
 _Static_assert(ST_RIP3_FEATURE_COUNT <= 32, "Features must fit the private mask");
-_Static_assert(sizeof(categories) / sizeof(*categories) == CATEGORY_COUNT,
-    "Every category needs a wire keyword");
+_Static_assert(sizeof(categories) / sizeof(*categories) == CATEGORY_COUNT, "Every category needs a wire keyword");
 
 static bool
 equal(const char *text, const char *uppercase)
 {
-	for (size_t i = 0; ; i++) {
+	for (size_t i = 0;; i++) {
 		unsigned char ch = (unsigned char)text[i];
 
 		if (ch >= 'a' && ch <= 'z')
@@ -53,8 +75,7 @@ supported(const struct st_rip3_features *features, unsigned index)
 {
 	if (index == ST_RIP3_FEATURE_WAV && features->wav_available != NULL)
 		return features->wav_available(features->context);
-	return index != ST_RIP3_FEATURE_EXTAPPS
-	    && (features->bits & (UINT32_C(1) << index)) != 0;
+	return index != ST_RIP3_FEATURE_EXTAPPS && (features->bits & (UINT32_C(1) << index)) != 0;
 }
 
 static bool
@@ -68,8 +89,7 @@ category_supported(const struct st_rip3_features *features, enum category catego
 }
 
 int
-st_rip3_features_set(struct st_rip3_features *features,
-    enum st_rip3_feature feature, bool enabled)
+st_rip3_features_set(struct st_rip3_features *features, enum st_rip3_feature feature, bool enabled)
 {
 	uint32_t bit;
 
@@ -92,8 +112,7 @@ append(char *output, size_t capacity, size_t *length, const char *word)
 {
 	size_t size = strlen(word);
 
-	if (*length >= capacity || size >= capacity - *length
-	    || (*length != 0 && size + 1 >= capacity - *length))
+	if (*length >= capacity || size >= capacity - *length || (*length != 0 && size + 1 >= capacity - *length))
 		return IO_ERROR_OUT_OF_RANGE;
 	if (*length != 0)
 		output[(*length)++] = ',';
@@ -103,15 +122,15 @@ append(char *output, size_t capacity, size_t *length, const char *word)
 }
 
 int
-st_rip3_features_query(const struct st_rip3_features *features,
-    const char *keyword, const char *category, char *result, size_t capacity)
+st_rip3_features_query(const struct st_rip3_features *features, const char *keyword, const char *category,
+    char *result, size_t capacity)
 {
 	/* Each registered keyword is at most 12 bytes plus a comma. This also
 	 * bounds the shorter category list. No caller output is used as scratch. */
-	char output[ST_RIP3_FEATURE_COUNT * 13 + 1] = {0};
-	size_t length = 0;
-	bool list;
-	int status;
+	char   output[ST_RIP3_FEATURE_COUNT * 13 + 1] = {0};
+	size_t length                                 = 0;
+	bool   list;
+	int    status;
 
 	if (features == NULL || keyword == NULL || result == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;

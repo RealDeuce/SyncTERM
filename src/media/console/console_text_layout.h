@@ -8,8 +8,8 @@
 #include "st_console.h"
 
 static inline struct st_console_rect
-st_console_text_viewport(uint32_t columns, uint32_t rows,
-	uint32_t host_columns, uint32_t host_rows, bool left_justify)
+st_console_text_viewport(uint32_t columns, uint32_t rows, uint32_t host_columns, uint32_t host_rows,
+    bool left_justify)
 {
 	struct st_console_rect view = {0, 0, columns, rows};
 

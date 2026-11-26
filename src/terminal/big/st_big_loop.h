@@ -20,7 +20,7 @@ struct st_big_loop {
 	uint16_t current, to, step, delay, origin;
 	uint16_t varying_count, saved, pass, varying_total;
 	uint16_t type, command, no_parameters, random_suppression, first_text;
-	bool command_read; /* Original bad_cmd: a numeric/text reader was used. */
+	bool     command_read; /* Original bad_cmd: a numeric/text reader was used. */
 };
 
 enum st_big_loop_reader_phase {
@@ -36,9 +36,9 @@ enum st_big_loop_reader_phase {
 
 struct st_big_loop_reader {
 	enum st_big_loop_reader_phase phase;
-	uint16_t word;
-	bool delay_seen, supplied;
-	int error;
+	uint16_t                      word;
+	bool                          delay_seen, supplied;
+	int                           error;
 };
 
 struct st_big_loop_sink {
@@ -75,7 +75,7 @@ void st_big_loop_reader_cancel(struct st_big_loop_reader *);
  * Output word changes only on successful supplied completion. Invalid API
  * calls preserve reader/loop state. Callback views/state are not reentrant.
  * Invalid table count/index is rejected before an out-of-bounds access. */
-int st_big_loop_poll(struct st_big_loop_reader *, struct st_big_loop *,
-	const struct st_big_loop_sink *, uint16_t *word, bool *supplied);
+int st_big_loop_poll(struct st_big_loop_reader *, struct st_big_loop *, const struct st_big_loop_sink *,
+    uint16_t *word, bool *supplied);
 
 #endif

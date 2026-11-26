@@ -12,13 +12,11 @@
 
 struct st_console_ansi_system;
 
-int st_console_ansi_system_open(struct st_console_ansi_system **result,
-	bool *input_available, bool utf8);
-int st_console_ansi_system_read(struct st_console_ansi_system *system,
-	void *buffer, size_t size, size_t *received, unsigned int timeout_ms);
+int st_console_ansi_system_open(struct st_console_ansi_system **result, bool *input_available, bool utf8);
+int st_console_ansi_system_read(struct st_console_ansi_system *system, void *buffer, size_t size, size_t *received,
+    unsigned int timeout_ms);
 void st_console_ansi_system_stop(struct st_console_ansi_system *system);
-bool st_console_ansi_system_size(struct st_console_ansi_system *system,
-	uint32_t *columns, uint32_t *rows);
+bool st_console_ansi_system_size(struct st_console_ansi_system *system, uint32_t *columns, uint32_t *rows);
 void st_console_ansi_system_close(struct st_console_ansi_system *system);
 
 #endif

@@ -1,8 +1,8 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "igs_console_test_model.h"
 
-static const char *const prefixes[] = {"", "\033", "\033Y", "\033Y!", "\033b", "\033c"};
-static const int selectors[] = {INT16_MIN, 0, 1, 2, 3, 4, INT16_MAX};
+static const char *const prefixes[]  = {"", "\033", "\033Y", "\033Y!", "\033b", "\033c"};
+static const int         selectors[] = {INT16_MIN, 0, 1, 2, 3, 4, INT16_MAX};
 
 static void
 no_reply(const char *bytes, size_t size, void *context)
@@ -15,14 +15,15 @@ no_reply(const char *bytes, size_t size, void *context)
 static void
 prepare(struct fixture *f)
 {
-	feed(f, "\033q\033w\033fG#c>1,15:c 0,0:\033E"
+	feed(f,
+	    "\033q\033w\033fG#c>1,15:c 0,0:\033E"
 	    "G#c>1,4:c>0,3:S 0,0,0,0:");
 }
 
 static void
 erase_case(struct fixture *f, unsigned resolution, unsigned x, unsigned y, bool reverse, int selector)
 {
-	struct cterminal *t = f->terminal;
+	struct cterminal *t   = f->terminal;
 	struct cterm_igs *igs = t->igs_engine;
 	prepare(f);
 	if (reverse)
@@ -31,20 +32,20 @@ erase_case(struct fixture *f, unsigned resolution, unsigned x, unsigned y, bool 
 	(void)snprintf(position, sizeof(position), "G#p>%u,%u:X 10,19,17:", x, y);
 	feed(f, position);
 	igs->clip_x1 = igs->clip_y1 = 40;
-	igs->clip_x2 = igs->clip_y2 = 50;
-	const uint16_t depth = t->vt52_cursor_hide_depth;
-	const struct st_console_rect full = {0, 0, igs->width, igs->height};
+	igs->clip_x2 = igs->clip_y2        = 50;
+	const uint16_t               depth = t->vt52_cursor_hide_depth;
+	const struct st_console_rect full  = {0, 0, igs->width, igs->height};
 	seed(f, &full, 768, 769);
 	struct cterm_igs_attributes attributes;
-	uint32_t palette[16];
+	uint32_t                    palette[16];
 	memcpy(&attributes, &igs->attributes, sizeof(attributes));
 	memcpy(palette, igs->palette, sizeof(palette));
 	CHECK(palette[0] == 0);
 	igs->math[0] = (int16_t)selector;
 	feed(f, "G#s 0]:");
 
-	int operation = selector > 5 ? 0 : selector;
-	bool home = operation == 0 || operation == 4;
+	int  operation = selector > 5 ? 0 : selector;
+	bool home      = operation == 0 || operation == 4;
 	CHECK(t->xpos == (home ? 1 : (int)x + 1) && t->ypos == (home ? 1 : (int)y + 1));
 	CHECK(t->negative == reverse && t->vt52_cursor_hide_depth == depth);
 	CHECK(t->vt52_foreground == (uint16_t)(4 - 32));
@@ -56,16 +57,17 @@ erase_case(struct fixture *f, unsigned resolution, unsigned x, unsigned y, bool 
 	CHECK(igs->clip_x1 == 40 && igs->clip_y1 == 40 && igs->clip_x2 == 50 && igs->clip_y2 == 50);
 	CHECK(igs->draw_x == 19 && igs->draw_y == 17 && igs->wait_deadline == 0);
 
-	const unsigned ch = resolution == 2 ? 16 : 8;
-	const unsigned blank = operation == 3 || operation == 4 ? 768 : resolution == 2 ? 769 : 771;
+	const unsigned          ch     = resolution == 2 ? 16 : 8;
+	const unsigned          blank  = operation == 3 || operation == 4 ? 768 : resolution == 2 ? 769 : 771;
 	struct st_pixel_buffer *pixels = NULL;
 	CHECK(st_console_get_pixels(&pixels, f->console, &full, false) == 0);
 	for (unsigned py = 0; py < igs->height; ++py)
 		for (unsigned px = 0; px < igs->width; ++px) {
 			unsigned row = py / ch, col = px / 8;
-			bool erased = row < (unsigned)t->height && (home || operation == 3
-			    || (operation == 1 && (row < y || (row == y && col <= x)))
-			    || (operation == 2 && (row > y || (row == y && col >= x))));
+			bool     erased =
+			    row < (unsigned)t->height
+			    && (home || operation == 3 || (operation == 1 && (row < y || (row == y && col <= x)))
+			        || (operation == 2 && (row > y || (row == y && col >= x))));
 			size_t i = (size_t)py * igs->width + px;
 			CHECK(pixels->primary[i] == (erased ? blank : 768));
 			CHECK(pixels->alternate[i] == (erased ? blank : 769));
@@ -79,14 +81,20 @@ static void
 pending_case(struct fixture *f, unsigned resolution, unsigned state, int selector)
 {
 	static const uint8_t letters[] = {'E', 'd', 'J', 0, 'E'};
-	struct cterminal *t = f->terminal;
+	struct cterminal    *t         = f->terminal;
 	prepare(f);
 	feed(f, "\033pG#p 3,2:");
 	feed(f, prefixes[state]);
 	struct model m = {
-		.state = state, .x = 3, .y = 2, .row = 1,
-		.columns = (unsigned)t->width, .rows = (unsigned)t->height,
-		.fg = (uint16_t)(4 - 32), .bg = (uint16_t)(3 - 32), .reverse = true,
+	    .state   = state,
+	    .x       = 3,
+	    .y       = 2,
+	    .row     = 1,
+	    .columns = (unsigned)t->width,
+	    .rows    = (unsigned)t->height,
+	    .fg      = (uint16_t)(4 - 32),
+	    .bg      = (uint16_t)(3 - 32),
+	    .reverse = true,
 	};
 	if (selector != 3) {
 		model_byte(&m, 27);
@@ -116,12 +124,12 @@ reset_string(unsigned resolution, bool reserved, unsigned state)
 	feed(&f, "\033p\033vG#p 255,255:");
 	feed(&f, prefixes[state]);
 	if (reserved) {
-		unsigned ch = resolution == 2 ? 16 : 8;
+		unsigned                     ch     = resolution == 2 ? 16 : 8;
 		const struct st_console_rect status = {0, 24 * ch, t->igs_engine->width, ch};
 		seed(&f, &status, 769, 768);
 	}
 	uint32_t columns;
-	size_t before, after;
+	size_t   before, after;
 	CHECK(st_cterm_scrollback_size(t, &columns, &before) == 0);
 	feed(&f, "G#s 5:");
 	const bool scrolled = state == 0 || state == 2;
@@ -136,8 +144,12 @@ reset_string(unsigned resolution, bool reserved, unsigned state)
 		CHECK(q.background == (resolution == 0 ? 772u : 768u));
 	}
 	struct model m = {
-		.columns = (unsigned)t->width, .rows = (unsigned)t->height,
-		.fg = resolution == 0 ? 31 : 19, .bg = 16, .reverse = scrolled, .wrap = true,
+	    .columns = (unsigned)t->width,
+	    .rows    = (unsigned)t->height,
+	    .fg      = resolution == 0 ? 31 : 19,
+	    .bg      = 16,
+	    .reverse = scrolled,
+	    .wrap    = true,
 	};
 	model_check_console(t, &m);
 	model_pixels(&f, resolution, &m);
@@ -152,15 +164,16 @@ scenes(void)
 			struct fixture f;
 			create(&f, resolution, reserved != 0);
 			struct cterminal *t = f.terminal;
-			t->response_cb = no_reply;
-			const unsigned x[] = {0, 3, (unsigned)t->width - 1};
-			const unsigned y[] = {0, 6, (unsigned)t->height - 1};
+			t->response_cb      = no_reply;
+			const unsigned x[]  = {0, 3, (unsigned)t->width - 1};
+			const unsigned y[]  = {0, 6, (unsigned)t->height - 1};
 			for (size_t point = 0; point < sizeof(x) / sizeof(*x); ++point)
 				for (unsigned reverse = 0; reverse < 2; ++reverse)
 					for (size_t i = 0; i < sizeof(selectors) / sizeof(*selectors); ++i)
-						erase_case(&f, resolution, x[point], y[point], reverse != 0, selectors[i]);
+						erase_case(&f, resolution, x[point], y[point], reverse != 0,
+						    selectors[i]);
 			if (reserved) {
-				unsigned ch = resolution == 2 ? 16 : 8;
+				unsigned                     ch     = resolution == 2 ? 16 : 8;
 				const struct st_console_rect status = {0, 24 * ch, t->igs_engine->width, ch};
 				seed(&f, &status, 769, 768);
 			}
@@ -182,7 +195,7 @@ workstation_history(void)
 		struct cterminal *t = f.terminal;
 		prepare(&f);
 		uint32_t columns;
-		size_t before, after;
+		size_t   before, after;
 		CHECK(st_cterm_scrollback_size(t, &columns, &before) == 0);
 		feed(&f, "G#p 3,2:AG#s 3:");
 		CHECK(st_cterm_scrollback_size(t, &columns, &after) == 0 && before == after);
@@ -199,8 +212,8 @@ workstation_history(void)
 static void
 partitions_and_recovery(void)
 {
-	const char wire[] = "G#g>2:s>r:M 2:";
-	const size_t size = sizeof(wire) - 1;
+	const char     wire[] = "G#g>2:s>r:M 2:";
+	const size_t   size   = sizeof(wire) - 1;
 	struct fixture f;
 	create(&f, 0, false);
 	struct cterminal *t = f.terminal;
@@ -212,7 +225,8 @@ partitions_and_recovery(void)
 		if (split > size) {
 			for (size_t i = 0; i < size; ++i)
 				CHECK(st_cterm_write(t, wire + i, 1, &used) == 0 && used == 1);
-		} else {
+		}
+		else {
 			CHECK(st_cterm_write(t, wire, split, &used) == 0 && used == split);
 			CHECK(st_cterm_write(t, wire + split, size - split, &used) == 0 && used == size - split);
 		}
@@ -226,10 +240,10 @@ partitions_and_recovery(void)
 	local_ms += 5001;
 	CHECK(st_cterm_poll(t) == 0 && t->igs_engine->random_seed == UINT32_C(0xbb40e62e));
 	const char bad[] = "G#s 10000:";
-	size_t used;
+	size_t     used;
 	CHECK(st_cterm_write(t, bad, sizeof(bad) - 1, &used) == 0);
 	CHECK(t->xpos == 4 && t->ypos == 3 && t->accumulator == NULL);
-	t->screen.error = IO_ERROR_IO;
+	t->screen.error    = IO_ERROR_IO;
 	const char clear[] = "G#s 4:";
 	CHECK(st_cterm_write(t, clear, sizeof(clear) - 1, &used) == 0);
 	CHECK(t->xpos == 4 && t->ypos == 3 && t->sequence != 0);

@@ -12,10 +12,8 @@
  * selects the radix/field bounds and handles shortening/reserved parameters.
  * The representation result is not truncated to a legacy signed WORD.
  * Both operations leave their outputs unchanged on error. */
-int st_rip3_number_decode(uint64_t *result, const void *bytes, size_t size,
-	unsigned radix);
+int st_rip3_number_decode(uint64_t *result, const void *bytes, size_t size, unsigned radix);
 /* Write exactly width digits, zero padded, without a NUL terminator. */
-int st_rip3_number_encode(char *output, size_t capacity, uint64_t value,
-	size_t width, unsigned radix);
+int st_rip3_number_encode(char *output, size_t capacity, uint64_t value, size_t width, unsigned radix);
 
 #endif

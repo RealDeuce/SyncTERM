@@ -1,186 +1,325 @@
 /* BIG original counted output and command-return ordering; reference21/32/33/43. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
+#include <string.h>
+
+#include "io_error.h"
 #include "st_big_control.h"
 #include "st_big_number.h"
-#include "io_error.h"
-#include <string.h>
-enum { FOOTER_OFF, FOOTER_REPEAT, FOOTER_FLOW, FOOTER_RESET, FOOTER_REPLY,
-	FOOTER_CHECK, FOOTER_READY, FOOTER_SEND, FOOTER_CR, FOOTER_CR_SEND,
-	FOOTER_DONE, FOOTER_FAILED };
-void st_big_sync_begin(struct st_big_sync_reader *r, struct st_big_control *c)
+
+enum {
+	FOOTER_OFF,
+	FOOTER_REPEAT,
+	FOOTER_FLOW,
+	FOOTER_RESET,
+	FOOTER_REPLY,
+	FOOTER_CHECK,
+	FOOTER_READY,
+	FOOTER_SEND,
+	FOOTER_CR,
+	FOOTER_CR_SEND,
+	FOOTER_DONE,
+	FOOTER_FAILED
+};
+
+void
+st_big_sync_begin(struct st_big_sync_reader *r, struct st_big_control *c)
 {
-	if (r==NULL || c==NULL) return;
-	c->music.scratch=c->music.position_low;
-	r->begun=true; r->waiting=c->music.running!=0 && c->music.sync!=0;
+	if (r == NULL || c == NULL)
+		return;
+	c->music.scratch = c->music.position_low;
+	r->begun         = true;
+	r->waiting       = c->music.running != 0 && c->music.sync != 0;
 }
-int st_big_sync_poll(struct st_big_sync_reader *r, const struct st_big_control *c)
+
+int
+st_big_sync_poll(struct st_big_sync_reader *r, const struct st_big_control *c)
 {
-	if (r==NULL || c==NULL || !r->begun) return IO_ERROR_INVALID_ARGUMENT;
+	if (r == NULL || c == NULL || !r->begun)
+		return IO_ERROR_INVALID_ARGUMENT;
 	/* Match the reached HIGH-then-LOW comparisons. The terminal owns these
 	 * fields; an audio worker must publish through its serialized owner. */
-	uint16_t scratch=c->music.scratch;
-	if (r->waiting && c->music.position_high==0 && c->music.position_low==scratch)
+	uint16_t scratch = c->music.scratch;
+	if (r->waiting && c->music.position_high == 0 && c->music.position_low == scratch)
 		return IO_ERROR_IN_PROGRESS;
-	r->waiting=false; return 0;
+	r->waiting = false;
+	return 0;
 }
-int32_t st_big_zone_id(uint16_t word)
+
+int32_t
+st_big_zone_id(uint16_t word)
 {
-	int32_t id=st_big_number_signed(word);
-	return id>47 && id!=9999 && id!=9998 && id!=9997?47:id;
+	int32_t id = st_big_number_signed(word);
+	return id > 47 && id != 9999 && id != 9998 && id != 9997 ? 47 : id;
 }
-void st_big_control_enter(struct st_big_control *c)
+
+void
+st_big_control_enter(struct st_big_control *c)
 {
-	if (c == NULL) return;
+	if (c == NULL)
+		return;
 	/* Safe port: zero formerly uninitialized gang suffix bytes on entry.
 	 * A later gang copy keeps its existing suffix within the same frame. */
-	memset(&c->frame,0,sizeof(c->frame)); c->frame.gang_marker='X';
+	memset(&c->frame, 0, sizeof(c->frame));
+	c->frame.gang_marker = 'X';
 }
-void st_big_control_init(struct st_big_control *c)
+
+void
+st_big_control_init(struct st_big_control *c)
 {
-	if (c == NULL) return;
-	memset(c,0,sizeof(*c)); c->flow.mode=1;
-	c->flow.count[0]=c->flow.count[1]=1; c->flow.byte[0]=17; c->flow.byte[1]=19;
-	c->pointer.step_x=12; c->pointer.step_y=6;
+	if (c == NULL)
+		return;
+	memset(c, 0, sizeof(*c));
+	c->flow.mode     = 1;
+	c->flow.count[0] = c->flow.count[1] = 1;
+	c->flow.byte[0]                     = 17;
+	c->flow.byte[1]                     = 19;
+	c->pointer.step_x                   = 12;
+	c->pointer.step_y                   = 6;
 	st_big_control_enter(c);
 }
-enum { SETTINGS_OFF, SETTINGS_OPERATION, SETTINGS_ON_CHECK, SETTINGS_ON_BYTE,
-	SETTINGS_ON_COUNT, SETTINGS_OFF_CHECK, SETTINGS_OFF_BYTE, SETTINGS_OFF_COUNT,
-	SETTINGS_DEFAULTS, SETTINGS_DONE };
-void st_big_flow_settings_begin(struct st_big_flow_settings *r)
+
+enum {
+	SETTINGS_OFF,
+	SETTINGS_OPERATION,
+	SETTINGS_ON_CHECK,
+	SETTINGS_ON_BYTE,
+	SETTINGS_ON_COUNT,
+	SETTINGS_OFF_CHECK,
+	SETTINGS_OFF_BYTE,
+	SETTINGS_OFF_COUNT,
+	SETTINGS_DEFAULTS,
+	SETTINGS_DONE
+};
+
+void
+st_big_flow_settings_begin(struct st_big_flow_settings *r)
 {
-	if (r!=NULL) r->phase=SETTINGS_OPERATION;
+	if (r != NULL)
+		r->phase = SETTINGS_OPERATION;
 }
-int st_big_flow_settings_next(struct st_big_flow_settings *r, struct st_big_control *c, bool *read)
+
+int
+st_big_flow_settings_next(struct st_big_flow_settings *r, struct st_big_control *c, bool *read)
 {
-	if (r==NULL || c==NULL || read==NULL) return IO_ERROR_INVALID_ARGUMENT;
-	for (;;) switch (r->phase) {
-	case SETTINGS_OPERATION: case SETTINGS_ON_BYTE: case SETTINGS_ON_COUNT:
-	case SETTINGS_OFF_BYTE: case SETTINGS_OFF_COUNT:
-		*read=true; return 0;
-	case SETTINGS_ON_CHECK:
-		r->phase=c->flow.mode==2?SETTINGS_ON_BYTE:SETTINGS_OFF_CHECK; break;
-	case SETTINGS_OFF_CHECK:
-		r->phase=c->flow.mode==3?SETTINGS_OFF_BYTE:SETTINGS_DEFAULTS; break;
-	case SETTINGS_DEFAULTS:
-		if (st_big_number_signed(c->flow.mode)>3) {
-			c->flow.byte[0]=17; c->flow.byte[1]=19;
-			c->flow.count[0]=1; c->flow.count[1]=1;
+	if (r == NULL || c == NULL || read == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	for (;;)
+		switch (r->phase) {
+			case SETTINGS_OPERATION:
+			case SETTINGS_ON_BYTE:
+			case SETTINGS_ON_COUNT:
+			case SETTINGS_OFF_BYTE:
+			case SETTINGS_OFF_COUNT:
+				*read = true;
+				return 0;
+			case SETTINGS_ON_CHECK:
+				r->phase = c->flow.mode == 2 ? SETTINGS_ON_BYTE : SETTINGS_OFF_CHECK;
+				break;
+			case SETTINGS_OFF_CHECK:
+				r->phase = c->flow.mode == 3 ? SETTINGS_OFF_BYTE : SETTINGS_DEFAULTS;
+				break;
+			case SETTINGS_DEFAULTS:
+				if (st_big_number_signed(c->flow.mode) > 3) {
+					c->flow.byte[0]  = 17;
+					c->flow.byte[1]  = 19;
+					c->flow.count[0] = 1;
+					c->flow.count[1] = 1;
+				}
+				r->phase = SETTINGS_DONE;
+				break;
+			case SETTINGS_DONE:
+				*read = false;
+				return 0;
+			default:
+				return IO_ERROR_INVALID_ARGUMENT;
 		}
-		r->phase=SETTINGS_DONE; break;
-	case SETTINGS_DONE: *read=false; return 0;
-	default: return IO_ERROR_INVALID_ARGUMENT;
-	}
 }
-int st_big_flow_settings_value(struct st_big_flow_settings *r, struct st_big_control *c,
-	const struct st_big_loop *loop, uint16_t value)
+
+int
+st_big_flow_settings_value(struct st_big_flow_settings *r, struct st_big_control *c,
+    const struct st_big_loop *loop, uint16_t value)
 {
-	if (r==NULL || c==NULL || loop==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (r == NULL || c == NULL || loop == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
 	switch (r->phase) {
-	case SETTINGS_OPERATION:
-		c->flow.mode=value;
-		if (loop->active!=0) c->flow.mode=1;
-		r->phase=SETTINGS_ON_CHECK; return 0;
-	case SETTINGS_ON_BYTE:
-		c->flow.byte[0]=(uint8_t)value; r->phase=SETTINGS_ON_COUNT; return 0;
-	case SETTINGS_ON_COUNT:
-		c->flow.count[0]=value; r->phase=SETTINGS_OFF_CHECK; return 0;
-	case SETTINGS_OFF_BYTE:
-		c->flow.byte[1]=(uint8_t)value; r->phase=SETTINGS_OFF_COUNT; return 0;
-	case SETTINGS_OFF_COUNT:
-		c->flow.count[1]=value; r->phase=SETTINGS_DEFAULTS; return 0;
-	default: return IO_ERROR_INVALID_ARGUMENT;
+		case SETTINGS_OPERATION:
+			c->flow.mode = value;
+			if (loop->active != 0)
+				c->flow.mode = 1;
+			r->phase = SETTINGS_ON_CHECK;
+			return 0;
+		case SETTINGS_ON_BYTE:
+			c->flow.byte[0] = (uint8_t)value;
+			r->phase        = SETTINGS_ON_COUNT;
+			return 0;
+		case SETTINGS_ON_COUNT:
+			c->flow.count[0] = value;
+			r->phase         = SETTINGS_OFF_CHECK;
+			return 0;
+		case SETTINGS_OFF_BYTE:
+			c->flow.byte[1] = (uint8_t)value;
+			r->phase        = SETTINGS_OFF_COUNT;
+			return 0;
+		case SETTINGS_OFF_COUNT:
+			c->flow.count[1] = value;
+			r->phase         = SETTINGS_DEFAULTS;
+			return 0;
+		default:
+			return IO_ERROR_INVALID_ARGUMENT;
 	}
 }
-void st_big_flow_begin(struct st_big_flow_reader *r, const struct st_big_control *c, bool on)
+
+void
+st_big_flow_begin(struct st_big_flow_reader *r, const struct st_big_control *c, bool on)
 {
 	(void)on;
-	if (r!=NULL && c!=NULL) r->begun=true;
+	if (r != NULL && c != NULL)
+		r->begun = true;
 }
-int st_big_flow_poll(struct st_big_flow_reader *r, struct st_big_control *c,
-    const struct st_big_control_sink *sink, size_t *budget)
+
+int
+st_big_flow_poll(struct st_big_flow_reader *r, struct st_big_control *c, const struct st_big_control_sink *sink,
+    size_t *budget)
 {
-	if (r==NULL || c==NULL || sink==NULL || budget==NULL || !r->begun)
+	if (r == NULL || c == NULL || sink == NULL || budget == NULL || !r->begun)
 		return IO_ERROR_INVALID_ARGUMENT;
 	/* Parser backpressure leaves input in the session/connection buffers.
 	 * Legacy flow settings remain readable state, without serial requests,
 	 * transport readiness checks, output credit or count-based delays. */
 	return 0;
 }
-void st_big_footer_begin(struct st_big_footer *r, bool chained)
+
+void
+st_big_footer_begin(struct st_big_footer *r, bool chained)
 {
-	if (r == NULL) return;
-	*r=(struct st_big_footer){.phase=FOOTER_REPEAT,.chained=chained};
+	if (r == NULL)
+		return;
+	*r = (struct st_big_footer) {.phase = FOOTER_REPEAT, .chained = chained};
 }
-static int footer_error(struct st_big_footer *r, int status)
+
+static int
+footer_error(struct st_big_footer *r, int status)
 {
-	if (status!=IO_ERROR_IN_PROGRESS) { r->phase=FOOTER_FAILED; r->error=status; }
+	if (status != IO_ERROR_IN_PROGRESS) {
+		r->phase = FOOTER_FAILED;
+		r->error = status;
+	}
 	return status;
 }
-static int complete(struct st_big_footer *r, enum st_big_footer_action action,
-    enum st_big_footer_action *result)
+
+static int
+complete(struct st_big_footer *r, enum st_big_footer_action action, enum st_big_footer_action *result)
 {
-	r->action=action; r->phase=FOOTER_DONE; *result=action; return 0;
+	r->action = action;
+	r->phase  = FOOTER_DONE;
+	*result   = action;
+	return 0;
 }
-int st_big_footer_poll(struct st_big_footer *r, struct st_big_loop *loop,
-    struct st_big_control *c, const struct st_big_control_sink *sink, size_t *budget,
-    enum st_big_footer_action *action)
+
+int
+st_big_footer_poll(struct st_big_footer *r, struct st_big_loop *loop, struct st_big_control *c,
+    const struct st_big_control_sink *sink, size_t *budget, enum st_big_footer_action *action)
 {
-	if (r==NULL || loop==NULL || c==NULL || sink==NULL || sink->send==NULL
-	    || budget==NULL || action==NULL || r->phase==FOOTER_OFF) return IO_ERROR_INVALID_ARGUMENT;
-	for (;;) switch (r->phase) {
-	case FOOTER_REPEAT:
-		if (loop->active==1 && loop->command_read) return complete(r,ST_BIG_FOOTER_REPEAT,action);
-		if (c->frame.did_loop==1) {
-			c->frame.did_loop=0; st_big_flow_begin(&r->flow,c,true); r->phase=FOOTER_FLOW;
-		} else r->phase=FOOTER_RESET;
-		continue;
-	case FOOTER_FLOW: {
-		int status=st_big_flow_poll(&r->flow,c,sink,budget);
-		if (status!=0) return footer_error(r,status);
-		r->phase=FOOTER_RESET; continue;
-	}
-	case FOOTER_RESET:
-		loop->type=' '; c->frame.gang_marker='X';
-		if (r->chained) return complete(r,ST_BIG_FOOTER_CHAIN,action);
-		r->phase=FOOTER_REPLY; continue;
-	case FOOTER_REPLY:
-		if (c->input.pending==0) { c->frame.command=0; return complete(r,ST_BIG_FOOTER_RETURN,action); }
-		c->input.pending=0; r->index=1; r->phase=FOOTER_CHECK;
-		continue;
-	case FOOTER_CHECK:
-		if (st_big_number_signed((uint16_t)(c->input.count+1u))<=st_big_number_signed(r->index)) {
-			r->phase=FOOTER_CR; continue;
-		}
-		r->phase=FOOTER_READY;
-		continue;
-	case FOOTER_READY: {
-		if (*budget==0) return IO_ERROR_IN_PROGRESS;
-		int status=sink->ready==NULL?0:sink->ready(sink->context,ST_BIG_OUTPUT_REPLY);
-		if (status!=0) return footer_error(r,status);
-		/* Preserve the completed prefix, but do not follow escaped DOS
+	if (r == NULL || loop == NULL || c == NULL || sink == NULL || sink->send == NULL || budget == NULL
+	    || action == NULL || r->phase == FOOTER_OFF)
+		return IO_ERROR_INVALID_ARGUMENT;
+	for (;;)
+		switch (r->phase) {
+			case FOOTER_REPEAT:
+				if (loop->active == 1 && loop->command_read)
+					return complete(r, ST_BIG_FOOTER_REPEAT, action);
+				if (c->frame.did_loop == 1) {
+					c->frame.did_loop = 0;
+					st_big_flow_begin(&r->flow, c, true);
+					r->phase = FOOTER_FLOW;
+				}
+				else
+					r->phase = FOOTER_RESET;
+				continue;
+			case FOOTER_FLOW:
+			{
+				int status = st_big_flow_poll(&r->flow, c, sink, budget);
+				if (status != 0)
+					return footer_error(r, status);
+				r->phase = FOOTER_RESET;
+				continue;
+			}
+			case FOOTER_RESET:
+				loop->type           = ' ';
+				c->frame.gang_marker = 'X';
+				if (r->chained)
+					return complete(r, ST_BIG_FOOTER_CHAIN, action);
+				r->phase = FOOTER_REPLY;
+				continue;
+			case FOOTER_REPLY:
+				if (c->input.pending == 0) {
+					c->frame.command = 0;
+					return complete(r, ST_BIG_FOOTER_RETURN, action);
+				}
+				c->input.pending = 0;
+				r->index         = 1;
+				r->phase         = FOOTER_CHECK;
+				continue;
+			case FOOTER_CHECK:
+				if (st_big_number_signed((uint16_t)(c->input.count + 1u))
+				    <= st_big_number_signed(r->index)) {
+					r->phase = FOOTER_CR;
+					continue;
+				}
+				r->phase = FOOTER_READY;
+				continue;
+			case FOOTER_READY:
+			{
+				if (*budget == 0)
+					return IO_ERROR_IN_PROGRESS;
+				int status =
+				    sink->ready == NULL ? 0 : sink->ready(sink->context, ST_BIG_OUTPUT_REPLY);
+				if (status != 0)
+					return footer_error(r, status);
+				/* Preserve the completed prefix, but do not follow escaped DOS
 		 * addresses beyond the bounded normal/byte-counted reply buffer. */
-		if (r->index>=ST_BIG_REPLY_CAPACITY) return footer_error(r,IO_ERROR_OUT_OF_RANGE);
-		r->byte=c->input.payload[r->index]; r->phase=FOOTER_SEND;
-		continue;
-	}
-	case FOOTER_SEND: {
-		if (*budget==0) return IO_ERROR_IN_PROGRESS;
-		int status=sink->send(sink->context,ST_BIG_OUTPUT_REPLY,r->byte);
-		if (status!=0) return footer_error(r,status);
-		--*budget; r->index=(uint16_t)(r->index+1u); r->phase=FOOTER_CHECK; continue;
-	}
-	case FOOTER_CR:
-		if (c->input.append_cr==0) { c->frame.command=0; return complete(r,ST_BIG_FOOTER_RETURN,action); }
-		r->phase=FOOTER_CR_SEND;
-		continue;
-	case FOOTER_CR_SEND: {
-		if (*budget==0) return IO_ERROR_IN_PROGRESS;
-		int status=sink->send(sink->context,ST_BIG_OUTPUT_REPLY,13);
-		if (status!=0) return footer_error(r,status);
-		--*budget; c->frame.command=0; return complete(r,ST_BIG_FOOTER_RETURN,action);
-	}
-	case FOOTER_DONE: *action=r->action; return 0;
-	case FOOTER_FAILED: return r->error;
-	default: return IO_ERROR_INVALID_ARGUMENT;
-	}
+				if (r->index >= ST_BIG_REPLY_CAPACITY)
+					return footer_error(r, IO_ERROR_OUT_OF_RANGE);
+				r->byte  = c->input.payload[r->index];
+				r->phase = FOOTER_SEND;
+				continue;
+			}
+			case FOOTER_SEND:
+			{
+				if (*budget == 0)
+					return IO_ERROR_IN_PROGRESS;
+				int status = sink->send(sink->context, ST_BIG_OUTPUT_REPLY, r->byte);
+				if (status != 0)
+					return footer_error(r, status);
+				--*budget;
+				r->index = (uint16_t)(r->index + 1u);
+				r->phase = FOOTER_CHECK;
+				continue;
+			}
+			case FOOTER_CR:
+				if (c->input.append_cr == 0) {
+					c->frame.command = 0;
+					return complete(r, ST_BIG_FOOTER_RETURN, action);
+				}
+				r->phase = FOOTER_CR_SEND;
+				continue;
+			case FOOTER_CR_SEND:
+			{
+				if (*budget == 0)
+					return IO_ERROR_IN_PROGRESS;
+				int status = sink->send(sink->context, ST_BIG_OUTPUT_REPLY, 13);
+				if (status != 0)
+					return footer_error(r, status);
+				--*budget;
+				c->frame.command = 0;
+				return complete(r, ST_BIG_FOOTER_RETURN, action);
+			}
+			case FOOTER_DONE:
+				*action = r->action;
+				return 0;
+			case FOOTER_FAILED:
+				return r->error;
+			default:
+				return IO_ERROR_INVALID_ARGUMENT;
+		}
 }

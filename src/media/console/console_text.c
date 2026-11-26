@@ -3,36 +3,33 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "console_internal.h"
+#include <stdlib.h>
+#include <string.h>
 
+#include "console_internal.h"
 #include "io_error.h"
 #include "st_unicode_text.h"
 #include "st_unicode_width.h"
 #include "st_utf8.h"
 
-#include <stdlib.h>
-#include <string.h>
-
 static struct st_console_cell
-style_cell_locked(const st_console_t *console, uint32_t codepoint,
-	uint8_t *columns)
+style_cell_locked(const st_console_t *console, uint32_t codepoint, uint8_t *columns)
 {
 	struct st_console_cell cell;
-	uint32_t glyph = codepoint;
-	uint16_t glyph_font = console->style.font;
-	uint8_t resolved_columns = st_unicode_columns(codepoint);
+	uint32_t               glyph            = codepoint;
+	uint16_t               glyph_font       = console->style.font;
+	uint8_t                resolved_columns = st_unicode_columns(codepoint);
 
-	(void)st_console_font_lookup_locked((st_console_t *)console,
-	    console->style.font, codepoint, &glyph_font, &glyph,
-	    &resolved_columns);
-	cell = (struct st_console_cell){
-		.glyph = glyph,
-		.foreground = console->style.foreground,
-		.background = console->style.background,
-		.flags = console->style.flags & ST_CONSOLE_CELL_PUBLIC_FLAGS,
-		.font = console->style.font,
-		.glyph_font = glyph_font,
-		.hyperlink = console->style.hyperlink,
+	(void)st_console_font_lookup_locked((st_console_t *)console, console->style.font, codepoint, &glyph_font,
+	    &glyph, &resolved_columns);
+	cell = (struct st_console_cell) {
+	    .glyph      = glyph,
+	    .foreground = console->style.foreground,
+	    .background = console->style.background,
+	    .flags      = console->style.flags & ST_CONSOLE_CELL_PUBLIC_FLAGS,
+	    .font       = console->style.font,
+	    .glyph_font = glyph_font,
+	    .hyperlink  = console->style.hyperlink,
 	};
 	if (columns != NULL)
 		*columns = resolved_columns;
@@ -40,20 +37,19 @@ style_cell_locked(const st_console_t *console, uint32_t codepoint,
 }
 
 static struct st_console_cell
-style_cluster_locked(const st_console_t *console, const char *text,
-	size_t text_size, uint8_t columns)
+style_cluster_locked(const st_console_t *console, const char *text, size_t text_size, uint8_t columns)
 {
 	struct st_console_cell cell = {
-		.foreground = console->style.foreground,
-		.background = console->style.background,
-		.flags = console->style.flags & ST_CONSOLE_CELL_PUBLIC_FLAGS,
-		.font = console->style.font,
-		.glyph_font = console->style.font,
-		.hyperlink = console->style.hyperlink,
+	    .foreground = console->style.foreground,
+	    .background = console->style.background,
+	    .flags      = console->style.flags & ST_CONSOLE_CELL_PUBLIC_FLAGS,
+	    .font       = console->style.font,
+	    .glyph_font = console->style.font,
+	    .hyperlink  = console->style.hyperlink,
 	};
 
-	(void)st_console_font_lookup_cluster_locked((st_console_t *)console,
-	    cell.font, text, text_size, columns, &cell.glyph_font, &cell.glyph, NULL);
+	(void)st_console_font_lookup_cluster_locked((st_console_t *)console, cell.font, text, text_size, columns,
+	    &cell.glyph_font, &cell.glyph, NULL);
 	return cell;
 }
 
@@ -75,8 +71,7 @@ fill_codepoint_valid_locked(const st_console_t *console, uint32_t codepoint)
 }
 
 int
-st_console_set_style(st_console_t *console,
-	const struct st_console_style *style)
+st_console_set_style(st_console_t *console, const struct st_console_style *style)
 {
 	int result;
 
@@ -109,9 +104,8 @@ st_console_get_style(st_console_t *console, struct st_console_style *style)
 static bool
 position_in_window(const st_console_t *console, uint32_t x, uint32_t y)
 {
-	return x >= console->window.x && y >= console->window.y
-	    && x - console->window.x < console->window.width
-	    && y - console->window.y < console->window.height;
+	return x >= console->window.x && y >= console->window.y && x - console->window.x < console->window.width
+	       && y - console->window.y < console->window.height;
 }
 
 static void
@@ -134,55 +128,51 @@ st_console_set_position(st_console_t *console, uint32_t x, uint32_t y)
 	if (!position_in_window(console, x, y))
 		result = IO_ERROR_OUT_OF_RANGE;
 	else {
-		if (!console->pixel_cursor.enabled && console->cursor_custom
-		    && console->custom_cursor.visible && console->custom_cursor.index_xor != 0
-		    && (console->cursor_x != x || console->cursor_y != y))
+		if (!console->pixel_cursor.enabled && console->cursor_custom && console->custom_cursor.visible
+		    && console->custom_cursor.index_xor != 0 && (console->cursor_x != x || console->cursor_y != y))
 			restart_cursor_animation(console);
 		console->cursor_x = x;
 		console->cursor_y = y;
-		console->changed = true;
-		result = st_console_finish_change_locked(console);
+		console->changed  = true;
+		result            = st_console_finish_change_locked(console);
 	}
 	(void)st_rwlock_unlock(st_console_state_lock(console));
 	return result;
 }
 
 int
-st_console_set_cursor(st_console_t *console, bool visible,
-	enum st_console_cursor_shape shape)
+st_console_set_cursor(st_console_t *console, bool visible, enum st_console_cursor_shape shape)
 {
 	struct st_console_custom_cursor cursor;
-	int result;
+	int                             result;
 
-	if (console == NULL || shape < ST_CONSOLE_CURSOR_BLOCK
-	    || shape > ST_CONSOLE_CURSOR_BAR)
+	if (console == NULL || shape < ST_CONSOLE_CURSOR_BLOCK || shape > ST_CONSOLE_CURSOR_BAR)
 		return IO_ERROR_INVALID_ARGUMENT;
 	result = st_rwlock_write_lock(st_console_state_lock(console));
 	if (result != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
 	if (console->pixel_cursor.enabled) {
 		console->pixel_cursor.enabled = false;
-		console->changed = true;
+		console->changed              = true;
 	}
-	cursor = console->default_cursor;
+	cursor         = console->default_cursor;
 	cursor.visible = visible;
 	if (shape == ST_CONSOLE_CURSOR_BLOCK) {
 		cursor.start = 0;
-		cursor.end = cursor.range - 1;
+		cursor.end   = cursor.range - 1;
 	}
 	if (console->cursor_visible != visible || console->cursor_shape != shape
 	    || console->cursor_custom != (shape != ST_CONSOLE_CURSOR_BAR)
 	    || (shape != ST_CONSOLE_CURSOR_BAR
-	    && (console->custom_cursor.start != cursor.start
-	    || console->custom_cursor.end != cursor.end
-	    || console->custom_cursor.range != cursor.range
-	    || console->custom_cursor.visible != cursor.visible
-	    || console->custom_cursor.blink != cursor.blink
-	    || console->custom_cursor.index_base != cursor.index_base
-	    || console->custom_cursor.index_xor != cursor.index_xor))) {
+	        && (console->custom_cursor.start != cursor.start || console->custom_cursor.end != cursor.end
+	            || console->custom_cursor.range != cursor.range
+	            || console->custom_cursor.visible != cursor.visible
+	            || console->custom_cursor.blink != cursor.blink
+	            || console->custom_cursor.index_base != cursor.index_base
+	            || console->custom_cursor.index_xor != cursor.index_xor))) {
 		console->cursor_visible = visible;
-		console->cursor_shape = shape;
-		console->cursor_custom = shape != ST_CONSOLE_CURSOR_BAR;
+		console->cursor_shape   = shape;
+		console->cursor_custom  = shape != ST_CONSOLE_CURSOR_BAR;
 		if (console->cursor_custom)
 			console->custom_cursor = cursor;
 		console->changed = true;
@@ -193,8 +183,7 @@ st_console_set_cursor(st_console_t *console, bool visible,
 }
 
 int
-st_console_get_default_cursor(st_console_t *console,
-	struct st_console_custom_cursor *cursor)
+st_console_get_default_cursor(st_console_t *console, struct st_console_custom_cursor *cursor)
 {
 	int result;
 
@@ -216,38 +205,34 @@ valid_cursor_indices(const struct st_console_custom_cursor *cursor)
 }
 
 int
-st_console_set_default_cursor(st_console_t *console,
-	const struct st_console_custom_cursor *cursor)
+st_console_set_default_cursor(st_console_t *console, const struct st_console_custom_cursor *cursor)
 {
 	int result;
 
-	if (console == NULL || cursor == NULL || cursor->range == 0
-	    || cursor->start >= cursor->range || cursor->end >= cursor->range
-	    || cursor->start > cursor->end || !valid_cursor_indices(cursor))
+	if (console == NULL || cursor == NULL || cursor->range == 0 || cursor->start >= cursor->range
+	    || cursor->end >= cursor->range || cursor->start > cursor->end || !valid_cursor_indices(cursor))
 		return IO_ERROR_INVALID_ARGUMENT;
 	result = st_rwlock_write_lock(st_console_state_lock(console));
 	if (result != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
 	if (console->pixel_cursor.enabled) {
 		console->pixel_cursor.enabled = false;
-		console->changed = true;
+		console->changed              = true;
 	}
 	console->default_cursor = *cursor;
-	console->custom_cursor = *cursor;
+	console->custom_cursor  = *cursor;
 	console->cursor_visible = cursor->visible;
-	console->cursor_shape = cursor->start == 0
-	    && cursor->end == cursor->range - 1
-	    ? ST_CONSOLE_CURSOR_BLOCK : ST_CONSOLE_CURSOR_BAR;
-	console->cursor_custom = true;
-	console->changed = true;
-	result = st_console_finish_change_locked(console);
+	console->cursor_shape   = cursor->start == 0 && cursor->end == cursor->range - 1 ? ST_CONSOLE_CURSOR_BLOCK
+	                                                                                 : ST_CONSOLE_CURSOR_BAR;
+	console->cursor_custom  = true;
+	console->changed        = true;
+	result                  = st_console_finish_change_locked(console);
 	(void)st_rwlock_unlock(st_console_state_lock(console));
 	return result;
 }
 
 int
-st_console_get_cursor(st_console_t *console, bool *visible,
-	enum st_console_cursor_shape *shape)
+st_console_get_cursor(st_console_t *console, bool *visible, enum st_console_cursor_shape *shape)
 {
 	int result;
 
@@ -257,46 +242,40 @@ st_console_get_cursor(st_console_t *console, bool *visible,
 	if (result != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
 	*visible = console->cursor_visible;
-	*shape = console->cursor_shape;
+	*shape   = console->cursor_shape;
 	(void)st_rwlock_unlock(st_console_state_lock(console));
 	return 0;
 }
 
 int
-st_console_set_custom_cursor(st_console_t *console,
-	const struct st_console_custom_cursor *cursor)
+st_console_set_custom_cursor(st_console_t *console, const struct st_console_custom_cursor *cursor)
 {
 	int result;
 
-	if (console == NULL || cursor == NULL || cursor->range == 0
-	    || !valid_cursor_indices(cursor))
+	if (console == NULL || cursor == NULL || cursor->range == 0 || !valid_cursor_indices(cursor))
 		return IO_ERROR_INVALID_ARGUMENT;
 	result = st_rwlock_write_lock(st_console_state_lock(console));
 	if (result != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
 	if (console->pixel_cursor.enabled) {
 		console->pixel_cursor.enabled = false;
-		console->changed = true;
+		console->changed              = true;
 	}
-	if (!console->cursor_custom
-	    || console->custom_cursor.start != cursor->start
-	    || console->custom_cursor.end != cursor->end
-	    || console->custom_cursor.range != cursor->range
-	    || console->custom_cursor.visible != cursor->visible
-	    || console->custom_cursor.blink != cursor->blink
+	if (!console->cursor_custom || console->custom_cursor.start != cursor->start
+	    || console->custom_cursor.end != cursor->end || console->custom_cursor.range != cursor->range
+	    || console->custom_cursor.visible != cursor->visible || console->custom_cursor.blink != cursor->blink
 	    || console->custom_cursor.index_base != cursor->index_base
 	    || console->custom_cursor.index_xor != cursor->index_xor) {
 		if (cursor->visible && cursor->index_xor != 0
 		    && (!console->cursor_custom || !console->custom_cursor.visible
-		    || console->custom_cursor.index_base != cursor->index_base
-		    || console->custom_cursor.index_xor != cursor->index_xor))
+		        || console->custom_cursor.index_base != cursor->index_base
+		        || console->custom_cursor.index_xor != cursor->index_xor))
 			restart_cursor_animation(console);
-		console->custom_cursor = *cursor;
-		console->cursor_custom = true;
+		console->custom_cursor  = *cursor;
+		console->cursor_custom  = true;
 		console->cursor_visible = cursor->visible;
-		console->cursor_shape = cursor->start == 0
-		    ? ST_CONSOLE_CURSOR_BLOCK : ST_CONSOLE_CURSOR_UNDERLINE;
-		console->changed = true;
+		console->cursor_shape = cursor->start == 0 ? ST_CONSOLE_CURSOR_BLOCK : ST_CONSOLE_CURSOR_UNDERLINE;
+		console->changed      = true;
 	}
 	result = st_console_finish_change_locked(console);
 	(void)st_rwlock_unlock(st_console_state_lock(console));
@@ -304,8 +283,7 @@ st_console_set_custom_cursor(st_console_t *console,
 }
 
 int
-st_console_get_custom_cursor(st_console_t *console,
-	struct st_console_custom_cursor *cursor)
+st_console_get_custom_cursor(st_console_t *console, struct st_console_custom_cursor *cursor)
 {
 	int result;
 
@@ -317,11 +295,11 @@ st_console_get_custom_cursor(st_console_t *console,
 	if (console->cursor_custom)
 		*cursor = console->custom_cursor;
 	else {
-		*cursor = console->default_cursor;
+		*cursor         = console->default_cursor;
 		cursor->visible = console->cursor_visible;
 		if (console->cursor_shape == ST_CONSOLE_CURSOR_BLOCK) {
 			cursor->start = 0;
-			cursor->end = cursor->range - 1;
+			cursor->end   = cursor->range - 1;
 		}
 	}
 	(void)st_rwlock_unlock(st_console_state_lock(console));
@@ -329,22 +307,19 @@ st_console_get_custom_cursor(st_console_t *console,
 }
 
 int
-st_console_set_blink_mode(st_console_t *console,
-	enum st_console_blink_mode mode)
+st_console_set_blink_mode(st_console_t *console, enum st_console_blink_mode mode)
 {
 	int result;
 
-	if (console == NULL || mode < ST_CONSOLE_BLINK_PC
-	    || mode > ST_CONSOLE_BLINK_ATARI_ST)
+	if (console == NULL || mode < ST_CONSOLE_BLINK_PC || mode > ST_CONSOLE_BLINK_ATARI_ST)
 		return IO_ERROR_INVALID_ARGUMENT;
 	result = st_rwlock_write_lock(st_console_state_lock(console));
 	if (result != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
 	if (console->blink_mode != mode) {
 		console->blink_mode = mode;
-		console->changed = true;
-		if (atomic_load_explicit(&console->display->active,
-		    memory_order_acquire) == console)
+		console->changed    = true;
+		if (atomic_load_explicit(&console->display->active, memory_order_acquire) == console)
 			st_console_display_reset_animation(console->display, mode, false);
 	}
 	result = st_console_finish_change_locked(console);
@@ -353,8 +328,7 @@ st_console_set_blink_mode(st_console_t *console,
 }
 
 int
-st_console_get_blink_mode(st_console_t *console,
-	enum st_console_blink_mode *mode)
+st_console_get_blink_mode(st_console_t *console, enum st_console_blink_mode *mode)
 {
 	int result;
 
@@ -371,10 +345,9 @@ st_console_get_blink_mode(st_console_t *console,
 int
 st_console_set_video_flags(st_console_t *console, uint32_t flags)
 {
-	const uint32_t presentation_flags = ST_CONSOLE_VIDEO_NO_BRIGHT
-	    | ST_CONSOLE_VIDEO_BRIGHT_BACKGROUND | ST_CONSOLE_VIDEO_NO_BLINK
-	    | ST_CONSOLE_VIDEO_LINE_GRAPHICS_EXPAND;
-	int result;
+	const uint32_t presentation_flags = ST_CONSOLE_VIDEO_NO_BRIGHT | ST_CONSOLE_VIDEO_BRIGHT_BACKGROUND
+	                                    | ST_CONSOLE_VIDEO_NO_BLINK | ST_CONSOLE_VIDEO_LINE_GRAPHICS_EXPAND;
+	int            result;
 
 	if (console == NULL || (flags & ~ST_CONSOLE_VIDEO_FLAGS) != 0)
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -395,10 +368,8 @@ st_console_set_video_flags(st_console_t *console, uint32_t flags)
 			size_t count = (size_t)console->columns * console->rows;
 
 			st_console_mark_all_locked(console);
-			for (size_t i = 0; console->drawn_cells != NULL && i < count;
-			    ++i)
-				st_console_drawn_at(console, i)->flags
-				    |= ST_CONSOLE_RASTER_INVALID;
+			for (size_t i = 0; console->drawn_cells != NULL && i < count; ++i)
+				st_console_drawn_at(console, i)->flags |= ST_CONSOLE_RASTER_INVALID;
 		}
 	}
 	result = st_console_finish_change_locked(console);
@@ -422,20 +393,18 @@ st_console_get_video_flags(st_console_t *console, uint32_t *flags)
 }
 
 int
-st_console_set_scaling_mode(st_console_t *console,
-	enum st_console_scaling_mode mode)
+st_console_set_scaling_mode(st_console_t *console, enum st_console_scaling_mode mode)
 {
 	int result;
 
-	if (console == NULL || mode < ST_CONSOLE_SCALING_INTERNAL
-	    || mode > ST_CONSOLE_SCALING_EXTERNAL)
+	if (console == NULL || mode < ST_CONSOLE_SCALING_INTERNAL || mode > ST_CONSOLE_SCALING_EXTERNAL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	result = st_rwlock_write_lock(st_console_state_lock(console));
 	if (result != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
 	if (console->scaling_mode != mode) {
 		console->scaling_mode = mode;
-		console->changed = true;
+		console->changed      = true;
 	}
 	result = st_console_finish_change_locked(console);
 	(void)st_rwlock_unlock(st_console_state_lock(console));
@@ -443,8 +412,7 @@ st_console_set_scaling_mode(st_console_t *console,
 }
 
 int
-st_console_get_scaling_mode(st_console_t *console,
-	enum st_console_scaling_mode *mode)
+st_console_get_scaling_mode(st_console_t *console, enum st_console_scaling_mode *mode)
 {
 	int result;
 
@@ -500,7 +468,7 @@ st_console_set_blocky_scaling(st_console_t *console, bool blocky)
 		return IO_ERROR_IO;
 	if (console->blocky_scaling != blocky) {
 		console->blocky_scaling = blocky;
-		console->changed = true;
+		console->changed        = true;
 	}
 	result = st_console_finish_change_locked(console);
 	(void)st_rwlock_unlock(st_console_state_lock(console));
@@ -523,14 +491,13 @@ st_console_get_blocky_scaling(st_console_t *console, bool *blocky)
 }
 
 int
-st_console_set_aspect_ratio(st_console_t *console, uint32_t width,
-	uint32_t height)
+st_console_set_aspect_ratio(st_console_t *console, uint32_t width, uint32_t height)
 {
 	uint32_t old_width;
 	uint32_t old_height;
 	uint32_t checked_width;
 	uint32_t checked_height;
-	int result;
+	int      result;
 
 	if (console == NULL || ((width == 0) != (height == 0)))
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -538,31 +505,30 @@ st_console_set_aspect_ratio(st_console_t *console, uint32_t width,
 	if (result != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
 	if (console->pixels != NULL
-	    && st_console_aspect_correct_size(console->pixels->width,
-	    console->pixels->height, width, height, &checked_width,
-	    &checked_height) != 0) {
+	    && st_console_aspect_correct_size(console->pixels->width, console->pixels->height, width, height,
+		   &checked_width, &checked_height)
+	           != 0) {
 		(void)st_rwlock_unlock(st_console_state_lock(console));
 		return IO_ERROR_OUT_OF_RANGE;
 	}
 	if (console->aspect_width != width || console->aspect_height != height) {
-		old_width = console->aspect_width;
-		old_height = console->aspect_height;
-		console->aspect_width = width;
+		old_width              = console->aspect_width;
+		old_height             = console->aspect_height;
+		console->aspect_width  = width;
 		console->aspect_height = height;
-		result = 0;
-		if (console->pixels != NULL
-		    && st_console_display_active_console(console) == console
-		    && console->display->backend_ops != NULL
-		    && console->display->backend_ops->resize != NULL) {
+		result                 = 0;
+		if (console->pixels != NULL && st_console_display_active_console(console) == console
+		    && console->display->backend_ops != NULL && console->display->backend_ops->resize != NULL) {
 			(void)st_mutex_lock(&console->display->backend_mutex);
 			if (st_console_display_active_console(console) == console)
-				result = console->display->backend_failed ? IO_ERROR_IO
-				    : console->display->backend_ops->resize(console,
-				    console->columns, console->rows);
+				result = console->display->backend_failed
+				             ? IO_ERROR_IO
+				             : console->display->backend_ops->resize(console, console->columns,
+						   console->rows);
 			(void)st_mutex_unlock(&console->display->backend_mutex);
 		}
 		if (result != 0) {
-			console->aspect_width = old_width;
+			console->aspect_width  = old_width;
 			console->aspect_height = old_height;
 		}
 		else
@@ -577,8 +543,7 @@ st_console_set_aspect_ratio(st_console_t *console, uint32_t width,
 }
 
 int
-st_console_get_aspect_ratio(st_console_t *console, uint32_t *width,
-	uint32_t *height)
+st_console_get_aspect_ratio(st_console_t *console, uint32_t *width, uint32_t *height)
 {
 	int result;
 
@@ -587,7 +552,7 @@ st_console_get_aspect_ratio(st_console_t *console, uint32_t *width,
 	result = st_rwlock_read_lock(st_console_state_lock(console));
 	if (result != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
-	*width = console->aspect_width;
+	*width  = console->aspect_width;
 	*height = console->aspect_height;
 	(void)st_rwlock_unlock(st_console_state_lock(console));
 	return 0;
@@ -610,8 +575,7 @@ st_console_get_position(st_console_t *console, uint32_t *x, uint32_t *y)
 }
 
 int
-st_console_set_window(st_console_t *console,
-	const struct st_console_rect *window)
+st_console_set_window(st_console_t *console, const struct st_console_rect *window)
 {
 	int result;
 
@@ -623,11 +587,11 @@ st_console_set_window(st_console_t *console,
 	if (!st_console_rect_valid(console, window))
 		result = IO_ERROR_OUT_OF_RANGE;
 	else {
-		console->window = *window;
+		console->window   = *window;
 		console->cursor_x = window->x;
 		console->cursor_y = window->y;
-		console->changed = true;
-		result = st_console_finish_change_locked(console);
+		console->changed  = true;
+		result            = st_console_finish_change_locked(console);
 	}
 	(void)st_rwlock_unlock(st_console_state_lock(console));
 	return result;
@@ -667,11 +631,10 @@ static void
 fill_line_locked(st_console_t *console, uint32_t y, uint32_t codepoint)
 {
 	struct st_console_cell blank = st_console_blank_locked(console, codepoint);
-	uint32_t x;
+	uint32_t               x;
 
 	for (x = 0; x < console->window.width; ++x) {
-		size_t index = (size_t)y * console->columns
-		    + console->window.x + x;
+		size_t index = (size_t)y * console->columns + console->window.x + x;
 
 		st_console_set_cell_locked(console, index, &blank);
 		/* The pixel ring can expose graphics even when this cell's
@@ -682,8 +645,8 @@ fill_line_locked(st_console_t *console, uint32_t y, uint32_t codepoint)
 }
 
 static void
-clear_full_surface_scroll_strip_locked(st_console_t *console,
-	uint32_t first_row, uint32_t row_count, uint32_t background)
+clear_full_surface_scroll_strip_locked(st_console_t *console, uint32_t first_row, uint32_t row_count,
+    uint32_t background)
 {
 	uint32_t text_width;
 	uint32_t strip_width;
@@ -694,27 +657,25 @@ clear_full_surface_scroll_strip_locked(st_console_t *console,
 	if (text_width >= console->pixels->width)
 		return;
 	strip_width = console->pixels->width - text_width;
-	for (uint32_t y = first_row * console->cell_height;
-	    y < (first_row + row_count) * console->cell_height; ++y) {
-		size_t position = st_console_pixel_position_locked(console,
-		    text_width, y);
+	for (uint32_t y = first_row * console->cell_height; y < (first_row + row_count) * console->cell_height;
+	    ++y) {
+		size_t position = st_console_pixel_position_locked(console, text_width, y);
 
 		for (uint32_t x = 0; x < strip_width; ++x) {
-			console->pixels->primary[position + x] = background;
+			console->pixels->primary[position + x]   = background;
 			console->pixels->alternate[position + x] = background;
 		}
 	}
 	console->pixel_surface_dirty = true;
-	console->changed = true;
+	console->changed             = true;
 }
 
 static void
-clear_window_boundary_pairs_locked(st_console_t *console, uint32_t top,
-	uint32_t height)
+clear_window_boundary_pairs_locked(st_console_t *console, uint32_t top, uint32_t height)
 {
 	struct st_console_cell blank;
-	uint32_t left = console->window.x;
-	uint32_t right = left + console->window.width;
+	uint32_t               left  = console->window.x;
+	uint32_t               right = left + console->window.width;
 
 	if ((left == 0 && right == console->columns) || height == 0)
 		return;
@@ -722,43 +683,39 @@ clear_window_boundary_pairs_locked(st_console_t *console, uint32_t top,
 	for (uint32_t y = top; y < top + height; ++y) {
 		size_t row = (size_t)y * console->columns;
 
-		if (left != 0 && (st_console_cell_at(console, row + left)->flags
-		    & ST_CONSOLE_CELL_CONTINUATION) != 0)
+		if (left != 0
+		    && (st_console_cell_at(console, row + left)->flags & ST_CONSOLE_CELL_CONTINUATION) != 0)
 			st_console_set_cell_locked(console, row + left, &blank);
-		if (right != console->columns && (st_console_cell_at(console, row + right)->flags
-		    & ST_CONSOLE_CELL_CONTINUATION) != 0)
+		if (right != console->columns
+		    && (st_console_cell_at(console, row + right)->flags & ST_CONSOLE_CELL_CONTINUATION) != 0)
 			st_console_set_cell_locked(console, row + right - 1, &blank);
 	}
 }
 
 static void
-move_row_block_locked(st_console_t *console, uint32_t source_y,
-	uint32_t destination_y, uint32_t height)
+move_row_block_locked(st_console_t *console, uint32_t source_y, uint32_t destination_y, uint32_t height)
 {
 	struct st_console_rect source = {
-		.x = console->window.x,
-		.y = source_y,
-		.width = console->window.width,
-		.height = height,
+	    .x      = console->window.x,
+	    .y      = source_y,
+	    .width  = console->window.width,
+	    .height = height,
 	};
-	bool backwards = destination_y > source_y;
-	size_t bytes = (size_t)source.width * sizeof(console->cells[0]);
+	bool     backwards = destination_y > source_y;
+	size_t   bytes     = (size_t)source.width * sizeof(console->cells[0]);
 	uint32_t first;
 	uint32_t last;
 
 	if (height == 0 || source_y == destination_y)
 		return;
 	first = source_y < destination_y ? source_y : destination_y;
-	last = source_y > destination_y ? source_y : destination_y;
-	clear_window_boundary_pairs_locked(console, first,
-	    last - first + height);
+	last  = source_y > destination_y ? source_y : destination_y;
+	clear_window_boundary_pairs_locked(console, first, last - first + height);
 	st_console_move_raster_locked(console, &source, source.x, destination_y);
 	for (uint32_t row_index = 0; row_index < height; ++row_index) {
-		uint32_t row = backwards ? height - row_index - 1 : row_index;
-		size_t from = (size_t)(source_y + row) * console->columns
-		    + source.x;
-		size_t to = (size_t)(destination_y + row) * console->columns
-		    + source.x;
+		uint32_t row  = backwards ? height - row_index - 1 : row_index;
+		size_t   from = (size_t)(source_y + row) * console->columns + source.x;
+		size_t   to   = (size_t)(destination_y + row) * console->columns + source.x;
 
 		memmove(st_console_cell_at(console, to), st_console_cell_at(console, from), bytes);
 		for (uint32_t x = 0; x < source.width; ++x)
@@ -767,16 +724,15 @@ move_row_block_locked(st_console_t *console, uint32_t source_y,
 	console->changed = true;
 }
 
-static bool move_full_width_rows_locked(st_console_t *console,
-	const struct st_console_rect *source, uint32_t destination_x,
-	uint32_t destination_y, const struct st_console_cell *fill);
+static bool move_full_width_rows_locked(st_console_t *console, const struct st_console_rect *source,
+    uint32_t destination_x, uint32_t destination_y, const struct st_console_cell *fill);
 
 static void
 scroll_locked(st_console_t *console, int32_t lines, uint32_t codepoint)
 {
 	uint32_t amount;
 	uint32_t row;
-	uint32_t top = console->window.y;
+	uint32_t top    = console->window.y;
 	uint32_t bottom = top + console->window.height;
 
 	if (lines == 0)
@@ -791,36 +747,29 @@ scroll_locked(st_console_t *console, int32_t lines, uint32_t codepoint)
 		return;
 	}
 	if (console->window.x == 0 && console->window.width == console->columns) {
-		const struct st_console_rect source = {0,
-		    lines > 0 ? top + amount : top, console->columns,
+		const struct st_console_rect source = {0, lines > 0 ? top + amount : top, console->columns,
 		    console->window.height - amount};
-		struct st_console_cell blank = st_console_blank_locked(console, codepoint);
+		struct st_console_cell       blank  = st_console_blank_locked(console, codepoint);
 
-		if (move_full_width_rows_locked(console, &source, 0,
-		    lines > 0 ? top : top + amount, &blank))
+		if (move_full_width_rows_locked(console, &source, 0, lines > 0 ? top : top + amount, &blank))
 			return;
 	}
 	if (lines > 0) {
-		move_row_block_locked(console, top + amount, top,
-		    console->window.height - amount);
+		move_row_block_locked(console, top + amount, top, console->window.height - amount);
 		row = bottom - amount;
 		for (; row < bottom; ++row)
 			fill_line_locked(console, row, codepoint);
 	}
 	else {
-		move_row_block_locked(console, top, top + amount,
-		    console->window.height - amount);
+		move_row_block_locked(console, top, top + amount, console->window.height - amount);
 		for (row = top; row < top + amount; ++row)
 			fill_line_locked(console, row, codepoint);
 	}
-	if (top == 0 && bottom == console->rows
-	    && console->window.x == 0
+	if (top == 0 && bottom == console->rows && console->window.x == 0
 	    && console->window.width == console->columns) {
-		struct st_console_cell blank = st_console_blank_locked(console,
-		    codepoint);
+		struct st_console_cell blank = st_console_blank_locked(console, codepoint);
 
-		clear_full_surface_scroll_strip_locked(console,
-		    lines > 0 ? bottom - amount : top, amount,
+		clear_full_surface_scroll_strip_locked(console, lines > 0 ? bottom - amount : top, amount,
 		    blank.background);
 	}
 }
@@ -840,41 +789,40 @@ static void
 put_codepoint_locked(st_console_t *console, uint32_t codepoint)
 {
 	struct st_console_cell cell;
-	uint8_t columns;
-	uint32_t right = console->window.x + console->window.width;
+	uint8_t                columns;
+	uint32_t               right = console->window.x + console->window.width;
 
 	switch (codepoint) {
-	case '\r':
-		console->cursor_x = console->window.x;
-		return;
-	case '\n':
-		line_feed_locked(console);
-		return;
-	case '\b':
-		if (console->cursor_x > console->window.x) {
-			struct st_console_cell blank;
+		case '\r':
+			console->cursor_x = console->window.x;
+			return;
+		case '\n':
+			line_feed_locked(console);
+			return;
+		case '\b':
+			if (console->cursor_x > console->window.x) {
+				struct st_console_cell blank;
 
-			--console->cursor_x;
-			blank = st_console_blank_locked(console, ' ');
-			st_console_set_cell_locked(console,
-			    (size_t)console->cursor_y * console->columns
-			    + console->cursor_x, &blank);
+				--console->cursor_x;
+				blank = st_console_blank_locked(console, ' ');
+				st_console_set_cell_locked(console,
+				    (size_t)console->cursor_y * console->columns + console->cursor_x, &blank);
+			}
+			return;
+		case '\t':
+		{
+			uint32_t relative = console->cursor_x - console->window.x;
+			uint32_t spaces   = 8 - (relative % 8);
+
+			while (spaces-- != 0)
+				put_codepoint_locked(console, ' ');
+			return;
 		}
-		return;
-	case '\t': {
-		uint32_t relative = console->cursor_x - console->window.x;
-		uint32_t spaces = 8 - (relative % 8);
-
-		while (spaces-- != 0)
-			put_codepoint_locked(console, ' ');
-		return;
-	}
-	default:
-		break;
+		default:
+			break;
 	}
 	if (st_unicode_columns(codepoint) == 0
-	    && !(st_unicode_nonspacing_mark(codepoint)
-	    && !st_unicode_default_ignorable(codepoint)))
+	    && !(st_unicode_nonspacing_mark(codepoint) && !st_unicode_default_ignorable(codepoint)))
 		return;
 	cell = style_cell_locked(console, codepoint, &columns);
 	if (columns == 2 && console->cursor_x + 1 >= right) {
@@ -887,8 +835,7 @@ put_codepoint_locked(st_console_t *console, uint32_t codepoint)
 	}
 	if (columns > right - console->cursor_x)
 		return;
-	st_console_set_cell_locked(console,
-	    (size_t)console->cursor_y * console->columns + console->cursor_x,
+	st_console_set_cell_locked(console, (size_t)console->cursor_y * console->columns + console->cursor_x,
 	    &cell);
 	if (columns < right - console->cursor_x)
 		console->cursor_x += columns;
@@ -901,18 +848,16 @@ put_codepoint_locked(st_console_t *console, uint32_t codepoint)
 }
 
 static void
-put_cluster_locked(st_console_t *console, const char *text, size_t text_size,
-	uint8_t columns)
+put_cluster_locked(st_console_t *console, const char *text, size_t text_size, uint8_t columns)
 {
 	struct st_console_cell cell;
-	uint32_t right = console->window.x + console->window.width;
+	uint32_t               right = console->window.x + console->window.width;
 
 	if (columns == 0)
 		return;
 	cell = style_cluster_locked(console, text, text_size, columns);
 	{
-		const struct st_console_font *font = st_console_font_locked(console,
-		    cell.glyph_font);
+		const struct st_console_font *font = st_console_font_locked(console, cell.glyph_font);
 		if (font != NULL)
 			columns = cell.glyph < font->glyph_count ? 1 : 2;
 	}
@@ -926,8 +871,7 @@ put_cluster_locked(st_console_t *console, const char *text, size_t text_size,
 	}
 	if (columns > right - console->cursor_x)
 		return;
-	st_console_set_cell_locked(console,
-	    (size_t)console->cursor_y * console->columns + console->cursor_x,
+	st_console_set_cell_locked(console, (size_t)console->cursor_y * console->columns + console->cursor_x,
 	    &cell);
 	if (columns < right - console->cursor_x)
 		console->cursor_x += columns;
@@ -951,7 +895,7 @@ st_console_put_codepoint(st_console_t *console, uint32_t codepoint)
 		return IO_ERROR_IO;
 	put_codepoint_locked(console, codepoint);
 	console->changed = true;
-	result = st_console_finish_change_locked(console);
+	result           = st_console_finish_change_locked(console);
 	(void)st_rwlock_unlock(st_console_state_lock(console));
 	return result;
 }
@@ -960,9 +904,9 @@ int
 st_console_put_decode_error(st_console_t *console)
 {
 	const struct st_console_font *font;
-	struct st_console_cell cell;
-	uint32_t right;
-	int result;
+	struct st_console_cell        cell;
+	uint32_t                      right;
+	int                           result;
 
 	if (console == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -974,18 +918,17 @@ st_console_put_decode_error(st_console_t *console)
 		(void)st_rwlock_unlock(st_console_state_lock(console));
 		return IO_ERROR_NOT_FOUND;
 	}
-	cell = (struct st_console_cell){
-		.glyph = font->decode_error_glyph,
-		.foreground = console->style.foreground,
-		.background = console->style.background,
-		.flags = console->style.flags & ST_CONSOLE_CELL_PUBLIC_FLAGS,
-		.font = console->style.font,
-		.glyph_font = 0,
-		.hyperlink = console->style.hyperlink,
+	cell = (struct st_console_cell) {
+	    .glyph      = font->decode_error_glyph,
+	    .foreground = console->style.foreground,
+	    .background = console->style.background,
+	    .flags      = console->style.flags & ST_CONSOLE_CELL_PUBLIC_FLAGS,
+	    .font       = console->style.font,
+	    .glyph_font = 0,
+	    .hyperlink  = console->style.hyperlink,
 	};
 	right = console->window.x + console->window.width;
-	st_console_set_cell_locked(console,
-	    (size_t)console->cursor_y * console->columns + console->cursor_x,
+	st_console_set_cell_locked(console, (size_t)console->cursor_y * console->columns + console->cursor_x,
 	    &cell);
 	if (console->cursor_x + 1 < right)
 		++console->cursor_x;
@@ -994,7 +937,7 @@ st_console_put_decode_error(st_console_t *console)
 		line_feed_locked(console);
 	}
 	console->changed = true;
-	result = st_console_finish_change_locked(console);
+	result           = st_console_finish_change_locked(console);
 	(void)st_rwlock_unlock(st_console_state_lock(console));
 	return result;
 }
@@ -1002,10 +945,10 @@ st_console_put_decode_error(st_console_t *console)
 int
 st_console_write_utf8(st_console_t *console, const char *text, size_t length)
 {
-	st_unicode_text_t *unicode = NULL;
+	st_unicode_text_t          *unicode = NULL;
 	struct st_unicode_text_item item;
-	size_t consumed = 0;
-	int result;
+	size_t                      consumed = 0;
+	int                         result;
 
 	if (console == NULL || (text == NULL && length != 0))
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -1016,8 +959,7 @@ st_console_write_utf8(st_console_t *console, const char *text, size_t length)
 		result = IO_ERROR_INVALID_ENCODING;
 	if (result == 0)
 		result = st_unicode_text_finish(unicode);
-	if (result == 0 && (st_unicode_text_state(unicode)
-	    & ST_UNICODE_TEXT_SAW_DECODE_ERROR) != 0)
+	if (result == 0 && (st_unicode_text_state(unicode) & ST_UNICODE_TEXT_SAW_DECODE_ERROR) != 0)
 		result = IO_ERROR_INVALID_ENCODING;
 	if (result != 0) {
 		st_unicode_text_destroy(&unicode);
@@ -1037,12 +979,11 @@ st_console_write_utf8(st_console_t *console, const char *text, size_t length)
 			put_codepoint_locked(console, '\r');
 			put_codepoint_locked(console, '\n');
 		}
-		else if (st_utf8_decode_one(&codepoint, &consumed, item.bytes,
-		    item.size) == 0 && consumed == item.size)
+		else if (st_utf8_decode_one(&codepoint, &consumed, item.bytes, item.size) == 0
+		         && consumed == item.size)
 			put_codepoint_locked(console, codepoint);
 		else
-			put_cluster_locked(console, (const char *)item.bytes,
-			    item.size, item.columns);
+			put_cluster_locked(console, (const char *)item.bytes, item.size, item.columns);
 		(void)st_unicode_text_consume(unicode);
 	}
 	if (length != 0)
@@ -1057,7 +998,7 @@ int
 st_console_clear_window(st_console_t *console, uint32_t codepoint)
 {
 	uint32_t y;
-	int result;
+	int      result;
 
 	if (console == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -1068,15 +1009,13 @@ st_console_clear_window(st_console_t *console, uint32_t codepoint)
 		(void)st_rwlock_unlock(st_console_state_lock(console));
 		return IO_ERROR_INVALID_ARGUMENT;
 	}
-	for (y = console->window.y;
-	    y < console->window.y + console->window.height; ++y)
+	for (y = console->window.y; y < console->window.y + console->window.height; ++y)
 		fill_line_locked(console, y, codepoint);
-	if (console->cursor_x != console->window.x
-	    || console->cursor_y != console->window.y)
+	if (console->cursor_x != console->window.x || console->cursor_y != console->window.y)
 		console->changed = true;
 	console->cursor_x = console->window.x;
 	console->cursor_y = console->window.y;
-	result = st_console_finish_change_locked(console);
+	result            = st_console_finish_change_locked(console);
 	(void)st_rwlock_unlock(st_console_state_lock(console));
 	return result;
 }
@@ -1085,8 +1024,8 @@ int
 st_console_clear_line(st_console_t *console, uint32_t codepoint)
 {
 	struct st_console_cell blank;
-	uint32_t right;
-	int result;
+	uint32_t               right;
+	int                    result;
 
 	if (console == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -1100,43 +1039,37 @@ st_console_clear_line(st_console_t *console, uint32_t codepoint)
 	blank = st_console_blank_locked(console, codepoint);
 	right = console->window.x + console->window.width;
 	for (uint32_t x = console->cursor_x; x < right; ++x)
-		st_console_set_cell_locked(console,
-		    (size_t)console->cursor_y * console->columns + x, &blank);
+		st_console_set_cell_locked(console, (size_t)console->cursor_y * console->columns + x, &blank);
 	result = st_console_finish_change_locked(console);
 	(void)st_rwlock_unlock(st_console_state_lock(console));
 	return result;
 }
 
 static bool
-destination_valid(const st_console_t *console,
-	const struct st_console_rect *source, uint32_t x, uint32_t y)
+destination_valid(const st_console_t *console, const struct st_console_rect *source, uint32_t x, uint32_t y)
 {
-	return st_console_rect_valid(console, source) && x < console->columns
-	    && y < console->rows && source->width <= console->columns - x
-	    && source->height <= console->rows - y;
+	return st_console_rect_valid(console, source) && x < console->columns && y < console->rows
+	       && source->width <= console->columns - x && source->height <= console->rows - y;
 }
 
 static bool
-inside(uint32_t x, uint32_t y, uint32_t left, uint32_t top,
-	uint32_t width, uint32_t height)
+inside(uint32_t x, uint32_t y, uint32_t left, uint32_t top, uint32_t width, uint32_t height)
 {
 	return x >= left && y >= top && x - left < width && y - top < height;
 }
 
 static bool
-text_cell_wide_locked(st_console_t *console,
-	const struct st_console_cell *cell)
+text_cell_wide_locked(st_console_t *console, const struct st_console_cell *cell)
 {
-	uint16_t glyph_font = st_console_cell_glyph_font(cell);
-	const struct st_console_font *font = st_console_font_locked(console,
-	    glyph_font);
+	uint16_t                      glyph_font = st_console_cell_glyph_font(cell);
+	const struct st_console_font *font       = st_console_font_locked(console, glyph_font);
 	return font != NULL && cell->glyph >= font->glyph_count
-	    && cell->glyph - font->glyph_count < font->wide_glyph_count;
+	       && cell->glyph - font->glyph_count < font->wide_glyph_count;
 }
 
 static void
-normalize_saved_boundaries_locked(st_console_t *console,
-	struct st_console_cell *cells, uint32_t width, uint32_t height)
+normalize_saved_boundaries_locked(st_console_t *console, struct st_console_cell *cells, uint32_t width,
+    uint32_t height)
 {
 	struct st_console_cell blank = st_console_blank_locked(console, ' ');
 
@@ -1160,24 +1093,25 @@ copy_row_storage_locked(st_console_t *console, uint32_t from, uint32_t to)
 	    st_console_cell_at(console, (size_t)from * console->columns), bytes);
 	if (console->drawn_cells != NULL) {
 		if (console->view_text_batch != NULL)
-			memmove(console->view_text_batch + (size_t)st_console_row_index(console, to) * console->columns,
-			    console->view_text_batch + (size_t)st_console_row_index(console, from) * console->columns,
+			memmove(console->view_text_batch
+			            + (size_t)st_console_row_index(console, to) * console->columns,
+			    console->view_text_batch
+			        + (size_t)st_console_row_index(console, from) * console->columns,
 			    console->columns * sizeof(*console->view_text_batch));
 		memmove(st_console_drawn_at(console, (size_t)to * console->columns),
 		    st_console_drawn_at(console, (size_t)from * console->columns), bytes);
-		console->raster_rows[st_console_row_index(console, to)]
-		    = console->raster_rows[st_console_row_index(console, from)];
+		console->raster_rows[st_console_row_index(console, to)] =
+		    console->raster_rows[st_console_row_index(console, from)];
 	}
 }
 
 static bool
-rotate_rows_locked(st_console_t *console, const struct st_console_rect *source,
-	uint32_t destination_y)
+rotate_rows_locked(st_console_t *console, const struct st_console_rect *source, uint32_t destination_y)
 {
-	bool up = destination_y < source->y;
+	bool     up    = destination_y < source->y;
 	uint32_t shift = up ? source->y - destination_y : destination_y - source->y;
 	uint32_t first = up ? destination_y : source->y;
-	uint32_t end = (up ? source->y : destination_y) + source->height;
+	uint32_t end   = (up ? source->y : destination_y) + source->height;
 
 	if (shift > source->height || source->height < console->rows / 2)
 		return false;
@@ -1192,43 +1126,37 @@ rotate_rows_locked(st_console_t *console, const struct st_console_rect *source,
 		for (uint32_t y = console->rows; y-- > end;)
 			copy_row_storage_locked(console, y, (y + shift) % console->rows);
 		console->cell_top = (console->cell_top + shift) % console->rows;
-	} else {
+	}
+	else {
 		for (uint32_t y = end; y < console->rows; ++y)
-			copy_row_storage_locked(console, y,
-			    (y + console->rows - shift) % console->rows);
+			copy_row_storage_locked(console, y, (y + console->rows - shift) % console->rows);
 		for (uint32_t y = 0; y < first; ++y)
-			copy_row_storage_locked(console, y,
-			    (y + console->rows - shift) % console->rows);
-		console->cell_top = (console->cell_top + console->rows - shift)
-		    % console->rows;
+			copy_row_storage_locked(console, y, (y + console->rows - shift) % console->rows);
+		console->cell_top = (console->cell_top + console->rows - shift) % console->rows;
 	}
 	return true;
 }
 
 static bool
-move_full_width_rows_locked(st_console_t *console,
-	const struct st_console_rect *source, uint32_t destination_x,
-	uint32_t destination_y, const struct st_console_cell *fill)
+move_full_width_rows_locked(st_console_t *console, const struct st_console_rect *source, uint32_t destination_x,
+    uint32_t destination_y, const struct st_console_cell *fill)
 {
 	uint32_t exposed;
 	uint32_t fill_y;
 
-	if (source->x != 0 || destination_x != 0
-	    || source->width != console->columns)
+	if (source->x != 0 || destination_x != 0 || source->width != console->columns)
 		return false;
 	if (source->y == destination_y)
 		return true;
 	if (fill == NULL || !rotate_rows_locked(console, source, destination_y)) {
-		bool backwards = destination_y > source->y;
-		size_t bytes = (size_t)console->columns * sizeof(console->cells[0]);
+		bool   backwards = destination_y > source->y;
+		size_t bytes     = (size_t)console->columns * sizeof(console->cells[0]);
 
 		st_console_move_raster_locked(console, source, destination_x, destination_y);
 		for (uint32_t i = 0; i < source->height; ++i) {
 			uint32_t row = backwards ? source->height - i - 1 : i;
-			memmove(st_console_cell_at(console,
-			    (size_t)(destination_y + row) * console->columns),
-			    st_console_cell_at(console,
-			    (size_t)(source->y + row) * console->columns), bytes);
+			memmove(st_console_cell_at(console, (size_t)(destination_y + row) * console->columns),
+			    st_console_cell_at(console, (size_t)(source->y + row) * console->columns), bytes);
 		}
 	}
 	st_console_dirty_rows(console, destination_y, destination_y + source->height);
@@ -1252,27 +1180,22 @@ move_full_width_rows_locked(st_console_t *console,
 
 			st_console_set_cell_locked(console, index, fill);
 			if (console->drawn_cells != NULL)
-				st_console_drawn_at(console, index)->flags
-				    |= ST_CONSOLE_RASTER_INVALID;
+				st_console_drawn_at(console, index)->flags |= ST_CONSOLE_RASTER_INVALID;
 		}
 	}
-	if ((destination_y == 0 && source->y > 0
-	    && source->height == console->rows - source->y)
-	    || (source->y == 0 && destination_y > 0
-	    && source->height == console->rows - destination_y))
-		clear_full_surface_scroll_strip_locked(console, fill_y,
-		    exposed, fill->background);
+	if ((destination_y == 0 && source->y > 0 && source->height == console->rows - source->y)
+	    || (source->y == 0 && destination_y > 0 && source->height == console->rows - destination_y))
+		clear_full_surface_scroll_strip_locked(console, fill_y, exposed, fill->background);
 	return true;
 }
 
 static int
-move_cells(st_console_t *console, const struct st_console_rect *source,
-	uint32_t destination_x, uint32_t destination_y,
-	const struct st_console_cell *fill)
+move_cells(st_console_t *console, const struct st_console_rect *source, uint32_t destination_x,
+    uint32_t destination_y, const struct st_console_cell *fill)
 {
 	struct st_console_cell *saved;
-	size_t count;
-	int result;
+	size_t                  count;
+	int                     result;
 
 	if (console == NULL || source == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -1287,14 +1210,12 @@ move_cells(st_console_t *console, const struct st_console_rect *source,
 		struct st_console_cell value = *fill;
 
 		value.flags &= ST_CONSOLE_CELL_PUBLIC_FLAGS;
-		if ((value.flags & ST_CONSOLE_CELL_CONTINUATION) != 0
-		    || text_cell_wide_locked(console, &value)) {
+		if ((value.flags & ST_CONSOLE_CELL_CONTINUATION) != 0 || text_cell_wide_locked(console, &value)) {
 			(void)st_rwlock_unlock(st_console_state_lock(console));
 			return IO_ERROR_INVALID_ARGUMENT;
 		}
 	}
-	if (move_full_width_rows_locked(console, source, destination_x,
-	    destination_y, fill)) {
+	if (move_full_width_rows_locked(console, source, destination_x, destination_y, fill)) {
 		result = st_console_finish_change_locked(console);
 		(void)st_rwlock_unlock(st_console_state_lock(console));
 		return result;
@@ -1307,21 +1228,18 @@ move_cells(st_console_t *console, const struct st_console_rect *source,
 	}
 	for (uint32_t y = 0; y < source->height; ++y)
 		memcpy(&saved[(size_t)y * source->width],
-		    st_console_cell_at(console, (size_t)(source->y + y) * console->columns
-		    + source->x), (size_t)source->width * sizeof(saved[0]));
-	normalize_saved_boundaries_locked(console, saved, source->width,
-	    source->height);
+		    st_console_cell_at(console, (size_t)(source->y + y) * console->columns + source->x),
+		    (size_t)source->width * sizeof(saved[0]));
+	normalize_saved_boundaries_locked(console, saved, source->width, source->height);
 	/* Keep the resolved raster in step with the cells.  The destination
 	 * writes below still validate wide-cell boundaries and mark damage, but
 	 * cells which survived the move then compare equal to drawn_cells and do
 	 * not need to be rendered again. */
-	st_console_move_raster_locked(console, source, destination_x,
-	    destination_y);
+	st_console_move_raster_locked(console, source, destination_x, destination_y);
 	for (uint32_t y = 0; y < source->height; ++y) {
 		for (uint32_t x = 0; x < source->width; ++x) {
 			st_console_store_cell_locked(console,
-			    (size_t)(destination_y + y) * console->columns
-			    + destination_x + x,
+			    (size_t)(destination_y + y) * console->columns + destination_x + x,
 			    &saved[(size_t)y * source->width + x]);
 		}
 	}
@@ -1331,15 +1249,14 @@ move_cells(st_console_t *console, const struct st_console_rect *source,
 				uint32_t screen_x = source->x + x;
 				uint32_t screen_y = source->y + y;
 
-				if (!inside(screen_x, screen_y, destination_x,
-				    destination_y, source->width, source->height)) {
-					size_t index = (size_t)screen_y
-					    * console->columns + screen_x;
+				if (!inside(screen_x, screen_y, destination_x, destination_y, source->width,
+					source->height)) {
+					size_t index = (size_t)screen_y * console->columns + screen_x;
 
 					st_console_set_cell_locked(console, index, fill);
 					if (console->drawn_cells != NULL)
-						st_console_drawn_at(console, index)->flags
-						    |= ST_CONSOLE_RASTER_INVALID;
+						st_console_drawn_at(console, index)->flags |=
+						    ST_CONSOLE_RASTER_INVALID;
 				}
 			}
 		}
@@ -1351,17 +1268,15 @@ move_cells(st_console_t *console, const struct st_console_rect *source,
 }
 
 int
-st_console_move_cells(st_console_t *console,
-	const struct st_console_rect *source, uint32_t destination_x,
-	uint32_t destination_y)
+st_console_move_cells(st_console_t *console, const struct st_console_rect *source, uint32_t destination_x,
+    uint32_t destination_y)
 {
 	return move_cells(console, source, destination_x, destination_y, NULL);
 }
 
 int
-st_console_move_cells_clear(st_console_t *console,
-	const struct st_console_rect *source, uint32_t destination_x,
-	uint32_t destination_y, const struct st_console_cell *fill)
+st_console_move_cells_clear(st_console_t *console, const struct st_console_rect *source, uint32_t destination_x,
+    uint32_t destination_y, const struct st_console_cell *fill)
 {
 	if (fill == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -1389,25 +1304,21 @@ st_console_scroll(st_console_t *console, int32_t lines, uint32_t codepoint)
 }
 
 static void
-move_lines_locked(st_console_t *console, uint32_t count, bool insert,
-	uint32_t codepoint)
+move_lines_locked(st_console_t *console, uint32_t count, bool insert, uint32_t codepoint)
 {
-	uint32_t bottom = console->window.y + console->window.height;
+	uint32_t bottom    = console->window.y + console->window.height;
 	uint32_t remaining = bottom - console->cursor_y;
 	uint32_t row;
 
 	if (count > remaining)
 		count = remaining;
 	if (insert) {
-		move_row_block_locked(console, console->cursor_y,
-		    console->cursor_y + count, remaining - count);
-		for (row = console->cursor_y;
-		    row < console->cursor_y + count; ++row)
+		move_row_block_locked(console, console->cursor_y, console->cursor_y + count, remaining - count);
+		for (row = console->cursor_y; row < console->cursor_y + count; ++row)
 			fill_line_locked(console, row, codepoint);
 	}
 	else {
-		move_row_block_locked(console, console->cursor_y + count,
-		    console->cursor_y, remaining - count);
+		move_row_block_locked(console, console->cursor_y + count, console->cursor_y, remaining - count);
 		row = bottom - count;
 		for (; row < bottom; ++row)
 			fill_line_locked(console, row, codepoint);
@@ -1415,8 +1326,7 @@ move_lines_locked(st_console_t *console, uint32_t count, bool insert,
 }
 
 static int
-change_lines(st_console_t *console, uint32_t count, uint32_t codepoint,
-	bool insert)
+change_lines(st_console_t *console, uint32_t count, uint32_t codepoint, bool insert)
 {
 	int result;
 
@@ -1436,46 +1346,42 @@ change_lines(st_console_t *console, uint32_t count, uint32_t codepoint,
 }
 
 int
-st_console_insert_lines(st_console_t *console, uint32_t count,
-	uint32_t codepoint)
+st_console_insert_lines(st_console_t *console, uint32_t count, uint32_t codepoint)
 {
 	return change_lines(console, count, codepoint, true);
 }
 
 int
-st_console_delete_lines(st_console_t *console, uint32_t count,
-	uint32_t codepoint)
+st_console_delete_lines(st_console_t *console, uint32_t count, uint32_t codepoint)
 {
 	return change_lines(console, count, codepoint, false);
 }
 
 int
-st_console_set_pixel_cursor(st_console_t *console,
-	const struct st_console_pixel_cursor *cursor)
+st_console_set_pixel_cursor(st_console_t *console, const struct st_console_pixel_cursor *cursor)
 {
-	if (console == NULL || cursor == NULL ||
-		(!ST_CONSOLE_COLOR_IS_RGB(cursor->colour) && cursor->colour > UINT16_MAX))
+	if (console == NULL || cursor == NULL
+	    || (!ST_CONSOLE_COLOR_IS_RGB(cursor->colour) && cursor->colour > UINT16_MAX))
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (st_rwlock_write_lock(st_console_state_lock(console)) != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
 	int status = 0;
 	if (cursor->enabled && console->pixels == NULL)
 		status = IO_ERROR_NOT_SUPPORTED;
-	else if (console->pixel_cursor.enabled != cursor->enabled ||
-		console->pixel_cursor.visible != cursor->visible ||
-		console->pixel_cursor.colour != cursor->colour ||
-		!st_console_rects_equal(&console->pixel_cursor.rectangle, &cursor->rectangle)) {
+	else if (console->pixel_cursor.enabled != cursor->enabled
+	         || console->pixel_cursor.visible != cursor->visible
+	         || console->pixel_cursor.colour != cursor->colour
+	         || !st_console_rects_equal(&console->pixel_cursor.rectangle, &cursor->rectangle)) {
 		console->pixel_cursor = *cursor;
-		console->changed = true;
-		status = st_console_finish_change_locked(console);
+		console->changed      = true;
+		status                = st_console_finish_change_locked(console);
 	}
 	(void)st_rwlock_unlock(st_console_state_lock(console));
 	return status;
 }
 
 int
-st_console_get_pixel_cursor(st_console_t *console,
-	struct st_console_pixel_cursor *cursor)
+st_console_get_pixel_cursor(st_console_t *console, struct st_console_pixel_cursor *cursor)
 {
 	if (console == NULL || cursor == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;

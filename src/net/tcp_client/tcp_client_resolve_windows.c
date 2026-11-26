@@ -3,15 +3,14 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "tcp_client_internal.h"
-
-#include "io_error.h"
-#include "socket_internal.h"
-
+#include <ws2tcpip.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ws2tcpip.h>
+
+#include "io_error.h"
+#include "socket_internal.h"
+#include "tcp_client_internal.h"
 
 static int
 tcp_client_gai_error(int error)
@@ -31,16 +30,15 @@ tcp_client_gai_error(int error)
 }
 
 int
-tcp_client_resolve(struct tcp_client_address_list *result,
-    const char *host, uint16_t port,
+tcp_client_resolve(struct tcp_client_address_list *result, const char *host, uint16_t port,
     enum tcp_client_address_family family)
 {
-	struct addrinfo hints = {0};
+	struct addrinfo  hints     = {0};
 	struct addrinfo *addresses = NULL;
 	struct addrinfo *current;
-	char service[6];
-	size_t count = 0;
-	int error;
+	char             service[6];
+	size_t           count = 0;
+	int              error;
 
 	if (result == NULL || host == NULL || *host == '\0')
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -61,14 +59,14 @@ tcp_client_resolve(struct tcp_client_address_list *result,
 	}
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_protocol = IPPROTO_TCP;
-	hints.ai_flags = AI_NUMERICSERV;
+	hints.ai_flags    = AI_NUMERICSERV;
 	(void)snprintf(service, sizeof(service), "%u", (unsigned)port);
 	error = getaddrinfo(host, service, &hints, &addresses);
 	if (error != 0)
 		return tcp_client_gai_error(error);
 	for (current = addresses; current != NULL; current = current->ai_next) {
-		if ((current->ai_family == AF_INET || current->ai_family == AF_INET6) &&
-		    current->ai_addrlen <= sizeof(result->items[0].storage))
+		if ((current->ai_family == AF_INET || current->ai_family == AF_INET6)
+		    && current->ai_addrlen <= sizeof(result->items[0].storage))
 			count++;
 	}
 	if (count == 0) {
@@ -86,15 +84,14 @@ tcp_client_resolve(struct tcp_client_address_list *result,
 	}
 	count = 0;
 	for (current = addresses; current != NULL; current = current->ai_next) {
-		if ((current->ai_family != AF_INET && current->ai_family != AF_INET6) ||
-		    current->ai_addrlen > sizeof(result->items[count].storage))
+		if ((current->ai_family != AF_INET && current->ai_family != AF_INET6)
+		    || current->ai_addrlen > sizeof(result->items[count].storage))
 			continue;
-		result->items[count].family = current->ai_family == AF_INET ?
-		    TCP_CLIENT_ADDRESS_IPV4 : TCP_CLIENT_ADDRESS_IPV6;
+		result->items[count].family =
+		    current->ai_family == AF_INET ? TCP_CLIENT_ADDRESS_IPV4 : TCP_CLIENT_ADDRESS_IPV6;
 		result->items[count].native_family = current->ai_family;
-		result->items[count].length = current->ai_addrlen;
-		memcpy(result->items[count].storage, current->ai_addr,
-		    current->ai_addrlen);
+		result->items[count].length        = current->ai_addrlen;
+		memcpy(result->items[count].storage, current->ai_addr, current->ai_addrlen);
 		count++;
 	}
 	freeaddrinfo(addresses);

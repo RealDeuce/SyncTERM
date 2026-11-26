@@ -16,15 +16,13 @@ struct st_presentation_font {
 
 /* Owns bitmap banks and mapping descriptors; cluster strings and RGBA pixels
  * remain borrowed from the base. Register a copy before releasing that data. */
-int st_presentation_font_create(struct st_presentation_font *result,
-	const struct st_console_font *base);
+int st_presentation_font_create(struct st_presentation_font *result, const struct st_console_font *base);
 /* Unicode fallbacks use native monochrome artwork where available,
  * adding Noto monochrome only for missing text. Noto supplies colour artwork
  * and emoji-presentation widths; narrow native outlines are centered in
  * two-cell emoji glyphs. Text presentation keeps its native width.
  * Both constructors retain original byte-glyph indexes and add tofu. */
-int st_presentation_font_create_fallback(struct st_presentation_font *result,
-	const struct st_console_font *base);
+int  st_presentation_font_create_fallback(struct st_presentation_font *result, const struct st_console_font *base);
 void st_presentation_font_destroy(struct st_presentation_font *font);
 
 #endif

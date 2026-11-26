@@ -8,10 +8,11 @@
 #ifndef ST_CONSOLE_X11_KEYS_H_
 #define ST_CONSOLE_X11_KEYS_H_
 
-#include "st_console.h"
+#include <stdint.h>
 
 #include <X11/Xlib.h>
-#include <stdint.h>
+
+#include "st_console.h"
 
 uint16_t st_console_x11_evdev_from_keysym(KeySym keysym);
 uint16_t st_console_x11_evdev_from_keyname(const char name[4]);

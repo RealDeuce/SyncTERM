@@ -13,25 +13,24 @@
 int
 main(void)
 {
-	DWORD drives = GetLogicalDrives();
-	bool existing_checked = false;
+	DWORD drives           = GetLogicalDrives();
+	bool  existing_checked = false;
 
 	if (drives == 0)
 		return 1;
 	for (unsigned int index = 0; index < 26; ++index) {
 		if ((drives & ((DWORD)1 << index)) == 0)
 			continue;
-		char root[] = "A:\\";
+		char           root[] = "A:\\";
 		struct fs_info info;
 		root[0] = (char)('A' + index);
-		if (fs_get_info(&info, root) == 0
-		    && info.kind == FS_ENTRY_DIRECTORY) {
+		if (fs_get_info(&info, root) == 0 && info.kind == FS_ENTRY_DIRECTORY) {
 			int status = fs_create_directories(root);
 			if (status != 0) {
-				DWORD attributes = GetFileAttributesA(root);
-				DWORD native_error = attributes == INVALID_FILE_ATTRIBUTES
-				    ? GetLastError() : 0;
-				fprintf(stderr, "rejected existing root %s: status=%d"
+				DWORD attributes   = GetFileAttributesA(root);
+				DWORD native_error = attributes == INVALID_FILE_ATTRIBUTES ? GetLastError() : 0;
+				fprintf(stderr,
+				    "rejected existing root %s: status=%d"
 				    " attributes=%08lx native-error=%lu drives=%08lx\n",
 				    root, status, attributes, native_error, drives);
 				return 1;
@@ -47,7 +46,7 @@ main(void)
 	for (unsigned int index = 0; index < 26; ++index) {
 		if ((drives & ((DWORD)1 << index)) != 0)
 			continue;
-		char root[] = "A:\\";
+		char           root[] = "A:\\";
 		struct fs_info info;
 		root[0] = (char)('A' + index);
 		if (fs_get_info(&info, root) == 0)
@@ -57,10 +56,9 @@ main(void)
 			return 1;
 		}
 		char child[] = "A:\\file";
-		child[0] = root[0];
+		child[0]     = root[0];
 		if (fs_create_parent_directories(child) == 0) {
-			fprintf(stderr, "reported parent success for missing root %s\n",
-			    root);
+			fprintf(stderr, "reported parent success for missing root %s\n", root);
 			return 1;
 		}
 		return 0;

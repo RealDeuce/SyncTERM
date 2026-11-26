@@ -1,43 +1,66 @@
 /* IGS 2.21 I selectors: independent state, raw palette and scene expectations.
  * Reference 16, 28, 117, 120, 123; capture bugs are deliberately corrected. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
-#include "cterm.h"
-#include "cterm_igs.h"
-#include "st_cterm.h"
-#include "io_error.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#define CHECK(x) do { if (!(x)) { \
-	fprintf(stderr, "%s:%d: %s\n", __FILE__, __LINE__, #x); exit(1); \
-} } while (0)
+#include "cterm.h"
+#include "cterm_igs.h"
+#include "io_error.h"
+#include "st_cterm.h"
 
-struct fixture { st_console_t *console; st_font_catalog_t *fonts; st_cterm_t *terminal; };
+#define CHECK(x)                                                                \
+	do {                                                                    \
+		if (!(x)) {                                                     \
+			fprintf(stderr, "%s:%d: %s\n", __FILE__, __LINE__, #x); \
+			exit(1);                                                \
+		}                                                               \
+	} while (0)
+
+struct fixture {
+	st_console_t      *console;
+	st_font_catalog_t *fonts;
+	st_cterm_t        *terminal;
+};
+
 static uint64_t local_ms;
-static int now(uint64_t *value) { *value = local_ms; return 0; }
+
+static int
+now(uint64_t *value)
+{
+	*value = local_ms;
+	return 0;
+}
 
 static void
 create(struct fixture *f, unsigned resolution, bool status)
 {
 	memset(f, 0, sizeof(*f));
-	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
-	const struct st_console_config geometry = {
-		.columns = resolution == 0 ? 40 : 80, .rows = 25, .cell_width = 8,
-		.cell_height = resolution == 2 ? 16 : 8,
+	const struct st_console_display_config display  = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_config         geometry = {
+	    .columns     = resolution == 0 ? 40 : 80,
+	    .rows        = 25,
+	    .cell_width  = 8,
+	    .cell_height = resolution == 2 ? 16 : 8,
 	};
 	CHECK(st_console_create(&f->console, &display, &geometry) == 0);
 	CHECK(st_font_catalog_create(&f->fonts, f->console) == 0);
 	const struct st_cterm_config config = {
-		.console = f->console, .fonts = f->fonts, .font_selector = 44,
-		.emulation = ST_CTERM_ATARI_ST_VT52, .graphics_mode = ST_CTERM_GRAPHICS_IGS_221,
-		.encoding = ST_CTERM_ENCODING_CODEPAGE, .codepage = ST_CODEPAGE_ATARI_ST,
-		.status_line = status, .quiet = true, .scrollback_lines = 2,
+	    .console          = f->console,
+	    .fonts            = f->fonts,
+	    .font_selector    = 44,
+	    .emulation        = ST_CTERM_ATARI_ST_VT52,
+	    .graphics_mode    = ST_CTERM_GRAPHICS_IGS_221,
+	    .encoding         = ST_CTERM_ENCODING_CODEPAGE,
+	    .codepage         = ST_CODEPAGE_ATARI_ST,
+	    .status_line      = status,
+	    .quiet            = true,
+	    .scrollback_lines = 2,
 	};
 	CHECK(st_cterm_create(&f->terminal, &config) == 0);
 	f->terminal->igs_engine->now_ms = now;
-	local_ms = 1000;
+	local_ms                        = 1000;
 }
 
 static void
@@ -58,39 +81,39 @@ feed(struct fixture *f, const char *wire)
 static void
 mutate(struct cterm_igs *igs)
 {
-	igs->attributes.marker_type = 4;
-	igs->attributes.marker_pen = 0;
-	igs->attributes.marker_height = 33;
-	igs->attributes.line_type = 3;
-	igs->attributes.line_pen = 0;
-	igs->attributes.line_width = 5;
-	igs->attributes.line_begin = 1;
-	igs->attributes.line_end = 2;
-	igs->attributes.writing_mode = 3;
-	igs->attributes.fill_interior = 4;
-	igs->attributes.fill_index = 6;
-	igs->attributes.fill_pen = 0;
-	igs->attributes.text_pen = 0;
-	igs->attributes.text_rotation = 900;
-	igs->attributes.text_effects = 15;
-	igs->attributes.text_height = 30;
+	igs->attributes.marker_type     = 4;
+	igs->attributes.marker_pen      = 0;
+	igs->attributes.marker_height   = 33;
+	igs->attributes.line_type       = 3;
+	igs->attributes.line_pen        = 0;
+	igs->attributes.line_width      = 5;
+	igs->attributes.line_begin      = 1;
+	igs->attributes.line_end        = 2;
+	igs->attributes.writing_mode    = 3;
+	igs->attributes.fill_interior   = 4;
+	igs->attributes.fill_index      = 6;
+	igs->attributes.fill_pen        = 0;
+	igs->attributes.text_pen        = 0;
+	igs->attributes.text_rotation   = 900;
+	igs->attributes.text_effects    = 15;
+	igs->attributes.text_height     = 30;
 	igs->attributes.text_point_mode = true;
-	igs->attributes.fill_perimeter = false;
-	igs->attributes.user_line = 0xaaaa;
-	igs->attributes.user_fill[0] = 0x1234;
-	igs->attributes.text_align_h = 2;
-	igs->attributes.text_align_v = 3;
-	igs->attributes.text_face = 42;
-	igs->patterns[0][0] = 0xffff;
-	igs->patterns[1][0] = 0xdead;
-	igs->memory_route = 5;
-	igs->double_step = 4;
-	igs->draw_x = 17;
-	igs->draw_y = 23;
-	igs->scaling_mode = 1;
-	igs->scaling_resolution = 2;
-	igs->clipping = false;
-	igs->clip_x1 = 42;
+	igs->attributes.fill_perimeter  = false;
+	igs->attributes.user_line       = 0xaaaa;
+	igs->attributes.user_fill[0]    = 0x1234;
+	igs->attributes.text_align_h    = 2;
+	igs->attributes.text_align_v    = 3;
+	igs->attributes.text_face       = 42;
+	igs->patterns[0][0]             = 0xffff;
+	igs->patterns[1][0]             = 0xdead;
+	igs->memory_route               = 5;
+	igs->double_step                = 4;
+	igs->draw_x                     = 17;
+	igs->draw_y                     = 23;
+	igs->scaling_mode               = 1;
+	igs->scaling_resolution         = 2;
+	igs->clipping                   = false;
+	igs->clip_x1                    = 42;
 }
 
 static void
@@ -122,15 +145,15 @@ selectors(void)
 {
 	/* Native words in physical-register order, manually mapped from 2.21's
 	 * original IGS/VDI palette triples with the documented pen mapping. */
-	const uint16_t igs_palette[16] = {0x777,0x700,0x070,0,0x007,0x770,0x077,0x546,
-	    0x532,0x743,0x043,0x030,0x333,0x210,0x134,0};
-	const uint16_t vdi_palette[16] = {0x777,0x700,0x070,0x770,0x007,0x707,0x077,0x555,
-	    0x333,0x733,0x373,0x773,0x337,0x737,0x377,0};
+	const uint16_t igs_palette[16] = {0x777, 0x700, 0x070, 0, 0x007, 0x770, 0x077, 0x546, 0x532, 0x743, 0x043,
+	    0x030, 0x333, 0x210, 0x134, 0};
+	const uint16_t vdi_palette[16] = {0x777, 0x700, 0x070, 0x770, 0x007, 0x707, 0x077, 0x555, 0x333, 0x733,
+	    0x373, 0x773, 0x337, 0x737, 0x377, 0};
 	for (unsigned resolution = 0; resolution < 3; ++resolution) {
 		struct fixture f;
 		create(&f, resolution, false);
 		struct cterm_igs *igs = f.terminal->igs_engine;
-		uint32_t saved[16], actual[16];
+		uint32_t          saved[16], actual[16];
 		CHECK(st_console_get_palette(f.console, CTERM_IGS_PALETTE_FIRST, saved, 16) == 0);
 		mutate(igs);
 		feed(&f, "G#I 3:");
@@ -138,10 +161,12 @@ selectors(void)
 		if (resolution == 0) {
 			CHECK(memcmp(igs->raw_palette, igs_palette, sizeof(igs_palette)) == 0);
 			CHECK(igs->palette[7] == 0xb692db);
-		} else if (resolution == 1) {
+		}
+		else if (resolution == 1) {
 			CHECK(igs->raw_palette[0] == 0x777 && igs->raw_palette[1] == 0x700);
 			CHECK(igs->raw_palette[2] == 0x070 && igs->raw_palette[3] == 0);
-		} else {
+		}
+		else {
 			CHECK(igs->palette[0] == 0xffffff && igs->palette[1] == 0);
 		}
 		feed(&f, "G#I 4:");
@@ -175,8 +200,8 @@ restore_resolution(void)
 			create(&f, resolution, status != 0);
 			struct cterm_igs *igs = f.terminal->igs_engine;
 			mutate(igs);
-			const struct st_console_rect point = {100,100,1,1};
-			const uint32_t sentinel = ST_PIXEL_COLOR_RGB_TAG | UINT32_C(0x123456);
+			const struct st_console_rect point    = {100, 100, 1, 1};
+			const uint32_t               sentinel = ST_PIXEL_COLOR_RGB_TAG | UINT32_C(0x123456);
 			CHECK(st_console_set_pixel(f.console, 100, 100, sentinel) == 0);
 			size_t used;
 			CHECK(st_cterm_write(f.terminal, "G#I 5:Z", 7, &used) == 0);
@@ -196,7 +221,8 @@ restore_resolution(void)
 				CHECK(pixels->alternate[0] == CTERM_IGS_PALETTE_FIRST);
 				st_pixel_buffer_destroy(pixels);
 				feed(&f, "Z");
-			} else {
+			}
+			else {
 				struct st_pixel_buffer *pixels = NULL;
 				CHECK(st_console_get_pixels(&pixels, f.console, &point, false) == 0);
 				CHECK(pixels->primary[0] == sentinel);
@@ -224,15 +250,17 @@ partitions_and_cancel(void)
 			if (split == sizeof(wire)) {
 				for (size_t i = 0; i < sizeof(wire) - 1; ++i)
 					CHECK(st_cterm_write(f.terminal, wire + i, 1, &used) == 0 && used == 1);
-			} else {
+			}
+			else {
 				CHECK(st_cterm_write(f.terminal, wire, split, &used) == 0 && used == split);
-				CHECK(st_cterm_write(f.terminal, wire + split, sizeof(wire) - 1 - split, &used) == 0
+				CHECK(
+				    st_cterm_write(f.terminal, wire + split, sizeof(wire) - 1 - split, &used) == 0
 				    && used == sizeof(wire) - 1 - split);
 			}
 			CHECK(st_cterm_finish(f.terminal) == 0);
 			check_attributes(f.terminal->igs_engine, resolution);
-			struct st_console_cell cells[2];
-			const struct st_console_rect rect = {0,0,2,1};
+			struct st_console_cell       cells[2];
+			const struct st_console_rect rect = {0, 0, 2, 1};
 			CHECK(st_console_read_cells(f.console, &rect, cells, 2) == 0);
 			CHECK(cells[0].glyph == 'A' && cells[1].glyph == 'B');
 			destroy(&f);
@@ -240,14 +268,17 @@ partitions_and_cancel(void)
 	for (unsigned cancel = 0; cancel < 3; ++cancel) {
 		struct fixture f;
 		create(&f, 0, false);
-		struct cterm_igs *igs = f.terminal->igs_engine;
-		const uint32_t sentinel = ST_PIXEL_COLOR_RGB_TAG | UINT32_C(0x123456);
+		struct cterm_igs *igs      = f.terminal->igs_engine;
+		const uint32_t    sentinel = ST_PIXEL_COLOR_RGB_TAG | UINT32_C(0x123456);
 		CHECK(st_console_set_pixel(f.console, 100, 100, sentinel) == 0);
 		feed(&f, "G#I 5:");
 		CHECK(st_cterm_input_paused(f.terminal));
-		if (cancel == 0) CHECK(st_cterm_reset_terminal(f.terminal) == 0);
-		else if (cancel == 1) CHECK(st_cterm_finish(f.terminal) == 0);
-		else CHECK(st_cterm_prepare_disconnect(f.terminal) == 0);
+		if (cancel == 0)
+			CHECK(st_cterm_reset_terminal(f.terminal) == 0);
+		else if (cancel == 1)
+			CHECK(st_cterm_finish(f.terminal) == 0);
+		else
+			CHECK(st_cterm_prepare_disconnect(f.terminal) == 0);
 		CHECK(!st_cterm_input_paused(f.terminal));
 		local_ms = 9000;
 		CHECK(st_cterm_poll(f.terminal) == 0 && igs->pending_resolution == -1);
@@ -280,7 +311,7 @@ deadline_bounds(void)
 	struct fixture f;
 	create(&f, 0, false);
 	struct cterm_igs *igs = f.terminal->igs_engine;
-	igs->sync_wait_hz = 50;
+	igs->sync_wait_hz     = 50;
 	feed(&f, "G#I 5:");
 	local_ms = 1019;
 	CHECK(st_cterm_poll(f.terminal) == 0 && st_cterm_input_paused(f.terminal));

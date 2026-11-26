@@ -2,12 +2,12 @@
 #ifndef ST_RIP3_USER_VARIABLES_H_
 #define ST_RIP3_USER_VARIABLES_H_
 
-#include "st_rip3_variable_reference.h"
-#include "st_rip3_variables.h"
-
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+
+#include "st_rip3_variable_reference.h"
+#include "st_rip3_variables.h"
 
 struct st_rip3_user_variables;
 
@@ -37,72 +37,69 @@ struct st_rip3_user_variable_host {
 	 * This component writes memory; the client owns persistent disk flushing. */
 	struct st_rip3_variables *session, *persistent;
 	/* The engine receives UTF-8 text on both normalized codepage and UTF-8 connections. */
-	bool utf8;
+	bool  utf8;
 	void *context;
 	/* Optional override for conversion, called once for each successful logical
 	 * value before storage/output. It must preserve input and return an owned
 	 * value of at most 255 characters. The default code converts ASCII case and
 	 * leaves other bytes intact. The prompt editor enforces the input mode.
 	 * No callback may reenter processing or mutate the bound stores. */
-	int (*format)(void *context, const struct st_rip3_variable_reference *reference,
-		enum st_rip3_user_variable_source source,
-		const struct st_rip3_variable_value *input, struct st_rip3_variable_value *result);
+	int  (*format)(void *context, const struct st_rip3_variable_reference *reference,
+	    enum st_rip3_user_variable_source source, const struct st_rip3_variable_value *input,
+	    struct st_rip3_variable_value *result);
 	void (*diagnostic)(void *context, enum st_rip3_user_variable_diagnostic kind);
 };
 
 /* One interpreter thread owns the processor. Built-in/template dispatch and
  * reference decoding precede it. Factory/accessor services are separate from
  * the void, nonfatal processing boundary. No dialog, network or disk I/O. */
-int st_rip3_user_variables_create(struct st_rip3_user_variables **result,
-	const struct st_rip3_user_variable_host *host);
+int  st_rip3_user_variables_create(struct st_rip3_user_variables **result,
+    const struct st_rip3_user_variable_host                      *host);
 void st_rip3_user_variables_destroy(struct st_rip3_user_variables *variables);
 /* Decode an inline reference with the same character units used for its response. */
 int st_rip3_user_variables_decode(const struct st_rip3_user_variables *variables,
-	struct st_rip3_variable_reference *result, const uint8_t *text, size_t length);
+    struct st_rip3_variable_reference *result, const uint8_t *text, size_t length);
 /* Start one decoded reference. Every failure is diagnosed/consumed here.
  * Prompt state owns copies of the reference and initial value, so source
  * storage may be released. A busy start preserves the pending operation.
  * Nonbusy starts discard any previous result; invalid starts become idle. */
 void st_rip3_user_variables_process(struct st_rip3_user_variables *variables,
-	const struct st_rip3_variable_reference *reference);
+    const struct st_rip3_variable_reference                       *reference);
 /* Start a decoded 1D definition with the same stores and editor. The
  * caller supplies SET and the destination flag, and owns prompt recovery. */
 void st_rip3_user_variables_define(struct st_rip3_user_variables *variables,
-	const struct st_rip3_variable_reference *reference, bool interactive, bool utf8, bool converted);
+    const struct st_rip3_variable_reference *reference, bool interactive, bool utf8, bool converted);
 /* Host executor for RESET(TV,name). Like retrieval, deletion chooses the
  * session record first. A protected record is removed only on acceptance. */
-int st_rip3_user_variables_delete(struct st_rip3_user_variables *variables,
-	const char *name, size_t length);
+int st_rip3_user_variables_delete(struct st_rip3_user_variables *variables, const char *name, size_t length);
 /* The INUSE(TV,name) query reads both stores without invoking the editor. */
-int st_rip3_user_variables_inuse(const struct st_rip3_user_variables *variables,
-	const char *name, size_t length, bool *defined);
+int  st_rip3_user_variables_inuse(const struct st_rip3_user_variables *variables, const char *name, size_t length,
+    bool *defined);
 bool st_rip3_user_variables_confirming_delete(const struct st_rip3_user_variables *variables);
 /* Respond only in PROMPT state. Values truncate to 255 characters before
  * the format adapter. Cancellation ignores value/length. '*' rejects user
  * cancellation and retains the prompt; accepted empty input remains legal.
  * No write/output occurs before successful formatting and destination storage.
  * Errors clear the pending operation, leaving both stores unchanged. */
-void st_rip3_user_variables_respond(struct st_rip3_user_variables *variables,
-	const uint8_t *value, size_t length, bool cancelled);
+void st_rip3_user_variables_respond(struct st_rip3_user_variables *variables, const uint8_t *value, size_t length,
+    bool cancelled);
 /* Apply the optional editor control with a successful 1D response. */
-void st_rip3_user_variables_accept_definition(struct st_rip3_user_variables *variables,
-	const uint8_t *value, size_t length, const bool *require_confirmation);
+void st_rip3_user_variables_accept_definition(struct st_rip3_user_variables *variables, const uint8_t *value,
+    size_t length, const bool *require_confirmation);
 bool st_rip3_user_variables_definition_confirmation(const struct st_rip3_user_variables *variables);
 /* Forced cancellation for shutdown/EOF: discard pending/result state without
  * a protocol replacement or store write, even for required prompts. */
-void st_rip3_user_variables_abort(struct st_rip3_user_variables *variables);
-enum st_rip3_user_variable_state st_rip3_user_variables_state(
-	const struct st_rip3_user_variables *variables);
+void                             st_rip3_user_variables_abort(struct st_rip3_user_variables *variables);
+enum st_rip3_user_variable_state st_rip3_user_variables_state(const struct st_rip3_user_variables *variables);
 /* Borrowed views valid until the next mutating call. A prompt view exposes the
  * copied reference and initial logical value; NULL outside PROMPT. A result
  * view is NULL outside COMPLETE. Successful suppression is a result of length
  * zero, successful empty emission is literal NULL, cancellation is NONE only
  * without either transparent flag. Neither sentinel is ever stored. */
 const struct st_rip3_variable_reference *st_rip3_user_variables_prompt(
-	const struct st_rip3_user_variables *variables);
+    const struct st_rip3_user_variables *variables);
 const struct st_rip3_variable_value *st_rip3_user_variables_initial(
-	const struct st_rip3_user_variables *variables);
-const struct st_rip3_variable_value *st_rip3_user_variables_result(
-	const struct st_rip3_user_variables *variables);
+    const struct st_rip3_user_variables *variables);
+const struct st_rip3_variable_value *st_rip3_user_variables_result(const struct st_rip3_user_variables *variables);
 
 #endif

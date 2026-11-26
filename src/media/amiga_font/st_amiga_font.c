@@ -1,22 +1,41 @@
 /* Decode font data, never execute an Amiga load segment. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
-#include "amiga_font_internal.h"
-#include "filesystem.h"
-#include "io_error.h"
-#include "string_compat.h"
-#include "st_threads.h"
 #include <stdlib.h>
 #include <string.h>
 
-static unsigned u16(const uint8_t *p) { return (unsigned)p[0] * 256 + p[1]; }
-static uint32_t u32(const uint8_t *p) { return (uint32_t)u16(p) * 65536 + u16(p + 2); }
-static int s16(const uint8_t *p)
+#include "amiga_font_internal.h"
+#include "filesystem.h"
+#include "io_error.h"
+#include "st_threads.h"
+#include "string_compat.h"
+
+static unsigned
+u16(const uint8_t *p)
+{
+	return (unsigned)p[0] * 256 + p[1];
+}
+
+static uint32_t
+u32(const uint8_t *p)
+{
+	return (uint32_t)u16(p) * 65536 + u16(p + 2);
+}
+
+static int
+s16(const uint8_t *p)
 {
 	unsigned n = u16(p);
 	return n < 32768 ? (int)n : (int)n - 65536;
 }
-static bool span(size_t size, size_t at, size_t count) { return at <= size && count <= size - at; }
-static bool names_equal(const char *a, const char *b)
+
+static bool
+span(size_t size, size_t at, size_t count)
+{
+	return at <= size && count <= size - at;
+}
+
+static bool
+names_equal(const char *a, const char *b)
 {
 	while (*a && *b) {
 		unsigned char x = (unsigned char)*a++, y = (unsigned char)*b++;
@@ -29,75 +48,110 @@ static bool names_equal(const char *a, const char *b)
 	}
 	return *a == *b;
 }
+
 /* The process owns these immutable decoded fonts. once publishes the complete
  * cache to all callers; release() never frees a borrowed built-in pointer. */
 static st_once_flag_t builtin_once = ST_ONCE_FLAG_INIT;
-static void decode_builtins(void)
+
+static void
+decode_builtins(void)
 {
 	for (size_t i = 0; i < st_amiga_builtins_count; ++i) {
 		struct st_amiga_builtin *entry = &st_amiga_builtins[i];
-		st_amiga_font_t *font = NULL;
+		st_amiga_font_t         *font  = NULL;
 		if (st_amiga_font_decode(&font, entry->bytes, entry->size) == 0) {
 			if (font->height != entry->height) {
 				st_amiga_font_release(font);
 				continue;
 			}
 			font->builtin = true;
-			entry->font = font;
+			entry->font   = font;
 		}
 	}
 }
-const st_amiga_font_t *st_amiga_font_builtin(enum st_amiga_font_set set, const char *name, unsigned height)
+
+const st_amiga_font_t *
+st_amiga_font_builtin(enum st_amiga_font_set set, const char *name, unsigned height)
 {
 	if (name == NULL)
 		return NULL;
 	st_call_once(&builtin_once, decode_builtins);
 	for (size_t i = 0; i < st_amiga_builtins_count; ++i)
-		if ((st_amiga_builtins[i].sets & (unsigned)set) && st_amiga_builtins[i].height == height &&
-			names_equal(name, st_amiga_builtins[i].name))
+		if ((st_amiga_builtins[i].sets & (unsigned)set) && st_amiga_builtins[i].height == height
+		    && names_equal(name, st_amiga_builtins[i].name))
 			return st_amiga_builtins[i].font;
 	return NULL;
 }
-size_t st_amiga_font_builtin_count(enum st_amiga_font_set set)
+
+size_t
+st_amiga_font_builtin_count(enum st_amiga_font_set set)
 {
 	size_t count = 0;
 	for (size_t i = 0; i < st_amiga_builtins_count; ++i)
-		if (st_amiga_builtins[i].sets & (unsigned)set) ++count;
+		if (st_amiga_builtins[i].sets & (unsigned)set)
+			++count;
 	return count;
 }
-const char *st_amiga_font_builtin_name(enum st_amiga_font_set set, size_t index, unsigned *height)
+
+const char *
+st_amiga_font_builtin_name(enum st_amiga_font_set set, size_t index, unsigned *height)
 {
 	for (size_t i = 0; i < st_amiga_builtins_count; ++i) {
-		if (!(st_amiga_builtins[i].sets & (unsigned)set)) continue;
-		if (index-- != 0) continue;
-		if (height) *height = st_amiga_builtins[i].height;
+		if (!(st_amiga_builtins[i].sets & (unsigned)set))
+			continue;
+		if (index-- != 0)
+			continue;
+		if (height)
+			*height = st_amiga_builtins[i].height;
 		return st_amiga_builtins[i].name;
 	}
 	return NULL;
 }
-unsigned st_amiga_font_width(const st_amiga_font_t *font) { return font->width; }
-unsigned st_amiga_font_height(const st_amiga_font_t *font) { return font->height; }
-unsigned st_amiga_font_baseline(const st_amiga_font_t *font) { return font->baseline; }
-const struct st_amiga_glyph *st_amiga_font_glyph(const st_amiga_font_t *font, uint8_t ch)
+
+unsigned
+st_amiga_font_width(const st_amiga_font_t *font)
+{
+	return font->width;
+}
+
+unsigned
+st_amiga_font_height(const st_amiga_font_t *font)
+{
+	return font->height;
+}
+
+unsigned
+st_amiga_font_baseline(const st_amiga_font_t *font)
+{
+	return font->baseline;
+}
+
+const struct st_amiga_glyph *
+st_amiga_font_glyph(const st_amiga_font_t *font, uint8_t ch)
 {
 	return &font->glyphs[ch];
 }
-void st_amiga_font_release(const st_amiga_font_t *font)
+
+void
+st_amiga_font_release(const st_amiga_font_t *font)
 {
 	if (font && font->storage && !font->builtin) {
 		free(font->storage);
 		free((void *)font);
 	}
 }
+
 struct hunk {
 	const uint8_t *data;
-	size_t size;
+	size_t         size;
 };
+
 /* Only the four TextFont data references are needed. Relocations of executable
  * entry stubs, list links and OS bookkeeping are deliberately never applied. */
 static const unsigned pointer_fields[4] = {92, 98, 102, 106};
-static const uint8_t *font_pointer(const struct hunk *hunks, size_t count, const size_t targets[4],
-								   unsigned field, size_t required)
+
+static const uint8_t *
+font_pointer(const struct hunk *hunks, size_t count, const size_t targets[4], unsigned field, size_t required)
 {
 	uint32_t offset = u32(hunks[0].data + pointer_fields[field]);
 	if (offset == 0 && targets[field] == SIZE_MAX)
@@ -108,13 +162,15 @@ static const uint8_t *font_pointer(const struct hunk *hunks, size_t count, const
 	const struct hunk *target = &hunks[index];
 	return target->data && span(target->size, offset, required) ? target->data + offset : NULL;
 }
-int st_amiga_font_decode(st_amiga_font_t **result, const void *bytes, size_t size)
+
+int
+st_amiga_font_decode(st_amiga_font_t **result, const void *bytes, size_t size)
 {
-	const uint8_t *input = bytes;
-	struct hunk *hunks = NULL;
-	st_amiga_font_t *font = NULL;
-	size_t position = 4, count, current = 0, targets[4] = {SIZE_MAX, SIZE_MAX, SIZE_MAX, SIZE_MAX};
-	int status = IO_ERROR_INVALID_FORMAT;
+	const uint8_t   *input    = bytes;
+	struct hunk     *hunks    = NULL;
+	st_amiga_font_t *font     = NULL;
+	size_t           position = 4, count, current = 0, targets[4] = {SIZE_MAX, SIZE_MAX, SIZE_MAX, SIZE_MAX};
+	int              status = IO_ERROR_INVALID_FORMAT;
 	if (!result || !input || !span(size, 0, 24) || u32(input) != 1011)
 		return status;
 	/* Skip the HUNK_HEADER resident-name table. */
@@ -136,7 +192,7 @@ int st_amiga_font_decode(st_amiga_font_t **result, const void *bytes, size_t siz
 		return status;
 	position += count * 4;
 	hunks = calloc(count, sizeof(*hunks));
-	font = calloc(1, sizeof(*font));
+	font  = calloc(1, sizeof(*font));
 	if (!hunks || !font) {
 		status = IO_ERROR_OUT_OF_MEMORY;
 		goto done;
@@ -147,7 +203,7 @@ int st_amiga_font_decode(st_amiga_font_t **result, const void *bytes, size_t siz
 		goto done;
 	}
 	memcpy(font->storage, input, size);
-	input = font->storage;
+	input      = font->storage;
 	bool ended = true;
 	while (position < size) {
 		if (!span(size, position, 4))
@@ -169,7 +225,8 @@ int st_amiga_font_decode(st_amiga_font_t **result, const void *bytes, size_t siz
 				position += n * 4;
 			}
 			ended = false;
-		} else if (type == 1004) {
+		}
+		else if (type == 1004) {
 			if (ended)
 				goto done;
 			for (;;) {
@@ -196,12 +253,14 @@ int st_amiga_font_decode(st_amiga_font_t **result, const void *bytes, size_t siz
 								targets[f] = target;
 				}
 			}
-		} else if (type == 1010) {
+		}
+		else if (type == 1010) {
 			if (ended)
 				goto done;
 			ended = true;
 			++current;
-		} else if (type == 1009 || type == 1000) {
+		}
+		else if (type == 1009 || type == 1000) {
 			if (!span(size, position, 4))
 				goto done;
 			size_t n = u32(input + position);
@@ -209,7 +268,8 @@ int st_amiga_font_decode(st_amiga_font_t **result, const void *bytes, size_t siz
 			if (n > (size - position) / 4)
 				goto done;
 			position += n * 4;
-		} else {
+		}
+		else {
 			status = IO_ERROR_NOT_SUPPORTED;
 			goto done;
 		}
@@ -223,45 +283,44 @@ int st_amiga_font_decode(st_amiga_font_t **result, const void *bytes, size_t siz
 		status = IO_ERROR_NOT_SUPPORTED;
 		goto done;
 	}
-	font->height = u16(h + 78);
+	font->height   = u16(h + 78);
 	font->baseline = u16(h + 84);
 	unsigned first = h[90], last = h[91], nominal = u16(h + 82), modulo = u16(h + 96);
 	font->width = nominal;
 	if (!font->width || !font->height || font->baseline >= font->height || first > last || !modulo)
 		goto done;
-	size_t glyphs = last - first + 2;
-	const uint8_t *bits = font_pointer(hunks, count, targets, 0, (size_t)modulo * font->height);
-	const uint8_t *loc = font_pointer(hunks, count, targets, 1, glyphs * 4);
-	const uint8_t *space = font_pointer(hunks, count, targets, 2, glyphs * 2);
-	const uint8_t *kern = font_pointer(hunks, count, targets, 3, glyphs * 2);
-	if (!bits || !loc || ((u32(h + 102) != 0 || targets[2] != SIZE_MAX) && !space) ||
-		((u32(h + 106) != 0 || targets[3] != SIZE_MAX) && !kern))
+	size_t         glyphs = last - first + 2;
+	const uint8_t *bits   = font_pointer(hunks, count, targets, 0, (size_t)modulo * font->height);
+	const uint8_t *loc    = font_pointer(hunks, count, targets, 1, glyphs * 4);
+	const uint8_t *space  = font_pointer(hunks, count, targets, 2, glyphs * 2);
+	const uint8_t *kern   = font_pointer(hunks, count, targets, 3, glyphs * 2);
+	if (!bits || !loc || ((u32(h + 102) != 0 || targets[2] != SIZE_MAX) && !space)
+	    || ((u32(h + 106) != 0 || targets[3] != SIZE_MAX) && !kern))
 		goto done;
 	for (unsigned ch = 0; ch < 256; ++ch) {
-		size_t i = ch >= first && ch <= last ? ch - first : glyphs - 1;
+		size_t   i      = ch >= first && ch <= last ? ch - first : glyphs - 1;
 		unsigned offset = u16(loc + i * 4), width = u16(loc + i * 4 + 2);
 		if (offset > (unsigned)modulo * 8 || width > (unsigned)modulo * 8 - offset)
 			goto done;
 		bool proportional = (h[81] & 0x20) != 0;
-		int difference = (int)nominal - (int)width;
-		int bearing = proportional		? (kern ? s16(kern + i * 2) : 0)
-					  : difference >= 0 ? difference / 2
-										: -((-difference + 1) / 2);
-		font->glyphs[ch] = (struct st_amiga_glyph){
-			.bits = bits + offset / 8,
-			.stride = modulo,
-			.width = width,
-			.height = font->height,
-			.bearing = bearing,
-			.advance =
-				proportional ? bearing + (space ? s16(space + i * 2) : (int)nominal) : (int)nominal,
-			.top = (int)font->height - (int)font->baseline - 1,
-			.bit_offset = offset % 8,
+		int  difference   = (int)nominal - (int)width;
+		int  bearing      = proportional      ? (kern ? s16(kern + i * 2) : 0)
+		                    : difference >= 0 ? difference / 2
+		                                      : -((-difference + 1) / 2);
+		font->glyphs[ch]  = (struct st_amiga_glyph) {
+		    .bits    = bits + offset / 8,
+		    .stride  = modulo,
+		    .width   = width,
+		    .height  = font->height,
+		    .bearing = bearing,
+		    .advance = proportional ? bearing + (space ? s16(space + i * 2) : (int)nominal) : (int)nominal,
+		    .top     = (int)font->height - (int)font->baseline - 1,
+		    .bit_offset = offset % 8,
 		};
 	}
 	*result = font;
-	font = NULL;
-	status = 0;
+	font    = NULL;
+	status  = 0;
 done:
 	if (font) {
 		free(font->storage);
@@ -270,7 +329,9 @@ done:
 	free(hunks);
 	return status;
 }
-void st_amiga_family_dispose(struct st_amiga_family *f)
+
+void
+st_amiga_family_dispose(struct st_amiga_family *f)
 {
 	if (!f)
 		return;
@@ -278,9 +339,11 @@ void st_amiga_family_dispose(struct st_amiga_family *f)
 		free(f->strikes[i].path);
 	free(f->strikes);
 	free(f->name);
-	*f = (struct st_amiga_family){0};
+	*f = (struct st_amiga_family) {0};
 }
-static int relative_name(char **out, const uint8_t *bytes, size_t limit)
+
+static int
+relative_name(char **out, const uint8_t *bytes, size_t limit)
 {
 	size_t length = 0;
 	while (length < limit && bytes[length])
@@ -295,8 +358,8 @@ static int relative_name(char **out, const uint8_t *bytes, size_t limit)
 		unsigned c = bytes[i];
 		if (i == length || c == '/') {
 			size_t n = i - start;
-			if (!n || (n == 1 && bytes[start] == '.') ||
-				(n == 2 && bytes[start] == '.' && bytes[start + 1] == '.')) {
+			if (!n || (n == 1 && bytes[start] == '.')
+			    || (n == 2 && bytes[start] == '.' && bytes[start + 1] == '.')) {
 				free(text);
 				return IO_ERROR_INVALID_FORMAT;
 			}
@@ -311,17 +374,19 @@ static int relative_name(char **out, const uint8_t *bytes, size_t limit)
 		if (c >= 128) {
 			text[used++] = (char)(0xc0 | (c >> 6));
 			text[used++] = (char)(0x80 | (c & 63));
-		} else
+		}
+		else
 			text[used++] = (char)c;
 	}
 	text[used] = 0;
-	*out = text;
+	*out       = text;
 	return 0;
 }
-int st_amiga_family_decode(struct st_amiga_family *result, const char *name, const void *bytes,
-						   size_t size)
+
+int
+st_amiga_family_decode(struct st_amiga_family *result, const char *name, const void *bytes, size_t size)
 {
-	const uint8_t *p = bytes;
+	const uint8_t         *p = bytes;
 	struct st_amiga_family f = {0};
 	if (!result || !name || !p || size < 4)
 		return IO_ERROR_INVALID_FORMAT;
@@ -330,33 +395,35 @@ int st_amiga_family_decode(struct st_amiga_family *result, const char *name, con
 		return type == 0x0f03 ? IO_ERROR_NOT_SUPPORTED : IO_ERROR_INVALID_FORMAT;
 	if (!count || count > (size - 4) / 260)
 		return IO_ERROR_INVALID_FORMAT;
-	f.name = strdup(name);
+	f.name    = strdup(name);
 	f.strikes = calloc(count, sizeof(*f.strikes));
 	if (!f.name || !f.strikes) {
 		st_amiga_family_dispose(&f);
 		return IO_ERROR_OUT_OF_MEMORY;
 	}
 	for (unsigned i = 0; i < count; ++i) {
-		const uint8_t *entry = p + 4 + i * 260;
-		char *path = NULL;
-		int status = relative_name(&path, entry, type == 0x0f02 ? 254 : 256);
-		unsigned height = u16(entry + 256);
+		const uint8_t *entry  = p + 4 + i * 260;
+		char          *path   = NULL;
+		int            status = relative_name(&path, entry, type == 0x0f02 ? 254 : 256);
+		unsigned       height = u16(entry + 256);
 		if (status || !height) {
 			free(path);
 			st_amiga_family_dispose(&f);
 			return status ? status : IO_ERROR_INVALID_FORMAT;
 		}
-		f.strikes[f.count++] = (struct st_amiga_strike){height, path, entry[258]};
+		f.strikes[f.count++] = (struct st_amiga_strike) {height, path, entry[258]};
 	}
 	*result = f;
 	return 0;
 }
-int st_amiga_font_read(st_amiga_font_t **result, const char *path)
+
+int
+st_amiga_font_read(st_amiga_font_t **result, const char *path)
 {
 	if (!result || !path)
 		return IO_ERROR_INVALID_ARGUMENT;
 	FILE *stream = NULL;
-	int status = fs_open(&stream, path, "rb");
+	int   status = fs_open(&stream, path, "rb");
 	if (status != 0)
 		return status;
 	int64_t length = fs_stream_size(stream);

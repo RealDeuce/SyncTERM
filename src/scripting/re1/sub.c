@@ -6,37 +6,37 @@
 
 Sub *freesub;
 
-Sub*
+Sub *
 newsub(int n)
 {
 	Sub *s;
 
 	s = freesub;
-	if(s != nil)
-		freesub = (Sub*)s->sub[0];
+	if (s != nil)
+		freesub = (Sub *)s->sub[0];
 	else
 		s = mal(sizeof *s);
 	s->nsub = n;
-	s->ref = 1;
+	s->ref  = 1;
 	return s;
 }
 
-Sub*
+Sub *
 incref(Sub *s)
 {
 	s->ref++;
 	return s;
 }
 
-Sub*
+Sub *
 re1_update(Sub *s, int i, char *p)
 {
 	Sub *s1;
-	int j;
+	int  j;
 
-	if(s->ref > 1) {
+	if (s->ref > 1) {
 		s1 = newsub(s->nsub);
-		for(j=0; j<s->nsub; j++)
+		for (j = 0; j < s->nsub; j++)
 			s1->sub[j] = s->sub[j];
 		s->ref--;
 		s = s1;
@@ -48,8 +48,8 @@ re1_update(Sub *s, int i, char *p)
 void
 decref(Sub *s)
 {
-	if(--s->ref == 0) {
-		s->sub[0] = (char*)freesub;
-		freesub = s;
+	if (--s->ref == 0) {
+		s->sub[0] = (char *)freesub;
+		freesub   = s;
 	}
 }

@@ -4,26 +4,25 @@
  * SPDX-License-Identifier: LGPL-2.0-or-later
  */
 
-#include "audio_internal.h"
-#include "audio_config.h"
+#include <fcntl.h>
 
+#include "audio_config.h"
+#include "audio_internal.h"
 #include "io_error.h"
 #include "st_threads.h"
-
-#include <fcntl.h>
 #if ST_AUDIO_HAVE_SPEAKER_TONE
-#if ST_AUDIO_SPEAKER_HEADER_MACHINE_SPEAKER
-#include <machine/speaker.h>
-#else
-#include <machine/spkr.h>
-#endif
+ #if ST_AUDIO_SPEAKER_HEADER_MACHINE_SPEAKER
+  #include <machine/speaker.h>
+ #else
+  #include <machine/spkr.h>
+ #endif
 #endif
 #if ST_AUDIO_HAVE_KIOCSOUND
-#if ST_AUDIO_KIOCSOUND_HEADER_LINUX_KD
-#include <linux/kd.h>
-#else
-#include <sys/kbio.h>
-#endif
+ #if ST_AUDIO_KIOCSOUND_HEADER_LINUX_KD
+  #include <linux/kd.h>
+ #else
+  #include <sys/kbio.h>
+ #endif
 #endif
 #include <sys/ioctl.h>
 #include <time.h>
@@ -34,7 +33,7 @@ sleep_ms(uint32_t milliseconds)
 {
 	struct timespec duration;
 
-	duration.tv_sec = (time_t)(milliseconds / 1000);
+	duration.tv_sec  = (time_t)(milliseconds / 1000);
 	duration.tv_nsec = (long)(milliseconds % 1000) * 1000000L;
 	while (st_thread_sleep(&duration, &duration) != 0)
 		;
@@ -50,7 +49,7 @@ audio_platform_beep(double frequency, uint32_t duration_ms)
 		tone_t tone;
 
 		tone.frequency = (int)(frequency + 0.5);
-		tone.duration = (int)(duration_ms / 10);
+		tone.duration  = (int)(duration_ms / 10);
 		if (ioctl(descriptor, SPKRTONE, &tone) == 0) {
 			(void)close(descriptor);
 			return 0;

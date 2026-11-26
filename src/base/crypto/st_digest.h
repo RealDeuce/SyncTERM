@@ -23,8 +23,8 @@ enum st_digest_algorithm {
 };
 
 size_t st_digest_size(enum st_digest_algorithm algorithm);
-int st_digest(enum st_digest_algorithm algorithm, const void *input,
-	size_t input_size, void *result, size_t result_size);
+int    st_digest(enum st_digest_algorithm algorithm, const void *input, size_t input_size, void *result,
+    size_t result_size);
 
 #ifdef __cplusplus
 }

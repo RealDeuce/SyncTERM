@@ -7,10 +7,14 @@
 #include <stddef.h>
 #include <stdint.h>
 
-enum { ST_IGS_PSG_RATE = 44100, ST_IGS_PSG_CHANNELS = 2 };
+enum {
+	ST_IGS_PSG_RATE     = 44100,
+	ST_IGS_PSG_CHANNELS = 2
+};
+
 struct st_igs_psg {
-	uint8_t registers[16];
-	bool tone[3], noise;
+	uint8_t  registers[16];
+	bool     tone[3], noise;
 	uint32_t lfsr;
 	unsigned envelope;
 	/* Tone A/B/C, noise, envelope: elapsed/duration in 1/250000 of

@@ -25,22 +25,21 @@ enum st_rip3_backup_place {
  * their function code must outlive the area. All operations share one owner
  * thread, including callbacks; callbacks must not reenter the area. */
 struct st_rip3_backup_ops {
-	int (*clone)(const void *object, void **result);
-	int (*restore)(void *object, const void *snapshot);
+	int  (*clone)(const void *object, void **result);
+	int  (*restore)(void *object, const void *snapshot);
 	void (*destroy)(void *snapshot);
 };
 
 struct st_rip3_backup_info {
-	bool base;
+	bool     base;
 	unsigned stack;
 	unsigned slots;
 	unsigned free;
-	bool slot_used[10];
-	bool slot_protected[10];
+	bool     slot_used[10];
+	bool     slot_protected[10];
 };
 
-int st_rip3_backup_create(struct st_rip3_backup **result,
-	const struct st_rip3_backup_ops *ops);
+int  st_rip3_backup_create(struct st_rip3_backup **result, const struct st_rip3_backup_ops *ops);
 void st_rip3_backup_destroy(struct st_rip3_backup *backup);
 /* SLOT takes index 0..9; BASE/STACK require index zero. Save STACK pushes;
  * restore STACK pops. Base is separate from the ten shared slot/stack places.
@@ -48,18 +47,20 @@ void st_rip3_backup_destroy(struct st_rip3_backup *backup);
  * Failed cloning/restoration never overwrites or consumes an existing save.
  * BASE restoration retains it; unprotected SLOT restoration consumes it;
  * protected SLOT restoration retains it. */
-int st_rip3_backup_save(struct st_rip3_backup *backup,
-	enum st_rip3_backup_place place, unsigned index, const void *object);
-int st_rip3_backup_restore(struct st_rip3_backup *backup,
-	enum st_rip3_backup_place place, unsigned index, void *object);
+int st_rip3_backup_save(struct st_rip3_backup *backup, enum st_rip3_backup_place place, unsigned index,
+    const void *object);
+int st_rip3_backup_restore(struct st_rip3_backup *backup, enum st_rip3_backup_place place, unsigned index,
+    void *object);
 /* RESTOREALL's numbered restore phase applies all families before any slot
  * deletion. Apply one numbered snapshot without consuming it, independent of
  * its protection flag; the wrapper performs the later delete phase. */
-int st_rip3_backup_restore_slot_retained(struct st_rip3_backup *,unsigned index,void *object);
+int st_rip3_backup_restore_slot_retained(struct st_rip3_backup *, unsigned index, void *object);
+
 struct st_rip3_backup_location {
 	enum st_rip3_backup_place place;
-	unsigned index;
+	unsigned                  index;
 };
+
 /* Copy a whole table to one or more locations. STACK source means POP;
  * STACK destinations mean PUSH. Validate every location, self-copy, protection
  * and final shared capacity before changing anything. A popped source is
@@ -73,22 +74,18 @@ struct st_rip3_backup_location {
  * Immutable snapshots may share internal
  * ownership, preserving independent value semantics without live-object casts.
  * Wire syntax and intra-table entry copying are handled separately. */
-int st_rip3_backup_copy(struct st_rip3_backup *backup,
-	struct st_rip3_backup_location source,
-	const struct st_rip3_backup_location *destinations, size_t count, void *object);
+int st_rip3_backup_copy(struct st_rip3_backup *backup, struct st_rip3_backup_location source,
+    const struct st_rip3_backup_location *destinations, size_t count, void *object);
 /* Only occupied numbered slots can be protected; undefined protection is a
  * no-op. Individual protected clears fail. Clearing STACK removes all layers. */
 int st_rip3_backup_protect(struct st_rip3_backup *backup, unsigned index, bool protect);
-int st_rip3_backup_clear(struct st_rip3_backup *backup,
-	enum st_rip3_backup_place place, unsigned index);
+int st_rip3_backup_clear(struct st_rip3_backup *backup, enum st_rip3_backup_place place, unsigned index);
 /* Clear base, then numbered slots in ascending order, then the stack.
  * Without force, protected numbered slots survive. */
 int st_rip3_backup_clear_all(struct st_rip3_backup *backup, bool force);
-int st_rip3_backup_info(const struct st_rip3_backup *backup,
-	struct st_rip3_backup_info *result);
+int st_rip3_backup_info(const struct st_rip3_backup *backup, struct st_rip3_backup_info *result);
 /* BACKSTAT's documented USE or PROT colon-separated ASCII, NUL terminated.
  * Insufficient output capacity leaves the caller's buffer unchanged. */
-int st_rip3_backup_status(const struct st_rip3_backup *backup,
-	bool protection, char *result, size_t capacity);
+int st_rip3_backup_status(const struct st_rip3_backup *backup, bool protection, char *result, size_t capacity);
 
 #endif

@@ -1,8 +1,9 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
-#include "st_rip3_bitmap.h"
-#include "io_error.h"
 #include <stdbool.h>
 #include <stdlib.h>
+
+#include "io_error.h"
+#include "st_rip3_bitmap.h"
 
 bool st_rip3_bitmap_file_test_fail_allocate;
 bool st_rip3_bitmap_file_test_fail_decode;
@@ -24,9 +25,9 @@ test_decode(struct st_rip3_bitmap **result, const void *bytes, size_t size)
 		st_rip3_bitmap_file_test_fail_decode = false;
 		return IO_ERROR_OUT_OF_MEMORY;
 	}
-	return st_rip3_bitmap_decode(result,bytes,size);
+	return st_rip3_bitmap_decode(result, bytes, size);
 }
 
-#define malloc test_malloc
+#define malloc                test_malloc
 #define st_rip3_bitmap_decode test_decode
 #include "../st_rip3_bitmap_file.c"

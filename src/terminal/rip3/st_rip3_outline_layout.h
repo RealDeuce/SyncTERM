@@ -2,23 +2,23 @@
 #ifndef ST_RIP3_OUTLINE_LAYOUT_H_
 #define ST_RIP3_OUTLINE_LAYOUT_H_
 
-#include "st_rip3_geometry.h"
-
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
+#include "st_rip3_geometry.h"
+
 struct st_rip3_outline_style;
 
 struct st_rip3_outline_layout {
-	struct st_rip3_point direction; /* Unit device-axis string direction. */
-	struct st_rip3_point baseline; /* Addition to the aligned zero-B origin. */
-	struct st_rip3_point shadow; /* Device displacement; zero disables it. */
-	unsigned character_turns; /* Counterclockwise quarter turns, independent. */
-	unsigned font_orientation; /* Original font-instance mapping: 0,3,2,1. */
-	unsigned spacing;
-	unsigned justification; /* 0/3 start, 1 end, 2 signed half-total center. */
-	bool bounding_box_spacing;
+	struct st_rip3_point direction;        /* Unit device-axis string direction. */
+	struct st_rip3_point baseline;         /* Addition to the aligned zero-B origin. */
+	struct st_rip3_point shadow;           /* Device displacement; zero disables it. */
+	unsigned             character_turns;  /* Counterclockwise quarter turns, independent. */
+	unsigned             font_orientation; /* Original font-instance mapping: 0,3,2,1. */
+	unsigned             spacing;
+	unsigned             justification;    /* 0/3 start, 1 end, 2 signed half-total center. */
+	bool                 bounding_box_spacing;
 };
 
 /* Pure layout services, not parser/session entry points. Resolve the stored y
@@ -28,7 +28,7 @@ struct st_rip3_outline_layout {
  * zero is a deferred render error. Compatibility bytes and high unused flag
  * bits have no effect. Validation failures leave result unchanged. */
 int st_rip3_outline_layout_prepare(struct st_rip3_outline_layout *result,
-	const struct st_rip3_outline_style *style, const struct st_rip3_frame *frame);
+    const struct st_rip3_outline_style *style, const struct st_rip3_frame *frame);
 
 /* Font-engine advances use 1/1440-inch units. Convert to a selected device DPI
  * with signed integer truncation toward zero, before spacing is added. DPI is
@@ -50,8 +50,7 @@ int st_rip3_outline_metric_device(int32_t *result, int32_t advance, uint32_t dpi
  * Input/output arrays must not overlap. Preflight precedes every output write;
  * failures preserve positions and total. No allocation or global state. */
 int st_rip3_outline_layout_positions(const struct st_rip3_outline_layout *layout,
-	const struct st_rip3_text_position *anchor, const int32_t *advances,
-	size_t length, int32_t bbox_width, struct st_rip3_text_position *positions,
-	int64_t *total);
+    const struct st_rip3_text_position *anchor, const int32_t *advances, size_t length, int32_t bbox_width,
+    struct st_rip3_text_position *positions, int64_t *total);
 
 #endif

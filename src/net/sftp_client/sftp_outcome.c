@@ -15,7 +15,7 @@ pending_estr_reserve(struct sftpc_pending *p, size_t need)
 		return false;
 	if (p->estr == NULL)
 		nb[0] = '\0';
-	p->estr = nb;
+	p->estr     = nb;
 	p->estr_cap = cap;
 	return true;
 }
@@ -24,8 +24,7 @@ pending_estr_reserve(struct sftpc_pending *p, size_t need)
  * something is already there.  Always sets pending->err, even when
  * the text-grow fails. */
 static void
-pending_record(struct sftpc_pending *p, sftp_err_code_t err,
-               const char *file, int line, const char *fmt, ...)
+pending_record(struct sftpc_pending *p, sftp_err_code_t err, const char *file, int line, const char *fmt, ...)
 {
 	if (p == NULL)
 		return;
@@ -45,8 +44,8 @@ pending_record(struct sftpc_pending *p, sftp_err_code_t err,
 
 	size_t add = (size_t)prefix_len + (size_t)body_len;
 	if (p->estr_len > 0)
-		add += 2;       /* CRLF separator */
-	size_t need = p->estr_len + add + 1;  /* + NUL */
+		add += 2;                    /* CRLF separator */
+	size_t need = p->estr_len + add + 1; /* + NUL */
 	if (!pending_estr_reserve(p, need)) {
 		va_end(ap);
 		return;
@@ -55,35 +54,30 @@ pending_record(struct sftpc_pending *p, sftp_err_code_t err,
 		p->estr[p->estr_len++] = '\r';
 		p->estr[p->estr_len++] = '\n';
 	}
-	int n = snprintf(p->estr + p->estr_len, p->estr_cap - p->estr_len,
-	    "%s:%d: ", file, line);
+	int n = snprintf(p->estr + p->estr_len, p->estr_cap - p->estr_len, "%s:%d: ", file, line);
 	if (n > 0)
 		p->estr_len += (size_t)n;
-	n = vsnprintf(p->estr + p->estr_len, p->estr_cap - p->estr_len,
-	    fmt, ap);
+	n = vsnprintf(p->estr + p->estr_len, p->estr_cap - p->estr_len, fmt, ap);
 	if (n > 0)
 		p->estr_len += (size_t)n;
 	va_end(ap);
 }
 
 /* File/line capture wrapper used at every call site. */
-#define PENDING_RECORD(p, err_code, ...)                                  \
-	pending_record((p), (err_code), __FILE__, __LINE__, __VA_ARGS__)
+#define PENDING_RECORD(p, err_code, ...) pending_record((p), (err_code), __FILE__, __LINE__, __VA_ARGS__)
 
 /* Append the server-supplied SSH_FXP_STATUS message text to pending's
  * estr.  Doesn't change pending->err — STATUS replies are typically
  * "OK with a result code", not failures. */
 static void
-pending_record_reply(struct sftpc_pending *p,
-                     const char *msg, uint32_t msg_len,
-                     const char *lang, uint32_t lang_len)
+pending_record_reply(struct sftpc_pending *p, const char *msg, uint32_t msg_len, const char *lang,
+    uint32_t lang_len)
 {
 	if (p == NULL || msg == NULL || msg_len == 0)
 		return;
 	int n;
 	if (lang != NULL && lang_len > 0)
-		n = snprintf(NULL, 0, "Reply: \"%.*s\" (%.*s)",
-		    (int)msg_len, msg, (int)lang_len, lang);
+		n = snprintf(NULL, 0, "Reply: \"%.*s\" (%.*s)", (int)msg_len, msg, (int)lang_len, lang);
 	else
 		n = snprintf(NULL, 0, "Reply: \"%.*s\"", (int)msg_len, msg);
 	if (n < 0)
@@ -100,12 +94,10 @@ pending_record_reply(struct sftpc_pending *p,
 	}
 	int written;
 	if (lang != NULL && lang_len > 0)
-		written = snprintf(p->estr + p->estr_len,
-		    p->estr_cap - p->estr_len, "Reply: \"%.*s\" (%.*s)",
+		written = snprintf(p->estr + p->estr_len, p->estr_cap - p->estr_len, "Reply: \"%.*s\" (%.*s)",
 		    (int)msg_len, msg, (int)lang_len, lang);
 	else
-		written = snprintf(p->estr + p->estr_len,
-		    p->estr_cap - p->estr_len, "Reply: \"%.*s\"",
+		written = snprintf(p->estr + p->estr_len, p->estr_cap - p->estr_len, "Reply: \"%.*s\"",
 		    (int)msg_len, msg);
 	if (written > 0)
 		p->estr_len += (size_t)written;
@@ -115,12 +107,12 @@ bool
 sftp_err_is_transient(sftp_err_code_t err)
 {
 	switch (err) {
-	case SFTP_ERR_SEND_FAILED:
-	case SFTP_ERR_CHANNEL_CLOSED:
-	case SFTP_ERR_ABORTED:
-	case SFTP_ERR_REPLY_NULL:
-		return true;
-	default:
-		return false;
+		case SFTP_ERR_SEND_FAILED:
+		case SFTP_ERR_CHANNEL_CLOSED:
+		case SFTP_ERR_ABORTED:
+		case SFTP_ERR_REPLY_NULL:
+			return true;
+		default:
+			return false;
 	}
 }

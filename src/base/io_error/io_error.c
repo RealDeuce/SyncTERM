@@ -5,9 +5,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "io_error.h"
-
 #include <errno.h>
+
+#include "io_error.h"
 
 int
 io_error_from_errno(int error)

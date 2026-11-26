@@ -6,6 +6,7 @@
 #include <stdint.h>
 struct st_big_state;
 struct st_big_producer;
+
 struct st_big_polygon_sink {
 	void *context;
 	/* Optional synchronous raw device tuple dispatch. Device colour fields
@@ -16,6 +17,7 @@ struct st_big_polygon_sink {
 	 * No origin/CP/thickness change belongs to this scan converter. */
 	int (*span)(void *, bool raw_line, const uint16_t points[4]);
 };
+
 /* Raw DDO0b03, not a sector/public command or the stage admission guard.
  * Entry count/capacity are captured. Y80xx markers bound live record reads;
  * declared count places intersection scratch immediately after that many
@@ -24,6 +26,5 @@ struct st_big_polygon_sink {
  * markers, escaped scratch/styles, short counts, IDIV faults and a proven
  * nonterminating row-state cycle fail without normal colour restoration.
  * IN_PROGRESS from a callback is a protocol error. */
-int st_big_polygon_fill(struct st_big_state *, const struct st_big_producer *,
-	const struct st_big_polygon_sink *);
+int st_big_polygon_fill(struct st_big_state *, const struct st_big_producer *, const struct st_big_polygon_sink *);
 #endif

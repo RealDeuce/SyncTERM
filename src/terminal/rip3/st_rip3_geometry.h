@@ -35,20 +35,18 @@ struct st_rip3_text_position {
 int st_rip3_frame_init(struct st_rip3_frame *frame, enum st_rip3_canvas canvas);
 /* Client-selected physical raster, independently of the three presets.
  * Nonzero dimensions must fit signed device coordinates. */
-int st_rip3_frame_init_device(struct st_rip3_frame *frame,
-	uint32_t width, uint32_t height);
+int st_rip3_frame_init_device(struct st_rip3_frame *frame, uint32_t width, uint32_t height);
 /* Usable projection dimensions are 1..65535. ENV separately stores the
  * accepted zero-size world state; it must not become a divisor here. */
-int st_rip3_frame_world(struct st_rip3_frame *frame,
-	uint32_t width, uint32_t height);
+int st_rip3_frame_world(struct st_rip3_frame *frame, uint32_t width, uint32_t height);
 /* Exact integer-ratio mapping, rounding down to the containing device/world
  * pixel, including for negative coordinates. Mapping does not clip: the frame
  * boundary (world_width,world_height) maps to (device_width,device_height),
  * outside the last pixel. Ports/viewports apply clipping and translations.
  * Results and frames remain unchanged on failure. */
-int st_rip3_world_to_device(const struct st_rip3_frame *frame,
-	const struct st_rip3_point *world, struct st_rip3_point *device);
-int st_rip3_device_to_world(const struct st_rip3_frame *frame,
-	const struct st_rip3_point *device, struct st_rip3_point *world);
+int st_rip3_world_to_device(const struct st_rip3_frame *frame, const struct st_rip3_point *world,
+    struct st_rip3_point *device);
+int st_rip3_device_to_world(const struct st_rip3_frame *frame, const struct st_rip3_point *device,
+    struct st_rip3_point *world);
 
 #endif

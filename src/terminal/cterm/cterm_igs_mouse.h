@@ -5,16 +5,19 @@
 #include <stdbool.h>
 struct cterm_igs;
 struct st_pixel_buffer;
+
 struct cterm_igs_pointer {
-	bool active, gem, drawn, host_visible, host_saved;
-	int style, saved_mode, x, y, left, top;
+	bool                    active, gem, drawn, host_visible, host_saved;
+	int                     style, saved_mode, x, y, left, top;
 	struct st_pixel_buffer *saved;
 };
+
 struct cterm_igs_query {
-	bool configuring, active, release, ready;
-	int selector, style, buttons, x, y, previous_x, previous_y, error;
+	bool                     configuring, active, release, ready;
+	int                      selector, style, buttons, x, y, previous_x, previous_y, error;
 	struct cterm_igs_pointer pointer;
 };
+
 int cterm_igs_pointer_begin(struct cterm_igs *, struct cterm_igs_pointer *, int style);
 int cterm_igs_pointer_move(struct cterm_igs *, struct cterm_igs_pointer *, int x, int y);
 int cterm_igs_pointer_end(struct cterm_igs *, struct cterm_igs_pointer *);

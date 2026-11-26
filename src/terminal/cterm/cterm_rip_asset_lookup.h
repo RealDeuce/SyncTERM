@@ -13,6 +13,6 @@
 /* Returns an allocated path, or NULL if no matching entry is found. The
  * caller validates the entry kind and rejects links. */
 char *cterm_rip_asset_case_path(const char *directory, const char *name);
-bool cterm_rip_asset_path_readable(const char *path);
+bool  cterm_rip_asset_path_readable(const char *path);
 
 #endif

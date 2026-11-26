@@ -17,14 +17,11 @@ extern "C" {
 
 /* The encoded size excludes the terminating NUL. */
 bool st_base64_encoded_size(size_t source_size, size_t *result);
-bool st_base64_decoded_size(const char *source, size_t source_size,
-	size_t *result);
+bool st_base64_decoded_size(const char *source, size_t source_size, size_t *result);
 
 /* Encoding appends a NUL; decoding writes exactly the validated byte count. */
-bool st_base64_encode(char *destination, size_t destination_capacity,
-	const void *source, size_t source_size);
-bool st_base64_decode(void *destination, size_t destination_capacity,
-	const char *source, size_t source_size);
+bool st_base64_encode(char *destination, size_t destination_capacity, const void *source, size_t source_size);
+bool st_base64_decode(void *destination, size_t destination_capacity, const char *source, size_t source_size);
 
 #ifdef __cplusplus
 }

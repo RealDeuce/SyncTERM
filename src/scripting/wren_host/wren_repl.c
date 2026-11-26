@@ -3,16 +3,16 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "wren_host_internal.h"
 #include "st_time.h"
 #include "string_compat.h"
+#include "wren_host_internal.h"
 /* Like Wren's meta module, compilation returns a closure without re-entering
  * the interpreter. The Wren caller executes it in its own (catchable) fiber. */
-#include "wren_vm.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "wren_vm.h"
 
 static void
 release_entry(WrenVM *vm, struct st_wren_log_entry *entry)
@@ -20,7 +20,7 @@ release_entry(WrenVM *vm, struct st_wren_log_entry *entry)
 	if (entry->cached != NULL)
 		wrenReleaseHandle(vm, entry->cached);
 	free(entry->text);
-	*entry = (struct st_wren_log_entry){0};
+	*entry = (struct st_wren_log_entry) {0};
 }
 
 static void
@@ -44,11 +44,10 @@ st_wren_log_dispose(WrenVM *vm)
 void
 st_wren_log_append(WrenVM *vm, int source, const char *text)
 {
-	struct st_wren_context *context = st_wren_context_from_vm(vm);
-	struct st_wren_log *log = context->capturing
-	    ? &context->capture : &context->log;
-	uint64_t milliseconds = 0;
-	char *copy;
+	struct st_wren_context   *context      = st_wren_context_from_vm(vm);
+	struct st_wren_log       *log          = context->capturing ? &context->capture : &context->log;
+	uint64_t                  milliseconds = 0;
+	char                     *copy;
 	struct st_wren_log_entry *entry;
 
 	copy = strndup(text, 8192);
@@ -57,9 +56,9 @@ st_wren_log_append(WrenVM *vm, int source, const char *text)
 	entry = &log->entries[log->total % ST_WREN_LOG_CAPACITY];
 	release_entry(vm, entry);
 	(void)st_time_monotonic_ms(&milliseconds);
-	entry->text = copy;
+	entry->text      = copy;
 	entry->timestamp = (double)milliseconds / 1000.0;
-	entry->source = source;
+	entry->source    = source;
 	++log->total;
 	if (source != 0)
 		++log->errors;
@@ -74,21 +73,16 @@ console_count(WrenVM *vm)
 }
 
 void
-st_wren_log_error(WrenVM *vm, WrenErrorType type, const char *module,
-	int line, const char *message)
+st_wren_log_error(WrenVM *vm, WrenErrorType type, const char *module, int line, const char *message)
 {
 	char entry[1024];
 
 	if (type == WREN_ERROR_RUNTIME)
-		(void)snprintf(entry, sizeof(entry), "%s",
-		    message == NULL ? "" : message);
+		(void)snprintf(entry, sizeof(entry), "%s", message == NULL ? "" : message);
 	else
-		(void)snprintf(entry, sizeof(entry), "%s:%d%s%s",
-		    module == NULL ? "?" : module, line,
-		    type == WREN_ERROR_STACK_TRACE ? " in " : ": ",
-		    message == NULL ? "" : message);
-	st_wren_log_append(vm, type == WREN_ERROR_COMPILE ? 1 :
-	    type == WREN_ERROR_RUNTIME ? 2 : 3, entry);
+		(void)snprintf(entry, sizeof(entry), "%s:%d%s%s", module == NULL ? "?" : module, line,
+		    type == WREN_ERROR_STACK_TRACE ? " in " : ": ", message == NULL ? "" : message);
+	st_wren_log_append(vm, type == WREN_ERROR_COMPILE ? 1 : type == WREN_ERROR_RUNTIME ? 2 : 3, entry);
 }
 
 static void
@@ -107,12 +101,11 @@ sequence(WrenVM *vm, uint64_t *result)
 static void
 console_get(WrenVM *vm)
 {
-	struct st_wren_log *log = &st_wren_context_from_vm(vm)->log;
+	struct st_wren_log       *log = &st_wren_context_from_vm(vm)->log;
 	struct st_wren_log_entry *entry;
-	uint64_t seq;
+	uint64_t                  seq;
 
-	if (!sequence(vm, &seq) || seq < log->total - log->count
-	    || seq >= log->total) {
+	if (!sequence(vm, &seq) || seq < log->total - log->count || seq >= log->total) {
 		wrenSetSlotNull(vm, 0);
 		return;
 	}
@@ -136,7 +129,7 @@ static void
 console_iterate(WrenVM *vm)
 {
 	struct st_wren_log *log = &st_wren_context_from_vm(vm)->log;
-	uint64_t seq;
+	uint64_t            seq;
 
 	if (wrenGetSlotType(vm, 1) == WREN_TYPE_NULL)
 		seq = log->total - log->count;
@@ -166,7 +159,7 @@ console_seen(WrenVM *vm)
 {
 	struct st_wren_context *context = st_wren_context_from_vm(vm);
 
-	context->seen_total = context->log.total;
+	context->seen_total  = context->log.total;
 	context->seen_errors = context->log.errors;
 	wrenSetSlotNull(vm, 0);
 }
@@ -211,8 +204,8 @@ static void
 capture_contains(WrenVM *vm)
 {
 	struct st_wren_log *log = &st_wren_context_from_vm(vm)->capture;
-	const char *needle;
-	bool found = false;
+	const char         *needle;
+	bool                found = false;
 
 	if (wrenGetSlotType(vm, 1) != WREN_TYPE_STRING) {
 		st_wren_abort(vm, "REPL.captureContains_ expects a String");
@@ -221,8 +214,7 @@ capture_contains(WrenVM *vm)
 	if (!st_wren_text_slot(vm, 1, &needle, NULL))
 		return;
 	for (uint64_t i = log->total - log->count; i < log->total; ++i) {
-		if (strstr(log->entries[i % ST_WREN_LOG_CAPACITY].text,
-		    needle) != NULL)
+		if (strstr(log->entries[i % ST_WREN_LOG_CAPACITY].text, needle) != NULL)
 			found = true;
 	}
 	wrenSetSlotBool(vm, 0, found);
@@ -232,12 +224,11 @@ static void
 capture_commit(WrenVM *vm)
 {
 	struct st_wren_context *context = st_wren_context_from_vm(vm);
-	struct st_wren_log *log = &context->capture;
+	struct st_wren_log     *log     = &context->capture;
 
 	context->capturing = false;
 	for (uint64_t i = log->total - log->count; i < log->total; ++i) {
-		struct st_wren_log_entry *entry =
-		    &log->entries[i % ST_WREN_LOG_CAPACITY];
+		struct st_wren_log_entry *entry = &log->entries[i % ST_WREN_LOG_CAPACITY];
 		st_wren_log_append(vm, entry->source, entry->text);
 	}
 	clear_log(vm, log);
@@ -251,19 +242,15 @@ repl_compile(WrenVM *vm)
 	const char *module;
 	const char *source;
 
-	if (wrenGetSlotType(vm, 1) != WREN_TYPE_STRING
-	    || wrenGetSlotType(vm, 2) != WREN_TYPE_STRING
-	    || wrenGetSlotType(vm, 3) != WREN_TYPE_BOOL
-	    || wrenGetSlotType(vm, 4) != WREN_TYPE_BOOL) {
+	if (wrenGetSlotType(vm, 1) != WREN_TYPE_STRING || wrenGetSlotType(vm, 2) != WREN_TYPE_STRING
+	    || wrenGetSlotType(vm, 3) != WREN_TYPE_BOOL || wrenGetSlotType(vm, 4) != WREN_TYPE_BOOL) {
 		st_wren_abort(vm, "REPL.compile_ expects two Strings and two Bools");
 		return;
 	}
-	if (!st_wren_text_slot(vm, 1, &module, NULL)
-	    || !st_wren_text_slot(vm, 2, &source, NULL))
+	if (!st_wren_text_slot(vm, 1, &module, NULL) || !st_wren_text_slot(vm, 2, &source, NULL))
 		return;
-	module = wrenGetSlotString(vm, 1);
-	closure = wrenCompileSource(vm, module, source, wrenGetSlotBool(vm, 3),
-	    wrenGetSlotBool(vm, 4));
+	module          = wrenGetSlotString(vm, 1);
+	closure         = wrenCompileSource(vm, module, source, wrenGetSlotBool(vm, 3), wrenGetSlotBool(vm, 4));
 	vm->apiStack[0] = closure == NULL ? NULL_VAL : OBJ_VAL(closure);
 }
 
@@ -313,45 +300,43 @@ repl_trace(WrenVM *vm)
 		    IS_STRING(fiber->error) ? AS_CSTRING(fiber->error) : "[error object]");
 		for (int i = fiber->numFrames - 1; i >= 0; --i) {
 			CallFrame *frame = &fiber->frames[i];
-			ObjFn *fn = frame->closure->fn;
+			ObjFn     *fn    = frame->closure->fn;
 			if (fn->module == NULL || fn->module->name == NULL)
 				continue;
-			st_wren_log_error(vm, WREN_ERROR_STACK_TRACE,
-			    fn->module->name->value,
-			    fn->debug->sourceLines.data[frame->ip - fn->code.data - 1],
-			    fn->debug->name);
+			st_wren_log_error(vm, WREN_ERROR_STACK_TRACE, fn->module->name->value,
+			    fn->debug->sourceLines.data[frame->ip - fn->code.data - 1], fn->debug->name);
 		}
 	}
 	wrenSetSlotNull(vm, 0);
 }
 
 WrenForeignMethodFn
-st_wren_repl_bind_method(const char *class_name, bool is_static,
-	const char *signature)
+st_wren_repl_bind_method(const char *class_name, bool is_static, const char *signature)
 {
 	static const struct {
-		const char *class_name;
-		const char *signature;
+		const char         *class_name;
+		const char         *signature;
 		WrenForeignMethodFn method;
 	} methods[] = {
-		{"Console", "count", console_count},
-		{"Console", "total", console_total},
-		{"Console", "[_]", console_get},
-		{"Console", "iteratorValue(_)", console_get},
-		{"Console", "iterate(_)", console_iterate},
-		{"Console", "clear()", console_clear},
-		{"Console", "markSeen()", console_seen},
-		{"Host", "logUnread", log_unread},
-		{"Host", "logUnreadError", log_unread_error},
-		{"REPL", "compile_(_,_,_,_)", repl_compile},
-		{"REPL", "hasModule(_)", repl_has_module},
-		{"REPL", "modules", repl_modules},
-		{"REPL", "printTrace_(_)", repl_trace},
-		{"REPL", "captureStart_()", capture_start},
-		{"REPL", "captureClear_()", capture_clear},
-		{"REPL", "captureCommit_()", capture_commit},
-		{"REPL", "captureContains_(_)", capture_contains},
+	    {"Console", "count",               console_count   },
+	    {"Console", "total",               console_total   },
+	    {"Console", "[_]",                 console_get     },
+	    {"Console", "iteratorValue(_)",    console_get     },
+	    {"Console", "iterate(_)",          console_iterate },
+	    {"Console", "clear()",             console_clear   },
+	    {"Console", "markSeen()",          console_seen    },
+	    {"Host",    "logUnread",           log_unread      },
+	    {"Host",    "logUnreadError",      log_unread_error},
+	    {"REPL",    "compile_(_,_,_,_)",   repl_compile    },
+	    {"REPL",    "hasModule(_)",        repl_has_module },
+	    {"REPL",    "modules",             repl_modules    },
+	    {"REPL",    "printTrace_(_)",      repl_trace      },
+	    {"REPL",    "captureStart_()",     capture_start   },
+	    {"REPL",    "captureClear_()",     capture_clear   },
+	    {"REPL",    "captureCommit_()",    capture_commit  },
+	    {"REPL",    "captureContains_(_)", capture_contains},
 	};
+
 	if (is_static) {
 		for (size_t i = 0; i < sizeof(methods) / sizeof(methods[0]); ++i) {
 			if (strcmp(class_name, methods[i].class_name) == 0

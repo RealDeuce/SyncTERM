@@ -8,32 +8,29 @@
 #ifndef ST_AUDIO_INTERNAL_H_
 #define ST_AUDIO_INTERNAL_H_
 
-#include "audio.h"
-
 #include <stddef.h>
 #include <stdint.h>
 
+#include "audio.h"
+
 struct audio_backend_callbacks {
-	void *context;
+	void  *context;
 	size_t (*pull)(void *context, int16_t *frames, size_t frame_count);
-	void (*failed)(void *context);
+	void   (*failed)(void *context);
 };
 
 struct audio_backend_descriptor {
 	enum audio_backend backend;
-	bool (*available)(void);
-	int (*open)(void **result,
-	    const struct audio_backend_callbacks *callbacks);
-	void (*close)(void *state);
+	bool               (*available)(void);
+	int                (*open)(void **result, const struct audio_backend_callbacks *callbacks);
+	void               (*close)(void *state);
 	/* Non-NULL only for a blocking backend pumped by the engine worker. */
-	int (*write)(void *state, const int16_t *frames, size_t frame_count);
+	int      (*write)(void *state, const int16_t *frames, size_t frame_count);
 	uint32_t (*latency_ms)(void *state);
 };
 
-int audio_engine_create_with_backends(audio_engine_t **result,
-	uint32_t allowed_backends,
-	const struct audio_backend_descriptor *const backends[],
-	size_t backend_count);
+int audio_engine_create_with_backends(audio_engine_t **result, uint32_t allowed_backends,
+    const struct audio_backend_descriptor *const backends[], size_t backend_count);
 
 /* Single lifecycle owner. Stream handles remain valid for cleanup. */
 void audio_engine_close_device(audio_engine_t *engine);

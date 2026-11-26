@@ -5,16 +5,15 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "st_app_paths_internal.h"
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "filesystem.h"
 #include "io_error.h"
 #include "path.h"
+#include "st_app_paths_internal.h"
 #include "string_compat.h"
-
-#include <stdlib.h>
-#include <stdint.h>
-#include <string.h>
 
 char *
 st_app_path_copy(const char *path)
@@ -65,11 +64,10 @@ replace_path(char **path, const char *replacement)
 }
 
 int
-st_app_paths_init(struct st_app_paths *paths,
-    const struct st_app_path_overrides *overrides)
+st_app_paths_init(struct st_app_paths *paths, const struct st_app_path_overrides *overrides)
 {
 	struct st_app_paths value = {0};
-	int status;
+	int                 status;
 
 	if (paths == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -77,46 +75,33 @@ st_app_paths_init(struct st_app_paths *paths,
 	if (status < 0)
 		goto fail;
 	if (overrides != NULL) {
-		status = replace_path(&value.settings_file,
-		    overrides->settings_file);
+		status = replace_path(&value.settings_file, overrides->settings_file);
 		if (status == 0)
-			status = replace_path(&value.personal_list,
-			    overrides->personal_list);
+			status = replace_path(&value.personal_list, overrides->personal_list);
 		if (status == 0)
-			status = replace_path(&value.shared_list,
-			    overrides->shared_list);
+			status = replace_path(&value.shared_list, overrides->shared_list);
 		if (status == 0)
-			status = replace_path(&value.cache_directory,
-			    overrides->cache_directory);
+			status = replace_path(&value.cache_directory, overrides->cache_directory);
 		if (status == 0)
-			status = replace_path(&value.rip_data_directory,
-			    overrides->rip_data_directory);
+			status = replace_path(&value.rip_data_directory, overrides->rip_data_directory);
 		if (status == 0)
-			status = replace_path(&value.download_directory,
-			    overrides->download_directory);
+			status = replace_path(&value.download_directory, overrides->download_directory);
 		if (status == 0)
-			status = replace_path(&value.keys_file,
-			    overrides->keys_file);
+			status = replace_path(&value.keys_file, overrides->keys_file);
 		if (status == 0)
-			status = replace_path(&value.scripts_directory,
-			    overrides->scripts_directory);
+			status = replace_path(&value.scripts_directory, overrides->scripts_directory);
 		if (status == 0)
-			status = replace_path(&value.themes_directory,
-			    overrides->themes_directory);
+			status = replace_path(&value.themes_directory, overrides->themes_directory);
 		if (status < 0)
 			goto fail;
 	}
 	free(value.system_cache_directory);
 	free(value.cached_system_list);
-	value.system_cache_directory = st_app_path_join(value.cache_directory,
-	    "syncterm-system-cache");
-	value.cached_system_list = st_app_path_join(value.system_cache_directory,
-	    "System List.lst");
-	if (value.settings_file == NULL || value.personal_list == NULL
-	    || value.cache_directory == NULL || value.rip_data_directory == NULL
-	    || value.system_cache_directory == NULL
-	    || value.cached_system_list == NULL
-	    || value.download_directory == NULL || value.keys_file == NULL
+	value.system_cache_directory = st_app_path_join(value.cache_directory, "syncterm-system-cache");
+	value.cached_system_list     = st_app_path_join(value.system_cache_directory, "System List.lst");
+	if (value.settings_file == NULL || value.personal_list == NULL || value.cache_directory == NULL
+	    || value.rip_data_directory == NULL || value.system_cache_directory == NULL
+	    || value.cached_system_list == NULL || value.download_directory == NULL || value.keys_file == NULL
 	    || value.scripts_directory == NULL || value.themes_directory == NULL) {
 		status = IO_ERROR_OUT_OF_MEMORY;
 		goto fail;

@@ -8,6 +8,5 @@
  * bytes relative to cached inclusive left/top/right/bottom, modulo256.
  * Rejection leaves position untouched; admission returns zero-based bytes.
  * Native page/visible cursor effects and host extent checks are callers. */
-bool st_big_console_position(const uint8_t bounds[4], uint16_t x, uint16_t y,
-	uint8_t position[2]);
+bool st_big_console_position(const uint8_t bounds[4], uint16_t x, uint16_t y, uint8_t position[2]);
 #endif

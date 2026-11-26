@@ -31,10 +31,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "cterm_render.h"
 #include "cterm.h"
 #include "cterm_internal.h"
 #include "cterm_prestel.h"
+#include "cterm_render.h"
 
 /* ------------------------------------------------------------------------
  * Serial-attribute helpers
@@ -43,14 +43,15 @@
 void
 cterm_prestel_new_line(struct cterminal *cterm)
 {
-	cterm->extattr &= ~(CTERM_EXTATTR_PRESTEL_CONCEAL | CTERM_EXTATTR_PRESTEL_DOUBLE_HEIGHT | CTERM_EXTATTR_PRESTEL_HOLD | CTERM_EXTATTR_PRESTEL_MOSAIC | CTERM_EXTATTR_PRESTEL_SEPARATED);
+	cterm->extattr &=
+	    ~(CTERM_EXTATTR_PRESTEL_CONCEAL | CTERM_EXTATTR_PRESTEL_DOUBLE_HEIGHT | CTERM_EXTATTR_PRESTEL_HOLD
+	        | CTERM_EXTATTR_PRESTEL_MOSAIC | CTERM_EXTATTR_PRESTEL_SEPARATED);
 	cterm->attr = 7;
 	cterm_render_attribute_colours(cterm, cterm->attr, &cterm->fg_color, &cterm->bg_color);
-	cterm->cell_flags &= ~(ST_CONSOLE_CELL_SAA5050
-	    | ST_CONSOLE_CELL_DOUBLE_HEIGHT | ST_CONSOLE_CELL_SEPARATED
-	    | ST_CONSOLE_CELL_TERMINAL_FONT | ST_CONSOLE_CELL_PIXEL_GRAPHICS
-	    | ST_CONSOLE_CELL_CONCEAL | ST_CONSOLE_CELL_REVEAL
-	    | ST_CONSOLE_CELL_SAA5050_CONTROL_MASK);
+	cterm->cell_flags &=
+	    ~(ST_CONSOLE_CELL_SAA5050 | ST_CONSOLE_CELL_DOUBLE_HEIGHT | ST_CONSOLE_CELL_SEPARATED
+	        | ST_CONSOLE_CELL_TERMINAL_FONT | ST_CONSOLE_CELL_PIXEL_GRAPHICS | ST_CONSOLE_CELL_CONCEAL
+	        | ST_CONSOLE_CELL_REVEAL | ST_CONSOLE_CELL_SAA5050_CONTROL_MASK);
 	cterm->cell_flags |= ST_CONSOLE_CELL_SAA5050;
 	if (cterm->emulation == CTERM_EMULATION_PRESTEL)
 		cterm->cell_flags |= ST_CONSOLE_CELL_TERMINAL_FONT;
@@ -124,13 +125,27 @@ void
 cterm_prestel_apply_ctrl_after(struct cterminal *cterm, uint8_t ch)
 {
 	switch (ch) {
-		case 65: cterm_prestel_colour(cterm, true, CTERM_COLOR_RED); break;
-		case 66: cterm_prestel_colour(cterm, true, CTERM_COLOR_GREEN); break;
-		case 67: cterm_prestel_colour(cterm, true, CTERM_COLOR_YELLOW); break;
-		case 68: cterm_prestel_colour(cterm, true, CTERM_COLOR_BLUE); break;
-		case 69: cterm_prestel_colour(cterm, true, CTERM_COLOR_MAGENTA); break;
-		case 70: cterm_prestel_colour(cterm, true, CTERM_COLOR_CYAN); break;
-		case 71: cterm_prestel_colour(cterm, true, CTERM_COLOR_WHITE); break;
+		case 65:
+			cterm_prestel_colour(cterm, true, CTERM_COLOR_RED);
+			break;
+		case 66:
+			cterm_prestel_colour(cterm, true, CTERM_COLOR_GREEN);
+			break;
+		case 67:
+			cterm_prestel_colour(cterm, true, CTERM_COLOR_YELLOW);
+			break;
+		case 68:
+			cterm_prestel_colour(cterm, true, CTERM_COLOR_BLUE);
+			break;
+		case 69:
+			cterm_prestel_colour(cterm, true, CTERM_COLOR_MAGENTA);
+			break;
+		case 70:
+			cterm_prestel_colour(cterm, true, CTERM_COLOR_CYAN);
+			break;
+		case 71:
+			cterm_prestel_colour(cterm, true, CTERM_COLOR_WHITE);
+			break;
 		case 72: /* Flash */
 			cterm->attr |= 0x80;
 			cterm_render_attribute_colours(cterm, cterm->attr, &cterm->fg_color, &cterm->bg_color);
@@ -143,13 +158,27 @@ cterm_prestel_apply_ctrl_after(struct cterminal *cterm, uint8_t ch)
 			cterm->extattr |= CTERM_EXTATTR_PRESTEL_DOUBLE_HEIGHT;
 			cterm->cell_flags |= ST_CONSOLE_CELL_DOUBLE_HEIGHT;
 			break;
-		case 81: cterm_prestel_colour(cterm, false, CTERM_COLOR_RED); break;
-		case 82: cterm_prestel_colour(cterm, false, CTERM_COLOR_GREEN); break;
-		case 83: cterm_prestel_colour(cterm, false, CTERM_COLOR_YELLOW); break;
-		case 84: cterm_prestel_colour(cterm, false, CTERM_COLOR_BLUE); break;
-		case 85: cterm_prestel_colour(cterm, false, CTERM_COLOR_MAGENTA); break;
-		case 86: cterm_prestel_colour(cterm, false, CTERM_COLOR_CYAN); break;
-		case 87: cterm_prestel_colour(cterm, false, CTERM_COLOR_WHITE); break;
+		case 81:
+			cterm_prestel_colour(cterm, false, CTERM_COLOR_RED);
+			break;
+		case 82:
+			cterm_prestel_colour(cterm, false, CTERM_COLOR_GREEN);
+			break;
+		case 83:
+			cterm_prestel_colour(cterm, false, CTERM_COLOR_YELLOW);
+			break;
+		case 84:
+			cterm_prestel_colour(cterm, false, CTERM_COLOR_BLUE);
+			break;
+		case 85:
+			cterm_prestel_colour(cterm, false, CTERM_COLOR_MAGENTA);
+			break;
+		case 86:
+			cterm_prestel_colour(cterm, false, CTERM_COLOR_CYAN);
+			break;
+		case 87:
+			cterm_prestel_colour(cterm, false, CTERM_COLOR_WHITE);
+			break;
 		case 95: /* Release Mosaics */
 			cterm->prestel_last_mosaic = 0;
 			cterm->extattr &= ~(CTERM_EXTATTR_PRESTEL_HOLD);
@@ -171,8 +200,8 @@ void
 cterm_prestel_get_state(struct cterminal *cterm)
 {
 	struct st_console_cell *line;
-	int sx, sy;
-	int tx, ty;
+	int                     sx, sy;
+	int                     tx, ty;
 
 	SCR_XY(&sx, &sy);
 	TERM_XY(&tx, &ty);
@@ -186,11 +215,9 @@ cterm_prestel_get_state(struct cterminal *cterm)
 		cterm_render_read_cells(cterm, cterm->x, sy, cterm->x + tx - 2, sy, line);
 		for (int i = 0; i < (tx - 1); i++) {
 			uint8_t ch = cterm_render_cell_byte(cterm, &line[i]);
-			if ((line[i].flags
-			    & ST_CONSOLE_CELL_SAA5050_CONTROL_MASK) != 0) {
-				ch = (uint8_t)((line[i].flags
-				    & ST_CONSOLE_CELL_SAA5050_CONTROL_MASK)
-				    >> ST_CONSOLE_CELL_SAA5050_CONTROL_SHIFT);
+			if ((line[i].flags & ST_CONSOLE_CELL_SAA5050_CONTROL_MASK) != 0) {
+				ch = (uint8_t)((line[i].flags & ST_CONSOLE_CELL_SAA5050_CONTROL_MASK)
+				               >> ST_CONSOLE_CELL_SAA5050_CONTROL_SHIFT);
 				cterm_prestel_apply_ctrl(cterm, ch);
 			}
 			else {
@@ -210,21 +237,21 @@ cterm_prestel_get_state(struct cterminal *cterm)
 void
 cterm_prestel_fix_line(struct cterminal *cterm, int x, int y, bool restore, bool force)
 {
-	int sy = y;
-	int sx = 1;
-	int ex = 1;
+	int                     sy = y;
+	int                     sx = 1;
+	int                     ex = 1;
 	struct st_console_cell *line;
-	unsigned int extattr = cterm->extattr;
-	uint32_t fg_color = cterm->fg_color;
-	uint32_t bg_color = cterm->bg_color;
-	uint32_t cell_flags = cterm->cell_flags;
-	unsigned char attr = cterm->attr;
-	uint8_t prestel_last_mosaic = cterm->prestel_last_mosaic;
-	bool dblheight = false;
+	unsigned int            extattr             = cterm->extattr;
+	uint32_t                fg_color            = cterm->fg_color;
+	uint32_t                bg_color            = cterm->bg_color;
+	uint32_t                cell_flags          = cterm->cell_flags;
+	unsigned char           attr                = cterm->attr;
+	uint8_t                 prestel_last_mosaic = cterm->prestel_last_mosaic;
+	bool                    dblheight           = false;
 	(void)force;
 
 	cterm_coord_conv_xy(cterm, CTERM_COORD_TERM, CTERM_COORD_SCREEN, &sy, &sx);
-	ex = sx + TERM_MAXX - 1;
+	ex   = sx + TERM_MAXX - 1;
 	line = malloc(sizeof(*line) * (ex - sx + 1));
 	if (line == NULL) {
 		cterm_log(cterm, ST_CTERM_LOG_ERROR, "Unable to allocate Prestel line buffer");
@@ -233,26 +260,25 @@ cterm_prestel_fix_line(struct cterminal *cterm, int x, int y, bool restore, bool
 	cterm_render_read_cells(cterm, sx, sy, ex, sy, line);
 	cterm_prestel_new_line(cterm);
 	for (int i = 0; i < TERM_MAXX; i++) {
-		uint8_t byte;
-		uint8_t control = 0;
+		uint8_t  byte;
+		uint8_t  control = 0;
 		uint16_t hyperlink;
 
 		if ((line[i].flags & ST_CONSOLE_CELL_SAA5050) == 0)
 			continue;
-		byte = cterm_render_cell_byte(cterm, &line[i]);
+		byte      = cterm_render_cell_byte(cterm, &line[i]);
 		hyperlink = line[i].hyperlink;
 		if ((line[i].flags & ST_CONSOLE_CELL_SAA5050_CONTROL_MASK) != 0) {
 			if (i == (x - 1)) {
-				extattr = cterm->extattr;
-				fg_color = cterm->fg_color;
-				bg_color = cterm->bg_color;
-				cell_flags = cterm->cell_flags;
-				attr = cterm->attr;
+				extattr             = cterm->extattr;
+				fg_color            = cterm->fg_color;
+				bg_color            = cterm->bg_color;
+				cell_flags          = cterm->cell_flags;
+				attr                = cterm->attr;
 				prestel_last_mosaic = cterm->prestel_last_mosaic;
 			}
-			control = (uint8_t)((line[i].flags
-			    & ST_CONSOLE_CELL_SAA5050_CONTROL_MASK)
-			    >> ST_CONSOLE_CELL_SAA5050_CONTROL_SHIFT);
+			control = (uint8_t)((line[i].flags & ST_CONSOLE_CELL_SAA5050_CONTROL_MASK)
+			                    >> ST_CONSOLE_CELL_SAA5050_CONTROL_SHIFT);
 			cterm_prestel_apply_ctrl_before(cterm, control);
 			if (cterm->extattr & CTERM_EXTATTR_PRESTEL_DOUBLE_HEIGHT)
 				dblheight = true;
@@ -278,22 +304,20 @@ cterm_prestel_fix_line(struct cterminal *cterm, int x, int y, bool restore, bool
 						cterm->cell_flags |= ST_CONSOLE_CELL_SEPARATED;
 				}
 			}
-			cterm_render_make_cell(cterm, &line[i], byte, cterm->attr,
-			    cterm->fg_color, cterm->bg_color,
-			    cterm_render_attribute_font(cterm, cterm->attr), hyperlink,
-			    cterm->cell_flags
-			    | ST_CONSOLE_CELL_SAA5050_CONTROL(control));
+			cterm_render_make_cell(cterm, &line[i], byte, cterm->attr, cterm->fg_color,
+			    cterm->bg_color, cterm_render_attribute_font(cterm, cterm->attr), hyperlink,
+			    cterm->cell_flags | ST_CONSOLE_CELL_SAA5050_CONTROL(control));
 			cterm_prestel_apply_ctrl_after(cterm, control);
 			if (cterm->extattr & CTERM_EXTATTR_PRESTEL_DOUBLE_HEIGHT)
 				dblheight = true;
 		}
 		else {
 			if (i == (x - 1)) {
-				extattr = cterm->extattr;
-				fg_color = cterm->fg_color;
-				bg_color = cterm->bg_color;
-				cell_flags = cterm->cell_flags;
-				attr = cterm->attr;
+				extattr             = cterm->extattr;
+				fg_color            = cterm->fg_color;
+				bg_color            = cterm->bg_color;
+				cell_flags          = cterm->cell_flags;
+				attr                = cterm->attr;
 				prestel_last_mosaic = cterm->prestel_last_mosaic;
 			}
 			if (cterm->extattr & CTERM_EXTATTR_PRESTEL_DOUBLE_HEIGHT)
@@ -301,23 +325,20 @@ cterm_prestel_fix_line(struct cterminal *cterm, int x, int y, bool restore, bool
 			if (byte >= 160 && ((cterm->extattr & CTERM_EXTATTR_PRESTEL_MOSAIC) == 0))
 				byte &= 0x7f;
 			else if ((cterm->extattr & CTERM_EXTATTR_PRESTEL_MOSAIC)
-			    && ((byte >= 32 && byte < 64)
-			     || (byte >= 96 && byte < 128))) {
+			         && ((byte >= 32 && byte < 64) || (byte >= 96 && byte < 128))) {
 				byte |= 0x80;
 				if (cterm->extattr & CTERM_EXTATTR_PRESTEL_SEPARATED)
 					cterm->cell_flags |= ST_CONSOLE_CELL_SEPARATED;
 				else
 					cterm->cell_flags &= ~ST_CONSOLE_CELL_SEPARATED;
 			}
-			else if ((cterm->extattr & CTERM_EXTATTR_PRESTEL_MOSAIC)
-			    && byte >= 0xc0 && byte <= 0xdf)
+			else if ((cterm->extattr & CTERM_EXTATTR_PRESTEL_MOSAIC) && byte >= 0xc0 && byte <= 0xdf)
 				byte &= 0x7f;
 			else if (cterm->extattr & CTERM_EXTATTR_PRESTEL_SEPARATED)
 				cterm->cell_flags |= ST_CONSOLE_CELL_SEPARATED;
 			else
 				cterm->cell_flags &= ~ST_CONSOLE_CELL_SEPARATED;
-			cterm_render_make_current_cell(cterm, &line[i], byte,
-			    hyperlink);
+			cterm_render_make_current_cell(cterm, &line[i], byte, hyperlink);
 			if (byte >= 160) {
 				cterm->prestel_last_mosaic = byte;
 				if (cterm->extattr & CTERM_EXTATTR_PRESTEL_SEPARATED)
@@ -330,11 +351,11 @@ cterm_prestel_fix_line(struct cterminal *cterm, int x, int y, bool restore, bool
 	if (dblheight)
 		cterm_prestel_fix_line(cterm, x, y + 1, false, true);
 	if (restore) {
-		cterm->extattr = extattr;
-		cterm->fg_color = fg_color;
-		cterm->bg_color = bg_color;
-		cterm->cell_flags = cell_flags;
-		cterm->attr = attr;
+		cterm->extattr             = extattr;
+		cterm->fg_color            = fg_color;
+		cterm->bg_color            = bg_color;
+		cterm->cell_flags          = cell_flags;
+		cterm->attr                = attr;
 		cterm->prestel_last_mosaic = prestel_last_mosaic;
 	}
 }
@@ -396,23 +417,23 @@ void
 cterm_prestel_handle_escaped(struct cterminal *cterm, uint8_t ctrl)
 {
 	struct st_console_cell tmpvc[1] = {0};
-	uint8_t byte;
-	uint32_t flags;
-	int sx, sy, x, y;
+	uint8_t                byte;
+	uint32_t               flags;
+	int                    sx, sy, x, y;
 
 	if (ctrl < 0x40 || ctrl > 0x5f) {
-		cterm->escbuf[0] = 0;
-		cterm->sequence = 0;
+		cterm->escbuf[0]   = 0;
+		cterm->sequence    = 0;
 		cterm->accumulator = NULL;
 		return;
 	}
 	cterm_prestel_apply_ctrl_before(cterm, ctrl);
 	cterm_render_set_attribute(cterm, cterm->attr);
 	cterm_render_set_colours(cterm, cterm->fg_color, cterm->bg_color);
-	cterm->escbuf[0] = 0;
-	cterm->sequence = 0;
+	cterm->escbuf[0]   = 0;
+	cterm->sequence    = 0;
 	cterm->accumulator = NULL;
-	flags = cterm->cell_flags | ST_CONSOLE_CELL_SAA5050_CONTROL(ctrl);
+	flags              = cterm->cell_flags | ST_CONSOLE_CELL_SAA5050_CONTROL(ctrl);
 	if ((cterm->extattr & CTERM_EXTATTR_PRESTEL_HOLD) && (cterm->prestel_last_mosaic != 0)) {
 		byte = cterm->prestel_last_mosaic;
 		if (byte & 0x80)
@@ -423,10 +444,8 @@ cterm_prestel_handle_escaped(struct cterminal *cterm, uint8_t ctrl)
 	}
 	else
 		byte = ' ';
-	cterm_render_make_cell(cterm, &tmpvc[0], byte, cterm->attr,
-	    cterm->fg_color, cterm->bg_color,
-	    cterm_render_attribute_font(cterm, cterm->attr),
-	    cterm_render_get_hyperlink(cterm), flags);
+	cterm_render_make_cell(cterm, &tmpvc[0], byte, cterm->attr, cterm->fg_color, cterm->bg_color,
+	    cterm_render_attribute_font(cterm, cterm->attr), cterm_render_get_hyperlink(cterm), flags);
 	SCR_XY(&sx, &sy);
 	CURR_XY(&x, &y);
 	cterm_render_write_cells(cterm, sx, sy, sx, sy, tmpvc);
@@ -458,7 +477,7 @@ cterm_accumulate_prestel_seq(struct cterminal *cterm, unsigned char byte, int *s
 		else {
 			cterm_uctputs(cterm, cterm->print_buf);
 			cterm->print_buf[0] = 0;
-			cterm->print_pos = cterm->print_buf;
+			cterm->print_pos    = cterm->print_buf;
 			cterm_prestel_handle_escaped(cterm, byte);
 		}
 		return true;
@@ -473,39 +492,39 @@ cterm_accumulate_prestel_seq(struct cterminal *cterm, unsigned char byte, int *s
 			}
 			else {
 				cterm->prestel_prog_state = PRESTEL_PROG_NONE;
-				cterm->escbuf[0] = 0;
-				cterm->sequence = 0;
-				cterm->accumulator = NULL;
+				cterm->escbuf[0]          = 0;
+				cterm->sequence           = 0;
+				cterm->accumulator        = NULL;
 			}
 			break;
 		case PRESTEL_PROG_1_ESC:
 			if (byte == '2') {
 				cterm->prestel_prog_state = PRESTEL_PROG_2;
-				cterm->prestel_mem = 0;
+				cterm->prestel_mem        = 0;
 			}
 			else {
 				cterm->prestel_prog_state = PRESTEL_PROG_NONE;
-				cterm->escbuf[0] = 0;
-				cterm->sequence = 0;
-				cterm->accumulator = NULL;
+				cterm->escbuf[0]          = 0;
+				cterm->sequence           = 0;
+				cterm->accumulator        = NULL;
 			}
 			break;
 		case PRESTEL_PROG_2:
 			if (byte == 5) {
 				cterm_prestel_send_memory(cterm, cterm->prestel_mem, NULL, 0);
 				cterm->prestel_prog_state = PRESTEL_PROG_NONE;
-				cterm->escbuf[0] = 0;
-				cterm->sequence = 0;
-				cterm->accumulator = NULL;
+				cterm->escbuf[0]          = 0;
+				cterm->sequence           = 0;
+				cterm->accumulator        = NULL;
 			}
 			else if (byte == 0x1b) {
 				cterm->prestel_prog_state = PRESTEL_PROG_2_ESC;
 			}
 			else {
 				cterm->prestel_prog_state = PRESTEL_PROG_NONE;
-				cterm->escbuf[0] = 0;
-				cterm->sequence = 0;
-				cterm->accumulator = NULL;
+				cterm->escbuf[0]          = 0;
+				cterm->sequence           = 0;
+				cterm->accumulator        = NULL;
 			}
 			break;
 		case PRESTEL_PROG_2_ESC:
@@ -513,9 +532,9 @@ cterm_accumulate_prestel_seq(struct cterminal *cterm, unsigned char byte, int *s
 				cterm->prestel_mem++;
 				if (cterm->prestel_mem >= PRESTEL_MEM_SLOTS) {
 					cterm->prestel_prog_state = PRESTEL_PROG_NONE;
-					cterm->escbuf[0] = 0;
-					cterm->sequence = 0;
-					cterm->accumulator = NULL;
+					cterm->escbuf[0]          = 0;
+					cterm->sequence           = 0;
+					cterm->accumulator        = NULL;
 				}
 				else {
 					cterm->prestel_prog_state = PRESTEL_PROG_2;
@@ -526,9 +545,9 @@ cterm_accumulate_prestel_seq(struct cterminal *cterm, unsigned char byte, int *s
 			}
 			else {
 				cterm->prestel_prog_state = PRESTEL_PROG_NONE;
-				cterm->escbuf[0] = 0;
-				cterm->sequence = 0;
-				cterm->accumulator = NULL;
+				cterm->escbuf[0]          = 0;
+				cterm->sequence           = 0;
+				cterm->accumulator        = NULL;
 			}
 			break;
 		case PRESTEL_PROG_PROGRAM_BLOCK:
@@ -537,24 +556,33 @@ cterm_accumulate_prestel_seq(struct cterminal *cterm, unsigned char byte, int *s
 				case ':':
 					ch[0] = '0';
 					/* fallthrough */
-				case '1': case '2': case '3': case '4': case '5':
-				case '6': case '7': case '8': case '9':
-				case ';': case '?':
+				case '1':
+				case '2':
+				case '3':
+				case '4':
+				case '5':
+				case '6':
+				case '7':
+				case '8':
+				case '9':
+				case ';':
+				case '?':
 					ustrcat(cterm->escbuf, ch);
 					if (strlen(cterm->escbuf) >= PRESTEL_MEM_SLOT_SIZE) {
-						memcpy(cterm->prestel_data[cterm->prestel_mem], cterm->escbuf, PRESTEL_MEM_SLOT_SIZE);
+						memcpy(cterm->prestel_data[cterm->prestel_mem], cterm->escbuf,
+						    PRESTEL_MEM_SLOT_SIZE);
 						cterm_prestel_send_memory(cterm, cterm->prestel_mem, NULL, 0);
 						cterm->prestel_prog_state = PRESTEL_PROG_NONE;
-						cterm->escbuf[0] = 0;
-						cterm->sequence = 0;
-						cterm->accumulator = NULL;
+						cterm->escbuf[0]          = 0;
+						cterm->sequence           = 0;
+						cterm->accumulator        = NULL;
 					}
 					break;
 				default:
 					cterm->prestel_prog_state = PRESTEL_PROG_NONE;
-					cterm->escbuf[0] = 0;
-					cterm->sequence = 0;
-					cterm->accumulator = NULL;
+					cterm->escbuf[0]          = 0;
+					cterm->sequence           = 0;
+					cterm->accumulator        = NULL;
 					break;
 			}
 			break;
@@ -582,11 +610,9 @@ static void
 cterm_beeb_vdu23(struct cterminal *cterm, int *speed)
 {
 	(void)speed;
-	if (cterm->seq_param_int[0] == 1
-	    && cterm->seq_param_int[2] == 0 && cterm->seq_param_int[3] == 0
-	    && cterm->seq_param_int[4] == 0 && cterm->seq_param_int[5] == 0
-	    && cterm->seq_param_int[6] == 0 && cterm->seq_param_int[7] == 0
-	    && cterm->seq_param_int[8] == 0) {
+	if (cterm->seq_param_int[0] == 1 && cterm->seq_param_int[2] == 0 && cterm->seq_param_int[3] == 0
+	    && cterm->seq_param_int[4] == 0 && cterm->seq_param_int[5] == 0 && cterm->seq_param_int[6] == 0
+	    && cterm->seq_param_int[7] == 0 && cterm->seq_param_int[8] == 0) {
 		switch (cterm->seq_param_int[1]) {
 			case 0:
 				cterm->cursor = CTERM_CURSOR_HIDDEN;
@@ -624,66 +650,66 @@ cterm_dispatch_prestel(struct cterminal *cterm, unsigned char byte, int *speed)
 	(void)speed;
 
 	switch (byte) {
-		case 0:		/* NUL */
+		case 0: /* NUL */
 			cterm_uctputs(cterm, cterm->print_buf);
 			cterm->print_buf[0] = 0;
-			cterm->print_pos = cterm->print_buf;
+			cterm->print_pos    = cterm->print_buf;
 			break;
-		case 5:		/* ENQ */
+		case 5: /* ENQ */
 			cterm_prestel_send_memory(cterm, 0, NULL, 0);
 			break;
-		case 8:		/* APB (Active Position Backward) */
+		case 8: /* APB (Active Position Backward) */
 			cterm_uctputs(cterm, cterm->print_buf);
 			cterm->print_buf[0] = 0;
-			cterm->print_pos = cterm->print_buf;
+			cterm->print_pos    = cterm->print_buf;
 			cterm_prestel_move(cterm, -1, 0);
 			break;
-		case 9:		/* APF (Active Position Forward) */
+		case 9: /* APF (Active Position Forward) */
 			cterm_uctputs(cterm, cterm->print_buf);
 			cterm->print_buf[0] = 0;
-			cterm->print_pos = cterm->print_buf;
+			cterm->print_pos    = cterm->print_buf;
 			cterm_prestel_move(cterm, 1, 0);
 			break;
-		case 10:	/* APD (Active Position Down) */
+		case 10: /* APD (Active Position Down) */
 			cterm_uctputs(cterm, cterm->print_buf);
 			cterm->print_buf[0] = 0;
-			cterm->print_pos = cterm->print_buf;
+			cterm->print_pos    = cterm->print_buf;
 			cterm_prestel_move(cterm, 0, 1);
 			break;
-		case 11:	/* APU (Active Position Up) */
+		case 11: /* APU (Active Position Up) */
 			cterm_uctputs(cterm, cterm->print_buf);
 			cterm->print_buf[0] = 0;
-			cterm->print_pos = cterm->print_buf;
+			cterm->print_pos    = cterm->print_buf;
 			cterm_prestel_move(cterm, 0, -1);
 			break;
-		case 12:	/* CS (Clear Screen) */
+		case 12: /* CS (Clear Screen) */
 			cterm_uctputs(cterm, cterm->print_buf);
-			cterm->print_buf[0] = 0;
-			cterm->print_pos = cterm->print_buf;
+			cterm->print_buf[0]          = 0;
+			cterm->print_pos             = cterm->print_buf;
 			cterm->screen.prestel_reveal = false;
 			cterm_prestel_new_line(cterm);
 			cterm_clearscreen(cterm, (char)cterm->attr);
 			cterm_render_set_position(cterm, CURR_MINX, CURR_MINY);
 			break;
-		case 17:	/* Cursor on */
+		case 17: /* Cursor on */
 			cterm->cursor = CTERM_CURSOR_UNDERLINE;
 			cterm_render_set_cursor(cterm, cterm->cursor);
 			break;
-		case 20:	/* Cursor off */
+		case 20: /* Cursor off */
 			cterm->cursor = CTERM_CURSOR_HIDDEN;
 			cterm_render_set_cursor(cterm, cterm->cursor);
 			break;
-		case 27:	/* ESC — enter sequence mode */
+		case 27: /* ESC — enter sequence mode */
 			cterm_uctputs(cterm, cterm->print_buf);
 			cterm->print_buf[0] = 0;
-			cterm->print_pos = cterm->print_buf;
-			cterm->accumulator = cterm_accumulate_prestel_seq;
-			cterm->sequence = 1;
+			cterm->print_pos    = cterm->print_buf;
+			cterm->accumulator  = cterm_accumulate_prestel_seq;
+			cterm->sequence     = 1;
 			break;
-		case 30:	/* APH (Active Position Home) */
+		case 30: /* APH (Active Position Home) */
 			cterm_uctputs(cterm, cterm->print_buf);
 			cterm->print_buf[0] = 0;
-			cterm->print_pos = cterm->print_buf;
+			cterm->print_pos    = cterm->print_buf;
 			cterm_render_set_position(cterm, CURR_MINX, CURR_MINY);
 			cterm_prestel_new_line(cterm);
 			break;
@@ -702,13 +728,13 @@ cterm_dispatch_prestel(struct cterminal *cterm, unsigned char byte, int *speed)
 					}
 				}
 				*cterm->print_pos++ = ch[0];
-				*cterm->print_pos = 0;
+				*cterm->print_pos   = 0;
 			}
 			else if (byte >= 0x80 && byte <= 0x9f) {
 				/* Raw C1 attribute control */
 				cterm_uctputs(cterm, cterm->print_buf);
 				cterm->print_buf[0] = 0;
-				cterm->print_pos = cterm->print_buf;
+				cterm->print_pos    = cterm->print_buf;
 				cterm_prestel_handle_escaped(cterm, byte - 64);
 			}
 			else if (byte < 32) {
@@ -717,7 +743,7 @@ cterm_dispatch_prestel(struct cterminal *cterm, unsigned char byte, int *speed)
 			else {
 				/* G1 upper range: store as-is for Unicode replacement */
 				*cterm->print_pos++ = ch[0];
-				*cterm->print_pos = 0;
+				*cterm->print_pos   = 0;
 			}
 			break;
 	}
@@ -737,82 +763,82 @@ cterm_dispatch_beeb(struct cterminal *cterm, unsigned char byte, int *speed)
 	(void)speed;
 
 	switch (byte) {
-		case 0:		/* NUL */
+		case 0: /* NUL */
 			cterm_uctputs(cterm, cterm->print_buf);
 			cterm->print_buf[0] = 0;
-			cterm->print_pos = cterm->print_buf;
+			cterm->print_pos    = cterm->print_buf;
 			break;
-		case 7:		/* BEL */
+		case 7: /* BEL */
 			cterm_uctputs(cterm, cterm->print_buf);
 			cterm->print_buf[0] = 0;
-			cterm->print_pos = cterm->print_buf;
+			cterm->print_pos    = cterm->print_buf;
 			if (!cterm->quiet) {
 				cterm_render_beep(cterm);
 			}
 			break;
-		case 8:		/* APB */
+		case 8: /* APB */
 			cterm_uctputs(cterm, cterm->print_buf);
 			cterm->print_buf[0] = 0;
-			cterm->print_pos = cterm->print_buf;
+			cterm->print_pos    = cterm->print_buf;
 			cterm_prestel_move(cterm, -1, 0);
 			break;
-		case 9:		/* APF */
+		case 9: /* APF */
 			cterm_uctputs(cterm, cterm->print_buf);
 			cterm->print_buf[0] = 0;
-			cterm->print_pos = cterm->print_buf;
+			cterm->print_pos    = cterm->print_buf;
 			cterm_prestel_move(cterm, 1, 0);
 			break;
-		case 10:	/* APD */
+		case 10: /* APD */
 			cterm_uctputs(cterm, cterm->print_buf);
 			cterm->print_buf[0] = 0;
-			cterm->print_pos = cterm->print_buf;
+			cterm->print_pos    = cterm->print_buf;
 			cterm_prestel_move(cterm, 0, 1);
 			break;
-		case 11:	/* APU */
+		case 11: /* APU */
 			cterm_uctputs(cterm, cterm->print_buf);
 			cterm->print_buf[0] = 0;
-			cterm->print_pos = cterm->print_buf;
+			cterm->print_pos    = cterm->print_buf;
 			cterm_prestel_move(cterm, 0, -1);
 			break;
-		case 12:	/* CS */
+		case 12: /* CS */
 			cterm_uctputs(cterm, cterm->print_buf);
-			cterm->print_buf[0] = 0;
-			cterm->print_pos = cterm->print_buf;
+			cterm->print_buf[0]          = 0;
+			cterm->print_pos             = cterm->print_buf;
 			cterm->screen.prestel_reveal = false;
 			cterm_prestel_new_line(cterm);
 			cterm_clearscreen(cterm, (char)cterm->attr);
 			cterm_render_set_position(cterm, CURR_MINX, CURR_MINY);
 			break;
-		case 23:	/* VDU 23 — reprogram display (9 trailing bytes) */
+		case 23: /* VDU 23 — reprogram display (9 trailing bytes) */
 			cterm_uctputs(cterm, cterm->print_buf);
-			cterm->print_buf[0] = 0;
-			cterm->print_pos = cterm->print_buf;
+			cterm->print_buf[0]         = 0;
+			cterm->print_pos            = cterm->print_buf;
 			cterm->seq_trailing_handler = cterm_beeb_vdu23;
-			cterm->seq_trailing_remain = 9;
-			cterm->seq_param_count = 0;
-			cterm->accumulator = cterm_accumulate_trailing;
+			cterm->seq_trailing_remain  = 9;
+			cterm->seq_param_count      = 0;
+			cterm->accumulator          = cterm_accumulate_trailing;
 			break;
-		case 28:	/* VDU 28 — APS (2 trailing bytes) */
+		case 28: /* VDU 28 — APS (2 trailing bytes) */
 			cterm_uctputs(cterm, cterm->print_buf);
-			cterm->print_buf[0] = 0;
-			cterm->print_pos = cterm->print_buf;
+			cterm->print_buf[0]         = 0;
+			cterm->print_pos            = cterm->print_buf;
 			cterm->seq_trailing_handler = cterm_beeb_vdu28;
-			cterm->seq_trailing_remain = 2;
-			cterm->seq_param_count = 0;
-			cterm->accumulator = cterm_accumulate_trailing;
+			cterm->seq_trailing_remain  = 2;
+			cterm->seq_param_count      = 0;
+			cterm->accumulator          = cterm_accumulate_trailing;
 			break;
-		case 30:	/* APH */
+		case 30: /* APH */
 			cterm_uctputs(cterm, cterm->print_buf);
 			cterm->print_buf[0] = 0;
-			cterm->print_pos = cterm->print_buf;
+			cterm->print_pos    = cterm->print_buf;
 			cterm_render_set_position(cterm, CURR_MINX, CURR_MINY);
 			cterm_prestel_new_line(cterm);
 			break;
-		case 127:	/* Destructive backspace */
+		case 127: /* Destructive backspace */
 			*cterm->print_pos++ = '\b';
 			*cterm->print_pos++ = ' ';
 			*cterm->print_pos++ = '\b';
-			*cterm->print_pos = 0;
+			*cterm->print_pos   = 0;
 			break;
 		default:
 			/* Mode 7 VDU ASCII substitutions */
@@ -833,12 +859,12 @@ cterm_dispatch_beeb(struct cterminal *cterm, unsigned char byte, int *speed)
 					}
 				}
 				*cterm->print_pos++ = ch[0];
-				*cterm->print_pos = 0;
+				*cterm->print_pos   = 0;
 			}
 			else if (byte >= 0x80 && byte <= 0x9f) {
 				cterm_uctputs(cterm, cterm->print_buf);
 				cterm->print_buf[0] = 0;
-				cterm->print_pos = cterm->print_buf;
+				cterm->print_pos    = cterm->print_buf;
 				cterm_prestel_handle_escaped(cterm, byte - 64);
 			}
 			else if (byte < 32) {
@@ -846,7 +872,7 @@ cterm_dispatch_beeb(struct cterminal *cterm, unsigned char byte, int *speed)
 			}
 			else {
 				*cterm->print_pos++ = ch[0];
-				*cterm->print_pos = 0;
+				*cterm->print_pos   = 0;
 			}
 			break;
 	}

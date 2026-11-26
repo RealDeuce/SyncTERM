@@ -8,25 +8,22 @@ size_t st_rip3_outline_test_fail_at = SIZE_MAX;
 static void *
 test_malloc(size_t size)
 {
-	return st_rip3_outline_test_allocations++ == st_rip3_outline_test_fail_at
-	    ? NULL : malloc(size);
+	return st_rip3_outline_test_allocations++ == st_rip3_outline_test_fail_at ? NULL : malloc(size);
 }
 
 static void *
 test_calloc(size_t count, size_t size)
 {
-	return st_rip3_outline_test_allocations++ == st_rip3_outline_test_fail_at
-	    ? NULL : calloc(count,size);
+	return st_rip3_outline_test_allocations++ == st_rip3_outline_test_fail_at ? NULL : calloc(count, size);
 }
 
 static void *
 test_realloc(void *value, size_t size)
 {
-	return st_rip3_outline_test_allocations++ == st_rip3_outline_test_fail_at
-	    ? NULL : realloc(value,size);
+	return st_rip3_outline_test_allocations++ == st_rip3_outline_test_fail_at ? NULL : realloc(value, size);
 }
 
-#define malloc test_malloc
-#define calloc test_calloc
+#define malloc  test_malloc
+#define calloc  test_calloc
 #define realloc test_realloc
 #include "../st_rip3_outline_text.c"

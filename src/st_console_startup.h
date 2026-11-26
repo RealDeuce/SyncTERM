@@ -8,20 +8,20 @@
 #ifndef ST_CONSOLE_STARTUP_H_
 #define ST_CONSOLE_STARTUP_H_
 
-#include "st_console.h"
-
 #include <stdbool.h>
+
+#include "st_console.h"
 
 struct st_command_line;
 struct st_settings;
 
 struct st_console_startup {
-	struct st_console_config config;
+	struct st_console_config         config;
 	struct st_console_display_config display_config;
-	bool fullscreen;
+	bool                             fullscreen;
 };
 
-int st_console_startup_configure(struct st_console_startup *result,
-	const struct st_settings *settings, const struct st_command_line *command);
+int st_console_startup_configure(struct st_console_startup *result, const struct st_settings *settings,
+    const struct st_command_line *command);
 
 #endif

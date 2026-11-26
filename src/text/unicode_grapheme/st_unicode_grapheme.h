@@ -36,10 +36,9 @@ enum st_unicode_indic_conjunct_break {
 	ST_UNICODE_INCB_LINKER,
 };
 
-enum st_unicode_grapheme_break st_unicode_grapheme_break(uint32_t codepoint);
-enum st_unicode_indic_conjunct_break st_unicode_indic_conjunct_break(
-	uint32_t codepoint);
-bool st_unicode_extended_pictographic(uint32_t codepoint);
+enum st_unicode_grapheme_break       st_unicode_grapheme_break(uint32_t codepoint);
+enum st_unicode_indic_conjunct_break st_unicode_indic_conjunct_break(uint32_t codepoint);
+bool                                 st_unicode_extended_pictographic(uint32_t codepoint);
 
 /* Returns the longest RGI emoji sequence at the start of input. */
 size_t st_unicode_rgi_emoji_prefix(const uint32_t *codepoints, size_t count);

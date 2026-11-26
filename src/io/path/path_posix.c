@@ -3,16 +3,15 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "path.h"
-
-#include "io_error.h"
-#include "path_internal.h"
-
 #include <errno.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
+#include "io_error.h"
+#include "path.h"
+#include "path_internal.h"
 
 bool
 path_is_separator(char character)
@@ -73,8 +72,8 @@ path_normalize_absolute(char *result, size_t result_size, const char *value)
 	if (normalized == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
 
-	size_t used = 1;
-	normalized[0] = '/';
+	size_t used         = 1;
+	normalized[0]       = '/';
 	const char *current = value;
 	while (*current == '/')
 		current++;
@@ -86,8 +85,7 @@ path_normalize_absolute(char *result, size_t result_size, const char *value)
 		if (component_length == 1 && component[0] == '.') {
 			/* Nothing to add. */
 		}
-		else if (component_length == 2 && component[0] == '.' &&
-		    component[1] == '.') {
+		else if (component_length == 2 && component[0] == '.' && component[1] == '.') {
 			if (used > 1) {
 				while (used > 1 && normalized[used - 1] != '/')
 					used--;
@@ -105,8 +103,7 @@ path_normalize_absolute(char *result, size_t result_size, const char *value)
 			current++;
 	}
 	normalized[used] = '\0';
-	ptrdiff_t stored = syncterm_path_store(result, result_size,
-	    normalized, used);
+	ptrdiff_t stored = syncterm_path_store(result, result_size, normalized, used);
 	free(normalized);
 	return stored;
 }
@@ -114,8 +111,8 @@ path_normalize_absolute(char *result, size_t result_size, const char *value)
 ptrdiff_t
 path_make_absolute(char *result, size_t result_size, const char *path)
 {
-	char *combined;
-	char *directory = NULL;
+	char  *combined;
+	char  *directory = NULL;
 	size_t path_length;
 	size_t directory_length = 0;
 
@@ -144,12 +141,10 @@ path_make_absolute(char *result, size_t result_size, const char *path)
 		}
 		memcpy(combined, directory, directory_length);
 		combined[directory_length] = '/';
-		memcpy(combined + directory_length + 1, path,
-		    path_length + 1);
+		memcpy(combined + directory_length + 1, path, path_length + 1);
 		free(directory);
 	}
-	ptrdiff_t normalized = path_normalize_absolute(result, result_size,
-	    combined);
+	ptrdiff_t normalized = path_normalize_absolute(result, result_size, combined);
 	free(combined);
 	return normalized;
 }
@@ -158,11 +153,11 @@ ptrdiff_t
 path_expand_user(char *result, size_t result_size, const char *path)
 {
 	const char *home;
-	size_t home_length;
-	size_t suffix_offset;
-	size_t suffix_length;
-	bool omit_separator;
-	char *expanded;
+	size_t      home_length;
+	size_t      suffix_offset;
+	size_t      suffix_length;
+	bool        omit_separator;
+	char       *expanded;
 
 	if (path == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -171,10 +166,9 @@ path_expand_user(char *result, size_t result_size, const char *path)
 	home = getenv("HOME");
 	if (home == NULL || *home == '\0')
 		return IO_ERROR_NOT_FOUND;
-	home_length = strlen(home);
-	suffix_offset = 1;
-	omit_separator = home_length != 0 && home[home_length - 1] == '/' &&
-	    path[1] == '/';
+	home_length    = strlen(home);
+	suffix_offset  = 1;
+	omit_separator = home_length != 0 && home[home_length - 1] == '/' && path[1] == '/';
 	if (omit_separator)
 		suffix_offset++;
 	suffix_length = strlen(path + suffix_offset);
@@ -184,10 +178,8 @@ path_expand_user(char *result, size_t result_size, const char *path)
 	if (expanded == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
 	memcpy(expanded, home, home_length);
-	memcpy(expanded + home_length, path + suffix_offset,
-	    suffix_length + 1);
-	ptrdiff_t stored = syncterm_path_store(result, result_size, expanded,
-	    home_length + suffix_length);
+	memcpy(expanded + home_length, path + suffix_offset, suffix_length + 1);
+	ptrdiff_t stored = syncterm_path_store(result, result_size, expanded, home_length + suffix_length);
 	free(expanded);
 	return stored;
 }

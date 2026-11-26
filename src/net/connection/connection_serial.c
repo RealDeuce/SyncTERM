@@ -5,26 +5,25 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "connection_internal.h"
-
-#include "io_error.h"
-#include "serial.h"
-#include "st_settings.h"
-#include "st_time.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 
+#include "connection_internal.h"
+#include "io_error.h"
+#include "serial.h"
+#include "st_settings.h"
+#include "st_time.h"
+
 struct serial_transport {
 	struct st_connection_hooks hooks;
-	const char *source;
-	serial_port_t *port;
-	bool seven_bits;
-	bool modem;
-	bool monitor_line;
-	unsigned monitored_line;
+	const char                *source;
+	serial_port_t             *port;
+	bool                       seven_bits;
+	bool                       modem;
+	bool                       monitor_line;
+	unsigned                   monitored_line;
 };
 
 static uint64_t
@@ -37,29 +36,25 @@ serial_now_ms(void)
 }
 
 static ssize_t
-serial_read_transport(void *state, void *data, size_t size,
-	int64_t timeout_ms)
+serial_read_transport(void *state, void *data, size_t size, int64_t timeout_ms)
 {
 	struct serial_transport *transport = state;
-	ssize_t result = serial_port_read(transport->port, data, size,
-	    timeout_ms);
+	ssize_t                  result    = serial_port_read(transport->port, data, size, timeout_ms);
 
 	if (result > 0 && transport->seven_bits) {
 		uint8_t *bytes = data;
-		ssize_t i;
+		ssize_t  i;
 
 		for (i = 0; i < result; ++i)
 			bytes[i] &= 0x7f;
 	}
-	if ((result == IO_ERROR_TIMED_OUT || result == IO_ERROR_WOULD_BLOCK)
-	    && transport->monitor_line) {
+	if ((result == IO_ERROR_TIMED_OUT || result == IO_ERROR_WOULD_BLOCK) && transport->monitor_line) {
 		unsigned lines;
 
 		if (serial_port_get_modem_lines(transport->port, &lines) == 0
 		    && (lines & transport->monitored_line) == 0) {
-			st_connection_log_hooks(&transport->hooks, transport->source,
-			    ST_CONNECTION_LOG_INFO, "%s dropped",
-			    transport->modem ? "DCD" : "DSR");
+			st_connection_log_hooks(&transport->hooks, transport->source, ST_CONNECTION_LOG_INFO,
+			    "%s dropped", transport->modem ? "DCD" : "DSR");
 			return 0;
 		}
 	}
@@ -67,13 +62,12 @@ serial_read_transport(void *state, void *data, size_t size,
 }
 
 static ssize_t
-serial_write_transport(void *state, const void *data, size_t size,
-	int64_t timeout_ms)
+serial_write_transport(void *state, const void *data, size_t size, int64_t timeout_ms)
 {
 	struct serial_transport *transport = state;
-	uint8_t masked[4096];
-	size_t count;
-	size_t i;
+	uint8_t                  masked[4096];
+	size_t                   count;
+	size_t                   i;
 
 	if (!transport->seven_bits)
 		return serial_port_write(transport->port, data, size, timeout_ms);
@@ -89,15 +83,14 @@ serial_interrupt(void *state)
 	struct serial_transport *transport = state;
 
 	if (!transport->modem) {
-		st_connection_log_hooks(&transport->hooks, transport->source,
-		    ST_CONNECTION_LOG_DEBUG, "lowering DTR");
+		st_connection_log_hooks(&transport->hooks, transport->source, ST_CONNECTION_LOG_DEBUG,
+		    "lowering DTR");
 		(void)serial_port_set_dtr(transport->port, false);
 	}
 }
 
 static int
-serial_update_terminal_size(void *state,
-	const struct st_screen_geometry *geometry)
+serial_update_terminal_size(void *state, const struct st_screen_geometry *geometry)
 {
 	(void)state;
 	(void)geometry;
@@ -108,39 +101,38 @@ static void
 serial_destroy(void *state)
 {
 	struct serial_transport *transport = state;
-	int status;
+	int                      status;
 
 	if (transport->modem) {
-		unsigned lines = 0;
-		uint64_t deadline;
+		unsigned        lines = 0;
+		uint64_t        deadline;
 		struct timespec pause = {0, 100000000L};
 
-		(void)st_thread_sleep(&(struct timespec){0, 500000000L}, NULL);
-		st_connection_log_hooks(&transport->hooks, transport->source,
-		    ST_CONNECTION_LOG_DEBUG, "lowering DTR");
+		(void)st_thread_sleep(&(struct timespec) {0, 500000000L}, NULL);
+		st_connection_log_hooks(&transport->hooks, transport->source, ST_CONNECTION_LOG_DEBUG,
+		    "lowering DTR");
 		(void)serial_port_set_dtr(transport->port, false);
 		deadline = serial_now_ms() + 10000U;
-		while (serial_now_ms() < deadline
-		    && serial_port_get_modem_lines(transport->port, &lines) == 0
-		    && (lines & SERIAL_MODEM_LINE_DCD) != 0)
+		while (serial_now_ms() < deadline && serial_port_get_modem_lines(transport->port, &lines) == 0
+		       && (lines & SERIAL_MODEM_LINE_DCD) != 0)
 			(void)st_thread_sleep(&pause, NULL);
 	}
-	st_connection_log_hooks(&transport->hooks, transport->source,
-	    ST_CONNECTION_LOG_DEBUG, "closing serial interface");
+	st_connection_log_hooks(&transport->hooks, transport->source, ST_CONNECTION_LOG_DEBUG,
+	    "closing serial interface");
 	status = serial_port_close(transport->port);
 	if (status != 0)
-		st_connection_log_hooks(&transport->hooks, transport->source,
-		    ST_CONNECTION_LOG_ERROR, "serial close failed (%d)", status);
+		st_connection_log_hooks(&transport->hooks, transport->source, ST_CONNECTION_LOG_ERROR,
+		    "serial close failed (%d)", status);
 	free(transport);
 }
 
 static const struct st_connection_transport_ops serial_operations = {
-	.bind = NULL,
-	.read = serial_read_transport,
-	.write = serial_write_transport,
-	.interrupt = serial_interrupt,
-	.update_terminal_size = serial_update_terminal_size,
-	.destroy = serial_destroy,
+    .bind                 = NULL,
+    .read                 = serial_read_transport,
+    .write                = serial_write_transport,
+    .interrupt            = serial_interrupt,
+    .update_terminal_size = serial_update_terminal_size,
+    .destroy              = serial_destroy,
 };
 
 static enum serial_parity
@@ -154,20 +146,18 @@ profile_parity(int parity)
 }
 
 static int
-write_all(serial_port_t *port, const void *data, size_t size,
-	const struct st_connection_hooks *hooks,
-	enum st_connection_setup_phase phase)
+write_all(serial_port_t *port, const void *data, size_t size, const struct st_connection_hooks *hooks,
+    enum st_connection_setup_phase phase)
 {
-	const uint8_t *bytes = data;
-	size_t written = 0;
+	const uint8_t *bytes   = data;
+	size_t         written = 0;
 
 	while (written < size) {
 		ssize_t result;
 
 		if (st_connection_cancelled(hooks, phase))
 			return IO_ERROR_CANCELLED;
-		result = serial_port_write(port, bytes + written, size - written,
-		    100);
+		result = serial_port_write(port, bytes + written, size - written, 100);
 		if (result == IO_ERROR_TIMED_OUT || result == IO_ERROR_WOULD_BLOCK)
 			continue;
 		if (result <= 0)
@@ -178,11 +168,10 @@ write_all(serial_port_t *port, const void *data, size_t size,
 }
 
 static int
-modem_line(serial_port_t *port, char *line, size_t capacity,
-	int64_t timeout_ms, const struct st_connection_hooks *hooks,
-	enum st_connection_setup_phase phase)
+modem_line(serial_port_t *port, char *line, size_t capacity, int64_t timeout_ms,
+    const struct st_connection_hooks *hooks, enum st_connection_setup_phase phase)
 {
-	size_t length = 0;
+	size_t   length   = 0;
 	uint64_t deadline = serial_now_ms() + (uint64_t)timeout_ms;
 
 	while (serial_now_ms() < deadline) {
@@ -212,26 +201,23 @@ modem_line(serial_port_t *port, char *line, size_t capacity,
 }
 
 static int
-wait_for_modem(serial_port_t *port, const char *command,
-	const char *wanted, int64_t timeout_ms,
-	const struct st_connection_hooks *hooks,
-	enum st_connection_setup_phase phase)
+wait_for_modem(serial_port_t *port, const char *command, const char *wanted, int64_t timeout_ms,
+    const struct st_connection_hooks *hooks, enum st_connection_setup_phase phase)
 {
-	char line[1024];
+	char     line[1024];
 	uint64_t deadline = serial_now_ms() + (uint64_t)timeout_ms;
 
 	while (serial_now_ms() < deadline) {
 		uint64_t remaining = deadline - serial_now_ms();
-		int result = modem_line(port, line, sizeof(line),
-		    (int64_t)remaining, hooks, phase);
+		int      result    = modem_line(port, line, sizeof(line), (int64_t)remaining, hooks, phase);
 
 		if (result != 0)
 			return result;
 		if (strstr(line, command) != NULL)
 			continue;
 		if (strstr(line, wanted) != NULL) {
-			st_connection_log_hooks(hooks, "Modem", ST_CONNECTION_LOG_INFO,
-			    "modem result: %s", wanted);
+			st_connection_log_hooks(hooks, "Modem", ST_CONNECTION_LOG_INFO, "modem result: %s",
+			    wanted);
 			return 0;
 		}
 		st_connection_log_hooks(hooks, "Modem", ST_CONNECTION_LOG_ERROR,
@@ -252,8 +238,7 @@ profile_flow_control(int profile_flow, unsigned *serial_flow)
 			*serial_flow = SERIAL_FLOW_CONTROL_XON_XOFF;
 			return 0;
 		case ST_PROFILE_FLOW_RTS_CTS_XON_XOFF:
-			*serial_flow = SERIAL_FLOW_CONTROL_RTS_CTS
-			    | SERIAL_FLOW_CONTROL_XON_XOFF;
+			*serial_flow = SERIAL_FLOW_CONTROL_RTS_CTS | SERIAL_FLOW_CONTROL_XON_XOFF;
 			return 0;
 		case ST_PROFILE_FLOW_NONE:
 			*serial_flow = SERIAL_FLOW_CONTROL_NONE;
@@ -263,147 +248,127 @@ profile_flow_control(int profile_flow, unsigned *serial_flow)
 }
 
 static int
-configure_port(serial_port_t *port, const struct st_profile *profile,
-	uint32_t baud_rate, unsigned flow_control)
+configure_port(serial_port_t *port, const struct st_profile *profile, uint32_t baud_rate, unsigned flow_control)
 {
 	struct serial_config config;
 
-	config.baud_rate = baud_rate;
-	config.data_bits = profile->data_bits != 0 ? profile->data_bits : 8;
-	config.stop_bits = profile->stop_bits != 0 ? profile->stop_bits : 1;
-	config.parity = profile_parity(profile->parity);
+	config.baud_rate    = baud_rate;
+	config.data_bits    = profile->data_bits != 0 ? profile->data_bits : 8;
+	config.stop_bits    = profile->stop_bits != 0 ? profile->stop_bits : 1;
+	config.parity       = profile_parity(profile->parity);
 	config.flow_control = flow_control;
 	return serial_port_configure(port, &config);
 }
 
 static int
-connect_serial_common(st_connection_t **result,
-	const struct st_profile *profile, const struct st_connection_hooks *hooks,
-	struct st_connection_error *error, bool modem)
+connect_serial_common(st_connection_t **result, const struct st_profile *profile,
+    const struct st_connection_hooks *hooks, struct st_connection_error *error, bool modem)
 {
 	struct serial_transport *transport;
-	serial_port_t *port;
-	const char *device;
-	unsigned flow_control;
-	bool three_wire;
-	const char *source = modem ? "Modem" : "Serial";
-	int status;
+	serial_port_t           *port;
+	const char              *device;
+	unsigned                 flow_control;
+	bool                     three_wire;
+	const char              *source = modem ? "Modem" : "Serial";
+	int                      status;
 
 	if (result == NULL || profile == NULL)
-		return st_connection_fail(error, IO_ERROR_INVALID_ARGUMENT,
-		    ST_CONNECTION_SETUP_NONE, "invalid serial profile");
+		return st_connection_fail(error, IO_ERROR_INVALID_ARGUMENT, ST_CONNECTION_SETUP_NONE,
+		    "invalid serial profile");
 	status = profile_flow_control(profile->flow_control, &flow_control);
 	if (status != 0)
-		return st_connection_fail(error, status,
-		    ST_CONNECTION_SETUP_NONE, "invalid serial flow control");
+		return st_connection_fail(error, status, ST_CONNECTION_SETUP_NONE, "invalid serial flow control");
 	three_wire = profile->connection_type == ST_CONNECTION_SERIAL_3WIRE;
-	if (three_wire) source = "Serial-3-Wire";
+	if (three_wire)
+		source = "Serial-3-Wire";
 	if (three_wire)
 		flow_control &= ~SERIAL_FLOW_CONTROL_RTS_CTS;
 	device = modem ? st_settings.modem_device : profile->address;
 	if (device == NULL || device[0] == '\0')
-		return st_connection_fail(error, IO_ERROR_INVALID_ARGUMENT,
-		    ST_CONNECTION_SETUP_OPENING_DEVICE,
+		return st_connection_fail(error, IO_ERROR_INVALID_ARGUMENT, ST_CONNECTION_SETUP_OPENING_DEVICE,
 		    "no serial device is configured");
-	if (st_connection_cancelled(hooks,
-	    ST_CONNECTION_SETUP_OPENING_DEVICE))
-		return st_connection_fail(error, IO_ERROR_CANCELLED,
-		    ST_CONNECTION_SETUP_OPENING_DEVICE, "connection cancelled");
-	st_connection_log_hooks(hooks, source, ST_CONNECTION_LOG_INFO,
-	    "opening serial device (path omitted)");
+	if (st_connection_cancelled(hooks, ST_CONNECTION_SETUP_OPENING_DEVICE))
+		return st_connection_fail(error, IO_ERROR_CANCELLED, ST_CONNECTION_SETUP_OPENING_DEVICE,
+		    "connection cancelled");
+	st_connection_log_hooks(hooks, source, ST_CONNECTION_LOG_INFO, "opening serial device (path omitted)");
 	status = serial_port_open(&port, device);
 	if (status != 0) {
-		st_connection_log_hooks(hooks, source, ST_CONNECTION_LOG_ERROR,
-		    "serial open failed (%d)", status);
-		return st_connection_fail(error, status,
-		    ST_CONNECTION_SETUP_OPENING_DEVICE,
+		st_connection_log_hooks(hooks, source, ST_CONNECTION_LOG_ERROR, "serial open failed (%d)", status);
+		return st_connection_fail(error, status, ST_CONNECTION_SETUP_OPENING_DEVICE,
 		    "unable to open serial device");
 	}
-	status = configure_port(port, profile,
-	    modem ? st_settings.modem_rate : profile->bps_rate, flow_control);
+	status = configure_port(port, profile, modem ? st_settings.modem_rate : profile->bps_rate, flow_control);
 	if (status == 0 && three_wire)
 		status = serial_port_set_rts(port, false);
 	if (status == 0)
 		status = serial_port_set_dtr(port, true);
 	if (status != 0) {
-		st_connection_log_hooks(hooks, source, ST_CONNECTION_LOG_ERROR,
-		    "serial configuration failed (%d)", status);
+		st_connection_log_hooks(hooks, source, ST_CONNECTION_LOG_ERROR, "serial configuration failed (%d)",
+		    status);
 		(void)serial_port_close(port);
-		return st_connection_fail(error, status,
-		    ST_CONNECTION_SETUP_OPENING_DEVICE,
+		return st_connection_fail(error, status, ST_CONNECTION_SETUP_OPENING_DEVICE,
 		    "unable to configure serial device");
 	}
 	st_connection_log_hooks(hooks, source, ST_CONNECTION_LOG_INFO,
 	    "configured baud=%u data=%u stop=%u parity=%d flow=0x%X three-wire=%s",
 	    (unsigned)(modem ? st_settings.modem_rate : profile->bps_rate),
-	    profile->data_bits != 0 ? profile->data_bits : 8,
-	    profile->stop_bits != 0 ? profile->stop_bits : 1,
+	    profile->data_bits != 0 ? profile->data_bits : 8, profile->stop_bits != 0 ? profile->stop_bits : 1,
 	    profile->parity, flow_control, three_wire ? "yes" : "no");
 	if (modem) {
 		uint8_t discarded[256];
-		char dial[ST_SETTINGS_VALUE_MAX + ST_PROFILE_ADDRESS_MAX + 2];
+		char    dial[ST_SETTINGS_VALUE_MAX + ST_PROFILE_ADDRESS_MAX + 2];
 
 		while (serial_port_read(port, discarded, sizeof(discarded), 0) > 0)
 			;
-		if (st_connection_cancelled(hooks,
-		    ST_CONNECTION_SETUP_INITIALIZING_MODEM)) {
+		if (st_connection_cancelled(hooks, ST_CONNECTION_SETUP_INITIALIZING_MODEM)) {
 			(void)serial_port_set_dtr(port, false);
 			(void)serial_port_close(port);
 			return st_connection_fail(error, IO_ERROR_CANCELLED,
-			    ST_CONNECTION_SETUP_INITIALIZING_MODEM,
-			    "connection cancelled");
+			    ST_CONNECTION_SETUP_INITIALIZING_MODEM, "connection cancelled");
 		}
-		status = write_all(port, st_settings.modem_init_string,
-		    strlen(st_settings.modem_init_string), hooks,
-		    ST_CONNECTION_SETUP_INITIALIZING_MODEM);
+		status = write_all(port, st_settings.modem_init_string, strlen(st_settings.modem_init_string),
+		    hooks, ST_CONNECTION_SETUP_INITIALIZING_MODEM);
 		if (status == 0)
-			status = write_all(port, "\r", 1, hooks,
-			    ST_CONNECTION_SETUP_INITIALIZING_MODEM);
+			status = write_all(port, "\r", 1, hooks, ST_CONNECTION_SETUP_INITIALIZING_MODEM);
 		if (status == 0) {
 			st_connection_log_hooks(hooks, source, ST_CONNECTION_LOG_INFO,
 			    "initialization command sent (contents omitted)");
-			status = wait_for_modem(port, st_settings.modem_init_string,
-			    "OK", 5000, hooks,
+			status = wait_for_modem(port, st_settings.modem_init_string, "OK", 5000, hooks,
 			    ST_CONNECTION_SETUP_INITIALIZING_MODEM);
 		}
 		if (status != 0) {
-			st_connection_log_hooks(hooks, source, status == IO_ERROR_CANCELLED
-			    ? ST_CONNECTION_LOG_INFO : ST_CONNECTION_LOG_ERROR,
+			st_connection_log_hooks(hooks, source,
+			    status == IO_ERROR_CANCELLED ? ST_CONNECTION_LOG_INFO : ST_CONNECTION_LOG_ERROR,
 			    "modem initialization failed (%d)", status);
 			(void)serial_port_set_dtr(port, false);
 			(void)serial_port_close(port);
-			return st_connection_fail(error, status,
-			    ST_CONNECTION_SETUP_INITIALIZING_MODEM,
+			return st_connection_fail(error, status, ST_CONNECTION_SETUP_INITIALIZING_MODEM,
 			    "modem initialization failed");
 		}
-		if (snprintf(dial, sizeof(dial), "%s%s",
-		    st_settings.modem_dial_string, profile->address)
+		if (snprintf(dial, sizeof(dial), "%s%s", st_settings.modem_dial_string, profile->address)
 		    >= (int)sizeof(dial)) {
 			(void)serial_port_set_dtr(port, false);
 			(void)serial_port_close(port);
-			return st_connection_fail(error, IO_ERROR_NAME_TOO_LONG,
-			    ST_CONNECTION_SETUP_DIALING, "dial command is too long");
+			return st_connection_fail(error, IO_ERROR_NAME_TOO_LONG, ST_CONNECTION_SETUP_DIALING,
+			    "dial command is too long");
 		}
-		status = write_all(port, dial, strlen(dial), hooks,
-		    ST_CONNECTION_SETUP_DIALING);
+		status = write_all(port, dial, strlen(dial), hooks, ST_CONNECTION_SETUP_DIALING);
 		if (status == 0)
-			status = write_all(port, "\r", 1, hooks,
-			    ST_CONNECTION_SETUP_DIALING);
+			status = write_all(port, "\r", 1, hooks, ST_CONNECTION_SETUP_DIALING);
 		if (status == 0) {
 			st_connection_log_hooks(hooks, source, ST_CONNECTION_LOG_INFO,
 			    "dial command sent (number and command omitted)");
-			status = wait_for_modem(port, dial, "CONNECT", 60000,
-			    hooks, ST_CONNECTION_SETUP_DIALING);
+			status = wait_for_modem(port, dial, "CONNECT", 60000, hooks, ST_CONNECTION_SETUP_DIALING);
 		}
 		memset(dial, 0, sizeof(dial));
 		if (status != 0) {
-			st_connection_log_hooks(hooks, source, status == IO_ERROR_CANCELLED
-			    ? ST_CONNECTION_LOG_INFO : ST_CONNECTION_LOG_ERROR,
+			st_connection_log_hooks(hooks, source,
+			    status == IO_ERROR_CANCELLED ? ST_CONNECTION_LOG_INFO : ST_CONNECTION_LOG_ERROR,
 			    "modem dialing failed (%d)", status);
 			(void)serial_port_set_dtr(port, false);
 			(void)serial_port_close(port);
-			return st_connection_fail(error, status,
-			    ST_CONNECTION_SETUP_DIALING, "modem connection failed");
+			return st_connection_fail(error, status, ST_CONNECTION_SETUP_DIALING,
+			    "modem connection failed");
 		}
 		st_connection_log_hooks(hooks, source, ST_CONNECTION_LOG_INFO, "carrier established");
 	}
@@ -411,52 +376,51 @@ connect_serial_common(st_connection_t **result,
 	if (transport == NULL) {
 		(void)serial_port_set_dtr(port, false);
 		(void)serial_port_close(port);
-		return st_connection_fail(error, IO_ERROR_OUT_OF_MEMORY,
-		    ST_CONNECTION_SETUP_NONE, "unable to allocate serial transport");
+		return st_connection_fail(error, IO_ERROR_OUT_OF_MEMORY, ST_CONNECTION_SETUP_NONE,
+		    "unable to allocate serial transport");
 	}
 	transport->port = port;
-	if (hooks != NULL) transport->hooks = *hooks;
-	transport->source = source;
-	transport->seven_bits = profile->data_bits == 7;
-	transport->modem = modem;
-	transport->monitored_line = modem ? SERIAL_MODEM_LINE_DCD
-	    : SERIAL_MODEM_LINE_DSR;
+	if (hooks != NULL)
+		transport->hooks = *hooks;
+	transport->source         = source;
+	transport->seven_bits     = profile->data_bits == 7;
+	transport->modem          = modem;
+	transport->monitored_line = modem ? SERIAL_MODEM_LINE_DCD : SERIAL_MODEM_LINE_DSR;
 	if (modem)
 		transport->monitor_line = true;
 	else {
 		unsigned lines;
-		transport->monitor_line = serial_port_get_modem_lines(port,
-		    &lines) == 0 && (lines & SERIAL_MODEM_LINE_DSR) != 0;
+		transport->monitor_line =
+		    serial_port_get_modem_lines(port, &lines) == 0 && (lines & SERIAL_MODEM_LINE_DSR) != 0;
 	}
 	status = st_connection_start(result, transport, &serial_operations,
-	    modem ? "Modem" : three_wire ? "Serial-3-Wire" : "Serial",
+	    modem        ? "Modem"
+	    : three_wire ? "Serial-3-Wire"
+	                 : "Serial",
 	    hooks, NULL, error);
 	if (status == 0)
-		st_connection_log(*result, ST_CONNECTION_LOG_INFO,
-		    "session established");
+		st_connection_log(*result, ST_CONNECTION_LOG_INFO, "session established");
 	return status;
 }
 
 int
-st_connection_connect_serial(st_connection_t **result,
-	const struct st_profile *profile, const struct st_connection_hooks *hooks,
-	struct st_connection_error *error)
+st_connection_connect_serial(st_connection_t **result, const struct st_profile *profile,
+    const struct st_connection_hooks *hooks, struct st_connection_error *error)
 {
-	if (profile == NULL || (profile->connection_type != ST_CONNECTION_SERIAL
-	    && profile->connection_type != ST_CONNECTION_SERIAL_3WIRE))
-		return st_connection_fail(error, IO_ERROR_INVALID_ARGUMENT,
-		    ST_CONNECTION_SETUP_NONE, "profile is not a serial connection");
+	if (profile == NULL
+	    || (profile->connection_type != ST_CONNECTION_SERIAL
+	        && profile->connection_type != ST_CONNECTION_SERIAL_3WIRE))
+		return st_connection_fail(error, IO_ERROR_INVALID_ARGUMENT, ST_CONNECTION_SETUP_NONE,
+		    "profile is not a serial connection");
 	return connect_serial_common(result, profile, hooks, error, false);
 }
 
 int
-st_connection_connect_modem(st_connection_t **result,
-	const struct st_profile *profile, const struct st_connection_hooks *hooks,
-	struct st_connection_error *error)
+st_connection_connect_modem(st_connection_t **result, const struct st_profile *profile,
+    const struct st_connection_hooks *hooks, struct st_connection_error *error)
 {
-	if (profile == NULL
-	    || profile->connection_type != ST_CONNECTION_MODEM)
-		return st_connection_fail(error, IO_ERROR_INVALID_ARGUMENT,
-		    ST_CONNECTION_SETUP_NONE, "profile is not a modem connection");
+	if (profile == NULL || profile->connection_type != ST_CONNECTION_MODEM)
+		return st_connection_fail(error, IO_ERROR_INVALID_ARGUMENT, ST_CONNECTION_SETUP_NONE,
+		    "profile is not a modem connection");
 	return connect_serial_common(result, profile, hooks, error, true);
 }

@@ -8,32 +8,31 @@
 #ifndef ST_AUDIO_H_
 #define ST_AUDIO_H_
 
-#include "io_error.h"
-
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
+#include "io_error.h"
+
 #define AUDIO_SAMPLE_RATE 44100U
-#define AUDIO_CHANNELS 2U
-#define AUDIO_FRAME_SIZE (AUDIO_CHANNELS * sizeof(int16_t))
+#define AUDIO_CHANNELS    2U
+#define AUDIO_FRAME_SIZE  (AUDIO_CHANNELS * sizeof(int16_t))
 
 enum audio_backend {
-	AUDIO_BACKEND_NONE = 0,
-	AUDIO_BACKEND_WASAPI = 1U << 0,
-	AUDIO_BACKEND_ALSA = 1U << 1,
-	AUDIO_BACKEND_OSS = 1U << 2,
-	AUDIO_BACKEND_SDL = 1U << 3,
-	AUDIO_BACKEND_PORTAUDIO = 1U << 4,
+	AUDIO_BACKEND_NONE        = 0,
+	AUDIO_BACKEND_WASAPI      = 1U << 0,
+	AUDIO_BACKEND_ALSA        = 1U << 1,
+	AUDIO_BACKEND_OSS         = 1U << 2,
+	AUDIO_BACKEND_SDL         = 1U << 3,
+	AUDIO_BACKEND_PORTAUDIO   = 1U << 4,
 	AUDIO_BACKEND_PULSE_AUDIO = 1U << 5,
-	AUDIO_BACKEND_CORE_AUDIO = 1U << 6,
-	AUDIO_BACKEND_PIPEWIRE = 1U << 7,
+	AUDIO_BACKEND_CORE_AUDIO  = 1U << 6,
+	AUDIO_BACKEND_PIPEWIRE    = 1U << 7,
 };
 
-#define AUDIO_BACKENDS_DEFAULT \
-	(AUDIO_BACKEND_WASAPI | AUDIO_BACKEND_ALSA | AUDIO_BACKEND_OSS \
-	| AUDIO_BACKEND_PORTAUDIO | AUDIO_BACKEND_PULSE_AUDIO \
-	| AUDIO_BACKEND_CORE_AUDIO | AUDIO_BACKEND_PIPEWIRE)
+#define AUDIO_BACKENDS_DEFAULT                                                                   \
+	(AUDIO_BACKEND_WASAPI | AUDIO_BACKEND_ALSA | AUDIO_BACKEND_OSS | AUDIO_BACKEND_PORTAUDIO \
+	    | AUDIO_BACKEND_PULSE_AUDIO | AUDIO_BACKEND_CORE_AUDIO | AUDIO_BACKEND_PIPEWIRE)
 
 enum audio_wave_shape {
 	AUDIO_WAVE_SINE,
@@ -46,15 +45,15 @@ enum audio_wave_shape {
 };
 
 struct audio_buffer_options {
-	float volume_left_db;
-	float volume_right_db;
+	float  volume_left_db;
+	float  volume_right_db;
 	size_t fade_in_frames;
 	size_t fade_out_frames;
-	bool crossfade;
-	bool loop;
+	bool   crossfade;
+	bool   loop;
 };
 
-#define AUDIO_BUFFER_OPTIONS_INIT { 0.0f, 0.0f, 0, 0, false, false }
+#define AUDIO_BUFFER_OPTIONS_INIT {0.0f, 0.0f, 0, 0, false, false}
 
 typedef struct audio_engine audio_engine_t;
 typedef struct audio_stream audio_stream_t;
@@ -94,12 +93,12 @@ int audio_engine_create(audio_engine_t **result, uint32_t allowed_backends);
 int audio_engine_create_pull(audio_engine_t **result);
 int audio_engine_pull(audio_engine_t *engine, int16_t *frames, size_t frame_count);
 /* Cancels pending drains before the engine's users are joined. */
-void audio_engine_stop(audio_engine_t *engine);
-void audio_engine_destroy(audio_engine_t *engine);
+void               audio_engine_stop(audio_engine_t *engine);
+void               audio_engine_destroy(audio_engine_t *engine);
 enum audio_backend audio_engine_backend(const audio_engine_t *engine);
 
-int audio_stream_create(audio_stream_t **result, audio_engine_t *engine,
-	float volume_left_db, float volume_right_db);
+int  audio_stream_create(audio_stream_t **result, audio_engine_t *engine, float volume_left_db,
+    float volume_right_db);
 void audio_stream_destroy(audio_stream_t *stream);
 /* Continuous stereo producer in AUDIO_SAMPLE_RATE/AUDIO_CHANNELS format,
  * called on the existing mixer consumer thread. Return promptly without
@@ -110,14 +109,12 @@ void audio_stream_destroy(audio_stream_t *stream);
  * while a source is attached; an active source without a finite fade is an
  * unterminated loop for drain/buffered_frames. Clear pauses it, keeping its
  * attachment. Explicit activation resets any fade and cancels its drains. */
-int audio_stream_set_source(audio_stream_t *,
-    size_t (*source)(void *, int16_t *, size_t), void *context);
+int audio_stream_set_source(audio_stream_t *, size_t (*source)(void *, int16_t *, size_t), void *context);
 /* Same lifecycle/counts as set_source, with signed32 stereo amplitudes in
  * S16 units. Channel gain and limiting follow summation; no S16 pre-clamp.
  * Output/queued buffers retain their existing S16 format. Either setter
  * replaces both source formats; NULL detaches the current source. */
-int audio_stream_set_source32(audio_stream_t *,
-    size_t (*source)(void *, int32_t *, size_t), void *context);
+int audio_stream_set_source32(audio_stream_t *, size_t (*source)(void *, int32_t *, size_t), void *context);
 int audio_stream_source_active(audio_stream_t *, bool active);
 /* Fade an active continuous source and pause it after frame_count frames,
  * without changing channel volume or detaching its caller-owned context.
@@ -125,14 +122,13 @@ int audio_stream_source_active(audio_stream_t *, bool active);
  * Finite fades participate in buffered_frames/drain and acknowledgment. */
 int audio_stream_fade_source(audio_stream_t *, size_t frame_count);
 
-int audio_stream_append(audio_stream_t *stream, const int16_t *frames,
-	size_t frame_count, const struct audio_buffer_options *options);
+int audio_stream_append(audio_stream_t *stream, const int16_t *frames, size_t frame_count,
+    const struct audio_buffer_options *options);
 /* Ownership transfers only when this function succeeds. */
-int audio_stream_append_take(audio_stream_t *stream, int16_t *frames,
-	size_t frame_count, const struct audio_buffer_options *options);
-int audio_stream_append_u8_mono_22050(audio_stream_t *stream,
-	const uint8_t *samples, size_t sample_count,
-	const struct audio_buffer_options *options);
+int audio_stream_append_take(audio_stream_t *stream, int16_t *frames, size_t frame_count,
+    const struct audio_buffer_options *options);
+int audio_stream_append_u8_mono_22050(audio_stream_t *stream, const uint8_t *samples, size_t sample_count,
+    const struct audio_buffer_options *options);
 int audio_stream_clear(audio_stream_t *stream);
 /*
  * Drain waits for the buffers/finite source fade present when it is called,
@@ -143,23 +139,23 @@ int audio_stream_clear(audio_stream_t *stream);
  * backend-latency wait. An unterminated loop returns IO_ERROR_BUSY instead of
  * waiting forever.
  */
-int audio_stream_drain(audio_stream_t *stream);
+int  audio_stream_drain(audio_stream_t *stream);
 bool audio_stream_is_idle(audio_stream_t *stream);
 /* Frames still queued or awaiting backend acknowledgement. An unterminated
  * loop reports SIZE_MAX. This does not include device-internal latency. */
 size_t audio_stream_buffered_frames(audio_stream_t *stream);
 /* Current backend-reported latency; zero for pull-only/no-latency backends. */
 uint32_t audio_stream_latency_ms(audio_stream_t *stream);
-int audio_stream_set_volume(audio_stream_t *stream,
-	float volume_left_db, float volume_right_db);
-int audio_stream_ramp_volume(audio_stream_t *stream,
-	float volume_left_db, float volume_right_db, size_t frame_count);
-int audio_stream_get_volume(audio_stream_t *stream,
-	float *volume_left_db, float *volume_right_db);
+int      audio_stream_set_volume(audio_stream_t *stream, float volume_left_db, float volume_right_db);
+int      audio_stream_ramp_volume(audio_stream_t *stream, float volume_left_db, float volume_right_db,
+    size_t frame_count);
+int      audio_stream_get_volume(audio_stream_t *stream, float *volume_left_db, float *volume_right_db);
+
 struct audio_stream_volume {
-	float left_db, right_db, target_left_db, target_right_db;
+	float  left_db, right_db, target_left_db, target_right_db;
 	size_t ramp_frames;
 };
+
 /* One coherent current/target/remaining snapshot for producer handoff.
  * Errors preserve the caller's result. */
 int audio_stream_get_volume_state(audio_stream_t *, struct audio_stream_volume *);
@@ -168,20 +164,18 @@ int audio_stream_get_volume_state(audio_stream_t *, struct audio_stream_volume *
  * Copies the supplied frames and returns before playback completes. A
  * one-shot cannot use the loop option because it exposes no stream to stop.
  */
-int audio_engine_play(audio_engine_t *engine, const int16_t *frames,
-	size_t frame_count, const struct audio_buffer_options *options);
-int audio_engine_play_u8_mono_22050(audio_engine_t *engine,
-	const uint8_t *samples, size_t sample_count,
-	const struct audio_buffer_options *options);
+int audio_engine_play(audio_engine_t *engine, const int16_t *frames, size_t frame_count,
+    const struct audio_buffer_options *options);
+int audio_engine_play_u8_mono_22050(audio_engine_t *engine, const uint8_t *samples, size_t sample_count,
+    const struct audio_buffer_options *options);
 
 /* Nonnegative finite frequencies above Nyquist retain the reference
  * generator's aliased waveform. Unrepresentable phase ranges fail. */
-int audio_generate_tone(int16_t *result, size_t frame_count,
-	double frequency, enum audio_wave_shape shape, bool clean_edges);
+int audio_generate_tone(int16_t *result, size_t frame_count, double frequency, enum audio_wave_shape shape,
+    bool clean_edges);
 
 /* Plays the historic SyncTERM beep synchronously, with speaker fallback. */
-int audio_beep(audio_engine_t *engine, double frequency,
-	uint32_t duration_ms);
+int audio_beep(audio_engine_t *engine, double frequency, uint32_t duration_ms);
 
 /*
  * Stream operations are thread-safe. The caller must not race stream or

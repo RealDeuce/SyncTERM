@@ -57,8 +57,7 @@ char *str_list_take_last(str_list_t list);
  * result pointer, string, and delimiters must be non-NULL. Failure leaves
  * result unchanged.
  */
-bool str_list_split(str_list_t *result, const char *string,
-    const char *delimiters);
+bool str_list_split(str_list_t *result, const char *string, const char *delimiters);
 
 /*
  * Returns an exactly sized allocated string owned by the caller, which must

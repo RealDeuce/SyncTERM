@@ -46,133 +46,117 @@ enum st_rip3_transfer_mode {
  * rounding to nearest. Desktop master colors use the RGBrgb bit permutation.
  * Setters validate the whole span before changing any entry. */
 int st_rip3_palette_defaults(struct st_rip3_palette *palette);
-int st_rip3_palette_desktop(struct st_rip3_palette *palette, size_t start,
-	const unsigned *master_colors, size_t count);
-int st_rip3_palette_rgb(struct st_rip3_palette *palette, size_t start,
-	unsigned bits, const uint32_t *colors, size_t count);
+int st_rip3_palette_desktop(struct st_rip3_palette *palette, size_t start, const unsigned *master_colors,
+    size_t count);
+int st_rip3_palette_rgb(struct st_rip3_palette *palette, size_t start, unsigned bits, const uint32_t *colors,
+    size_t count);
 /* Closest match uses squared RGB distance; equal distances prefer the first
  * index. Color-map input is already an index. Result is unchanged on error. */
-int st_rip3_palette_color(const struct st_rip3_palette *palette, bool direct,
-	uint32_t color, uint8_t *result);
+int st_rip3_palette_color(const struct st_rip3_palette *palette, bool direct, uint32_t color, uint8_t *result);
 
 /* A surface is owned by the terminal session thread. Dimensions may also
  * describe offscreen ports; the application selects the device canvas tier.
  * Coordinates below are device pixels, not world coordinates. */
-int st_rip3_surface_create(struct st_rip3_surface **result,
-	uint32_t width, uint32_t height);
+int  st_rip3_surface_create(struct st_rip3_surface **result, uint32_t width, uint32_t height);
 void st_rip3_surface_destroy(struct st_rip3_surface *surface);
 /* Exact owned index/marked-RGB clone; no palette association. */
-int st_rip3_surface_clone(struct st_rip3_surface **result,
-	const struct st_rip3_surface *surface);
+int st_rip3_surface_clone(struct st_rip3_surface **result, const struct st_rip3_surface *surface);
 /* Explicit screen-backup transport, retaining raw indexes and tagged RGB.
  * Restore copies the unscaled overlap at (0,0), keeps the destination size and
  * marks its existing damage plane. It does not replace the surface identity. */
-int st_rip3_surface_capture_raw(const struct st_rip3_surface *,struct st_pixel_buffer **);
+int st_rip3_surface_capture_raw(const struct st_rip3_surface *, struct st_pixel_buffer **);
 /* Owned clipped raw source snapshot. A wholly physical-outside area succeeds
  * with NULL. The rectangle is inclusive; logical mapping stays with the caller. */
-int st_rip3_surface_capture_area_raw(const struct st_rip3_surface *,
-	const struct st_rip3_rect *,struct st_pixel_buffer **);
+int st_rip3_surface_capture_area_raw(const struct st_rip3_surface *, const struct st_rip3_rect *,
+    struct st_pixel_buffer **);
 /* Project between independent raw captures in both destination phases.
  * Rectangles are logical offsets from the corresponding snapshot origins. */
-int st_rip3_surface_copy_snapshots(struct st_pixel_buffer *,const struct st_rip3_rect *,
-	const struct st_pixel_buffer *,const struct st_rip3_rect *,enum st_rip3_transfer_mode,
-	const struct st_rip3_palette *);
+int st_rip3_surface_copy_snapshots(struct st_pixel_buffer *, const struct st_rip3_rect *,
+    const struct st_pixel_buffer *, const struct st_rip3_rect *, enum st_rip3_transfer_mode,
+    const struct st_rip3_palette *);
 /* Borrow an independent raw source snapshot for one projected transfer. */
-int st_rip3_surface_copy_from_raw(struct st_rip3_surface *,const struct st_rip3_rect *,
-	const struct st_pixel_buffer *,const struct st_rip3_rect *,enum st_rip3_transfer_mode,
-	const struct st_rip3_palette *);
-int st_rip3_surface_restore_raw(struct st_rip3_surface *,const struct st_pixel_buffer *);
+int st_rip3_surface_copy_from_raw(struct st_rip3_surface *, const struct st_rip3_rect *,
+    const struct st_pixel_buffer *, const struct st_rip3_rect *, enum st_rip3_transfer_mode,
+    const struct st_rip3_palette *);
+int st_rip3_surface_restore_raw(struct st_rip3_surface *, const struct st_pixel_buffer *);
 /* Copy a prepared, fully contained raw region and mark its primary pixels. */
-int st_rip3_surface_restore_area_raw(struct st_rip3_surface *,const struct st_pixel_buffer *,
-	const struct st_pixel_mask *,uint32_t x,uint32_t y);
-int st_rip3_surface_size(const struct st_rip3_surface *surface,
-	uint32_t *width, uint32_t *height);
-int st_rip3_surface_get(const struct st_rip3_surface *surface,
-	int32_t x, int32_t y, uint8_t *result);
+int st_rip3_surface_restore_area_raw(struct st_rip3_surface *, const struct st_pixel_buffer *,
+    const struct st_pixel_mask *, uint32_t x, uint32_t y);
+int st_rip3_surface_size(const struct st_rip3_surface *surface, uint32_t *width, uint32_t *height);
+int st_rip3_surface_get(const struct st_rip3_surface *surface, int32_t x, int32_t y, uint8_t *result);
 /* Preserve the full indexed/tagged-RGB value for physical image capture. */
-int st_rip3_surface_read_color(const struct st_rip3_surface *,int32_t x,int32_t y,uint32_t *);
+int st_rip3_surface_read_color(const struct st_rip3_surface *, int32_t x, int32_t y, uint32_t *);
 /* COPY literal black within the inclusive area intersected with physical
  * bounds. NULL clears the full surface. Mark every written pixel as damaged,
  * including repeated clears. No palette changes or allocation. */
-int st_rip3_surface_clear_black(struct st_rip3_surface *surface,
-	const struct st_rip3_rect *area);
+int st_rip3_surface_clear_black(struct st_rip3_surface *surface, const struct st_rip3_rect *area);
 /* Optional borrowed presentation damage plane, one byte per physical pixel.
  * Writes set bytes even when the resulting index is unchanged. The owner
  * clears it after presentation and must unbind it before freeing storage. */
-int st_rip3_surface_damage(struct st_rip3_surface *surface,
-	uint8_t *damage, size_t length);
+int st_rip3_surface_damage(struct st_rip3_surface *surface, uint8_t *damage, size_t length);
 /* Clip rectangles have inclusive endpoints; NULL means the whole surface.
  * Drawing outside the surface/clip is a successful no-op. NOT ignores color.
  * Reversed rectangles and invalid write modes fail before changing pixels. */
-int st_rip3_surface_plot(struct st_rip3_surface *surface,
-	const struct st_rip3_rect *clip, int32_t x, int32_t y, uint8_t color,
-	enum st_rip3_write_mode mode);
-int st_rip3_surface_fill(struct st_rip3_surface *surface,
-	const struct st_rip3_rect *clip, const struct st_rip3_rect *area,
-	uint8_t color, enum st_rip3_write_mode mode);
+int st_rip3_surface_plot(struct st_rip3_surface *surface, const struct st_rip3_rect *clip, int32_t x, int32_t y,
+    uint8_t color, enum st_rip3_write_mode mode);
+int st_rip3_surface_fill(struct st_rip3_surface *surface, const struct st_rip3_rect *clip,
+    const struct st_rip3_rect *area, uint8_t color, enum st_rip3_write_mode mode);
 /* Tagged RGB colors remain literal. Binary mixed operands use the supplied
  * published drawing palette to resolve the indexed color. */
-int st_rip3_surface_fill_colors(struct st_rip3_surface *surface,
-	const struct st_rip3_rect *clip, const struct st_rip3_rect *area,
-	uint32_t color, enum st_rip3_write_mode mode, const struct st_rip3_palette *palette);
+int st_rip3_surface_fill_colors(struct st_rip3_surface *surface, const struct st_rip3_rect *clip,
+    const struct st_rip3_rect *area, uint32_t color, enum st_rip3_write_mode mode,
+    const struct st_rip3_palette *palette);
+
 /* Borrowed during one native raster edit. The presented baseline has the
  * drawing surface's dimensions. Written bounds are accumulated in device pixels. */
 struct st_rip3_screen_drawing {
 	const struct st_pixel_buffer *native;
-	const uint32_t *native_palette;
-	uint32_t *presented;
-	uint32_t native_rgb_flag;
-	struct st_rip3_rect written;
+	const uint32_t               *native_palette;
+	uint32_t                     *presented;
+	uint32_t                      native_rgb_flag;
+	struct st_rip3_rect           written;
 };
-int st_rip3_surface_fill_screen(struct st_rip3_surface *, const struct st_rip3_rect *,
-	uint32_t color, enum st_rip3_write_mode, const struct st_rip3_palette *,
-	struct st_rip3_screen_drawing *);
+
+int st_rip3_surface_fill_screen(struct st_rip3_surface *, const struct st_rip3_rect *, uint32_t color,
+    enum st_rip3_write_mode, const struct st_rip3_palette *, struct st_rip3_screen_drawing *);
 /* RGB complement for a rendered button's selected image, matched to the
  * current palette (first nearest tie), not the indexed drawing NOT operator.
  * Reuse existing indexed pixels/damage, without allocating a backing layer. */
-int st_rip3_surface_invert_rgb(struct st_rip3_surface *surface,
-	const struct st_rip3_rect *clip, const struct st_rip3_rect *area,
-	const struct st_rip3_palette *palette);
+int st_rip3_surface_invert_rgb(struct st_rip3_surface *surface, const struct st_rip3_rect *clip,
+    const struct st_rip3_rect *area, const struct st_rip3_palette *palette);
 /* Clip both rectangles first, then scale the remaining source to fill the
  * remaining destination. Nearest source pixel centers preserve palette indexes.
  * Overlapping copies read a snapshot, including when the write mode combines
  * source and destination. Allocation failure leaves the destination unchanged. */
-int st_rip3_surface_copy(struct st_rip3_surface *destination,
-	const struct st_rip3_rect *destination_clip,
-	const struct st_rip3_rect *destination_area,
-	const struct st_rip3_surface *source,
-	const struct st_rip3_rect *source_clip,
-	const struct st_rip3_rect *source_area,
-	enum st_rip3_transfer_mode mode);
+int st_rip3_surface_copy(struct st_rip3_surface *destination, const struct st_rip3_rect *destination_clip,
+    const struct st_rip3_rect *destination_area, const struct st_rip3_surface *source,
+    const struct st_rip3_rect *source_clip, const struct st_rip3_rect *source_area,
+    enum st_rip3_transfer_mode mode);
 /* Port compositor after viewport fitting: retain the original nonnegative
  * inclusive source/destination rectangles while clipping physical pixels.
  * Missing physical source samples leave destination pixels unchanged. Only
  * visible overlap pixels are snapshotted, before drawing. Both origins and
  * endpoints must fit nonnegative int32_t; failure preserves the destination. */
 int st_rip3_surface_copy_projected(struct st_rip3_surface *destination,
-	const struct st_rip3_rect *destination_area,
-	const struct st_rip3_surface *source,
-	const struct st_rip3_rect *source_area, enum st_rip3_transfer_mode mode);
+    const struct st_rip3_rect *destination_area, const struct st_rip3_surface *source,
+    const struct st_rip3_rect *source_area, enum st_rip3_transfer_mode mode);
 /* Boolean transfers with a palette resolve mixed operands through that palette.
  * Two indexed pixels use the destination's 256-index logical domain. */
 int st_rip3_surface_copy_projected_colors(struct st_rip3_surface *destination,
-	const struct st_rip3_rect *destination_area, const struct st_rip3_surface *source,
-	const struct st_rip3_rect *source_area, enum st_rip3_transfer_mode mode,
-	const struct st_rip3_palette *palette);
+    const struct st_rip3_rect *destination_area, const struct st_rip3_surface *source,
+    const struct st_rip3_rect *source_area, enum st_rip3_transfer_mode mode,
+    const struct st_rip3_palette *palette);
 /* Unscaled transfer: source_area's original upper-left maps to destination_x/y.
  * Clipping either operand discards the corresponding pixels in both operands,
  * preserving that translation. The uncovered source is retained. Overlap reads
  * original source pixels; snapshot failure leaves the destination unchanged. */
-int st_rip3_surface_blit(struct st_rip3_surface *destination,
-	const struct st_rip3_rect *destination_clip,
-	int32_t destination_x, int32_t destination_y,
-	const struct st_rip3_surface *source,
-	const struct st_rip3_rect *source_clip,
-	const struct st_rip3_rect *source_area,
-	enum st_rip3_transfer_mode mode);
+int st_rip3_surface_blit(struct st_rip3_surface *destination, const struct st_rip3_rect *destination_clip,
+    int32_t destination_x, int32_t destination_y, const struct st_rip3_surface *source,
+    const struct st_rip3_rect *source_clip, const struct st_rip3_rect *source_area,
+    enum st_rip3_transfer_mode mode);
 /* One coherent, owned tagged-RGB capture; no borrowed mutable pixel planes.
  * The palette belongs to the caller (ultimately the active palette slot). */
-int st_rip3_surface_snapshot(const struct st_rip3_surface *surface,
-	const struct st_rip3_palette *palette, struct st_pixel_buffer **result);
+int st_rip3_surface_snapshot(const struct st_rip3_surface *surface, const struct st_rip3_palette *palette,
+    struct st_pixel_buffer **result);
 
 #endif

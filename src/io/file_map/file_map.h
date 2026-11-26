@@ -8,10 +8,10 @@
 #ifndef SYNCTERM_FILE_MAP_H_
 #define SYNCTERM_FILE_MAP_H_
 
-#include "io_error.h"
-
 #include <stddef.h>
 #include <stdio.h>
+
+#include "io_error.h"
 
 typedef struct file_map file_map_t;
 
@@ -31,7 +31,7 @@ int file_map_open(file_map_t **result, const char *path);
 int file_map_open_stream(file_map_t **result, FILE *stream);
 /* NULL maps return NULL data and size zero. */
 const void *file_map_data(const file_map_t *map);
-size_t file_map_size(const file_map_t *map);
+size_t      file_map_size(const file_map_t *map);
 
 /* Always consumes map and attempts every cleanup operation. NULL is allowed. */
 void file_map_close(file_map_t *map);

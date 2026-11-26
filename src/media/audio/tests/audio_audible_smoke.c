@@ -3,15 +3,15 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "audio.h"
-
 #include <stdio.h>
+
+#include "audio.h"
 
 int
 main(void)
 {
 	audio_engine_t *engine = NULL;
-	int status;
+	int             status;
 
 	status = audio_engine_create(&engine, AUDIO_BACKENDS_DEFAULT);
 	if (status != 0) {

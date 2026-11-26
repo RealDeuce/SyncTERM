@@ -7,6 +7,7 @@ struct st_rip3_ports;
 struct st_rip3_palettes;
 struct st_rip3_backup;
 struct st_pixel_buffer;
+
 /* One session thread owns these borrowed bindings. Snapshots own raw screen
  * pixels and current-palette RGB only: no status/UI, current index, table,
  * viewport, text-window or mouse metadata. Optional paired native callbacks
@@ -17,12 +18,13 @@ struct st_pixel_buffer;
  * Capture failure preserves result/previous saves. Restore effects already
  * applied before a presentation failure are not rolled back. */
 struct st_rip3_screen {
-	struct st_rip3_ports *ports;
+	struct st_rip3_ports    *ports;
 	struct st_rip3_palettes *palettes;
-	void *context;
-	int (*capture)(void *,struct st_pixel_buffer *);
-	int (*restore)(void *,const struct st_pixel_buffer *,const struct st_rip3_palette *);
+	void                    *context;
+	int                      (*capture)(void *, struct st_pixel_buffer *);
+	int (*restore)(void *, const struct st_pixel_buffer *, const struct st_rip3_palette *);
 };
+
 int st_rip3_screen_backup_create(struct st_rip3_backup **result);
 int st_rip3_screen_clear(struct st_rip3_screen *);
 #endif

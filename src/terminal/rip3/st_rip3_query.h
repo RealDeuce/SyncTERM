@@ -61,8 +61,8 @@ struct st_rip3_host_sink;
  * provides a choice. Graphical consumers use their own one-pass worker.
  * Unsupported extended syntax on known names never enters the user path.
  * Syntax/operation errors never return to a terminal/session failure path. */
-int st_rip3_query_create(struct st_rip3_query **result,
-	const struct st_rip3_host_variables *variables, const struct st_rip3_host_sink *sink);
+int  st_rip3_query_create(struct st_rip3_query **result, const struct st_rip3_host_variables *variables,
+    const struct st_rip3_host_sink *sink);
 void st_rip3_query_destroy(struct st_rip3_query *query);
 /* Release pending text and abort only a user operation begun by this query.
  * Do not reset the borrowed input gate or another consumer's pending prompt.
@@ -74,28 +74,31 @@ bool st_rip3_query_pending(const struct st_rip3_query *query);
  * processor's unrelated prompt. Used by the owning session UI boundary. */
 bool st_rip3_query_prompt_pending(const struct st_rip3_query *query);
 
-enum { ST_RIP3_PICK_LIST_MAX_CHOICES = 64, ST_RIP3_PICK_LIST_DISPLAY_LIMIT = 60 };
+enum {
+	ST_RIP3_PICK_LIST_MAX_CHOICES   = 64,
+	ST_RIP3_PICK_LIST_DISPLAY_LIMIT = 60
+};
 
 struct st_rip3_pick_list_text {
 	/* A normalized codepage byte can occupy up to four UTF-8 bytes. */
-	char bytes[ST_RIP3_PICK_LIST_DISPLAY_LIMIT * 4 + 1];
+	char     bytes[ST_RIP3_PICK_LIST_DISPLAY_LIMIT * 4 + 1];
 	uint64_t highlighted; /* One bit per displayed character, low bit first. */
 };
 
 struct st_rip3_pick_list {
 	struct st_rip3_pick_list_text question;
 	struct st_rip3_pick_list_text labels[ST_RIP3_PICK_LIST_MAX_CHOICES];
-	size_t count;
-	bool required, has_x, has_y;
-	uint16_t x, y;
+	size_t                        count;
+	bool                          required, has_x, has_y;
+	uint16_t                      x, y;
 };
 
 /* Borrowed until selection or cancellation. Index count requests Escape.
  * Required lists ignore Escape. A UI failure aborts only this expression. */
 const struct st_rip3_pick_list *st_rip3_query_pick_list(const struct st_rip3_query *query);
-bool st_rip3_query_choose(struct st_rip3_query *query, size_t index);
-void st_rip3_query_pick_list_failed(struct st_rip3_query *query, int status);
-void st_rip3_query_set_codepage_converted(struct st_rip3_query *query, bool converted);
+bool                            st_rip3_query_choose(struct st_rip3_query *query, size_t index);
+void                            st_rip3_query_pick_list_failed(struct st_rip3_query *query, int status);
+void                            st_rip3_query_set_codepage_converted(struct st_rip3_query *query, bool converted);
 /* Resume at most budget tokens, stopping at a delay or pending prompt. The owner
  * resumes this before fetching more source bytes. A final D may leave a wait
  * even after pending() becomes false; the input driver must recheck its gate.

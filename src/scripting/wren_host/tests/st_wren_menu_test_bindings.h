@@ -9,34 +9,34 @@
 #include <stdbool.h>
 
 struct st_bbs_diagnostic;
-extern int st_wren_test_list_open_status;
-extern int st_wren_test_list_sort_status;
-extern int st_wren_test_model_build_status;
+extern int                             st_wren_test_list_open_status;
+extern int                             st_wren_test_list_sort_status;
+extern int                             st_wren_test_model_build_status;
 extern const struct st_bbs_diagnostic *st_wren_test_diagnostic;
-extern int st_wren_test_diagnostic_copy_status;
+extern int                             st_wren_test_diagnostic_copy_status;
 
-extern int st_wren_test_font_insert_status;
-extern int st_wren_test_font_rename_status;
-extern int st_wren_test_font_activation_status;
-extern int st_wren_test_settings_save_status;
-extern int st_wren_test_emoji_status;
+extern int      st_wren_test_font_insert_status;
+extern int      st_wren_test_font_rename_status;
+extern int      st_wren_test_font_activation_status;
+extern int      st_wren_test_settings_save_status;
+extern int      st_wren_test_emoji_status;
 extern unsigned st_wren_test_activation_calls;
 extern unsigned st_wren_test_font_save_calls;
-extern bool st_wren_test_sort_update_failure;
-extern bool st_wren_test_prepare_save_failure;
+extern bool     st_wren_test_sort_update_failure;
+extern bool     st_wren_test_prepare_save_failure;
 
-extern int st_wren_test_theme_catalog_status;
-extern int st_wren_test_theme_create_status;
-extern int st_wren_test_theme_open_status;
-extern int st_wren_test_theme_copy_status;
-extern int st_wren_test_theme_refresh_status;
+extern int         st_wren_test_theme_catalog_status;
+extern int         st_wren_test_theme_create_status;
+extern int         st_wren_test_theme_open_status;
+extern int         st_wren_test_theme_copy_status;
+extern int         st_wren_test_theme_refresh_status;
 extern const char *st_wren_test_theme_warning;
-extern bool st_wren_test_theme_refresh_cached;
-extern int st_wren_test_theme_activate_status;
-extern int st_wren_test_theme_save_result;
-extern int st_wren_test_theme_restore_status;
-extern unsigned st_wren_test_theme_save_calls;
-extern unsigned st_wren_test_theme_activate_calls;
-extern bool st_wren_test_theme_settings_copy_failure;
+extern bool        st_wren_test_theme_refresh_cached;
+extern int         st_wren_test_theme_activate_status;
+extern int         st_wren_test_theme_save_result;
+extern int         st_wren_test_theme_restore_status;
+extern unsigned    st_wren_test_theme_save_calls;
+extern unsigned    st_wren_test_theme_activate_calls;
+extern bool        st_wren_test_theme_settings_copy_failure;
 
 #endif

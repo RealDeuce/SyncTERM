@@ -4,7 +4,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 
-bool st_rip3_condition_test_fail;
+bool   st_rip3_condition_test_fail;
 size_t st_rip3_condition_test_allocations;
 
 static void *

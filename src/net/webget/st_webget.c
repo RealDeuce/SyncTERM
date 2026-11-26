@@ -5,7 +5,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "st_webget.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
 
 #include "filesystem.h"
 #include "ini.h"
@@ -13,76 +16,72 @@
 #include "path.h"
 #include "socket.h"
 #include "st_file_lock.h"
+#include "st_webget.h"
 #include "string_compat.h"
 #include "string_util.h"
 #include "tcp_client.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
-
-#define HEADER_LIMIT (64U * 1024U)
-#define LINE_LIMIT 8192U
+#define HEADER_LIMIT               (64U * 1024U)
+#define LINE_LIMIT                 8192U
 #define DEFAULT_FRESHNESS_LIFETIME UINT64_C(86400)
 
 struct parsed_url {
-	bool tls;
-	char *host;
-	char *host_header;
-	char *target;
+	bool     tls;
+	char    *host;
+	char    *host_header;
+	char    *target;
 	uint16_t port;
 };
 
 struct cache_info {
-	char *url;
-	char *etag;
-	char *last_modified;
-	int64_t response_time;
-	int64_t date;
-	int64_t expires;
+	char    *url;
+	char    *etag;
+	char    *last_modified;
+	int64_t  response_time;
+	int64_t  date;
+	int64_t  expires;
 	uint64_t max_age;
 	uint64_t age;
-	bool have_date;
-	bool have_expires;
-	bool have_max_age;
-	bool no_cache;
-	bool must_revalidate;
-	bool immutable;
+	bool     have_date;
+	bool     have_expires;
+	bool     have_max_age;
+	bool     no_cache;
+	bool     must_revalidate;
+	bool     immutable;
 };
 
 struct transport {
-	socket_handle_t socket;
+	socket_handle_t   socket;
 	st_tls_session_t *tls;
-	int64_t timeout_ms;
+	int64_t           timeout_ms;
 };
 
 struct reader {
 	struct transport *transport;
-	unsigned char buffer[16384];
-	size_t begin;
-	size_t end;
+	unsigned char     buffer[16384];
+	size_t            begin;
+	size_t            end;
 };
 
 struct response_info {
-	int status;
-	bool chunked;
-	bool have_length;
+	int      status;
+	bool     chunked;
+	bool     have_length;
 	uint64_t length;
-	char *etag;
-	char *last_modified;
-	int64_t date;
-	int64_t expires;
+	char    *etag;
+	char    *last_modified;
+	int64_t  date;
+	int64_t  expires;
 	uint64_t max_age;
 	uint64_t age;
-	bool have_date;
-	bool have_expires;
-	bool have_max_age;
-	bool have_age;
-	bool have_cache_control;
-	bool no_cache;
-	bool must_revalidate;
-	bool immutable;
+	bool     have_date;
+	bool     have_expires;
+	bool     have_max_age;
+	bool     have_age;
+	bool     have_cache_control;
+	bool     no_cache;
+	bool     must_revalidate;
+	bool     immutable;
 };
 
 static char *
@@ -96,9 +95,9 @@ join_path(const char *directory, const char *name)
 static char *
 suffix_name(const char *name, const char *suffix)
 {
-	size_t a = strlen(name);
-	size_t b = strlen(suffix);
-	char *result = malloc(a + b + 1);
+	size_t a      = strlen(name);
+	size_t b      = strlen(suffix);
+	char  *result = malloc(a + b + 1);
 
 	if (result != NULL) {
 		memcpy(result, name, a);
@@ -137,18 +136,20 @@ parse_url(struct parsed_url *result, const char *url)
 	const char *host_begin;
 	const char *host_end;
 	const char *port = NULL;
-	size_t host_size;
-	size_t authority_size;
+	size_t      host_size;
+	size_t      authority_size;
 
 	memset(result, 0, sizeof(*result));
 	if (strlen(url) >= 7 && ascii_case_ncompare(url, "http://", 7) == 0) {
 		result->port = 80;
-		authority = url + 7;
-	} else if (strlen(url) >= 8 && ascii_case_ncompare(url, "https://", 8) == 0) {
-		result->tls = true;
+		authority    = url + 7;
+	}
+	else if (strlen(url) >= 8 && ascii_case_ncompare(url, "https://", 8) == 0) {
+		result->tls  = true;
 		result->port = 443;
-		authority = url + 8;
-	} else
+		authority    = url + 8;
+	}
+	else
 		return IO_ERROR_INVALID_ARGUMENT;
 	path = authority + strcspn(authority, "/?#");
 	if (*path == '#')
@@ -173,7 +174,8 @@ parse_url(struct parsed_url *result, const char *url)
 				return IO_ERROR_INVALID_FORMAT;
 			port = host_end + 2;
 		}
-	} else {
+	}
+	else {
 		host_end = memchr(authority, ':', authority_size);
 		if (host_end == NULL)
 			host_end = authority + authority_size;
@@ -184,12 +186,11 @@ parse_url(struct parsed_url *result, const char *url)
 	if (host_size == 0)
 		return IO_ERROR_INVALID_FORMAT;
 	if (port != NULL) {
-		int status = parse_port(port,
-		    authority_size - (size_t)(port - authority), &result->port);
+		int status = parse_port(port, authority_size - (size_t)(port - authority), &result->port);
 		if (status < 0)
 			return status;
 	}
-	result->host = strndup(host_begin, host_size);
+	result->host        = strndup(host_begin, host_size);
 	result->host_header = strndup(authority, authority_size);
 	if (strchr(path, '#') != NULL)
 		return IO_ERROR_INVALID_FORMAT;
@@ -199,16 +200,16 @@ parse_url(struct parsed_url *result, const char *url)
 			return IO_ERROR_INVALID_FORMAT;
 	}
 	if (*path == '?') {
-		size_t length = strlen(path);
+		size_t length  = strlen(path);
 		result->target = malloc(length + 2);
 		if (result->target != NULL) {
 			result->target[0] = '/';
 			memcpy(result->target + 1, path, length + 1);
 		}
-	} else
+	}
+	else
 		result->target = *path == '\0' ? strdup("/") : strdup(path);
-	if (result->host == NULL || result->host_header == NULL
-	    || result->target == NULL)
+	if (result->host == NULL || result->host_header == NULL || result->target == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
 	return 0;
 }
@@ -234,9 +235,9 @@ static int
 load_cache_info(struct cache_info *info, const char *path)
 {
 	ini_document_t *document = NULL;
-	ini_section_t *root;
-	FILE *stream;
-	int status = fs_open(&stream, path, "rb");
+	ini_section_t  *root;
+	FILE           *stream;
+	int             status = fs_open(&stream, path, "rb");
 
 	memset(info, 0, sizeof(*info));
 	if (status == IO_ERROR_NOT_FOUND)
@@ -253,26 +254,24 @@ load_cache_info(struct cache_info *info, const char *path)
 		if (value != NULL && (info->url = strdup(value)) == NULL)
 			status = IO_ERROR_OUT_OF_MEMORY;
 		value = ini_section_find(root, "ETag");
-		if (status == 0 && value != NULL
-		    && (info->etag = strdup(value)) == NULL)
+		if (status == 0 && value != NULL && (info->etag = strdup(value)) == NULL)
 			status = IO_ERROR_OUT_OF_MEMORY;
 		value = ini_section_find(root, "LastModified");
-		if (status == 0 && value != NULL
-		    && (info->last_modified = strdup(value)) == NULL)
+		if (status == 0 && value != NULL && (info->last_modified = strdup(value)) == NULL)
 			status = IO_ERROR_OUT_OF_MEMORY;
 	}
 	if (status == 0) {
-		info->response_time = ini_section_get_int64(root, "ResponseTime", 0);
-		info->date = ini_section_get_int64(root, "Date", 0);
-		info->expires = ini_section_get_int64(root, "Expires", 0);
-		info->max_age = ini_section_get_uint64(root, "MaxAge", 0);
-		info->age = ini_section_get_uint64(root, "Age", 0);
-		info->have_date = ini_section_get_bool(root, "HaveDate", false);
-		info->have_expires = ini_section_get_bool(root, "HaveExpires", false);
-		info->have_max_age = ini_section_get_bool(root, "HaveMaxAge", false);
-		info->no_cache = ini_section_get_bool(root, "NoCache", false);
+		info->response_time   = ini_section_get_int64(root, "ResponseTime", 0);
+		info->date            = ini_section_get_int64(root, "Date", 0);
+		info->expires         = ini_section_get_int64(root, "Expires", 0);
+		info->max_age         = ini_section_get_uint64(root, "MaxAge", 0);
+		info->age             = ini_section_get_uint64(root, "Age", 0);
+		info->have_date       = ini_section_get_bool(root, "HaveDate", false);
+		info->have_expires    = ini_section_get_bool(root, "HaveExpires", false);
+		info->have_max_age    = ini_section_get_bool(root, "HaveMaxAge", false);
+		info->no_cache        = ini_section_get_bool(root, "NoCache", false);
 		info->must_revalidate = ini_section_get_bool(root, "MustRevalidate", false);
-		info->immutable = ini_section_get_bool(root, "Immutable", false);
+		info->immutable       = ini_section_get_bool(root, "Immutable", false);
 	}
 	ini_document_free(&document);
 	if (status < 0)
@@ -284,45 +283,36 @@ static int
 write_cache_info(const struct cache_info *info, const char *path)
 {
 	ini_document_t *document = NULL;
-	ini_section_t *root;
-	FILE *stream;
-	int status = ini_document_create(&document);
+	ini_section_t  *root;
+	FILE           *stream;
+	int             status = ini_document_create(&document);
 
 	if (status < 0)
 		return status;
 	root = ini_document_root(document);
-#define SET_INFO(call) do { status = (call); if (status < 0) goto finish; } while (0)
+#define SET_INFO(call)               \
+	do {                         \
+		status = (call);     \
+		if (status < 0)      \
+			goto finish; \
+	} while (0)
 	if (info->url != NULL)
-		SET_INFO(ini_section_set_string(root, "URL", info->url,
-		    &ini_default_style));
+		SET_INFO(ini_section_set_string(root, "URL", info->url, &ini_default_style));
 	if (info->etag != NULL)
-		SET_INFO(ini_section_set_string(root, "ETag", info->etag,
-		    &ini_default_style));
+		SET_INFO(ini_section_set_string(root, "ETag", info->etag, &ini_default_style));
 	if (info->last_modified != NULL)
-		SET_INFO(ini_section_set_string(root, "LastModified",
-		    info->last_modified, &ini_default_style));
-	SET_INFO(ini_section_set_int64(root, "ResponseTime", info->response_time,
-	    &ini_default_style));
-	SET_INFO(ini_section_set_int64(root, "Date", info->date,
-	    &ini_default_style));
-	SET_INFO(ini_section_set_int64(root, "Expires", info->expires,
-	    &ini_default_style));
-	SET_INFO(ini_section_set_uint64(root, "MaxAge", info->max_age,
-	    &ini_default_style));
-	SET_INFO(ini_section_set_uint64(root, "Age", info->age,
-	    &ini_default_style));
-	SET_INFO(ini_section_set_bool(root, "HaveDate", info->have_date,
-	    &ini_default_style));
-	SET_INFO(ini_section_set_bool(root, "HaveExpires", info->have_expires,
-	    &ini_default_style));
-	SET_INFO(ini_section_set_bool(root, "HaveMaxAge", info->have_max_age,
-	    &ini_default_style));
-	SET_INFO(ini_section_set_bool(root, "NoCache", info->no_cache,
-	    &ini_default_style));
-	SET_INFO(ini_section_set_bool(root, "MustRevalidate", info->must_revalidate,
-	    &ini_default_style));
-	SET_INFO(ini_section_set_bool(root, "Immutable", info->immutable,
-	    &ini_default_style));
+		SET_INFO(ini_section_set_string(root, "LastModified", info->last_modified, &ini_default_style));
+	SET_INFO(ini_section_set_int64(root, "ResponseTime", info->response_time, &ini_default_style));
+	SET_INFO(ini_section_set_int64(root, "Date", info->date, &ini_default_style));
+	SET_INFO(ini_section_set_int64(root, "Expires", info->expires, &ini_default_style));
+	SET_INFO(ini_section_set_uint64(root, "MaxAge", info->max_age, &ini_default_style));
+	SET_INFO(ini_section_set_uint64(root, "Age", info->age, &ini_default_style));
+	SET_INFO(ini_section_set_bool(root, "HaveDate", info->have_date, &ini_default_style));
+	SET_INFO(ini_section_set_bool(root, "HaveExpires", info->have_expires, &ini_default_style));
+	SET_INFO(ini_section_set_bool(root, "HaveMaxAge", info->have_max_age, &ini_default_style));
+	SET_INFO(ini_section_set_bool(root, "NoCache", info->no_cache, &ini_default_style));
+	SET_INFO(ini_section_set_bool(root, "MustRevalidate", info->must_revalidate, &ini_default_style));
+	SET_INFO(ini_section_set_bool(root, "Immutable", info->immutable, &ini_default_style));
 	status = fs_open(&stream, path, "wb");
 	if (status == 0) {
 		status = ini_document_write(document, stream);
@@ -336,13 +326,12 @@ finish:
 }
 
 static bool
-report_progress(const struct st_webget_request *request,
-    enum st_webget_phase phase, uint64_t received, uint64_t total, bool known)
+report_progress(const struct st_webget_request *request, enum st_webget_phase phase, uint64_t received,
+    uint64_t total, bool known)
 {
-	const struct st_webget_progress value = { phase, received, total, known };
+	const struct st_webget_progress value = {phase, received, total, known};
 
-	return request->progress == NULL
-	    || request->progress(&value, request->progress_context);
+	return request->progress == NULL || request->progress(&value, request->progress_context);
 }
 
 static int
@@ -352,22 +341,21 @@ transport_send(struct transport *transport, const void *data, size_t size)
 
 	while (offset < size) {
 		if (transport->tls != NULL) {
-			size_t sent = 0;
-			int status = st_tls_send(transport->tls,
-			    (const unsigned char *)data + offset, size - offset,
-			    transport->timeout_ms, &sent);
+			size_t sent   = 0;
+			int    status = st_tls_send(transport->tls, (const unsigned char *)data + offset,
+			    size - offset, transport->timeout_ms, &sent);
 			if (status < 0)
 				return status;
 			offset += sent;
-		} else {
+		}
+		else {
 			unsigned events;
-			int status = socket_wait(transport->socket, SOCKET_WAIT_WRITABLE,
-			    transport->timeout_ms, &events);
+			int      status =
+			    socket_wait(transport->socket, SOCKET_WAIT_WRITABLE, transport->timeout_ms, &events);
 			ssize_t sent;
 			if (status < 0)
 				return status;
-			sent = socket_send(transport->socket,
-			    (const unsigned char *)data + offset, size - offset);
+			sent = socket_send(transport->socket, (const unsigned char *)data + offset, size - offset);
 			if (sent <= 0)
 				return sent == 0 ? IO_ERROR_CONNECTION_RESET : (int)sent;
 			offset += (size_t)sent;
@@ -377,21 +365,17 @@ transport_send(struct transport *transport, const void *data, size_t size)
 }
 
 static int
-transport_receive(struct transport *transport, void *data, size_t size,
-    size_t *received)
+transport_receive(struct transport *transport, void *data, size_t size, size_t *received)
 {
 	if (transport->tls != NULL)
-		return st_tls_receive(transport->tls, data, size,
-		    transport->timeout_ms, received);
+		return st_tls_receive(transport->tls, data, size, transport->timeout_ms, received);
 	{
 		unsigned events;
-		int status = socket_wait(transport->socket, SOCKET_WAIT_READABLE,
-		    transport->timeout_ms, &events);
+		int status = socket_wait(transport->socket, SOCKET_WAIT_READABLE, transport->timeout_ms, &events);
 		ssize_t count;
 		if (status < 0)
 			return status;
-		count = socket_receive(transport->socket, data, size,
-		    SOCKET_RECEIVE_NONE);
+		count = socket_receive(transport->socket, data, size, SOCKET_RECEIVE_NONE);
 		if (count < 0)
 			return (int)count;
 		*received = (size_t)count;
@@ -403,13 +387,12 @@ static int
 reader_fill(struct reader *reader)
 {
 	size_t received = 0;
-	int status = transport_receive(reader->transport, reader->buffer,
-	    sizeof(reader->buffer), &received);
+	int    status   = transport_receive(reader->transport, reader->buffer, sizeof(reader->buffer), &received);
 
 	if (status < 0)
 		return status;
 	reader->begin = 0;
-	reader->end = received;
+	reader->end   = received;
 	return received == 0 ? IO_ERROR_NOT_CONNECTED : 0;
 }
 
@@ -427,12 +410,11 @@ reader_byte(struct reader *reader, unsigned char *value)
 }
 
 static int
-reader_line(struct reader *reader, char *line, size_t capacity,
-    size_t *header_bytes)
+reader_line(struct reader *reader, char *line, size_t capacity, size_t *header_bytes)
 {
-	size_t length = 0;
+	size_t        length = 0;
 	unsigned char value;
-	int status;
+	int           status;
 
 	for (;;) {
 		status = reader_byte(reader, &value);
@@ -515,51 +497,42 @@ leap_year(unsigned year)
 static bool
 parse_http_date(const char *text, int64_t *result)
 {
-	static const unsigned days_in_month[] = {
-		31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
-	};
-	unsigned day;
-	unsigned year;
-	unsigned hour;
-	unsigned minute;
-	unsigned second;
-	int month;
-	int adjusted_year;
-	unsigned adjusted_month;
-	int era;
-	unsigned year_of_era;
-	unsigned day_of_year;
-	unsigned day_of_era;
-	int64_t days;
+	static const unsigned days_in_month[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+	unsigned              day;
+	unsigned              year;
+	unsigned              hour;
+	unsigned              minute;
+	unsigned              second;
+	int                   month;
+	int                   adjusted_year;
+	unsigned              adjusted_month;
+	int                   era;
+	unsigned              year_of_era;
+	unsigned              day_of_year;
+	unsigned              day_of_era;
+	int64_t               days;
 
 	/* RFC 9110's preferred IMF-fixdate form, interpreted as US-ASCII. */
-	if (strlen(text) != 29 || text[3] != ',' || text[4] != ' '
-	    || text[7] != ' ' || text[11] != ' ' || text[16] != ' '
-	    || text[19] != ':' || text[22] != ':' || text[25] != ' '
-	    || ascii_case_ncompare(text + 26, "GMT", 3) != 0
-	    || !fixed_decimal(text + 5, 2, &day)
-	    || !fixed_decimal(text + 12, 4, &year)
-	    || !fixed_decimal(text + 17, 2, &hour)
-	    || !fixed_decimal(text + 20, 2, &minute)
-	    || !fixed_decimal(text + 23, 2, &second))
+	if (strlen(text) != 29 || text[3] != ',' || text[4] != ' ' || text[7] != ' ' || text[11] != ' '
+	    || text[16] != ' ' || text[19] != ':' || text[22] != ':' || text[25] != ' '
+	    || ascii_case_ncompare(text + 26, "GMT", 3) != 0 || !fixed_decimal(text + 5, 2, &day)
+	    || !fixed_decimal(text + 12, 4, &year) || !fixed_decimal(text + 17, 2, &hour)
+	    || !fixed_decimal(text + 20, 2, &minute) || !fixed_decimal(text + 23, 2, &second))
 		return false;
 	month = ascii_month(text + 8);
 	if (month == 0 || year < 1601 || day == 0
-	    || day > days_in_month[month - 1]
-		+ (month == 2 && leap_year(year) ? 1U : 0U)
-	    || hour > 23 || minute > 59 || second > 59)
+	    || day > days_in_month[month - 1] + (month == 2 && leap_year(year) ? 1U : 0U) || hour > 23
+	    || minute > 59 || second > 59)
 		return false;
 	/* Gregorian civil date to days relative to 1970-01-01. */
-	adjusted_year = (int)year - (month <= 2 ? 1 : 0);
-	era = adjusted_year / 400;
-	year_of_era = (unsigned)(adjusted_year - era * 400);
+	adjusted_year  = (int)year - (month <= 2 ? 1 : 0);
+	era            = adjusted_year / 400;
+	year_of_era    = (unsigned)(adjusted_year - era * 400);
 	adjusted_month = (unsigned)(month + (month > 2 ? -3 : 9));
-	day_of_year = (153 * adjusted_month + 2) / 5 + day - 1;
-	day_of_era = year_of_era * 365 + year_of_era / 4
-	    - year_of_era / 100 + day_of_year;
-	days = (int64_t)era * 146097 + day_of_era - 719468;
-	*result = days * 86400 + (int64_t)hour * 3600
-	    + (int64_t)minute * 60 + second;
+	day_of_year    = (153 * adjusted_month + 2) / 5 + day - 1;
+	day_of_era     = year_of_era * 365 + year_of_era / 4 - year_of_era / 100 + day_of_year;
+	days           = (int64_t)era * 146097 + day_of_era - 719468;
+	*result        = days * 86400 + (int64_t)hour * 3600 + (int64_t)minute * 60 + second;
 	return true;
 }
 
@@ -575,13 +548,12 @@ parse_cache_control(struct response_info *response, char *value)
 		token = trim_value(item);
 		if (strlen(token) == 8 && ascii_case_ncompare(token, "no-cache", 8) == 0)
 			response->no_cache = true;
-		else if (strlen(token) == 15
-		    && ascii_case_ncompare(token, "must-revalidate", 15) == 0)
+		else if (strlen(token) == 15 && ascii_case_ncompare(token, "must-revalidate", 15) == 0)
 			response->must_revalidate = true;
 		else if (strlen(token) == 9 && ascii_case_ncompare(token, "immutable", 9) == 0)
 			response->immutable = true;
 		else if (strlen(token) >= 8 && ascii_case_ncompare(token, "max-age=", 8) == 0
-		    && parse_uint64(token + 8, &response->max_age))
+		         && parse_uint64(token + 8, &response->max_age))
 			response->have_max_age = true;
 		item = next;
 	}
@@ -590,22 +562,20 @@ parse_cache_control(struct response_info *response, char *value)
 static int
 parse_headers(struct reader *reader, struct response_info *response)
 {
-	char line[LINE_LIMIT];
-	size_t bytes = 0;
-	int status = reader_line(reader, line, sizeof(line), &bytes);
-	char *code;
+	char   line[LINE_LIMIT];
+	size_t bytes  = 0;
+	int    status = reader_line(reader, line, sizeof(line), &bytes);
+	char  *code;
 
 	if (status < 0)
 		return status;
-	if (strlen(line) < 12 || (ascii_case_ncompare(line, "HTTP/1.0 ", 9) != 0
-	    && ascii_case_ncompare(line, "HTTP/1.1 ", 9) != 0))
+	if (strlen(line) < 12
+	    || (ascii_case_ncompare(line, "HTTP/1.0 ", 9) != 0 && ascii_case_ncompare(line, "HTTP/1.1 ", 9) != 0))
 		return IO_ERROR_PROTOCOL;
 	code = line + 9;
-	if (code[0] < '0' || code[0] > '9' || code[1] < '0' || code[1] > '9'
-	    || code[2] < '0' || code[2] > '9')
+	if (code[0] < '0' || code[0] > '9' || code[1] < '0' || code[1] > '9' || code[2] < '0' || code[2] > '9')
 		return IO_ERROR_PROTOCOL;
-	response->status = (code[0] - '0') * 100 + (code[1] - '0') * 10
-	    + (code[2] - '0');
+	response->status = (code[0] - '0') * 100 + (code[1] - '0') * 10 + (code[2] - '0');
 	for (;;) {
 		char *colon;
 		char *value;
@@ -618,37 +588,37 @@ parse_headers(struct reader *reader, struct response_info *response)
 		if (colon == NULL)
 			return IO_ERROR_PROTOCOL;
 		*colon = '\0';
-		value = trim_value(colon + 1);
+		value  = trim_value(colon + 1);
 		if (strlen(line) == 14 && ascii_case_ncompare(line, "Content-Length", 14) == 0) {
 			if (!parse_uint64(value, &response->length))
 				return IO_ERROR_PROTOCOL;
 			response->have_length = true;
-		} else if (strlen(line) == 17
-		    && ascii_case_ncompare(line, "Transfer-Encoding", 17) == 0) {
+		}
+		else if (strlen(line) == 17 && ascii_case_ncompare(line, "Transfer-Encoding", 17) == 0) {
 			if (strlen(value) != 7 || ascii_case_ncompare(value, "chunked", 7) != 0)
 				return IO_ERROR_NOT_SUPPORTED;
 			response->chunked = true;
-		} else if (strlen(line) == 4 && ascii_case_ncompare(line, "ETag", 4) == 0) {
+		}
+		else if (strlen(line) == 4 && ascii_case_ncompare(line, "ETag", 4) == 0) {
 			free(response->etag);
 			response->etag = strdup(value);
 			if (response->etag == NULL)
 				return IO_ERROR_OUT_OF_MEMORY;
-		} else if (strlen(line) == 13
-		    && ascii_case_ncompare(line, "Last-Modified", 13) == 0) {
+		}
+		else if (strlen(line) == 13 && ascii_case_ncompare(line, "Last-Modified", 13) == 0) {
 			free(response->last_modified);
 			response->last_modified = strdup(value);
 			if (response->last_modified == NULL)
 				return IO_ERROR_OUT_OF_MEMORY;
-		} else if (strlen(line) == 13
-		    && ascii_case_ncompare(line, "Cache-Control", 13) == 0) {
+		}
+		else if (strlen(line) == 13 && ascii_case_ncompare(line, "Cache-Control", 13) == 0) {
 			response->have_cache_control = true;
 			parse_cache_control(response, value);
 		}
 		else if (strlen(line) == 4 && ascii_case_ncompare(line, "Date", 4) == 0)
 			response->have_date = parse_http_date(value, &response->date);
 		else if (strlen(line) == 7 && ascii_case_ncompare(line, "Expires", 7) == 0)
-			response->have_expires = parse_http_date(value,
-			    &response->expires);
+			response->have_expires = parse_http_date(value, &response->expires);
 		else if (strlen(line) == 3 && ascii_case_ncompare(line, "Age", 3) == 0)
 			response->have_age = parse_uint64(value, &response->age);
 	}
@@ -665,8 +635,7 @@ cache_is_fresh(const struct cache_info *cache, int64_t now)
 	uint64_t current_age;
 	uint64_t lifetime;
 
-	if (cache->no_cache || cache->response_time <= 0
-	    || now < cache->response_time)
+	if (cache->no_cache || cache->response_time <= 0 || now < cache->response_time)
 		return false;
 	resident = (uint64_t)(now - cache->response_time);
 	if (cache->have_date && cache->response_time > cache->date)
@@ -677,8 +646,7 @@ cache_is_fresh(const struct cache_info *cache, int64_t now)
 	current_age += resident;
 	if (cache->have_max_age)
 		lifetime = cache->max_age;
-	else if (cache->have_expires && cache->have_date
-	    && cache->expires > cache->date)
+	else if (cache->have_expires && cache->have_date && cache->expires > cache->date)
 		lifetime = (uint64_t)(cache->expires - cache->date);
 	else
 		lifetime = DEFAULT_FRESHNESS_LIFETIME;
@@ -686,27 +654,24 @@ cache_is_fresh(const struct cache_info *cache, int64_t now)
 }
 
 static int
-write_bytes(FILE *output, const unsigned char *data, size_t size,
-    uint64_t *total, size_t maximum, const struct st_webget_request *request,
-    uint64_t expected, bool known)
+write_bytes(FILE *output, const unsigned char *data, size_t size, uint64_t *total, size_t maximum,
+    const struct st_webget_request *request, uint64_t expected, bool known)
 {
 	if (*total > maximum || size > maximum - (size_t)*total)
 		return IO_ERROR_MESSAGE_TOO_LARGE;
 	if (size != 0 && fwrite(data, 1, size, output) != size)
 		return IO_ERROR_IO;
 	*total += size;
-	return report_progress(request, ST_WEBGET_BODY, *total, expected, known)
-	    ? 0 : IO_ERROR_CANCELLED;
+	return report_progress(request, ST_WEBGET_BODY, *total, expected, known) ? 0 : IO_ERROR_CANCELLED;
 }
 
 static int
-read_fixed_body(struct reader *reader, FILE *output, uint64_t target,
-    size_t maximum, const struct st_webget_request *request, uint64_t *total,
-    uint64_t progress_total, bool progress_known)
+read_fixed_body(struct reader *reader, FILE *output, uint64_t target, size_t maximum,
+    const struct st_webget_request *request, uint64_t *total, uint64_t progress_total, bool progress_known)
 {
 	while (*total < target) {
 		size_t available;
-		int status;
+		int    status;
 		if (reader->begin == reader->end) {
 			status = reader_fill(reader);
 			if (status < 0)
@@ -715,8 +680,8 @@ read_fixed_body(struct reader *reader, FILE *output, uint64_t target,
 		available = reader->end - reader->begin;
 		if (available > target - *total)
 			available = (size_t)(target - *total);
-		status = write_bytes(output, reader->buffer + reader->begin, available,
-		    total, maximum, request, progress_total, progress_known);
+		status = write_bytes(output, reader->buffer + reader->begin, available, total, maximum, request,
+		    progress_total, progress_known);
 		if (status < 0)
 			return status;
 		reader->begin += available;
@@ -725,16 +690,16 @@ read_fixed_body(struct reader *reader, FILE *output, uint64_t target,
 }
 
 static int
-read_chunked_body(struct reader *reader, FILE *output, size_t maximum,
-    const struct st_webget_request *request, uint64_t *total)
+read_chunked_body(struct reader *reader, FILE *output, size_t maximum, const struct st_webget_request *request,
+    uint64_t *total)
 {
-	char line[LINE_LIMIT];
+	char   line[LINE_LIMIT];
 	size_t header_bytes = 0;
 
 	for (;;) {
 		uint64_t chunk = 0;
-		char *extension;
-		int status = reader_line(reader, line, sizeof(line), &header_bytes);
+		char    *extension;
+		int      status = reader_line(reader, line, sizeof(line), &header_bytes);
 		if (status < 0)
 			return status;
 		extension = strchr(line, ';');
@@ -744,10 +709,14 @@ read_chunked_body(struct reader *reader, FILE *output, size_t maximum,
 			return IO_ERROR_PROTOCOL;
 		for (char *digit = line; *digit != '\0'; ++digit) {
 			unsigned value;
-			if (*digit >= '0' && *digit <= '9') value = (unsigned)(*digit - '0');
-			else if (*digit >= 'a' && *digit <= 'f') value = (unsigned)(*digit - 'a' + 10);
-			else if (*digit >= 'A' && *digit <= 'F') value = (unsigned)(*digit - 'A' + 10);
-			else return IO_ERROR_PROTOCOL;
+			if (*digit >= '0' && *digit <= '9')
+				value = (unsigned)(*digit - '0');
+			else if (*digit >= 'a' && *digit <= 'f')
+				value = (unsigned)(*digit - 'a' + 10);
+			else if (*digit >= 'A' && *digit <= 'F')
+				value = (unsigned)(*digit - 'A' + 10);
+			else
+				return IO_ERROR_PROTOCOL;
 			if (chunk > (UINT64_MAX - value) / 16)
 				return IO_ERROR_OUT_OF_RANGE;
 			chunk = chunk * 16 + value;
@@ -762,23 +731,22 @@ read_chunked_body(struct reader *reader, FILE *output, size_t maximum,
 		}
 		if (*total > UINT64_MAX - chunk)
 			return IO_ERROR_OUT_OF_RANGE;
-		status = read_fixed_body(reader, output, *total + chunk, maximum,
-		    request, total, 0, false);
+		status = read_fixed_body(reader, output, *total + chunk, maximum, request, total, 0, false);
 		if (status < 0)
 			return status;
 		{
 			unsigned char cr;
 			unsigned char lf;
-			if (reader_byte(reader, &cr) < 0 || reader_byte(reader, &lf) < 0
-			    || cr != '\r' || lf != '\n')
+			if (reader_byte(reader, &cr) < 0 || reader_byte(reader, &lf) < 0 || cr != '\r'
+			    || lf != '\n')
 				return IO_ERROR_PROTOCOL;
 		}
 	}
 }
 
 static int
-read_close_body(struct reader *reader, FILE *output, size_t maximum,
-    const struct st_webget_request *request, uint64_t *total)
+read_close_body(struct reader *reader, FILE *output, size_t maximum, const struct st_webget_request *request,
+    uint64_t *total)
 {
 	for (;;) {
 		int status;
@@ -789,8 +757,8 @@ read_close_body(struct reader *reader, FILE *output, size_t maximum,
 			if (status < 0)
 				return status;
 		}
-		status = write_bytes(output, reader->buffer + reader->begin,
-		    reader->end - reader->begin, total, maximum, request, 0, false);
+		status = write_bytes(output, reader->buffer + reader->begin, reader->end - reader->begin, total,
+		    maximum, request, 0, false);
 		if (status < 0)
 			return status;
 		reader->begin = reader->end;
@@ -808,27 +776,23 @@ static int
 connect_transport(struct transport *transport, const struct parsed_url *url,
     const struct st_webget_request *request)
 {
-	struct tcp_client_options options = {
-		.family = TCP_CLIENT_ADDRESS_ANY,
-		.timeout_ms = request->connect_timeout_ms,
-		.cancel = tcp_cancel, .cancel_context = (void *)request,
-		.happy_eyeballs = true
-	};
-	int status;
+	struct tcp_client_options options = {.family = TCP_CLIENT_ADDRESS_ANY,
+	    .timeout_ms                              = request->connect_timeout_ms,
+	    .cancel                                  = tcp_cancel,
+	    .cancel_context                          = (void *)request,
+	    .happy_eyeballs                          = true};
+	int                       status;
 
 	if (!report_progress(request, ST_WEBGET_RESOLVING, 0, 0, false))
 		return IO_ERROR_CANCELLED;
-	status = tcp_client_connect(&transport->socket, NULL, url->host, url->port,
-	    &options);
+	status = tcp_client_connect(&transport->socket, NULL, url->host, url->port, &options);
 	if (status < 0)
 		return status;
 	transport->timeout_ms = request->io_timeout_ms;
 	if (url->tls) {
-		struct st_tls_client_options tls = {
-			.server_name = url->host,
-			.server_auth = ST_TLS_SERVER_AUTH_WEB_PKI,
-			.handshake_timeout_ms = request->io_timeout_ms
-		};
+		struct st_tls_client_options tls = {.server_name = url->host,
+		    .server_auth                                 = ST_TLS_SERVER_AUTH_WEB_PKI,
+		    .handshake_timeout_ms                        = request->io_timeout_ms};
 		if (request->tls_options != NULL)
 			tls = *request->tls_options;
 		if (tls.server_name == NULL)
@@ -849,86 +813,77 @@ close_transport(struct transport *transport)
 		st_tls_close(transport->tls);
 	else if (socket_handle_is_valid(transport->socket))
 		(void)socket_close(transport->socket);
-	transport->tls = NULL;
+	transport->tls    = NULL;
 	transport->socket = SOCKET_HANDLE_INVALID;
 }
 
 static int
-make_request(char **result, const struct parsed_url *url,
-    const struct cache_info *cache)
+make_request(char **result, const struct parsed_url *url, const struct cache_info *cache)
 {
-	const char *eh = cache->etag == NULL ? "" : "If-None-Match: ";
-	const char *etag = cache->etag == NULL ? "" : cache->etag;
-	const char *ee = cache->etag == NULL ? "" : "\r\n";
-	const char *mh = cache->last_modified == NULL ? ""
-	    : "If-Modified-Since: ";
-	const char *modified = cache->last_modified == NULL ? ""
-	    : cache->last_modified;
-	const char *me = cache->last_modified == NULL ? "" : "\r\n";
-	const char *format = "GET %s HTTP/1.1\r\nHost: %s\r\n"
+	const char *eh       = cache->etag == NULL ? "" : "If-None-Match: ";
+	const char *etag     = cache->etag == NULL ? "" : cache->etag;
+	const char *ee       = cache->etag == NULL ? "" : "\r\n";
+	const char *mh       = cache->last_modified == NULL ? "" : "If-Modified-Since: ";
+	const char *modified = cache->last_modified == NULL ? "" : cache->last_modified;
+	const char *me       = cache->last_modified == NULL ? "" : "\r\n";
+	const char *format =
+	    "GET %s HTTP/1.1\r\nHost: %s\r\n"
 	    "User-Agent: SyncTERM\r\nAccept: */*\r\nConnection: close\r\n"
 	    "%s%s%s%s%s%s\r\n";
-	int needed = snprintf(NULL, 0, format, url->target, url->host_header,
-	    eh, etag, ee, mh, modified, me);
+	int needed = snprintf(NULL, 0, format, url->target, url->host_header, eh, etag, ee, mh, modified, me);
 
 	if (needed < 0)
 		return IO_ERROR_IO;
 	*result = malloc((size_t)needed + 1);
 	if (*result == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
-	(void)snprintf(*result, (size_t)needed + 1, format, url->target,
-	    url->host_header, eh, etag, ee, mh, modified, me);
+	(void)snprintf(*result, (size_t)needed + 1, format, url->target, url->host_header, eh, etag, ee, mh,
+	    modified, me);
 	return 0;
 }
 
 int
-st_webget(struct st_webget_result *result,
-    const struct st_webget_request *request)
+st_webget(struct st_webget_result *result, const struct st_webget_request *request)
 {
-	struct parsed_url url = {0};
-	struct cache_info cache = {0};
-	struct response_info response = {0};
-	struct transport transport = { SOCKET_HANDLE_INVALID, NULL, 0 };
-	struct reader reader = {0};
-	struct fs_info existing;
-	st_file_lock_t *lock = NULL;
-	char *output_path = NULL;
-	char *metadata_name = NULL;
-	char *metadata_path = NULL;
-	char *temporary_name = NULL;
-	char *temporary_path = NULL;
-	char *metadata_new_name = NULL;
-	char *metadata_new_path = NULL;
-	char *wire_request = NULL;
-	FILE *output = NULL;
-	uint64_t total = 0;
-	size_t maximum;
-	int status;
-	bool runtime = false;
-	bool conditional = false;
+	struct parsed_url    url       = {0};
+	struct cache_info    cache     = {0};
+	struct response_info response  = {0};
+	struct transport     transport = {SOCKET_HANDLE_INVALID, NULL, 0};
+	struct reader        reader    = {0};
+	struct fs_info       existing;
+	st_file_lock_t      *lock              = NULL;
+	char                *output_path       = NULL;
+	char                *metadata_name     = NULL;
+	char                *metadata_path     = NULL;
+	char                *temporary_name    = NULL;
+	char                *temporary_path    = NULL;
+	char                *metadata_new_name = NULL;
+	char                *metadata_new_path = NULL;
+	char                *wire_request      = NULL;
+	FILE                *output            = NULL;
+	uint64_t             total             = 0;
+	size_t               maximum;
+	int                  status;
+	bool                 runtime     = false;
+	bool                 conditional = false;
 
-	if (result == NULL || request == NULL || request->url == NULL
-	    || request->cache_directory == NULL
+	if (result == NULL || request == NULL || request->url == NULL || request->cache_directory == NULL
 	    || !path_untrusted_component_valid(request->cache_key)
 	    || !path_untrusted_component_valid(request->output_name))
 		return IO_ERROR_INVALID_ARGUMENT;
-	maximum = request->maximum_size == 0 ? ST_WEBGET_DEFAULT_MAX_SIZE
-	    : request->maximum_size;
-	status = parse_url(&url, request->url);
+	maximum = request->maximum_size == 0 ? ST_WEBGET_DEFAULT_MAX_SIZE : request->maximum_size;
+	status  = parse_url(&url, request->url);
 	if (status < 0)
 		goto cleanup;
-	metadata_name = suffix_name(request->cache_key, ".cacheinfo");
-	temporary_name = suffix_name(request->cache_key, ".new");
+	metadata_name     = suffix_name(request->cache_key, ".cacheinfo");
+	temporary_name    = suffix_name(request->cache_key, ".new");
 	metadata_new_name = suffix_name(request->cache_key, ".cacheinfo.new");
-	output_path = join_path(request->cache_directory, request->output_name);
-	metadata_path = metadata_name == NULL ? NULL
-	    : join_path(request->cache_directory, metadata_name);
-	temporary_path = temporary_name == NULL ? NULL
-	    : join_path(request->cache_directory, temporary_name);
-	metadata_new_path = metadata_new_name == NULL ? NULL
-	    : join_path(request->cache_directory, metadata_new_name);
-	if (output_path == NULL || metadata_path == NULL || temporary_path == NULL
-	    || metadata_new_path == NULL) {
+	output_path       = join_path(request->cache_directory, request->output_name);
+	metadata_path     = metadata_name == NULL ? NULL : join_path(request->cache_directory, metadata_name);
+	temporary_path    = temporary_name == NULL ? NULL : join_path(request->cache_directory, temporary_name);
+	metadata_new_path =
+	    metadata_new_name == NULL ? NULL : join_path(request->cache_directory, metadata_new_name);
+	if (output_path == NULL || metadata_path == NULL || temporary_path == NULL || metadata_new_path == NULL) {
 		status = IO_ERROR_OUT_OF_MEMORY;
 		goto cleanup;
 	}
@@ -950,11 +905,10 @@ st_webget(struct st_webget_result *result,
 		}
 	}
 	status = fs_get_info(&existing, output_path);
-	if (status == 0 && existing.kind == FS_ENTRY_FILE
-	    && cache_is_fresh(&cache, time(NULL))) {
+	if (status == 0 && existing.kind == FS_ENTRY_FILE && cache_is_fresh(&cache, time(NULL))) {
 		result->outcome = ST_WEBGET_FRESH_CACHE;
-		result->size = existing.size;
-		status = 0;
+		result->size    = existing.size;
+		status          = 0;
 		goto cleanup;
 	}
 	if (status != 0 && status != IO_ERROR_NOT_FOUND)
@@ -963,11 +917,11 @@ st_webget(struct st_webget_result *result,
 	if (status < 0)
 		goto cleanup;
 	runtime = true;
-	status = connect_transport(&transport, &url, request);
+	status  = connect_transport(&transport, &url, request);
 	if (status < 0)
 		goto cleanup;
 	conditional = cache.etag != NULL || cache.last_modified != NULL;
-	status = make_request(&wire_request, &url, &cache);
+	status      = make_request(&wire_request, &url, &cache);
 	if (status < 0)
 		goto cleanup;
 	if (!report_progress(request, ST_WEBGET_REQUESTING, 0, 0, false)) {
@@ -1013,30 +967,30 @@ st_webget(struct st_webget_result *result,
 			}
 		}
 		if (response.have_date) {
-			cache.date = response.date;
+			cache.date      = response.date;
 			cache.have_date = true;
 		}
 		if (response.have_expires) {
-			cache.expires = response.expires;
+			cache.expires      = response.expires;
 			cache.have_expires = true;
 		}
 		if (response.have_max_age) {
-			cache.max_age = response.max_age;
+			cache.max_age      = response.max_age;
 			cache.have_max_age = true;
 		}
 		if (response.have_age)
 			cache.age = response.age;
 		if (response.have_cache_control) {
-			cache.no_cache = response.no_cache;
+			cache.no_cache        = response.no_cache;
 			cache.must_revalidate = response.must_revalidate;
-			cache.immutable = response.immutable;
+			cache.immutable       = response.immutable;
 		}
 		status = write_cache_info(&cache, metadata_new_path);
 		if (status == 0)
 			status = fs_rename(metadata_new_path, metadata_path);
 		if (status == 0) {
 			result->outcome = ST_WEBGET_NOT_MODIFIED;
-			result->size = existing.size;
+			result->size    = existing.size;
 		}
 		goto cleanup;
 	}
@@ -1054,8 +1008,8 @@ st_webget(struct st_webget_result *result,
 	if (response.chunked)
 		status = read_chunked_body(&reader, output, maximum, request, &total);
 	else if (response.have_length)
-		status = read_fixed_body(&reader, output, response.length, maximum,
-		    request, &total, response.length, true);
+		status = read_fixed_body(&reader, output, response.length, maximum, request, &total,
+		    response.length, true);
 	else
 		status = read_close_body(&reader, output, maximum, request, &total);
 	if (fclose(output) != 0 && status == 0)
@@ -1081,31 +1035,30 @@ st_webget(struct st_webget_result *result,
 		goto cleanup;
 	free(cache.etag);
 	free(cache.last_modified);
-	cache.etag = response.etag == NULL ? NULL : strdup(response.etag);
-	cache.last_modified = response.last_modified == NULL ? NULL
-	    : strdup(response.last_modified);
+	cache.etag          = response.etag == NULL ? NULL : strdup(response.etag);
+	cache.last_modified = response.last_modified == NULL ? NULL : strdup(response.last_modified);
 	if ((response.etag != NULL && cache.etag == NULL)
 	    || (response.last_modified != NULL && cache.last_modified == NULL)) {
 		status = IO_ERROR_OUT_OF_MEMORY;
 		goto cleanup;
 	}
-	cache.response_time = time(NULL);
-	cache.date = response.date;
-	cache.expires = response.expires;
-	cache.max_age = response.have_max_age ? response.max_age : 0;
-	cache.age = response.age;
-	cache.have_date = response.have_date;
-	cache.have_expires = response.have_expires;
-	cache.have_max_age = response.have_max_age;
-	cache.no_cache = response.no_cache;
+	cache.response_time   = time(NULL);
+	cache.date            = response.date;
+	cache.expires         = response.expires;
+	cache.max_age         = response.have_max_age ? response.max_age : 0;
+	cache.age             = response.age;
+	cache.have_date       = response.have_date;
+	cache.have_expires    = response.have_expires;
+	cache.have_max_age    = response.have_max_age;
+	cache.no_cache        = response.no_cache;
 	cache.must_revalidate = response.must_revalidate;
-	cache.immutable = response.immutable;
-	status = write_cache_info(&cache, metadata_new_path);
+	cache.immutable       = response.immutable;
+	status                = write_cache_info(&cache, metadata_new_path);
 	if (status == 0)
 		status = fs_rename(metadata_new_path, metadata_path);
 	if (status == 0) {
 		result->outcome = ST_WEBGET_DOWNLOADED;
-		result->size = total;
+		result->size    = total;
 	}
 
 cleanup:

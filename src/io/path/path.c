@@ -3,18 +3,16 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "path.h"
-
-#include "io_error.h"
-#include "path_internal.h"
-
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "io_error.h"
+#include "path.h"
+#include "path_internal.h"
+
 ptrdiff_t
-syncterm_path_store(char *result, size_t result_size, const char *value,
-    size_t length)
+syncterm_path_store(char *result, size_t result_size, const char *value, size_t length)
 {
 	if (result == NULL && result_size != 0)
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -60,8 +58,8 @@ path_untrusted_basename(const char *path)
 bool
 path_untrusted_component_valid(const char *component)
 {
-	if (component == NULL || component[0] == '\0'
-	    || strcmp(component, ".") == 0 || strcmp(component, "..") == 0)
+	if (component == NULL || component[0] == '\0' || strcmp(component, ".") == 0
+	    || strcmp(component, "..") == 0)
 		return false;
 	return strchr(component, '/') == NULL && strchr(component, '\\') == NULL;
 }
@@ -69,21 +67,19 @@ path_untrusted_component_valid(const char *component)
 int
 path_join_alloc(char **result, const char *directory, const char *name)
 {
-	char *joined;
+	char  *joined;
 	size_t directory_length;
 	size_t name_length;
 	size_t overhead;
-	bool separator;
+	bool   separator;
 
 	if (result == NULL || directory == NULL || name == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	directory_length = strlen(directory);
-	name_length = strlen(name);
-	separator = directory_length != 0
-	    && !path_is_separator(directory[directory_length - 1]);
-	overhead = separator ? 2U : 1U;
-	if (directory_length > SIZE_MAX - overhead
-	    || name_length > SIZE_MAX - overhead - directory_length)
+	name_length      = strlen(name);
+	separator        = directory_length != 0 && !path_is_separator(directory[directory_length - 1]);
+	overhead         = separator ? 2U : 1U;
+	if (directory_length > SIZE_MAX - overhead || name_length > SIZE_MAX - overhead - directory_length)
 		return IO_ERROR_OUT_OF_RANGE;
 	joined = malloc(directory_length + name_length + overhead);
 	if (joined == NULL)
@@ -100,16 +96,16 @@ ptrdiff_t
 path_parent(char *result, size_t result_size, const char *path)
 {
 	const char current_directory[] = ".";
-	size_t length;
-	size_t root_length;
-	size_t end;
-	size_t separator;
+	size_t     length;
+	size_t     root_length;
+	size_t     end;
+	size_t     separator;
 
 	if (path == NULL || *path == '\0')
 		return IO_ERROR_INVALID_ARGUMENT;
-	length = strlen(path);
+	length      = strlen(path);
 	root_length = syncterm_path_root_length(path);
-	end = length;
+	end         = length;
 	while (end > root_length && path_is_separator(path[end - 1]))
 		end--;
 	if (end == root_length && root_length != 0)
@@ -119,10 +115,8 @@ path_parent(char *result, size_t result_size, const char *path)
 		separator--;
 	if (separator == root_length) {
 		if (root_length != 0)
-			return syncterm_path_store(result, result_size, path,
-			    root_length);
-		return syncterm_path_store(result, result_size,
-		    current_directory, sizeof(current_directory) - 1);
+			return syncterm_path_store(result, result_size, path, root_length);
+		return syncterm_path_store(result, result_size, current_directory, sizeof(current_directory) - 1);
 	}
 	end = separator - 1;
 	while (end > root_length && path_is_separator(path[end - 1]))
@@ -137,13 +131,13 @@ path_append_separator(char *result, size_t result_size, const char *path)
 {
 	size_t length;
 	size_t required;
-	char separator;
+	char   separator;
 
 	if (path == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	length = strlen(path);
+	length    = strlen(path);
 	separator = syncterm_path_separator();
-	required = length;
+	required  = length;
 	if (length != 0 && !path_is_separator(path[length - 1])) {
 		if (length == SIZE_MAX)
 			return IO_ERROR_OUT_OF_RANGE;

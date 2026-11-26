@@ -3,20 +3,19 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include "io_error.h"
 #include "st_console.h"
 
-#include "io_error.h"
-
 #if ST_CONSOLE_TEST_HAVE_PTY_H
-	#include <pty.h>
+ #include <pty.h>
 #elif ST_CONSOLE_TEST_HAVE_UTIL_H
-	#include <util.h>
+ #include <util.h>
 #elif ST_CONSOLE_TEST_HAVE_LIBUTIL_H
-	#include <libutil.h>
+ #include <libutil.h>
 #endif
 
-#include <fcntl.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <poll.h>
 #include <signal.h>
 #include <stdio.h>
@@ -30,27 +29,47 @@
 #include "pty_diagnostics.h"
 
 static unsigned char terminal_output[65536];
-static size_t terminal_output_size;
+static size_t        terminal_output_size;
 
-static const uint8_t text_font_bitmap[128] = {0};
-static const struct st_console_font_mapping text_font_mapping[] = {
-	{'A', 'A'}, {'B', 'B'}, {'C', 'C'}, {'D', 'D'}, {'E', 'E'},
-	{'F', 'F'}, {'G', 'G'}, {'H', 'H'}, {'I', 'I'}, {'J', 'J'},
-	{'K', 'K'}, {'L', 'L'}, {'M', 'M'}, {'N', 'N'}, {'O', 'O'},
-	{'P', 'P'}, {'Q', 'Q'}, {'R', 'R'}, {'S', 'S'}, {'T', 'T'},
-	{'U', 'U'}, {'V', 'V'}, {'W', 'W'}, {'X', 'X'}, {'Y', 'Y'},
-	{'Z', 'Z'},
+static const uint8_t                        text_font_bitmap[128] = {0};
+static const struct st_console_font_mapping text_font_mapping[]   = {
+    {'A', 'A'},
+    {'B', 'B'},
+    {'C', 'C'},
+    {'D', 'D'},
+    {'E', 'E'},
+    {'F', 'F'},
+    {'G', 'G'},
+    {'H', 'H'},
+    {'I', 'I'},
+    {'J', 'J'},
+    {'K', 'K'},
+    {'L', 'L'},
+    {'M', 'M'},
+    {'N', 'N'},
+    {'O', 'O'},
+    {'P', 'P'},
+    {'Q', 'Q'},
+    {'R', 'R'},
+    {'S', 'S'},
+    {'T', 'T'},
+    {'U', 'U'},
+    {'V', 'V'},
+    {'W', 'W'},
+    {'X', 'X'},
+    {'Y', 'Y'},
+    {'Z', 'Z'},
 };
 static const struct st_console_font text_font = {
-	.bitmap = text_font_bitmap,
-	.bitmap_size = sizeof(text_font_bitmap),
-	.width = 8,
-	.height = 1,
-	.glyph_count = 128,
-	.row_stride = 1,
-	.glyph_stride = 1,
-	.mapping = text_font_mapping,
-	.mapping_count = sizeof(text_font_mapping) / sizeof(text_font_mapping[0]),
+    .bitmap        = text_font_bitmap,
+    .bitmap_size   = sizeof(text_font_bitmap),
+    .width         = 8,
+    .height        = 1,
+    .glyph_count   = 128,
+    .row_stride    = 1,
+    .glyph_stride  = 1,
+    .mapping       = text_font_mapping,
+    .mapping_count = sizeof(text_font_mapping) / sizeof(text_font_mapping[0]),
 };
 
 static void
@@ -115,15 +134,11 @@ expect_raw_escape(st_console_t *console, const char *tail)
 {
 	struct st_console_event event;
 
-	if (!next_event(console, &event)
-	    || event.type != ST_CONSOLE_EVENT_KEY_CODE
-	    || event.data.key.code != 27)
+	if (!next_event(console, &event) || event.type != ST_CONSOLE_EVENT_KEY_CODE || event.data.key.code != 27)
 		return false;
 	for (; *tail != '\0'; ++tail) {
-		if (!next_event(console, &event)
-		    || event.type != ST_CONSOLE_EVENT_TEXT
-		    || event.data.text.codepoint != (unsigned char)*tail
-		    || event.data.text.modifiers != 0)
+		if (!next_event(console, &event) || event.type != ST_CONSOLE_EVENT_TEXT
+		    || event.data.text.codepoint != (unsigned char)*tail || event.data.text.modifiers != 0)
 			return false;
 	}
 	return true;
@@ -139,44 +154,40 @@ static void
 child_test(int descriptor)
 {
 	const struct st_console_display_config config_display = {
-		.backend = ST_CONSOLE_BACKEND_ANSI,
-		.text_presentation = ST_CONSOLE_TEXT_UNICODE,
+	    .backend           = ST_CONSOLE_BACKEND_ANSI,
+	    .text_presentation = ST_CONSOLE_TEXT_UNICODE,
 	};
 	const struct st_console_config config = {
-		.columns = 8,
-		.rows = 3,
-		.wrap = true,
+	    .columns = 8,
+	    .rows    = 3,
+	    .wrap    = true,
 	};
-	st_console_t *console = NULL;
+	st_console_t           *console = NULL;
 	struct st_console_event event;
-	uint32_t columns;
-	uint32_t rows;
-	uint32_t capabilities;
-	uint16_t font_identifier;
+	uint32_t                columns;
+	uint32_t                rows;
+	uint32_t                capabilities;
+	uint16_t                font_identifier;
 
 	if (st_console_create(&console, &config_display, &config) != 0
-	    || st_console_size(console, &columns, &rows) != 0
-	    || columns != 91 || rows != 37
+	    || st_console_size(console, &columns, &rows) != 0 || columns != 91 || rows != 37
 	    || st_console_capabilities(console, &capabilities) != 0
 	    || (capabilities & ST_CONSOLE_CAP_TEXT_TERMINAL) == 0
 	    || (capabilities & ST_CONSOLE_CAP_LOCAL_CONTROL_KEYS) == 0) {
 		report(descriptor, 'C');
 		_exit(1);
 	}
-	if (st_console_register_static_font(console, &text_font,
-	    &font_identifier) != 0 || font_identifier != 0) {
+	if (st_console_register_static_font(console, &text_font, &font_identifier) != 0 || font_identifier != 0) {
 		report(descriptor, 'F');
 		goto failed;
 	}
 	report(descriptor, 'R');
-	if (!next_event(console, &event) || event.type != ST_CONSOLE_EVENT_KEY_CODE
-	    || event.data.key.code != 13) {
+	if (!next_event(console, &event) || event.type != ST_CONSOLE_EVENT_KEY_CODE || event.data.key.code != 13) {
 		report(descriptor, 'K');
 		goto failed;
 	}
 	report(descriptor, 'K');
-	if (!next_event(console, &event) || event.type != ST_CONSOLE_EVENT_KEY_CODE
-	    || event.data.key.code != 3
+	if (!next_event(console, &event) || event.type != ST_CONSOLE_EVENT_KEY_CODE || event.data.key.code != 3
 	    || event.data.key.modifiers != ST_CONSOLE_MODIFIER_CONTROL)
 		goto failed;
 	report(descriptor, 'c');
@@ -189,50 +200,41 @@ child_test(int descriptor)
 	}
 	report(descriptor, 'H');
 	if (!next_event(console, &event) || event.type != ST_CONSOLE_EVENT_KEY_CODE
-	    || event.data.key.code != ST_CONSOLE_KEY_UP
-	    || event.data.key.modifiers != ST_CONSOLE_MODIFIER_ALT) {
+	    || event.data.key.code != ST_CONSOLE_KEY_UP || event.data.key.modifiers != ST_CONSOLE_MODIFIER_ALT) {
 		report(descriptor, 'A');
 		goto failed;
 	}
 	report(descriptor, 'A');
-	if (!next_event(console, &event) || event.type != ST_CONSOLE_EVENT_TEXT
-	    || event.data.text.codepoint != 'y'
+	if (!next_event(console, &event) || event.type != ST_CONSOLE_EVENT_TEXT || event.data.text.codepoint != 'y'
 	    || event.data.text.modifiers != ST_CONSOLE_MODIFIER_ALT) {
 		report(descriptor, 'T');
 		goto failed;
 	}
 	report(descriptor, 'T');
 	if (!next_event(console, &event) || event.type != ST_CONSOLE_EVENT_TEXT
-	    || event.data.text.codepoint != UINT32_C(0x00e9)
-	    || event.data.text.modifiers != 0) {
+	    || event.data.text.codepoint != UINT32_C(0x00e9) || event.data.text.modifiers != 0) {
 		report(descriptor, 'U');
 		goto failed;
 	}
 	report(descriptor, 'U');
-	if (!next_event(console, &event)
-	    || event.type != ST_CONSOLE_EVENT_DOORWAY_KEY
-	    || event.data.doorway_key.scan_code != 0x2e
-	    || event.data.doorway_key.enhanced) {
+	if (!next_event(console, &event) || event.type != ST_CONSOLE_EVENT_DOORWAY_KEY
+	    || event.data.doorway_key.scan_code != 0x2e || event.data.doorway_key.enhanced) {
 		report(descriptor, 'D');
 		goto failed;
 	}
 	report(descriptor, 'D');
-	if (!next_event(console, &event)
-	    || event.type != ST_CONSOLE_EVENT_DOORWAY_KEY
-	    || event.data.doorway_key.scan_code != 0x1c
-	    || !event.data.doorway_key.enhanced) {
+	if (!next_event(console, &event) || event.type != ST_CONSOLE_EVENT_DOORWAY_KEY
+	    || event.data.doorway_key.scan_code != 0x1c || !event.data.doorway_key.enhanced) {
 		report(descriptor, 'E');
 		goto failed;
 	}
 	report(descriptor, 'E');
 	if (!next_event(console, &event) || event.type != ST_CONSOLE_EVENT_KEY_CODE
-	    || event.data.key.code != ST_CONSOLE_KEY_UP
-	    || event.data.key.modifiers != ST_CONSOLE_MODIFIER_SHIFT)
+	    || event.data.key.code != ST_CONSOLE_KEY_UP || event.data.key.modifiers != ST_CONSOLE_MODIFIER_SHIFT)
 		goto failed;
 	report(descriptor, '3');
 	if (!next_event(console, &event) || event.type != ST_CONSOLE_EVENT_KEY_CODE
-	    || event.data.key.code != ST_CONSOLE_KEY_UP
-	    || event.data.key.modifiers != 0)
+	    || event.data.key.code != ST_CONSOLE_KEY_UP || event.data.key.modifiers != 0)
 		goto failed;
 	report(descriptor, 'M');
 	if (!expect_raw_escape(console, "[1;2;3;4A"))
@@ -242,21 +244,20 @@ child_test(int descriptor)
 		goto failed;
 	report(descriptor, 'O');
 	{
-		const char text[] = "REPAINT";
+		const char                   text[]    = "REPAINT";
 		const struct st_console_rect rectangle = {0, 20, 7, 1};
-		const struct st_console_rect top = {0, 1, 6, 1};
-		struct st_console_cell marker[7] = {0};
+		const struct st_console_rect top       = {0, 1, 6, 1};
+		struct st_console_cell       marker[7] = {0};
 
 		for (size_t i = 0; i < 7; ++i) {
-			marker[i].glyph = (uint32_t)text[i];
+			marker[i].glyph      = (uint32_t)text[i];
 			marker[i].foreground = 7;
 		}
 		if (st_console_write_cells(console, &rectangle, marker, 7) != 0)
 			goto failed;
 		for (size_t i = 0; i < 6; ++i)
 			marker[i].glyph = (uint32_t)"SHRINK"[i];
-		if (st_console_write_cells(console, &top, marker, 6) != 0
-		    || st_console_present(console) != 0)
+		if (st_console_write_cells(console, &top, marker, 6) != 0 || st_console_present(console) != 0)
 			goto failed;
 	}
 	if (!next_event(console, &event) || event.type != ST_CONSOLE_EVENT_RESIZE
@@ -265,15 +266,13 @@ child_test(int descriptor)
 	report(descriptor, 'H');
 	if (!next_event(console, &event) || event.type != ST_CONSOLE_EVENT_RESIZE
 	    || event.data.resize.columns != 101 || event.data.resize.rows != 43
-	    || st_console_size(console, &columns, &rows) != 0
-	    || columns != 91 || rows != 37) {
+	    || st_console_size(console, &columns, &rows) != 0 || columns != 91 || rows != 37) {
 		report(descriptor, 'Z');
 		goto failed;
 	}
 	report(descriptor, 'Z');
 	/* Stay idle until the parent observes a backend-driven repaint. */
-	if (!next_event(console, &event) || event.type != ST_CONSOLE_EVENT_KEY_CODE
-	    || event.data.key.code != 13)
+	if (!next_event(console, &event) || event.type != ST_CONSOLE_EVENT_KEY_CODE || event.data.key.code != 13)
 		goto failed;
 	st_console_destroy(console);
 	report(descriptor, 'X');
@@ -297,17 +296,17 @@ static void
 redirected_child(int descriptor, enum redirected_case test)
 {
 	const struct st_console_display_config display_config = {
-		.backend = ST_CONSOLE_BACKEND_ANSI,
-		.text_presentation = ST_CONSOLE_TEXT_UNICODE,
+	    .backend           = ST_CONSOLE_BACKEND_ANSI,
+	    .text_presentation = ST_CONSOLE_TEXT_UNICODE,
 	};
 	const struct st_console_config console_config = {
-		.columns = 8,
-		.rows = 3,
-		.wrap = true,
+	    .columns = 8,
+	    .rows    = 3,
+	    .wrap    = true,
 	};
-	st_console_t *console = NULL;
-	struct st_console_event event = {0};
-	const char *stage = "input";
+	st_console_t           *console = NULL;
+	struct st_console_event event   = {0};
+	const char             *stage   = "input";
 
 	if (st_console_create(&console, &display_config, &console_config) != 0) {
 		report(descriptor, 'C');
@@ -320,35 +319,28 @@ redirected_child(int descriptor, enum redirected_case test)
 		_exit(0);
 	}
 	if (test == REDIRECTED_TEXT || test == REDIRECTED_FILE) {
-		if (!next_event(console, &event)
-		    || event.type != ST_CONSOLE_EVENT_TEXT
+		if (!next_event(console, &event) || event.type != ST_CONSOLE_EVENT_TEXT
 		    || event.data.text.codepoint != 'x')
 			goto failed;
 	}
 	else if (test == REDIRECTED_ESCAPE) {
-		if (!next_event(console, &event)
-		    || event.type != ST_CONSOLE_EVENT_KEY_CODE
-		    || event.data.key.code != 27
-		    || !next_event(console, &event)
-		    || event.type != ST_CONSOLE_EVENT_TEXT
-		    || event.data.text.codepoint != '[')
+		if (!next_event(console, &event) || event.type != ST_CONSOLE_EVENT_KEY_CODE
+		    || event.data.key.code != 27 || !next_event(console, &event)
+		    || event.type != ST_CONSOLE_EVENT_TEXT || event.data.text.codepoint != '[')
 			goto failed;
 	}
 	else if (test == REDIRECTED_UTF8) {
-		if (!next_event(console, &event)
-		    || event.type != ST_CONSOLE_EVENT_TEXT
+		if (!next_event(console, &event) || event.type != ST_CONSOLE_EVENT_TEXT
 		    || event.data.text.codepoint != UINT32_C(0xfffd))
 			goto failed;
 	}
 	else if (test == REDIRECTED_MALFORMED) {
 		for (size_t i = 0; i < 3; ++i) {
-			if (!next_event(console, &event)
-			    || event.type != ST_CONSOLE_EVENT_TEXT
+			if (!next_event(console, &event) || event.type != ST_CONSOLE_EVENT_TEXT
 			    || event.data.text.codepoint != UINT32_C(0xfffd))
 				goto failed;
 		}
-		if (!next_event(console, &event)
-		    || event.type != ST_CONSOLE_EVENT_TEXT
+		if (!next_event(console, &event) || event.type != ST_CONSOLE_EVENT_TEXT
 		    || event.data.text.codepoint != 'B')
 			goto failed;
 	}
@@ -363,9 +355,10 @@ redirected_child(int descriptor, enum redirected_case test)
 	_exit(0);
 
 failed:
-	fprintf(stderr, "ANSI redirected case=%d stage=%s last-event=%d"
-	    " text=U+%04x key=%u\n", test, stage, event.type,
-	    event.type == ST_CONSOLE_EVENT_TEXT ? (unsigned)event.data.text.codepoint : 0,
+	fprintf(stderr,
+	    "ANSI redirected case=%d stage=%s last-event=%d"
+	    " text=U+%04x key=%u\n",
+	    test, stage, event.type, event.type == ST_CONSOLE_EVENT_TEXT ? (unsigned)event.data.text.codepoint : 0,
 	    event.type == ST_CONSOLE_EVENT_KEY_CODE ? (unsigned)event.data.key.code : 0);
 	st_console_destroy(console);
 	report(descriptor, 'F');
@@ -376,13 +369,13 @@ static int
 wait_byte(int descriptor, unsigned char expected)
 {
 	struct pollfd poll_descriptor = {.fd = descriptor, .events = POLLIN};
-	unsigned char value = '?';
+	unsigned char value           = '?';
 
-	if (poll(&poll_descriptor, 1, 5000) <= 0
-	    || read(descriptor, &value, 1) != 1 || value != expected) {
-		fprintf(stderr, "ANSI redirected report expected=%c actual=%c"
-		    " revents=%x errno=%d\n", expected, value,
-		    (unsigned short)poll_descriptor.revents, errno);
+	if (poll(&poll_descriptor, 1, 5000) <= 0 || read(descriptor, &value, 1) != 1 || value != expected) {
+		fprintf(stderr,
+		    "ANSI redirected report expected=%c actual=%c"
+		    " revents=%x errno=%d\n",
+		    expected, value, (unsigned short)poll_descriptor.revents, errno);
 		return -1;
 	}
 	return 0;
@@ -391,25 +384,23 @@ wait_byte(int descriptor, unsigned char expected)
 static bool
 run_redirected_case(enum redirected_case test, const void *data, size_t size)
 {
-	int input_read;
-	int input_write;
-	int reports[2];
+	int   input_read;
+	int   input_write;
+	int   reports[2];
 	pid_t child;
-	int status;
+	int   status;
 
 	if (test == REDIRECTED_FILE) {
 		char path[96];
 
-		if (snprintf(path, sizeof(path), "/tmp/st-console-ansi-%ld",
-		    (long)getpid()) < 0)
+		if (snprintf(path, sizeof(path), "/tmp/st-console-ansi-%ld", (long)getpid()) < 0)
 			return false;
 		input_read = open(path, O_CREAT | O_EXCL | O_RDWR, 0600);
 		if (input_read < 0)
 			return false;
 		(void)unlink(path);
 		input_write = -1;
-		if (write(input_read, data, size) != (ssize_t)size
-		    || lseek(input_read, 0, SEEK_SET) != 0) {
+		if (write(input_read, data, size) != (ssize_t)size || lseek(input_read, 0, SEEK_SET) != 0) {
 			(void)close(input_read);
 			return false;
 		}
@@ -419,7 +410,7 @@ run_redirected_case(enum redirected_case test, const void *data, size_t size)
 
 		if (pipe(input) != 0)
 			return false;
-		input_read = input[0];
+		input_read  = input[0];
 		input_write = input[1];
 	}
 	if (pipe(reports) != 0) {
@@ -443,8 +434,7 @@ run_redirected_case(enum redirected_case test, const void *data, size_t size)
 		if (input_write >= 0)
 			(void)close(input_write);
 		(void)close(reports[0]);
-		if (null_descriptor < 0
-		    || dup2(input_read, STDIN_FILENO) != STDIN_FILENO
+		if (null_descriptor < 0 || dup2(input_read, STDIN_FILENO) != STDIN_FILENO
 		    || dup2(null_descriptor, STDOUT_FILENO) != STDOUT_FILENO)
 			_exit(1);
 		(void)close(input_read);
@@ -455,8 +445,7 @@ run_redirected_case(enum redirected_case test, const void *data, size_t size)
 	(void)close(reports[1]);
 	if (wait_byte(reports[0], 'R') != 0)
 		goto failed;
-	if (test != REDIRECTED_FILE && size != 0
-	    && write(input_write, data, size) != (ssize_t)size)
+	if (test != REDIRECTED_FILE && size != 0 && write(input_write, data, size) != (ssize_t)size)
 		goto failed;
 	if (test != REDIRECTED_STOP && input_write >= 0) {
 		(void)close(input_write);
@@ -467,8 +456,7 @@ run_redirected_case(enum redirected_case test, const void *data, size_t size)
 	if (input_write >= 0)
 		(void)close(input_write);
 	(void)close(reports[0]);
-	return waitpid(child, &status, 0) == child && WIFEXITED(status)
-	    && WEXITSTATUS(status) == 0;
+	return waitpid(child, &status, 0) == child && WIFEXITED(status) && WEXITSTATUS(status) == 0;
 
 failed:
 	fprintf(stderr, "ANSI redirected case=%d failed\n", test);
@@ -484,22 +472,22 @@ static int
 wait_report(int descriptor, int master, unsigned char expected)
 {
 	struct pollfd descriptors[2] = {
-		{.fd = descriptor, .events = POLLIN},
-		{.fd = master, .events = POLLIN},
+	    {.fd = descriptor, .events = POLLIN},
+	    {.fd = master,     .events = POLLIN},
 	};
 	unsigned char buffer[4096];
 
 	for (;;) {
 		int status = poll(descriptors, 2, 5000);
 		if (status <= 0) {
-			fprintf(stderr, "ANSI report expected=%c poll=%d errno=%d"
-			    " report-events=%x PTY-events=%x\n", expected,
-			    status, status < 0 ? errno : 0, (unsigned short)descriptors[0].revents,
+			fprintf(stderr,
+			    "ANSI report expected=%c poll=%d errno=%d"
+			    " report-events=%x PTY-events=%x\n",
+			    expected, status, status < 0 ? errno : 0, (unsigned short)descriptors[0].revents,
 			    (unsigned short)descriptors[1].revents);
 			return -1;
 		}
-		if ((descriptors[1].revents & POLLIN) != 0)
-		{
+		if ((descriptors[1].revents & POLLIN) != 0) {
 			ssize_t count = read(master, buffer, sizeof(buffer));
 
 			if (count > 0)
@@ -525,10 +513,10 @@ int
 main(void)
 {
 	struct winsize size = {.ws_row = 37, .ws_col = 91};
-	int reports[2];
-	int master;
-	pid_t child;
-	int child_status;
+	int            reports[2];
+	int            master;
+	pid_t          child;
+	int            child_status;
 
 	if (pipe(reports) != 0)
 		return EXIT_FAILURE;
@@ -540,55 +528,40 @@ main(void)
 		child_test(reports[1]);
 	}
 	(void)close(reports[1]);
-	if (wait_report(reports[0], master, 'R') != 0
-	    || !output_contains("\033[=255h")
-	    || write(master, "\r", 1) != 1
-	    || wait_report(reports[0], master, 'K') != 0
-	    || write(master, "\003", 1) != 1
-	    || wait_report(reports[0], master, 'c') != 0
-	    || write(master, "\006\023\004\007\021", 5) != 5
-	    || wait_report(reports[0], master, 'H') != 0
-	    || write(master, "\033[1;3A", 6) != 6
-	    || wait_report(reports[0], master, 'A') != 0
-	    || write(master, "\033y", 2) != 2
-	    || wait_report(reports[0], master, 'T') != 0
-	    || write(master, "\303\251", 2) != 2
-	    || wait_report(reports[0], master, 'U') != 0
-	    || write(master, "\000\056", 2) != 2
-	    || wait_report(reports[0], master, 'D') != 0
-	    || write(master, "\000\340\034", 3) != 3
-	    || wait_report(reports[0], master, 'E') != 0
-	    || write(master, "\033[1;2;3A", sizeof("\033[1;2;3A") - 1)
-	    != (ssize_t)(sizeof("\033[1;2;3A") - 1)
+	if (wait_report(reports[0], master, 'R') != 0 || !output_contains("\033[=255h")
+	    || write(master, "\r", 1) != 1 || wait_report(reports[0], master, 'K') != 0
+	    || write(master, "\003", 1) != 1 || wait_report(reports[0], master, 'c') != 0
+	    || write(master, "\006\023\004\007\021", 5) != 5 || wait_report(reports[0], master, 'H') != 0
+	    || write(master, "\033[1;3A", 6) != 6 || wait_report(reports[0], master, 'A') != 0
+	    || write(master, "\033y", 2) != 2 || wait_report(reports[0], master, 'T') != 0
+	    || write(master, "\303\251", 2) != 2 || wait_report(reports[0], master, 'U') != 0
+	    || write(master, "\000\056", 2) != 2 || wait_report(reports[0], master, 'D') != 0
+	    || write(master, "\000\340\034", 3) != 3 || wait_report(reports[0], master, 'E') != 0
+	    || write(master, "\033[1;2;3A", sizeof("\033[1;2;3A") - 1) != (ssize_t)(sizeof("\033[1;2;3A") - 1)
 	    || wait_report(reports[0], master, '3') != 0
-	    || write(master, "\033[1;;A", sizeof("\033[1;;A") - 1)
-	    != (ssize_t)(sizeof("\033[1;;A") - 1)
+	    || write(master, "\033[1;;A", sizeof("\033[1;;A") - 1) != (ssize_t)(sizeof("\033[1;;A") - 1)
 	    || wait_report(reports[0], master, 'M') != 0
 	    || write(master, "\033[1;2;3;4A", sizeof("\033[1;2;3;4A") - 1)
-	    != (ssize_t)(sizeof("\033[1;2;3;4A") - 1)
+	           != (ssize_t)(sizeof("\033[1;2;3;4A") - 1)
 	    || wait_report(reports[0], master, '4') != 0
 	    || write(master, "\033[999999999999999999999999999999A",
-	    sizeof("\033[999999999999999999999999999999A") - 1)
-	    != (ssize_t)(sizeof("\033[999999999999999999999999999999A")
-	    - 1)
+		   sizeof("\033[999999999999999999999999999999A") - 1)
+	           != (ssize_t)(sizeof("\033[999999999999999999999999999999A") - 1)
 	    || wait_report(reports[0], master, 'O') != 0)
 		goto failed;
 	if (!wait_text(master, "REPAINT"))
 		goto failed;
 	terminal_output_size = 0;
-	size.ws_row = 10;
-	size.ws_col = 40;
-	if (ioctl(master, TIOCSWINSZ, &size) != 0
-	    || wait_report(reports[0], master, 'H') != 0
+	size.ws_row          = 10;
+	size.ws_col          = 40;
+	if (ioctl(master, TIOCSWINSZ, &size) != 0 || wait_report(reports[0], master, 'H') != 0
 	    || !wait_text(master, "SHRINK") || output_contains("REPAINT"))
 		goto failed;
 	terminal_output_size = 0;
-	size.ws_row = 43;
-	size.ws_col = 101;
-	if (ioctl(master, TIOCSWINSZ, &size) != 0
-	    || wait_report(reports[0], master, 'Z') != 0
-	    || !wait_text(master, "REPAINT")
-	    || write(master, "\r", 1) != 1
+	size.ws_row          = 43;
+	size.ws_col          = 101;
+	if (ioctl(master, TIOCSWINSZ, &size) != 0 || wait_report(reports[0], master, 'Z') != 0
+	    || !wait_text(master, "REPAINT") || write(master, "\r", 1) != 1
 	    || wait_report(reports[0], master, 'X') != 0)
 		goto failed;
 	(void)close(reports[0]);
@@ -596,16 +569,14 @@ main(void)
 		fprintf(stderr, "ANSI shutdown did not restore the cursor\n");
 		goto failed_after_report;
 	}
-	if (waitpid(child, &child_status, 0) != child
-	    || !WIFEXITED(child_status) || WEXITSTATUS(child_status) != 0)
+	if (waitpid(child, &child_status, 0) != child || !WIFEXITED(child_status)
+	    || WEXITSTATUS(child_status) != 0)
 		return EXIT_FAILURE;
 	(void)close(master);
-	if (!run_redirected_case(REDIRECTED_TEXT, "x", 1)
-	    || !run_redirected_case(REDIRECTED_FILE, "x", 1)
+	if (!run_redirected_case(REDIRECTED_TEXT, "x", 1) || !run_redirected_case(REDIRECTED_FILE, "x", 1)
 	    || !run_redirected_case(REDIRECTED_ESCAPE, "\033[", 2)
 	    || !run_redirected_case(REDIRECTED_UTF8, "\303", 1)
-	    || !run_redirected_case(REDIRECTED_MALFORMED,
-	    "\340\200\200B", 4)
+	    || !run_redirected_case(REDIRECTED_MALFORMED, "\340\200\200B", 4)
 	    || !run_redirected_case(REDIRECTED_STOP, NULL, 0))
 		return EXIT_FAILURE;
 	return EXIT_SUCCESS;

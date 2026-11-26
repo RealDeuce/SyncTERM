@@ -1,36 +1,39 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 
-#include "value_convert.h"
-
 #include <float.h>
+#include <locale.h>
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <locale.h>
 
-#define CHECK(c) do { if (!(c)) { fprintf(stderr, "failed: %s:%d: %s\n", \
-    __FILE__, __LINE__, #c); return EXIT_FAILURE; } } while (0)
+#include "value_convert.h"
+
+#define CHECK(c)                                                                        \
+	do {                                                                            \
+		if (!(c)) {                                                             \
+			fprintf(stderr, "failed: %s:%d: %s\n", __FILE__, __LINE__, #c); \
+			return EXIT_FAILURE;                                            \
+		}                                                                       \
+	} while (0)
 
 int
 main(void)
 {
-	char buffer[64];
-	int64_t signed_value;
+	char     buffer[64];
+	int64_t  signed_value;
 	uint64_t unsigned_value;
-	bool boolean;
-	double value;
-	double round_trip;
-	time_t timestamp;
+	bool     boolean;
+	double   value;
+	double   round_trip;
+	time_t   timestamp;
 
 	/* Mathematical values, not arbitrary floating-point object bit patterns. */
 #if FLT_RADIX == 2 && DBL_MANT_DIG == 53
-	CHECK(value_parse_double(
-	    "1.00000000000000011102230246251565404236316680908203125", &value));
+	CHECK(value_parse_double("1.00000000000000011102230246251565404236316680908203125", &value));
 	CHECK(value == 1.0);
-	CHECK(value_parse_double(
-	    "1.00000000000000011102230246251565404236316680908203126", &value));
+	CHECK(value_parse_double("1.00000000000000011102230246251565404236316680908203126", &value));
 	CHECK(value == nextafter(1.0, 2.0));
 	CHECK(value_parse_double("9007199254740993", &value));
 	CHECK(value == 9007199254740992.0);
@@ -40,9 +43,7 @@ main(void)
 	CHECK(value_parse_double("-0.000e99999", &value));
 	CHECK(value == 0.0 && signbit(value));
 	{
-		static const char *const invalid[] = {
-		    "", ".", "+", "1e", "1e+", "1.2.3", "nan", "inf", "0x1p0"
-		};
+		static const char *const invalid[] = {"", ".", "+", "1e", "1e+", "1.2.3", "nan", "inf", "0x1p0"};
 		for (size_t i = 0; i < sizeof(invalid) / sizeof(invalid[0]); ++i) {
 			value = 42.0;
 			CHECK(!value_parse_double(invalid[i], &value));
@@ -65,10 +66,8 @@ main(void)
 	CHECK(value_format_double(buffer, sizeof(buffer), 1.2345678901234567));
 	CHECK(strchr(buffer, ',') == NULL);
 	CHECK(value_parse_double(buffer, &round_trip));
-	CHECK(fabs(round_trip - 1.2345678901234567)
-	    <= 1.2345678901234567e-15);
-	CHECK(value_format_double(buffer, sizeof(buffer),
-	    nextafter(0.0, 1.0)));
+	CHECK(fabs(round_trip - 1.2345678901234567) <= 1.2345678901234567e-15);
+	CHECK(value_format_double(buffer, sizeof(buffer), nextafter(0.0, 1.0)));
 	CHECK(value_parse_double(buffer, &round_trip));
 	CHECK(round_trip == nextafter(0.0, 1.0));
 	CHECK(value_format_double(buffer, sizeof(buffer), DBL_MIN));
@@ -88,9 +87,7 @@ main(void)
 	CHECK(value_format_datetime(buffer, sizeof(buffer), timestamp, true));
 	CHECK(strcmp(buffer, "Jan  2 2020 03:04:05") == 0);
 	{
-		static const char *const locales[] = {
-			"de_DE.UTF-8", "fr_FR.UTF-8", "de_DE.utf8", "fr_FR.utf8"
-		};
+		static const char *const locales[] = {"de_DE.UTF-8", "fr_FR.UTF-8", "de_DE.utf8", "fr_FR.utf8"};
 
 		for (size_t i = 0; i < sizeof(locales) / sizeof(locales[0]); i++) {
 			if (setlocale(LC_NUMERIC, locales[i]) != NULL) {

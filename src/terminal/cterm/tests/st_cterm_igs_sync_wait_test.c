@@ -1,7 +1,7 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "igs_test_fixture.h"
 
-static int clock_error;
+static int    clock_error;
 static size_t keys;
 
 static int
@@ -30,24 +30,24 @@ key_output(const char *bytes, size_t size, void *context)
 static void
 attach(struct fixture *f)
 {
-	clock_error = 0;
+	clock_error                     = 0;
 	f->terminal->igs_engine->now_ms = sync_now;
-	f->terminal->response_cb = no_reply;
-	f->terminal->keystroke_cb = key_output;
+	f->terminal->response_cb        = no_reply;
+	f->terminal->keystroke_cb       = key_output;
 }
 
 static void
 wait_case(struct fixture *f, int word)
 {
 	struct cterm_igs *igs = f->terminal->igs_engine;
-	igs->double_step = 7;
-	igs->math[0] = (int16_t)word;
-	uint32_t final = literal_words(igs, &word, 1);
-	local_ms = 1999;
+	igs->double_step      = 7;
+	igs->math[0]          = (int16_t)word;
+	uint32_t final        = literal_words(igs, &word, 1);
+	local_ms              = 1999;
 	feed(f, "G#q 0]:");
 	CHECK(st_cterm_input_paused(f->terminal));
 	CHECK(igs->random_seed == final);
-	unsigned count = word > 9994 || word < 1 ? 1 : word > 180 ? 180 : (unsigned)word;
+	unsigned count    = word > 9994 || word < 1 ? 1 : word > 180 ? 180 : (unsigned)word;
 	uint64_t duration = ((uint64_t)(count + 1) * 1000 + igs->sync_wait_hz - 1) / igs->sync_wait_hz;
 	CHECK(igs->wait_deadline == 1999 + duration);
 	CHECK(igs->double_step == (word > 9994 ? 9999 - word : 7));
@@ -65,7 +65,8 @@ wait_case(struct fixture *f, int word)
 static void
 durations(void)
 {
-	static const int words[] = {INT16_MIN, -1, 0, 1, 2, 179, 180, 181, 9994, 9995, 9996, 9997, 9998, 9999, INT16_MAX};
+	static const int      words[] = {INT16_MIN, -1, 0, 1, 2, 179, 180, 181, 9994, 9995, 9996, 9997, 9998, 9999,
+	    INT16_MAX};
 	static const unsigned rates[] = {50, 60, 1000};
 	for (unsigned resolution = 0; resolution < 3; ++resolution)
 		for (unsigned reserved = 0; reserved < 2; ++reserved) {
@@ -75,7 +76,7 @@ durations(void)
 			struct cterm_igs *igs = f.terminal->igs_engine;
 			feed(&f, "\033fG#p>3,2:X 10,19,17:");
 			struct cterm_igs_attributes attributes;
-			uint32_t palette[16];
+			uint32_t                    palette[16];
 			memcpy(&attributes, &igs->attributes, sizeof(attributes));
 			memcpy(palette, igs->palette, sizeof(palette));
 			const struct st_console_rect full = {0, 0, igs->width, igs->height};
@@ -111,18 +112,18 @@ durations(void)
 static void
 partitions(void)
 {
-	const char wire[] = "AG#g>2:q>r:M 2:B";
-	const size_t size = sizeof(wire) - 1;
+	const char   wire[] = "AG#g>2:q>r:M 2:B";
+	const size_t size   = sizeof(wire) - 1;
 	for (unsigned resolution = 0; resolution < 3; ++resolution) {
 		struct fixture f;
 		create(&f, resolution, false);
 		attach(&f);
 		for (size_t split = 0; split <= size + 1; ++split) {
 			CHECK(st_cterm_reset_terminal(f.terminal) == 0);
-			struct cterm_igs *igs = f.terminal->igs_engine;
-			igs->double_step = 4;
+			struct cterm_igs *igs   = f.terminal->igs_engine;
+			igs->double_step        = 4;
 			igs->random_range[0][1] = 255;
-			size_t offset = 0;
+			size_t offset           = 0;
 			while (offset < size) {
 				size_t piece = split > size ? 1 : offset < split ? split - offset : size - offset;
 				size_t used;
@@ -138,7 +139,7 @@ partitions(void)
 			CHECK(igs->double_step == 4 && igs->random_seed == UINT32_C(0xbb40e62e));
 			CHECK(igs->attributes.writing_mode == 2);
 			const struct st_console_rect area = {0, 0, 2, 1};
-			struct st_console_cell cells[2];
+			struct st_console_cell       cells[2];
 			CHECK(st_console_read_cells(f.console, &area, cells, 2) == 0);
 			CHECK(cells[0].glyph == 'A' && cells[1].glyph == 'B');
 		}
@@ -160,7 +161,7 @@ lifetime_and_errors(void)
 		struct fixture f;
 		create(&f, resolution, false);
 		attach(&f);
-		struct cterminal *t = f.terminal;
+		struct cterminal *t   = f.terminal;
 		struct cterm_igs *igs = t->igs_engine;
 		feed(&f, "\033bG#q 9995:");
 		keys = 0;
@@ -195,17 +196,17 @@ lifetime_and_errors(void)
 		local_ms += 5001;
 		CHECK(st_cterm_poll(t) == 0 && igs->double_step == 0 && igs->random_seed == 1);
 		const char bad[] = "G#q 10000:";
-		size_t used;
+		size_t     used;
 		CHECK(st_cterm_write(t, bad, sizeof(bad) - 1, &used) == 0);
-		clock_error = IO_ERROR_IO;
+		clock_error          = IO_ERROR_IO;
 		const char command[] = "G#q 9997:";
 		CHECK(st_cterm_write(t, command, sizeof(command) - 1, &used) == 0);
 		CHECK(igs->double_step == 2 && !st_cterm_input_paused(t));
 		clock_error = 0;
-		local_ms = UINT64_MAX - 33;
+		local_ms    = UINT64_MAX - 33;
 		CHECK(st_cterm_write(t, command, sizeof(command) - 1, &used) == 0);
 		CHECK(igs->double_step == 2 && !st_cterm_input_paused(t));
-		local_ms = 1000;
+		local_ms          = 1000;
 		igs->sync_wait_hz = 0;
 		CHECK(st_cterm_write(t, command, sizeof(command) - 1, &used) == 0);
 		igs->sync_wait_hz = 1001;

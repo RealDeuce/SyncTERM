@@ -11,8 +11,7 @@ static bool
 fail_allocation(void)
 {
 	++st_pixels_test_allocations;
-	return st_pixels_test_fail_allocation != 0
-	    && st_pixels_test_allocations == st_pixels_test_fail_allocation;
+	return st_pixels_test_fail_allocation != 0 && st_pixels_test_allocations == st_pixels_test_fail_allocation;
 }
 
 static void *

@@ -11,7 +11,8 @@ main(int argc, char **argv)
 		return 0;
 	}
 	puts("CI fixture");
-	if (!ST_CONSOLE_TEST || !BUILD_TESTING) return 2;
+	if (!ST_CONSOLE_TEST || !BUILD_TESTING)
+		return 2;
 	if (argc > 1 && strcmp(argv[1], "fail") == 0)
 		return 1;
 	if (argc > 1 && strcmp(argv[1], "skip") == 0)

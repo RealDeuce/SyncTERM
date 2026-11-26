@@ -3,28 +3,27 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "st_pixel_image.h"
-
-#include "io_error.h"
-#include "st_pixels.h"
-
 #include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 
+#include "io_error.h"
+#include "st_pixel_image.h"
+#include "st_pixels.h"
+
 struct pnm_reader {
 	const uint8_t *data;
-	size_t length;
-	size_t position;
-	bool cterm;
+	size_t         length;
+	size_t         position;
+	bool           cterm;
 };
 
 static bool
 pnm_whitespace(const struct pnm_reader *reader, uint8_t value)
 {
-	return value == ' ' || value == '\t' || value == '\r'
-	    || value == '\n' || (!reader->cterm && (value == '\v' || value == '\f'));
+	return value == ' ' || value == '\t' || value == '\r' || value == '\n'
+	       || (!reader->cterm && (value == '\v' || value == '\f'));
 }
 
 static bool
@@ -56,7 +55,7 @@ static bool
 pnm_read_number(struct pnm_reader *reader, uintmax_t *result)
 {
 	uintmax_t value = 0;
-	size_t start;
+	size_t    start;
 
 	if (!pnm_skip_space(reader))
 		return false;
@@ -78,13 +77,12 @@ pnm_read_number(struct pnm_reader *reader, uintmax_t *result)
 }
 
 static bool
-pnm_dimensions(uintmax_t width, uintmax_t height, size_t element_size,
-	size_t *count)
+pnm_dimensions(uintmax_t width, uintmax_t height, size_t element_size, size_t *count)
 {
 	size_t pixels;
 
-	if (width == 0 || height == 0 || width > UINT32_MAX
-	    || height > UINT32_MAX || (size_t)height > SIZE_MAX / (size_t)width)
+	if (width == 0 || height == 0 || width > UINT32_MAX || height > UINT32_MAX
+	    || (size_t)height > SIZE_MAX / (size_t)width)
 		return false;
 	pixels = (size_t)width * (size_t)height;
 	if (pixels > SIZE_MAX / element_size)
@@ -120,8 +118,7 @@ pnm_raw_separator(struct pnm_reader *reader)
 {
 	uint8_t first;
 
-	if (reader->position >= reader->length
-	    || !pnm_whitespace(reader, reader->data[reader->position]))
+	if (reader->position >= reader->length || !pnm_whitespace(reader, reader->data[reader->position]))
 		return false;
 	first = reader->data[reader->position++];
 	if (!reader->cterm && first == '\r' && reader->position < reader->length
@@ -131,11 +128,11 @@ pnm_raw_separator(struct pnm_reader *reader)
 }
 
 static int
-decode_pbm(struct st_pixel_mask **result, struct pnm_reader *reader,
-	bool raw, uint32_t width, uint32_t height, size_t count)
+decode_pbm(struct st_pixel_mask **result, struct pnm_reader *reader, bool raw, uint32_t width, uint32_t height,
+    size_t count)
 {
 	struct st_pixel_mask *mask = NULL;
-	int status;
+	int                   status;
 
 	status = st_pixel_mask_create(&mask, width, height);
 	if (status != 0)
@@ -143,8 +140,7 @@ decode_pbm(struct st_pixel_mask **result, struct pnm_reader *reader,
 	if (raw) {
 		size_t row_bytes = ((size_t)width + 7) / 8;
 
-		if (row_bytes != 0
-		    && height > (reader->length - reader->position) / row_bytes)
+		if (row_bytes != 0 && height > (reader->length - reader->position) / row_bytes)
 			status = IO_ERROR_INVALID_FORMAT;
 		for (uint32_t y = 0; status == 0 && y < height; ++y) {
 			for (size_t byte = 0; byte < row_bytes; ++byte) {
@@ -168,8 +164,7 @@ decode_pbm(struct st_pixel_mask **result, struct pnm_reader *reader,
 			if (!pnm_read_number(reader, &value) || value > 1)
 				status = IO_ERROR_INVALID_FORMAT;
 			else if (value != 0)
-				mask->bits[i / 8] |= (uint8_t)(UINT8_C(0x80)
-				    >> (i % 8));
+				mask->bits[i / 8] |= (uint8_t)(UINT8_C(0x80) >> (i % 8));
 		}
 	}
 	if (status != 0) {
@@ -181,13 +176,12 @@ decode_pbm(struct st_pixel_mask **result, struct pnm_reader *reader,
 }
 
 static int
-decode_ppm(struct st_pixel_buffer **result, struct pnm_reader *reader,
-	bool raw, uint32_t width, uint32_t height, size_t count,
-	uintmax_t maximum)
+decode_ppm(struct st_pixel_buffer **result, struct pnm_reader *reader, bool raw, uint32_t width, uint32_t height,
+    size_t count, uintmax_t maximum)
 {
 	struct st_pixel_buffer *pixels = NULL;
-	uint8_t *gamma;
-	int status;
+	uint8_t                *gamma;
+	int                     status;
 
 	gamma = malloc((size_t)maximum + 1);
 	if (gamma == NULL)
@@ -245,69 +239,59 @@ decode_ppm(struct st_pixel_buffer **result, struct pnm_reader *reader,
 }
 
 static int
-decode_pnm(struct st_pixel_buffer **pixel_result,
-	struct st_pixel_mask **mask_result, const void *data, size_t length,
-	bool bitmap, bool cterm)
+decode_pnm(struct st_pixel_buffer **pixel_result, struct st_pixel_mask **mask_result, const void *data,
+    size_t length, bool bitmap, bool cterm)
 {
 	struct pnm_reader reader = {.data = data, .length = length, .cterm = cterm};
-	uintmax_t width;
-	uintmax_t height;
-	uintmax_t maximum = 1;
-	size_t count;
-	uint8_t kind;
-	bool raw;
+	uintmax_t         width;
+	uintmax_t         height;
+	uintmax_t         maximum = 1;
+	size_t            count;
+	uint8_t           kind;
+	bool              raw;
 
 	if ((bitmap ? mask_result == NULL : pixel_result == NULL) || data == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (length < 2 || reader.data[0] != 'P')
 		return IO_ERROR_INVALID_FORMAT;
-	kind = reader.data[1];
+	kind            = reader.data[1];
 	reader.position = 2;
-	if ((bitmap && kind != '1' && kind != '4')
-	    || (!bitmap && kind != '3' && kind != '6'))
+	if ((bitmap && kind != '1' && kind != '4') || (!bitmap && kind != '3' && kind != '6'))
 		return IO_ERROR_INVALID_FORMAT;
-	if (!pnm_read_number(&reader, &width)
-	    || !pnm_read_number(&reader, &height)
-	    || !pnm_dimensions(width, height, bitmap ? 1 : sizeof(uint32_t),
-	    &count))
+	if (!pnm_read_number(&reader, &width) || !pnm_read_number(&reader, &height)
+	    || !pnm_dimensions(width, height, bitmap ? 1 : sizeof(uint32_t), &count))
 		return IO_ERROR_INVALID_FORMAT;
-	if (!bitmap && (!pnm_read_number(&reader, &maximum) || maximum == 0
-	    || maximum > (cterm ? UINT8_MAX : UINT16_MAX)))
+	if (!bitmap
+	    && (!pnm_read_number(&reader, &maximum) || maximum == 0 || maximum > (cterm ? UINT8_MAX : UINT16_MAX)))
 		return IO_ERROR_INVALID_FORMAT;
 	raw = kind == '4' || kind == '6';
 	if (raw && !pnm_raw_separator(&reader))
 		return IO_ERROR_INVALID_FORMAT;
 	if (bitmap)
-		return decode_pbm(mask_result, &reader, raw,
-		    (uint32_t)width, (uint32_t)height, count);
-	return decode_ppm(pixel_result, &reader, raw,
-	    (uint32_t)width, (uint32_t)height, count, maximum);
+		return decode_pbm(mask_result, &reader, raw, (uint32_t)width, (uint32_t)height, count);
+	return decode_ppm(pixel_result, &reader, raw, (uint32_t)width, (uint32_t)height, count, maximum);
 }
 
 int
-st_pixel_image_decode_ppm(struct st_pixel_buffer **result, const void *data,
-	size_t length)
+st_pixel_image_decode_ppm(struct st_pixel_buffer **result, const void *data, size_t length)
 {
 	return decode_pnm(result, NULL, data, length, false, false);
 }
 
 int
-st_pixel_image_decode_pbm(struct st_pixel_mask **result, const void *data,
-	size_t length)
+st_pixel_image_decode_pbm(struct st_pixel_mask **result, const void *data, size_t length)
 {
 	return decode_pnm(NULL, result, data, length, true, false);
 }
 
 int
-st_pixel_image_decode_cterm_ppm(struct st_pixel_buffer **result,
-	const void *data, size_t length)
+st_pixel_image_decode_cterm_ppm(struct st_pixel_buffer **result, const void *data, size_t length)
 {
 	return decode_pnm(result, NULL, data, length, false, true);
 }
 
 int
-st_pixel_image_decode_cterm_pbm(struct st_pixel_mask **result,
-	const void *data, size_t length)
+st_pixel_image_decode_cterm_pbm(struct st_pixel_mask **result, const void *data, size_t length)
 {
 	return decode_pnm(NULL, result, data, length, true, true);
 }

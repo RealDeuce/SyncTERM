@@ -1,28 +1,29 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
-#include "st_rip3_host_variables.h"
-#include "st_rip3_table_host.h"
-#include "st_rip3_palettes.h"
-#include "st_rip3_backup.h"
-#include "st_rip3_geometry.h"
-#include "st_rip3_features.h"
-#include "io_error.h"
-
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 
-#define CHECK(expression) do { \
-	if (!(expression)) { \
-		fprintf(stderr, "check failed at line %d: %s\n", __LINE__, #expression); \
-		return 1; \
-	} \
-} while (0)
+#include "io_error.h"
+#include "st_rip3_backup.h"
+#include "st_rip3_features.h"
+#include "st_rip3_geometry.h"
+#include "st_rip3_host_variables.h"
+#include "st_rip3_palettes.h"
+#include "st_rip3_table_host.h"
+
+#define CHECK(expression)                                                                        \
+	do {                                                                                     \
+		if (!(expression)) {                                                             \
+			fprintf(stderr, "check failed at line %d: %s\n", __LINE__, #expression); \
+			return 1;                                                                \
+		}                                                                                \
+	} while (0)
 
 struct observations {
-	char reply[3074];
-	size_t length, replies, diagnostics;
+	char                         reply[3074];
+	size_t                       length, replies, diagnostics;
 	enum st_rip3_host_diagnostic last;
-	bool overflow;
+	bool                         overflow;
 };
 
 static void
@@ -37,7 +38,7 @@ reply(void *context, const uint8_t *bytes, size_t length)
 	}
 	memcpy(observed->reply, bytes, length);
 	observed->reply[length] = 0;
-	observed->length = length;
+	observed->length        = length;
 }
 
 static void
@@ -50,16 +51,15 @@ diagnostic(void *context, enum st_rip3_host_diagnostic kind)
 
 /* Assignment without a cast verifies the public parser boundary returns void;
  * no syntax/command result can enter a caller's session-error return path. */
-static void (*const process)(const struct st_rip3_host_variables *,
-    const struct st_rip3_host_sink *, const uint8_t *, size_t)
-    = st_rip3_host_variables_process;
+static void (*const process)(const struct st_rip3_host_variables *, const struct st_rip3_host_sink *,
+    const uint8_t *, size_t) = st_rip3_host_variables_process;
 
 static int
-run(const struct st_rip3_host_variables *host, const struct st_rip3_host_sink *sink,
-    const char *text, int expected_diagnostic, const char *expected_reply)
+run(const struct st_rip3_host_variables *host, const struct st_rip3_host_sink *sink, const char *text,
+    int expected_diagnostic, const char *expected_reply)
 {
 	struct observations *observed = sink->context;
-	size_t replies = observed->replies, diagnostics = observed->diagnostics;
+	size_t               replies = observed->replies, diagnostics = observed->diagnostics;
 
 	process(host, sink, (const uint8_t *)text, strlen(text));
 	CHECK(!observed->overflow);
@@ -78,7 +78,7 @@ static int
 clone_palette(const void *live, void **result)
 {
 	struct st_rip3_palettes *saved = NULL;
-	int status;
+	int                      status;
 
 	if (fail_clone)
 		return IO_ERROR_OUT_OF_MEMORY;
@@ -103,32 +103,41 @@ destroy_palette(void *saved)
 int
 main(void)
 {
-	struct st_rip3_host_variables host = {0};
-	struct st_rip3_table_host tables = {0};
-	struct st_rip3_features features = {0};
-	struct st_rip3_frame frame;
-	struct st_rip3_palettes *palettes = NULL;
-	struct st_rip3_backup *backup = NULL;
-	struct st_rip3_backup_info info;
-	struct observations observed = {0};
-	struct st_rip3_host_sink sink = {&observed,reply,diagnostic};
-	const struct st_rip3_backup_ops ops = {clone_palette,restore_palette,destroy_palette};
-	const char *const bad[] = {
-		"", "$", "not a variable", "$COPY(PAL,TBL,S0$", "$CUR(PAL,99)$",
-		"$COPY(PAL,TBL,S0,BAD)$", "$PROT(PAL,4,S0,STACK)$", "$IFS$",
-		"$PALENTRY(CUR,256)$", "$PALENTRY(CUR,ALL,255)$",
+	struct st_rip3_host_variables   host     = {0};
+	struct st_rip3_table_host       tables   = {0};
+	struct st_rip3_features         features = {0};
+	struct st_rip3_frame            frame;
+	struct st_rip3_palettes        *palettes = NULL;
+	struct st_rip3_backup          *backup   = NULL;
+	struct st_rip3_backup_info      info;
+	struct observations             observed = {0};
+	struct st_rip3_host_sink        sink     = {&observed, reply, diagnostic};
+	const struct st_rip3_backup_ops ops      = {clone_palette, restore_palette, destroy_palette};
+	const char *const               bad[]    = {
+	    "",
+	    "$",
+	    "not a variable",
+	    "$COPY(PAL,TBL,S0$",
+	    "$CUR(PAL,99)$",
+	    "$COPY(PAL,TBL,S0,BAD)$",
+	    "$PROT(PAL,4,S0,STACK)$",
+	    "$IFS$",
+	    "$PALENTRY(CUR,256)$",
+	    "$PALENTRY(CUR,ALL,255)$",
 	};
 	const char command[] = "$CUR(PAL,7)$";
-	char excessive[160];
-	size_t length;
-	uint32_t colors[256];
-	unsigned current;
+	char       excessive[160];
+	size_t     length;
+	uint32_t   colors[256];
+	unsigned   current;
 
 	CHECK(st_rip3_frame_init(&frame, ST_RIP3_CANVAS_640_480) == 0);
 	CHECK(st_rip3_palettes_create(&palettes) == 0);
 	CHECK(st_rip3_backup_create(&backup, &ops) == 0);
-	tables.tables[ST_RIP3_TABLE_PAL] = (struct st_rip3_table_binding){palettes,backup};
-	host.tables = &tables; host.features = &features; host.frame = &frame;
+	tables.tables[ST_RIP3_TABLE_PAL] = (struct st_rip3_table_binding) {palettes, backup};
+	host.tables                      = &tables;
+	host.features                    = &features;
+	host.frame                       = &frame;
 	CHECK(run(&host, &sink, "$CUR(PAL,4)$", -1, "") == 0);
 	for (size_t i = 0; i < sizeof(bad) / sizeof(*bad); i++) {
 		CHECK(run(&host, &sink, bad[i], ST_RIP3_HOST_INVALID_REFERENCE, NULL) == 0);
@@ -141,9 +150,11 @@ main(void)
 		CHECK(observed.diagnostics == previous + 1 && observed.last == ST_RIP3_HOST_INVALID_REFERENCE);
 		CHECK(run(&host, &sink, "$CUR(PAL)$", -1, "4") == 0);
 	}
-	memcpy(excessive, "$IFS(", 5); length = 5;
+	memcpy(excessive, "$IFS(", 5);
+	length = 5;
 	for (unsigned i = 0; i < 41; i++) {
-		if (i != 0) excessive[length++] = ',';
+		if (i != 0)
+			excessive[length++] = ',';
 		excessive[length++] = 'X';
 	}
 	memcpy(excessive + length, ")$", 3);
@@ -171,7 +182,8 @@ main(void)
 	CHECK(run(&host, &sink, "$CUR(PAL)$", -1, "4") == 0);
 	/* A caller supplies no reply buffer: the parser owns capacity for the
 	 * largest implemented reply, rather than turning short buffers into errors. */
-	for (size_t i = 0; i < 256; i++) colors[i] = 0xffffff;
+	for (size_t i = 0; i < 256; i++)
+		colors[i] = 0xffffff;
 	CHECK(st_rip3_palettes_rgb(palettes, 0, 8, colors, 256) == 0);
 	{
 		size_t previous = observed.replies, diagnostics = observed.diagnostics;

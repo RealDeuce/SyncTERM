@@ -1,23 +1,27 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
-#include "st_emoji_catalog.h"
-#include "st_emoji_locale.h"
-#include "st_emoji_locale_internal.h"
-#include "io_error.h"
-
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#define CHECK(test) do { if (!(test)) { \
-	fprintf(stderr, "line %d: %s\n", __LINE__, #test); return 1; \
-} } while (0)
+#include "io_error.h"
+#include "st_emoji_catalog.h"
+#include "st_emoji_locale.h"
+#include "st_emoji_locale_internal.h"
+
+#define CHECK(test)                                                        \
+	do {                                                               \
+		if (!(test)) {                                             \
+			fprintf(stderr, "line %d: %s\n", __LINE__, #test); \
+			return 1;                                          \
+		}                                                          \
+	} while (0)
 
 static bool
 search_has(st_emoji_locale_t *locale, const char *query, const char *emoji)
 {
 	size_t *ids, count;
-	bool found = false;
+	bool    found = false;
 
 	if (st_emoji_search(locale, query, strlen(query), &ids, &count) != 0)
 		return false;
@@ -34,39 +38,38 @@ test_names(void)
 	static const struct {
 		const char *language, *emoji, *name;
 	} cases[] = {
-		{"fr-CA", "😀", "visage avec large sourire"},
-		{"fr-CA", "🕹️", "manette de jeu"},
-		{"fr-FR", "💰", "sac plein d’argent"},
-		{"de-DE-u-ca-gregory", "💰", "Geldsack"},
-		{"ja-JP", "🐈", "ネコ"},
-		{"zh-TW", "🐈", "貓"},
-		{"zh-CN", "🐈", "猫"},
-		{"sr-Latn-RS", "🐈", "mačka"},
-		{"sr-Cyrl-RS", "🐈", "мачка"},
-		{"sh", "🐈", "mačka"},
-		{"zz-XX", "😀", "grinning face"},
+	    {"fr-CA",              "😀", "visage avec large sourire"},
+	    {"fr-CA",              "🕹️",  "manette de jeu"           },
+	    {"fr-FR",              "💰", "sac plein d’argent"       },
+	    {"de-DE-u-ca-gregory", "💰", "Geldsack"                 },
+	    {"ja-JP",              "🐈", "ネコ"                     },
+	    {"zh-TW",              "🐈", "貓"                       },
+	    {"zh-CN",              "🐈", "猫"                       },
+	    {"sr-Latn-RS",         "🐈", "mačka"                    },
+	    {"sr-Cyrl-RS",         "🐈", "мачка"                    },
+	    {"sh",                 "🐈", "mačka"                    },
+	    {"zz-XX",              "😀", "grinning face"            },
 	};
 
 	for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
 		st_emoji_locale_t *locale;
-		size_t id = st_emoji_find(cases[i].emoji);
+		size_t             id = st_emoji_find(cases[i].emoji);
 
 		CHECK(id < st_emoji_entry_count);
 		CHECK(st_emoji_locale_create(&locale, &cases[i].language, 1) == 0);
 		const char *name = st_emoji_localized_name(locale, id);
 		if (strcmp(name, cases[i].name) != 0) {
-			fprintf(stderr, "%s %s: expected %s, got %s\n",
-			    cases[i].language, cases[i].emoji, cases[i].name, name);
+			fprintf(stderr, "%s %s: expected %s, got %s\n", cases[i].language, cases[i].emoji,
+			    cases[i].name, name);
 			st_emoji_locale_destroy(locale);
 			return 1;
 		}
 		st_emoji_locale_destroy(locale);
 	}
 	st_emoji_locale_t *locale;
-	const char *preferences[] = {"zz", "sr-Arab-ZZ", "fr-CA", "fr-CA", "de"};
+	const char        *preferences[] = {"zz", "sr-Arab-ZZ", "fr-CA", "fr-CA", "de"};
 	CHECK(st_emoji_locale_create(&locale, preferences, 5) == 0);
-	CHECK(strcmp(st_emoji_localized_name(locale, st_emoji_find("😀")),
-	    "visage avec large sourire") == 0);
+	CHECK(strcmp(st_emoji_localized_name(locale, st_emoji_find("😀")), "visage avec large sourire") == 0);
 	CHECK(st_emoji_localized_name(locale, st_emoji_entry_count) == NULL);
 	CHECK(st_emoji_localized_keywords(locale, st_emoji_entry_count) == NULL);
 	CHECK(st_emoji_english_keywords(locale, st_emoji_entry_count) == NULL);
@@ -86,8 +89,8 @@ static int
 test_search(void)
 {
 	st_emoji_locale_t *locale;
-	const char *language = "fr-CA";
-	size_t *ids, count;
+	const char        *language = "fr-CA";
+	size_t            *ids, count;
 
 	CHECK(st_emoji_locale_create(&locale, &language, 1) == 0);
 	ids = &count;
@@ -140,14 +143,21 @@ test_search(void)
 static int
 test_blocks(void)
 {
-	unsigned char output[256];
+	unsigned char              output[256];
 	static const unsigned char literal[] = {0x50, 'h', 'e', 'l', 'l', 'o'};
-	static const unsigned char overlap[] = {0x11, 'a', 1, 0, 0x80,
-	    'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'};
-	static const struct { unsigned char data[5]; size_t size; } bad[] = {
-		{{0xf0}, 1}, {{0xf0, 255}, 2}, {{0x20, 'a'}, 2},
-		{{0x10, 'a', 0, 0}, 4}, {{0x10, 'a', 2, 0}, 4},
-		{{0x10, 'a', 1}, 3}, {{0x1f, 'a', 1, 0, 255}, 5},
+	static const unsigned char overlap[] = {0x11, 'a', 1, 0, 0x80, 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'};
+
+	static const struct {
+		unsigned char data[5];
+		size_t        size;
+	} bad[] = {
+	    {{0xf0},                 1},
+	    {{0xf0, 255},            2},
+	    {{0x20, 'a'},            2},
+	    {{0x10, 'a', 0, 0},      4},
+	    {{0x10, 'a', 2, 0},      4},
+	    {{0x10, 'a', 1},         3},
+	    {{0x1f, 'a', 1, 0, 255}, 5},
 	};
 
 	CHECK(st_emoji_unpack(output, 5, literal, sizeof(literal)) == 0);
@@ -156,13 +166,13 @@ test_blocks(void)
 	CHECK(memcmp(output, "aaaaaabcdefghi", 14) == 0);
 	CHECK(st_emoji_unpack(output, 4, literal, sizeof(literal)) == IO_ERROR_INVALID_FORMAT);
 	for (size_t i = 0; i < sizeof(bad) / sizeof(bad[0]); i++)
-		CHECK(st_emoji_unpack(output, sizeof(output), bad[i].data, bad[i].size)
-		    == IO_ERROR_INVALID_FORMAT);
+		CHECK(
+		    st_emoji_unpack(output, sizeof(output), bad[i].data, bad[i].size) == IO_ERROR_INVALID_FORMAT);
 	CHECK(st_emoji_locale_count > 150);
 	for (size_t i = 0; i < st_emoji_locale_count; i++) {
-		const struct st_emoji_locale_data *data = &st_emoji_locales[i];
-		unsigned char *decoded = malloc(data->size == 0 ? 1 : data->size);
-		size_t position = 0;
+		const struct st_emoji_locale_data *data     = &st_emoji_locales[i];
+		unsigned char                     *decoded  = malloc(data->size == 0 ? 1 : data->size);
+		size_t                             position = 0;
 
 		CHECK(decoded != NULL);
 		CHECK(st_emoji_unpack(decoded, data->size, data->packed, data->packed_size) == 0);

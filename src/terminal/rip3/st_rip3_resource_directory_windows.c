@@ -1,24 +1,23 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
-#include "st_rip3_resources_internal.h"
-#include "io_error.h"
-#include "path_windows.h"
-#include "st_windows_utf.h"
-
 #include <windows.h>
-
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <wchar.h>
 
+#include "io_error.h"
+#include "path_windows.h"
+#include "st_rip3_resources_internal.h"
+#include "st_windows_utf.h"
+
 int
 st_rip3_resource_directory_scan(struct st_rip3_resource_match *match)
 {
-	wchar_t *extended = NULL, *pattern = NULL;
+	wchar_t         *extended = NULL, *pattern = NULL;
 	WIN32_FIND_DATAW data;
-	HANDLE search;
-	size_t size;
-	int status = path_windows_extended(&extended, match->directory);
+	HANDLE           search;
+	size_t           size;
+	int              status = path_windows_extended(&extended, match->directory);
 
 	if (status != 0)
 		return status;
@@ -37,8 +36,8 @@ st_rip3_resource_directory_scan(struct st_rip3_resource_match *match)
 	if (size != 0 && pattern[size - 1] != L'\\')
 		pattern[size++] = L'\\';
 	pattern[size++] = L'*';
-	pattern[size] = 0;
-	search = FindFirstFileW(pattern, &data);
+	pattern[size]   = 0;
+	search          = FindFirstFileW(pattern, &data);
 	free(pattern);
 	if (search == INVALID_HANDLE_VALUE)
 		return io_error_from_windows(GetLastError());

@@ -2,11 +2,11 @@
 #ifndef ST_RIP3_AUDIO_H_
 #define ST_RIP3_AUDIO_H_
 
+#include <stdbool.h>
+
 #include "st_audio_runtime.h"
 #include "st_rip3_resources.h"
 #include "st_rip3_tones.h"
-
-#include <stdbool.h>
 
 struct st_rip3_audio;
 
@@ -27,8 +27,8 @@ void st_rip3_audio_destroy(struct st_rip3_audio *player);
  * This is a storage/playback service, not a RIP input-processing entry. The
  * enclosing parser must consume all statuses nonfatally. Framing, macro/reset
  * dispatch, master audio policy and IFS readiness belong to that owner. */
-int st_rip3_audio_play(struct st_rip3_audio *player,
-	const struct st_rip3_resource_paths *paths, const char *filename, bool repeat);
+int st_rip3_audio_play(struct st_rip3_audio *player, const struct st_rip3_resource_paths *paths,
+    const char *filename, bool repeat);
 int st_rip3_audio_stop(struct st_rip3_audio *player);
 
 /* A separate mixer stream consumes the finite sequence on demand. The

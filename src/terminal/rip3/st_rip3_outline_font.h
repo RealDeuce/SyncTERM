@@ -2,23 +2,23 @@
 #ifndef ST_RIP3_OUTLINE_FONT_H_
 #define ST_RIP3_OUTLINE_FONT_H_
 
-#include "st_rip3_geometry.h"
-#include "st_rip3_rff.h"
-
 #include <stddef.h>
 #include <stdint.h>
+
+#include "st_rip3_geometry.h"
+#include "st_rip3_rff.h"
 
 struct st_rip3_outline_bounds {
 	int64_t xmin, ymin, xmax, ymax;
 };
 
 struct st_rip3_outline_font {
-	struct st_rip3_rff file;
+	struct st_rip3_rff       file;
 	struct st_rip3_rff_style style;
-	size_t face;
-	unsigned points, orientation;
-	uint32_t dpi_x, dpi_y;
-	uint32_t flags;
+	size_t                   face;
+	unsigned                 points, orientation;
+	uint32_t                 dpi_x, dpi_y;
+	uint32_t                 flags;
 	/* Device-axis units per font unit, before the face's horizontal percent.
 	 * Layout supplies string/character rotation and spacing independently. */
 	double scale_x, scale_y;
@@ -40,8 +40,7 @@ struct st_rip3_outline_column_metrics {
 /* Column fit is inclusive and uses the cap alignment and descent. The
  * advance uses the separate ascender alignment, descent and face leading.
  * This consumes a successfully bound font. */
-struct st_rip3_outline_column_metrics st_rip3_outline_font_column_metrics(
-	const struct st_rip3_outline_font *);
+struct st_rip3_outline_column_metrics st_rip3_outline_font_column_metrics(const struct st_rip3_outline_font *);
 
 /* Pure font realization services, not parser/session entry points. Bind an
  * already-loaded RFF face, revalidating its immutable bytes. The caller owns
@@ -50,20 +49,17 @@ struct st_rip3_outline_column_metrics st_rip3_outline_font_column_metrics(
  * DPI for 0/2 and Y for 1/3 when choosing the hollow stamp. The connection's
  * device and current world dimensions determine DPI, truncated before use.
  * Failures preserve result, permitting a session to retain its prior cache. */
-int st_rip3_outline_font_bind(struct st_rip3_outline_font *result,
-	const struct st_rip3_rff *file, size_t face, const struct st_rip3_frame *frame,
-	unsigned points, uint32_t flags, unsigned orientation);
+int st_rip3_outline_font_bind(struct st_rip3_outline_font *result, const struct st_rip3_rff *file, size_t face,
+    const struct st_rip3_frame *frame, unsigned points, uint32_t flags, unsigned orientation);
 /* Resolve an exact, ASCII-case-insensitive catalogue style name, including
  * its suffix/spaces. No filename aliases, trimming or fallback font. Bundled
  * views live for the application lifetime. No files/cache are created. */
-int st_rip3_outline_font_builtin(struct st_rip3_outline_font *result,
-	const char *name, const struct st_rip3_frame *frame,
-	unsigned points, uint32_t flags, unsigned orientation);
+int st_rip3_outline_font_builtin(struct st_rip3_outline_font *result, const char *name,
+    const struct st_rip3_frame *frame, unsigned points, uint32_t flags, unsigned orientation);
 /* Horizontal span of this realized, oriented bbox for spacing flag 0x400.
  * A zero span remains zero; narrow layout bounds reject spans above int32_t.
  * Failure leaves result unchanged. No advance-width substitution. */
-int st_rip3_outline_font_bbox_width(int32_t *result,
-	const struct st_rip3_outline_font *font);
+int st_rip3_outline_font_bbox_width(int32_t *result, const struct st_rip3_outline_font *font);
 /* Independent, unkerned DEVICE advances for raw unsigned font bytes. Scale
  * the declared advance by points*20*face-percent/(units_per_em*100), rounding
  * to the nearest 1/1440-inch unit with positive half ties upward, then truncate
@@ -77,8 +73,7 @@ int st_rip3_outline_font_bbox_width(int32_t *result,
  * its storage must not overlap the inputs. NULL text/result is valid for zero
  * length. Validation and all fallible metric work precede any output change.
  * Parser/session entry points must absorb failures at their nonfatal boundary. */
-int st_rip3_outline_font_advances(int32_t *result,
-	const struct st_rip3_outline_font *font, unsigned string_rotation,
-	const uint8_t *text, size_t length);
+int st_rip3_outline_font_advances(int32_t *result, const struct st_rip3_outline_font *font,
+    unsigned string_rotation, const uint8_t *text, size_t length);
 
 #endif

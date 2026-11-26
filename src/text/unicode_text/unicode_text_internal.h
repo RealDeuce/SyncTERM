@@ -4,9 +4,9 @@
 #ifndef ST_UNICODE_TEXT_INTERNAL_H_
 #define ST_UNICODE_TEXT_INTERNAL_H_
 
-#include "st_unicode_text.h"
-
 #include <stdlib.h>
+
+#include "st_unicode_text.h"
 
 /* Start another normalization pass while retaining all buffer capacities. */
 void st_unicode_text_rewind(st_unicode_text_t *text);

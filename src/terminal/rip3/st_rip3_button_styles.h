@@ -13,25 +13,33 @@ struct st_rip3_backup;
  * value snapshots and do not borrow the live table's storage. */
 
 enum st_rip3_button_color {
-	ST_RIP3_BUTTON_LABEL_FOREGROUND, ST_RIP3_BUTTON_LABEL_BACKGROUND,
-	ST_RIP3_BUTTON_BRIGHT, ST_RIP3_BUTTON_DARK, ST_RIP3_BUTTON_SURFACE,
-	ST_RIP3_BUTTON_UNDERLINE, ST_RIP3_BUTTON_CORNER, ST_RIP3_BUTTON_COLOR_COUNT,
+	ST_RIP3_BUTTON_LABEL_FOREGROUND,
+	ST_RIP3_BUTTON_LABEL_BACKGROUND,
+	ST_RIP3_BUTTON_BRIGHT,
+	ST_RIP3_BUTTON_DARK,
+	ST_RIP3_BUTTON_SURFACE,
+	ST_RIP3_BUTTON_UNDERLINE,
+	ST_RIP3_BUTTON_CORNER,
+	ST_RIP3_BUTTON_COLOR_COUNT,
 };
 
 struct st_rip3_button_style {
 	/* Definition-time projected device values, stored as protocol WORDs.
 	 * Creation takes the low byte of bevel. Colors are always palette indices. */
-	uint16_t width,height,flags,bevel;
-	unsigned orientation,group;
-	uint8_t flags2;
-	uint8_t colors[ST_RIP3_BUTTON_COLOR_COUNT];
+	uint16_t width, height, flags, bevel;
+	unsigned orientation, group;
+	uint8_t  flags2;
+	uint8_t  colors[ST_RIP3_BUTTON_COLOR_COUNT];
 };
-struct st_rip3_button_style_info {bool defined,protected;};
 
-int st_rip3_button_style_defaults(struct st_rip3_button_style *result);
-int st_rip3_button_styles_create(struct st_rip3_button_styles **result);
+struct st_rip3_button_style_info {
+	bool defined, protected;
+};
+
+int  st_rip3_button_style_defaults(struct st_rip3_button_style *result);
+int  st_rip3_button_styles_create(struct st_rip3_button_styles **result);
 void st_rip3_button_styles_destroy(struct st_rip3_button_styles *styles);
-int st_rip3_button_styles_current(const struct st_rip3_button_styles *, unsigned *result);
+int  st_rip3_button_styles_current(const struct st_rip3_button_styles *, unsigned *result);
 /* Creation reads stored current fields even after a reset clears in-use;
  * unlike selection, this does not default or define that record. */
 int st_rip3_button_styles_current_value(const struct st_rip3_button_styles *, struct st_rip3_button_style *result);
@@ -39,23 +47,22 @@ int st_rip3_button_styles_current_value(const struct st_rip3_button_styles *, st
  * protected/undefined. Use persistent field flags (RECESS is removed here),
  * retain record metadata and return the new field flags for later rendering.
  * The caller invokes this only after clipboard capture succeeds. */
-int st_rip3_button_styles_autoclip(struct st_rip3_button_styles *,
-	uint16_t field_flags, uint16_t *result);
+int st_rip3_button_styles_autoclip(struct st_rip3_button_styles *, uint16_t field_flags, uint16_t *result);
 int st_rip3_button_styles_info(const struct st_rip3_button_styles *, unsigned number,
-	struct st_rip3_button_style_info *result);
+    struct st_rip3_button_style_info *result);
 int st_rip3_button_styles_get(const struct st_rip3_button_styles *, unsigned number,
-	struct st_rip3_button_style *result);
+    struct st_rip3_button_style *result);
 /* Explicit edits check raw protection, then define the record on success.
  * An undefined current record does not require implicit first-use selection. */
 int st_rip3_button_styles_set(struct st_rip3_button_styles *, unsigned number,
-	const struct st_rip3_button_style *value);
+    const struct st_rip3_button_style *value);
 int st_rip3_button_styles_select(struct st_rip3_button_styles *, unsigned number);
 int st_rip3_button_styles_protect(struct st_rip3_button_styles *, unsigned number, bool protect);
 /* Copy a defined source after validating every destination. Destinations
  * become defined and unprotected, including copies from protected sources.
  * Selection is retained; self-copy/protected targets fail without mutation. */
 int st_rip3_button_styles_copy_entries(struct st_rip3_button_styles *, unsigned source,
-	const unsigned *destinations, size_t count);
+    const unsigned *destinations, size_t count);
 /* Specific/TBL resets preserve selection and protected records. Outer SOFT
  * selects zero separately. Independent backup objects are never cleared. */
 int st_rip3_button_styles_reset_entry(struct st_rip3_button_styles *, unsigned number);
@@ -68,6 +75,6 @@ int st_rip3_button_styles_reset_current(struct st_rip3_button_styles *);
 /* Header table deletion skips zero, the retained slot and protected entries. */
 void st_rip3_button_styles_header_prune(struct st_rip3_button_styles *, unsigned keep);
 void st_rip3_button_styles_header_defaults(struct st_rip3_button_styles *, bool all);
-int st_rip3_button_styles_backup_create(struct st_rip3_backup **result);
+int  st_rip3_button_styles_backup_create(struct st_rip3_backup **result);
 
 #endif

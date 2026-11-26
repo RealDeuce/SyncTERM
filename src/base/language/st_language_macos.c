@@ -3,26 +3,25 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "st_language_internal.h"
-
 #include <CoreFoundation/CoreFoundation.h>
 #include <string.h>
+
+#include "st_language_internal.h"
 
 int
 st_language_macos(struct st_language_preferences *result)
 {
 	CFArrayRef languages = CFLocaleCopyPreferredLanguages();
-	int status = 0;
+	int        status    = 0;
 
 	if (languages == NULL)
 		return 0;
 	for (CFIndex i = 0; i < CFArrayGetCount(languages); i++) {
 		CFStringRef language = CFArrayGetValueAtIndex(languages, i);
-		char tag[256];
+		char        tag[256];
 
 		if (CFGetTypeID(language) != CFStringGetTypeID()
-		    || !CFStringGetCString(language, tag, sizeof(tag),
-		        kCFStringEncodingASCII))
+		    || !CFStringGetCString(language, tag, sizeof(tag), kCFStringEncodingASCII))
 			continue;
 		status = st_language_add(result, tag, strlen(tag));
 		if (status != 0)

@@ -5,9 +5,10 @@
  */
 
 #include <stdlib.h>
+
 #include "str_list_test_allocator.h"
 
-#define malloc str_list_test_malloc
+#define malloc  str_list_test_malloc
 #define realloc str_list_test_realloc
-#define free str_list_test_free
+#define free    str_list_test_free
 #include "../../array_list/array_list.c"

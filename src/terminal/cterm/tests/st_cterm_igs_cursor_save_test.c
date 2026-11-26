@@ -22,9 +22,9 @@ normal(void)
 	for (unsigned resolution = 0; resolution < 3; ++resolution) {
 		struct fixture f;
 		create(&f, resolution, false);
-		struct cterminal *t = f.terminal;
+		struct cterminal *t   = f.terminal;
 		struct cterm_igs *igs = t->igs_engine;
-		t->response_cb = no_reply;
+		t->response_cb        = no_reply;
 		feed(&f, "\033fG#p>3,2:r 1:");
 		position(&f, 1, 1);
 
@@ -32,7 +32,7 @@ normal(void)
 		seed(&f, &full, 769, 768);
 		feed(&f, "G#X 10,19,17:");
 		struct cterm_igs_attributes attributes;
-		uint32_t palette[16];
+		uint32_t                    palette[16];
 		memcpy(&attributes, &igs->attributes, sizeof(attributes));
 		memcpy(palette, igs->palette, sizeof(palette));
 
@@ -65,13 +65,13 @@ normal(void)
 }
 
 static void
-composition_case(struct fixture *f, unsigned resolution, unsigned state, bool reverse,
-    bool saved, int selector)
+composition_case(struct fixture *f, unsigned resolution, unsigned state, bool reverse, bool saved, int selector)
 {
 	static const char *prefixes[] = {"", "\033", "\033Y", "\033Y!", "\033b", "\033c"};
-	struct cterminal *t = f->terminal;
-	struct cterm_igs *igs = t->igs_engine;
-	feed(f, "\033q\033f\033wG#c>1,15:c 0,0:\033E\033k"
+	struct cterminal  *t          = f->terminal;
+	struct cterm_igs  *igs        = t->igs_engine;
+	feed(f,
+	    "\033q\033f\033wG#c>1,15:c 0,0:\033E\033k"
 	    "G#c>0,2:p 7,5:");
 	if (saved)
 		feed(f, "\033j");
@@ -82,16 +82,24 @@ composition_case(struct fixture *f, unsigned resolution, unsigned state, bool re
 		char bottom[] = {27, 'Y', (char)(31 + t->height), 0};
 		feed(f, "\033v");
 		feed(f, bottom);
-	} else {
+	}
+	else {
 		feed(f, prefixes[state]);
 	}
 	struct model m = {
-		.state = state == 6 ? 3 : state,
-		.x = 3, .y = 2, .row = state == 6 ? (unsigned)t->height - 1 : 1,
-		.columns = (unsigned)t->width, .rows = (unsigned)t->height,
-		.fg = (uint16_t)(15 - 32), .bg = (uint16_t)(2 - 32),
-		.reverse = reverse, .wrap = state == 6,
-		.saved = saved, .saved_x = 7, .saved_y = 5,
+	    .state   = state == 6 ? 3 : state,
+	    .x       = 3,
+	    .y       = 2,
+	    .row     = state == 6 ? (unsigned)t->height - 1 : 1,
+	    .columns = (unsigned)t->width,
+	    .rows    = (unsigned)t->height,
+	    .fg      = (uint16_t)(15 - 32),
+	    .bg      = (uint16_t)(2 - 32),
+	    .reverse = reverse,
+	    .wrap    = state == 6,
+	    .saved   = saved,
+	    .saved_x = 7,
+	    .saved_y = 5,
 	};
 	model_byte(&m, 27);
 	if (selector >= 0)
@@ -109,8 +117,7 @@ composition_case(struct fixture *f, unsigned resolution, unsigned state, bool re
 
 	/* Complete any pending bytes before probing the save slot. */
 	feed(f, "\001\001G#p>9,8:r 1:");
-	position(f, m.saved ? (int)m.saved_x + 1 : 1,
-	    m.saved ? (int)m.saved_y + 1 : 1);
+	position(f, m.saved ? (int)m.saved_x + 1 : 1, m.saved ? (int)m.saved_y + 1 : 1);
 	feed(f, "\033k");
 	position(f, 1, 1);
 }
@@ -142,25 +149,27 @@ compositions(void)
 static void
 partitions(void)
 {
-	const char wire[] = "G#p>3,2:r>r:p>7,5:r>1:M 2:A";
-	const size_t size = sizeof(wire) - 1;
+	const char     wire[] = "G#p>3,2:r>r:p>7,5:r>1:M 2:A";
+	const size_t   size   = sizeof(wire) - 1;
 	struct fixture f;
 	create(&f, 0, false);
 	for (size_t split = 0; split <= size + 1; ++split) {
 		CHECK(st_cterm_reset_terminal(f.terminal) == 0);
-		struct cterm_igs *igs = f.terminal->igs_engine;
+		struct cterm_igs *igs   = f.terminal->igs_engine;
 		igs->random_range[0][1] = 255;
 		size_t used;
 		if (split > size) {
 			for (size_t i = 0; i < size; ++i)
 				CHECK(st_cterm_write(f.terminal, wire + i, 1, &used) == 0 && used == 1);
-		} else {
+		}
+		else {
 			CHECK(st_cterm_write(f.terminal, wire, split, &used) == 0 && used == split);
-			CHECK(st_cterm_write(f.terminal, wire + split, size - split, &used) == 0 && used == size - split);
+			CHECK(st_cterm_write(f.terminal, wire + split, size - split, &used) == 0
+			      && used == size - split);
 		}
 		position(&f, 5, 3);
 		const struct st_console_rect area = {3, 2, 1, 1};
-		struct st_console_cell cell;
+		struct st_console_cell       cell;
 		CHECK(st_console_read_cells(f.console, &area, &cell, 1) == 0 && cell.glyph == 'A');
 		CHECK(igs->random_seed == UINT32_C(0xbb40e62e) && igs->attributes.writing_mode == 2);
 		CHECK(f.terminal->accumulator == NULL && igs->input_deadline == 0);
@@ -174,9 +183,9 @@ lifetime(void)
 	for (unsigned resolution = 0; resolution < 3; ++resolution) {
 		struct fixture f;
 		create(&f, resolution, false);
-		struct cterminal *t = f.terminal;
+		struct cterminal *t   = f.terminal;
 		struct cterm_igs *igs = t->igs_engine;
-		t->response_cb = no_reply;
+		t->response_cb        = no_reply;
 		feed(&f, "G#p>3,2:r>0:p 7,5:");
 		feed(&f, "G#r 0");
 		CHECK(st_cterm_finish(t) == 0 && t->accumulator == NULL);
@@ -184,7 +193,7 @@ lifetime(void)
 		local_ms += 5001;
 		CHECK(st_cterm_poll(t) == 0);
 		const char bad[] = "G#r 10000:";
-		size_t used;
+		size_t     used;
 		CHECK(st_cterm_write(t, bad, sizeof(bad) - 1, &used) == 0);
 		position(&f, 8, 6);
 		feed(&f, "G#I>0:I>1:I>2:I>3:I 4:");
@@ -219,7 +228,7 @@ lifetime(void)
 		position(&f, resolution == 2 ? 4 : 1, resolution == 2 ? 3 : 1);
 
 		feed(&f, "G#p>3,2:r>0:p 7,5:");
-		t->screen.error = IO_ERROR_IO;
+		t->screen.error      = IO_ERROR_IO;
 		const char restore[] = "G#r 1:";
 		CHECK(st_cterm_write(t, restore, sizeof(restore) - 1, &used) == 0);
 		position(&f, 8, 6);
@@ -241,10 +250,15 @@ standalone_vt52(void)
 	create(&f, 0, false);
 	st_cterm_destroy(&f.terminal);
 	const struct st_cterm_config config = {
-		.console = f.console, .fonts = f.fonts, .font_selector = 44,
-		.terminal_rows = 25, .emulation = ST_CTERM_ATARI_ST_VT52,
-		.graphics_mode = ST_CTERM_GRAPHICS_OFF, .encoding = ST_CTERM_ENCODING_CODEPAGE,
-		.codepage = ST_CODEPAGE_ATARI_ST, .quiet = true,
+	    .console       = f.console,
+	    .fonts         = f.fonts,
+	    .font_selector = 44,
+	    .terminal_rows = 25,
+	    .emulation     = ST_CTERM_ATARI_ST_VT52,
+	    .graphics_mode = ST_CTERM_GRAPHICS_OFF,
+	    .encoding      = ST_CTERM_ENCODING_CODEPAGE,
+	    .codepage      = ST_CODEPAGE_ATARI_ST,
+	    .quiet         = true,
 	};
 	CHECK(st_cterm_create(&f.terminal, &config) == 0);
 	feed(&f, "\033Y\042\043\033k");

@@ -15,16 +15,16 @@ extern "C" {
 #endif
 
 enum st_crypto_status {
-	ST_CRYPTO_OK = 0,
-	ST_CRYPTO_ERR = -1,
-	ST_CRYPTO_ERR_FORMAT = -2,
-	ST_CRYPTO_ERR_POLICY = -3,
-	ST_CRYPTO_ERR_VERIFY = -4,
-	ST_CRYPTO_ERR_DISABLED = -5,
-	ST_CRYPTO_ERR_INVALID = -6,
+	ST_CRYPTO_OK                   = 0,
+	ST_CRYPTO_ERR                  = -1,
+	ST_CRYPTO_ERR_FORMAT           = -2,
+	ST_CRYPTO_ERR_POLICY           = -3,
+	ST_CRYPTO_ERR_VERIFY           = -4,
+	ST_CRYPTO_ERR_DISABLED         = -5,
+	ST_CRYPTO_ERR_INVALID          = -6,
 	ST_CRYPTO_ERR_BUFFER_TOO_SMALL = -7,
-	ST_CRYPTO_ERR_UNSUPPORTED = -8,
-	ST_CRYPTO_ERR_UNAVAILABLE = -9,
+	ST_CRYPTO_ERR_UNSUPPORTED      = -8,
+	ST_CRYPTO_ERR_UNAVAILABLE      = -9,
 };
 
 const char *st_crypto_status_string(int status);

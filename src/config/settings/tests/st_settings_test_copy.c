@@ -5,9 +5,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "st_settings_test_copy.h"
-
 #include <stdint.h>
+
+#include "st_settings_test_copy.h"
 
 static size_t attempt;
 static size_t failure = SIZE_MAX;
@@ -27,8 +27,7 @@ st_settings_test_disable_copy_failure(void)
 }
 
 bool
-st_settings_test_copy(struct st_settings *result,
-	const struct st_settings *source)
+st_settings_test_copy(struct st_settings *result, const struct st_settings *source)
 {
 	if (attempt++ == failure)
 		return false;

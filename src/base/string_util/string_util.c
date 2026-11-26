@@ -5,15 +5,15 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "string_util.h"
-
 #include <string.h>
+
+#include "string_util.h"
 
 bool
 ascii_is_space(unsigned char character)
 {
-	return character == '\t' || character == '\n' || character == '\v'
-	    || character == '\f' || character == '\r' || character == ' ';
+	return character == '\t' || character == '\n' || character == '\v' || character == '\f'
+	       || character == '\r' || character == ' ';
 }
 
 bool
@@ -54,8 +54,7 @@ ascii_case_compare(const char *left, const char *right)
 		if (l != r)
 			return (l > r) - (l < r);
 	}
-	return ((unsigned char)*left > (unsigned char)*right)
-	    - ((unsigned char)*left < (unsigned char)*right);
+	return ((unsigned char)*left > (unsigned char)*right) - ((unsigned char)*left < (unsigned char)*right);
 }
 
 int
@@ -80,8 +79,7 @@ ascii_case_starts_with(const char *text, const char *prefix)
 		return false;
 	while (*prefix != '\0') {
 		if (*text == '\0'
-		    || ascii_to_lower((unsigned char)*text)
-		    != ascii_to_lower((unsigned char)*prefix))
+		    || ascii_to_lower((unsigned char)*text) != ascii_to_lower((unsigned char)*prefix))
 			return false;
 		text++;
 		prefix++;
@@ -93,15 +91,14 @@ bool
 ascii_case_span_equal(const char *text, size_t length, const char *value)
 {
 	return text != NULL && value != NULL && strlen(value) == length
-	    && ascii_case_ncompare(text, value, length) == 0;
+	       && ascii_case_ncompare(text, value, length) == 0;
 }
 
 void
-string_ascii_trim_span(const char *string, size_t length, size_t *begin,
-    size_t *end)
+string_ascii_trim_span(const char *string, size_t length, size_t *begin, size_t *end)
 {
 	size_t first = 0;
-	size_t last = length;
+	size_t last  = length;
 
 	while (first < last && ascii_is_space((unsigned char)string[first]))
 		first++;

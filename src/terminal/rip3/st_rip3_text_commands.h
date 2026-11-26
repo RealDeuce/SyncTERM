@@ -3,8 +3,8 @@
 #define ST_RIP3_TEXT_COMMANDS_H_
 
 #include <stdbool.h>
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
 
 struct st_rip3_classic_font;
 struct st_rip3_outline_cache;
@@ -20,7 +20,7 @@ enum st_rip3_text_encoding {
  * family/attributes. Matching overrides affect raster/metrics for that font
  * number only. Encoding conversion expands no macros or terminal controls. */
 struct st_rip3_text_context {
-	enum st_rip3_text_encoding encoding;
+	enum st_rip3_text_encoding         encoding;
 	const struct st_rip3_classic_font *font;
 	/* Optional context-owned logical snapshot, shared across ports/styles.
 	 * NULL means cold/invalid, whose cached width is zero. A successful outline
@@ -37,14 +37,14 @@ struct st_rip3_text_context {
 /* Numeric prefix is decoded once before providers can change BASEMATH/COORDSIZE.
  * Parser-owned continuation; private statuses never leave the void session API. */
 struct st_rip3_text_argument {
-	uint8_t opcode;
-	bool skip;
-	uint64_t x,y,x1,y1;
+	uint8_t  opcode;
+	bool     skip;
+	uint64_t x, y, x1, y1;
 };
 struct st_rip3_command_host;
-int st_rip3_text_argument_prepare(const struct st_rip3_command_host *host,
-	const uint8_t *command, size_t length, struct st_rip3_text_argument *argument, size_t *offset);
+int st_rip3_text_argument_prepare(const struct st_rip3_command_host *host, const uint8_t *command, size_t length,
+    struct st_rip3_text_argument *argument, size_t *offset);
 int st_rip3_text_commands_expanded(const struct st_rip3_command_host *host,
-	const struct st_rip3_text_argument *argument, const uint8_t *text, size_t length, bool *operation);
+    const struct st_rip3_text_argument *argument, const uint8_t *text, size_t length, bool *operation);
 
 #endif

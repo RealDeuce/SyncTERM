@@ -1,74 +1,117 @@
 /* Independent I/R state/call-order expectations from BIG chapters27/54/80. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
-#include "st_big_state.h"
-#include "st_bgi_data.h"
-#include "io_error.h"
 #include <stdio.h>
 #include <string.h>
-#define CHECK(x) do { if (!(x)) { fprintf(stderr,"%s:%d: %s\n",__FILE__,__LINE__,#x); return 1; } } while (0)
 
-static const uint8_t palette[16] = {0,1,2,3,4,5,20,7,56,57,58,59,60,61,62,63};
+#include "io_error.h"
+#include "st_bgi_data.h"
+#include "st_big_state.h"
+#define CHECK(x)                                                                \
+	do {                                                                    \
+		if (!(x)) {                                                     \
+			fprintf(stderr, "%s:%d: %s\n", __FILE__, __LINE__, #x); \
+			return 1;                                               \
+		}                                                               \
+	} while (0)
+
+static const uint8_t palette[16] = {0, 1, 2, 3, 4, 5, 20, 7, 56, 57, 58, 59, 60, 61, 62, 63};
+
 struct fixture {
-	struct st_big_state state;
+	struct st_big_state      state;
 	struct st_big_state_sink sink;
-	uint8_t cache;
-	char events[128]; size_t count;
-	unsigned installs, palettes, singles, pages;
-	int fail_at;
-	uint16_t change_driver;
+	uint8_t                  cache;
+	char                     events[128];
+	size_t                   count;
+	unsigned                 installs, palettes, singles, pages;
+	int                      fail_at;
+	uint16_t                 change_driver;
 };
-static int event(struct fixture *f, char c)
+
+static int
+event(struct fixture *f, char c)
 {
-	CHECK(f->count < sizeof(f->events)); f->events[f->count++] = c;
+	CHECK(f->count < sizeof(f->events));
+	f->events[f->count++] = c;
 	return f->fail_at != 0 && f->count == (size_t)f->fail_at ? IO_ERROR_IO : 0;
 }
-static int install(void *context, const struct st_big_mode *mode)
+
+static int
+install(void *context, const struct st_big_mode *mode)
 {
-	struct fixture *f = context; ++f->installs;
-	CHECK(f->state.bgi.mode == mode->resolution-1); /* Recorded before native work. */
-	if (f->change_driver != 0) f->state.bgi.driver = f->change_driver;
-	return event(f,'M');
+	struct fixture *f = context;
+	++f->installs;
+	CHECK(f->state.bgi.mode == mode->resolution - 1); /* Recorded before native work. */
+	if (f->change_driver != 0)
+		f->state.bgi.driver = f->change_driver;
+	return event(f, 'M');
 }
-static int colors(void *context, size_t first, const uint8_t *codes, size_t count, bool bulk)
+
+static int
+colors(void *context, size_t first, const uint8_t *codes, size_t count, bool bulk)
 {
 	struct fixture *f = context;
 	if (bulk) {
-		++f->palettes; CHECK(first == 0 && count == 16 && memcmp(codes,palette,16) == 0);
+		++f->palettes;
+		CHECK(first == 0 && count == 16 && memcmp(codes, palette, 16) == 0);
 		CHECK(f->state.bgi.x == 0 && f->state.bgi.y == 0 && f->state.bgi.clip == 1);
-	} else {
-		CHECK(first == f->singles && count == 1 && codes[0] == palette[first]); ++f->singles;
 	}
-	CHECK(memcmp(f->state.bgi.palette+first,codes,count) == 0);
-	return event(f,bulk ? 'B' : 'P');
+	else {
+		CHECK(first == f->singles && count == 1 && codes[0] == palette[first]);
+		++f->singles;
+	}
+	CHECK(memcmp(f->state.bgi.palette + first, codes, count) == 0);
+	return event(f, bulk ? 'B' : 'P');
 }
-static int page(void *context, bool visual, uint16_t value)
+
+static int
+page(void *context, bool visual, uint16_t value)
 {
-	struct fixture *f = context; ++f->pages; CHECK(value == 0);
+	struct fixture *f = context;
+	++f->pages;
+	CHECK(value == 0);
 	CHECK((visual ? f->state.bgi.visual_page : f->state.bgi.active_page) == 0);
 	/* Application tail is after BOTH page setters. */
 	CHECK(f->state.application.marker == 7 && f->state.application.colors[0] == 3);
-	return event(f,visual ? 'V' : 'A');
+	return event(f, visual ? 'V' : 'A');
 }
-static void prepare(struct fixture *f)
+
+static void
+prepare(struct fixture *f)
 {
-	memset(f,0,sizeof(*f)); st_big_state_init(&f->state); f->cache = 3;
-	f->sink = (struct st_big_state_sink){f,install,colors,page};
-	f->state.application.hollow = 1; f->state.application.marker = 7;
-	f->state.application.marker_size = 9; f->state.application.fill = 18;
-	f->state.application.write_mode = 1;
-	for (size_t i = 0; i < 4; ++i) f->state.application.colors[i] = (uint16_t)(i+3);
-	memset(f->state.application.patterns,0x69,sizeof(f->state.application.patterns));
-	f->state.bgi.write_mode = 1; f->state.bgi.color = 2; f->state.bgi.background = 4;
-	f->state.bgi.font = 3; f->state.bgi.text_size = 4;
-	f->state.bgi.x = 23; f->state.bgi.y = 47;
-	f->state.bgi.saved_ratio[0] = 77; f->state.bgi.effective_ratio[3] = 88;
-	f->state.bgi.text_header[8] = 21; f->state.bgi.text_header[10] = 249;
-	f->state.bgi.text_scaled[0] = 56; f->state.bgi.text_scaled[1] = 42;
-	f->state.memory_page = 3; f->state.active_page = 2; f->state.visual_page = 1;
-	memset(f->state.local_palette,0x5a,sizeof(f->state.local_palette));
+	memset(f, 0, sizeof(*f));
+	st_big_state_init(&f->state);
+	f->cache                         = 3;
+	f->sink                          = (struct st_big_state_sink) {f, install, colors, page};
+	f->state.application.hollow      = 1;
+	f->state.application.marker      = 7;
+	f->state.application.marker_size = 9;
+	f->state.application.fill        = 18;
+	f->state.application.write_mode  = 1;
+	for (size_t i = 0; i < 4; ++i)
+		f->state.application.colors[i] = (uint16_t)(i + 3);
+	memset(f->state.application.patterns, 0x69, sizeof(f->state.application.patterns));
+	f->state.bgi.write_mode         = 1;
+	f->state.bgi.color              = 2;
+	f->state.bgi.background         = 4;
+	f->state.bgi.font               = 3;
+	f->state.bgi.text_size          = 4;
+	f->state.bgi.x                  = 23;
+	f->state.bgi.y                  = 47;
+	f->state.bgi.saved_ratio[0]     = 77;
+	f->state.bgi.effective_ratio[3] = 88;
+	f->state.bgi.text_header[8]     = 21;
+	f->state.bgi.text_header[10]    = 249;
+	f->state.bgi.text_scaled[0]     = 56;
+	f->state.bgi.text_scaled[1]     = 42;
+	f->state.memory_page            = 3;
+	f->state.active_page            = 2;
+	f->state.visual_page            = 1;
+	memset(f->state.local_palette, 0x5a, sizeof(f->state.local_palette));
 	f->state.saved_palette[7] = 0x1234;
 }
-static int retained(const struct fixture *f)
+
+static int
+retained(const struct fixture *f)
 {
 	CHECK(f->state.memory_page == 3 && f->state.active_page == 2 && f->state.visual_page == 1);
 	CHECK(f->state.local_palette[0] == 0x5a && f->state.local_palette[16] == 0x5a);
@@ -78,228 +121,373 @@ static int retained(const struct fixture *f)
 	CHECK(f->state.bgi.text_scaled[0] == 56 && f->state.bgi.text_scaled[1] == 42);
 	return 0;
 }
-static int defaults(const struct fixture *f, unsigned height)
+
+static int
+defaults(const struct fixture *f, unsigned height)
 {
 	const struct st_big_state *s = &f->state;
 	CHECK(s->bgi.width == 640 && s->bgi.height == height);
-	CHECK(s->bgi.curve_metric == (height==200?29:height==350?50:69));
-	CHECK(s->bgi.aspect[0] == (height==200?4500:height==350?7750:10000) && s->bgi.aspect[1] == 10000);
-	CHECK(s->bgi.viewport[0] == 0 && s->bgi.viewport[1] == 0 && s->bgi.viewport[2] == 639 && s->bgi.viewport[3] == height-1);
+	CHECK(s->bgi.curve_metric == (height == 200 ? 29 : height == 350 ? 50 : 69));
+	CHECK(s->bgi.aspect[0]
+	          == (height == 200   ? 4500
+	              : height == 350 ? 7750
+	                              : 10000)
+	      && s->bgi.aspect[1] == 10000);
+	CHECK(s->bgi.viewport[0] == 0 && s->bgi.viewport[1] == 0 && s->bgi.viewport[2] == 639
+	      && s->bgi.viewport[3] == height - 1);
 	CHECK(s->bgi.clip == 1 && s->bgi.x == 0 && s->bgi.y == 0);
 	CHECK(s->bgi.color == 15 && s->bgi.background == 0 && s->bgi.fill_style == 1 && s->bgi.fill_color == 15);
-	CHECK(s->bgi.line_style == 0 && s->bgi.line_user == 0 && s->bgi.line_mask == 0xffff && s->bgi.line_width == 1);
+	CHECK(s->bgi.line_style == 0 && s->bgi.line_user == 0 && s->bgi.line_mask == 0xffff
+	      && s->bgi.line_width == 1);
 	CHECK(s->bgi.font == 0 && s->bgi.direction == 0 && s->bgi.text_size == 1);
 	CHECK(s->bgi.text_cached[0] == 8 && s->bgi.text_cached[1] == 8 && s->bgi.text_selected_size == 8);
 	CHECK(s->bgi.justify_x == 0 && s->bgi.justify_y == 2 && s->bgi.write_mode == 0);
-	for (size_t i = 0; i < 8; ++i) CHECK(s->bgi.fill_user[i] == 255);
+	for (size_t i = 0; i < 8; ++i)
+		CHECK(s->bgi.fill_user[i] == 255);
 	return 0;
 }
-static int initialize(void)
+
+static int
+initialize(void)
 {
-	const uint16_t selectors[] = {0,2,0x100,0xffff};
-	for (size_t i = 0; i < sizeof(selectors)/sizeof(*selectors); ++i) {
-		struct fixture f; prepare(&f);
-		CHECK(st_big_state_initialize(&f.state,selectors[i],&f.cache,&f.sink) == 0);
-		CHECK(f.count == 5 && memcmp(f.events,"MBBVA",5) == 0 && f.cache == 2);
-		CHECK(f.state.application.hollow == 0 && f.state.application.marker == 0 && f.state.application.marker_size == 1);
+	const uint16_t selectors[] = {0, 2, 0x100, 0xffff};
+	for (size_t i = 0; i < sizeof(selectors) / sizeof(*selectors); ++i) {
+		struct fixture f;
+		prepare(&f);
+		CHECK(st_big_state_initialize(&f.state, selectors[i], &f.cache, &f.sink) == 0);
+		CHECK(f.count == 5 && memcmp(f.events, "MBBVA", 5) == 0 && f.cache == 2);
+		CHECK(f.state.application.hollow == 0 && f.state.application.marker == 0
+		      && f.state.application.marker_size == 1);
 		CHECK(f.state.application.fill == 1 && f.state.application.write_mode == 0);
-		for (size_t j = 0; j < 4; ++j) CHECK(f.state.application.colors[j] == 15);
-		CHECK(defaults(&f,350) == 0 && retained(&f) == 0);
+		for (size_t j = 0; j < 4; ++j)
+			CHECK(f.state.application.colors[j] == 15);
+		CHECK(defaults(&f, 350) == 0 && retained(&f) == 0);
 	}
-	struct fixture f; prepare(&f);
-	CHECK(st_big_state_initialize(&f.state,1,&f.cache,&f.sink) == 0);
+	struct fixture f;
+	prepare(&f);
+	CHECK(st_big_state_initialize(&f.state, 1, &f.cache, &f.sink) == 0);
 	CHECK(f.singles == 16 && f.installs == 0 && f.pages == 0 && f.cache == 3);
-	CHECK(f.state.application.hollow == 0 && f.state.application.marker == 7 && f.state.application.fill == 18);
+	CHECK(
+	    f.state.application.hollow == 0 && f.state.application.marker == 7 && f.state.application.fill == 18);
 	CHECK(f.state.bgi.font == 3 && f.state.bgi.write_mode == 1 && f.state.bgi.x == 23 && f.state.bgi.y == 47);
 	CHECK(f.state.bgi.background == 0); /* Public setpalette(0) side effect. */
 	CHECK(retained(&f) == 0);
-	prepare(&f); f.state.bgi.state = 0;
-	CHECK(st_big_state_initialize(&f.state,1,&f.cache,&f.sink) == 0);
+	prepare(&f);
+	f.state.bgi.state = 0;
+	CHECK(st_big_state_initialize(&f.state, 1, &f.cache, &f.sink) == 0);
 	CHECK(f.count == 0 && f.state.application.hollow == 0 && f.state.bgi.error == 0);
-	prepare(&f); f.state.bgi.state = 2;
-	CHECK(st_big_state_initialize(&f.state,0,&f.cache,&f.sink) == 0);
-	CHECK(f.count == 3 && memcmp(f.events,"BVA",3) == 0 && f.cache == 2);
-	prepare(&f); f.change_driver = 3;
-	CHECK(st_big_state_initialize(&f.state,0,&f.cache,&f.sink) == 0);
-	CHECK(f.count == 7 && memcmp(f.events,"MBMBBVA",7) == 0); /* Independent driver tests. */
+	prepare(&f);
+	f.state.bgi.state = 2;
+	CHECK(st_big_state_initialize(&f.state, 0, &f.cache, &f.sink) == 0);
+	CHECK(f.count == 3 && memcmp(f.events, "BVA", 3) == 0 && f.cache == 2);
+	prepare(&f);
+	f.change_driver = 3;
+	CHECK(st_big_state_initialize(&f.state, 0, &f.cache, &f.sink) == 0);
+	CHECK(f.count == 7 && memcmp(f.events, "MBMBBVA", 7) == 0); /* Independent driver tests. */
 	return 0;
 }
-static int resolutions(void)
+
+static int
+resolutions(void)
 {
-	const uint16_t requests[] = {0,1,2,3,4,0x103,0xffff};
-	const unsigned heights[] = {200,200,350,480,200,200,200};
-	for (size_t i = 0; i < sizeof(requests)/sizeof(*requests); ++i) {
-		struct fixture f; prepare(&f);
-		CHECK(st_big_state_resolution(&f.state,requests[i],&f.cache,&f.sink) == 0);
-		CHECK(f.count == 2 && memcmp(f.events,"MB",2) == 0 && f.pages == 0);
+	const uint16_t requests[] = {0, 1, 2, 3, 4, 0x103, 0xffff};
+	const unsigned heights[]  = {200, 200, 350, 480, 200, 200, 200};
+	for (size_t i = 0; i < sizeof(requests) / sizeof(*requests); ++i) {
+		struct fixture f;
+		prepare(&f);
+		CHECK(st_big_state_resolution(&f.state, requests[i], &f.cache, &f.sink) == 0);
+		CHECK(f.count == 2 && memcmp(f.events, "MB", 2) == 0 && f.pages == 0);
 		CHECK(f.cache == (requests[i] == 2 ? 2 : requests[i] == 3 ? 3 : 1));
-		CHECK(f.state.application.hollow == 1 && f.state.application.write_mode == 1 && f.state.application.colors[0] == 3);
-		CHECK(defaults(&f,heights[i]) == 0 && retained(&f) == 0);
+		CHECK(f.state.application.hollow == 1 && f.state.application.write_mode == 1
+		      && f.state.application.colors[0] == 3);
+		CHECK(defaults(&f, heights[i]) == 0 && retained(&f) == 0);
 	}
-	struct fixture f; prepare(&f); f.state.bgi.driver = 3; f.state.bgi.max_mode = 1;
-	CHECK(st_big_state_resolution(&f.state,3,&f.cache,&f.sink) == 0 && f.cache == 2);
+	struct fixture f;
+	prepare(&f);
+	f.state.bgi.driver   = 3;
+	f.state.bgi.max_mode = 1;
+	CHECK(st_big_state_resolution(&f.state, 3, &f.cache, &f.sink) == 0 && f.cache == 2);
 	CHECK(f.state.bgi.height == 350 && f.installs == 1);
-	prepare(&f); f.state.bgi.driver = 3; f.change_driver = 9;
-	CHECK(st_big_state_resolution(&f.state,3,&f.cache,&f.sink) == 0 && f.cache == 2);
+	prepare(&f);
+	f.state.bgi.driver = 3;
+	f.change_driver    = 9;
+	CHECK(st_big_state_resolution(&f.state, 3, &f.cache, &f.sink) == 0 && f.cache == 2);
 	CHECK(f.installs == 2 && f.state.bgi.height == 350); /* Mutated request remains2. */
-	prepare(&f); f.state.bgi.driver = 77;
-	CHECK(st_big_state_resolution(&f.state,1,&f.cache,&f.sink) == 0 && f.cache == 3);
+	prepare(&f);
+	f.state.bgi.driver = 77;
+	CHECK(st_big_state_resolution(&f.state, 1, &f.cache, &f.sink) == 0 && f.cache == 3);
 	CHECK(f.count == 0 && f.state.bgi.x == 0 && f.state.bgi.viewport[3] == 349);
-	prepare(&f); f.state.bgi.state = 2;
-	CHECK(st_big_state_resolution(&f.state,1,&f.cache,&f.sink) == 0 && f.cache == 1);
+	prepare(&f);
+	f.state.bgi.state = 2;
+	CHECK(st_big_state_resolution(&f.state, 1, &f.cache, &f.sink) == 0 && f.cache == 1);
 	CHECK(f.installs == 0 && f.state.bgi.height == 350 && f.state.bgi.font == 3);
-	prepare(&f); f.state.bgi.max_mode = 0; f.cache = 1;
-	CHECK(st_big_state_resolution(&f.state,3,&f.cache,&f.sink) == 0 && f.cache == 3);
+	prepare(&f);
+	f.state.bgi.max_mode = 0;
+	f.cache              = 1;
+	CHECK(st_big_state_resolution(&f.state, 3, &f.cache, &f.sink) == 0 && f.cache == 3);
 	CHECK(f.installs == 0 && f.state.bgi.height == 350 && f.state.bgi.error == -10 && f.state.bgi.x == 0);
 	return 0;
 }
-static int failures_and_entry(void)
+
+static int
+failures_and_entry(void)
 {
-	struct fixture f; prepare(&f); f.fail_at = 1; f.cache = 1;
-	CHECK(st_big_state_resolution(&f.state,3,&f.cache,&f.sink) == IO_ERROR_IO);
-	CHECK(f.state.bgi.mode == 2 && f.state.bgi.height == 350 && f.cache == 1 && f.state.application.hollow == 1);
-	prepare(&f); f.fail_at = 3;
-	CHECK(st_big_state_initialize(&f.state,0,&f.cache,&f.sink) == IO_ERROR_IO);
+	struct fixture f;
+	prepare(&f);
+	f.fail_at = 1;
+	f.cache   = 1;
+	CHECK(st_big_state_resolution(&f.state, 3, &f.cache, &f.sink) == IO_ERROR_IO);
+	CHECK(
+	    f.state.bgi.mode == 2 && f.state.bgi.height == 350 && f.cache == 1 && f.state.application.hollow == 1);
+	prepare(&f);
+	f.fail_at = 3;
+	CHECK(st_big_state_initialize(&f.state, 0, &f.cache, &f.sink) == IO_ERROR_IO);
 	CHECK(f.count == 3 && f.state.application.hollow == 0 && f.state.application.marker == 7 && f.cache == 3);
-	prepare(&f); f.state.bgi.state = 2; f.state.bgi.active_page = 9; f.fail_at = 2;
-	CHECK(st_big_state_initialize(&f.state,0,&f.cache,&f.sink) == IO_ERROR_IO);
+	prepare(&f);
+	f.state.bgi.state       = 2;
+	f.state.bgi.active_page = 9;
+	f.fail_at               = 2;
+	CHECK(st_big_state_initialize(&f.state, 0, &f.cache, &f.sink) == IO_ERROR_IO);
 	CHECK(f.state.bgi.visual_page == 0 && f.state.bgi.active_page == 9 && f.state.application.marker == 7);
-	prepare(&f); f.state.bgi.state = 0; f.state.bgi.driver = 77;
-	CHECK(st_big_state_initialize(&f.state,0,&f.cache,&f.sink) == IO_ERROR_PROTOCOL && f.state.application.hollow == 0);
+	prepare(&f);
+	f.state.bgi.state  = 0;
+	f.state.bgi.driver = 77;
+	CHECK(st_big_state_initialize(&f.state, 0, &f.cache, &f.sink) == IO_ERROR_PROTOCOL
+	      && f.state.application.hollow == 0);
 	CHECK(f.state.application.marker == 7 && f.pages == 0);
-	prepare(&f); st_big_state_enter(&f.state);
+	prepare(&f);
+	st_big_state_enter(&f.state);
 	CHECK(f.state.memory_page == 1 && f.state.active_page == 0 && f.state.visual_page == 0);
-	CHECK(f.state.local_palette[0] == 16 && memcmp(f.state.local_palette+1,f.state.bgi.palette,16) == 0);
+	CHECK(f.state.local_palette[0] == 16 && memcmp(f.state.local_palette + 1, f.state.bgi.palette, 16) == 0);
 	CHECK(f.state.saved_palette[7] == 0x1234 && f.state.application.marker == 7);
 	return 0;
 }
-static int writing_modes(void)
+
+static int
+writing_modes(void)
 {
-	struct st_big_state s; st_big_state_init(&s);
-	s.bgi.error=-11; s.bgi.color=9; s.bgi.ddo_x=777;
+	struct st_big_state s;
+	st_big_state_init(&s);
+	s.bgi.error = -11;
+	s.bgi.color = 9;
+	s.bgi.ddo_x = 777;
 	/* Independent normalization oracle: exactly these two original inputs
 	 * select XOR, including the legacy3 alias and all decrement wraps. */
-	for (unsigned word=0;word<=65535;++word) {
-		s.bgi.write_mode=9; s.application.write_mode=7;
-		CHECK(st_big_state_write_mode(&s,(uint16_t)word)==0);
-		uint16_t expected=word==2 || word==3?1:0;
-		CHECK(s.bgi.write_mode==expected && s.application.write_mode==expected);
-		CHECK(s.bgi.error==-11 && s.bgi.color==9 && s.bgi.ddo_x==777);
+	for (unsigned word = 0; word <= 65535; ++word) {
+		s.bgi.write_mode         = 9;
+		s.application.write_mode = 7;
+		CHECK(st_big_state_write_mode(&s, (uint16_t)word) == 0);
+		uint16_t expected = word == 2 || word == 3 ? 1 : 0;
+		CHECK(s.bgi.write_mode == expected && s.application.write_mode == expected);
+		CHECK(s.bgi.error == -11 && s.bgi.color == 9 && s.bgi.ddo_x == 777);
 	}
-	s.bgi.state=0; s.bgi.write_mode=9; s.application.write_mode=7;
-	const uint16_t requests[]={0,1,2,3,32768,32769,65535};
-	for (size_t i=0;i<sizeof(requests)/sizeof(requests[0]);++i) {
-		CHECK(st_big_state_write_mode(&s,requests[i])==IO_ERROR_PROTOCOL);
-		CHECK(s.bgi.write_mode==9 && s.application.write_mode==7 && s.bgi.error==-1);
+	s.bgi.state               = 0;
+	s.bgi.write_mode          = 9;
+	s.application.write_mode  = 7;
+	const uint16_t requests[] = {0, 1, 2, 3, 32768, 32769, 65535};
+	for (size_t i = 0; i < sizeof(requests) / sizeof(requests[0]); ++i) {
+		CHECK(st_big_state_write_mode(&s, requests[i]) == IO_ERROR_PROTOCOL);
+		CHECK(s.bgi.write_mode == 9 && s.application.write_mode == 7 && s.bgi.error == -1);
 	}
-	CHECK(st_big_state_write_mode(NULL,2)==IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_big_state_write_mode(NULL, 2) == IO_ERROR_INVALID_ARGUMENT);
 	return 0;
 }
-static int application_colors(void)
+
+static int
+application_colors(void)
 {
-	struct st_big_state s; st_big_state_init(&s);
-	s.bgi.state=0; s.bgi.error=-11; s.bgi.color=9; s.bgi.fill_color=3; s.bgi.ddo_x=777;
+	struct st_big_state s;
+	st_big_state_init(&s);
+	s.bgi.state      = 0;
+	s.bgi.error      = -11;
+	s.bgi.color      = 9;
+	s.bgi.fill_color = 3;
+	s.bgi.ddo_x      = 777;
 	/* Four application WORDs are separate from installed graphics state.
 	 * Invalid full-WORD selectors target marker0, without byte truncation. */
-	for (unsigned selector=0;selector<=65535;++selector) {
-		for (size_t i=0;i<4;++i) s.application.colors[i]=(uint16_t)(100+i);
-		CHECK(st_big_state_color(&s,(uint16_t)selector,0xbeef)==0);
-		for (size_t i=0;i<4;++i) CHECK(s.application.colors[i]==(i==(selector<4?selector:0)?0xbeef:(uint16_t)(100+i)));
-		CHECK(s.bgi.state==0 && s.bgi.error==-11 && s.bgi.color==9 && s.bgi.fill_color==3 && s.bgi.ddo_x==777);
+	for (unsigned selector = 0; selector <= 65535; ++selector) {
+		for (size_t i = 0; i < 4; ++i)
+			s.application.colors[i] = (uint16_t)(100 + i);
+		CHECK(st_big_state_color(&s, (uint16_t)selector, 0xbeef) == 0);
+		for (size_t i = 0; i < 4; ++i)
+			CHECK(s.application.colors[i]
+			      == (i == (selector < 4 ? selector : 0) ? 0xbeef : (uint16_t)(100 + i)));
+		CHECK(s.bgi.state == 0 && s.bgi.error == -11 && s.bgi.color == 9 && s.bgi.fill_color == 3
+		      && s.bgi.ddo_x == 777);
 	}
-	for (uint16_t selector=0;selector<4;++selector) {
-		for (size_t i=0;i<4;++i) s.application.colors[i]=(uint16_t)(100+i);
-		for (unsigned word=0;word<=65535;++word) {
-			CHECK(st_big_state_color(&s,selector,(uint16_t)word)==0);
-			for (size_t i=0;i<4;++i) CHECK(s.application.colors[i]==(i==selector?word:(uint16_t)(100+i)));
+	for (uint16_t selector = 0; selector < 4; ++selector) {
+		for (size_t i = 0; i < 4; ++i)
+			s.application.colors[i] = (uint16_t)(100 + i);
+		for (unsigned word = 0; word <= 65535; ++word) {
+			CHECK(st_big_state_color(&s, selector, (uint16_t)word) == 0);
+			for (size_t i = 0; i < 4; ++i)
+				CHECK(s.application.colors[i] == (i == selector ? word : (uint16_t)(100 + i)));
 		}
 	}
-	CHECK(st_big_state_color(NULL,0,1)==IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_big_state_color(NULL, 0, 1) == IO_ERROR_INVALID_ARGUMENT);
 	return 0;
 }
-static int hollow_words(void)
+
+static int
+hollow_words(void)
 {
-	struct fixture f; prepare(&f); f.state.bgi.state=0; f.state.bgi.error=-11;
-	for (uint32_t word=0;word<65536;++word) {
-		struct st_big_state expected; memcpy(&expected,&f.state,sizeof(expected));
-		expected.application.hollow=word<32768?(uint16_t)word:0;
-		CHECK(st_big_state_hollow(&f.state,(uint16_t)word)==0);
-		CHECK(memcmp(&expected,&f.state,sizeof(expected))==0 && f.count==0);
+	struct fixture f;
+	prepare(&f);
+	f.state.bgi.state = 0;
+	f.state.bgi.error = -11;
+	for (uint32_t word = 0; word < 65536; ++word) {
+		struct st_big_state expected;
+		memcpy(&expected, &f.state, sizeof(expected));
+		expected.application.hollow = word < 32768 ? (uint16_t)word : 0;
+		CHECK(st_big_state_hollow(&f.state, (uint16_t)word) == 0);
+		CHECK(memcmp(&expected, &f.state, sizeof(expected)) == 0 && f.count == 0);
 	}
-	CHECK(st_big_state_hollow(NULL,1)==IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_big_state_hollow(NULL, 1) == IO_ERROR_INVALID_ARGUMENT);
 	return 0;
 }
+
 struct g_page {
 	struct st_big_state *state;
-	unsigned calls;
-	int status;
-	bool visual;
-	uint16_t value;
+	unsigned             calls;
+	int                  status;
+	bool                 visual;
+	uint16_t             value;
 };
-static int g_page(void *context, bool visual, uint16_t value)
+
+static int
+g_page(void *context, bool visual, uint16_t value)
 {
-	struct g_page *g=context; ++g->calls; g->visual=visual; g->value=value;
-	CHECK((visual?g->state->visual_page:g->state->active_page)==value);
+	struct g_page *g = context;
+	++g->calls;
+	g->visual = visual;
+	g->value  = value;
+	CHECK((visual ? g->state->visual_page : g->state->active_page) == value);
 	/* The receiver owns device publication, including a failure prefix. */
-	if (visual) g->state->bgi.visual_page=value; else g->state->bgi.active_page=value;
+	if (visual)
+		g->state->bgi.visual_page = value;
+	else
+		g->state->bgi.active_page = value;
 	return g->status;
 }
-static int g_pages(void)
+
+static int
+g_pages(void)
 {
-	struct st_big_state s; st_big_state_init(&s); s.bgi.error=-11;
-	struct g_page g={.state=&s}; const struct st_big_state_sink sink={.context=&g,.page=g_page};
-	static const uint8_t resolutions[]={0,1,2,3,255};
-	for (size_t r=0;r<sizeof(resolutions);++r) for (unsigned operation=4;operation<=6;++operation) for (uint32_t word=0;word<65536;++word) {
-		uint16_t p=operation==4?(word>=1 && word<=3?(uint16_t)word:1):(word<=3?(uint16_t)word:0);
-		if (resolutions[r]==2 && p>1) p=operation==4?1:0;
-		if (resolutions[r]==3) p=0;
-		struct st_big_state expected; memcpy(&expected,&s,sizeof(expected)); g.calls=0;
-		if (operation==4) expected.memory_page=p;
-		if (operation==5) expected.visual_page=expected.bgi.visual_page=p;
-		if (operation==6) expected.active_page=expected.bgi.active_page=p;
-		CHECK(st_big_state_g_page(&s,(uint16_t)operation,(uint16_t)word,resolutions[r],&sink)==0);
-		CHECK(memcmp(&s,&expected,sizeof(s))==0 && g.calls==(operation==4?0u:1u));
-		if (operation!=4) CHECK(g.visual==(operation==5) && g.value==p);
+	struct st_big_state s;
+	st_big_state_init(&s);
+	s.bgi.error                                  = -11;
+	struct g_page                  g             = {.state = &s};
+	const struct st_big_state_sink sink          = {.context = &g, .page = g_page};
+	static const uint8_t           resolutions[] = {0, 1, 2, 3, 255};
+	for (size_t r = 0; r < sizeof(resolutions); ++r)
+		for (unsigned operation = 4; operation <= 6; ++operation)
+			for (uint32_t word = 0; word < 65536; ++word) {
+				uint16_t p = operation == 4 ? (word >= 1 && word <= 3 ? (uint16_t)word : 1)
+				                            : (word <= 3 ? (uint16_t)word : 0);
+				if (resolutions[r] == 2 && p > 1)
+					p = operation == 4 ? 1 : 0;
+				if (resolutions[r] == 3)
+					p = 0;
+				struct st_big_state expected;
+				memcpy(&expected, &s, sizeof(expected));
+				g.calls = 0;
+				if (operation == 4)
+					expected.memory_page = p;
+				if (operation == 5)
+					expected.visual_page = expected.bgi.visual_page = p;
+				if (operation == 6)
+					expected.active_page = expected.bgi.active_page = p;
+				CHECK(st_big_state_g_page(&s, (uint16_t)operation, (uint16_t)word, resolutions[r],
+					  &sink)
+				      == 0);
+				CHECK(memcmp(&s, &expected, sizeof(s)) == 0
+				      && g.calls == (operation == 4 ? 0u : 1u));
+				if (operation != 4)
+					CHECK(g.visual == (operation == 5) && g.value == p);
+			}
+	for (unsigned rez = 0; rez < 256; ++rez) {
+		s.memory_page = 3;
+		s.active_page = 2;
+		s.visual_page = 1;
+		struct st_big_state expected;
+		memcpy(&expected, &s, sizeof(expected));
+		if (rez == 3)
+			expected.memory_page = expected.active_page = expected.visual_page = 0;
+		st_big_state_g_entry(&s, (uint8_t)rez);
+		CHECK(memcmp(&s, &expected, sizeof(s)) == 0);
 	}
-	for (unsigned rez=0;rez<256;++rez) {
-		s.memory_page=3; s.active_page=2; s.visual_page=1;
-		struct st_big_state expected; memcpy(&expected,&s,sizeof(expected));
-		if (rez==3) expected.memory_page=expected.active_page=expected.visual_page=0;
-		st_big_state_g_entry(&s,(uint8_t)rez); CHECK(memcmp(&s,&expected,sizeof(s))==0);
-	}
-	s.bgi.state=0; s.bgi.error=-11; g.calls=0;
-	CHECK(st_big_state_g_page(&s,4,3,1,NULL)==0 && s.memory_page==3 && s.bgi.error==-11);
-	uint16_t old=s.bgi.active_page;
-	CHECK(st_big_state_g_page(&s,6,2,1,&sink)==IO_ERROR_PROTOCOL && s.active_page==2 && s.bgi.active_page==old && s.bgi.error==-1 && g.calls==0);
-	s.bgi.state=3; g.status=IO_ERROR_IO;
-	CHECK(st_big_state_g_page(&s,5,3,1,&sink)==IO_ERROR_IO && s.visual_page==3 && s.bgi.visual_page==3);
-	g.status=IO_ERROR_IN_PROGRESS;
-	CHECK(st_big_state_g_page(&s,6,1,1,&sink)==IO_ERROR_PROTOCOL && s.active_page==1 && s.bgi.active_page==1);
-	CHECK(st_big_state_g_page(NULL,4,0,1,NULL)==IO_ERROR_INVALID_ARGUMENT);
-	CHECK(st_big_state_g_page(&s,3,0,1,&sink)==IO_ERROR_INVALID_ARGUMENT);
-	CHECK(st_big_state_g_page(&s,5,0,1,NULL)==IO_ERROR_INVALID_ARGUMENT);
-	st_big_state_g_entry(NULL,3);
+	s.bgi.state = 0;
+	s.bgi.error = -11;
+	g.calls     = 0;
+	CHECK(st_big_state_g_page(&s, 4, 3, 1, NULL) == 0 && s.memory_page == 3 && s.bgi.error == -11);
+	uint16_t old = s.bgi.active_page;
+	CHECK(st_big_state_g_page(&s, 6, 2, 1, &sink) == IO_ERROR_PROTOCOL && s.active_page == 2
+	      && s.bgi.active_page == old && s.bgi.error == -1 && g.calls == 0);
+	s.bgi.state = 3;
+	g.status    = IO_ERROR_IO;
+	CHECK(st_big_state_g_page(&s, 5, 3, 1, &sink) == IO_ERROR_IO && s.visual_page == 3
+	      && s.bgi.visual_page == 3);
+	g.status = IO_ERROR_IN_PROGRESS;
+	CHECK(st_big_state_g_page(&s, 6, 1, 1, &sink) == IO_ERROR_PROTOCOL && s.active_page == 1
+	      && s.bgi.active_page == 1);
+	CHECK(st_big_state_g_page(NULL, 4, 0, 1, NULL) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_big_state_g_page(&s, 3, 0, 1, &sink) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_big_state_g_page(&s, 5, 0, 1, NULL) == IO_ERROR_INVALID_ARGUMENT);
+	st_big_state_g_entry(NULL, 3);
 	return 0;
 }
-static int aspect_lifetime(void)
+
+static int
+aspect_lifetime(void)
 {
-	struct fixture f; prepare(&f);
-	CHECK(f.state.bgi.aspect[0]==7750 && f.state.bgi.aspect[1]==10000);
-	f.state.bgi.aspect[0]=1234; f.state.bgi.aspect[1]=5678;
-	CHECK(st_big_state_initialize(&f.state,1,&f.cache,&f.sink)==0 && f.state.bgi.aspect[0]==1234 && f.state.bgi.aspect[1]==5678);
-	prepare(&f); f.state.bgi.aspect[0]=1234; f.state.bgi.aspect[1]=5678; f.state.bgi.driver=77;
-	CHECK(st_big_state_resolution(&f.state,1,&f.cache,&f.sink)==0 && f.state.bgi.aspect[0]==1234 && f.state.bgi.aspect[1]==5678);
-	prepare(&f); f.state.bgi.aspect[0]=1234; f.state.bgi.aspect[1]=5678; f.state.bgi.state=2;
-	CHECK(st_big_state_resolution(&f.state,3,&f.cache,&f.sink)==0 && f.state.bgi.aspect[0]==1234 && f.state.bgi.aspect[1]==5678);
-	prepare(&f); f.state.bgi.aspect[0]=1234; f.state.bgi.aspect[1]=5678; f.state.bgi.max_mode=0;
-	CHECK(st_big_state_resolution(&f.state,3,&f.cache,&f.sink)==0 && f.state.bgi.aspect[0]==1234 && f.state.bgi.aspect[1]==5678 && f.state.bgi.error==-10);
-	prepare(&f); f.state.bgi.aspect[0]=1234; f.state.bgi.aspect[1]=5678; f.fail_at=1;
-	CHECK(st_big_state_resolution(&f.state,3,&f.cache,&f.sink)==IO_ERROR_IO && f.state.bgi.aspect[0]==1234 && f.state.bgi.aspect[1]==5678);
-	prepare(&f); f.fail_at=2;
-	CHECK(st_big_state_resolution(&f.state,3,&f.cache,&f.sink)==IO_ERROR_IO && f.state.bgi.aspect[0]==10000 && f.state.bgi.aspect[1]==10000);
+	struct fixture f;
+	prepare(&f);
+	CHECK(f.state.bgi.aspect[0] == 7750 && f.state.bgi.aspect[1] == 10000);
+	f.state.bgi.aspect[0] = 1234;
+	f.state.bgi.aspect[1] = 5678;
+	CHECK(st_big_state_initialize(&f.state, 1, &f.cache, &f.sink) == 0 && f.state.bgi.aspect[0] == 1234
+	      && f.state.bgi.aspect[1] == 5678);
+	prepare(&f);
+	f.state.bgi.aspect[0] = 1234;
+	f.state.bgi.aspect[1] = 5678;
+	f.state.bgi.driver    = 77;
+	CHECK(st_big_state_resolution(&f.state, 1, &f.cache, &f.sink) == 0 && f.state.bgi.aspect[0] == 1234
+	      && f.state.bgi.aspect[1] == 5678);
+	prepare(&f);
+	f.state.bgi.aspect[0] = 1234;
+	f.state.bgi.aspect[1] = 5678;
+	f.state.bgi.state     = 2;
+	CHECK(st_big_state_resolution(&f.state, 3, &f.cache, &f.sink) == 0 && f.state.bgi.aspect[0] == 1234
+	      && f.state.bgi.aspect[1] == 5678);
+	prepare(&f);
+	f.state.bgi.aspect[0] = 1234;
+	f.state.bgi.aspect[1] = 5678;
+	f.state.bgi.max_mode  = 0;
+	CHECK(st_big_state_resolution(&f.state, 3, &f.cache, &f.sink) == 0 && f.state.bgi.aspect[0] == 1234
+	      && f.state.bgi.aspect[1] == 5678 && f.state.bgi.error == -10);
+	prepare(&f);
+	f.state.bgi.aspect[0] = 1234;
+	f.state.bgi.aspect[1] = 5678;
+	f.fail_at             = 1;
+	CHECK(st_big_state_resolution(&f.state, 3, &f.cache, &f.sink) == IO_ERROR_IO
+	      && f.state.bgi.aspect[0] == 1234 && f.state.bgi.aspect[1] == 5678);
+	prepare(&f);
+	f.fail_at = 2;
+	CHECK(st_big_state_resolution(&f.state, 3, &f.cache, &f.sink) == IO_ERROR_IO
+	      && f.state.bgi.aspect[0] == 10000 && f.state.bgi.aspect[1] == 10000);
 	return 0;
 }
-int main(void)
+
+int
+main(void)
 {
-	CHECK(aspect_lifetime() == 0); CHECK(initialize() == 0); CHECK(resolutions() == 0); CHECK(failures_and_entry() == 0); CHECK(writing_modes() == 0); CHECK(application_colors() == 0); CHECK(hollow_words() == 0); CHECK(g_pages() == 0); return 0;
+	CHECK(aspect_lifetime() == 0);
+	CHECK(initialize() == 0);
+	CHECK(resolutions() == 0);
+	CHECK(failures_and_entry() == 0);
+	CHECK(writing_modes() == 0);
+	CHECK(application_colors() == 0);
+	CHECK(hollow_words() == 0);
+	CHECK(g_pages() == 0);
+	return 0;
 }

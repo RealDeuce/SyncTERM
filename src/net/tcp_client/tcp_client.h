@@ -8,10 +8,10 @@
 #ifndef SYNCTERM_TCP_CLIENT_H_
 #define SYNCTERM_TCP_CLIENT_H_
 
-#include "socket.h"
-
 #include <stdbool.h>
 #include <stdint.h>
+
+#include "socket.h"
 
 enum tcp_client_address_family {
 	TCP_CLIENT_ADDRESS_ANY,
@@ -32,13 +32,13 @@ enum tcp_client_event {
 struct tcp_client_options {
 	enum tcp_client_address_family family;
 	/* Overall connection deadline; -1 waits indefinitely. */
-	int64_t timeout_ms;
+	int64_t              timeout_ms;
 	tcp_client_cancel_fn cancel;
-	void *cancel_context;
+	void                *cancel_context;
 	/* Synchronous, optional metadata only; never exposes resolved addresses,
 	 * application data, or credentials. Status is zero except on failures. */
-	void (*diagnostic)(void *context, enum tcp_client_event event,
-	    enum tcp_client_address_family family, int status);
+	void  (*diagnostic)(void *context, enum tcp_client_event event, enum tcp_client_address_family family,
+	    int status);
 	void *diagnostic_context;
 	/* False tries only the resolver's preferred address. True interleaves
 	 * families and races additional addresses after a 250 ms delay. */
@@ -52,8 +52,7 @@ struct tcp_client_options {
  * receives a blocking socket and connected_family, when non-NULL, receives
  * IPV4 or IPV6. Outputs are unchanged on failure.
  */
-int tcp_client_connect(socket_handle_t *result,
-    enum tcp_client_address_family *connected_family, const char *host,
+int tcp_client_connect(socket_handle_t *result, enum tcp_client_address_family *connected_family, const char *host,
     uint16_t port, const struct tcp_client_options *options);
 
 #endif

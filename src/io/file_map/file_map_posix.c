@@ -3,23 +3,22 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "file_map.h"
-
-#include "filesystem.h"
-#include "io_error.h"
-
 #include <errno.h>
 #include <fcntl.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/stat.h>
 #include <sys/mman.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
+#include "file_map.h"
+#include "filesystem.h"
+#include "io_error.h"
+
 struct file_map {
-	const void *data;
-	size_t size;
+	const void   *data;
+	size_t        size;
 	unsigned char empty;
 };
 
@@ -38,9 +37,9 @@ file_map_open_stream(file_map_t **result, FILE *stream)
 {
 	file_map_t *map;
 	struct stat status;
-	int descriptor;
-	int flags;
-	void *address;
+	int         descriptor;
+	int         flags;
+	void       *address;
 
 	if (result == NULL || stream == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -65,11 +64,11 @@ file_map_open_stream(file_map_t **result, FILE *stream)
 	map = malloc(sizeof(*map));
 	if (map == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
-	map->size = (size_t)status.st_size;
+	map->size  = (size_t)status.st_size;
 	map->empty = 0;
 	if (map->size == 0) {
 		map->data = &map->empty;
-		*result = map;
+		*result   = map;
 		return 0;
 	}
 	address = mmap(NULL, map->size, PROT_READ, MAP_PRIVATE, descriptor, 0);
@@ -80,17 +79,17 @@ file_map_open_stream(file_map_t **result, FILE *stream)
 		return error;
 	}
 	map->data = address;
-	*result = map;
+	*result   = map;
 	return 0;
 }
 
 int
 file_map_open(file_map_t **result, const char *path)
 {
-	FILE *stream = NULL;
-	file_map_t *map = NULL;
+	FILE          *stream = NULL;
+	file_map_t    *map    = NULL;
 	struct fs_info info;
-	int error;
+	int            error;
 
 	if (result == NULL || path == NULL || *path == '\0')
 		return IO_ERROR_INVALID_ARGUMENT;

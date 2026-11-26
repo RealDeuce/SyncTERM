@@ -5,48 +5,48 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "st_console.h"
-#include "io_error.h"
-
 #include <stdint.h>
 #include <stdio.h>
 
-#define CHECK(expression) do { \
-	if (!(expression)) { \
-		fprintf(stderr, "check failed at %s:%d: %s\n", __FILE__, \
-		    __LINE__, #expression); \
-		return 1; \
-	} \
-} while (0)
+#include "io_error.h"
+#include "st_console.h"
+
+#define CHECK(expression)                                                                                \
+	do {                                                                                             \
+		if (!(expression)) {                                                                     \
+			fprintf(stderr, "check failed at %s:%d: %s\n", __FILE__, __LINE__, #expression); \
+			return 1;                                                                        \
+		}                                                                                        \
+	} while (0)
 
 int
 main(void)
 {
 	const struct st_console_display_config config_display = {
-		.backend = ST_CONSOLE_BACKEND_WAYLAND,
+	    .backend = ST_CONSOLE_BACKEND_WAYLAND,
 	};
 	const struct st_console_config config = {
-		.columns = 8,
-		.rows = 4,
-		.cell_width = 8,
-		.cell_height = 16,
-		.wrap = true,
+	    .columns     = 8,
+	    .rows        = 4,
+	    .cell_width  = 8,
+	    .cell_height = 16,
+	    .wrap        = true,
 	};
-	st_console_t *first = NULL;
-	st_console_t *second = NULL;
-	st_console_t *automatic = NULL;
-	st_console_t *peer = NULL;
-	st_console_display_t *display = NULL;
+	st_console_t                          *first          = NULL;
+	st_console_t                          *second         = NULL;
+	st_console_t                          *automatic      = NULL;
+	st_console_t                          *peer           = NULL;
+	st_console_display_t                  *display        = NULL;
 	const struct st_console_display_config display_config = {
-		.backend = ST_CONSOLE_BACKEND_WAYLAND,
+	    .backend = ST_CONSOLE_BACKEND_WAYLAND,
 	};
 	const struct st_console_display_config auto_config = {
-		.backend = ST_CONSOLE_BACKEND_AUTO,
+	    .backend = ST_CONSOLE_BACKEND_AUTO,
 	};
 	enum st_console_backend backend;
-	uint32_t width;
-	uint32_t height;
-	int status = st_console_create(&first, &config_display, &config);
+	uint32_t                width;
+	uint32_t                height;
+	int                     status = st_console_create(&first, &config_display, &config);
 
 	if (status == IO_ERROR_NOT_FOUND || status == IO_ERROR_NOT_SUPPORTED)
 		return 77;
@@ -57,8 +57,7 @@ main(void)
 	CHECK(st_console_create(&second, &config_display, &config) == 0);
 	CHECK(st_console_set_title(first, "st_console Wayland one") == 0);
 	CHECK(st_console_set_title(second, "st_console Wayland two") == 0);
-	CHECK(st_console_set_pixel(first, 4, 5,
-	    ST_CONSOLE_COLOR_RGB_VALUE(0x12, 0x34, 0x56)) == 0);
+	CHECK(st_console_set_pixel(first, 4, 5, ST_CONSOLE_COLOR_RGB_VALUE(0x12, 0x34, 0x56)) == 0);
 	CHECK(st_console_present(first) == 0);
 	CHECK(st_console_present(second) == 0);
 	CHECK(st_console_resize(first, 10, 5) == 0);
@@ -73,8 +72,8 @@ main(void)
 	CHECK(st_console_set_pointer_visible(peer, true) == 0);
 	CHECK(st_console_set_pointer_shape(peer, ST_CONSOLE_POINTER_TEXT) == 0);
 	CHECK(st_console_set_pointer_shape(peer, ST_CONSOLE_POINTER_LINK) == 0);
-	for (unsigned shape=ST_CONSOLE_POINTER_WATCH;shape<ST_CONSOLE_POINTER_COUNT;shape++)
-		CHECK(st_console_set_pointer_shape(peer,(enum st_console_pointer_shape)shape)==0);
+	for (unsigned shape = ST_CONSOLE_POINTER_WATCH; shape < ST_CONSOLE_POINTER_COUNT; shape++)
+		CHECK(st_console_set_pointer_shape(peer, (enum st_console_pointer_shape)shape) == 0);
 	CHECK(st_console_set_pointer_shape(peer, ST_CONSOLE_POINTER_DEFAULT) == 0);
 	{
 		st_console_t *other = NULL;

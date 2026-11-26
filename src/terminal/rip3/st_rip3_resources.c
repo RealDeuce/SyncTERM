@@ -1,18 +1,17 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
-#include "st_rip3_resources.h"
-#include "st_rip3_resources_internal.h"
+#include <inttypes.h>
+#include <stdatomic.h>
+#include <stdbool.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "filesystem.h"
 #include "io_error.h"
 #include "path.h"
+#include "st_rip3_resources.h"
+#include "st_rip3_resources_internal.h"
 #include "st_unicode_compare.h"
 #include "string_compat.h"
-
-#include <stdbool.h>
-#include <inttypes.h>
-#include <stdatomic.h>
-#include <stdlib.h>
-#include <string.h>
 
 static int
 directory_status(const char *path)
@@ -20,8 +19,9 @@ directory_status(const char *path)
 	struct fs_info info;
 	if (path == NULL || path[0] == '\0')
 		return IO_ERROR_NOT_FOUND;
-	int status = fs_get_link_info(&info,path);
-	if (status == 0 && info.kind != FS_ENTRY_DIRECTORY) return IO_ERROR_NOT_DIRECTORY;
+	int status = fs_get_link_info(&info, path);
+	if (status == 0 && info.kind != FS_ENTRY_DIRECTORY)
+		return IO_ERROR_NOT_DIRECTORY;
 	return status;
 }
 
@@ -45,11 +45,11 @@ static int
 cache_bucket_status(const char *root)
 {
 	size_t capacity = strlen(root) + 1;
-	char *bucket = malloc(capacity);
+	char  *bucket   = malloc(capacity);
 	if (bucket == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
 	ptrdiff_t length = path_parent(bucket, capacity, root);
-	int status = length < 0 ? (int)length : directory_status(bucket);
+	int       status = length < 0 ? (int)length : directory_status(bucket);
 	free(bucket);
 	return status;
 }
@@ -60,18 +60,18 @@ st_rip3_resource_scratch(struct st_rip3_resource *result, const struct st_rip3_r
 	static atomic_uint_fast32_t sequence;
 	if (paths == NULL || paths->host == NULL || paths->host[0] == '\0')
 		return IO_ERROR_NOT_SUPPORTED;
-	const char *root = paths->named_host_root != NULL ? paths->named_host_root : paths->host;
-	int status = cache_bucket_status(root);
+	const char *root   = paths->named_host_root != NULL ? paths->named_host_root : paths->host;
+	int         status = cache_bucket_status(root);
 	if (status == 0)
 		status = ensure_directory(root);
 	if (status != 0)
 		return status;
 	for (unsigned attempt = 0; attempt < 256; ++attempt) {
 		uint32_t id = (uint32_t)atomic_fetch_add_explicit(&sequence, 1, memory_order_relaxed);
-		char name[sizeof(".rip3-overflow-00000000.part")];
+		char     name[sizeof(".rip3-overflow-00000000.part")];
 		(void)snprintf(name, sizeof(name), ".rip3-overflow-%08" PRIx32 ".part", id);
 		struct st_rip3_resource scratch = {0};
-		status = path_join_alloc(&scratch.path, root, name);
+		status                          = path_join_alloc(&scratch.path, root, name);
 		if (status == 0)
 			status = fs_open(&scratch.stream, scratch.path, "wbx");
 		if (status == 0) {
@@ -89,11 +89,11 @@ static int
 scratch_parent_status(const char *path)
 {
 	size_t capacity = strlen(path) + 1;
-	char *root = malloc(capacity);
+	char  *root     = malloc(capacity);
 	if (root == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
 	ptrdiff_t length = path_parent(root, capacity, path);
-	int status = length < 0 ? (int)length : cache_bucket_status(root);
+	int       status = length < 0 ? (int)length : cache_bucket_status(root);
 	if (status == 0)
 		status = directory_status(root);
 	free(root);
@@ -104,7 +104,7 @@ int
 st_rip3_resource_read_scratch(struct st_rip3_resource *result, const struct st_rip3_resource *file)
 {
 	struct fs_info info;
-	int status = scratch_parent_status(file->path);
+	int            status = scratch_parent_status(file->path);
 	if (status == 0)
 		status = fs_get_link_info(&info, file->path);
 	if (status == 0 && info.kind != FS_ENTRY_FILE)
@@ -128,7 +128,8 @@ int
 st_rip3_resource_prepare_cache(const char *root, const char *child)
 {
 	int status = ensure_directory(root);
-	if (status == 0 && child != NULL) status = ensure_directory(child);
+	if (status == 0 && child != NULL)
+		status = ensure_directory(child);
 	return status;
 }
 
@@ -140,17 +141,17 @@ st_rip3_resource_dispose(struct st_rip3_resource *resource)
 	if (resource->stream != NULL)
 		(void)fclose(resource->stream);
 	free(resource->path);
-	*resource = (struct st_rip3_resource){0};
+	*resource = (struct st_rip3_resource) {0};
 }
 
 int
 st_rip3_resource_consider(struct st_rip3_resource_match *match, const char *name)
 {
-	char *key = NULL, *path = NULL;
-	size_t size;
+	char          *key = NULL, *path = NULL;
+	size_t         size;
 	struct fs_info info;
-	int status = st_unicode_caseless_key(&key, &size, name, strlen(name));
-	bool equal;
+	int            status = st_unicode_caseless_key(&key, &size, name, strlen(name));
+	bool           equal;
 
 	/* A POSIX directory may contain names outside the UTF-8 client namespace. */
 	if (status == IO_ERROR_INVALID_ENCODING)
@@ -163,8 +164,8 @@ st_rip3_resource_consider(struct st_rip3_resource_match *match, const char *name
 		return 0;
 	status = path_join_alloc(&path, match->directory, name);
 	if (status == 0)
-		status = match->writing || match->existence_only
-		    ? fs_get_link_info(&info,path) : fs_get_info(&info,path);
+		status = match->writing || match->existence_only ? fs_get_link_info(&info, path)
+		                                                 : fs_get_info(&info, path);
 	if (status == 0 && info.kind != FS_ENTRY_FILE)
 		status = match->writing ? IO_ERROR_CONFLICT : IO_ERROR_NOT_FOUND;
 	if (status == 0 && match->path != NULL)
@@ -178,11 +179,14 @@ st_rip3_resource_consider(struct st_rip3_resource_match *match, const char *name
 }
 
 static int
-lookup_directory(struct st_rip3_resource *result, const char *directory,
-    const char *key, size_t key_size, bool *matched)
+lookup_directory(struct st_rip3_resource *result, const char *directory, const char *key, size_t key_size,
+    bool *matched)
 {
 	struct st_rip3_resource_match match = {
-		.directory = directory, .key = key, .key_size = key_size, .existence_only = result == NULL,
+	    .directory      = directory,
+	    .key            = key,
+	    .key_size       = key_size,
+	    .existence_only = result == NULL,
 	};
 	int status;
 
@@ -193,7 +197,8 @@ lookup_directory(struct st_rip3_resource *result, const char *directory,
 		status = IO_ERROR_NOT_FOUND;
 	if (status == 0 && result != NULL) {
 		struct st_rip3_resource resource = {.path = match.path};
-		if (matched != NULL) *matched = true;
+		if (matched != NULL)
+			*matched = true;
 		status = fs_open(&resource.stream, match.path, "rb");
 		if (status == 0) {
 			*result = resource;
@@ -234,15 +239,14 @@ st_rip3_filename_tail(const uint8_t *name, size_t length)
 }
 
 static int
-lookup_resource(struct st_rip3_resource *result,
-    const struct st_rip3_resource_paths *paths,
+lookup_resource(struct st_rip3_resource *result, const struct st_rip3_resource_paths *paths,
     enum st_rip3_resource_kind kind, const char *name, bool *matched)
 {
-	char *key = NULL;
-	size_t key_size;
-	int status, first_error = IO_ERROR_NOT_FOUND;
+	char       *key = NULL;
+	size_t      key_size;
+	int         status, first_error = IO_ERROR_NOT_FOUND;
 	const char *fixed[2];
-	size_t fixed_count;
+	size_t      fixed_count;
 
 	if (paths == NULL || !st_rip3_resource_name_valid(name)
 	    || (kind != ST_RIP3_RESOURCE_MEDIA && kind != ST_RIP3_RESOURCE_FONT))
@@ -251,12 +255,12 @@ lookup_resource(struct st_rip3_resource *result,
 	if (status != 0)
 		return status;
 	if (kind == ST_RIP3_RESOURCE_FONT) {
-		fixed[0] = paths->fonts;
+		fixed[0]    = paths->fonts;
 		fixed_count = 1;
 	}
 	else {
-		fixed[0] = paths->host;
-		fixed[1] = paths->shared;
+		fixed[0]    = paths->host;
+		fixed[1]    = paths->shared;
 		fixed_count = 2;
 	}
 	for (size_t i = 0; i < fixed_count; i++) {
@@ -264,7 +268,8 @@ lookup_resource(struct st_rip3_resource *result,
 		if (kind == ST_RIP3_RESOURCE_MEDIA && i == 0) {
 			status = host_directory_status(paths);
 			if (status == 0 && result == NULL) {
-				const char *root = paths->named_host_root != NULL ? paths->named_host_root : paths->host;
+				const char *root =
+				    paths->named_host_root != NULL ? paths->named_host_root : paths->host;
 				status = cache_bucket_status(root);
 			}
 		}
@@ -285,22 +290,24 @@ done:
 }
 
 int
-st_rip3_resource_open(struct st_rip3_resource *result,
-    const struct st_rip3_resource_paths *paths, enum st_rip3_resource_kind kind,
-    const char *name)
+st_rip3_resource_open(struct st_rip3_resource *result, const struct st_rip3_resource_paths *paths,
+    enum st_rip3_resource_kind kind, const char *name)
 {
-	if (result == NULL) return IO_ERROR_INVALID_ARGUMENT;
-	return lookup_resource(result,paths,kind,name,NULL);
+	if (result == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	return lookup_resource(result, paths, kind, name, NULL);
 }
 
 int
 st_rip3_resource_open_first(struct st_rip3_resource *result, bool *matched,
     const struct st_rip3_resource_paths *paths, const char *name)
 {
-	if (matched == NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (matched == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
 	*matched = false;
-	if (result == NULL) return IO_ERROR_INVALID_ARGUMENT;
-	return lookup_resource(result,paths,ST_RIP3_RESOURCE_MEDIA,name,matched);
+	if (result == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	return lookup_resource(result, paths, ST_RIP3_RESOURCE_MEDIA, name, matched);
 }
 
 int
@@ -310,13 +317,13 @@ st_rip3_resource_exists(const struct st_rip3_resource_paths *paths, const char *
 }
 
 int
-st_rip3_resource_transfer_path(char **result, const struct st_rip3_resource_paths *paths,
-    const char *name, bool upload)
+st_rip3_resource_transfer_path(char **result, const struct st_rip3_resource_paths *paths, const char *name,
+    bool upload)
 {
-	struct st_rip3_resource_match match = {.writing=true};
-	char *key = NULL;
-	size_t key_size;
-	int status;
+	struct st_rip3_resource_match match = {.writing = true};
+	char                         *key   = NULL;
+	size_t                        key_size;
+	int                           status;
 
 	if (result == NULL || paths == NULL || !st_rip3_resource_name_valid(name))
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -324,15 +331,20 @@ st_rip3_resource_transfer_path(char **result, const struct st_rip3_resource_path
 	 * lookup tier. Its selection/confinement belongs to client setup. */
 	if (paths->host == NULL || paths->host[0] == 0)
 		return IO_ERROR_NOT_SUPPORTED;
-	status = st_unicode_caseless_key(&key,&key_size,name,strlen(name));
-	if (status != 0) return status;
-	match.directory = paths->host; match.key = key; match.key_size = key_size;
+	status = st_unicode_caseless_key(&key, &key_size, name, strlen(name));
+	if (status != 0)
+		return status;
+	match.directory  = paths->host;
+	match.key        = key;
+	match.key_size   = key_size;
 	const char *root = paths->named_host_root == NULL ? paths->host : paths->named_host_root;
-	status = cache_bucket_status(root);
+	status           = cache_bucket_status(root);
 	if (status == 0)
 		status = upload ? host_directory_status(paths)
-		    : st_rip3_resource_prepare_cache(root, paths->named_host_root == NULL ? NULL : paths->host);
-	if (status == 0) status = st_rip3_resource_directory_scan(&match);
+		                : st_rip3_resource_prepare_cache(root,
+				      paths->named_host_root == NULL ? NULL : paths->host);
+	if (status == 0)
+		status = st_rip3_resource_directory_scan(&match);
 	if (status == 0 && match.path == NULL)
 		status = upload ? IO_ERROR_NOT_FOUND : path_join_alloc(&match.path, paths->host, name);
 	if (status == 0)
@@ -345,7 +357,7 @@ st_rip3_resource_transfer_path(char **result, const struct st_rip3_resource_path
 
 struct st_rip3_temporary_resource {
 	struct st_rip3_temporary_resource *next;
-	char *directory, *root, *name;
+	char                              *directory, *root, *name;
 };
 
 static void
@@ -358,9 +370,8 @@ free_temporary(struct st_rip3_temporary_resource *entry)
 }
 
 static int
-prepare_temporary(struct st_rip3_temporary_resource **result,
-    struct st_rip3_temporary_resource *entries, const struct st_rip3_resource_paths *paths,
-    const char *resolved)
+prepare_temporary(struct st_rip3_temporary_resource **result, struct st_rip3_temporary_resource *entries,
+    const struct st_rip3_resource_paths *paths, const char *resolved)
 {
 	const char *name = path_basename(resolved);
 	for (const struct st_rip3_temporary_resource *entry = entries; entry != NULL; entry = entry->next) {
@@ -370,9 +381,11 @@ prepare_temporary(struct st_rip3_temporary_resource **result,
 	struct st_rip3_temporary_resource *entry = malloc(sizeof(*entry));
 	if (entry == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
-	*entry = (struct st_rip3_temporary_resource){
-		.next = entries, .directory = strdup(paths->host), .name = strdup(name),
-		.root = paths->named_host_root == NULL ? NULL : strdup(paths->named_host_root),
+	*entry = (struct st_rip3_temporary_resource) {
+	    .next      = entries,
+	    .directory = strdup(paths->host),
+	    .name      = strdup(name),
+	    .root      = paths->named_host_root == NULL ? NULL : strdup(paths->named_host_root),
 	};
 	if (entry->directory == NULL || entry->name == NULL
 	    || (paths->named_host_root != NULL && entry->root == NULL)) {
@@ -384,21 +397,22 @@ prepare_temporary(struct st_rip3_temporary_resource **result,
 }
 
 static int
-write_resource(const struct st_rip3_resource_paths *paths, const char *name,
-    const void *bytes, size_t size, struct st_rip3_temporary_resource **entries)
+write_resource(const struct st_rip3_resource_paths *paths, const char *name, const void *bytes, size_t size,
+    struct st_rip3_temporary_resource **entries)
 {
 	if (bytes == NULL && size != 0)
 		return IO_ERROR_INVALID_ARGUMENT;
-	char *path = NULL;
-	int status = st_rip3_resource_transfer_path(&path, paths, name, false);
-	struct st_rip3_temporary_resource *entry = NULL;
+	char                              *path   = NULL;
+	int                                status = st_rip3_resource_transfer_path(&path, paths, name, false);
+	struct st_rip3_temporary_resource *entry  = NULL;
 	if (status == 0 && entries != NULL)
 		status = prepare_temporary(&entry, *entries, paths, path);
 	/* Preserve an existing unique file's spelling and prepare the whole
 	 * replacement before rename. Any failure retains its previous contents.
 	 * The directory match rejects links and other non-file entries; this
 	 * function never follows a host-named link or writes a fallback tier. */
-	if (status == 0) status = fs_replace_file(path, bytes, size);
+	if (status == 0)
+		status = fs_replace_file(path, bytes, size);
 	if (entry != NULL) {
 		if (status == 0)
 			*entries = entry;
@@ -410,15 +424,15 @@ write_resource(const struct st_rip3_resource_paths *paths, const char *name,
 }
 
 int
-st_rip3_resource_write(const struct st_rip3_resource_paths *paths,
-    const char *name, const void *bytes, size_t size)
+st_rip3_resource_write(const struct st_rip3_resource_paths *paths, const char *name, const void *bytes,
+    size_t size)
 {
 	return write_resource(paths, name, bytes, size, NULL);
 }
 
 int
-st_rip3_resource_write_temporary(const struct st_rip3_resource_paths *paths,
-    const char *name, const void *bytes, size_t size, struct st_rip3_temporary_resource **entries)
+st_rip3_resource_write_temporary(const struct st_rip3_resource_paths *paths, const char *name, const void *bytes,
+    size_t size, struct st_rip3_temporary_resource **entries)
 {
 	if (entries == NULL)
 		return IO_ERROR_NOT_SUPPORTED;
@@ -426,14 +440,14 @@ st_rip3_resource_write_temporary(const struct st_rip3_resource_paths *paths,
 }
 
 int
-st_rip3_resource_register_temporary(const struct st_rip3_resource_paths *paths,
-    const char *name, struct st_rip3_temporary_resource **entries)
+st_rip3_resource_register_temporary(const struct st_rip3_resource_paths *paths, const char *name,
+    struct st_rip3_temporary_resource **entries)
 {
 	if (entries == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	char *path = NULL;
-	int status = st_rip3_resource_transfer_path(&path, paths, name, true);
-	struct st_rip3_temporary_resource *entry = NULL;
+	char                              *path   = NULL;
+	int                                status = st_rip3_resource_transfer_path(&path, paths, name, true);
+	struct st_rip3_temporary_resource *entry  = NULL;
 	if (status == 0)
 		status = prepare_temporary(&entry, *entries, paths, path);
 	free(path);
@@ -446,7 +460,7 @@ int
 st_rip3_resource_remove(const struct st_rip3_resource_paths *paths, const char *name)
 {
 	struct st_rip3_resource_match match = {.writing = true};
-	char *key = NULL;
+	char                         *key   = NULL;
 
 	if (paths == NULL || !st_rip3_resource_name_valid(name))
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -456,15 +470,15 @@ st_rip3_resource_remove(const struct st_rip3_resource_paths *paths, const char *
 	/* The BBS bucket was checked at connection time. Recheck it before
 	 * removing a file in case the local cache was relocated while open. */
 	const char *root = paths->named_host_root != NULL ? paths->named_host_root : paths->host;
-	status = cache_bucket_status(root);
+	status           = cache_bucket_status(root);
 	if (status != 0)
 		return status;
 	status = st_unicode_caseless_key(&key, &match.key_size, name, strlen(name));
 	if (status != 0)
 		return status;
 	match.directory = paths->host;
-	match.key = key;
-	status = st_rip3_resource_directory_scan(&match);
+	match.key       = key;
+	status          = st_rip3_resource_directory_scan(&match);
 	if (status == 0)
 		status = match.path == NULL ? IO_ERROR_NOT_FOUND : fs_remove_file(match.path);
 	free(match.path);
@@ -476,9 +490,10 @@ void
 st_rip3_resource_purge_temporary(struct st_rip3_temporary_resource **entries)
 {
 	while (*entries != NULL) {
-		struct st_rip3_temporary_resource *entry = *entries;
+		struct st_rip3_temporary_resource  *entry = *entries;
 		const struct st_rip3_resource_paths paths = {
-		    .host = entry->directory, .named_host_root = entry->root,
+		    .host            = entry->directory,
+		    .named_host_root = entry->root,
 		};
 		*entries = entry->next;
 		(void)st_rip3_resource_remove(&paths, entry->name);

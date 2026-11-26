@@ -5,15 +5,14 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-
 #ifndef SYNCTERM_FILESYSTEM_H_
 #define SYNCTERM_FILESYSTEM_H_
-
-#include "io_error.h"
 
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
+
+#include "io_error.h"
 
 enum fs_entry_kind {
 	FS_ENTRY_FILE,
@@ -47,9 +46,9 @@ int fs_open(FILE **result, const char *path, const char *mode);
 /* Returns a byte size or a negative IO_ERROR_* value without seeking. */
 int64_t fs_stream_size(FILE *stream);
 int64_t fs_stream_position(FILE *stream);
-int fs_stream_seek(FILE *stream, int64_t offset);
-int fs_stream_truncate(FILE *stream, uint64_t size);
-int fs_set_modified_time(const char *path, int64_t modified_time);
+int     fs_stream_seek(FILE *stream, int64_t offset);
+int     fs_stream_truncate(FILE *stream, uint64_t size);
+int     fs_set_modified_time(const char *path, int64_t modified_time);
 
 int fs_remove_file(const char *path);
 int fs_remove_directory(const char *path);

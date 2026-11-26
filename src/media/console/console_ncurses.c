@@ -3,16 +3,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "console_internal.h"
-#include "console_text_layout.h"
-
-#include "console_config.h"
-#include "console_curses_locale.h"
-#include "dynamic_library.h"
-#include "io_error.h"
-#include "st_utf8.h"
-#include "st_codepage.h"
-
 #include <inttypes.h>
 #include <limits.h>
 #include <stdatomic.h>
@@ -21,196 +11,202 @@
 #include <string.h>
 #include <wchar.h>
 
+#include "console_config.h"
+#include "console_curses_locale.h"
+#include "console_internal.h"
+#include "console_text_layout.h"
+#include "dynamic_library.h"
+#include "io_error.h"
+#include "st_codepage.h"
+#include "st_utf8.h"
+
 #if ST_CONSOLE_HAVE_CURSES_H && ST_CONSOLE_HAVE_CURSES_TIMEOUT
-	#include <curses.h>
-#if ST_DEP_CURSES_LINKED
-	#include <term.h>
-	#undef columns
-	#undef lines
-	#undef cursor_visible
-	#undef buttons
-	#undef restore_cursor
-	#undef save_cursor
-#endif
-	/* X/Open curses uses short here. ncurses exposes macros for builds with
+ #include <curses.h>
+ #if ST_DEP_CURSES_LINKED
+  #include <term.h>
+  #undef columns
+  #undef lines
+  #undef cursor_visible
+  #undef buttons
+  #undef restore_cursor
+  #undef save_cursor
+ #endif
+ /* X/Open curses uses short here. ncurses exposes macros for builds with
 	 * different parameter types; other implementations need not define them. */
-	#ifndef NCURSES_COLOR_T
-		#define NCURSES_COLOR_T short
-	#endif
-	#ifndef NCURSES_PAIRS_T
-		#define NCURSES_PAIRS_T short
-	#endif
+ #ifndef NCURSES_COLOR_T
+  #define NCURSES_COLOR_T short
+ #endif
+ #ifndef NCURSES_PAIRS_T
+  #define NCURSES_PAIRS_T short
+ #endif
 
 struct curses_api {
 	SCREEN *(*call_newterm)(const char *, FILE *, FILE *);
-	void (*call_delscreen)(SCREEN *);
-	int (*call_endwin)(void);
+	void    (*call_delscreen)(SCREEN *);
+	int     (*call_endwin)(void);
 	WINDOW *(*call_newwin)(int, int, int, int);
-	int (*call_delwin)(WINDOW *);
-	int (*call_getmaxx)(WINDOW *);
-	int (*call_getmaxy)(WINDOW *);
-	int (*call_move)(WINDOW *, int, int);
-	int (*call_addch)(WINDOW *, const chtype);
-	int (*call_refresh)(WINDOW *);
-	int (*call_erase)(WINDOW *);
-	int (*call_cbreak)(void);
-	int (*call_raw)(void);
-	int (*call_noecho)(void);
-	int (*call_nonl)(void);
-	int (*call_keypad)(WINDOW *, bool);
-	void (*call_timeout)(WINDOW *, int);
-	int (*call_scrollok)(WINDOW *, bool);
-	int (*call_cursor)(int);
-	bool (*call_has_colors)(void);
-	bool (*call_can_change_color)(void);
-	int (*call_start_color)(void);
-	int (*call_color_content)(NCURSES_COLOR_T, NCURSES_COLOR_T *,
-	    NCURSES_COLOR_T *, NCURSES_COLOR_T *);
-	int (*call_init_color)(NCURSES_COLOR_T, NCURSES_COLOR_T,
-	    NCURSES_COLOR_T, NCURSES_COLOR_T);
-	int (*call_extended_color_content)(int, int *, int *, int *);
-	int (*call_init_extended_color)(int, int, int, int);
-	int (*call_init_pair)(NCURSES_PAIRS_T, NCURSES_COLOR_T,
-	    NCURSES_COLOR_T);
-	int (*call_alloc_pair)(int, int);
-	int (*call_find_pair)(int, int);
-	int (*call_tigetflag)(const char *);
-	int (*call_tigetnum)(const char *);
-	char *(*call_tigetstr)(const char *);
-	char *(*call_tiparm)(const char *, ...);
-	int (*call_tputs)(const char *, int, int (*)(int));
-	int (*call_use_extended_names)(bool);
-	int (*call_use_legacy_coding)(int);
-	int (*call_attributes)(WINDOW *, attr_t, NCURSES_PAIRS_T, void *);
-	int (*call_getch)(WINDOW *);
-	int (*call_resizeterm)(int, int);
-#ifdef KEY_MOUSE
+	int     (*call_delwin)(WINDOW *);
+	int     (*call_getmaxx)(WINDOW *);
+	int     (*call_getmaxy)(WINDOW *);
+	int     (*call_move)(WINDOW *, int, int);
+	int     (*call_addch)(WINDOW *, const chtype);
+	int     (*call_refresh)(WINDOW *);
+	int     (*call_erase)(WINDOW *);
+	int     (*call_cbreak)(void);
+	int     (*call_raw)(void);
+	int     (*call_noecho)(void);
+	int     (*call_nonl)(void);
+	int     (*call_keypad)(WINDOW *, bool);
+	void    (*call_timeout)(WINDOW *, int);
+	int     (*call_scrollok)(WINDOW *, bool);
+	int     (*call_cursor)(int);
+	bool    (*call_has_colors)(void);
+	bool    (*call_can_change_color)(void);
+	int     (*call_start_color)(void);
+	int     (*call_color_content)(NCURSES_COLOR_T, NCURSES_COLOR_T *, NCURSES_COLOR_T *, NCURSES_COLOR_T *);
+	int     (*call_init_color)(NCURSES_COLOR_T, NCURSES_COLOR_T, NCURSES_COLOR_T, NCURSES_COLOR_T);
+	int     (*call_extended_color_content)(int, int *, int *, int *);
+	int     (*call_init_extended_color)(int, int, int, int);
+	int     (*call_init_pair)(NCURSES_PAIRS_T, NCURSES_COLOR_T, NCURSES_COLOR_T);
+	int     (*call_alloc_pair)(int, int);
+	int     (*call_find_pair)(int, int);
+	int     (*call_tigetflag)(const char *);
+	int     (*call_tigetnum)(const char *);
+	char   *(*call_tigetstr)(const char *);
+	char   *(*call_tiparm)(const char *, ...);
+	int     (*call_tputs)(const char *, int, int (*)(int));
+	int     (*call_use_extended_names)(bool);
+	int     (*call_use_legacy_coding)(int);
+	int     (*call_attributes)(WINDOW *, attr_t, NCURSES_PAIRS_T, void *);
+	int     (*call_getch)(WINDOW *);
+	int     (*call_resizeterm)(int, int);
+ #ifdef KEY_MOUSE
 	mmask_t (*call_mousemask)(mmask_t, mmask_t *);
-	int (*call_mouseinterval)(int);
-	int (*call_getmouse)(MEVENT *);
-#endif
-#if ST_CONSOLE_HAVE_CURSES_WIDE
+	int     (*call_mouseinterval)(int);
+	int     (*call_getmouse)(MEVENT *);
+ #endif
+ #if ST_CONSOLE_HAVE_CURSES_WIDE
 	int (*call_add_wide)(WINDOW *, const wchar_t *, int);
-#endif
+ #endif
 };
 
 typedef SCREEN *(*curses_call_newterm_fn)(const char *, FILE *, FILE *);
-typedef void (*curses_call_delscreen_fn)(SCREEN *);
-typedef int (*curses_call_endwin_fn)(void);
+typedef void    (*curses_call_delscreen_fn)(SCREEN *);
+typedef int     (*curses_call_endwin_fn)(void);
 typedef WINDOW *(*curses_call_newwin_fn)(int, int, int, int);
-typedef int (*curses_call_delwin_fn)(WINDOW *);
-typedef int (*curses_call_getmaxx_fn)(WINDOW *);
-typedef int (*curses_call_getmaxy_fn)(WINDOW *);
-typedef int (*curses_call_move_fn)(WINDOW *, int, int);
-typedef int (*curses_call_addch_fn)(WINDOW *, const chtype);
-typedef int (*curses_call_refresh_fn)(WINDOW *);
-typedef int (*curses_call_erase_fn)(WINDOW *);
-typedef int (*curses_call_cbreak_fn)(void);
-typedef int (*curses_call_raw_fn)(void);
-typedef int (*curses_call_noecho_fn)(void);
-typedef int (*curses_call_nonl_fn)(void);
-typedef int (*curses_call_keypad_fn)(WINDOW *, bool);
-typedef void (*curses_call_timeout_fn)(WINDOW *, int);
-typedef int (*curses_call_scrollok_fn)(WINDOW *, bool);
-typedef int (*curses_call_cursor_fn)(int);
-typedef bool (*curses_call_has_colors_fn)(void);
-typedef bool (*curses_call_can_change_color_fn)(void);
-typedef int (*curses_call_start_color_fn)(void);
-typedef int (*curses_call_color_content_fn)(NCURSES_COLOR_T,
-	NCURSES_COLOR_T *, NCURSES_COLOR_T *, NCURSES_COLOR_T *);
-typedef int (*curses_call_init_color_fn)(NCURSES_COLOR_T, NCURSES_COLOR_T,
-	NCURSES_COLOR_T, NCURSES_COLOR_T);
-typedef int (*curses_call_extended_color_content_fn)(int, int *, int *, int *);
-typedef int (*curses_call_init_extended_color_fn)(int, int, int, int);
-typedef int (*curses_call_init_pair_fn)(NCURSES_PAIRS_T, NCURSES_COLOR_T,
-	NCURSES_COLOR_T);
-typedef int (*curses_call_alloc_pair_fn)(int, int);
-typedef int (*curses_call_find_pair_fn)(int, int);
-typedef int (*curses_call_tigetflag_fn)(const char *);
-typedef int (*curses_call_tigetnum_fn)(const char *);
+typedef int     (*curses_call_delwin_fn)(WINDOW *);
+typedef int     (*curses_call_getmaxx_fn)(WINDOW *);
+typedef int     (*curses_call_getmaxy_fn)(WINDOW *);
+typedef int     (*curses_call_move_fn)(WINDOW *, int, int);
+typedef int     (*curses_call_addch_fn)(WINDOW *, const chtype);
+typedef int     (*curses_call_refresh_fn)(WINDOW *);
+typedef int     (*curses_call_erase_fn)(WINDOW *);
+typedef int     (*curses_call_cbreak_fn)(void);
+typedef int     (*curses_call_raw_fn)(void);
+typedef int     (*curses_call_noecho_fn)(void);
+typedef int     (*curses_call_nonl_fn)(void);
+typedef int     (*curses_call_keypad_fn)(WINDOW *, bool);
+typedef void    (*curses_call_timeout_fn)(WINDOW *, int);
+typedef int     (*curses_call_scrollok_fn)(WINDOW *, bool);
+typedef int     (*curses_call_cursor_fn)(int);
+typedef bool    (*curses_call_has_colors_fn)(void);
+typedef bool    (*curses_call_can_change_color_fn)(void);
+typedef int     (*curses_call_start_color_fn)(void);
+typedef int     (
+    *curses_call_color_content_fn)(NCURSES_COLOR_T, NCURSES_COLOR_T *, NCURSES_COLOR_T *, NCURSES_COLOR_T *);
+typedef int   (*curses_call_init_color_fn)(NCURSES_COLOR_T, NCURSES_COLOR_T, NCURSES_COLOR_T, NCURSES_COLOR_T);
+typedef int   (*curses_call_extended_color_content_fn)(int, int *, int *, int *);
+typedef int   (*curses_call_init_extended_color_fn)(int, int, int, int);
+typedef int   (*curses_call_init_pair_fn)(NCURSES_PAIRS_T, NCURSES_COLOR_T, NCURSES_COLOR_T);
+typedef int   (*curses_call_alloc_pair_fn)(int, int);
+typedef int   (*curses_call_find_pair_fn)(int, int);
+typedef int   (*curses_call_tigetflag_fn)(const char *);
+typedef int   (*curses_call_tigetnum_fn)(const char *);
 typedef char *(*curses_call_tigetstr_fn)(const char *);
 typedef char *(*curses_call_tiparm_fn)(const char *, ...);
-typedef int (*curses_call_tputs_fn)(const char *, int, int (*)(int));
-typedef int (*curses_call_use_extended_names_fn)(bool);
-typedef int (*curses_call_use_legacy_coding_fn)(int);
-typedef int (*curses_call_attributes_fn)(WINDOW *, attr_t, NCURSES_PAIRS_T,
-	void *);
-typedef int (*curses_call_getch_fn)(WINDOW *);
-typedef int (*curses_call_resizeterm_fn)(int, int);
-#ifdef KEY_MOUSE
+typedef int   (*curses_call_tputs_fn)(const char *, int, int (*)(int));
+typedef int   (*curses_call_use_extended_names_fn)(bool);
+typedef int   (*curses_call_use_legacy_coding_fn)(int);
+typedef int   (*curses_call_attributes_fn)(WINDOW *, attr_t, NCURSES_PAIRS_T, void *);
+typedef int   (*curses_call_getch_fn)(WINDOW *);
+typedef int   (*curses_call_resizeterm_fn)(int, int);
+ #ifdef KEY_MOUSE
 typedef mmask_t (*curses_call_mousemask_fn)(mmask_t, mmask_t *);
-typedef int (*curses_call_mouseinterval_fn)(int);
-typedef int (*curses_call_getmouse_fn)(MEVENT *);
-#endif
-#if ST_CONSOLE_HAVE_CURSES_WIDE
+typedef int     (*curses_call_mouseinterval_fn)(int);
+typedef int     (*curses_call_getmouse_fn)(MEVENT *);
+ #endif
+ #if ST_CONSOLE_HAVE_CURSES_WIDE
 typedef int (*curses_call_add_wide_fn)(WINDOW *, const wchar_t *, int);
-#endif
+ #endif
 
 struct curses_state {
-	dynamic_library_t *library;
-	struct curses_api api;
-	st_console_display_t *display;
-	SCREEN *screen;
-	WINDOW *window;
-	struct st_console_cell *drawn;
-	int *drawn_foreground;
-	int *drawn_background;
-	st_thread_t input_thread;
-	atomic_bool stop;
-	atomic_uint host_columns;
-	atomic_uint host_rows;
-	atomic_bool host_resized;
-	bool input_started;
-	bool colours;
-	bool wide;
-	bool extended_pairs;
-	bool extended_colours;
-	bool direct_colour;
-	bool sgr_direct;
-	bool sgr_output;
-	bool sgr_initialized;
-	const char *initialize_colour;
-	bool margins_initialized;
-	bool margin_visible;
-	int margin_colour;
-	uint32_t margin_rgb;
-	struct st_console_rect viewport;
-	unsigned int red_bits;
-	unsigned int green_bits;
-	unsigned int blue_bits;
-	int colour_count;
-	int pair_count;
-	bool palette_mutable;
-	struct st_curses_locale *byte_locale;
+	dynamic_library_t                *library;
+	struct curses_api                 api;
+	st_console_display_t             *display;
+	SCREEN                           *screen;
+	WINDOW                           *window;
+	struct st_console_cell           *drawn;
+	int                              *drawn_foreground;
+	int                              *drawn_background;
+	st_thread_t                       input_thread;
+	atomic_bool                       stop;
+	atomic_uint                       host_columns;
+	atomic_uint                       host_rows;
+	atomic_bool                       host_resized;
+	bool                              input_started;
+	bool                              colours;
+	bool                              wide;
+	bool                              extended_pairs;
+	bool                              extended_colours;
+	bool                              direct_colour;
+	bool                              sgr_direct;
+	bool                              sgr_output;
+	bool                              sgr_initialized;
+	const char                       *initialize_colour;
+	bool                              margins_initialized;
+	bool                              margin_visible;
+	int                               margin_colour;
+	uint32_t                          margin_rgb;
+	struct st_console_rect            viewport;
+	unsigned int                      red_bits;
+	unsigned int                      green_bits;
+	unsigned int                      blue_bits;
+	int                               colour_count;
+	int                               pair_count;
+	bool                              palette_mutable;
+	struct st_curses_locale          *byte_locale;
 	enum st_console_text_presentation presentation;
-	int *indexed_colours;
+	int                              *indexed_colours;
+
 	struct {
-		int red;
-		int green;
-		int blue;
+		int  red;
+		int  green;
+		int  blue;
 		bool valid;
 		bool original_valid;
-		int original_red;
-		int original_green;
-		int original_blue;
+		int  original_red;
+		int  original_green;
+		int  original_blue;
 	} *terminal_colours;
+
 	int terminal_colour_count;
+
 	struct {
 		uint32_t rgb;
-		int colour;
-		bool valid;
+		int      colour;
+		bool     valid;
 	} rgb_cache[64];
+
 	unsigned int next_rgb_cache;
-#ifdef KEY_MOUSE
+ #ifdef KEY_MOUSE
 	uint32_t mouse_buttons;
-	bool mouse_enabled;
-#endif
-	bool invalid_colour;
+	bool     mouse_enabled;
+ #endif
+	bool     invalid_colour;
 	uint32_t invalid_colour_value;
 };
 
-static int curses_resize(st_console_t *console, uint32_t columns,
-	uint32_t rows);
+static int curses_resize(st_console_t *console, uint32_t columns, uint32_t rows);
 
 static int
 replace_window(struct curses_state *state, uint32_t columns, uint32_t rows)
@@ -227,28 +223,27 @@ replace_window(struct curses_state *state, uint32_t columns, uint32_t rows)
 	(void)state->api.call_scrollok(window, false);
 	(void)state->api.call_erase(window);
 	(void)state->api.call_delwin(state->window);
-	state->window = window;
-	state->sgr_initialized = false;
+	state->window              = window;
+	state->sgr_initialized     = false;
 	state->margins_initialized = false;
 	return 0;
 }
 
 static atomic_flag curses_in_use = ATOMIC_FLAG_INIT;
 
-#if ST_DEP_CURSES_LINKED
-#define LOAD_REQUIRED(state, member, name) ((state)->api.member != NULL)
-#define LOAD_OPTIONAL(state, member, name) ((state)->api.member != NULL)
-#else
-#define LOAD_REQUIRED(state, member, name) \
-	(((state)->api.member = (curses_ ## member ## _fn) \
-	    dynamic_library_symbol((state)->library, (name))) != NULL)
-#define LOAD_OPTIONAL(state, member, name) LOAD_REQUIRED(state, member, name)
-#endif
+ #if ST_DEP_CURSES_LINKED
+  #define LOAD_REQUIRED(state, member, name) ((state)->api.member != NULL)
+  #define LOAD_OPTIONAL(state, member, name) ((state)->api.member != NULL)
+ #else
+  #define LOAD_REQUIRED(state, member, name) \
+	  (((state)->api.member = (curses_##member##_fn)dynamic_library_symbol((state)->library, (name))) != NULL)
+  #define LOAD_OPTIONAL(state, member, name) LOAD_REQUIRED(state, member, name)
+ #endif
 
 struct sgr_writer {
 	unsigned char data[8192];
-	size_t length;
-	int result;
+	size_t        length;
+	int           result;
 };
 
 static void
@@ -268,7 +263,7 @@ sgr_emit(struct sgr_writer *writer, const void *data, size_t length)
 
 	while (writer->result == 0 && length != 0) {
 		size_t available = sizeof(writer->data) - writer->length;
-		size_t amount = length < available ? length : available;
+		size_t amount    = length < available ? length : available;
 
 		memcpy(&writer->data[writer->length], bytes, amount);
 		writer->length += amount;
@@ -280,11 +275,10 @@ sgr_emit(struct sgr_writer *writer, const void *data, size_t length)
 }
 
 static void
-sgr_format(struct sgr_writer *writer, const char *format, uint32_t first,
-	uint32_t second, uint32_t third)
+sgr_format(struct sgr_writer *writer, const char *format, uint32_t first, uint32_t second, uint32_t third)
 {
 	char buffer[96];
-	int length = snprintf(buffer, sizeof(buffer), format, first, second, third);
+	int  length = snprintf(buffer, sizeof(buffer), format, first, second, third);
 
 	if (length < 0 || (size_t)length >= sizeof(buffer))
 		writer->result = IO_ERROR_IO;
@@ -296,9 +290,22 @@ static int
 dos_colour(unsigned int colour)
 {
 	static const unsigned char map[16] = {
-		COLOR_BLACK, COLOR_BLUE, COLOR_GREEN, COLOR_CYAN,
-		COLOR_RED, COLOR_MAGENTA, COLOR_YELLOW, COLOR_WHITE,
-		8, 12, 10, 14, 9, 13, 11, 15,
+	    COLOR_BLACK,
+	    COLOR_BLUE,
+	    COLOR_GREEN,
+	    COLOR_CYAN,
+	    COLOR_RED,
+	    COLOR_MAGENTA,
+	    COLOR_YELLOW,
+	    COLOR_WHITE,
+	    8,
+	    12,
+	    10,
+	    14,
+	    9,
+	    13,
+	    11,
+	    15,
 	};
 
 	return map[colour & 15U];
@@ -321,14 +328,11 @@ scale_component(uint32_t component, unsigned int bits)
 static int
 direct_colour(const struct curses_state *state, uint32_t colour)
 {
-	uint32_t red = scale_component((colour >> 16) & 0xff,
-	    state->red_bits);
-	uint32_t green = scale_component((colour >> 8) & 0xff,
-	    state->green_bits);
-	uint32_t blue = scale_component(colour & 0xff, state->blue_bits);
-	uint64_t value = ((uint64_t)red
-	    << (state->green_bits + state->blue_bits))
-	    | ((uint64_t)green << state->blue_bits) | blue;
+	uint32_t red   = scale_component((colour >> 16) & 0xff, state->red_bits);
+	uint32_t green = scale_component((colour >> 8) & 0xff, state->green_bits);
+	uint32_t blue  = scale_component(colour & 0xff, state->blue_bits);
+	uint64_t value = ((uint64_t)red << (state->green_bits + state->blue_bits))
+	                 | ((uint64_t)green << state->blue_bits) | blue;
 
 	return value < (uint64_t)state->colour_count ? (int)value : COLOR_WHITE;
 }
@@ -336,30 +340,30 @@ direct_colour(const struct curses_state *state, uint32_t colour)
 static int
 nearest_colour(const struct curses_state *state, uint32_t rgb)
 {
-	int red = (int)((rgb >> 16) & 0xff) * 1000 / 255;
-	int green = (int)((rgb >> 8) & 0xff) * 1000 / 255;
-	int blue = (int)(rgb & 0xff) * 1000 / 255;
+	int      red           = (int)((rgb >> 16) & 0xff) * 1000 / 255;
+	int      green         = (int)((rgb >> 8) & 0xff) * 1000 / 255;
+	int      blue          = (int)(rgb & 0xff) * 1000 / 255;
 	uint64_t best_distance = UINT64_MAX;
-	int best = COLOR_WHITE;
-	int limit = state->terminal_colour_count;
+	int      best          = COLOR_WHITE;
+	int      limit         = state->terminal_colour_count;
 
 	for (int i = 0; i < limit; ++i) {
-		int64_t red_difference;
-		int64_t green_difference;
-		int64_t blue_difference;
+		int64_t  red_difference;
+		int64_t  green_difference;
+		int64_t  blue_difference;
 		uint64_t distance;
 
 		if (!state->terminal_colours[i].valid)
 			continue;
-		red_difference = red - state->terminal_colours[i].red;
+		red_difference   = red - state->terminal_colours[i].red;
 		green_difference = green - state->terminal_colours[i].green;
-		blue_difference = blue - state->terminal_colours[i].blue;
-		distance = (uint64_t)(red_difference * red_difference)
-		    + (uint64_t)(green_difference * green_difference)
-		    + (uint64_t)(blue_difference * blue_difference);
+		blue_difference  = blue - state->terminal_colours[i].blue;
+		distance         = (uint64_t)(red_difference * red_difference)
+		                   + (uint64_t)(green_difference * green_difference)
+		                   + (uint64_t)(blue_difference * blue_difference);
 		if (distance < best_distance) {
 			best_distance = distance;
-			best = i;
+			best          = i;
 		}
 	}
 	return best;
@@ -373,32 +377,29 @@ logical_rgb(st_console_t *console, struct curses_state *state, uint32_t colour)
 	if (st_console_colour_rgb_locked(console, colour, &rgb))
 		return rgb;
 	if (!state->invalid_colour) {
-		state->invalid_colour = true;
+		state->invalid_colour       = true;
 		state->invalid_colour_value = colour;
 	}
 	return 0;
 }
 
 static bool
-terminal_colour_conflicts(st_console_t *console, struct curses_state *state,
-	int colour, size_t ignored, uint32_t rgb)
+terminal_colour_conflicts(st_console_t *console, struct curses_state *state, int colour, size_t ignored,
+    uint32_t rgb)
 {
 	size_t count = (size_t)console->columns * console->rows;
 
-	if (state->margin_visible && colour == state->margin_colour
-	    && rgb != state->margin_rgb)
+	if (state->margin_visible && colour == state->margin_colour && rgb != state->margin_rgb)
 		return true;
 
 	for (size_t i = 0; i < count; ++i) {
 		if (i == ignored)
 			continue;
 		if (state->drawn_foreground[i] == colour
-		    && logical_rgb(console, state,
-		    state->drawn[i].foreground) != rgb)
+		    && logical_rgb(console, state, state->drawn[i].foreground) != rgb)
 			return true;
 		if (state->drawn_background[i] == colour
-		    && logical_rgb(console, state,
-		    state->drawn[i].background) != rgb)
+		    && logical_rgb(console, state, state->drawn[i].background) != rgb)
 			return true;
 	}
 	return false;
@@ -410,31 +411,27 @@ invalidate_terminal_colour(struct curses_state *state, int colour)
 	for (uint32_t i = 0; i <= UINT16_MAX; ++i)
 		if (state->indexed_colours[i] == colour)
 			state->indexed_colours[i] = -1;
-	for (size_t i = 0; i < sizeof(state->rgb_cache)
-	    / sizeof(state->rgb_cache[0]); ++i)
-		if (state->rgb_cache[i].valid
-		    && state->rgb_cache[i].colour == colour)
+	for (size_t i = 0; i < sizeof(state->rgb_cache) / sizeof(state->rgb_cache[0]); ++i)
+		if (state->rgb_cache[i].valid && state->rgb_cache[i].colour == colour)
 			state->rgb_cache[i].valid = false;
 }
 
 static int
-read_terminal_colour(struct curses_state *state, int colour, int *red,
-	int *green, int *blue)
+read_terminal_colour(struct curses_state *state, int colour, int *red, int *green, int *blue)
 {
 	if (state->extended_colours)
-		return state->api.call_extended_color_content(colour, red, green,
-		    blue);
+		return state->api.call_extended_color_content(colour, red, green, blue);
 	if (colour <= SHRT_MAX) {
 		NCURSES_COLOR_T narrow_red;
 		NCURSES_COLOR_T narrow_green;
 		NCURSES_COLOR_T narrow_blue;
-		int result = state->api.call_color_content((NCURSES_COLOR_T)colour,
-		    &narrow_red, &narrow_green, &narrow_blue);
+		int result = state->api.call_color_content((NCURSES_COLOR_T)colour, &narrow_red, &narrow_green,
+		    &narrow_blue);
 
 		if (result == OK) {
-			*red = narrow_red;
+			*red   = narrow_red;
 			*green = narrow_green;
-			*blue = narrow_blue;
+			*blue  = narrow_blue;
 		}
 		return result;
 	}
@@ -442,51 +439,43 @@ read_terminal_colour(struct curses_state *state, int colour, int *red,
 }
 
 static int
-write_terminal_colour(struct curses_state *state, int colour, int red,
-	int green, int blue)
+write_terminal_colour(struct curses_state *state, int colour, int red, int green, int blue)
 {
 	if (state->sgr_output) {
-		char *expanded = state->api.call_tiparm(state->initialize_colour,
-		    colour, red, green, blue, 0, 0, 0, 0, 0);
+		char *expanded =
+		    state->api.call_tiparm(state->initialize_colour, colour, red, green, blue, 0, 0, 0, 0, 0);
 
 		/* init_color() may defer output until a curses refresh. This path
 		 * writes cells itself, so emit initc with its terminfo padding. */
-		return expanded == NULL ? ERR
-		    : state->api.call_tputs(expanded, 1, putchar);
+		return expanded == NULL ? ERR : state->api.call_tputs(expanded, 1, putchar);
 	}
 	if (state->extended_colours)
 		return state->api.call_init_extended_color(colour, red, green, blue);
 	if (colour <= SHRT_MAX)
-		return state->api.call_init_color((NCURSES_COLOR_T)colour,
-		    (NCURSES_COLOR_T)red, (NCURSES_COLOR_T)green,
-		    (NCURSES_COLOR_T)blue);
+		return state->api.call_init_color((NCURSES_COLOR_T)colour, (NCURSES_COLOR_T)red,
+		    (NCURSES_COLOR_T)green, (NCURSES_COLOR_T)blue);
 	return ERR;
 }
 
 static int
-mutable_colour(st_console_t *console, struct curses_state *state,
-	uint32_t rgb, int preferred, size_t cell_index)
+mutable_colour(st_console_t *console, struct curses_state *state, uint32_t rgb, int preferred, size_t cell_index)
 {
-	int red = (int)(((rgb >> 16) & 0xff) * 1000 + 127) / 255;
-	int green = (int)(((rgb >> 8) & 0xff) * 1000 + 127) / 255;
-	int blue = (int)((rgb & 0xff) * 1000 + 127) / 255;
+	int red      = (int)(((rgb >> 16) & 0xff) * 1000 + 127) / 255;
+	int green    = (int)(((rgb >> 8) & 0xff) * 1000 + 127) / 255;
+	int blue     = (int)((rgb & 0xff) * 1000 + 127) / 255;
 	int selected = -1;
 
 	for (int i = 0; i < state->terminal_colour_count; ++i) {
-		if (state->terminal_colours[i].valid
-		    && state->terminal_colours[i].red == red
-		    && state->terminal_colours[i].green == green
-		    && state->terminal_colours[i].blue == blue)
+		if (state->terminal_colours[i].valid && state->terminal_colours[i].red == red
+		    && state->terminal_colours[i].green == green && state->terminal_colours[i].blue == blue)
 			return i;
 	}
 	if (preferred >= 0 && preferred < state->terminal_colour_count
-	    && !terminal_colour_conflicts(console, state, preferred, cell_index,
-	    rgb))
+	    && !terminal_colour_conflicts(console, state, preferred, cell_index, rgb))
 		selected = preferred;
 	if (selected < 0) {
 		for (int i = 0; i < state->terminal_colour_count; ++i) {
-			if (!terminal_colour_conflicts(console, state, i, cell_index,
-			    rgb)) {
+			if (!terminal_colour_conflicts(console, state, i, cell_index, rgb)) {
 				selected = i;
 				break;
 			}
@@ -499,52 +488,47 @@ mutable_colour(st_console_t *console, struct curses_state *state,
 		int original_green;
 		int original_blue;
 
-		if (read_terminal_colour(state, selected, &original_red,
-		    &original_green, &original_blue) == OK) {
-			state->terminal_colours[selected].original_red = original_red;
+		if (read_terminal_colour(state, selected, &original_red, &original_green, &original_blue) == OK) {
+			state->terminal_colours[selected].original_red   = original_red;
 			state->terminal_colours[selected].original_green = original_green;
-			state->terminal_colours[selected].original_blue = original_blue;
+			state->terminal_colours[selected].original_blue  = original_blue;
 			state->terminal_colours[selected].original_valid = true;
 		}
 	}
 	if (write_terminal_colour(state, selected, red, green, blue) == ERR)
 		return nearest_colour(state, rgb);
 	invalidate_terminal_colour(state, selected);
-	state->terminal_colours[selected].red = red;
+	state->terminal_colours[selected].red   = red;
 	state->terminal_colours[selected].green = green;
-	state->terminal_colours[selected].blue = blue;
+	state->terminal_colours[selected].blue  = blue;
 	state->terminal_colours[selected].valid = true;
 	return selected;
 }
 
 static int
-rgb_colour(st_console_t *console, struct curses_state *state, uint32_t rgb,
-	size_t cell_index)
+rgb_colour(st_console_t *console, struct curses_state *state, uint32_t rgb, size_t cell_index)
 {
 	if (state->direct_colour)
 		return direct_colour(state, rgb);
-	for (size_t i = 0; i < sizeof(state->rgb_cache)
-	    / sizeof(state->rgb_cache[0]); ++i) {
+	for (size_t i = 0; i < sizeof(state->rgb_cache) / sizeof(state->rgb_cache[0]); ++i) {
 		if (state->rgb_cache[i].valid && state->rgb_cache[i].rgb == rgb)
 			return state->rgb_cache[i].colour;
 	}
-	unsigned int slot = state->next_rgb_cache++
-	    % (sizeof(state->rgb_cache) / sizeof(state->rgb_cache[0]));
-	state->rgb_cache[slot].rgb = rgb;
+	unsigned int slot = state->next_rgb_cache++ % (sizeof(state->rgb_cache) / sizeof(state->rgb_cache[0]));
+	state->rgb_cache[slot].rgb    = rgb;
 	state->rgb_cache[slot].colour = state->palette_mutable
-	    ? mutable_colour(console, state, rgb, -1, cell_index)
-	    : nearest_colour(state, rgb);
-	state->rgb_cache[slot].valid = true;
+	                                    ? mutable_colour(console, state, rgb, -1, cell_index)
+	                                    : nearest_colour(state, rgb);
+	state->rgb_cache[slot].valid  = true;
 	return state->rgb_cache[slot].colour;
 }
 
 static int
-cell_colour(st_console_t *console, struct curses_state *state,
-	uint32_t colour, size_t cell_index)
+cell_colour(st_console_t *console, struct curses_state *state, uint32_t colour, size_t cell_index)
 {
 	uint32_t rgb = logical_rgb(console, state, colour);
-	int preferred;
-	int mapped;
+	int      preferred;
+	int      mapped;
 
 	if (ST_CONSOLE_COLOR_IS_RGB(colour) || colour > UINT16_MAX)
 		return rgb_colour(console, state, rgb, cell_index);
@@ -555,7 +539,7 @@ cell_colour(st_console_t *console, struct curses_state *state,
 		mapped = direct_colour(state, rgb);
 	else if (state->palette_mutable) {
 		preferred = colour < 16 ? dos_colour(colour) : (int)colour;
-		mapped = mutable_colour(console, state, rgb, preferred, cell_index);
+		mapped    = mutable_colour(console, state, rgb, preferred, cell_index);
 	}
 	else
 		mapped = nearest_colour(state, rgb);
@@ -564,14 +548,13 @@ cell_colour(st_console_t *console, struct curses_state *state,
 }
 
 static attr_t
-cell_attributes(const struct curses_state *state,
-	const struct st_console_cell *cell)
+cell_attributes(const struct curses_state *state, const struct st_console_cell *cell)
 {
 	attr_t attributes = A_NORMAL;
 
 	if ((cell->flags & ST_CONSOLE_CELL_BOLD) != 0
-	    || (!ST_CONSOLE_COLOR_IS_RGB(cell->foreground)
-	    && (cell->foreground & 8) != 0 && state->colour_count < 16))
+	    || (!ST_CONSOLE_COLOR_IS_RGB(cell->foreground) && (cell->foreground & 8) != 0
+	        && state->colour_count < 16))
 		attributes |= A_BOLD;
 	if ((cell->flags & ST_CONSOLE_CELL_UNDERLINE) != 0)
 		attributes |= A_UNDERLINE;
@@ -579,17 +562,16 @@ cell_attributes(const struct curses_state *state,
 		attributes |= A_BLINK;
 	if ((cell->flags & ST_CONSOLE_CELL_REVERSE) != 0)
 		attributes |= A_REVERSE;
-#ifdef A_INVIS
+ #ifdef A_INVIS
 	if ((cell->flags & ST_CONSOLE_CELL_CONCEAL) != 0)
 		attributes |= A_INVIS;
-#endif
+ #endif
 	return attributes;
 }
 
 static int
-cell_pair(st_console_t *console, struct curses_state *state,
-	const struct st_console_cell *cell, size_t cell_index,
-	int *foreground_result, int *background_result)
+cell_pair(st_console_t *console, struct curses_state *state, const struct st_console_cell *cell, size_t cell_index,
+    int *foreground_result, int *background_result)
 {
 	int foreground;
 	int background;
@@ -597,8 +579,8 @@ cell_pair(st_console_t *console, struct curses_state *state,
 
 	if (!state->colours)
 		return 0;
-	foreground = cell_colour(console, state, cell->foreground, cell_index);
-	background = cell_colour(console, state, cell->background, cell_index);
+	foreground         = cell_colour(console, state, cell->foreground, cell_index);
+	background         = cell_colour(console, state, cell->background, cell_index);
 	*foreground_result = foreground;
 	*background_result = background;
 	if (state->extended_pairs) {
@@ -611,19 +593,37 @@ cell_pair(st_console_t *console, struct curses_state *state,
 }
 
 static void
-xterm_terminal_colour(unsigned int colour, unsigned int colour_count,
-	int *red, int *green, int *blue)
+xterm_terminal_colour(unsigned int colour, unsigned int colour_count, int *red, int *green, int *blue)
 {
 	static const unsigned char ansi[16][3] = {
-		{0, 0, 0}, {128, 0, 0}, {0, 128, 0}, {128, 128, 0},
-		{0, 0, 128}, {128, 0, 128}, {0, 128, 128}, {192, 192, 192},
-		{128, 128, 128}, {255, 0, 0}, {0, 255, 0}, {255, 255, 0},
-		{0, 0, 255}, {255, 0, 255}, {0, 255, 255}, {255, 255, 255},
+	    {0,   0,   0  },
+	    {128, 0,   0  },
+	    {0,   128, 0  },
+	    {128, 128, 0  },
+	    {0,   0,   128},
+	    {128, 0,   128},
+	    {0,   128, 128},
+	    {192, 192, 192},
+	    {128, 128, 128},
+	    {255, 0,   0  },
+	    {0,   255, 0  },
+	    {255, 255, 0  },
+	    {0,   0,   255},
+	    {255, 0,   255},
+	    {0,   255, 255},
+	    {255, 255, 255},
 	};
 	static const unsigned char cube256[] = {0, 95, 135, 175, 215, 255};
-	static const unsigned char cube88[] = {0, 139, 205, 255};
-	static const unsigned char grey88[] = {
-		46, 92, 115, 139, 162, 185, 208, 231,
+	static const unsigned char cube88[]  = {0, 139, 205, 255};
+	static const unsigned char grey88[]  = {
+	    46,
+	    92,
+	    115,
+	    139,
+	    162,
+	    185,
+	    208,
+	    231,
 	};
 	unsigned int r;
 	unsigned int g;
@@ -654,9 +654,9 @@ xterm_terminal_colour(unsigned int colour, unsigned int colour_count,
 	else {
 		r = g = b = 8 + (colour - 232) * 10;
 	}
-	*red = (int)(r * 1000 / 255);
+	*red   = (int)(r * 1000 / 255);
 	*green = (int)(g * 1000 / 255);
-	*blue = (int)(b * 1000 / 255);
+	*blue  = (int)(b * 1000 / 255);
 }
 
 static void
@@ -669,25 +669,20 @@ read_terminal_colours(struct curses_state *state)
 		int green;
 		int blue;
 
-		if (!state->palette_mutable
-		    && (state->colour_count == 88 || state->colour_count == 256)
+		if (!state->palette_mutable && (state->colour_count == 88 || state->colour_count == 256)
 		    && i >= 16) {
-			xterm_terminal_colour((unsigned int)i,
-			    (unsigned int)state->colour_count,
-			    &state->terminal_colours[i].red,
-			    &state->terminal_colours[i].green,
+			xterm_terminal_colour((unsigned int)i, (unsigned int)state->colour_count,
+			    &state->terminal_colours[i].red, &state->terminal_colours[i].green,
 			    &state->terminal_colours[i].blue);
 		}
 		else if (read_terminal_colour(state, i, &red, &green, &blue) == OK) {
-			state->terminal_colours[i].red = red;
+			state->terminal_colours[i].red   = red;
 			state->terminal_colours[i].green = green;
-			state->terminal_colours[i].blue = blue;
+			state->terminal_colours[i].blue  = blue;
 		}
 		else
-			xterm_terminal_colour((unsigned int)i,
-			    (unsigned int)state->colour_count,
-			    &state->terminal_colours[i].red,
-			    &state->terminal_colours[i].green,
+			xterm_terminal_colour((unsigned int)i, (unsigned int)state->colour_count,
+			    &state->terminal_colours[i].red, &state->terminal_colours[i].green,
 			    &state->terminal_colours[i].blue);
 		state->terminal_colours[i].valid = true;
 	}
@@ -707,9 +702,9 @@ rebuild_colour_maps(st_console_t *console)
 static chtype
 ascii_cell(st_console_t *console, const struct st_console_cell *cell)
 {
-	bool alternate;
+	bool     alternate;
 	uint32_t codepoint;
-	chtype result = st_console_ascii_character(console, cell, &alternate);
+	chtype   result = st_console_ascii_character(console, cell, &alternate);
 
 	(void)st_console_cell_codepoint_locked(console, cell, &codepoint);
 	if (alternate)
@@ -721,43 +716,39 @@ ascii_cell(st_console_t *console, const struct st_console_cell *cell)
 
 /* The returned text uses local storage or is owned by the caller. */
 static char *
-cell_text(st_console_t *console, const struct st_console_cell *cell,
-	char *local, size_t local_size, size_t *length)
+cell_text(st_console_t *console, const struct st_console_cell *cell, char *local, size_t local_size,
+    size_t *length)
 {
 	char *text = local;
 
-	if (!st_console_font_glyph_text_locked(console, cell->glyph_font,
-	    cell->glyph, local, local_size, length)) {
-		*length = (size_t)st_utf8_encode_one(local, local_size,
-		    UINT32_C(0xfffd));
+	if (!st_console_font_glyph_text_locked(console, cell->glyph_font, cell->glyph, local, local_size,
+		length)) {
+		*length = (size_t)st_utf8_encode_one(local, local_size, UINT32_C(0xfffd));
 	}
 	else if (*length > local_size) {
 		text = malloc(*length);
 		if (text == NULL)
 			return NULL;
-		if (!st_console_font_glyph_text_locked(console, cell->glyph_font,
-		    cell->glyph, text, *length, length)) {
+		if (!st_console_font_glyph_text_locked(console, cell->glyph_font, cell->glyph, text, *length,
+			length)) {
 			free(text);
-			text = local;
-			*length = (size_t)st_utf8_encode_one(local, local_size,
-			    UINT32_C(0xfffd));
+			text    = local;
+			*length = (size_t)st_utf8_encode_one(local, local_size, UINT32_C(0xfffd));
 		}
 	}
 	return text;
 }
 
-#if ST_CONSOLE_HAVE_CURSES_WIDE
+ #if ST_CONSOLE_HAVE_CURSES_WIDE
 static int
-write_wide_cell(st_console_t *console, struct curses_state *state,
-	const struct st_console_cell *cell)
+write_wide_cell(st_console_t *console, struct curses_state *state, const struct st_console_cell *cell)
 {
-	char local_text[32];
-	wchar_t local_wide[32];
+	char     local_text[32];
+	wchar_t  local_wide[32];
 	wchar_t *wide = local_wide;
-	size_t length, offset = 0;
-	char *text = cell_text(console, cell, local_text, sizeof(local_text),
-	    &length);
-	int count = 0, result = ERR;
+	size_t   length, offset = 0;
+	char    *text  = cell_text(console, cell, local_text, sizeof(local_text), &length);
+	int      count = 0, result = ERR;
 
 	if (text == NULL)
 		return ERR;
@@ -770,19 +761,19 @@ write_wide_cell(st_console_t *console, struct curses_state *state,
 	}
 	while (offset < length) {
 		uint32_t scalar;
-		size_t consumed;
+		size_t   consumed;
 
-		if (st_utf8_decode_one(&scalar, &consumed, text + offset,
-		    length - offset) != 0 || scalar > (uint32_t)WCHAR_MAX) {
+		if (st_utf8_decode_one(&scalar, &consumed, text + offset, length - offset) != 0
+		    || scalar > (uint32_t)WCHAR_MAX) {
 			wide[0] = (wchar_t)UINT32_C(0xfffd);
-			count = 1;
+			count   = 1;
 			break;
 		}
 		wide[count++] = (wchar_t)scalar;
 		offset += consumed;
 	}
 	wide[count] = 0;
-	result = state->api.call_add_wide(state->window, wide, count);
+	result      = state->api.call_add_wide(state->window, wide, count);
 done:
 	if (wide != local_wide)
 		free(wide);
@@ -790,33 +781,31 @@ done:
 		free(text);
 	return result;
 }
-#endif
+ #endif
 
 static int
-write_cell(st_console_t *console, struct curses_state *state,
-	const struct st_console_cell *cell)
+write_cell(st_console_t *console, struct curses_state *state, const struct st_console_cell *cell)
 {
 	if (state->presentation == ST_CONSOLE_TEXT_CP437) {
 		uint32_t codepoint;
 
 		(void)st_console_cell_codepoint_locked(console, cell, &codepoint);
-		return state->api.call_addch(state->window,
-		    (chtype)st_console_cp437_character(codepoint));
+		return state->api.call_addch(state->window, (chtype)st_console_cp437_character(codepoint));
 	}
 	if (state->presentation == ST_CONSOLE_TEXT_ASCII)
 		return state->api.call_addch(state->window, ascii_cell(console, cell));
-#if ST_CONSOLE_HAVE_CURSES_WIDE
+ #if ST_CONSOLE_HAVE_CURSES_WIDE
 	if (state->wide)
 		return write_wide_cell(console, state, cell);
-#else
+ #else
 	(void)state;
-#endif
+ #endif
 	return state->api.call_addch(state->window, ascii_cell(console, cell));
 }
 
 static int
-sgr_colour(st_console_t *console, struct curses_state *state,
-	struct sgr_writer *writer, uint32_t colour, bool background, size_t index)
+sgr_colour(st_console_t *console, struct curses_state *state, struct sgr_writer *writer, uint32_t colour,
+    bool background, size_t index)
 {
 	if (!state->sgr_direct && !state->direct_colour) {
 		int mapped;
@@ -829,34 +818,30 @@ sgr_colour(st_console_t *console, struct curses_state *state,
 			sgr_flush(writer);
 		mapped = cell_colour(console, state, colour, index);
 		if (mapped < 8)
-			sgr_format(writer, "\033[%" PRIu32 "m",
-			    (uint32_t)mapped + (background ? 40 : 30), 0, 0);
+			sgr_format(writer, "\033[%" PRIu32 "m", (uint32_t)mapped + (background ? 40 : 30), 0, 0);
 		else if (mapped < 16)
-			sgr_format(writer, "\033[%" PRIu32 "m",
-			    (uint32_t)mapped - 8 + (background ? 100 : 90), 0, 0);
+			sgr_format(writer, "\033[%" PRIu32 "m", (uint32_t)mapped - 8 + (background ? 100 : 90), 0,
+			    0);
 		else
-			sgr_format(writer, background ? "\033[48;5;%" PRIu32 "m"
-			    : "\033[38;5;%" PRIu32 "m", (uint32_t)mapped, 0, 0);
+			sgr_format(writer, background ? "\033[48;5;%" PRIu32 "m" : "\033[38;5;%" PRIu32 "m",
+			    (uint32_t)mapped, 0, 0);
 		return mapped;
 	}
 	colour = logical_rgb(console, state, colour);
-	sgr_format(writer, background ? "\033[48;2;%" PRIu32
-	    ";%" PRIu32 ";%" PRIu32 "m" : "\033[38;2;%" PRIu32
-	    ";%" PRIu32 ";%" PRIu32 "m", (colour >> 16) & 0xff,
-	    (colour >> 8) & 0xff, colour & 0xff);
+	sgr_format(writer,
+	    background ? "\033[48;2;%" PRIu32 ";%" PRIu32 ";%" PRIu32 "m"
+	               : "\033[38;2;%" PRIu32 ";%" PRIu32 ";%" PRIu32 "m",
+	    (colour >> 16) & 0xff, (colour >> 8) & 0xff, colour & 0xff);
 	return -1;
 }
 
 static void
-sgr_style(st_console_t *console, struct curses_state *state,
-	struct sgr_writer *writer, const struct st_console_cell *cell, size_t index,
-	int *foreground, int *background)
+sgr_style(st_console_t *console, struct curses_state *state, struct sgr_writer *writer,
+    const struct st_console_cell *cell, size_t index, int *foreground, int *background)
 {
-
 	sgr_emit(writer, "\033[0m", 4);
 	if ((cell->flags & ST_CONSOLE_CELL_BOLD) != 0
-	    || (!state->sgr_direct && !state->direct_colour
-	    && (cell_attributes(state, cell) & A_BOLD) != 0))
+	    || (!state->sgr_direct && !state->direct_colour && (cell_attributes(state, cell) & A_BOLD) != 0))
 		sgr_emit(writer, "\033[1m", 4);
 	if ((cell->flags & ST_CONSOLE_CELL_UNDERLINE) != 0)
 		sgr_emit(writer, "\033[4m", 4);
@@ -866,18 +851,16 @@ sgr_style(st_console_t *console, struct curses_state *state,
 		sgr_emit(writer, "\033[7m", 4);
 	if ((cell->flags & ST_CONSOLE_CELL_CONCEAL) != 0)
 		sgr_emit(writer, "\033[8m", 4);
-	*foreground = sgr_colour(console, state, writer, cell->foreground, false,
-	    index);
-	*background = sgr_colour(console, state, writer, cell->background, true,
-	    index);
+	*foreground = sgr_colour(console, state, writer, cell->foreground, false, index);
+	*background = sgr_colour(console, state, writer, cell->background, true, index);
 }
 
 static void
-sgr_character(struct sgr_writer *writer, st_console_t *console,
-	const struct curses_state *state, const struct st_console_cell *cell)
+sgr_character(struct sgr_writer *writer, st_console_t *console, const struct curses_state *state,
+    const struct st_console_cell *cell)
 {
 	if (state->presentation == ST_CONSOLE_TEXT_CP437) {
-		uint32_t codepoint;
+		uint32_t      codepoint;
 		unsigned char character;
 
 		(void)st_console_cell_codepoint_locked(console, cell, &codepoint);
@@ -887,7 +870,7 @@ sgr_character(struct sgr_writer *writer, st_console_t *console,
 		return;
 	}
 	if (state->presentation == ST_CONSOLE_TEXT_ASCII) {
-		chtype value = ascii_cell(console, cell);
+		chtype        value     = ascii_cell(console, cell);
 		unsigned char character = (unsigned char)(value & A_CHARTEXT);
 
 		if ((value & A_ALTCHARSET) != 0)
@@ -899,9 +882,9 @@ sgr_character(struct sgr_writer *writer, st_console_t *console,
 	}
 
 	{
-		char local[32];
+		char   local[32];
 		size_t length;
-		char *text = cell_text(console, cell, local, sizeof(local), &length);
+		char  *text = cell_text(console, cell, local, sizeof(local), &length);
 
 		if (text == NULL) {
 			writer->result = IO_ERROR_OUT_OF_MEMORY;
@@ -914,41 +897,37 @@ sgr_character(struct sgr_writer *writer, st_console_t *console,
 }
 
 static bool
-sgr_styles_equal(const struct st_console_cell *left,
-	const struct st_console_cell *right)
+sgr_styles_equal(const struct st_console_cell *left, const struct st_console_cell *right)
 {
-	const uint32_t style_flags = ST_CONSOLE_CELL_BOLD
-	    | ST_CONSOLE_CELL_UNDERLINE | ST_CONSOLE_CELL_BLINK
-	    | ST_CONSOLE_CELL_REVERSE | ST_CONSOLE_CELL_CONCEAL;
+	const uint32_t style_flags = ST_CONSOLE_CELL_BOLD | ST_CONSOLE_CELL_UNDERLINE | ST_CONSOLE_CELL_BLINK
+	                             | ST_CONSOLE_CELL_REVERSE | ST_CONSOLE_CELL_CONCEAL;
 
-	return left->foreground == right->foreground
-	    && left->background == right->background
-	    && ((left->flags ^ right->flags) & style_flags) == 0;
+	return left->foreground == right->foreground && left->background == right->background
+	       && ((left->flags ^ right->flags) & style_flags) == 0;
 }
 
 static void
 report_invalid_colour(struct curses_state *state)
 {
 	if (state->invalid_colour)
-		fprintf(stderr, "ncurses: invalid colour value %08" PRIx32
-		    "; using black\n", state->invalid_colour_value);
+		fprintf(stderr, "ncurses: invalid colour value %08" PRIx32 "; using black\n",
+		    state->invalid_colour_value);
 }
 
 static int
-sgr_present(st_console_t *console, struct curses_state *state,
-	const struct st_console_rect *view, uint32_t host_columns,
-	uint32_t host_rows)
+sgr_present(st_console_t *console, struct curses_state *state, const struct st_console_rect *view,
+    uint32_t host_columns, uint32_t host_rows)
 {
-	struct sgr_writer writer = {0};
-	struct st_console_cell current_style = {0};
-	bool style_known = false;
-	bool position_known = false;
-	bool initializing = !state->sgr_initialized;
-	uint32_t output_x = 0;
-	uint32_t output_y = 0;
-	uint32_t cursor_x;
-	uint32_t cursor_columns;
-	int foreground = -1, background = -1;
+	struct sgr_writer      writer         = {0};
+	struct st_console_cell current_style  = {0};
+	bool                   style_known    = false;
+	bool                   position_known = false;
+	bool                   initializing   = !state->sgr_initialized;
+	uint32_t               output_x       = 0;
+	uint32_t               output_y       = 0;
+	uint32_t               cursor_x;
+	uint32_t               cursor_columns;
+	int                    foreground = -1, background = -1;
 
 	state->invalid_colour = false;
 
@@ -957,63 +936,59 @@ sgr_present(st_console_t *console, struct curses_state *state,
 
 	if (initializing) {
 		const struct st_console_cell blank = {
-			.glyph = ' ',
-			.foreground = 7,
-			.background = 0,
+		    .glyph      = ' ',
+		    .foreground = 7,
+		    .background = 0,
 		};
-		static const char clear_and_hide[] = "\033[2J\033[?25l";
-		bool margins = view->width < host_columns || view->height < host_rows;
-		struct st_console_cell surround = blank;
+		static const char      clear_and_hide[] = "\033[2J\033[?25l";
+		bool                   margins          = view->width < host_columns || view->height < host_rows;
+		struct st_console_cell surround         = blank;
 
-		surround.foreground = surround.background
-		    = console->display->config.text_margin_colour;
-		sgr_style(console, state, &writer, margins ? &surround : &blank,
-		    SIZE_MAX, &foreground, &background);
+		surround.foreground = surround.background = console->display->config.text_margin_colour;
+		sgr_style(console, state, &writer, margins ? &surround : &blank, SIZE_MAX, &foreground,
+		    &background);
 		state->margin_visible = margins;
 		if (margins) {
 			state->margin_colour = background;
-			state->margin_rgb = logical_rgb(console, state,
-			    surround.background);
+			state->margin_rgb    = logical_rgb(console, state, surround.background);
 		}
 		sgr_emit(&writer, clear_and_hide, sizeof(clear_and_hide) - 1);
 		if (margins) {
 			/* Paint explicitly even when erase does not honour background. */
 			for (uint32_t y = 0; y < host_rows; ++y) {
 				for (uint32_t x = 0; x < host_columns; ++x) {
-					if (y >= view->y && y - view->y < view->height
-					    && x >= view->x && x - view->x < view->width) {
+					if (y >= view->y && y - view->y < view->height && x >= view->x
+					    && x - view->x < view->width) {
 						x = view->x + view->width - 1;
 						continue;
 					}
 					if (x == 0 || x == view->x + view->width)
-						sgr_format(&writer, "\033[%" PRIu32 ";%" PRIu32 "H",
-						    y + 1, x + 1, 0);
+						sgr_format(&writer, "\033[%" PRIu32 ";%" PRIu32 "H", y + 1, x + 1,
+						    0);
 					sgr_emit(&writer, " ", 1);
 				}
 			}
-			sgr_style(console, state, &writer, &blank, SIZE_MAX,
-			    &foreground, &background);
+			sgr_style(console, state, &writer, &blank, SIZE_MAX, &foreground, &background);
 			for (uint32_t y = 0; y < view->height; ++y) {
-				sgr_format(&writer, "\033[%" PRIu32 ";%" PRIu32 "H",
-				    view->y + y + 1, view->x + 1, 0);
+				sgr_format(&writer, "\033[%" PRIu32 ";%" PRIu32 "H", view->y + y + 1, view->x + 1,
+				    0);
 				for (uint32_t x = 0; x < view->width; ++x)
 					sgr_emit(&writer, " ", 1);
 			}
 		}
-		for (size_t index = 0;
-		    index < (size_t)console->columns * console->rows; ++index)
+		for (size_t index = 0; index < (size_t)console->columns * console->rows; ++index)
 			state->drawn[index] = blank;
 		state->sgr_initialized = true;
 	}
 	for (uint32_t y = 0; y < view->height; ++y) {
 		for (uint32_t x = 0; x < view->width; ++x) {
-			size_t index = (size_t)y * console->columns + x;
+			size_t                        index  = (size_t)y * console->columns + x;
 			const struct st_console_cell *source = st_console_cell_at(console, index);
-			struct st_console_cell effective;
+			struct st_console_cell        effective;
 			const struct st_console_cell *cell;
 
-			if ((((source->flags & ST_CONSOLE_CELL_DIRTY) == 0
-			    && !st_console_row_dirty(console, y)) || initializing)
+			if ((((source->flags & ST_CONSOLE_CELL_DIRTY) == 0 && !st_console_row_dirty(console, y))
+			        || initializing)
 			    && st_console_cells_equal(source, &state->drawn[index]))
 				continue;
 			state->drawn[index] = *source;
@@ -1026,33 +1001,31 @@ sgr_present(st_console_t *console, struct curses_state *state,
 				continue;
 			}
 			if (!position_known || output_x != x || output_y != y)
-				sgr_format(&writer, "\033[%" PRIu32 ";%" PRIu32 "H",
-				    view->y + y + 1, view->x + x + 1, 0);
+				sgr_format(&writer, "\033[%" PRIu32 ";%" PRIu32 "H", view->y + y + 1,
+				    view->x + x + 1, 0);
 			if (!style_known || !sgr_styles_equal(cell, &current_style)) {
-				sgr_style(console, state, &writer, cell, index,
-				    &foreground, &background);
+				sgr_style(console, state, &writer, cell, index, &foreground, &background);
 				current_style = *cell;
-				style_known = true;
+				style_known   = true;
 			}
 			sgr_character(&writer, console, state, cell);
 			state->drawn_foreground[index] = foreground;
 			state->drawn_background[index] = background;
-			output_x = x + 1;
-			output_y = y;
+			output_x                       = x + 1;
+			output_y                       = y;
 			if (x + 1 < console->columns
-			    && (st_console_cell_at(console, index + 1)->flags
-			    & ST_CONSOLE_CELL_CONTINUATION) != 0)
+			    && (st_console_cell_at(console, index + 1)->flags & ST_CONSOLE_CELL_CONTINUATION) != 0)
 				++output_x;
 			position_known = output_x < view->width;
 		}
 	}
-	if (console->cursor_visible && cursor_x < view->width
-	    && console->cursor_y < view->height) {
-		uint32_t shape = console->cursor_shape == ST_CONSOLE_CURSOR_BLOCK
-		    ? 2 : console->cursor_shape == ST_CONSOLE_CURSOR_UNDERLINE ? 4 : 6;
+	if (console->cursor_visible && cursor_x < view->width && console->cursor_y < view->height) {
+		uint32_t shape = console->cursor_shape == ST_CONSOLE_CURSOR_BLOCK       ? 2
+		                 : console->cursor_shape == ST_CONSOLE_CURSOR_UNDERLINE ? 4
+		                                                                        : 6;
 
-		sgr_format(&writer, "\033[%" PRIu32 ";%" PRIu32 "H",
-		    view->y + console->cursor_y + 1, view->x + cursor_x + 1, 0);
+		sgr_format(&writer, "\033[%" PRIu32 ";%" PRIu32 "H", view->y + console->cursor_y + 1,
+		    view->x + cursor_x + 1, 0);
 		sgr_format(&writer, "\033[%" PRIu32 " q", shape, 0, 0);
 		sgr_emit(&writer, "\033[0m\033[?25h", 10);
 	}
@@ -1075,80 +1048,111 @@ curses_key_code(int value)
 	if (value > 0 && value <= 0x1b)
 		return (uint16_t)value;
 	switch (value) {
-	case KEY_UP: return ST_CONSOLE_KEY_UP;
-	case KEY_DOWN: return ST_CONSOLE_KEY_DOWN;
-	case KEY_LEFT: return ST_CONSOLE_KEY_LEFT;
-	case KEY_RIGHT: return ST_CONSOLE_KEY_RIGHT;
-	case KEY_IC: return ST_CONSOLE_KEY_INSERT;
-	case KEY_DC: return ST_CONSOLE_KEY_DELETE;
-	#ifdef KEY_EIC
-	case KEY_EIC: return ST_CONSOLE_KEY_INSERT;
-	#endif
-	case KEY_HOME: return ST_CONSOLE_KEY_HOME;
-	case KEY_END: return ST_CONSOLE_KEY_END;
-	case KEY_BACKSPACE: return 8;
-	case KEY_ENTER: return 13;
-	#ifdef KEY_A1
-	case KEY_A1: return ST_CONSOLE_KEY_HOME;
-	#endif
-	#ifdef KEY_A3
-	case KEY_A3: return ST_CONSOLE_KEY_PAGE_UP;
-	#endif
-	#ifdef KEY_C1
-	case KEY_C1: return ST_CONSOLE_KEY_END;
-	#endif
-	#ifdef KEY_C3
-	case KEY_C3: return ST_CONSOLE_KEY_PAGE_DOWN;
-	#endif
-	#ifdef KEY_BEG
-	case KEY_BEG: return ST_CONSOLE_KEY_HOME;
-	#endif
-	#ifdef KEY_CANCEL
-	case KEY_CANCEL: return 27;
-	#endif
-	#ifdef KEY_SELECT
-	case KEY_SELECT: return ST_CONSOLE_KEY_END;
-	#endif
-	case KEY_PPAGE: return ST_CONSOLE_KEY_PAGE_UP;
-	case KEY_NPAGE: return ST_CONSOLE_KEY_PAGE_DOWN;
-	case KEY_F(1): return ST_CONSOLE_KEY_F1;
-	case KEY_F(2): return ST_CONSOLE_KEY_F2;
-	case KEY_F(3): return ST_CONSOLE_KEY_F3;
-	case KEY_F(4): return ST_CONSOLE_KEY_F4;
-	case KEY_F(5): return ST_CONSOLE_KEY_F5;
-	case KEY_F(6): return ST_CONSOLE_KEY_F6;
-	case KEY_F(7): return ST_CONSOLE_KEY_F7;
-	case KEY_F(8): return ST_CONSOLE_KEY_F8;
-	case KEY_F(9): return ST_CONSOLE_KEY_F9;
-	case KEY_F(10): return ST_CONSOLE_KEY_F10;
-	case KEY_F(11): return ST_CONSOLE_KEY_F11;
-	case KEY_F(12): return ST_CONSOLE_KEY_F12;
-	default: return 0;
+		case KEY_UP:
+			return ST_CONSOLE_KEY_UP;
+		case KEY_DOWN:
+			return ST_CONSOLE_KEY_DOWN;
+		case KEY_LEFT:
+			return ST_CONSOLE_KEY_LEFT;
+		case KEY_RIGHT:
+			return ST_CONSOLE_KEY_RIGHT;
+		case KEY_IC:
+			return ST_CONSOLE_KEY_INSERT;
+		case KEY_DC:
+			return ST_CONSOLE_KEY_DELETE;
+ #ifdef KEY_EIC
+		case KEY_EIC:
+			return ST_CONSOLE_KEY_INSERT;
+ #endif
+		case KEY_HOME:
+			return ST_CONSOLE_KEY_HOME;
+		case KEY_END:
+			return ST_CONSOLE_KEY_END;
+		case KEY_BACKSPACE:
+			return 8;
+		case KEY_ENTER:
+			return 13;
+ #ifdef KEY_A1
+		case KEY_A1:
+			return ST_CONSOLE_KEY_HOME;
+ #endif
+ #ifdef KEY_A3
+		case KEY_A3:
+			return ST_CONSOLE_KEY_PAGE_UP;
+ #endif
+ #ifdef KEY_C1
+		case KEY_C1:
+			return ST_CONSOLE_KEY_END;
+ #endif
+ #ifdef KEY_C3
+		case KEY_C3:
+			return ST_CONSOLE_KEY_PAGE_DOWN;
+ #endif
+ #ifdef KEY_BEG
+		case KEY_BEG:
+			return ST_CONSOLE_KEY_HOME;
+ #endif
+ #ifdef KEY_CANCEL
+		case KEY_CANCEL:
+			return 27;
+ #endif
+ #ifdef KEY_SELECT
+		case KEY_SELECT:
+			return ST_CONSOLE_KEY_END;
+ #endif
+		case KEY_PPAGE:
+			return ST_CONSOLE_KEY_PAGE_UP;
+		case KEY_NPAGE:
+			return ST_CONSOLE_KEY_PAGE_DOWN;
+		case KEY_F(1):
+			return ST_CONSOLE_KEY_F1;
+		case KEY_F(2):
+			return ST_CONSOLE_KEY_F2;
+		case KEY_F(3):
+			return ST_CONSOLE_KEY_F3;
+		case KEY_F(4):
+			return ST_CONSOLE_KEY_F4;
+		case KEY_F(5):
+			return ST_CONSOLE_KEY_F5;
+		case KEY_F(6):
+			return ST_CONSOLE_KEY_F6;
+		case KEY_F(7):
+			return ST_CONSOLE_KEY_F7;
+		case KEY_F(8):
+			return ST_CONSOLE_KEY_F8;
+		case KEY_F(9):
+			return ST_CONSOLE_KEY_F9;
+		case KEY_F(10):
+			return ST_CONSOLE_KEY_F10;
+		case KEY_F(11):
+			return ST_CONSOLE_KEY_F11;
+		case KEY_F(12):
+			return ST_CONSOLE_KEY_F12;
+		default:
+			return 0;
 	}
 }
 
 static bool
-window_dimensions(struct curses_state *state, WINDOW *window,
-	uint32_t *columns, uint32_t *rows)
+window_dimensions(struct curses_state *state, WINDOW *window, uint32_t *columns, uint32_t *rows)
 {
 	int terminal_columns;
 	int terminal_rows;
 
 	terminal_columns = state->api.call_getmaxx(window);
-	terminal_rows = state->api.call_getmaxy(window);
+	terminal_rows    = state->api.call_getmaxy(window);
 	if (terminal_columns <= 0 || terminal_rows <= 0)
 		return false;
 	*columns = (uint32_t)terminal_columns;
-	*rows = (uint32_t)terminal_rows;
+	*rows    = (uint32_t)terminal_rows;
 	return true;
 }
 
 static bool
-terminal_dimensions(struct curses_state *state, uint32_t *columns,
-	uint32_t *rows)
+terminal_dimensions(struct curses_state *state, uint32_t *columns, uint32_t *rows)
 {
 	WINDOW *probe;
-	bool result;
+	bool    result;
 
 	/* getch/get_wch has already applied the resize before reporting it.
 	 * resizeterm() here can queue another KEY_RESIZE, even at the same size. */
@@ -1160,91 +1164,90 @@ terminal_dimensions(struct curses_state *state, uint32_t *columns,
 	return result;
 }
 
-#ifdef KEY_MOUSE
+ #ifdef KEY_MOUSE
 static bool
 mouse_event(struct curses_state *state, struct st_console_event *event)
 {
-	MEVENT mouse;
-	mmask_t buttons;
+	MEVENT   mouse;
+	mmask_t  buttons;
 	uint32_t previous;
 
 	if (!state->mouse_enabled || state->api.call_getmouse(&mouse) != OK)
 		return false;
-	buttons = mouse.bstate;
+	buttons  = mouse.bstate;
 	previous = state->mouse_buttons;
-#ifdef BUTTON1_PRESSED
+  #ifdef BUTTON1_PRESSED
 	if ((buttons & BUTTON1_PRESSED) != 0)
 		state->mouse_buttons |= ST_CONSOLE_MOUSE_BUTTON_LEFT;
-#endif
-#ifdef BUTTON1_RELEASED
+  #endif
+  #ifdef BUTTON1_RELEASED
 	if ((buttons & BUTTON1_RELEASED) != 0)
 		state->mouse_buttons &= ~ST_CONSOLE_MOUSE_BUTTON_LEFT;
-#endif
-#ifdef BUTTON2_PRESSED
+  #endif
+  #ifdef BUTTON2_PRESSED
 	if ((buttons & BUTTON2_PRESSED) != 0)
 		state->mouse_buttons |= ST_CONSOLE_MOUSE_BUTTON_MIDDLE;
-#endif
-#ifdef BUTTON2_RELEASED
+  #endif
+  #ifdef BUTTON2_RELEASED
 	if ((buttons & BUTTON2_RELEASED) != 0)
 		state->mouse_buttons &= ~ST_CONSOLE_MOUSE_BUTTON_MIDDLE;
-#endif
-#ifdef BUTTON3_PRESSED
+  #endif
+  #ifdef BUTTON3_PRESSED
 	if ((buttons & BUTTON3_PRESSED) != 0)
 		state->mouse_buttons |= ST_CONSOLE_MOUSE_BUTTON_RIGHT;
-#endif
-#ifdef BUTTON3_RELEASED
+  #endif
+  #ifdef BUTTON3_RELEASED
 	if ((buttons & BUTTON3_RELEASED) != 0)
 		state->mouse_buttons &= ~ST_CONSOLE_MOUSE_BUTTON_RIGHT;
-#endif
-	*event = (struct st_console_event){
-		.type = ST_CONSOLE_EVENT_MOUSE,
-		.data.mouse = {
-			.x = mouse.x - (int)state->viewport.x,
-			.y = mouse.y - (int)state->viewport.y,
-			.pixel_x = -1,
-			.pixel_y = -1,
-			.buttons = state->mouse_buttons,
-			.action = previous == state->mouse_buttons
-			    ? ST_CONSOLE_MOUSE_MOVE : ST_CONSOLE_MOUSE_BUTTON,
-		},
+  #endif
+	*event = (struct st_console_event) {
+	    .type = ST_CONSOLE_EVENT_MOUSE,
+	    .data.mouse =
+		{
+			     .x       = mouse.x - (int)state->viewport.x,
+			     .y       = mouse.y - (int)state->viewport.y,
+			     .pixel_x = -1,
+			     .pixel_y = -1,
+			     .buttons = state->mouse_buttons,
+			     .action  = previous == state->mouse_buttons ? ST_CONSOLE_MOUSE_MOVE : ST_CONSOLE_MOUSE_BUTTON,
+			     },
 	};
-#ifdef BUTTON_SHIFT
+  #ifdef BUTTON_SHIFT
 	if ((buttons & BUTTON_SHIFT) != 0)
 		event->data.mouse.modifiers |= ST_CONSOLE_MODIFIER_SHIFT;
-#endif
-#ifdef BUTTON_CTRL
+  #endif
+  #ifdef BUTTON_CTRL
 	if ((buttons & BUTTON_CTRL) != 0)
 		event->data.mouse.modifiers |= ST_CONSOLE_MODIFIER_CONTROL;
-#endif
-#ifdef BUTTON_ALT
+  #endif
+  #ifdef BUTTON_ALT
 	if ((buttons & BUTTON_ALT) != 0)
 		event->data.mouse.modifiers |= ST_CONSOLE_MODIFIER_ALT;
-#endif
-#ifdef BUTTON4_PRESSED
+  #endif
+  #ifdef BUTTON4_PRESSED
 	if ((buttons & BUTTON4_PRESSED) != 0) {
-		event->data.mouse.action = ST_CONSOLE_MOUSE_WHEEL;
+		event->data.mouse.action  = ST_CONSOLE_MOUSE_WHEEL;
 		event->data.mouse.wheel_y = 1;
 	}
-#endif
-#ifdef BUTTON5_PRESSED
+  #endif
+  #ifdef BUTTON5_PRESSED
 	if ((buttons & BUTTON5_PRESSED) != 0) {
-		event->data.mouse.action = ST_CONSOLE_MOUSE_WHEEL;
+		event->data.mouse.action  = ST_CONSOLE_MOUSE_WHEEL;
 		event->data.mouse.wheel_y = -1;
 	}
-#endif
+  #endif
 	return true;
 }
-#endif
+ #endif
 
 static int
-paint_margins(st_console_t *console, struct curses_state *state,
-	const struct st_console_rect *view, uint32_t host_columns,
-	uint32_t host_rows)
+paint_margins(st_console_t *console, struct curses_state *state, const struct st_console_rect *view,
+    uint32_t host_columns, uint32_t host_rows)
 {
 	struct st_console_cell surround = {
-		.glyph = ' ',
-		.foreground = console->display->config.text_margin_colour,
-		.background = console->display->config.text_margin_colour,
+	    .glyph      = ' ',
+	    .foreground = console->display->config.text_margin_colour,
+	    .background = console->display->config.text_margin_colour,
 	};
 	int foreground = -1, background = -1;
 	int pair;
@@ -1254,19 +1257,18 @@ paint_margins(st_console_t *console, struct curses_state *state,
 		state->margins_initialized = true;
 		return 0;
 	}
-	pair = cell_pair(console, state, &surround, SIZE_MAX, &foreground,
-	    &background);
-	state->margin_colour = background;
-	state->margin_rgb = logical_rgb(console, state, surround.background);
+	pair                  = cell_pair(console, state, &surround, SIZE_MAX, &foreground, &background);
+	state->margin_colour  = background;
+	state->margin_rgb     = logical_rgb(console, state, surround.background);
 	state->margin_visible = true;
-	if (state->api.call_attributes(state->window, A_NORMAL,
-	    state->extended_pairs ? 0 : (NCURSES_PAIRS_T)pair,
-	    state->extended_pairs ? &pair : NULL) == ERR)
+	if (state->api.call_attributes(state->window, A_NORMAL, state->extended_pairs ? 0 : (NCURSES_PAIRS_T)pair,
+		state->extended_pairs ? &pair : NULL)
+	    == ERR)
 		return IO_ERROR_IO;
 	for (uint32_t y = 0; y < host_rows; ++y) {
 		for (uint32_t x = 0; x < host_columns; ++x) {
-			if (y >= view->y && y - view->y < view->height
-			    && x >= view->x && x - view->x < view->width) {
+			if (y >= view->y && y - view->y < view->height && x >= view->x
+			    && x - view->x < view->width) {
 				x = view->x + view->width - 1;
 				continue;
 			}
@@ -1284,41 +1286,34 @@ paint_margins(st_console_t *console, struct curses_state *state,
 static int
 curses_present_inner(void *argument)
 {
-	st_console_t *console = argument;
-	struct curses_state *state = console->display->backend_state;
-	uint32_t x;
-	uint32_t y;
-	uint32_t cursor_x;
-	uint32_t cursor_columns;
-	int cursor;
-	bool resized = atomic_exchange_explicit(&state->host_resized, false,
-	    memory_order_acq_rel);
-	uint32_t host_columns = atomic_load_explicit(&state->host_columns,
-	    memory_order_acquire);
-	uint32_t host_rows = atomic_load_explicit(&state->host_rows,
-	    memory_order_acquire);
-	int status;
+	st_console_t        *console = argument;
+	struct curses_state *state   = console->display->backend_state;
+	uint32_t             x;
+	uint32_t             y;
+	uint32_t             cursor_x;
+	uint32_t             cursor_columns;
+	int                  cursor;
+	bool                 resized = atomic_exchange_explicit(&state->host_resized, false, memory_order_acq_rel);
+	uint32_t             host_columns = atomic_load_explicit(&state->host_columns, memory_order_acquire);
+	uint32_t             host_rows    = atomic_load_explicit(&state->host_rows, memory_order_acquire);
+	int                  status;
 
 	state->invalid_colour = false;
 
 	if (resized) {
 		status = replace_window(state, host_columns, host_rows);
 		if (status != 0) {
-			atomic_store_explicit(&state->host_resized, true,
-			    memory_order_release);
+			atomic_store_explicit(&state->host_resized, true, memory_order_release);
 			return status;
 		}
-		memset(state->drawn, 0, (size_t)console->columns * console->rows
-		    * sizeof(*state->drawn));
-		for (size_t i = 0; i < (size_t)console->columns * console->rows;
-		    ++i) {
+		memset(state->drawn, 0, (size_t)console->columns * console->rows * sizeof(*state->drawn));
+		for (size_t i = 0; i < (size_t)console->columns * console->rows; ++i) {
 			state->drawn_foreground[i] = -1;
 			state->drawn_background[i] = -1;
 		}
 	}
 
-	state->viewport = st_console_text_viewport(console->columns,
-	    console->rows, host_columns, host_rows,
+	state->viewport = st_console_text_viewport(console->columns, console->rows, host_columns, host_rows,
 	    console->display->config.text_left_justify);
 	const struct st_console_rect *view = &state->viewport;
 	st_console_cursor_span_locked(console, &cursor_x, &cursor_columns);
@@ -1334,17 +1329,16 @@ curses_present_inner(void *argument)
 
 	for (y = 0; y < view->height; ++y) {
 		for (x = 0; x < view->width; ++x) {
-			size_t index = (size_t)y * console->columns + x;
+			size_t                        index  = (size_t)y * console->columns + x;
 			const struct st_console_cell *source = st_console_cell_at(console, index);
-			struct st_console_cell effective;
+			struct st_console_cell        effective;
 			const struct st_console_cell *cell;
-			int pair;
-			int foreground = -1;
-			int background = -1;
-			int write_result;
+			int                           pair;
+			int                           foreground = -1;
+			int                           background = -1;
+			int                           write_result;
 
-			if ((source->flags & ST_CONSOLE_CELL_DIRTY) == 0
-			    && !st_console_row_dirty(console, y)
+			if ((source->flags & ST_CONSOLE_CELL_DIRTY) == 0 && !st_console_row_dirty(console, y)
 			    && st_console_cells_equal(source, &state->drawn[index]))
 				continue;
 			if ((source->flags & ST_CONSOLE_CELL_CONTINUATION) != 0) {
@@ -1356,18 +1350,16 @@ curses_present_inner(void *argument)
 			}
 			st_console_effective_cell_locked(console, source, &effective);
 			cell = &effective;
-			pair = cell_pair(console, state, cell, index, &foreground,
-			    &background);
-			if (state->api.call_move(state->window,
-			    (int)(view->y + y), (int)(view->x + x)) == ERR
-			    || state->api.call_attributes(state->window,
-				    cell_attributes(state, cell),
-			    state->extended_pairs ? 0 : (NCURSES_PAIRS_T)pair,
-			    state->extended_pairs ? &pair : NULL) == ERR)
+			pair = cell_pair(console, state, cell, index, &foreground, &background);
+			if (state->api.call_move(state->window, (int)(view->y + y), (int)(view->x + x)) == ERR
+			    || state->api.call_attributes(state->window, cell_attributes(state, cell),
+				   state->extended_pairs ? 0 : (NCURSES_PAIRS_T)pair,
+				   state->extended_pairs ? &pair : NULL)
+			           == ERR)
 				return IO_ERROR_IO;
 			write_result = write_cell(console, state, cell);
-			if (write_result == ERR && !(view->x + x + 1 == host_columns
-			    && view->y + y + 1 == host_rows))
+			if (write_result == ERR
+			    && !(view->x + x + 1 == host_columns && view->y + y + 1 == host_rows))
 				return IO_ERROR_IO;
 			state->drawn[index] = *source;
 			state->drawn[index].flags &= ~ST_CONSOLE_CELL_DIRTY;
@@ -1375,17 +1367,15 @@ curses_present_inner(void *argument)
 			state->drawn_background[index] = background;
 		}
 	}
-	if (console->cursor_visible && cursor_x < view->width
-	    && console->cursor_y < view->height
-	    && state->api.call_move(state->window,
-	    (int)(view->y + console->cursor_y), (int)(view->x + cursor_x)) == ERR)
+	if (console->cursor_visible && cursor_x < view->width && console->cursor_y < view->height
+	    && state->api.call_move(state->window, (int)(view->y + console->cursor_y), (int)(view->x + cursor_x))
+	           == ERR)
 		return IO_ERROR_IO;
-	cursor = !console->cursor_visible || cursor_x >= view->width
-	    || console->cursor_y >= view->height ? 0
-	    : console->cursor_shape == ST_CONSOLE_CURSOR_BLOCK ? 2 : 1;
+	cursor = !console->cursor_visible || cursor_x >= view->width || console->cursor_y >= view->height ? 0
+	         : console->cursor_shape == ST_CONSOLE_CURSOR_BLOCK                                       ? 2
+	                                                                                                  : 1;
 	(void)state->api.call_cursor(cursor);
-	status = state->api.call_refresh(state->window) == ERR
-	    ? IO_ERROR_IO : 0;
+	status = state->api.call_refresh(state->window) == ERR ? IO_ERROR_IO : 0;
 	report_invalid_colour(state);
 	return status;
 }
@@ -1395,29 +1385,28 @@ curses_present(st_console_t *console)
 {
 	struct curses_state *state = console->display->backend_state;
 
-	return st_curses_locale_call(state->byte_locale, curses_present_inner,
-	    console);
+	return st_curses_locale_call(state->byte_locale, curses_present_inner, console);
 }
 
 static int
 curses_input_inner(void *argument)
 {
-	struct curses_state *state = argument;
-	st_console_display_t *display = state->display;
-	const struct timespec idle = {0, 10000000};
-	mbstate_t text_state = {0};
+	struct curses_state  *state      = argument;
+	st_console_display_t *display    = state->display;
+	const struct timespec idle       = {0, 10000000};
+	mbstate_t             text_state = {0};
 
 	while (!atomic_load_explicit(&state->stop, memory_order_acquire)) {
-		struct st_console_event event = {0};
-		bool have_event = false;
-		bool resize = false;
-		uint32_t resize_columns = 0;
-		uint32_t resize_rows = 0;
-		bool have_key = false;
-		bool have_text = false;
-		uint32_t text_value = 0;
-		int key_value = 0;
-		int value;
+		struct st_console_event event          = {0};
+		bool                    have_event     = false;
+		bool                    resize         = false;
+		uint32_t                resize_columns = 0;
+		uint32_t                resize_rows    = 0;
+		bool                    have_key       = false;
+		bool                    have_text      = false;
+		uint32_t                text_value     = 0;
+		int                     key_value      = 0;
+		int                     value;
 
 		if (st_mutex_lock(&display->backend_mutex) != ST_THREAD_SUCCESS)
 			break;
@@ -1427,59 +1416,56 @@ curses_input_inner(void *argument)
 		value = state->api.call_getch(state->window);
 		if (value >= 0 && value <= UCHAR_MAX) {
 			if (value < 0x20 || value == 0x7f) {
-				have_key = true;
+				have_key  = true;
 				key_value = value;
 			}
 			else if (state->presentation == ST_CONSOLE_TEXT_CP437) {
-				have_text = true;
-				text_value = st_codepage_to_unicode(ST_CODEPAGE_CP437,
-				    (uint8_t)value, true);
+				have_text  = true;
+				text_value = st_codepage_to_unicode(ST_CODEPAGE_CP437, (uint8_t)value, true);
 			}
 			else {
-				char byte = (char)(unsigned char)value;
+				char    byte = (char)(unsigned char)value;
 				wchar_t scalar;
-				size_t converted = mbrtowc(&scalar, &byte, 1, &text_state);
+				size_t  converted = mbrtowc(&scalar, &byte, 1, &text_state);
 
 				if (converted == (size_t)-1)
 					memset(&text_state, 0, sizeof(text_state));
-				else if (converted != (size_t)-2
-				    && st_unicode_scalar_valid((uint32_t)scalar)) {
-					have_text = true;
+				else if (converted != (size_t)-2 && st_unicode_scalar_valid((uint32_t)scalar)) {
+					have_text  = true;
 					text_value = (uint32_t)scalar;
 				}
 			}
 		}
 		else if (value != ERR) {
-			have_key = true;
+			have_key  = true;
 			key_value = value;
 		}
 		if (have_key)
 			memset(&text_state, 0, sizeof(text_state));
 		if (have_text) {
-			event.type = ST_CONSOLE_EVENT_TEXT;
+			event.type                = ST_CONSOLE_EVENT_TEXT;
 			event.data.text.codepoint = text_value;
-			have_event = true;
+			have_event                = true;
 		}
 		else if (have_key) {
-#ifdef KEY_RESIZE
+ #ifdef KEY_RESIZE
 			if (key_value == KEY_RESIZE)
-				resize = terminal_dimensions(state, &resize_columns,
-				    &resize_rows);
+				resize = terminal_dimensions(state, &resize_columns, &resize_rows);
 			else
-#endif
-#ifdef KEY_MOUSE
-			if (key_value == KEY_MOUSE)
+ #endif
+ #ifdef KEY_MOUSE
+			    if (key_value == KEY_MOUSE)
 				have_event = mouse_event(state, &event);
 			else
-#endif
+ #endif
 			{
 				uint16_t key_code = curses_key_code(key_value);
 
 				if (key_code != 0) {
-					event.type = ST_CONSOLE_EVENT_KEY_CODE;
+					event.type          = ST_CONSOLE_EVENT_KEY_CODE;
 					event.data.key.code = key_code;
-					if (key_code >= 1 && key_code <= 26 && key_code != 8
-					    && key_code != 9 && key_code != 13)
+					if (key_code >= 1 && key_code <= 26 && key_code != 8 && key_code != 9
+					    && key_code != 13)
 						event.data.key.modifiers |= ST_CONSOLE_MODIFIER_CONTROL;
 					have_event = true;
 				}
@@ -1489,22 +1475,20 @@ curses_input_inner(void *argument)
 		if (resize) {
 			resize = resize_columns != 0 && resize_rows != 0;
 			if (resize) {
-				atomic_store_explicit(&state->host_columns,
-				    resize_columns, memory_order_release);
-				atomic_store_explicit(&state->host_rows, resize_rows,
-				    memory_order_release);
-				atomic_store_explicit(&state->host_resized, true,
-				    memory_order_release);
+				atomic_store_explicit(&state->host_columns, resize_columns, memory_order_release);
+				atomic_store_explicit(&state->host_rows, resize_rows, memory_order_release);
+				atomic_store_explicit(&state->host_resized, true, memory_order_release);
 				st_console_display_request_repaint(display);
 			}
 		}
 		if (resize) {
 			struct st_console_event resize_event = {
-				.type = ST_CONSOLE_EVENT_RESIZE,
-				.data.resize = {
-					.columns = resize_columns,
-					.rows = resize_rows,
-				},
+			    .type = ST_CONSOLE_EVENT_RESIZE,
+			    .data.resize =
+				{
+					      .columns = resize_columns,
+					      .rows    = resize_rows,
+					      },
 			};
 
 			(void)st_console_display_post_event(display, &resize_event);
@@ -1522,15 +1506,14 @@ curses_input(void *argument)
 {
 	struct curses_state *state = argument;
 
-	return st_curses_locale_call(state->byte_locale, curses_input_inner,
-	    argument);
+	return st_curses_locale_call(state->byte_locale, curses_input_inner, argument);
 }
 
 static int
 curses_destroy_inner(void *argument)
 {
 	st_console_display_t *display = argument;
-	struct curses_state *state = display->backend_state;
+	struct curses_state  *state   = display->backend_state;
 
 	if (state == NULL)
 		return 0;
@@ -1540,8 +1523,7 @@ curses_destroy_inner(void *argument)
 	if (state->palette_mutable) {
 		for (int i = 0; i < state->terminal_colour_count; ++i) {
 			if (state->terminal_colours[i].original_valid)
-				(void)write_terminal_colour(state, i,
-				    state->terminal_colours[i].original_red,
+				(void)write_terminal_colour(state, i, state->terminal_colours[i].original_red,
 				    state->terminal_colours[i].original_green,
 				    state->terminal_colours[i].original_blue);
 		}
@@ -1556,11 +1538,9 @@ curses_destroy_inner(void *argument)
 			(void)state->api.call_cursor(1);
 		(void)state->api.call_endwin();
 		if (state->sgr_output) {
-			static const char restore_cursor[] =
-			    "\033[0m\033[?25h\033[0 q";
+			static const char restore_cursor[] = "\033[0m\033[?25h\033[0 q";
 
-			(void)fwrite(restore_cursor, 1,
-			    sizeof(restore_cursor) - 1, stdout);
+			(void)fwrite(restore_cursor, 1, sizeof(restore_cursor) - 1, stdout);
 			(void)fflush(stdout);
 		}
 		state->api.call_delscreen(state->screen);
@@ -1578,7 +1558,7 @@ curses_destroy_inner(void *argument)
 static void
 curses_destroy(st_console_display_t *display)
 {
-	struct curses_state *state = display->backend_state;
+	struct curses_state     *state  = display->backend_state;
 	struct st_curses_locale *locale = state == NULL ? NULL : state->byte_locale;
 
 	(void)st_curses_locale_call(locale, curses_destroy_inner, display);
@@ -1586,8 +1566,7 @@ curses_destroy(st_console_display_t *display)
 }
 
 static void
-curses_palette_changed(st_console_t *console, uint16_t first,
-	const uint32_t *colours, uint32_t count)
+curses_palette_changed(st_console_t *console, uint16_t first, const uint32_t *colours, uint32_t count)
 {
 	struct curses_state *state = console->display->backend_state;
 	(void)colours;
@@ -1601,24 +1580,23 @@ curses_palette_changed(st_console_t *console, uint16_t first,
 static int
 curses_resize(st_console_t *console, uint32_t columns, uint32_t rows)
 {
-	struct curses_state *state = console->display->backend_state;
+	struct curses_state    *state = console->display->backend_state;
 	struct st_console_cell *drawn;
-	int *drawn_foreground;
-	int *drawn_background;
-	size_t count;
-	uint32_t host_columns;
-	uint32_t host_rows;
+	int                    *drawn_foreground;
+	int                    *drawn_background;
+	size_t                  count;
+	uint32_t                host_columns;
+	uint32_t                host_rows;
 
 	if (columns > INT_MAX || rows > INT_MAX)
 		return IO_ERROR_OUT_OF_RANGE;
 	if ((size_t)columns > SIZE_MAX / (size_t)rows)
 		return IO_ERROR_OUT_OF_RANGE;
-	count = (size_t)columns * rows;
-	drawn = calloc(count, sizeof(*drawn));
+	count            = (size_t)columns * rows;
+	drawn            = calloc(count, sizeof(*drawn));
 	drawn_foreground = calloc(count, sizeof(*drawn_foreground));
 	drawn_background = calloc(count, sizeof(*drawn_background));
-	if (drawn == NULL || drawn_foreground == NULL
-	    || drawn_background == NULL) {
+	if (drawn == NULL || drawn_foreground == NULL || drawn_background == NULL) {
 		free(drawn);
 		free(drawn_foreground);
 		free(drawn_background);
@@ -1628,9 +1606,8 @@ curses_resize(st_console_t *console, uint32_t columns, uint32_t rows)
 		drawn_foreground[i] = -1;
 		drawn_background[i] = -1;
 	}
-	host_columns = atomic_load_explicit(&state->host_columns,
-	    memory_order_acquire);
-	host_rows = atomic_load_explicit(&state->host_rows, memory_order_acquire);
+	host_columns = atomic_load_explicit(&state->host_columns, memory_order_acquire);
+	host_rows    = atomic_load_explicit(&state->host_rows, memory_order_acquire);
 	if (host_columns == 0)
 		host_columns = columns;
 	if (host_rows == 0)
@@ -1644,7 +1621,7 @@ curses_resize(st_console_t *console, uint32_t columns, uint32_t rows)
 	free(state->drawn);
 	free(state->drawn_foreground);
 	free(state->drawn_background);
-	state->drawn = drawn;
+	state->drawn            = drawn;
 	state->drawn_foreground = drawn_foreground;
 	state->drawn_background = drawn_background;
 	atomic_store_explicit(&state->host_resized, false, memory_order_release);
@@ -1654,22 +1631,19 @@ curses_resize(st_console_t *console, uint32_t columns, uint32_t rows)
 static uint32_t
 curses_capabilities(const st_console_t *console)
 {
-	const struct curses_state *state = console->display->backend_state;
-	uint32_t result = 0;
+	const struct curses_state *state  = console->display->backend_state;
+	uint32_t                   result = 0;
 
 	if (state->direct_colour || state->sgr_direct)
-		result |= ST_CONSOLE_CAP_PALETTE_CHANGE
-		    | ST_CONSOLE_CAP_EXTENDED_PALETTE;
+		result |= ST_CONSOLE_CAP_PALETTE_CHANGE | ST_CONSOLE_CAP_EXTENDED_PALETTE;
 	else {
 		if (state->palette_mutable)
 			result |= ST_CONSOLE_CAP_PALETTE_CHANGE;
 		if (state->colour_count >= 65535
-		    && (state->sgr_output || (state->extended_colours
-		    && state->extended_pairs)))
+		    && (state->sgr_output || (state->extended_colours && state->extended_pairs)))
 			result |= ST_CONSOLE_CAP_EXTENDED_PALETTE;
 	}
-	if (state->direct_colour || state->sgr_direct
-	    || state->colour_count >= 16)
+	if (state->direct_colour || state->sgr_direct || state->colour_count >= 16)
 		result |= ST_CONSOLE_CAP_BRIGHT_BACKGROUND;
 	return result;
 }
@@ -1683,152 +1657,140 @@ curses_start_input(st_console_display_t *display)
 
 	if (atomic_load_explicit(&display->input_active, memory_order_acquire) == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	if (st_thread_create(&state->input_thread, curses_input, state)
-	    != ST_THREAD_SUCCESS)
+	if (st_thread_create(&state->input_thread, curses_input, state) != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
 	state->input_started = true;
 	return 0;
 }
 
 static const struct st_console_backend_ops curses_ops = {
-	.attach = curses_attach,
-	.deferred_present = true,
-	.present = curses_present,
-	.resize = curses_resize,
-	.palette_changed = curses_palette_changed,
-	.capabilities = curses_capabilities,
-	.destroy = curses_destroy,
-	.start_input = curses_start_input,
+    .attach           = curses_attach,
+    .deferred_present = true,
+    .present          = curses_present,
+    .resize           = curses_resize,
+    .palette_changed  = curses_palette_changed,
+    .capabilities     = curses_capabilities,
+    .destroy          = curses_destroy,
+    .start_input      = curses_start_input,
 };
 
 static bool
 load_required_api(struct curses_state *state)
 {
-#if ST_DEP_CURSES_LINKED
-	state->api.call_newterm = (curses_call_newterm_fn)newterm;
-	state->api.call_delscreen = (curses_call_delscreen_fn)delscreen;
-	state->api.call_endwin = (curses_call_endwin_fn)endwin;
-	state->api.call_newwin = (curses_call_newwin_fn)newwin;
-	state->api.call_delwin = (curses_call_delwin_fn)delwin;
-	state->api.call_getmaxx = (curses_call_getmaxx_fn)getmaxx;
-	state->api.call_getmaxy = (curses_call_getmaxy_fn)getmaxy;
-	state->api.call_move = (curses_call_move_fn)wmove;
-	state->api.call_addch = (curses_call_addch_fn)waddch;
-	state->api.call_refresh = (curses_call_refresh_fn)wrefresh;
-	state->api.call_erase = (curses_call_erase_fn)werase;
-	state->api.call_cbreak = (curses_call_cbreak_fn)cbreak;
-	state->api.call_raw = (curses_call_raw_fn)raw;
-	state->api.call_noecho = (curses_call_noecho_fn)noecho;
-	state->api.call_nonl = (curses_call_nonl_fn)nonl;
-	state->api.call_keypad = (curses_call_keypad_fn)keypad;
-	state->api.call_timeout = (curses_call_timeout_fn)wtimeout;
-	state->api.call_scrollok = (curses_call_scrollok_fn)scrollok;
-	state->api.call_cursor = (curses_call_cursor_fn)curs_set;
-	state->api.call_has_colors = (curses_call_has_colors_fn)has_colors;
+ #if ST_DEP_CURSES_LINKED
+	state->api.call_newterm          = (curses_call_newterm_fn)newterm;
+	state->api.call_delscreen        = (curses_call_delscreen_fn)delscreen;
+	state->api.call_endwin           = (curses_call_endwin_fn)endwin;
+	state->api.call_newwin           = (curses_call_newwin_fn)newwin;
+	state->api.call_delwin           = (curses_call_delwin_fn)delwin;
+	state->api.call_getmaxx          = (curses_call_getmaxx_fn)getmaxx;
+	state->api.call_getmaxy          = (curses_call_getmaxy_fn)getmaxy;
+	state->api.call_move             = (curses_call_move_fn)wmove;
+	state->api.call_addch            = (curses_call_addch_fn)waddch;
+	state->api.call_refresh          = (curses_call_refresh_fn)wrefresh;
+	state->api.call_erase            = (curses_call_erase_fn)werase;
+	state->api.call_cbreak           = (curses_call_cbreak_fn)cbreak;
+	state->api.call_raw              = (curses_call_raw_fn)raw;
+	state->api.call_noecho           = (curses_call_noecho_fn)noecho;
+	state->api.call_nonl             = (curses_call_nonl_fn)nonl;
+	state->api.call_keypad           = (curses_call_keypad_fn)keypad;
+	state->api.call_timeout          = (curses_call_timeout_fn)wtimeout;
+	state->api.call_scrollok         = (curses_call_scrollok_fn)scrollok;
+	state->api.call_cursor           = (curses_call_cursor_fn)curs_set;
+	state->api.call_has_colors       = (curses_call_has_colors_fn)has_colors;
 	state->api.call_can_change_color = (curses_call_can_change_color_fn)can_change_color;
-	state->api.call_start_color = (curses_call_start_color_fn)start_color;
-	state->api.call_color_content = (curses_call_color_content_fn)color_content;
-	state->api.call_init_color = (curses_call_init_color_fn)init_color;
-	state->api.call_init_pair = (curses_call_init_pair_fn)init_pair;
-	state->api.call_tigetflag = (curses_call_tigetflag_fn)tigetflag;
-	state->api.call_tigetnum = (curses_call_tigetnum_fn)tigetnum;
-	state->api.call_tigetstr = (curses_call_tigetstr_fn)tigetstr;
-	state->api.call_attributes = (curses_call_attributes_fn)wattr_set;
-	state->api.call_getch = (curses_call_getch_fn)wgetch;
-#if ST_CURSES_HAVE_USE_EXTENDED_NAMES
+	state->api.call_start_color      = (curses_call_start_color_fn)start_color;
+	state->api.call_color_content    = (curses_call_color_content_fn)color_content;
+	state->api.call_init_color       = (curses_call_init_color_fn)init_color;
+	state->api.call_init_pair        = (curses_call_init_pair_fn)init_pair;
+	state->api.call_tigetflag        = (curses_call_tigetflag_fn)tigetflag;
+	state->api.call_tigetnum         = (curses_call_tigetnum_fn)tigetnum;
+	state->api.call_tigetstr         = (curses_call_tigetstr_fn)tigetstr;
+	state->api.call_attributes       = (curses_call_attributes_fn)wattr_set;
+	state->api.call_getch            = (curses_call_getch_fn)wgetch;
+  #if ST_CURSES_HAVE_USE_EXTENDED_NAMES
 	state->api.call_use_extended_names = (curses_call_use_extended_names_fn)use_extended_names;
-#endif
-#if ST_CURSES_HAVE_RESIZETERM
+  #endif
+  #if ST_CURSES_HAVE_RESIZETERM
 	state->api.call_resizeterm = (curses_call_resizeterm_fn)resizeterm;
-#endif
-#if ST_CURSES_HAVE_TIPARM
+  #endif
+  #if ST_CURSES_HAVE_TIPARM
 	state->api.call_tiparm = (curses_call_tiparm_fn)tiparm;
-#endif
-#if ST_CURSES_HAVE_TPUTS
+  #endif
+  #if ST_CURSES_HAVE_TPUTS
 	state->api.call_tputs = (curses_call_tputs_fn)tputs;
-#endif
-#if ST_CURSES_HAVE_USE_LEGACY_CODING
+  #endif
+  #if ST_CURSES_HAVE_USE_LEGACY_CODING
 	state->api.call_use_legacy_coding = (curses_call_use_legacy_coding_fn)use_legacy_coding;
-#endif
-#if ST_CURSES_HAVE_ALLOC_PAIR
+  #endif
+  #if ST_CURSES_HAVE_ALLOC_PAIR
 	state->api.call_alloc_pair = (curses_call_alloc_pair_fn)alloc_pair;
-#endif
-#if ST_CURSES_HAVE_FIND_PAIR
+  #endif
+  #if ST_CURSES_HAVE_FIND_PAIR
 	state->api.call_find_pair = (curses_call_find_pair_fn)find_pair;
-#endif
-#if ST_CONSOLE_HAVE_CURSES_EXTENDED_COLOR
+  #endif
+  #if ST_CONSOLE_HAVE_CURSES_EXTENDED_COLOR
 	state->api.call_extended_color_content = extended_color_content;
-	state->api.call_init_extended_color = init_extended_color;
-#endif
-#if ST_CONSOLE_HAVE_CURSES_WIDE
+	state->api.call_init_extended_color    = init_extended_color;
+  #endif
+  #if ST_CONSOLE_HAVE_CURSES_WIDE
 	state->api.call_add_wide = waddnwstr;
-#endif
-#ifdef KEY_MOUSE
-#if ST_CURSES_HAVE_MOUSEMASK
+  #endif
+  #ifdef KEY_MOUSE
+   #if ST_CURSES_HAVE_MOUSEMASK
 	state->api.call_mousemask = (curses_call_mousemask_fn)mousemask;
-#endif
-#if ST_CURSES_HAVE_MOUSEINTERVAL
+   #endif
+   #if ST_CURSES_HAVE_MOUSEINTERVAL
 	state->api.call_mouseinterval = (curses_call_mouseinterval_fn)mouseinterval;
-#endif
-#if ST_CURSES_HAVE_GETMOUSE
+   #endif
+   #if ST_CURSES_HAVE_GETMOUSE
 	state->api.call_getmouse = (curses_call_getmouse_fn)getmouse;
-#endif
-#endif
+   #endif
+  #endif
 	return true;
-#else
-	return LOAD_REQUIRED(state, call_newterm, "newterm")
-	    && LOAD_REQUIRED(state, call_delscreen, "delscreen")
-	    && LOAD_REQUIRED(state, call_endwin, "endwin")
-	    && LOAD_REQUIRED(state, call_newwin, "newwin")
-	    && LOAD_REQUIRED(state, call_delwin, "delwin")
-	    && LOAD_REQUIRED(state, call_getmaxx, "getmaxx")
-	    && LOAD_REQUIRED(state, call_getmaxy, "getmaxy")
-	    && LOAD_REQUIRED(state, call_move, "wmove")
-	    && LOAD_REQUIRED(state, call_addch, "waddch")
-	    && LOAD_REQUIRED(state, call_refresh, "wrefresh")
-	    && LOAD_REQUIRED(state, call_erase, "werase")
-	    && LOAD_REQUIRED(state, call_cbreak, "cbreak")
-	    && LOAD_REQUIRED(state, call_raw, "raw")
-	    && LOAD_REQUIRED(state, call_noecho, "noecho")
-	    && LOAD_REQUIRED(state, call_nonl, "nonl")
-	    && LOAD_REQUIRED(state, call_keypad, "keypad")
-	    && LOAD_REQUIRED(state, call_timeout, "wtimeout")
-	    && LOAD_REQUIRED(state, call_scrollok, "scrollok")
-	    && LOAD_REQUIRED(state, call_cursor, "curs_set")
-	    && LOAD_REQUIRED(state, call_has_colors, "has_colors")
-	    && LOAD_REQUIRED(state, call_can_change_color, "can_change_color")
-	    && LOAD_REQUIRED(state, call_start_color, "start_color")
-	    && LOAD_REQUIRED(state, call_color_content, "color_content")
-	    && LOAD_REQUIRED(state, call_init_color, "init_color")
-	    && LOAD_REQUIRED(state, call_init_pair, "init_pair")
-	    && LOAD_REQUIRED(state, call_tigetflag, "tigetflag")
-	    && LOAD_REQUIRED(state, call_tigetnum, "tigetnum")
-	    && LOAD_REQUIRED(state, call_tigetstr, "tigetstr")
-	    && LOAD_REQUIRED(state, call_attributes, "wattr_set")
-	    && LOAD_REQUIRED(state, call_getch, "wgetch");
-#endif
+ #else
+	return LOAD_REQUIRED(state, call_newterm, "newterm") && LOAD_REQUIRED(state, call_delscreen, "delscreen")
+	       && LOAD_REQUIRED(state, call_endwin, "endwin") && LOAD_REQUIRED(state, call_newwin, "newwin")
+	       && LOAD_REQUIRED(state, call_delwin, "delwin") && LOAD_REQUIRED(state, call_getmaxx, "getmaxx")
+	       && LOAD_REQUIRED(state, call_getmaxy, "getmaxy") && LOAD_REQUIRED(state, call_move, "wmove")
+	       && LOAD_REQUIRED(state, call_addch, "waddch") && LOAD_REQUIRED(state, call_refresh, "wrefresh")
+	       && LOAD_REQUIRED(state, call_erase, "werase") && LOAD_REQUIRED(state, call_cbreak, "cbreak")
+	       && LOAD_REQUIRED(state, call_raw, "raw") && LOAD_REQUIRED(state, call_noecho, "noecho")
+	       && LOAD_REQUIRED(state, call_nonl, "nonl") && LOAD_REQUIRED(state, call_keypad, "keypad")
+	       && LOAD_REQUIRED(state, call_timeout, "wtimeout") && LOAD_REQUIRED(state, call_scrollok, "scrollok")
+	       && LOAD_REQUIRED(state, call_cursor, "curs_set")
+	       && LOAD_REQUIRED(state, call_has_colors, "has_colors")
+	       && LOAD_REQUIRED(state, call_can_change_color, "can_change_color")
+	       && LOAD_REQUIRED(state, call_start_color, "start_color")
+	       && LOAD_REQUIRED(state, call_color_content, "color_content")
+	       && LOAD_REQUIRED(state, call_init_color, "init_color")
+	       && LOAD_REQUIRED(state, call_init_pair, "init_pair")
+	       && LOAD_REQUIRED(state, call_tigetflag, "tigetflag")
+	       && LOAD_REQUIRED(state, call_tigetnum, "tigetnum")
+	       && LOAD_REQUIRED(state, call_tigetstr, "tigetstr")
+	       && LOAD_REQUIRED(state, call_attributes, "wattr_set") && LOAD_REQUIRED(state, call_getch, "wgetch");
+ #endif
 }
 
 static bool
 parse_bit_count(const char **text, unsigned int *result)
 {
-	unsigned int value = 0;
-	const char *current = *text;
+	unsigned int value   = 0;
+	const char  *current = *text;
 
 	if (*current < '0' || *current > '9')
 		return false;
 	do {
 		unsigned int digit = (unsigned int)(*current - '0');
 
-		if (value > (unsigned int)INT_MAX / 10
-		    || value * 10 > (unsigned int)INT_MAX - digit)
+		if (value > (unsigned int)INT_MAX / 10 || value * 10 > (unsigned int)INT_MAX - digit)
 			return false;
 		value = value * 10 + digit;
 		++current;
 	} while (*current >= '0' && *current <= '9');
 	if (value == 0 || value > 30)
 		return false;
-	*text = current;
+	*text   = current;
 	*result = value;
 	return true;
 }
@@ -1836,11 +1798,11 @@ parse_bit_count(const char **text, unsigned int *result)
 static bool
 direct_colour_bits(struct curses_state *state)
 {
-	char *value;
-	const char *current;
-	int numeric;
+	char        *value;
+	const char  *current;
+	int          numeric;
 	unsigned int total = 0;
-	uint64_t described_colours;
+	uint64_t     described_colours;
 
 	if (state->api.call_tigetflag("RGB") > 0) {
 		uint32_t maximum = (uint32_t)state->colour_count - 1;
@@ -1849,32 +1811,28 @@ direct_colour_bits(struct curses_state *state)
 			++total;
 			maximum >>= 1;
 		}
-		state->red_bits = (total + 2) / 3;
+		state->red_bits   = (total + 2) / 3;
 		state->green_bits = (total + 1) / 3;
-		state->blue_bits = total / 3;
+		state->blue_bits  = total / 3;
 		return total != 0 && total < 31;
 	}
 	numeric = state->api.call_tigetnum("RGB");
 	if (numeric > 0 && numeric <= 10) {
-		state->red_bits = (unsigned int)numeric;
+		state->red_bits   = (unsigned int)numeric;
 		state->green_bits = (unsigned int)numeric;
-		state->blue_bits = (unsigned int)numeric;
-		total = (unsigned int)numeric * 3;
+		state->blue_bits  = (unsigned int)numeric;
+		total             = (unsigned int)numeric * 3;
 	}
 	else {
 		value = state->api.call_tigetstr("RGB");
 		if (value == NULL || value == (char *)(intptr_t)-1)
 			return false;
 		current = value;
-		if (!parse_bit_count(&current, &state->red_bits)
-		    || *current++ != '/'
-		    || !parse_bit_count(&current, &state->green_bits)
-		    || *current++ != '/'
-		    || !parse_bit_count(&current, &state->blue_bits)
-		    || *current != '\0')
+		if (!parse_bit_count(&current, &state->red_bits) || *current++ != '/'
+		    || !parse_bit_count(&current, &state->green_bits) || *current++ != '/'
+		    || !parse_bit_count(&current, &state->blue_bits) || *current != '\0')
 			return false;
-		total = state->red_bits + state->green_bits
-		    + state->blue_bits;
+		total = state->red_bits + state->green_bits + state->blue_bits;
 	}
 	if (total == 0 || total >= 31)
 		return false;
@@ -1906,8 +1864,8 @@ colorterm_direct_colour(void)
 	const char *value = getenv("COLORTERM");
 
 	return value != NULL
-	    && (ascii_equal_case_insensitive(value, "truecolor")
-	    || ascii_equal_case_insensitive(value, "24bit"));
+	       && (ascii_equal_case_insensitive(value, "truecolor")
+	           || ascii_equal_case_insensitive(value, "24bit"));
 }
 
 static int
@@ -1918,28 +1876,26 @@ curses_attach(st_console_t *console)
 	st_pixel_buffer_destroy(console->pixels);
 	free(console->raster_rows);
 	free(console->drawn_cells);
-	console->pixels = NULL;
-	console->raster_rows = NULL;
-	console->drawn_cells = NULL;
-	console->cell_width = 0;
-	console->cell_height = 0;
-	console->pixel_extra_width = 0;
+	console->pixels             = NULL;
+	console->raster_rows        = NULL;
+	console->drawn_cells        = NULL;
+	console->cell_width         = 0;
+	console->cell_height        = 0;
+	console->pixel_extra_width  = 0;
 	console->pixel_extra_height = 0;
-	console->pixel_top = 0;
+	console->pixel_top          = 0;
 	return 0;
 }
 
 static bool
-ansi_capability(struct curses_state *state, const char *name,
-	const char *expected, int first, int second)
+ansi_capability(struct curses_state *state, const char *name, const char *expected, int first, int second)
 {
 	char *capability = state->api.call_tigetstr(name);
 	char *expanded;
 
 	if (capability == NULL || capability == (char *)(intptr_t)-1)
 		return false;
-	expanded = state->api.call_tiparm(capability, first, second,
-	    0, 0, 0, 0, 0, 0, 0);
+	expanded = state->api.call_tiparm(capability, first, second, 0, 0, 0, 0, 0, 0, 0);
 	return expanded != NULL && strcmp(expanded, expected) == 0;
 }
 
@@ -1948,20 +1904,17 @@ ansi_cell_output(struct curses_state *state)
 {
 	char *capability;
 
-	if (state->api.call_tiparm == NULL
-	    || !ansi_capability(state, "cup", "\033[2;3H", 1, 2))
+	if (state->api.call_tiparm == NULL || !ansi_capability(state, "cup", "\033[2;3H", 1, 2))
 		return false;
 	capability = state->api.call_tigetstr("clear");
-	if (capability == NULL || capability == (char *)(intptr_t)-1
-	    || strstr(capability, "\033[2J") == NULL)
+	if (capability == NULL || capability == (char *)(intptr_t)-1 || strstr(capability, "\033[2J") == NULL)
 		return false;
 	capability = state->api.call_tigetstr("sgr0");
-	if (capability == NULL || capability == (char *)(intptr_t)-1
-	    || strstr(capability, "\033[") == NULL)
+	if (capability == NULL || capability == (char *)(intptr_t)-1 || strstr(capability, "\033[") == NULL)
 		return false;
 	return !state->colours
-	    || (ansi_capability(state, "setaf", "\033[32m", 2, 0)
-	    && ansi_capability(state, "setab", "\033[42m", 2, 0));
+	       || (ansi_capability(state, "setaf", "\033[32m", 2, 0)
+	           && ansi_capability(state, "setab", "\033[42m", 2, 0));
 }
 
 static void
@@ -1979,8 +1932,7 @@ configure_colour_pairs(struct curses_state *state)
 	if (usable == 0)
 		state->colours = false;
 	for (int pair = 0; pair < usable * usable; ++pair)
-		(void)state->api.call_init_pair((NCURSES_PAIRS_T)(pair + 1),
-		    (NCURSES_COLOR_T)(pair / usable),
+		(void)state->api.call_init_pair((NCURSES_PAIRS_T)(pair + 1), (NCURSES_COLOR_T)(pair / usable),
 		    (NCURSES_COLOR_T)(pair % usable));
 }
 
@@ -1990,23 +1942,22 @@ curses_init_inner(void *argument)
 	st_console_t *console = argument;
 	/* Attribute masks and key codes come from the build-time header; a
 	 * different curses implementation need not use the same ABI values. */
-#if !ST_DEP_CURSES_LINKED
-#ifdef NCURSES_VERSION
+ #if !ST_DEP_CURSES_LINKED
+  #ifdef NCURSES_VERSION
 	static const char *const names[] = {"ncursesw", "ncurses", "curses"};
-#else
+  #else
 	static const char *const names[] = {"curses"};
-#endif
-#endif
+  #endif
+ #endif
 	struct curses_state *state;
-	size_t count;
-	uint32_t terminal_columns;
-	uint32_t terminal_rows;
-	int result;
+	size_t               count;
+	uint32_t             terminal_columns;
+	uint32_t             terminal_rows;
+	int                  result;
 
 	if (console->columns > INT_MAX || console->rows > INT_MAX)
 		return IO_ERROR_OUT_OF_RANGE;
-	if (atomic_flag_test_and_set_explicit(&curses_in_use,
-	    memory_order_acquire))
+	if (atomic_flag_test_and_set_explicit(&curses_in_use, memory_order_acquire))
 		return IO_ERROR_BUSY;
 	state = calloc(1, sizeof(*state));
 	if (state == NULL) {
@@ -2017,14 +1968,14 @@ curses_init_inner(void *argument)
 	atomic_init(&state->host_columns, 0);
 	atomic_init(&state->host_rows, 0);
 	atomic_init(&state->host_resized, false);
-	state->display = console->display;
+	state->display      = console->display;
 	state->presentation = console->display->config.text_presentation;
-#if ST_DEP_CURSES_LINKED
+ #if ST_DEP_CURSES_LINKED
 	result = 0;
-#else
-	result = dynamic_library_open(&state->library, names,
-	    sizeof(names) / sizeof(names[0]), 10, DYNAMIC_LIBRARY_LOCAL);
-#endif
+ #else
+	result = dynamic_library_open(&state->library, names, sizeof(names) / sizeof(names[0]), 10,
+	    DYNAMIC_LIBRARY_LOCAL);
+ #endif
 	if (result != 0 || !load_required_api(state)) {
 		(void)dynamic_library_close(state->library);
 		free(state);
@@ -2036,16 +1987,13 @@ curses_init_inner(void *argument)
 	(void)LOAD_OPTIONAL(state, call_resizeterm, "resizeterm");
 	(void)LOAD_OPTIONAL(state, call_tiparm, "tiparm");
 	(void)LOAD_OPTIONAL(state, call_tputs, "tputs");
-#if ST_CONSOLE_HAVE_CURSES_EXTENDED_COLOR
-	state->extended_colours =
-	    LOAD_OPTIONAL(state, call_extended_color_content,
-	    "extended_color_content")
-	    && LOAD_OPTIONAL(state, call_init_extended_color,
-	    "init_extended_color");
-#endif
-#if ST_CONSOLE_HAVE_CURSES_WIDE
+ #if ST_CONSOLE_HAVE_CURSES_EXTENDED_COLOR
+	state->extended_colours = LOAD_OPTIONAL(state, call_extended_color_content, "extended_color_content")
+	                          && LOAD_OPTIONAL(state, call_init_extended_color, "init_extended_color");
+ #endif
+ #if ST_CONSOLE_HAVE_CURSES_WIDE
 	state->wide = LOAD_REQUIRED(state, call_add_wide, "waddnwstr");
-#endif
+ #endif
 	state->screen = state->api.call_newterm(NULL, stdout, stdin);
 	if (state->screen == NULL) {
 		free(state);
@@ -2058,8 +2006,7 @@ curses_init_inner(void *argument)
 	    && LOAD_OPTIONAL(state, call_use_legacy_coding, "use_legacy_coding"))
 		(void)state->api.call_use_legacy_coding(2);
 	state->window = state->api.call_newwin(0, 0, 0, 0);
-	if (state->window == NULL || !window_dimensions(state, state->window,
-	    &terminal_columns, &terminal_rows)) {
+	if (state->window == NULL || !window_dimensions(state, state->window, &terminal_columns, &terminal_rows)) {
 		if (state->window != NULL)
 			(void)state->api.call_delwin(state->window);
 		(void)state->api.call_endwin();
@@ -2069,17 +2016,12 @@ curses_init_inner(void *argument)
 		return IO_ERROR_OUT_OF_RANGE;
 	}
 	count = (size_t)terminal_columns * terminal_rows;
-	atomic_store_explicit(&state->host_columns, terminal_columns,
-	    memory_order_release);
-	atomic_store_explicit(&state->host_rows, terminal_rows,
-	    memory_order_release);
-	state->drawn = calloc(count, sizeof(*state->drawn));
-	state->drawn_foreground = calloc(count,
-	    sizeof(*state->drawn_foreground));
-	state->drawn_background = calloc(count,
-	    sizeof(*state->drawn_background));
-	if (state->drawn == NULL || state->drawn_foreground == NULL
-	    || state->drawn_background == NULL) {
+	atomic_store_explicit(&state->host_columns, terminal_columns, memory_order_release);
+	atomic_store_explicit(&state->host_rows, terminal_rows, memory_order_release);
+	state->drawn            = calloc(count, sizeof(*state->drawn));
+	state->drawn_foreground = calloc(count, sizeof(*state->drawn_foreground));
+	state->drawn_background = calloc(count, sizeof(*state->drawn_background));
+	if (state->drawn == NULL || state->drawn_foreground == NULL || state->drawn_background == NULL) {
 		(void)state->api.call_delwin(state->window);
 		(void)state->api.call_endwin();
 		state->api.call_delscreen(state->screen);
@@ -2094,8 +2036,8 @@ curses_init_inner(void *argument)
 		state->drawn_foreground[i] = -1;
 		state->drawn_background[i] = -1;
 	}
-	if (state->api.call_cbreak() == ERR || state->api.call_raw() == ERR
-	    || state->api.call_noecho() == ERR || state->api.call_nonl() == ERR) {
+	if (state->api.call_cbreak() == ERR || state->api.call_raw() == ERR || state->api.call_noecho() == ERR
+	    || state->api.call_nonl() == ERR) {
 		(void)state->api.call_delwin(state->window);
 		(void)state->api.call_endwin();
 		state->api.call_delscreen(state->screen);
@@ -2111,109 +2053,94 @@ curses_init_inner(void *argument)
 	 * implementations whose nodelay mode retains a lone Escape forever. */
 	state->api.call_timeout(state->window, 10);
 	(void)state->api.call_scrollok(state->window, false);
-	state->colours = state->api.call_has_colors()
-	    && state->api.call_start_color() != ERR;
+	state->colours = state->api.call_has_colors() && state->api.call_start_color() != ERR;
 	if (state->colours) {
-		state->colour_count = state->api.call_tigetnum("colors");
-		state->pair_count = state->api.call_tigetnum("pairs");
-		state->extended_pairs = state->colour_count > 0
-		    && state->pair_count > 0
-		    && LOAD_OPTIONAL(state, call_alloc_pair, "alloc_pair")
-		    && LOAD_OPTIONAL(state, call_find_pair, "find_pair");
-		state->direct_colour = state->extended_pairs
-		    && direct_colour_bits(state);
-		state->palette_mutable = !state->direct_colour
-		    && state->colour_count > 0
-		    && state->api.call_can_change_color();
+		state->colour_count   = state->api.call_tigetnum("colors");
+		state->pair_count     = state->api.call_tigetnum("pairs");
+		state->extended_pairs = state->colour_count > 0 && state->pair_count > 0
+		                        && LOAD_OPTIONAL(state, call_alloc_pair, "alloc_pair")
+		                        && LOAD_OPTIONAL(state, call_find_pair, "find_pair");
+		state->direct_colour  = state->extended_pairs && direct_colour_bits(state);
+		state->palette_mutable =
+		    !state->direct_colour && state->colour_count > 0 && state->api.call_can_change_color();
 	}
-	state->sgr_direct = !state->direct_colour
-	    && colorterm_direct_colour();
+	state->sgr_direct = !state->direct_colour && colorterm_direct_colour();
 	/* Curses implementations can decode high bytes or discard combining
 	 * characters during refresh. For ANSI-compatible entries retain our
 	 * cell bytes and use the same writer as the RGB fallback. */
-	state->sgr_output = state->sgr_direct
-	    || (state->presentation != ST_CONSOLE_TEXT_ASCII
-	    && ansi_cell_output(state));
+	state->sgr_output =
+	    state->sgr_direct || (state->presentation != ST_CONSOLE_TEXT_ASCII && ansi_cell_output(state));
 	if (state->sgr_direct)
 		state->palette_mutable = false;
 	if (state->palette_mutable && state->sgr_output) {
 		state->initialize_colour = state->api.call_tigetstr("initc");
-		if (state->initialize_colour == NULL
-		    || state->initialize_colour == (char *)(intptr_t)-1
+		if (state->initialize_colour == NULL || state->initialize_colour == (char *)(intptr_t)-1
 		    || state->api.call_tputs == NULL)
 			state->palette_mutable = false;
 	}
 	configure_colour_pairs(state);
-	state->terminal_colour_count = state->direct_colour || state->sgr_direct
-	    ? 0 : state->colour_count > 65536 ? 65536 : state->colour_count;
+	state->terminal_colour_count = state->direct_colour || state->sgr_direct ? 0
+	                               : state->colour_count > 65536             ? 65536
+	                                                                         : state->colour_count;
 	if (state->terminal_colour_count < 0)
 		state->terminal_colour_count = 0;
-	state->indexed_colours = malloc((UINT16_MAX + 1U)
-	    * sizeof(*state->indexed_colours));
+	state->indexed_colours = malloc((UINT16_MAX + 1U) * sizeof(*state->indexed_colours));
 	if (state->terminal_colour_count != 0)
-		state->terminal_colours = calloc(
-		    (size_t)state->terminal_colour_count,
-		    sizeof(*state->terminal_colours));
+		state->terminal_colours =
+		    calloc((size_t)state->terminal_colour_count, sizeof(*state->terminal_colours));
 	if (state->indexed_colours == NULL
-	    || (state->terminal_colour_count != 0
-	    && state->terminal_colours == NULL)) {
-		curses_destroy(&(st_console_display_t){.backend_state = state});
+	    || (state->terminal_colour_count != 0 && state->terminal_colours == NULL)) {
+		curses_destroy(&(st_console_display_t) {.backend_state = state});
 		return IO_ERROR_OUT_OF_MEMORY;
 	}
 	console->display->backend_state = state;
 	read_terminal_colours(state);
 	rebuild_colour_maps(console);
-	if (state->presentation == ST_CONSOLE_TEXT_UNICODE && !state->wide
-	    && !state->sgr_output)
+	if (state->presentation == ST_CONSOLE_TEXT_UNICODE && !state->wide && !state->sgr_output)
 		state->presentation = ST_CONSOLE_TEXT_ASCII;
 	console->display->backend_ops = &curses_ops;
-#ifdef KEY_MOUSE
-#if !ST_DEP_CURSES_LINKED
-	state->api.call_mousemask = (curses_call_mousemask_fn)
-	    dynamic_library_symbol(state->library, "mousemask");
-	state->api.call_mouseinterval = (curses_call_mouseinterval_fn)
-	    dynamic_library_symbol(state->library, "mouseinterval");
-	state->api.call_getmouse = (curses_call_getmouse_fn)
-	    dynamic_library_symbol(state->library, "getmouse");
-#endif
-	if (state->api.call_mousemask != NULL
-	    && state->api.call_mouseinterval != NULL
+ #ifdef KEY_MOUSE
+  #if !ST_DEP_CURSES_LINKED
+	state->api.call_mousemask = (curses_call_mousemask_fn)dynamic_library_symbol(state->library, "mousemask");
+	state->api.call_mouseinterval =
+	    (curses_call_mouseinterval_fn)dynamic_library_symbol(state->library, "mouseinterval");
+	state->api.call_getmouse = (curses_call_getmouse_fn)dynamic_library_symbol(state->library, "getmouse");
+  #endif
+	if (state->api.call_mousemask != NULL && state->api.call_mouseinterval != NULL
 	    && state->api.call_getmouse != NULL) {
 		mmask_t requested = 0;
 
-	#ifdef BUTTON1_PRESSED
+  #ifdef BUTTON1_PRESSED
 		requested |= BUTTON1_PRESSED | BUTTON1_RELEASED;
-	#endif
-	#ifdef BUTTON2_PRESSED
+  #endif
+  #ifdef BUTTON2_PRESSED
 		requested |= BUTTON2_PRESSED | BUTTON2_RELEASED;
-	#endif
-	#ifdef BUTTON3_PRESSED
+  #endif
+  #ifdef BUTTON3_PRESSED
 		requested |= BUTTON3_PRESSED | BUTTON3_RELEASED;
-	#endif
-	#ifdef BUTTON4_PRESSED
+  #endif
+  #ifdef BUTTON4_PRESSED
 		requested |= BUTTON4_PRESSED;
-	#endif
-	#ifdef BUTTON5_PRESSED
+  #endif
+  #ifdef BUTTON5_PRESSED
 		requested |= BUTTON5_PRESSED;
-	#endif
-	#ifdef REPORT_MOUSE_POSITION
+  #endif
+  #ifdef REPORT_MOUSE_POSITION
 		requested |= REPORT_MOUSE_POSITION;
-	#endif
-		state->mouse_enabled = requested != 0
-		    && (state->api.call_mousemask(requested, NULL) & requested)
-		    != 0;
+  #endif
+		state->mouse_enabled =
+		    requested != 0 && (state->api.call_mousemask(requested, NULL) & requested) != 0;
 		if (state->mouse_enabled)
 			(void)state->api.call_mouseinterval(0);
 	}
-#endif
+ #endif
 	(void)curses_attach(console);
-	if (terminal_columns != console->columns
-	    || terminal_rows != console->rows) {
+	if (terminal_columns != console->columns || terminal_rows != console->rows) {
 		result = st_console_resize(console, terminal_columns, terminal_rows);
 		if (result != 0) {
 			curses_destroy(console->display);
 			console->display->backend_state = NULL;
-			console->display->backend_ops = NULL;
+			console->display->backend_ops   = NULL;
 			return result;
 		}
 	}
@@ -2224,7 +2151,7 @@ int
 st_console_ncurses_init(st_console_t *console)
 {
 	struct st_curses_locale *locale = NULL;
-	int status;
+	int                      status;
 
 	if (console->display->config.text_presentation == ST_CONSOLE_TEXT_CP437) {
 		status = st_curses_locale_create(&locale);
@@ -2234,7 +2161,7 @@ st_console_ncurses_init(st_console_t *console)
 	status = st_curses_locale_call(locale, curses_init_inner, console);
 	if (status == 0) {
 		struct curses_state *state = console->display->backend_state;
-		state->byte_locale = locale;
+		state->byte_locale         = locale;
 	}
 	else
 		st_curses_locale_destroy(locale);

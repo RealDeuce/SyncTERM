@@ -29,20 +29,24 @@ test_realloc(void *old, size_t size)
 }
 
 /* Test-local fault injection, with the production implementation unchanged. */
-#define calloc test_calloc
+#define calloc  test_calloc
 #define realloc test_realloc
 #include "../st_rip3_stream.c"
 #undef calloc
 #undef realloc
 
-#define CHECK(expression) do { \
-	if (!(expression)) { \
-		fprintf(stderr, "check failed at line %d: %s\n", __LINE__, #expression); \
-		return 1; \
-	} \
-} while (0)
+#define CHECK(expression)                                                                        \
+	do {                                                                                     \
+		if (!(expression)) {                                                             \
+			fprintf(stderr, "check failed at line %d: %s\n", __LINE__, #expression); \
+			return 1;                                                                \
+		}                                                                                \
+	} while (0)
 
-struct observation { unsigned commands, errors; bool mismatch; };
+struct observation {
+	unsigned commands, errors;
+	bool     mismatch;
+};
 
 static void
 command(void *context, const uint8_t *bytes, size_t length)
@@ -65,10 +69,10 @@ diagnostic(void *context, enum st_rip3_command_diagnostic kind)
 int
 main(void)
 {
-	struct st_rip3_stream *stream = NULL;
-	struct observation seen = {0};
-	const struct st_rip3_stream_sink sink = {.context=&seen,.command=command,.diagnostic=diagnostic};
-	uint8_t block[256];
+	struct st_rip3_stream           *stream = NULL;
+	struct observation               seen   = {0};
+	const struct st_rip3_stream_sink sink   = {.context = &seen, .command = command, .diagnostic = diagnostic};
+	uint8_t                          block[256];
 
 	fail_calloc = true;
 	CHECK(st_rip3_stream_create(&stream, &sink, NULL) == IO_ERROR_OUT_OF_MEMORY && stream == NULL);
@@ -78,7 +82,7 @@ main(void)
 	/* One error for the whole discarded command. Neither quoted pipes nor
 	 * continued line endings may resume dispatch inside discarded bytes. */
 	static const uint8_t recover[] = "\\|bad\\\r\n\fmore|J10\n";
-	st_rip3_stream_process(stream, recover, sizeof(recover)-1);
+	st_rip3_stream_process(stream, recover, sizeof(recover) - 1);
 	CHECK(seen.errors == 1 && seen.commands == 1 && !seen.mismatch);
 	st_rip3_stream_reset(stream);
 	memset(block, 'x', sizeof(block));
@@ -86,7 +90,7 @@ main(void)
 	st_rip3_stream_process(stream, (const uint8_t *)"!|", 2);
 	st_rip3_stream_process(stream, block, sizeof(block));
 	fail_realloc = true;
-	st_rip3_stream_process(stream, (const uint8_t *)"x\\|bad\r!|J10\r", sizeof("x\\|bad\r!|J10\r")-1);
+	st_rip3_stream_process(stream, (const uint8_t *)"x\\|bad\r!|J10\r", sizeof("x\\|bad\r!|J10\r") - 1);
 	CHECK(seen.errors == 2 && seen.commands == 2 && !seen.mismatch);
 	/* Reset while discarding releases the error state, retains usable space. */
 	st_rip3_stream_process(stream, (const uint8_t *)"!|", 2);
@@ -102,7 +106,7 @@ main(void)
 	block[0] = '!';
 	st_rip3_stream_process(stream, block, sizeof(block));
 	fail_realloc = true;
-	st_rip3_stream_process(stream, (const uint8_t *)"x\\|J10\r", sizeof("x\\|J10\r")-1);
+	st_rip3_stream_process(stream, (const uint8_t *)"x\\|J10\r", sizeof("x\\|J10\r") - 1);
 	CHECK(seen.errors == 4 && seen.commands == 4 && !seen.mismatch);
 	/* An allocation failure while padding a numeric field still recovers
 	 * at the very next pipe. */
@@ -111,7 +115,7 @@ main(void)
 	block[0] = 'P';
 	st_rip3_stream_process(stream, block, sizeof(block));
 	fail_realloc = true;
-	st_rip3_stream_process(stream, (const uint8_t *)"<\\|J10\r", sizeof("<\\|J10\r")-1);
+	st_rip3_stream_process(stream, (const uint8_t *)"<\\|J10\r", sizeof("<\\|J10\r") - 1);
 	CHECK(seen.errors == 5 && seen.commands == 5 && !seen.mismatch);
 	st_rip3_stream_destroy(stream);
 	return 0;

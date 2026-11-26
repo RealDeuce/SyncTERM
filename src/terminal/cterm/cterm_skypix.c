@@ -1,9 +1,14 @@
 /* SkyPix uses its own raster policy and native Amiga bitmap metrics. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
-#include "cterm_skypix.h"
+#include <limits.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
 #include "cterm.h"
 #include "cterm_input.h"
 #include "cterm_internal.h"
+#include "cterm_skypix.h"
 #include "cterm_skypix_walkers.h"
 #include "cterm_text.h"
 #include "io_error.h"
@@ -12,53 +17,54 @@
 #include "st_session_history.h"
 #include "st_time.h"
 #include "st_utf8.h"
-#include <limits.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
 
 static void cursor_bookkeeping(struct cterm_skypix *s);
 static void sync_cursor(struct cterm_skypix *s);
-static int draw_cursor(struct cterm_skypix *s);
+static int  draw_cursor(struct cterm_skypix *s);
 
 _Static_assert(CTERM_SKYPIX_PALETTE_FIRST % 16 == 0, "SkyPix plane bits must be palette index bits");
 
-void cterm_skypix_cursor_mode(struct cterm_skypix *s, bool hidden)
+void
+cterm_skypix_cursor_mode(struct cterm_skypix *s, bool hidden)
 {
-	int status = hidden ? cterm_skypix_hide_cursor(s) : 0;
+	int status       = hidden ? cterm_skypix_hide_cursor(s) : 0;
 	s->cursor_hidden = hidden;
 	if (status == 0)
 		status = st_console_set_cursor(s->terminal->screen.console, false, ST_CONSOLE_CURSOR_UNDERLINE);
 	cterm_render_record_error(s->terminal, status);
 }
 
-int cterm_skypix_poll(struct cterm_skypix *s, uint64_t now)
+int
+cterm_skypix_poll(struct cterm_skypix *s, uint64_t now)
 {
 	cterm_skypix_audio_poll(s, now);
 	return 0; /* SkyTERM has no timer-driven cursor toggle. */
 }
 
-void cterm_skypix_home(struct cterm_skypix *s)
+void
+cterm_skypix_home(struct cterm_skypix *s)
 {
 	s->x = 0;
 	s->y = (int)st_amiga_font_baseline(s->font) - (int)st_amiga_font_height(s->font) + 1;
 	cursor_bookkeeping(s);
 }
-static int palette(struct cterm_skypix *s, const unsigned *values)
+
+static int
+palette(struct cterm_skypix *s, const unsigned *values)
 {
-	static const unsigned defaults[16] = {0,   287, 3549, 3840, 241, 943,  4082, 3086,
-										  182, 221, 175,  124,	15,	 1807, 3086, 3080};
-	uint32_t rgb[16];
+	static const unsigned defaults[16] = {0, 287, 3549, 3840, 241, 943, 4082, 3086, 182, 221, 175, 124, 15,
+	    1807, 3086, 3080};
+	uint32_t              rgb[16];
 	if (values == NULL)
 		values = defaults;
 	for (unsigned i = 0; i < 16; ++i)
-		rgb[i] = ((values[i] >> 8 & 15) * 17 << 16) | ((values[i] >> 4 & 15) * 17 << 8) |
-				 (values[i] & 15) * 17;
-	return st_console_set_palette(s->terminal->screen.console, CTERM_SKYPIX_PALETTE_FIRST, rgb,
-								  16);
+		rgb[i] =
+		    ((values[i] >> 8 & 15) * 17 << 16) | ((values[i] >> 4 & 15) * 17 << 8) | (values[i] & 15) * 17;
+	return st_console_set_palette(s->terminal->screen.console, CTERM_SKYPIX_PALETTE_FIRST, rgb, 16);
 }
-static void set_pen(struct cterm_skypix *s, unsigned colour, bool background)
+
+static void
+set_pen(struct cterm_skypix *s, unsigned colour, bool background)
 {
 	struct cterminal *t = s->terminal;
 	background ^= t->negative;
@@ -68,26 +74,35 @@ static void set_pen(struct cterm_skypix *s, unsigned colour, bool background)
 		t->attr = (uint8_t)((t->attr & 15) | ((colour & 15) << 4));
 		free(t->bg_tc_str);
 		t->bg_tc_str = NULL;
-	} else {
+	}
+	else {
 		t->attr = (uint8_t)((t->attr & 240) | (colour & 15));
 		free(t->fg_tc_str);
 		t->fg_tc_str = NULL;
 	}
 	cterm_render_attribute_colours(t, t->attr, &t->fg_color, &t->bg_color);
 }
-static int restore_pixels(struct cterm_skypix *s, const struct st_pixel_buffer *image,
-	const struct st_console_rect *area)
+
+static int
+restore_pixels(struct cterm_skypix *s, const struct st_pixel_buffer *image, const struct st_console_rect *area)
 {
-	const struct st_pixel_blit blit = {.width = image->width, .height = image->height,
-		.destination_x = (int)area->x, .destination_y = (int)area->y, .scale_x = 1, .scale_y = 1};
+	const struct st_pixel_blit blit = {.width = image->width,
+	    .height                               = image->height,
+	    .destination_x                        = (int)area->x,
+	    .destination_y                        = (int)area->y,
+	    .scale_x                              = 1,
+	    .scale_y                              = 1};
 	return st_console_blit_pixels(s->terminal->screen.console, image, NULL, &blit);
 }
+
 /* Unlike SkyTERM's enable flag, the saved strip tracks an actual visible
  * underline. Restore it before every mutation/move so native stale-position
  * artifacts never become scene pixels or enter brushes/retired history. */
-int cterm_skypix_hide_cursor(struct cterm_skypix *s)
+int
+cterm_skypix_hide_cursor(struct cterm_skypix *s)
 {
-	if (s->cursor_background == NULL) return 0;
+	if (s->cursor_background == NULL)
+		return 0;
 	int status = restore_pixels(s, s->cursor_background, &s->cursor_background_rect);
 	if (status == 0) {
 		st_pixel_buffer_destroy(s->cursor_background);
@@ -95,56 +110,70 @@ int cterm_skypix_hide_cursor(struct cterm_skypix *s)
 	}
 	return status;
 }
+
 struct cursor_drawing {
-	struct cterm_skypix *sky;
+	struct cterm_skypix   *sky;
 	struct st_console_rect area;
 };
-static int complement_cursor(void *context, const struct st_pixel_buffer *buffer,
-	struct st_console_rect *changed)
+
+static int
+complement_cursor(void *context, const struct st_pixel_buffer *buffer, struct st_console_rect *changed)
 {
-	const struct cursor_drawing *cursor = context;
-	const struct st_console_rect *area = &cursor->area;
+	const struct cursor_drawing  *cursor = context;
+	const struct st_console_rect *area   = &cursor->area;
 	for (unsigned phase = 0; phase < 2; ++phase) {
 		uint32_t *plane = phase ? buffer->alternate : buffer->primary;
 		for (uint32_t x = area->x; x < area->x + area->width; ++x) {
-			size_t at = (size_t)area->y * buffer->width + x;
+			size_t   at     = (size_t)area->y * buffer->width + x;
 			uint32_t colour = plane[at];
 			/* Native pixels complement their active plane bits. RGB pixels
 			 * supplied by other console users retain a true-colour complement. */
-			plane[at] = colour >= CTERM_SKYPIX_PALETTE_FIRST && colour < CTERM_SKYPIX_PALETTE_FIRST + 16
-				? CTERM_SKYPIX_PALETTE_FIRST + ((colour - CTERM_SKYPIX_PALETTE_FIRST) ^ (cursor->sky->colours - 1))
-				: colour ^ UINT32_C(0xffffff);
+			plane[at] =
+			    colour >= CTERM_SKYPIX_PALETTE_FIRST && colour < CTERM_SKYPIX_PALETTE_FIRST + 16
+			        ? CTERM_SKYPIX_PALETTE_FIRST
+			              + ((colour - CTERM_SKYPIX_PALETTE_FIRST) ^ (cursor->sky->colours - 1))
+			        : colour ^ UINT32_C(0xffffff);
 		}
 	}
 	*changed = *area;
 	return 0;
 }
-static int draw_cursor(struct cterm_skypix *s)
+
+static int
+draw_cursor(struct cterm_skypix *s)
 {
 	int hidden = cterm_skypix_hide_cursor(s);
-	if (hidden != 0) return hidden;
-	if (!s->cursor_enabled || s->cursor_hidden) return 0;
+	if (hidden != 0)
+		return hidden;
+	if (!s->cursor_enabled || s->cursor_hidden)
+		return 0;
 	sync_cursor(s);
 	int left = s->x, right = left + (int)st_amiga_font_width(s->font);
 	int y = s->y + (int)st_amiga_font_height(s->font) - 1;
-	if (left < 0) left = 0;
-	if (right > (int)s->width) right = (int)s->width;
-	if (left >= right || y < 0 || y >= (int)s->height) return 0;
-	const struct st_console_rect area = {(uint32_t)left, (uint32_t)y, (uint32_t)(right - left), 1};
-	struct st_pixel_buffer *before = NULL;
-	int status = st_console_get_pixels(&before, s->terminal->screen.console, &area, false);
+	if (left < 0)
+		left = 0;
+	if (right > (int)s->width)
+		right = (int)s->width;
+	if (left >= right || y < 0 || y >= (int)s->height)
+		return 0;
+	const struct st_console_rect area   = {(uint32_t)left, (uint32_t)y, (uint32_t)(right - left), 1};
+	struct st_pixel_buffer      *before = NULL;
+	int                   status = st_console_get_pixels(&before, s->terminal->screen.console, &area, false);
 	struct cursor_drawing cursor = {s, area};
-	if (status == 0) status = st_console_modify_pixels(s->terminal->screen.console, complement_cursor, &cursor);
+	if (status == 0)
+		status = st_console_modify_pixels(s->terminal->screen.console, complement_cursor, &cursor);
 	if (status == 0) {
 		st_pixel_buffer_destroy(s->cursor_background);
-		s->cursor_background = before;
+		s->cursor_background      = before;
 		s->cursor_background_rect = area;
-		before = NULL;
+		before                    = NULL;
 	}
 	st_pixel_buffer_destroy(before);
 	return status;
 }
-int cterm_skypix_present_cell(struct cterm_skypix *s)
+
+int
+cterm_skypix_present_cell(struct cterm_skypix *s)
 {
 	sync_cursor(s);
 	/* Deferred wrapping leaves the cell cursor on the final glyph. Text
@@ -153,37 +182,42 @@ int cterm_skypix_present_cell(struct cterm_skypix *s)
 		return 0;
 	return draw_cursor(s);
 }
-static uint32_t depth_colour(uint32_t colour, unsigned mask)
+
+static uint32_t
+depth_colour(uint32_t colour, unsigned mask)
 {
 	return colour >= CTERM_SKYPIX_PALETTE_FIRST && colour < CTERM_SKYPIX_PALETTE_FIRST + 16
-		? CTERM_SKYPIX_PALETTE_FIRST + ((colour - CTERM_SKYPIX_PALETTE_FIRST) & mask) : colour;
+		   ? CTERM_SKYPIX_PALETTE_FIRST + ((colour - CTERM_SKYPIX_PALETTE_FIRST) & mask)
+		   : colour;
 }
-static int select_depth(struct cterm_skypix *s, unsigned colours)
+
+static int
+select_depth(struct cterm_skypix *s, unsigned colours)
 {
 	if (colours < s->colours) {
 		/* Preserve both phases and everything outside the exact canvas,
 		 * including UI/status and partial-cell padding. Discarded plane bits
 		 * must not reappear when the display is expanded again. */
 		struct st_pixel_buffer *image = NULL;
-		uint32_t width, height;
+		uint32_t                width, height;
 		int status = st_console_pixel_size(s->terminal->screen.console, &width, &height);
-		const struct st_console_rect cell_row = {0, 0,
-			(s->width + s->cell_width - 1) / s->cell_width, 1};
-		struct st_console_cell *cells = malloc((size_t)cell_row.width * sizeof(*cells));
-		if (cells == NULL) return IO_ERROR_OUT_OF_MEMORY;
+		const struct st_console_rect cell_row = {0, 0, (s->width + s->cell_width - 1) / s->cell_width, 1};
+		struct st_console_cell      *cells    = malloc((size_t)cell_row.width * sizeof(*cells));
+		if (cells == NULL)
+			return IO_ERROR_OUT_OF_MEMORY;
 		if (status == 0) {
 			const struct st_console_rect full = {0, 0, width, height};
 			status = st_console_get_pixels(&image, s->terminal->screen.console, &full, false);
 		}
 		bool updating = false;
 		if (status == 0) {
-			status = st_console_begin_update(s->terminal->screen.console);
+			status   = st_console_begin_update(s->terminal->screen.console);
 			updating = status == 0;
 		}
 		for (uint32_t y = 0; status == 0 && y < (s->height + s->cell_height - 1) / s->cell_height; ++y) {
 			struct st_console_rect row = cell_row;
-			row.y = y;
-			status = st_console_read_cells(s->terminal->screen.console, &row, cells, row.width);
+			row.y                      = y;
+			status       = st_console_read_cells(s->terminal->screen.console, &row, cells, row.width);
 			bool changed = false;
 			for (uint32_t x = 0; status == 0 && x < row.width; ++x) {
 				uint32_t fg = depth_colour(cells[x].foreground, colours - 1);
@@ -193,157 +227,191 @@ static int select_depth(struct cterm_skypix *s, unsigned colours)
 				cells[x].background = bg;
 			}
 			if (status == 0 && changed)
-				status = st_console_write_complete_cells(s->terminal->screen.console, &row, cells, row.width);
+				status = st_console_write_complete_cells(s->terminal->screen.console, &row, cells,
+				    row.width);
 		}
 		if (status == 0) {
 			for (uint32_t y = 0; y < s->height; ++y)
 				for (uint32_t x = 0; x < s->width; ++x) {
-					size_t at = (size_t)y * image->width + x;
+					size_t at          = (size_t)y * image->width + x;
 					image->primary[at] = depth_colour(image->primary[at], colours - 1);
 					if (image->alternate != NULL)
-						image->alternate[at] = depth_colour(image->alternate[at], colours - 1);
+						image->alternate[at] =
+						    depth_colour(image->alternate[at], colours - 1);
 				}
-			const struct st_pixel_blit blit = {.width = image->width, .height = image->height,
-				.scale_x = 1, .scale_y = 1};
+			const struct st_pixel_blit blit = {.width = image->width,
+			    .height                               = image->height,
+			    .scale_x                              = 1,
+			    .scale_y                              = 1};
 			status = st_console_blit_pixels(s->terminal->screen.console, image, NULL, &blit);
 		}
 		if (updating) {
 			int finished = st_console_end_update(s->terminal->screen.console);
-			if (status == 0) status = finished;
+			if (status == 0)
+				status = finished;
 		}
 		free(cells);
 		st_pixel_buffer_destroy(image);
-		if (status != 0) return status;
+		if (status != 0)
+			return status;
 	}
 	s->colours = colours;
-	cterm_render_attribute_colours(s->terminal, s->terminal->attr,
-		&s->terminal->fg_color, &s->terminal->bg_color);
+	cterm_render_attribute_colours(s->terminal, s->terminal->attr, &s->terminal->fg_color,
+	    &s->terminal->bg_color);
 	return 0;
 }
+
 /* The console owns the raster and lock. Canvas dimensions can be smaller
  * than its stride and height; never reinterpret the buffer as packed SkyPix. */
 struct raster {
 	const struct st_pixel_buffer *buffer;
-	uint32_t width, height;
-	struct st_console_rect *changed;
+	uint32_t                      width, height;
+	struct st_console_rect       *changed;
 };
-static void damage(struct raster *r, uint32_t left, uint32_t top, uint32_t right, uint32_t bottom)
+
+static void
+damage(struct raster *r, uint32_t left, uint32_t top, uint32_t right, uint32_t bottom)
 {
 	struct st_console_rect *d = r->changed;
 	if (d->width != 0 && d->height != 0) {
-		if (right < d->x + d->width) right = d->x + d->width;
-		if (bottom < d->y + d->height) bottom = d->y + d->height;
-		if (left > d->x) left = d->x;
-		if (top > d->y) top = d->y;
+		if (right < d->x + d->width)
+			right = d->x + d->width;
+		if (bottom < d->y + d->height)
+			bottom = d->y + d->height;
+		if (left > d->x)
+			left = d->x;
+		if (top > d->y)
+			top = d->y;
 	}
-	*d = (struct st_console_rect){left, top, right - left, bottom - top};
+	*d = (struct st_console_rect) {left, top, right - left, bottom - top};
 }
-static void raster_point(struct raster *r, int x, int y, uint32_t colour)
+
+static void
+raster_point(struct raster *r, int x, int y, uint32_t colour)
 {
-	if (x < 0 || x >= (int)r->width || y < 0 || y >= (int)r->height) return;
-	size_t at = (size_t)y * r->buffer->width + (unsigned)x;
-	r->buffer->primary[at] = colour;
+	if (x < 0 || x >= (int)r->width || y < 0 || y >= (int)r->height)
+		return;
+	size_t at                = (size_t)y * r->buffer->width + (unsigned)x;
+	r->buffer->primary[at]   = colour;
 	r->buffer->alternate[at] = colour;
 	damage(r, (unsigned)x, (unsigned)y, (unsigned)x + 1, (unsigned)y + 1);
 }
-static void span(struct raster *r, int x1, int x2, int y, unsigned colour)
+
+static void
+span(struct raster *r, int x1, int x2, int y, unsigned colour)
 {
-	if (y < 0 || y >= (int)r->height) return;
-	if (x1 < 0) x1 = 0;
-	if (x2 >= (int)r->width) x2 = (int)r->width - 1;
-	if (x1 > x2) return;
+	if (y < 0 || y >= (int)r->height)
+		return;
+	if (x1 < 0)
+		x1 = 0;
+	if (x2 >= (int)r->width)
+		x2 = (int)r->width - 1;
+	if (x1 > x2)
+		return;
 	size_t row = (size_t)y * r->buffer->width;
 	for (int x = x1; x <= x2; ++x) {
-		r->buffer->primary[row + (unsigned)x] = CTERM_SKYPIX_PALETTE_FIRST + colour;
+		r->buffer->primary[row + (unsigned)x]   = CTERM_SKYPIX_PALETTE_FIRST + colour;
 		r->buffer->alternate[row + (unsigned)x] = CTERM_SKYPIX_PALETTE_FIRST + colour;
 	}
 	damage(r, (unsigned)x1, (unsigned)y, (unsigned)x2 + 1, (unsigned)y + 1);
 }
+
 struct drawing {
 	struct raster *raster;
-	unsigned colour;
+	unsigned       colour;
 };
-static void plot(void *context, int x, int y)
+
+static void
+plot(void *context, int x, int y)
 {
 	struct drawing *drawing = context;
 	raster_point(drawing->raster, x, y, CTERM_SKYPIX_PALETTE_FIRST + drawing->colour);
 }
-static uint32_t raster_colour(const struct raster *r, unsigned p)
+
+static uint32_t
+raster_colour(const struct raster *r, unsigned p)
 {
 	return r->buffer->primary[(size_t)(p / r->width) * r->buffer->width + p % r->width];
 }
-static void flood(struct raster *r, unsigned mode, int x, int y, unsigned fg, unsigned bg,
-	uint8_t *visited, unsigned *queue)
+
+static void
+flood(struct raster *r, unsigned mode, int x, int y, unsigned fg, unsigned bg, uint8_t *visited, unsigned *queue)
 {
 	unsigned w = r->width, h = r->height;
 	if (x < 0 || x >= (int)w || y < 0 || y >= (int)h || mode > 1)
 		return;
 	fg += CTERM_SKYPIX_PALETTE_FIRST;
 	bg += CTERM_SKYPIX_PALETTE_FIRST;
-	unsigned start = (unsigned)y * w + (unsigned)x;
+	unsigned start    = (unsigned)y * w + (unsigned)x;
 	uint32_t original = raster_colour(r, start);
 	if ((mode == 1 && original == fg) || (mode == 0 && original == bg))
 		return;
 	/* A visited plane is essential in boundary mode when the new colour
 	 * already occurs inside the area. Each canvas point is enqueued once. */
 	size_t head = 0, tail = 0;
-	queue[tail++] = start;
+	queue[tail++]  = start;
 	visited[start] = 1;
 	while (head < tail) {
 		unsigned p = queue[head++];
 		raster_point(r, (int)(p % w), (int)(p / w), fg);
 		unsigned adjacent[4] = {p % w ? p - 1 : p, p % w < w - 1 ? p + 1 : p, p >= w ? p - w : p,
-								p < w * (h - 1) ? p + w : p};
+		    p < w * (h - 1) ? p + w : p};
 		for (unsigned i = 0; i < 4; ++i) {
 			unsigned q = adjacent[i];
-			if (!visited[q] && (mode == 1 ? raster_colour(r, q) == original : raster_colour(r, q) != bg)) {
-				visited[q] = 1;
+			if (!visited[q]
+			    && (mode == 1 ? raster_colour(r, q) == original : raster_colour(r, q) != bg)) {
+				visited[q]    = 1;
 				queue[tail++] = q;
 			}
 		}
 	}
 }
+
 struct raster_command {
 	struct cterm_skypix *sky;
-	const unsigned *p;
-	const int *v;
-	unsigned op, fg;
+	const unsigned      *p;
+	const int           *v;
+	unsigned             op, fg;
 };
+
 struct brush_capture {
 	struct st_pixel_buffer *brush;
-	unsigned x, y;
+	unsigned                x, y;
 };
-static int capture_brush(void *context, const struct st_pixel_buffer *buffer,
-	struct st_console_rect *changed)
+
+static int
+capture_brush(void *context, const struct st_pixel_buffer *buffer, struct st_console_rect *changed)
 {
 	const struct brush_capture *capture = context;
-	struct st_pixel_buffer *brush = capture->brush;
+	struct st_pixel_buffer     *brush   = capture->brush;
 	(void)changed;
 	for (uint32_t y = 0; y < brush->height; ++y)
 		memcpy(brush->primary + (size_t)y * brush->width,
-			buffer->primary + (size_t)(y + capture->y) * buffer->width + capture->x,
-			(size_t)brush->width * sizeof(*brush->primary));
+		    buffer->primary + (size_t)(y + capture->y) * buffer->width + capture->x,
+		    (size_t)brush->width * sizeof(*brush->primary));
 	return 0;
 }
-static int draw_command(void *context, const struct st_pixel_buffer *buffer,
-	struct st_console_rect *changed)
+
+static int
+draw_command(void *context, const struct st_pixel_buffer *buffer, struct st_console_rect *changed)
 {
-	const struct raster_command *c = context;
-	struct cterm_skypix *s = c->sky;
-	const unsigned *p = c->p;
-	const int *v = c->v;
-	struct raster r = {buffer, s->width, s->height, changed};
-	struct drawing drawing = {&r, c->fg};
-	uint8_t *visited = NULL;
-	unsigned *queue = NULL;
+	const struct raster_command *c       = context;
+	struct cterm_skypix         *s       = c->sky;
+	const unsigned              *p       = c->p;
+	const int                   *v       = c->v;
+	struct raster                r       = {buffer, s->width, s->height, changed};
+	struct drawing               drawing = {&r, c->fg};
+	uint8_t                     *visited = NULL;
+	unsigned                    *queue   = NULL;
 	if (c->op == 3 || c->op == 13) {
 		int x = c->op == 3 ? v[2] : v[1], y = c->op == 3 ? v[3] : v[2];
-		if (x >= 0 && x < (int)s->width && y >= 0 && y < (int)s->height &&
-			buffer->primary[(size_t)y * buffer->width + (unsigned)x] != CTERM_SKYPIX_PALETTE_FIRST + c->fg) {
+		if (x >= 0 && x < (int)s->width && y >= 0 && y < (int)s->height
+		    && buffer->primary[(size_t)y * buffer->width + (unsigned)x]
+		           != CTERM_SKYPIX_PALETTE_FIRST + c->fg) {
 			/* Reserve fill workspace before drawing an ellipse outline so
 			 * allocation failure leaves the entire command unapplied. */
 			visited = calloc((size_t)s->width * s->height, 1);
-			queue = malloc((size_t)s->width * s->height * sizeof(*queue));
+			queue   = malloc((size_t)s->width * s->height * sizeof(*queue));
 			if (visited == NULL || queue == NULL) {
 				free(visited);
 				free(queue);
@@ -352,113 +420,136 @@ static int draw_command(void *context, const struct st_pixel_buffer *buffer,
 		}
 	}
 	switch (c->op) {
-	case 2:
-		cterm_skypix_line(s->pen_x, s->pen_y, v[1], v[2], plot, &drawing);
-		s->pen_x = v[1];
-		s->pen_y = v[2];
-		break;
-	case 3:
-		flood(&r, 1, v[2], v[3], c->fg, 0, visited, queue);
-		break;
-	case 4:
-		if (v[1] <= v[3] && v[2] <= v[4])
-			for (int y = v[2] < 0 ? 0 : v[2]; y <= v[4] && y < (int)s->height; ++y)
-				span(&r, v[1], v[3], y, c->fg);
-		break;
-	case 5:
-	case 13:
-		cterm_skypix_ellipse(v[1], v[2], v[3], v[4], s->kick13, plot, &drawing);
-		if (c->op == 13)
-			flood(&r, 0, v[1], v[2], c->fg, c->fg, visited, queue);
-		break;
-	case 7: {
-		/* The palette bank is aligned to 16: its low bits ARE the Amiga
+		case 2:
+			cterm_skypix_line(s->pen_x, s->pen_y, v[1], v[2], plot, &drawing);
+			s->pen_x = v[1];
+			s->pen_y = v[2];
+			break;
+		case 3:
+			flood(&r, 1, v[2], v[3], c->fg, 0, visited, queue);
+			break;
+		case 4:
+			if (v[1] <= v[3] && v[2] <= v[4])
+				for (int y = v[2] < 0 ? 0 : v[2]; y <= v[4] && y < (int)s->height; ++y)
+					span(&r, v[1], v[3], y, c->fg);
+			break;
+		case 5:
+		case 13:
+			cterm_skypix_ellipse(v[1], v[2], v[3], v[4], s->kick13, plot, &drawing);
+			if (c->op == 13)
+				flood(&r, 0, v[1], v[2], c->fg, c->fg, visited, queue);
+			break;
+		case 7:
+		{
+			/* The palette bank is aligned to 16: its low bits ARE the Amiga
 		 * planes. Evaluate the four source/destination minterms together,
 		 * then merge only the enabled planes. No planar conversion or RGB
 		 * palette expansion is involved. The source C plane is always set. */
-		unsigned mask = p[8] & ((1u << s->brush_depth) - 1) & (s->colours - 1);
-		unsigned code = p[7] >> 4;
-		uint32_t terms[4];
-		for (unsigned i = 0; i < 4; ++i) terms[i] = (code & (1u << i)) ? UINT32_MAX : 0;
-		if (p[3] >= s->width || p[4] >= s->height ||
-			p[1] >= s->brush->width || p[2] >= s->brush->height) break;
-		unsigned width = p[5], height = p[6];
-		if (width > s->width - p[3]) width = s->width - p[3];
-		if (width > s->brush->width - p[1]) width = s->brush->width - p[1];
-		if (height > s->height - p[4]) height = s->height - p[4];
-		if (height > s->brush->height - p[2]) height = s->brush->height - p[2];
-		if (width == 0 || height == 0) break;
-		for (unsigned y = 0; y < height; ++y)
-			for (unsigned x = 0; x < width; ++x) {
-				uint32_t src = s->brush->primary[(size_t)(y + p[2]) * s->brush->width + x + p[1]];
-				size_t at = (size_t)(y + p[4]) * buffer->width + x + p[3];
-				uint32_t dst = buffer->primary[at];
-				uint32_t bits = (terms[0] & ~src & ~dst) | (terms[1] & ~src & dst)
-					| (terms[2] & src & ~dst) | (terms[3] & src & dst);
-				uint32_t value = (dst & ~mask) | (bits & mask);
-				buffer->primary[at] = buffer->alternate[at] = CTERM_SKYPIX_PALETTE_FIRST + (value & 15);
-			}
-		damage(&r, p[3], p[4], p[3] + width, p[4] + height);
-		break;
-	}
+			unsigned mask = p[8] & ((1u << s->brush_depth) - 1) & (s->colours - 1);
+			unsigned code = p[7] >> 4;
+			uint32_t terms[4];
+			for (unsigned i = 0; i < 4; ++i)
+				terms[i] = (code & (1u << i)) ? UINT32_MAX : 0;
+			if (p[3] >= s->width || p[4] >= s->height || p[1] >= s->brush->width
+			    || p[2] >= s->brush->height)
+				break;
+			unsigned width = p[5], height = p[6];
+			if (width > s->width - p[3])
+				width = s->width - p[3];
+			if (width > s->brush->width - p[1])
+				width = s->brush->width - p[1];
+			if (height > s->height - p[4])
+				height = s->height - p[4];
+			if (height > s->brush->height - p[2])
+				height = s->brush->height - p[2];
+			if (width == 0 || height == 0)
+				break;
+			for (unsigned y = 0; y < height; ++y)
+				for (unsigned x = 0; x < width; ++x) {
+					uint32_t src =
+					    s->brush->primary[(size_t)(y + p[2]) * s->brush->width + x + p[1]];
+					size_t   at         = (size_t)(y + p[4]) * buffer->width + x + p[3];
+					uint32_t dst        = buffer->primary[at];
+					uint32_t bits       = (terms[0] & ~src & ~dst) | (terms[1] & ~src & dst)
+					                      | (terms[2] & src & ~dst) | (terms[3] & src & dst);
+					uint32_t value      = (dst & ~mask) | (bits & mask);
+					buffer->primary[at] = buffer->alternate[at] =
+					    CTERM_SKYPIX_PALETTE_FIRST + (value & 15);
+				}
+			damage(&r, p[3], p[4], p[3] + width, p[4] + height);
+			break;
+		}
 	}
 	free(queue);
 	free(visited);
 	return 0;
 }
+
 /* State Y is the JR-Comm logical anchor (baseline - H + 1). A normal
  * home places the strike at row zero; command 19 supplies the anchor itself. */
-static int font_descent(const st_amiga_font_t *font)
+static int
+font_descent(const st_amiga_font_t *font)
 {
 	return (int)st_amiga_font_height(font) - (int)st_amiga_font_baseline(font) - 1;
 }
-static void sync_cursor(struct cterm_skypix *s)
+
+static void
+sync_cursor(struct cterm_skypix *s)
 {
 	if (!s->custom && !s->positioned && !s->native_default) {
 		s->x = (s->terminal->xpos - 1) * (int)s->cell_width;
 		s->y = (s->terminal->ypos - 1) * (int)s->cell_height - font_descent(s->default_data);
 	}
 }
-int cterm_skypix_reset_font(struct cterm_skypix *s)
+
+int
+cterm_skypix_reset_font(struct cterm_skypix *s)
 {
 	sync_cursor(s);
 	int status = cterm_skypix_hide_cursor(s);
-	if (status != 0) return status;
+	if (status != 0)
+		return status;
 	if (s->font != s->default_data)
 		st_amiga_font_release(s->font);
-	s->font = s->default_data;
-	s->custom = false;
+	s->font           = s->default_data;
+	s->custom         = false;
 	s->cursor_enabled = true;
-	int top = s->y + font_descent(s->default_data);
-	if (s->x % (int)s->cell_width == 0 && top % (int)s->cell_height == 0 && s->x >= 0 &&
-		s->x < (int)s->width && top >= 0 && top < (int)s->height) {
-		s->positioned = false;
+	int top           = s->y + font_descent(s->default_data);
+	if (s->x % (int)s->cell_width == 0 && top % (int)s->cell_height == 0 && s->x >= 0 && s->x < (int)s->width
+	    && top >= 0 && top < (int)s->height) {
+		s->positioned     = false;
 		s->terminal->xpos = s->x / (int)s->cell_width + 1;
 		s->terminal->ypos = top / (int)s->cell_height + 1;
 	}
 	cterm_render_set_cursor(s->terminal, s->terminal->cursor);
 	return 0;
 }
-int cterm_skypix_reset_style(struct cterm_skypix *s)
+
+int
+cterm_skypix_reset_style(struct cterm_skypix *s)
 {
 	s->cursor_enabled = true;
-	int status = cterm_skypix_reset_font(s);
+	int status        = cterm_skypix_reset_font(s);
 	return status != 0 ? status : palette(s, NULL);
 }
-static void warn_font(struct cterm_skypix *s, const char *name, unsigned height, int error)
+
+static void
+warn_font(struct cterm_skypix *s, const char *name, unsigned height, int error)
 {
 	char key[280];
-	int n = snprintf(key, sizeof(key), "%s/%u;", name, height);
+	int  n = snprintf(key, sizeof(key), "%s/%u;", name, height);
 	if (n < 0 || (size_t)n >= sizeof(key) || strstr(s->warned, key) != NULL)
 		return;
 	size_t used = strlen(s->warned);
 	if ((size_t)n >= sizeof(s->warned) - used)
 		return;
 	cterm_log(s->terminal, ST_CTERM_LOG_WARNING,
-			  "SkyPix font %s/%u unavailable (%d); using configured default", name, height, error);
+	    "SkyPix font %s/%u unavailable (%d); using configured default", name, height, error);
 	memcpy(s->warned + used, key, (size_t)n + 1);
 }
-static int set_font(struct cterm_skypix *s, unsigned height, const uint8_t *bytes, size_t size)
+
+static int
+set_font(struct cterm_skypix *s, unsigned height, const uint8_t *bytes, size_t size)
 {
 	if (height == 0)
 		return cterm_skypix_reset_font(s);
@@ -466,19 +557,19 @@ static int set_font(struct cterm_skypix *s, unsigned height, const uint8_t *byte
 	/* Wire font names are Latin-1. Paths are not accepted as family names. */
 	size_t used = 0;
 	for (size_t i = 0; i < size; ++i) {
-		if (bytes[i] < 0x20 || bytes[i] == '/' || bytes[i] == '\\' || bytes[i] == ':' ||
-			bytes[i] == 0x7f)
+		if (bytes[i] < 0x20 || bytes[i] == '/' || bytes[i] == '\\' || bytes[i] == ':' || bytes[i] == 0x7f)
 			return 0;
-		char encoded[4];
+		char      encoded[4];
 		ptrdiff_t n = st_utf8_encode_one(encoded, sizeof(encoded), bytes[i]);
 		if (n < 0 || (size_t)n >= sizeof(name) - used)
 			return 0;
 		memcpy(name + used, encoded, (size_t)n);
 		used += (size_t)n;
 	}
-	name[used] = 0;
+	name[used]                  = 0;
 	const st_amiga_font_t *font = NULL;
-	int status = st_amiga_fonts_lookup(&font, s->kick13 ? ST_AMIGA_FONT_SET_13 : ST_AMIGA_FONT_SET_2PLUS, s->font_directory, name, height);
+	int status = st_amiga_fonts_lookup(&font, s->kick13 ? ST_AMIGA_FONT_SET_13 : ST_AMIGA_FONT_SET_2PLUS,
+	    s->font_directory, name, height);
 	if (font == NULL)
 		font = s->default_data;
 	if (status != 0) {
@@ -490,32 +581,37 @@ static int set_font(struct cterm_skypix *s, unsigned height, const uint8_t *byte
 	sync_cursor(s);
 	if (s->font != s->default_data)
 		st_amiga_font_release(s->font);
-	s->font = font;
-	s->custom = true;
+	s->font       = font;
+	s->custom     = true;
 	s->positioned = true;
 	cterm_render_set_cursor(s->terminal, s->terminal->cursor);
 	return 0;
 }
-static int begin_command(void *context)
+
+static int
+begin_command(void *context)
 {
-	struct cterm_skypix *s = context;
-	int status = cterm_text_boundary(s->terminal);
-	if (status == 0) status = cterm_skypix_hide_cursor(s);
+	struct cterm_skypix *s      = context;
+	int                  status = cterm_text_boundary(s->terminal);
+	if (status == 0)
+		status = cterm_skypix_hide_cursor(s);
 	s->cursor_enabled = false;
 	return status;
 }
-static int command(void *context, const unsigned *p, size_t count,
-	const struct cterm_skypix_string *strings, size_t string_count)
+
+static int
+command(void *context, const unsigned *p, size_t count, const struct cterm_skypix_string *strings,
+    size_t string_count)
 {
-	struct cterm_skypix *s = context;
-	struct cterminal *t = s->terminal;
-	int status = cterm_text_boundary(t);
-	struct st_pixel_buffer *b = NULL;
+	struct cterm_skypix    *s      = context;
+	struct cterminal       *t      = s->terminal;
+	int                     status = cterm_text_boundary(t);
+	struct st_pixel_buffer *b      = NULL;
 	if (status != 0)
 		return status;
 	unsigned fg = (t->attr & 15) & (s->colours - 1);
 	unsigned op = p[0];
-	int v[CTERM_SKYPIX_MAX_NUMBERS];
+	int      v[CTERM_SKYPIX_MAX_NUMBERS];
 	for (size_t i = 0; i < count; ++i)
 		v[i] = cterm_skypix_word(p[i]);
 	if (op == 9 && count == 5) {
@@ -533,7 +629,7 @@ static int command(void *context, const unsigned *p, size_t count,
 			s->gadgets[p[1] - 1][i] = (uint16_t)p[i + 2];
 		for (size_t i = 1; i <= 4; ++i)
 			v[i] = v[i + 2];
-		op = 4;
+		op    = 4;
 		count = 5;
 	}
 	if (op == 10 && count >= 2) {
@@ -550,9 +646,11 @@ static int command(void *context, const unsigned *p, size_t count,
 		return palette(s, p + 1);
 	}
 	if (op == 17 && count == 2) {
-		if (p[1] != 1 && p[1] != 2) return 0;
+		if (p[1] != 1 && p[1] != 2)
+			return 0;
 		status = select_depth(s, p[1] == 1 ? 8 : 16);
-		if (status != 0) return status;
+		if (status != 0)
+			return status;
 	}
 	if ((op == 12 && count == 1) || (op == 17 && count == 2)) {
 		set_pen(s, 2, false);
@@ -577,8 +675,8 @@ static int command(void *context, const unsigned *p, size_t count,
 		return 0;
 	}
 	if (op == 19 && count == 3) {
-		s->x = v[1];
-		s->y = v[2];
+		s->x          = v[1];
+		s->y          = v[2];
 		s->positioned = true;
 		cursor_bookkeeping(s);
 		return 0;
@@ -595,98 +693,108 @@ static int command(void *context, const unsigned *p, size_t count,
 			static const uint8_t cancel[] = {0x18, 0x18};
 			if (t->api_output != NULL)
 				t->api_output(t->api_output_context, ST_CTERM_OUTPUT_RESPONSE, cancel,
-							  sizeof(cancel));
+				    sizeof(cancel));
 			return 0;
 		}
-		status = t->skypix_transfer(t->skypix_transfer_context, p[1], p[2], p[3],
-			strings[0].bytes, strings[0].size);
+		status = t->skypix_transfer(t->skypix_transfer_context, p[1], p[2], p[3], strings[0].bytes,
+		    strings[0].size);
 		if (status == IO_ERROR_IN_PROGRESS)
 			s->receiving = true;
 		else if (status != 0) {
 			static const uint8_t cancel[] = {0x18, 0x18};
 			if (t->api_output != NULL)
 				t->api_output(t->api_output_context, ST_CTERM_OUTPUT_RESPONSE, cancel,
-							  sizeof(cancel));
+				    sizeof(cancel));
 			cterm_log(t, ST_CTERM_LOG_WARNING, "SkyPix transfer declined (%d)", status);
 		}
 		return 0;
 	}
-	if (!((op == 1 || op == 2) && count == 3) && !(op == 3 && count == 4) &&
-		!((op == 4 || op == 5 || op == 6 || op == 13) && count == 5) && !(op == 7 && count == 9))
+	if (!((op == 1 || op == 2) && count == 3) && !(op == 3 && count == 4)
+	    && !((op == 4 || op == 5 || op == 6 || op == 13) && count == 5) && !(op == 7 && count == 9))
 		return 0;
 	if (op == 7 && s->brush != NULL && p[7] <= 255 && p[8] <= 255) {
 		bool promote = s->brush_depth > (s->colours == 8 ? 3u : 4u);
-		if (promote) status = select_depth(s, 16);
+		if (promote)
+			status = select_depth(s, 16);
 		if (status == 0 && (promote || s->brush_palette_pending)) {
 			status = st_console_set_palette(t->screen.console, CTERM_SKYPIX_PALETTE_FIRST,
-				s->brush_palette, s->brush_palette_size);
-			if (status == 0) s->brush_palette_pending = false;
+			    s->brush_palette, s->brush_palette_size);
+			if (status == 0)
+				s->brush_palette_pending = false;
 		}
-		if (status != 0) return status;
+		if (status != 0)
+			return status;
 	}
 	if (op == 1) {
 		if (v[1] < 0 || v[1] >= (int)s->width || v[2] < 0 || v[2] >= (int)s->height)
 			return 0;
 		return st_console_set_pixel(t->screen.console, (unsigned)v[1], (unsigned)v[2],
-			CTERM_SKYPIX_PALETTE_FIRST + fg);
+		    CTERM_SKYPIX_PALETTE_FIRST + fg);
 	}
 	if (op == 6) {
-		if (p[1] >= s->width || p[2] >= s->height - 1 || p[3] == 0 || p[4] == 0 ||
-			p[3] > s->width - p[1] || p[4] > s->height - 1 - p[2])
+		if (p[1] >= s->width || p[2] >= s->height - 1 || p[3] == 0 || p[4] == 0 || p[3] > s->width - p[1]
+		    || p[4] > s->height - 1 - p[2])
 			return 0;
 		/* Capture only the requested brush, including JR-Comm's Y+1 rule. */
 		uint32_t colours[16];
 		status = st_console_get_palette(t->screen.console, CTERM_SKYPIX_PALETTE_FIRST, colours, 16);
-		if (status == 0) status = st_pixel_buffer_create(&b, p[3], p[4], false);
+		if (status == 0)
+			status = st_pixel_buffer_create(&b, p[3], p[4], false);
 		struct brush_capture capture = {b, p[1], p[2] + 1};
-		if (status == 0) status = st_console_modify_pixels(t->screen.console, capture_brush, &capture);
+		if (status == 0)
+			status = st_console_modify_pixels(t->screen.console, capture_brush, &capture);
 		if (status != 0) {
 			st_pixel_buffer_destroy(b);
 			return status;
 		}
 		st_pixel_buffer_destroy(s->brush);
-		s->brush = b;
+		s->brush       = b;
 		s->brush_depth = s->colours == 8 ? 3 : 4;
 		memcpy(s->brush_palette, colours, sizeof(colours));
-		s->brush_palette_size = 16;
+		s->brush_palette_size    = 16;
 		s->brush_palette_pending = true;
 		return 0;
 	}
-	if (op == 7 && (s->brush == NULL || p[7] > 255 || p[8] > 255)) return 0;
+	if (op == 7 && (s->brush == NULL || p[7] > 255 || p[8] > 255))
+		return 0;
 	struct raster_command draw = {s, p, v, op, fg};
 	return st_console_modify_pixels(t->screen.console, draw_command, &draw);
 }
 
-static int text(void *context, const uint8_t *bytes, size_t size)
+static int
+text(void *context, const uint8_t *bytes, size_t size)
 {
 	struct cterm_skypix *s = context;
-	if (size == 0) return 0;
+	if (size == 0)
+		return 0;
 	uint8_t first = bytes[0], final = bytes[size - 1];
-	bool control = size == 1 && (first == '\r' || first == '\n');
-	bool backspace = size == 1 && first == 8;
-	bool ansi = size >= 3 && first == 27 && bytes[1] == '[';
-	bool horizontal = ansi && strchr("CDGIZ`aj", final) != NULL;
-	bool vertical = ansi && strchr("ABYdek", final) != NULL;
+	bool    control    = size == 1 && (first == '\r' || first == '\n');
+	bool    backspace  = size == 1 && first == 8;
+	bool    ansi       = size >= 3 && first == 27 && bytes[1] == '[';
+	bool    horizontal = ansi && strchr("CDGIZ`aj", final) != NULL;
+	bool    vertical   = ansi && strchr("ABYdek", final) != NULL;
 	/* Private/intermediate CSI forms can share a final with cursor motion. */
 	for (size_t i = 2; (horizontal || vertical) && i + 1 < size; ++i)
 		if (bytes[i] != ';' && (bytes[i] < '0' || bytes[i] > '9'))
 			horizontal = vertical = false;
-	bool redraw = control || backspace || (size == 1 && first == 12) ||
-		(ansi && final != 'n' && final != 's') || (first == 27 && !ansi);
+	bool redraw = control || backspace || (size == 1 && first == 12) || (ansi && final != 'n' && final != 's')
+	              || (first == 27 && !ansi);
 	if (first < 32 || first == 127) {
 		int status = cterm_text_boundary(s->terminal);
-		if (status != 0) return status;
+		if (status != 0)
+			return status;
 	}
 	int status = redraw ? cterm_skypix_hide_cursor(s) : 0;
-	if (status != 0) return status;
+	if (status != 0)
+		return status;
 	sync_cursor(s);
-	int x = s->terminal->xpos, y = s->terminal->ypos;
+	int      x = s->terminal->xpos, y = s->terminal->ypos;
 	uint64_t placements = s->terminal->cursor_position_changes;
-	size_t used;
+	size_t   used;
 	s->presented = false;
-	status = cterm_input_write(s->terminal, bytes, size, &used, CTERM_INPUT_WIRE);
-	bool placed = placements != s->terminal->cursor_position_changes;
-	bool moved = x != s->terminal->xpos || y != s->terminal->ypos || placed;
+	status       = cterm_input_write(s->terminal, bytes, size, &used, CTERM_INPUT_WIRE);
+	bool placed  = placements != s->terminal->cursor_position_changes;
+	bool moved   = x != s->terminal->xpos || y != s->terminal->ypos || placed;
 	if (!s->presented && (s->custom || s->positioned || s->native_default) && moved) {
 		/* Native text can sit between cell boundaries after positioning or
 		 * a font change. Moving one cell axis must not round the other one;
@@ -695,12 +803,16 @@ static int text(void *context, const uint8_t *bytes, size_t size)
 			s->x = (s->terminal->xpos - 1) * (int)s->cell_width;
 		if (!horizontal || y != s->terminal->ypos)
 			s->y = (s->terminal->ypos - 1) * (int)s->cell_height - font_descent(s->font);
-	} else if (!s->custom && !s->positioned && !s->native_default && moved)
+	}
+	else if (!s->custom && !s->positioned && !s->native_default && moved)
 		sync_cursor(s);
-	if (status == 0 && redraw) status = draw_cursor(s);
+	if (status == 0 && redraw)
+		status = draw_cursor(s);
 	return status;
 }
-bool cterm_skypix_paused(void *context)
+
+bool
+cterm_skypix_paused(void *context)
 {
 	struct cterm_skypix *s = context;
 	if (s->receiving || s->audio.playing)
@@ -716,96 +828,110 @@ bool cterm_skypix_paused(void *context)
 	}
 	return true;
 }
-static struct cterm_skypix_sink sink(struct cterm_skypix *s)
+
+static struct cterm_skypix_sink
+sink(struct cterm_skypix *s)
 {
-	return (struct cterm_skypix_sink){.context = s, .text = text, .command = command,
-		.paused = cterm_skypix_paused, .begin_command = begin_command};
+	return (struct cterm_skypix_sink) {.context = s,
+	    .text                                   = text,
+	    .command                                = command,
+	    .paused                                 = cterm_skypix_paused,
+	    .begin_command                          = begin_command};
 }
-int cterm_skypix_feed(struct cterm_skypix *s, const uint8_t *bytes, size_t size, size_t *used)
+
+int
+cterm_skypix_feed(struct cterm_skypix *s, const uint8_t *bytes, size_t size, size_t *used)
 {
 	struct cterm_skypix_sink callbacks = sink(s);
 	return cterm_skypix_parser_feed(&s->parser, &callbacks, bytes, size, used);
 }
-int cterm_skypix_finish(struct cterm_skypix *s)
+
+int
+cterm_skypix_finish(struct cterm_skypix *s)
 {
 	cterm_skypix_audio_cancel(s);
-	s->delay_until = 0;
+	s->delay_until                     = 0;
 	struct cterm_skypix_sink callbacks = sink(s);
 	return cterm_skypix_parser_finish(&s->parser, &callbacks);
 }
-int cterm_skypix_reset(struct cterm_skypix *s)
+
+int
+cterm_skypix_reset(struct cterm_skypix *s)
 {
 	int restored = cterm_skypix_hide_cursor(s);
-	if (restored != 0) return restored;
+	if (restored != 0)
+		return restored;
 	cterm_skypix_audio_reset(s);
 	memset(&s->parser, 0, sizeof(s->parser));
 	memset(s->gadgets, 0, sizeof(s->gadgets));
 	s->delay_until = 0;
-	s->receiving = false;
-	int status = select_depth(s, 16);
-	if (status != 0) return status;
+	s->receiving   = false;
+	int status     = select_depth(s, 16);
+	if (status != 0)
+		return status;
 	s->x = s->pen_x = s->pen_y = 0;
-	s->y = -font_descent(s->default_data);
-	s->positioned = false;
+	s->y                       = -font_descent(s->default_data);
+	s->positioned              = false;
 	st_pixel_buffer_destroy(s->brush);
-	s->brush = NULL;
-	s->brush_depth = 0;
-	s->brush_palette_size = 0;
+	s->brush                 = NULL;
+	s->brush_depth           = 0;
+	s->brush_palette_size    = 0;
 	s->brush_palette_pending = false;
 	st_pixel_buffer_destroy(s->undo);
 	s->undo = NULL;
 	if (s->font != s->default_data)
 		st_amiga_font_release(s->font);
-	s->font = s->default_data;
-	s->custom = false;
-	s->terminal->attr = 2;
+	s->font                               = s->default_data;
+	s->custom                             = false;
+	s->terminal->attr                     = 2;
 	s->terminal->screen.default_attribute = 2;
 	cterm_render_attribute_colours(s->terminal, 2, &s->terminal->fg_color, &s->terminal->bg_color);
-	status = palette(s, NULL);
+	status            = palette(s, NULL);
 	s->cursor_enabled = true;
-	s->cursor_hidden = false;
+	s->cursor_hidden  = false;
 	st_pixel_buffer_destroy(s->cursor_background);
 	s->cursor_background = NULL;
 	cterm_skypix_cursor_mode(s, false);
 	return status;
 }
-int cterm_skypix_create(struct cterminal *t, const struct st_cterm_config *config)
+
+int
+cterm_skypix_create(struct cterminal *t, const struct st_cterm_config *config)
 {
 	uint32_t width, height, cw, ch;
-	int status = st_console_pixel_size(t->screen.console, &width, &height);
+	int      status = st_console_pixel_size(t->screen.console, &width, &height);
 	if (status == 0)
 		status = st_console_cell_pixel_size(t->screen.console, &cw, &ch);
 	if (status != 0)
 		return status;
-	uint32_t canvas_width =
-		config->skypix_width == 0 ? (uint32_t)t->width * cw : config->skypix_width;
-	uint32_t canvas_height =
-		config->skypix_height == 0 ? (uint32_t)t->height * ch : config->skypix_height;
-	if (canvas_width == 0 || canvas_height == 0 || canvas_width > width || canvas_height > height ||
-		canvas_width > (uint32_t)t->width * cw || canvas_height > (uint32_t)t->height * ch ||
-		canvas_width > INT16_MAX || canvas_height > INT16_MAX ||
-		(uint64_t)canvas_width * canvas_height > 4 * 1024 * 1024)
+	uint32_t canvas_width  = config->skypix_width == 0 ? (uint32_t)t->width * cw : config->skypix_width;
+	uint32_t canvas_height = config->skypix_height == 0 ? (uint32_t)t->height * ch : config->skypix_height;
+	if (canvas_width == 0 || canvas_height == 0 || canvas_width > width || canvas_height > height
+	    || canvas_width > (uint32_t)t->width * cw || canvas_height > (uint32_t)t->height * ch
+	    || canvas_width > INT16_MAX || canvas_height > INT16_MAX
+	    || (uint64_t)canvas_width * canvas_height > 4 * 1024 * 1024)
 		return IO_ERROR_INVALID_ARGUMENT;
 	struct cterm_skypix *s = calloc(1, sizeof(*s));
 	if (s == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
-	s->terminal = t;
+	s->terminal       = t;
 	s->font_directory = config->amiga_font_directory;
-	s->width = canvas_width;
-	s->height = canvas_height;
-	s->cell_width = cw;
-	s->cell_height = ch;
-	s->kick13 = t->graphics_mode == ST_CTERM_GRAPHICS_SKYPIX_13;
-	s->default_data =
-		config->amiga_font == NULL ? st_amiga_font_builtin(s->kick13 ? ST_AMIGA_FONT_SET_13 : ST_AMIGA_FONT_SET_2PLUS, "pearl.font", 8) : config->amiga_font;
+	s->width          = canvas_width;
+	s->height         = canvas_height;
+	s->cell_width     = cw;
+	s->cell_height    = ch;
+	s->kick13         = t->graphics_mode == ST_CTERM_GRAPHICS_SKYPIX_13;
+	s->default_data   = config->amiga_font == NULL
+	                        ? st_amiga_font_builtin(s->kick13 ? ST_AMIGA_FONT_SET_13 : ST_AMIGA_FONT_SET_2PLUS,
+				      "pearl.font", 8)
+	                        : config->amiga_font;
 	if (s->default_data == NULL) {
 		free(s);
 		return IO_ERROR_OUT_OF_MEMORY;
 	}
-	s->font_codepage =
-		config->encoding == ST_CTERM_ENCODING_UTF8 ? ST_CODEPAGE_ISO_8859_1 : config->codepage;
-	s->native_default = st_amiga_font_width(s->default_data) != cw ||
-		st_amiga_font_height(s->default_data) != ch;
+	s->font_codepage = config->encoding == ST_CTERM_ENCODING_UTF8 ? ST_CODEPAGE_ISO_8859_1 : config->codepage;
+	s->native_default =
+	    st_amiga_font_width(s->default_data) != cw || st_amiga_font_height(s->default_data) != ch;
 	for (unsigned c = 0; c < 256; ++c)
 		if (st_amiga_font_glyph(s->default_data, (uint8_t)c)->advance != (int)cw)
 			s->native_default = true;
@@ -814,15 +940,15 @@ int cterm_skypix_create(struct cterminal *t, const struct st_cterm_config *confi
 		status = IO_ERROR_NOT_FOUND;
 	if (status == 0) {
 		t->screen.font_identifiers[0] = s->default_font;
-		t->screen.font_valid[0] = true;
-		t->screen.font_codepages[0] = s->font_codepage;
+		t->screen.font_valid[0]       = true;
+		t->screen.font_codepages[0]   = s->font_codepage;
 		for (unsigned i = 0; i < 4; ++i)
 			t->altfont[i] = 0;
 		for (unsigned i = 0; i < 5; ++i)
 			t->screen.selectors[i] = 0;
-		t->skypix = 1;
+		t->skypix        = 1;
 		t->skypix_engine = s;
-		status = cterm_skypix_reset(s);
+		status           = cterm_skypix_reset(s);
 		if (status == 0) {
 			cterm_start(t);
 			status = cterm_render_take_error(t);
@@ -834,7 +960,9 @@ int cterm_skypix_create(struct cterminal *t, const struct st_cterm_config *confi
 	}
 	return status;
 }
-void cterm_skypix_destroy(struct cterm_skypix *s)
+
+void
+cterm_skypix_destroy(struct cterm_skypix *s)
 {
 	if (s == NULL)
 		return;
@@ -849,63 +977,73 @@ void cterm_skypix_destroy(struct cterm_skypix *s)
 	(void)st_console_set_pixel_cursor(s->terminal->screen.console, &cursor);
 	free(s);
 }
-static void cursor_bookkeeping(struct cterm_skypix *s)
+
+static void
+cursor_bookkeeping(struct cterm_skypix *s)
 {
-	int top = s->y + font_descent(s->default_data);
-	s->terminal->xpos = s->x < 0 ? 1 : s->x >= (int)s->width ? s->terminal->width
-		: s->x / (int)s->cell_width + 1;
-	s->terminal->ypos = top < 0 ? 1 : top >= (int)s->height ? s->terminal->height
-		: top / (int)s->cell_height + 1;
+	int top           = s->y + font_descent(s->default_data);
+	s->terminal->xpos = s->x < 0                ? 1
+	                    : s->x >= (int)s->width ? s->terminal->width
+	                                            : s->x / (int)s->cell_width + 1;
+	s->terminal->ypos = top < 0                 ? 1
+	                    : top >= (int)s->height ? s->terminal->height
+	                                            : top / (int)s->cell_height + 1;
 	cterm_render_set_position(s->terminal, s->terminal->xpos, s->terminal->ypos);
 }
-static int scroll_pixels(struct cterm_skypix *s, uint32_t distance)
+
+static int
+scroll_pixels(struct cterm_skypix *s, uint32_t distance)
 {
 	int restored = cterm_skypix_hide_cursor(s);
-	if (restored != 0) return restored;
+	if (restored != 0)
+		return restored;
 	/* Font rows bound the text anchor, not the raster. SkyTERM scrolls to
 	 * the drawable bottom; leaving a font-height remainder stationary tears
 	 * graphics when a later, shorter font scrolls that remainder into view. */
-	uint32_t height = s->height;
-	struct st_pixel_buffer *image = NULL, *retired = NULL;
-	struct st_console_cell *cells = NULL;
-	struct st_console_cell fill;
+	uint32_t                     height = s->height;
+	struct st_pixel_buffer      *image = NULL, *retired = NULL;
+	struct st_console_cell      *cells = NULL;
+	struct st_console_cell       fill;
 	const struct st_console_rect grid = {0, 0, (uint32_t)s->terminal->width * s->cell_width,
-		(uint32_t)s->terminal->height * s->cell_height};
-	bool aligned = distance % s->cell_height == 0 && height % s->cell_height == 0 &&
-		s->width % s->cell_width == 0;
+	    (uint32_t)s->terminal->height * s->cell_height};
+	bool                         aligned =
+	    distance % s->cell_height == 0 && height % s->cell_height == 0 && s->width % s->cell_width == 0;
 	bool updating = false;
-	int status = st_console_get_pixels(&image, s->terminal->screen.console, &grid, false);
+	int  status   = st_console_get_pixels(&image, s->terminal->screen.console, &grid, false);
 	if (status == 0)
 		status = cterm_render_make_current_cell(s->terminal, &fill, ' ', 0);
 	if (status == 0) {
-		status = st_console_begin_update(s->terminal->screen.console);
+		status   = st_console_begin_update(s->terminal->screen.console);
 		updating = status == 0;
 	}
 	if (status == 0 && s->terminal->scrollback != NULL) {
 		if (aligned) {
 			const struct st_console_rect rows = {0, 0, (uint32_t)s->terminal->width,
-				distance / s->cell_height};
-			cells = malloc((size_t)rows.width * rows.height * sizeof(*cells));
-			status = cells == NULL ? IO_ERROR_OUT_OF_MEMORY :
-				st_console_read_cells(s->terminal->screen.console, &rows, cells, rows.width);
+			    distance / s->cell_height};
+			cells  = malloc((size_t)rows.width * rows.height * sizeof(*cells));
+			status = cells == NULL ? IO_ERROR_OUT_OF_MEMORY
+			                       : st_console_read_cells(s->terminal->screen.console, &rows, cells,
+						     rows.width);
 		}
 		const struct st_console_cell graphics = {.flags = ST_CONSOLE_CELL_PIXEL_GRAPHICS};
-		const struct st_console_rect strip = {0, 0,
-			(uint32_t)s->terminal->width * s->cell_width, distance};
+		const struct st_console_rect strip    = {0, 0, (uint32_t)s->terminal->width * s->cell_width,
+		    distance};
 		if (status == 0)
-			status = st_history_capture_pixels(&retired, s->terminal->screen.console, &graphics, 1, &strip);
+			status =
+			    st_history_capture_pixels(&retired, s->terminal->screen.console, &graphics, 1, &strip);
 		if (status == 0)
 			status = cterm_history_append_pixels(s->terminal, retired, cells, s->cell_height);
 	}
 	if (status == 0) {
 		if (aligned && distance < height) {
 			const struct st_console_rect source = {0, distance / s->cell_height,
-				s->width / s->cell_width, (height - distance) / s->cell_height};
+			    s->width / s->cell_width, (height - distance) / s->cell_height};
 			status = st_console_move_cells_clear(s->terminal->screen.console, &source, 0, 0, &fill);
-		} else {
+		}
+		else {
 			const struct st_console_rect affected = {0, 0,
-				(s->width + s->cell_width - 1) / s->cell_width,
-				(height + s->cell_height - 1) / s->cell_height};
+			    (s->width + s->cell_width - 1) / s->cell_width,
+			    (height + s->cell_height - 1) / s->cell_height};
 			status = st_console_fill(s->terminal->screen.console, &affected, &fill);
 		}
 	}
@@ -914,36 +1052,43 @@ static int scroll_pixels(struct cterm_skypix *s, uint32_t distance)
 			size_t to = (size_t)y * image->width, from = (size_t)(y + distance) * image->width;
 			memmove(image->primary + to, image->primary + from, s->width * sizeof(uint32_t));
 			if (image->alternate != NULL)
-				memmove(image->alternate + to, image->alternate + from, s->width * sizeof(uint32_t));
+				memmove(image->alternate + to, image->alternate + from,
+				    s->width * sizeof(uint32_t));
 		}
 		uint32_t bg = CTERM_SKYPIX_PALETTE_FIRST + ((s->terminal->attr >> 4 & 15) & (s->colours - 1));
 		for (uint32_t y = height - distance; y < height; ++y)
 			for (uint32_t x = 0; x < s->width; ++x) {
-				size_t at = (size_t)y * image->width + x;
+				size_t at          = (size_t)y * image->width + x;
 				image->primary[at] = bg;
-				if (image->alternate != NULL) image->alternate[at] = bg;
+				if (image->alternate != NULL)
+					image->alternate[at] = bg;
 			}
-		const struct st_pixel_blit blit = {.width = image->width, .height = image->height,
-			.scale_x = 1, .scale_y = 1};
+		const struct st_pixel_blit blit = {.width = image->width,
+		    .height                               = image->height,
+		    .scale_x                              = 1,
+		    .scale_y                              = 1};
 		/* Scrolling retains both phases, including pixels drawn by other
 		 * console users; unlike a new SkyPix primitive it must not flatten them. */
 		status = st_console_blit_pixels(s->terminal->screen.console, image, NULL, &blit);
 	}
 	if (updating) {
 		int finished = st_console_end_update(s->terminal->screen.console);
-		if (status == 0) status = finished;
+		if (status == 0)
+			status = finished;
 	}
 	st_pixel_buffer_destroy(retired);
 	st_pixel_buffer_destroy(image);
 	free(cells);
 	return status;
 }
-static void line_feed(struct cterm_skypix *s)
+
+static void
+line_feed(struct cterm_skypix *s)
 {
 	int previous_top = s->y + font_descent(s->font);
-	int previous_y = s->y;
-	int height = (int)st_amiga_font_height(s->font);
-	s->y = cterm_skypix_word((unsigned)(s->y + (int)st_amiga_font_height(s->font)));
+	int previous_y   = s->y;
+	int height       = (int)st_amiga_font_height(s->font);
+	s->y             = cterm_skypix_word((unsigned)(s->y + (int)st_amiga_font_height(s->font)));
 	if (s->terminal->lf_expand)
 		s->x = 0;
 	/* Out-of-canvas pixel positioning must not trigger thousands of
@@ -951,67 +1096,80 @@ static void line_feed(struct cterm_skypix *s)
 	if (previous_top < 0 || previous_top >= (int)s->height)
 		return;
 	int rows = (int)s->height / height;
-	if (rows == 0) return;
-	int bottom = (rows - 1) * height - font_descent(s->font);
+	if (rows == 0)
+		return;
+	int bottom   = (rows - 1) * height - font_descent(s->font);
 	int distance = previous_y >= bottom ? height : s->y > bottom ? s->y - bottom : 0;
 	if (distance != 0) {
 		/* JR-Comm clamps to the current font's last nominal baseline.
 		 * A normal bottom-row LF scrolls H pixels, never whole UI cells. */
 		int status = scroll_pixels(s, (uint32_t)distance);
 		cterm_render_record_error(s->terminal, status);
-		if (status == 0) s->y = bottom;
+		if (status == 0)
+			s->y = bottom;
 	}
 }
 
-bool cterm_skypix_control(struct cterm_skypix *s, uint8_t byte)
+bool
+cterm_skypix_control(struct cterm_skypix *s, uint8_t byte)
 {
 	if (!s->custom && !s->positioned && !s->native_default)
 		return false;
 	if (byte == '\r') {
 		s->x = 0;
-	} else if (byte == '\n') {
+	}
+	else if (byte == '\n') {
 		line_feed(s);
-	} else if (byte == '\b') {
+	}
+	else if (byte == '\b') {
 		if (s->x > 0)
 			s->x = cterm_skypix_word((unsigned)(s->x - (int)st_amiga_font_width(s->font)));
-	} else if (byte == '\t') {
+	}
+	else if (byte == '\t') {
 		int width = (int)st_amiga_font_width(s->font);
-		int stop = width * 8;
+		int stop  = width * 8;
 		int right = ((int)s->width / width - 1) * width;
-		int next = (s->x / stop + 1) * stop;
+		int next  = (s->x / stop + 1) * stop;
 		if (next > right) {
 			s->x = 0;
 			line_feed(s);
-		} else
+		}
+		else
 			s->x = cterm_skypix_word((unsigned)next);
-	} else if (byte == '\f') {
+	}
+	else if (byte == '\f') {
 		cterm_clearscreen(s->terminal, s->terminal->attr);
 		s->x = 0;
 		s->y = -font_descent(s->font);
-	} else if (byte != '\v')
+	}
+	else if (byte != '\v')
 		return false;
 	cursor_bookkeeping(s);
 	s->presented = true;
 	return true;
 }
+
 struct erase_drawing {
 	struct st_console_rect area;
-	uint32_t colour;
+	uint32_t               colour;
 };
-static int erase_pixels(void *context, const struct st_pixel_buffer *buffer,
-	struct st_console_rect *changed)
+
+static int
+erase_pixels(void *context, const struct st_pixel_buffer *buffer, struct st_console_rect *changed)
 {
-	const struct erase_drawing *erase = context;
-	const struct st_console_rect *area = &erase->area;
+	const struct erase_drawing   *erase = context;
+	const struct st_console_rect *area  = &erase->area;
 	for (uint32_t y = area->y; y < area->y + area->height; ++y)
 		for (uint32_t x = area->x; x < area->x + area->width; ++x) {
-			size_t at = (size_t)y * buffer->width + x;
+			size_t at           = (size_t)y * buffer->width + x;
 			buffer->primary[at] = buffer->alternate[at] = erase->colour;
 		}
 	*changed = *area;
 	return 0;
 }
-bool cterm_skypix_erase_line(struct cterm_skypix *s, unsigned mode)
+
+bool
+cterm_skypix_erase_line(struct cterm_skypix *s, unsigned mode)
 {
 	if (!s->custom && !s->positioned && !s->native_default)
 		return false;
@@ -1019,58 +1177,67 @@ bool cterm_skypix_erase_line(struct cterm_skypix *s, unsigned mode)
 		return true;
 	/* H17:1c08/1ce0 use raw X, nominal width for EL1's inclusive end,
 	 * and the current font's ascent/descent for the vertical extent. */
-	int left = mode == 0 ? s->x : 0;
-	int right = mode == 1 ? s->x + (int)st_amiga_font_width(s->font) : (int)s->width;
-	int top = s->y + font_descent(s->font);
+	int left   = mode == 0 ? s->x : 0;
+	int right  = mode == 1 ? s->x + (int)st_amiga_font_width(s->font) : (int)s->width;
+	int top    = s->y + font_descent(s->font);
 	int bottom = top + (int)st_amiga_font_height(s->font);
-	if (left < 0) left = 0;
-	if (right > (int)s->width) right = (int)s->width;
-	if (top < 0) top = 0;
-	if (bottom > (int)s->height) bottom = (int)s->height;
+	if (left < 0)
+		left = 0;
+	if (right > (int)s->width)
+		right = (int)s->width;
+	if (top < 0)
+		top = 0;
+	if (bottom > (int)s->height)
+		bottom = (int)s->height;
 	s->presented = true;
 	if (left >= right || top >= bottom)
 		return true;
-	unsigned bg = CTERM_SKYPIX_PALETTE_FIRST + ((s->terminal->attr >> 4 & 15) & (s->colours - 1));
-	struct erase_drawing erase = {{(uint32_t)left, (uint32_t)top,
-		(uint32_t)(right - left), (uint32_t)(bottom - top)}, bg};
+	unsigned             bg = CTERM_SKYPIX_PALETTE_FIRST + ((s->terminal->attr >> 4 & 15) & (s->colours - 1));
+	struct erase_drawing erase = {
+	    {(uint32_t)left, (uint32_t)top, (uint32_t)(right - left), (uint32_t)(bottom - top)},
+            bg
+        };
 	int status = st_console_modify_pixels(s->terminal->screen.console, erase_pixels, &erase);
 	cterm_render_record_error(s->terminal, status);
 	return true;
 }
+
 struct glyph_drawing {
-	struct cterm_skypix *sky;
+	struct cterm_skypix         *sky;
 	const struct st_amiga_glyph *glyph;
-	struct st_console_rect area;
-	int next;
+	struct st_console_rect       area;
+	int                          next;
 };
-static int draw_glyph(void *context, const struct st_pixel_buffer *buffer,
-	struct st_console_rect *changed)
+
+static int
+draw_glyph(void *context, const struct st_pixel_buffer *buffer, struct st_console_rect *changed)
 {
-	const struct glyph_drawing *drawing = context;
-	struct cterm_skypix *s = drawing->sky;
-	const struct st_amiga_glyph *glyph = drawing->glyph;
-	const struct st_console_rect *area = &drawing->area;
-	struct raster r = {buffer, s->width, s->height, changed};
-	unsigned fg = (s->terminal->attr & 15) & (s->colours - 1),
-		bg = (s->terminal->attr >> 4 & 15) & (s->colours - 1);
+	const struct glyph_drawing   *drawing = context;
+	struct cterm_skypix          *s       = drawing->sky;
+	const struct st_amiga_glyph  *glyph   = drawing->glyph;
+	const struct st_console_rect *area    = &drawing->area;
+	struct raster                 r       = {buffer, s->width, s->height, changed};
+	unsigned                      fg      = (s->terminal->attr & 15) & (s->colours - 1),
+				      bg      = (s->terminal->attr >> 4 & 15) & (s->colours - 1);
 	for (uint32_t py = area->y; py < area->y + area->height; ++py)
 		for (uint32_t px = area->x; px < area->x + area->width; ++px) {
-			int gx = (int)px - s->x - glyph->bearing, gy = (int)py - s->y - glyph->top;
+			int  gx = (int)px - s->x - glyph->bearing, gy = (int)py - s->y - glyph->top;
 			bool ink = false;
 			if (gx >= 0 && gy >= 0 && (unsigned)gx < glyph->width && (unsigned)gy < glyph->height) {
 				unsigned bit = (unsigned)gx + glyph->bit_offset;
 				/* Each byte is its own native Text call. Kick 1.3's
 				 * clipped overhang cannot be recovered by a later byte. */
 				ink = (glyph->bits[(size_t)gy * glyph->stride + bit / 8] & (0x80u >> (bit % 8)))
-					&& (!s->kick13 || (int)px < drawing->next);
+				      && (!s->kick13 || (int)px < drawing->next);
 			}
 			if (ink || !s->custom)
 				raster_point(&r, (int)px, (int)py, CTERM_SKYPIX_PALETTE_FIRST + (ink ? fg : bg));
 		}
 	return 0;
 }
-int cterm_skypix_present(struct cterm_skypix *s, const struct st_unicode_presentation_event *event,
-						 bool *handled)
+
+int
+cterm_skypix_present(struct cterm_skypix *s, const struct st_unicode_presentation_event *event, bool *handled)
 {
 	*handled = s->custom || s->positioned || s->native_default;
 	if (event->kind == ST_UNICODE_PRESENTATION_COMMIT) {
@@ -1079,8 +1246,10 @@ int cterm_skypix_present(struct cterm_skypix *s, const struct st_unicode_present
 		return 0;
 	}
 	int hidden = cterm_skypix_hide_cursor(s);
-	if (hidden != 0) return hidden;
-	if (!*handled) return 0;
+	if (hidden != 0)
+		return hidden;
+	if (!*handled)
+		return 0;
 	if (event->kind == ST_UNICODE_PRESENTATION_REVISE && s->undo != NULL) {
 		int status = restore_pixels(s, s->undo, &s->undo_rect);
 		if (status != 0)
@@ -1091,22 +1260,21 @@ int cterm_skypix_present(struct cterm_skypix *s, const struct st_unicode_present
 	st_pixel_buffer_destroy(s->undo);
 	s->undo = NULL;
 	uint32_t codepoint;
-	size_t consumed;
-	uint8_t character = '?';
-	if (st_utf8_decode_one(&codepoint, &consumed, event->bytes, event->size) == 0 &&
-		consumed == event->size)
+	size_t   consumed;
+	uint8_t  character = '?';
+	if (st_utf8_decode_one(&codepoint, &consumed, event->bytes, event->size) == 0 && consumed == event->size)
 		(void)st_codepage_from_unicode(&character, s->font_codepage, codepoint);
 	const struct st_amiga_glyph glyph = *st_amiga_font_glyph(s->font, character);
 	/* Measure before storing a signed-word advance. An input split, flush,
 	 * or Unicode revision must not introduce a second wrap/history move. */
-	if (event->kind != ST_UNICODE_PRESENTATION_REVISE &&
-		(int64_t)s->x + glyph.advance > s->width) {
+	if (event->kind != ST_UNICODE_PRESENTATION_REVISE && (int64_t)s->x + glyph.advance > s->width) {
 		if (s->terminal->extattr & CTERM_EXTATTR_AUTOWRAP) {
 			s->x = 0;
 			line_feed(s);
-		} else {
+		}
+		else {
 			int width = (int)st_amiga_font_width(s->font);
-			s->x = ((int)s->width / width - 1) * width;
+			s->x      = ((int)s->width / width - 1) * width;
 		}
 	}
 	int next = cterm_skypix_word((unsigned)(s->x + glyph.advance));
@@ -1114,33 +1282,43 @@ int cterm_skypix_present(struct cterm_skypix *s, const struct st_unicode_present
 	int right = left + (int)glyph.width, bottom = top + (int)glyph.height;
 	if (!s->custom) {
 		/* JAM2 paints the complete strike even for a compact blank mask. */
-		int strike_top = s->y + font_descent(s->font);
+		int strike_top    = s->y + font_descent(s->font);
 		int strike_bottom = strike_top + (int)st_amiga_font_height(s->font);
-		if (left > s->x) left = s->x;
-		if (right < s->x + glyph.advance) right = s->x + glyph.advance;
-		if (top > strike_top) top = strike_top;
-		if (bottom < strike_bottom) bottom = strike_bottom;
+		if (left > s->x)
+			left = s->x;
+		if (right < s->x + glyph.advance)
+			right = s->x + glyph.advance;
+		if (top > strike_top)
+			top = strike_top;
+		if (bottom < strike_bottom)
+			bottom = strike_bottom;
 	}
-	if (left < 0) left = 0;
-	if (top < 0) top = 0;
-	if (right > (int)s->width) right = (int)s->width;
-	if (bottom > (int)s->height) bottom = (int)s->height;
+	if (left < 0)
+		left = 0;
+	if (top < 0)
+		top = 0;
+	if (right > (int)s->width)
+		right = (int)s->width;
+	if (bottom > (int)s->height)
+		bottom = (int)s->height;
 	s->undo_x = s->x;
 	s->undo_y = s->y;
 	if (right > left && bottom > top) {
 		struct st_console_rect area = {(uint32_t)left, (uint32_t)top, (uint32_t)(right - left),
-			(uint32_t)(bottom - top)};
+		    (uint32_t)(bottom - top)};
 		int status = st_console_get_pixels(&s->undo, s->terminal->screen.console, &area, false);
-		if (status != 0) return status;
-		s->undo_rect = area;
+		if (status != 0)
+			return status;
+		s->undo_rect                 = area;
 		struct glyph_drawing drawing = {s, &glyph, area, next};
 		status = st_console_modify_pixels(s->terminal->screen.console, draw_glyph, &drawing);
-		if (status != 0) return status;
+		if (status != 0)
+			return status;
 	}
-	s->x = next;
+	s->x         = next;
 	s->presented = true;
-	s->pen_x = s->x;
-	s->pen_y = cterm_skypix_word((unsigned)(s->y + (int)st_amiga_font_height(s->font) - 1));
+	s->pen_x     = s->x;
+	s->pen_y     = cterm_skypix_word((unsigned)(s->y + (int)st_amiga_font_height(s->font) - 1));
 	cursor_bookkeeping(s);
 	return s->x <= (int)s->width - 9 ? draw_cursor(s) : 0;
 }

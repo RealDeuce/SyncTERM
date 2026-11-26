@@ -9,7 +9,6 @@
 
 /* Response is allocated and may be NULL for an invalid command/name.
  * A valid query for an absent file returns the mode-specific "0" reply. */
-int cterm_rip_file_query(char **response, size_t *response_size,
-    const char *directory, const char *arguments);
+int cterm_rip_file_query(char **response, size_t *response_size, const char *directory, const char *arguments);
 
 #endif

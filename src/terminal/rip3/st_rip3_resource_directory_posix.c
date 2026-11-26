@@ -1,15 +1,15 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
-#include "st_rip3_resources_internal.h"
-#include "io_error.h"
-
 #include <dirent.h>
 #include <errno.h>
+
+#include "io_error.h"
+#include "st_rip3_resources_internal.h"
 
 int
 st_rip3_resource_directory_scan(struct st_rip3_resource_match *match)
 {
 	DIR *directory = opendir(match->directory);
-	int status = 0;
+	int  status    = 0;
 
 	if (directory == NULL)
 		return io_error_from_errno(errno);

@@ -3,14 +3,14 @@
  */
 
 /* Cleanup must not overwrite the failed flock's errno. */
-#include "st_file_lock_internal.h"
-#include "io_error.h"
-
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <sys/file.h>
 #include <unistd.h>
+
+#include "io_error.h"
+#include "st_file_lock_internal.h"
 
 static int close_count;
 
@@ -40,7 +40,7 @@ test_close(int descriptor)
 	return -1;
 }
 
-#define open test_open
+#define open  test_open
 #define flock test_flock
 #define close test_close
 #include "../st_file_lock_posix.c"
@@ -48,13 +48,13 @@ test_close(int descriptor)
 int
 main(void)
 {
-	st_file_lock_t lock = {0};
-	int result = st_file_lock_platform_acquire(&lock, "unused", true);
-	int expected = io_error_from_errno(EACCES);
+	st_file_lock_t lock     = {0};
+	int            result   = st_file_lock_platform_acquire(&lock, "unused", true);
+	int            expected = io_error_from_errno(EACCES);
 
 	if (result != expected || close_count != 1) {
-		fprintf(stderr, "expected lock error %d and one close; got %d and %d\n",
-		    expected, result, close_count);
+		fprintf(stderr, "expected lock error %d and one close; got %d and %d\n", expected, result,
+		    close_count);
 		return 1;
 	}
 	return 0;

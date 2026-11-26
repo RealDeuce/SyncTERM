@@ -2,66 +2,69 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #ifndef ST_BIG_STATE_H_
 #define ST_BIG_STATE_H_
-#include "st_big_profile.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
+#include "st_big_profile.h"
+
 struct st_big_state {
 	struct {
 		uint16_t hollow, colors[4], fill, write_mode;
-		uint8_t marker, marker_size;
-		uint8_t patterns[12][8];
+		uint8_t  marker, marker_size;
+		uint8_t  patterns[12][8];
 	} application;
+
 	struct {
 		uint16_t state, driver, mode, max_mode;
-		int error;
+		int      error;
 		uint32_t width, height;
 		uint16_t viewport[4], clip, x, y, active_page, visual_page;
 		uint16_t color, background, fill_style, fill_color;
 		uint16_t aspect[2]; /* Public signed aspectX/Y words, not window geometry. */
 		uint16_t ddo_x, ddo_y, device_x, device_y, line_distance;
 		uint16_t bar_corners[4];
-		uint8_t orientation;
-		uint8_t curve_batch_gate; /* DDO006f: current zero admits extended methods. */
+		uint8_t  orientation;
+		uint8_t  curve_batch_gate; /* DDO006f: current zero admits extended methods. */
 		/* Published0304..030f is distinct from radius0310/0312 and
 		 * offset0314..031b scratch. A55 does not overwrite the offsets. */
 		uint16_t arc[6], curve_radius[2], curve_offsets[4];
 		uint16_t curve_span, curve_first[2], curve_metric;
-		uint8_t curve_first_valid, curve_filled, curve_fallback;
+		uint8_t  curve_first_valid, curve_filled, curve_fallback;
 		uint16_t polygon_pending[2], polygon_hook;
-		uint8_t device_color, ddo_line_style, ddo_line_width;
+		uint8_t  device_color, ddo_line_style, ddo_line_width;
 		uint16_t ddo_line_user;
-		uint8_t fill_low, device_fill_color, device_fill_style;
-		uint8_t device_fill_user[8], fill_pattern[8], fill_pixels[64];
+		uint8_t  fill_low, device_fill_color, device_fill_style;
+		uint8_t  device_fill_user[8], fill_pattern[8], fill_pixels[64];
 		uint16_t device_line_width;
-		uint8_t palette_size, palette[16], fill_user[8];
+		uint8_t  palette_size, palette[16], fill_user[8];
 		uint16_t line_style, line_user, line_mask, line_width;
 		uint16_t font, direction, text_size, justify_x, justify_y, write_mode;
 		/* The font0 shortcut does not dispose stroke resources/ratio owners. */
 		uint16_t saved_ratio[4], effective_ratio[4];
 		uint16_t text_cached[2], text_selected_size, text_scaled[2];
-		uint8_t text_control, text_header[16];
-		uint8_t text_font, text_direction, text_stroke_active;
-		uint8_t text_justify_x, text_justify_y;
-		uint8_t text_count;
-		uint8_t text_stroke_id, text_stroke_direction;
+		uint8_t  text_control, text_header[16];
+		uint8_t  text_font, text_direction, text_stroke_active;
+		uint8_t  text_justify_x, text_justify_y;
+		uint8_t  text_count;
+		uint8_t  text_stroke_id, text_stroke_direction;
 		uint16_t text_suppression;
 		uint16_t text_total_width, text_stroke_point[2];
 		/* DDO binding is separate from the public loaded body and copied
 		 * header. Font0 clears this binding but retains the cached id. */
 		const uint8_t *text_body;
-		size_t text_body_size;
-		uint8_t device_text_font, device_text_direction;
-		uint16_t device_text_dimensions[2], device_text_extent[2];
-		uint8_t device_text_magnification[2];
+		size_t         text_body_size;
+		uint8_t        device_text_font, device_text_direction;
+		uint16_t       device_text_dimensions[2], device_text_extent[2];
+		uint8_t        device_text_magnification[2];
 	} bgi;
+
 	/* Interpreter-frame values are initialized on entry, not by I/R. */
 	uint16_t memory_page, active_page, visual_page;
-	uint8_t local_palette[17];
+	uint8_t  local_palette[17];
 	/* X8's ascending endpoint reads the byte after the17-byte local.
 	 * Native owned padding starts0; snapshots/I/R leave it unchanged. */
-	uint8_t palette_padding;
+	uint8_t  palette_padding;
 	uint16_t saved_palette[16];
 };
 
@@ -74,9 +77,10 @@ struct st_big_state_sink {
 	int (*palette)(void *, size_t first, const uint8_t *, size_t count, bool bulk);
 	int (*page)(void *, bool visual, uint16_t page);
 };
+
 extern const uint8_t st_big_fill_restore[12][8];
-void st_big_state_init(struct st_big_state *);
-void st_big_state_enter(struct st_big_state *);
+void                 st_big_state_init(struct st_big_state *);
+void                 st_big_state_enter(struct st_big_state *);
 /* Copy the current cache size and16 raw bytes to the interpreter local,
  * even while graphics is uninstalled. Saved words/padding are untouched. */
 void st_big_state_palette_snapshot(struct st_big_state *);
@@ -84,10 +88,10 @@ void st_big_state_palette_snapshot(struct st_big_state *);
 int st_big_state_install(struct st_big_state *, unsigned resolution, const struct st_big_state_sink *);
 /* Exact normal I/R caller operations. Cache points at the numeric reader's
  * cached resolution BYTE. Full WORD normalization and retained state apply. */
-int st_big_state_initialize(struct st_big_state *, uint16_t selector,
-	uint8_t *cache, const struct st_big_state_sink *);
-int st_big_state_resolution(struct st_big_state *, uint16_t requested,
-	uint8_t *cache, const struct st_big_state_sink *);
+int st_big_state_initialize(struct st_big_state *, uint16_t selector, uint8_t *cache,
+    const struct st_big_state_sink *);
+int st_big_state_resolution(struct st_big_state *, uint16_t requested, uint8_t *cache,
+    const struct st_big_state_sink *);
 /* M's WORD normalization, installed mode first, application cache on return. */
 int st_big_state_write_mode(struct st_big_state *, uint16_t requested);
 /* C stores an application WORD after both reads; no installed BGI effect. */
@@ -99,12 +103,11 @@ int st_big_state_hollow(struct st_big_state *, uint16_t requested);
  * rejection is silent, accepted low BYTE/background stores precede the
  * device callback. Raw cache values are not physical six-bit colours.
  * Checked cache bounds replace corrupt count-driven foreign accesses. */
-int st_big_state_palette(struct st_big_state *, uint16_t index, uint16_t value,
-	const struct st_big_state_sink *);
+int st_big_state_palette(struct st_big_state *, uint16_t index, uint16_t value, const struct st_big_state_sink *);
 /* G resets interpreter page locals after its operation read in rez3.
  * G4/5/6 normalize/publish their local after the page read; physical page
  * state belongs to the sink, reached only by G5/6. */
 void st_big_state_g_entry(struct st_big_state *, uint8_t resolution);
-int st_big_state_g_page(struct st_big_state *, uint16_t operation, uint16_t requested,
-	uint8_t resolution, const struct st_big_state_sink *);
+int  st_big_state_g_page(struct st_big_state *, uint16_t operation, uint16_t requested, uint8_t resolution,
+    const struct st_big_state_sink *);
 #endif

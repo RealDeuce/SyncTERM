@@ -5,26 +5,27 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "st_cterm.h"
-#include "cterm_rip_fonts.h"
-#include "st_pixels.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#define CHECK(expression) do { \
-	if (!(expression)) { \
-		fprintf(stderr, "%s:%d: %s\n", __FILE__, __LINE__, #expression); \
-		return 1; \
-	} \
-} while (0)
+#include "cterm_rip_fonts.h"
+#include "st_cterm.h"
+#include "st_pixels.h"
+
+#define CHECK(expression)                                                                \
+	do {                                                                             \
+		if (!(expression)) {                                                     \
+			fprintf(stderr, "%s:%d: %s\n", __FILE__, __LINE__, #expression); \
+			return 1;                                                        \
+		}                                                                        \
+	} while (0)
 
 static int
 feed(st_cterm_t *terminal, const void *bytes, size_t size)
 {
 	size_t consumed;
-	int status = st_cterm_write(terminal, bytes, size, &consumed);
+	int    status = st_cterm_write(terminal, bytes, size, &consumed);
 
 	return status == 0 && consumed == size ? 0 : 1;
 }
@@ -34,35 +35,40 @@ test_introducer_cursor_splits(enum st_cterm_encoding encoding)
 {
 	static const struct {
 		const char *wire;
-		bool draw;
+		bool        draw;
 	} cases[] = {
-		{"abc !|X2S2S\r\n", false},
-		{"!xabc !|X2S2S\r\n", false},
-		{"!xabc !ydef !|X2S2S\r\n", false},
-		{"!x\x1b[10;1H!|X2S2S\r\n", true},
-		{"!x\r\n!|X2S2S\r\n", true},
-		{"\x1b[10;1H!|X2S2S\r\n", true},
-		{"\r\n\x1b[0m!|X2S2S\r\n", true},
+	    {"abc !|X2S2S\r\n",         false},
+	    {"!xabc !|X2S2S\r\n",       false},
+	    {"!xabc !ydef !|X2S2S\r\n", false},
+	    {"!x\x1b[10;1H!|X2S2S\r\n", true },
+	    {"!x\r\n!|X2S2S\r\n",       true },
+	    {"\x1b[10;1H!|X2S2S\r\n",   true },
+	    {"\r\n\x1b[0m!|X2S2S\r\n",  true },
 	};
 	const struct st_console_display_config display = {
-		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	    .backend = ST_CONSOLE_BACKEND_HEADLESS,
 	};
 	const struct st_console_config screen = {
-		.columns = 80, .rows = 43,
-		.cell_width = 8, .cell_height = 8,
-		.pixel_width = 640, .pixel_height = 350,
+	    .columns      = 80,
+	    .rows         = 43,
+	    .cell_width   = 8,
+	    .cell_height  = 8,
+	    .pixel_width  = 640,
+	    .pixel_height = 350,
 	};
-	const struct st_console_rect point = {100, 100, 1, 1};
-	st_console_t *console = NULL;
-	st_font_catalog_t *fonts = NULL;
+	const struct st_console_rect point   = {100, 100, 1, 1};
+	st_console_t                *console = NULL;
+	st_font_catalog_t           *fonts   = NULL;
 
 	CHECK(st_console_create(&console, &display, &screen) == 0);
 	CHECK(st_font_catalog_create(&fonts, console) == 0);
 	const struct st_cterm_config config = {
-		.console = console, .fonts = fonts,
-		.emulation = ST_CTERM_ANSI_BBS, .encoding = encoding,
-		.graphics_mode = ST_CTERM_GRAPHICS_RIP_1,
-		.codepage = ST_CODEPAGE_CP437,
+	    .console       = console,
+	    .fonts         = fonts,
+	    .emulation     = ST_CTERM_ANSI_BBS,
+	    .encoding      = encoding,
+	    .graphics_mode = ST_CTERM_GRAPHICS_RIP_1,
+	    .codepage      = ST_CODEPAGE_CP437,
 	};
 	/* Include the whole stream, every two-packet split and a bytewise feed.
 	 * The real text renderer must catch up before testing the cursor. */
@@ -70,10 +76,10 @@ test_introducer_cursor_splits(enum st_cterm_encoding encoding)
 		size_t size = strlen(cases[index].wire);
 
 		for (size_t split = 0; split <= size + 1; split++) {
-			st_cterm_t *terminal = NULL;
-			struct st_pixel_buffer *pixels = NULL;
-			uint32_t palette[32];
-			uint32_t expected = cases[index].draw ? 0xffffff : 0;
+			st_cterm_t             *terminal = NULL;
+			struct st_pixel_buffer *pixels   = NULL;
+			uint32_t                palette[32];
+			uint32_t                expected = cases[index].draw ? 0xffffff : 0;
 
 			CHECK(st_cterm_create(&terminal, &config) == 0);
 			/* Reset preserves drawing styles; choose white explicitly. */
@@ -92,7 +98,8 @@ test_introducer_cursor_splits(enum st_cterm_encoding encoding)
 			if (pixels->primary[0] >= 32 || palette[pixels->primary[0]] != expected) {
 				uint32_t x, y;
 				CHECK(st_console_get_position(console, &x, &y) == 0);
-				fprintf(stderr, "Introducer case %zu, split %zu, encoding %d: pixel %#x, cursor %u,%u\n",
+				fprintf(stderr,
+				    "Introducer case %zu, split %zu, encoding %d: pixel %#x, cursor %u,%u\n",
 				    index, split, encoding, pixels->primary[0], x, y);
 				return 1;
 			}
@@ -111,35 +118,38 @@ static int
 test_rip_deferred_wrap(enum st_cterm_encoding encoding)
 {
 	const struct st_console_display_config display = {
-		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	    .backend = ST_CONSOLE_BACKEND_HEADLESS,
 	};
 	const struct st_console_config console_config = {
-		.columns = 80, .rows = 43,
-		.cell_width = 8, .cell_height = 8,
-		.pixel_width = 640, .pixel_height = 350,
+	    .columns      = 80,
+	    .rows         = 43,
+	    .cell_width   = 8,
+	    .cell_height  = 8,
+	    .pixel_width  = 640,
+	    .pixel_height = 350,
 	};
 	const struct st_cterm_config config = {
-		.emulation = ST_CTERM_ANSI_BBS,
-		.encoding = encoding,
-		.graphics_mode = ST_CTERM_GRAPHICS_RIP_1,
-		.codepage = ST_CODEPAGE_CP437,
+	    .emulation     = ST_CTERM_ANSI_BBS,
+	    .encoding      = encoding,
+	    .graphics_mode = ST_CTERM_GRAPHICS_RIP_1,
+	    .codepage      = ST_CODEPAGE_CP437,
 	};
-	st_console_t *console = NULL;
-	st_font_catalog_t *fonts = NULL;
-	st_cterm_t *terminal = NULL;
-	struct st_cterm_config terminal_config = config;
-	struct st_console_cell cell;
-	char text[8];
-	size_t required;
-	uint32_t cursor_x, cursor_y;
-	char line[80];
+	st_console_t                *console         = NULL;
+	st_font_catalog_t           *fonts           = NULL;
+	st_cterm_t                  *terminal        = NULL;
+	struct st_cterm_config       terminal_config = config;
+	struct st_console_cell       cell;
+	char                         text[8];
+	size_t                       required;
+	uint32_t                     cursor_x, cursor_y;
+	char                         line[80];
 	const struct st_console_rect expected = {0, 1, 1, 1};
-	const struct st_console_rect extra = {0, 2, 1, 1};
+	const struct st_console_rect extra    = {0, 2, 1, 1};
 
 	CHECK(st_console_create(&console, &display, &console_config) == 0);
 	CHECK(st_font_catalog_create(&fonts, console) == 0);
 	terminal_config.console = console;
-	terminal_config.fonts = fonts;
+	terminal_config.fonts   = fonts;
 	CHECK(st_cterm_create(&terminal, &terminal_config) == 0);
 	CHECK(feed(terminal, "\r!|*\r\n", 6) == 0);
 	memset(line, 'A', sizeof(line));
@@ -147,12 +157,12 @@ test_rip_deferred_wrap(enum st_cterm_encoding encoding)
 	CHECK(feed(terminal, "\r\nB", 3) == 0);
 	CHECK(st_cterm_finish(terminal) == 0);
 	CHECK(st_console_read_cells(console, &expected, &cell, 1) == 0);
-	CHECK(st_console_font_glyph_text(console, cell.glyph_font,
-	    cell.glyph, text, sizeof(text), &required) == 0);
+	CHECK(
+	    st_console_font_glyph_text(console, cell.glyph_font, cell.glyph, text, sizeof(text), &required) == 0);
 	CHECK(required == 1 && text[0] == 'B');
 	CHECK(st_console_read_cells(console, &extra, &cell, 1) == 0);
-	CHECK(st_console_font_glyph_text(console, cell.glyph_font,
-	    cell.glyph, text, sizeof(text), &required) == 0);
+	CHECK(
+	    st_console_font_glyph_text(console, cell.glyph_font, cell.glyph, text, sizeof(text), &required) == 0);
 	CHECK(required != 1 || text[0] != 'B');
 	CHECK(feed(terminal, "\r!|*\r\n", 6) == 0);
 	CHECK(feed(terminal, line, sizeof(line)) == 0);
@@ -161,12 +171,12 @@ test_rip_deferred_wrap(enum st_cterm_encoding encoding)
 	CHECK(feed(terminal, "B", 1) == 0);
 	CHECK(st_cterm_finish(terminal) == 0);
 	CHECK(st_console_read_cells(console, &expected, &cell, 1) == 0);
-	CHECK(st_console_font_glyph_text(console, cell.glyph_font,
-	    cell.glyph, text, sizeof(text), &required) == 0);
+	CHECK(
+	    st_console_font_glyph_text(console, cell.glyph_font, cell.glyph, text, sizeof(text), &required) == 0);
 	CHECK(required == 1 && text[0] == 'B');
 	CHECK(st_console_read_cells(console, &extra, &cell, 1) == 0);
-	CHECK(st_console_font_glyph_text(console, cell.glyph_font,
-	    cell.glyph, text, sizeof(text), &required) == 0);
+	CHECK(
+	    st_console_font_glyph_text(console, cell.glyph_font, cell.glyph, text, sizeof(text), &required) == 0);
 	CHECK(required != 1 || text[0] != 'B');
 	if (encoding == ST_CTERM_ENCODING_UTF8) {
 		CHECK(feed(terminal, "\r!|*\r\n", 6) == 0);
@@ -176,8 +186,9 @@ test_rip_deferred_wrap(enum st_cterm_encoding encoding)
 		CHECK(feed(terminal, "B", 1) == 0);
 		CHECK(st_cterm_finish(terminal) == 0);
 		CHECK(st_console_read_cells(console, &expected, &cell, 1) == 0);
-		CHECK(st_console_font_glyph_text(console, cell.glyph_font,
-		    cell.glyph, text, sizeof(text), &required) == 0);
+		CHECK(
+		    st_console_font_glyph_text(console, cell.glyph_font, cell.glyph, text, sizeof(text), &required)
+		    == 0);
 		CHECK(required == 1 && text[0] == 'B');
 	}
 	st_cterm_destroy(&terminal);
@@ -190,38 +201,43 @@ static int
 test_text_window_reinit_wrap(void)
 {
 	const struct st_console_display_config display = {
-		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	    .backend = ST_CONSOLE_BACKEND_HEADLESS,
 	};
 	const struct st_console_config console_config = {
-		.columns = 80, .rows = 43,
-		.cell_width = 8, .cell_height = 8,
-		.pixel_width = 640, .pixel_height = 350,
+	    .columns      = 80,
+	    .rows         = 43,
+	    .cell_width   = 8,
+	    .cell_height  = 8,
+	    .pixel_width  = 640,
+	    .pixel_height = 350,
 	};
-	const struct st_console_rect rect = {0, 0, 2, 2};
-	st_console_t *console = NULL;
-	st_font_catalog_t *fonts = NULL;
-	st_cterm_t *terminal = NULL;
-	struct st_pixel_buffer *initial = NULL;
-	struct st_pixel_buffer *sample = NULL;
-	struct st_console_cell cells[4];
-	char text[8];
-	size_t required;
-	const char *stream = "!|*\r\n!|w0000010100\r\nABC";
+	const struct st_console_rect rect     = {0, 0, 2, 2};
+	st_console_t                *console  = NULL;
+	st_font_catalog_t           *fonts    = NULL;
+	st_cterm_t                  *terminal = NULL;
+	struct st_pixel_buffer      *initial  = NULL;
+	struct st_pixel_buffer      *sample   = NULL;
+	struct st_console_cell       cells[4];
+	char                         text[8];
+	size_t                       required;
+	const char                  *stream = "!|*\r\n!|w0000010100\r\nABC";
 
 	CHECK(st_console_create(&console, &display, &console_config) == 0);
 	CHECK(st_font_catalog_create(&fonts, console) == 0);
 	const struct st_cterm_config config = {
-		.console = console,
-		.fonts = fonts,
-		.emulation = ST_CTERM_ANSI_BBS,
-		.encoding = ST_CTERM_ENCODING_CODEPAGE,
-		.graphics_mode = ST_CTERM_GRAPHICS_RIP_1,
-		.codepage = ST_CODEPAGE_CP437,
+	    .console       = console,
+	    .fonts         = fonts,
+	    .emulation     = ST_CTERM_ANSI_BBS,
+	    .encoding      = ST_CTERM_ENCODING_CODEPAGE,
+	    .graphics_mode = ST_CTERM_GRAPHICS_RIP_1,
+	    .codepage      = ST_CODEPAGE_CP437,
 	};
 	CHECK(st_cterm_create(&terminal, &config) == 0);
 	const struct st_pixel_blit blit = {
-		.width = 640, .height = 350,
-		.scale_x = 1, .scale_y = 1,
+	    .width   = 640,
+	    .height  = 350,
+	    .scale_x = 1,
+	    .scale_y = 1,
 	};
 	const struct st_console_rect pixel_rect = {100, 100, 1, 1};
 
@@ -238,14 +254,17 @@ test_text_window_reinit_wrap(void)
 	CHECK(feed(terminal, stream, strlen(stream)) == 0);
 	CHECK(st_cterm_finish(terminal) == 0);
 	CHECK(st_console_read_cells(console, &rect, cells, 2) == 0);
-	CHECK(st_console_font_glyph_text(console, cells[0].glyph_font,
-	    cells[0].glyph, text, sizeof(text), &required) == 0);
+	CHECK(
+	    st_console_font_glyph_text(console, cells[0].glyph_font, cells[0].glyph, text, sizeof(text), &required)
+	    == 0);
 	CHECK(required == 1 && text[0] == 'A');
-	CHECK(st_console_font_glyph_text(console, cells[1].glyph_font,
-	    cells[1].glyph, text, sizeof(text), &required) == 0);
+	CHECK(
+	    st_console_font_glyph_text(console, cells[1].glyph_font, cells[1].glyph, text, sizeof(text), &required)
+	    == 0);
 	CHECK(required == 1 && text[0] == 'B');
-	CHECK(st_console_font_glyph_text(console, cells[2].glyph_font,
-	    cells[2].glyph, text, sizeof(text), &required) == 0);
+	CHECK(
+	    st_console_font_glyph_text(console, cells[2].glyph_font, cells[2].glyph, text, sizeof(text), &required)
+	    == 0);
 	CHECK(required == 1 && text[0] == 'C');
 	const char *large_window = "\r!|*\r\n!|w0000270N02\r\n";
 	CHECK(feed(terminal, large_window, strlen(large_window)) == 0);
@@ -255,16 +274,18 @@ test_text_window_reinit_wrap(void)
 	long_line[80] = 'B';
 	CHECK(feed(terminal, long_line, sizeof(long_line)) == 0);
 	CHECK(st_cterm_finish(terminal) == 0);
-	const struct st_console_rect last = {79, 0, 1, 1};
+	const struct st_console_rect last  = {79, 0, 1, 1};
 	const struct st_console_rect below = {0, 1, 1, 1};
 
 	CHECK(st_console_read_cells(console, &last, cells, 1) == 0);
-	CHECK(st_console_font_glyph_text(console, cells[0].glyph_font,
-	    cells[0].glyph, text, sizeof(text), &required) == 0);
+	CHECK(
+	    st_console_font_glyph_text(console, cells[0].glyph_font, cells[0].glyph, text, sizeof(text), &required)
+	    == 0);
 	CHECK(required == 1 && text[0] == 'A');
 	CHECK(st_console_read_cells(console, &below, cells, 1) == 0);
-	CHECK(st_console_font_glyph_text(console, cells[0].glyph_font,
-	    cells[0].glyph, text, sizeof(text), &required) == 0);
+	CHECK(
+	    st_console_font_glyph_text(console, cells[0].glyph_font, cells[0].glyph, text, sizeof(text), &required)
+	    == 0);
 	CHECK(required == 1 && text[0] == 'B');
 	st_cterm_destroy(&terminal);
 	st_font_catalog_destroy(fonts);
@@ -276,32 +297,38 @@ static int
 test_text_window_reinit_keeps_start_state(void)
 {
 	const struct st_console_display_config display = {
-		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	    .backend = ST_CONSOLE_BACKEND_HEADLESS,
 	};
 	const struct st_console_config console_config = {
-		.columns = 80, .rows = 25,
-		.cell_width = 8, .cell_height = 14,
-		.pixel_width = 640, .pixel_height = 350,
+	    .columns      = 80,
+	    .rows         = 25,
+	    .cell_width   = 8,
+	    .cell_height  = 14,
+	    .pixel_width  = 640,
+	    .pixel_height = 350,
 	};
 	const struct st_pixel_blit blit = {
-		.width = 640, .height = 350,
-		.scale_x = 1, .scale_y = 1,
+	    .width   = 640,
+	    .height  = 350,
+	    .scale_x = 1,
+	    .scale_y = 1,
 	};
-	const struct st_console_rect point = {0, 300, 1, 1};
-	st_console_t *console = NULL;
-	st_font_catalog_t *fonts = NULL;
-	st_cterm_t *terminal = NULL;
-	struct st_pixel_buffer *initial = NULL;
-	struct st_pixel_buffer *sample = NULL;
+	const struct st_console_rect point    = {0, 300, 1, 1};
+	st_console_t                *console  = NULL;
+	st_font_catalog_t           *fonts    = NULL;
+	st_cterm_t                  *terminal = NULL;
+	struct st_pixel_buffer      *initial  = NULL;
+	struct st_pixel_buffer      *sample   = NULL;
 
 	CHECK(st_console_create(&console, &display, &console_config) == 0);
 	CHECK(st_font_catalog_create(&fonts, console) == 0);
 	const struct st_cterm_config config = {
-		.console = console, .fonts = fonts,
-		.emulation = ST_CTERM_ANSI_BBS,
-		.encoding = ST_CTERM_ENCODING_CODEPAGE,
-		.graphics_mode = ST_CTERM_GRAPHICS_RIP_1,
-		.codepage = ST_CODEPAGE_CP437,
+	    .console       = console,
+	    .fonts         = fonts,
+	    .emulation     = ST_CTERM_ANSI_BBS,
+	    .encoding      = ST_CTERM_ENCODING_CODEPAGE,
+	    .graphics_mode = ST_CTERM_GRAPHICS_RIP_1,
+	    .codepage      = ST_CODEPAGE_CP437,
 	};
 	CHECK(st_cterm_create(&terminal, &config) == 0);
 	CHECK(st_pixel_buffer_create(&initial, 640, 350, false) == 0);
@@ -328,46 +355,50 @@ static int
 test_rip3_reset_default_font(void)
 {
 	const struct st_console_display_config display = {
-		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	    .backend = ST_CONSOLE_BACKEND_HEADLESS,
 	};
 	const struct st_console_config console_config = {
-		.columns = 80, .rows = 25,
-		.cell_width = 8, .cell_height = 14,
-		.pixel_width = 640, .pixel_height = 350,
+	    .columns      = 80,
+	    .rows         = 25,
+	    .cell_width   = 8,
+	    .cell_height  = 14,
+	    .pixel_width  = 640,
+	    .pixel_height = 350,
 	};
 	const struct st_console_rect text_rect = {0, 0, 80, 3};
-	st_console_t *console = NULL;
-	st_font_catalog_t *fonts = NULL;
-	st_cterm_t *terminal = NULL;
-	struct st_console_cell cells[80 * 3];
-	uint16_t default_font;
-	uint32_t width, height, cell_width, cell_height;
-	char text[8];
-	size_t required;
-	bool found = false;
+	st_console_t                *console   = NULL;
+	st_font_catalog_t           *fonts     = NULL;
+	st_cterm_t                  *terminal  = NULL;
+	struct st_console_cell       cells[80 * 3];
+	uint16_t                     default_font;
+	uint32_t                     width, height, cell_width, cell_height;
+	char                         text[8];
+	size_t                       required;
+	bool                         found = false;
 
 	CHECK(st_console_create(&console, &display, &console_config) == 0);
 	CHECK(st_font_catalog_create(&fonts, console) == 0);
 	CHECK(st_font_catalog_identifier(fonts, 0, &default_font));
 	const struct st_cterm_config config = {
-		.console = console, .fonts = fonts,
-		.emulation = ST_CTERM_ANSI_BBS,
-		.encoding = ST_CTERM_ENCODING_CODEPAGE,
-		.graphics_mode = ST_CTERM_GRAPHICS_RIP_3,
-		.codepage = ST_CODEPAGE_CP437,
+	    .console       = console,
+	    .fonts         = fonts,
+	    .emulation     = ST_CTERM_ANSI_BBS,
+	    .encoding      = ST_CTERM_ENCODING_CODEPAGE,
+	    .graphics_mode = ST_CTERM_GRAPHICS_RIP_3,
+	    .codepage      = ST_CODEPAGE_CP437,
 	};
 	CHECK(st_cterm_create(&terminal, &config) == 0);
 	CHECK(feed(terminal, "!|*\r\nX", 6) == 0);
 	CHECK(st_cterm_finish(terminal) == 0);
 	CHECK(st_console_size(console, &width, &height) == 0);
 	CHECK(width == 80 && height == 25);
-	CHECK(st_console_cell_pixel_size(console, &cell_width,
-	    &cell_height) == 0);
+	CHECK(st_console_cell_pixel_size(console, &cell_width, &cell_height) == 0);
 	CHECK(cell_width == 8 && cell_height == 14);
 	CHECK(st_console_read_cells(console, &text_rect, cells, 80) == 0);
 	for (size_t index = 0; index < 80 * 3; index++) {
-		if (st_console_font_glyph_text(console, cells[index].glyph_font,
-		    cells[index].glyph, text, sizeof(text), &required) != 0
+		if (st_console_font_glyph_text(console, cells[index].glyph_font, cells[index].glyph, text,
+			sizeof(text), &required)
+		        != 0
 		    || required != 1 || text[0] != 'X')
 			continue;
 		CHECK(cells[index].glyph_font == default_font);
@@ -378,19 +409,18 @@ test_rip3_reset_default_font(void)
 	const char *text_window = "\r!|w0000270N00\r";
 
 	CHECK(feed(terminal, text_window, strlen(text_window)) == 0);
-	CHECK(st_console_cell_pixel_size(console, &cell_width,
-	    &cell_height) == 0);
+	CHECK(st_console_cell_pixel_size(console, &cell_width, &cell_height) == 0);
 	CHECK(cell_width == 8 && cell_height == 8);
 	CHECK(feed(terminal, "\r!|*\r\nY", 7) == 0);
 	CHECK(st_cterm_finish(terminal) == 0);
-	CHECK(st_console_cell_pixel_size(console, &cell_width,
-	    &cell_height) == 0);
+	CHECK(st_console_cell_pixel_size(console, &cell_width, &cell_height) == 0);
 	CHECK(cell_width == 8 && cell_height == 14);
 	CHECK(st_console_read_cells(console, &text_rect, cells, 80) == 0);
 	found = false;
 	for (size_t index = 0; index < 80 * 3; index++) {
-		if (st_console_font_glyph_text(console, cells[index].glyph_font,
-		    cells[index].glyph, text, sizeof(text), &required) != 0
+		if (st_console_font_glyph_text(console, cells[index].glyph_font, cells[index].glyph, text,
+			sizeof(text), &required)
+		        != 0
 		    || required != 1 || text[0] != 'Y')
 			continue;
 		CHECK(cells[index].glyph_font == default_font);
@@ -410,15 +440,14 @@ struct mode_capture {
 };
 
 static void
-capture_mode(void *context, uint32_t columns, uint32_t rows,
-    uint32_t width, uint32_t height)
+capture_mode(void *context, uint32_t columns, uint32_t rows, uint32_t width, uint32_t height)
 {
 	struct mode_capture *capture = context;
 
 	capture->columns = columns;
-	capture->rows = rows;
-	capture->width = width;
-	capture->height = height;
+	capture->rows    = rows;
+	capture->width   = width;
+	capture->height  = height;
 	capture->calls++;
 }
 
@@ -426,41 +455,58 @@ static int
 test_rip_text_video_mode(void)
 {
 	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
-	const struct st_console_config screen = {
-		.columns = 160, .rows = 50, .cell_width = 8, .cell_height = 16,
-		.aspect_width = 8, .aspect_height = 5,
+	const struct st_console_config         screen  = {
+	    .columns       = 160,
+	    .rows          = 50,
+	    .cell_width    = 8,
+	    .cell_height   = 16,
+	    .aspect_width  = 8,
+	    .aspect_height = 5,
 	};
-	const struct { unsigned style, columns, rows, width, height, rip3_columns, rip3_rows; } modes[] = {
-		{0, 80, 43, 8, 8, 160, 100}, {1, 91, 43, 7, 8, 182, 100}, {2, 80, 25, 8, 14, 160, 57},
-		{3, 91, 25, 7, 14, 182, 57}, {4, 40, 25, 16, 14, 80, 57}, {0, 80, 43, 8, 8, 160, 100},
+
+	const struct {
+		unsigned style, columns, rows, width, height, rip3_columns, rip3_rows;
+	} modes[] = {
+	    {0, 80, 43, 8,  8,  160, 100},
+	    {1, 91, 43, 7,  8,  182, 100},
+	    {2, 80, 25, 8,  14, 160, 57 },
+	    {3, 91, 25, 7,  14, 182, 57 },
+	    {4, 40, 25, 16, 14, 80,  57 },
+	    {0, 80, 43, 8,  8,  160, 100},
 	};
+
 	for (unsigned version = 1; version <= 3; version += 2) {
-		st_console_t *console = NULL;
-		st_font_catalog_t *fonts = NULL;
-		st_cterm_t *terminal = NULL;
-		struct mode_capture capture = {0};
-		uint32_t columns, rows, width, height;
+		st_console_t       *console  = NULL;
+		st_font_catalog_t  *fonts    = NULL;
+		st_cterm_t         *terminal = NULL;
+		struct mode_capture capture  = {0};
+		uint32_t            columns, rows, width, height;
 
 		CHECK(st_console_create(&console, &display, &screen) == 0);
 		CHECK(st_font_catalog_create(&fonts, console) == 0);
 		const struct st_cterm_config config = {
-			.console = console, .fonts = fonts, .emulation = ST_CTERM_ANSI_BBS,
-			.encoding = ST_CTERM_ENCODING_CODEPAGE, .codepage = ST_CODEPAGE_CP437,
-			.graphics_mode = version == 1 ? ST_CTERM_GRAPHICS_RIP_1 : ST_CTERM_GRAPHICS_RIP_3,
-			.status_line = true, .size_changed = capture_mode, .size_context = &capture,
+		    .console       = console,
+		    .fonts         = fonts,
+		    .emulation     = ST_CTERM_ANSI_BBS,
+		    .encoding      = ST_CTERM_ENCODING_CODEPAGE,
+		    .codepage      = ST_CODEPAGE_CP437,
+		    .graphics_mode = version == 1 ? ST_CTERM_GRAPHICS_RIP_1 : ST_CTERM_GRAPHICS_RIP_3,
+		    .status_line   = true,
+		    .size_changed  = capture_mode,
+		    .size_context  = &capture,
 		};
 		CHECK(st_cterm_create(&terminal, &config) == 0);
 		CHECK(feed(terminal, "\r", 1) == 0);
 		struct st_pixel_buffer *seed = NULL;
 		CHECK(st_pixel_buffer_create(&seed, 640, 350, true) == 0);
-		seed->primary[100 * 640 + 100] = 3;
+		seed->primary[100 * 640 + 100]   = 3;
 		seed->alternate[100 * 640 + 100] = 5;
 		seed->primary[330 * 640 + 639] = seed->alternate[330 * 640 + 639] = 7;
 		const struct st_pixel_blit blit = {.width = 640, .height = 350, .scale_x = 1, .scale_y = 1};
 		CHECK(st_console_blit_pixels(console, seed, NULL, &blit) == 0);
 		for (size_t i = 0; i < sizeof(modes) / sizeof(modes[0]); i++) {
 			char command[32];
-			int length = snprintf(command, sizeof(command), "\r!|w000027161%u\r", modes[i].style);
+			int  length = snprintf(command, sizeof(command), "\r!|w000027161%u\r", modes[i].style);
 
 			/* Split the text-window field; geometry commits only on dispatch. */
 			CHECK(feed(terminal, command, (size_t)length - 2) == 0);
@@ -468,7 +514,8 @@ test_rip_text_video_mode(void)
 			CHECK(feed(terminal, command + length - 2, 2) == 0);
 			CHECK(capture.calls == (version == 3 ? i + 1 : 0));
 			if (version == 3) {
-				CHECK(capture.columns == modes[i].rip3_columns && capture.rows == modes[i].rip3_rows - 1);
+				CHECK(capture.columns == modes[i].rip3_columns
+				      && capture.rows == modes[i].rip3_rows - 1);
 				CHECK(capture.width == 1280 && capture.height == 800);
 			}
 			CHECK(st_console_size(console, &columns, &rows) == 0);
@@ -478,8 +525,8 @@ test_rip_text_video_mode(void)
 			CHECK(width == modes[i].width && height == modes[i].height);
 			CHECK(st_console_pixel_size(console, &width, &height) == 0);
 			CHECK(width == 1280 && height == 800);
-			struct st_pixel_buffer *pixels = NULL;
-			const struct st_console_rect area = {0, 0, 640, 350};
+			struct st_pixel_buffer      *pixels = NULL;
+			const struct st_console_rect area   = {0, 0, 640, 350};
 			CHECK(st_console_get_pixels(&pixels, console, &area, false) == 0);
 			CHECK(memcmp(seed->primary, pixels->primary, 640u * 350u * sizeof(uint32_t)) == 0);
 			CHECK(memcmp(seed->alternate, pixels->alternate, 640u * 350u * sizeof(uint32_t)) == 0);
@@ -497,33 +544,33 @@ test_rip_text_video_mode(void)
 }
 
 struct output_capture {
-	char bytes[32];
+	char   bytes[32];
 	size_t size;
-	char user_bytes[32];
+	char   user_bytes[32];
 	size_t user_size;
 };
 
 struct prompt_capture {
 	const char *reply;
-	char question[80];
-	char initial[80];
-	size_t width;
-	bool reject_blank;
-	int calls;
+	char        question[80];
+	char        initial[80];
+	size_t      width;
+	bool        reject_blank;
+	int         calls;
 };
 
 static int
-capture_prompt(void *context, const char *question, const char *initial,
-    size_t width, bool reject_blank, char **result)
+capture_prompt(void *context, const char *question, const char *initial, size_t width, bool reject_blank,
+    char **result)
 {
 	struct prompt_capture *capture = context;
 
 	capture->calls++;
 	snprintf(capture->question, sizeof(capture->question), "%s", question);
 	snprintf(capture->initial, sizeof(capture->initial), "%s", initial);
-	capture->width = width;
+	capture->width        = width;
 	capture->reject_blank = reject_blank;
-	*result = NULL;
+	*result               = NULL;
 	if (capture->reply != NULL) {
 		*result = malloc(strlen(capture->reply) + 1);
 		if (*result == NULL)
@@ -534,30 +581,26 @@ capture_prompt(void *context, const char *question, const char *initial,
 }
 
 static void
-capture_output(void *context, enum st_cterm_output_origin origin,
-	const uint8_t *bytes, size_t size)
+capture_output(void *context, enum st_cterm_output_origin origin, const uint8_t *bytes, size_t size)
 {
 	struct output_capture *capture = context;
 
-	if (origin == ST_CTERM_OUTPUT_RESPONSE
-	    && size <= sizeof(capture->bytes) - capture->size) {
+	if (origin == ST_CTERM_OUTPUT_RESPONSE && size <= sizeof(capture->bytes) - capture->size) {
 		memcpy(capture->bytes + capture->size, bytes, size);
 		capture->size += size;
 	}
-	else if (origin == ST_CTERM_OUTPUT_USER
-	    && size <= sizeof(capture->user_bytes) - capture->user_size) {
+	else if (origin == ST_CTERM_OUTPUT_USER && size <= sizeof(capture->user_bytes) - capture->user_size) {
 		memcpy(capture->user_bytes + capture->user_size, bytes, size);
 		capture->user_size += size;
 	}
 }
 
 static int
-sample_pixel(st_console_t *console, uint32_t x, uint32_t y,
-    uint32_t *value)
+sample_pixel(st_console_t *console, uint32_t x, uint32_t y, uint32_t *value)
 {
-	const struct st_console_rect rect = {x, y, 1, 1};
-	struct st_pixel_buffer *pixels = NULL;
-	int status = st_console_get_pixels(&pixels, console, &rect, false);
+	const struct st_console_rect rect   = {x, y, 1, 1};
+	struct st_pixel_buffer      *pixels = NULL;
+	int                          status = st_console_get_pixels(&pixels, console, &rect, false);
 
 	if (status != 0)
 		return status;
@@ -567,8 +610,7 @@ sample_pixel(st_console_t *console, uint32_t x, uint32_t y,
 }
 
 static int
-click_pixel(st_cterm_t *terminal, struct st_console_event *mouse,
-    int x, int y)
+click_pixel(st_cterm_t *terminal, struct st_console_event *mouse, int x, int y)
 {
 	mouse->data.mouse.pixel_x = x;
 	mouse->data.mouse.pixel_y = y;
@@ -584,29 +626,32 @@ static int
 test_v110a_flood(const char *stream, bool patterned)
 {
 	const struct st_console_display_config display = {
-		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	    .backend = ST_CONSOLE_BACKEND_HEADLESS,
 	};
 	const struct st_console_config screen = {
-		.columns = 80, .rows = 25,
-		.cell_width = 8, .cell_height = 14,
-		.pixel_width = 640, .pixel_height = 350,
+	    .columns      = 80,
+	    .rows         = 25,
+	    .cell_width   = 8,
+	    .cell_height  = 14,
+	    .pixel_width  = 640,
+	    .pixel_height = 350,
 	};
-	const struct st_console_rect full = {0, 0, 640, 350};
-	st_console_t *console = NULL;
-	st_font_catalog_t *fonts = NULL;
-	st_cterm_t *terminal = NULL;
-	struct st_pixel_buffer *pixels = NULL;
-	uint32_t palette[256];
+	const struct st_console_rect full     = {0, 0, 640, 350};
+	st_console_t                *console  = NULL;
+	st_font_catalog_t           *fonts    = NULL;
+	st_cterm_t                  *terminal = NULL;
+	struct st_pixel_buffer      *pixels   = NULL;
+	uint32_t                     palette[256];
 
 	CHECK(st_console_create(&console, &display, &screen) == 0);
 	CHECK(st_font_catalog_create(&fonts, console) == 0);
 	const struct st_cterm_config config = {
-		.console = console,
-		.fonts = fonts,
-		.emulation = ST_CTERM_ANSI_BBS,
-		.encoding = ST_CTERM_ENCODING_CODEPAGE,
-		.graphics_mode = ST_CTERM_GRAPHICS_RIP_1,
-		.codepage = ST_CODEPAGE_CP437,
+	    .console       = console,
+	    .fonts         = fonts,
+	    .emulation     = ST_CTERM_ANSI_BBS,
+	    .encoding      = ST_CTERM_ENCODING_CODEPAGE,
+	    .graphics_mode = ST_CTERM_GRAPHICS_RIP_1,
+	    .codepage      = ST_CODEPAGE_CP437,
 	};
 	CHECK(st_cterm_create(&terminal, &config) == 0);
 	CHECK(feed(terminal, stream, strlen(stream)) == 0);
@@ -614,7 +659,7 @@ test_v110a_flood(const char *stream, bool patterned)
 	CHECK(st_console_get_palette(console, 0, palette, 256) == 0);
 	for (size_t y = 0; y < 350; y++) {
 		for (size_t x = 0; x < 640; x++) {
-			uint32_t index = pixels->primary[y * 640 + x];
+			uint32_t index    = pixels->primary[y * 640 + x];
 			uint32_t expected = 0;
 
 			if (x >= 10 && x <= 50 && y >= 10 && y <= 50) {
@@ -624,10 +669,8 @@ test_v110a_flood(const char *stream, bool patterned)
 					expected = 0xff5555;
 			}
 			if (index >= 256 || palette[index] != expected) {
-				fprintf(stderr,
-				    "v1.10a %s flood pixel (%zu,%zu): expected %#x, got %#x\n",
-				    patterned ? "patterned" : "solid",
-				    x, y, expected,
+				fprintf(stderr, "v1.10a %s flood pixel (%zu,%zu): expected %#x, got %#x\n",
+				    patterned ? "patterned" : "solid", x, y, expected,
 				    index < 256 ? palette[index] : index);
 				return 1;
 			}
@@ -651,106 +694,111 @@ st_cterm_rip_live_test_main(void)
 	CHECK(test_text_window_reinit_keeps_start_state() == 0);
 	CHECK(test_rip3_reset_default_font() == 0);
 	CHECK(test_rip_text_video_mode() == 0);
-	CHECK(test_v110a_flood(
-	    "!|*|c0F|R0A0A1E1E|S010C|F0K0K0F|#\n", false) == 0);
-	CHECK(test_v110a_flood(
-	    "!|*|c0F|R0A0A1E1E|S030C|F0K0K0F|#\n", true) == 0);
+	CHECK(test_v110a_flood("!|*|c0F|R0A0A1E1E|S010C|F0K0K0F|#\n", false) == 0);
+	CHECK(test_v110a_flood("!|*|c0F|R0A0A1E1E|S030C|F0K0K0F|#\n", true) == 0);
 	const struct st_console_display_config display = {
-		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	    .backend = ST_CONSOLE_BACKEND_HEADLESS,
 	};
 	const struct st_console_config console_config = {
-		.columns = 80, .rows = 43,
-		.cell_width = 8, .cell_height = 8,
-		.pixel_width = 640, .pixel_height = 350,
+	    .columns      = 80,
+	    .rows         = 43,
+	    .cell_width   = 8,
+	    .cell_height  = 8,
+	    .pixel_width  = 640,
+	    .pixel_height = 350,
 	};
-	st_console_t *console = NULL;
-	st_font_catalog_t *fonts = NULL;
-	st_cterm_t *terminal = NULL;
-	struct st_pixel_buffer *pixels = NULL;
-	const struct st_console_rect pixel_rect = {100, 100, 1, 1};
-	const struct st_console_rect cell_rect = {0, 0, 1, 1};
-	struct st_console_cell cell;
+	st_console_t                   *console    = NULL;
+	st_font_catalog_t              *fonts      = NULL;
+	st_cterm_t                     *terminal   = NULL;
+	struct st_pixel_buffer         *pixels     = NULL;
+	const struct st_console_rect    pixel_rect = {100, 100, 1, 1};
+	const struct st_console_rect    cell_rect  = {0, 0, 1, 1};
+	struct st_console_cell          cell;
 	struct st_console_custom_cursor cursor;
-	struct output_capture output = {0};
-	struct prompt_capture prompt = {.reply = "Bob"};
-	char text[8];
-	size_t required;
-	uint32_t columns, rows, cell_width, cell_height;
-	const uint8_t *rip_font;
-	size_t rip_font_size;
+	struct output_capture           output = {0};
+	struct prompt_capture           prompt = {.reply = "Bob"};
+	char                            text[8];
+	size_t                          required;
+	uint32_t                        columns, rows, cell_width, cell_height;
+	const uint8_t                  *rip_font;
+	size_t                          rip_font_size;
 
 	CHECK(st_console_create(&console, &display, &console_config) == 0);
 	CHECK(st_font_catalog_create(&fonts, console) == 0);
 	const struct st_cterm_config config = {
-		.console = console,
-		.fonts = fonts,
-		.emulation = ST_CTERM_ANSI_BBS,
-		.encoding = ST_CTERM_ENCODING_UTF8,
-		.graphics_mode = ST_CTERM_GRAPHICS_RIP_1,
-		.codepage = ST_CODEPAGE_CP437,
-		.font_selector = 0,
-		.output = capture_output,
-		.output_context = &output,
-		.rip_prompt = capture_prompt,
-		.rip_prompt_context = &prompt,
+	    .console            = console,
+	    .fonts              = fonts,
+	    .emulation          = ST_CTERM_ANSI_BBS,
+	    .encoding           = ST_CTERM_ENCODING_UTF8,
+	    .graphics_mode      = ST_CTERM_GRAPHICS_RIP_1,
+	    .codepage           = ST_CODEPAGE_CP437,
+	    .font_selector      = 0,
+	    .output             = capture_output,
+	    .output_context     = &output,
+	    .rip_prompt         = capture_prompt,
+	    .rip_prompt_context = &prompt,
 	};
 	CHECK(st_cterm_create(&terminal, &config) == 0);
 	const char *definition = "!|1D00000NAME,30:?Your name?Alice\r\n";
 	CHECK(feed(terminal, definition, strlen(definition)) == 0);
 	CHECK(prompt.calls == 1 && strcmp(prompt.question, "Your name") == 0);
 	CHECK(strcmp(prompt.initial, "Alice") == 0 && prompt.width == 30);
-	const char *variable_query = "!|1\x1b" "0000$name$^M\r\n";
+	const char *variable_query =
+	    "!|1\x1b"
+	    "0000$name$^M\r\n";
 	CHECK(feed(terminal, variable_query, strlen(variable_query)) == 0);
-	CHECK(output.user_size == 4
-	    && memcmp(output.user_bytes, "Bob\r", 4) == 0);
+	CHECK(output.user_size == 4 && memcmp(output.user_bytes, "Bob\r", 4) == 0);
 	output.user_size = 0;
-	definition = "!|1D00400nAmE,10:Charlie\r\n";
+	definition       = "!|1D00400nAmE,10:Charlie\r\n";
 	CHECK(feed(terminal, definition, strlen(definition)) == 0);
 	CHECK(prompt.calls == 1);
-	variable_query = "!|1\x1b" "0000$NAME$^M\r\n";
+	variable_query =
+	    "!|1\x1b"
+	    "0000$NAME$^M\r\n";
 	CHECK(feed(terminal, variable_query, strlen(variable_query)) == 0);
-	CHECK(output.user_size == 8
-	    && memcmp(output.user_bytes, "Charlie\r", 8) == 0);
+	CHECK(output.user_size == 8 && memcmp(output.user_bytes, "Charlie\r", 8) == 0);
 	output.user_size = 0;
-	definition = "!|1D00400NAME,10:\r\n";
+	definition       = "!|1D00400NAME,10:\r\n";
 	CHECK(feed(terminal, definition, strlen(definition)) == 0);
 	CHECK(prompt.calls == 1);
 	CHECK(feed(terminal, "!|*\r\n", 5) == 0);
 	CHECK(feed(terminal, variable_query, strlen(variable_query)) == 0);
-	CHECK(output.user_size == 8
-	    && memcmp(output.user_bytes, "Charlie\r", 8) == 0);
+	CHECK(output.user_size == 8 && memcmp(output.user_bytes, "Charlie\r", 8) == 0);
 	output.user_size = 0;
-	definition = "!|1D000009BAD:ignored\r\n";
+	definition       = "!|1D000009BAD:ignored\r\n";
 	CHECK(feed(terminal, definition, strlen(definition)) == 0);
 	CHECK(prompt.calls == 1);
 	prompt.reply = "New";
-	definition = "!|1D00400OTHER:Seed\r\n";
+	definition   = "!|1D00400OTHER:Seed\r\n";
 	CHECK(feed(terminal, definition, strlen(definition)) == 0);
 	CHECK(prompt.calls == 2 && strcmp(prompt.initial, "Seed") == 0);
-	variable_query = "!|1\x1b" "0000$OTHER$^M\r\n";
+	variable_query =
+	    "!|1\x1b"
+	    "0000$OTHER$^M\r\n";
 	CHECK(feed(terminal, variable_query, strlen(variable_query)) == 0);
-	CHECK(output.user_size == 4
-	    && memcmp(output.user_bytes, "New\r", 4) == 0);
+	CHECK(output.user_size == 4 && memcmp(output.user_bytes, "New\r", 4) == 0);
 	output.user_size = 0;
 	CHECK(feed(terminal, "\x1b[!", 3) == 0);
-	CHECK(output.size == 14
-	    && memcmp(output.bytes, "RIPSCRIP015410", 14) == 0);
-	const char *query = "!|1\x1b" "0000$RIPVER$^M\r";
+	CHECK(output.size == 14 && memcmp(output.bytes, "RIPSCRIP015410", 14) == 0);
+	const char *query =
+	    "!|1\x1b"
+	    "0000$RIPVER$^M\r";
 	CHECK(feed(terminal, query, strlen(query)) == 0);
-	CHECK(output.user_size == 15
-	    && memcmp(output.user_bytes, "RIPSCRIP015410\r", 15) == 0);
+	CHECK(output.user_size == 15 && memcmp(output.user_bytes, "RIPSCRIP015410\r", 15) == 0);
 	output.user_size = 0;
-	query = "!|1\x1b" "0000$COFF$\r";
+	query =
+	    "!|1\x1b"
+	    "0000$COFF$\r";
 	CHECK(feed(terminal, query, strlen(query)) == 0);
-	bool cursor_visible;
+	bool                         cursor_visible;
 	enum st_console_cursor_shape cursor_shape;
-	CHECK(st_console_get_cursor(console, &cursor_visible,
-	    &cursor_shape) == 0);
+	CHECK(st_console_get_cursor(console, &cursor_visible, &cursor_shape) == 0);
 	CHECK(!cursor_visible);
-	query = "!|1\x1b" "0000$CON$\r";
+	query =
+	    "!|1\x1b"
+	    "0000$CON$\r";
 	CHECK(feed(terminal, query, strlen(query)) == 0);
-	CHECK(st_console_get_cursor(console, &cursor_visible,
-	    &cursor_shape) == 0);
+	CHECK(st_console_get_cursor(console, &cursor_visible, &cursor_shape) == 0);
 	CHECK(cursor_visible);
 	CHECK(feed(terminal, "!|c0F|X2", 8) == 0);
 	CHECK(feed(terminal, "S2S\r", 4) == 0);
@@ -764,17 +812,22 @@ st_cterm_rip_live_test_main(void)
 	const char *world = "!|fM8JG\r!|X2S2S\r";
 	CHECK(feed(terminal, world, strlen(world)) == 0);
 	uint32_t world_pixel;
-	CHECK(sample_pixel(console, 80, 50, &world_pixel) == 0
-	    && world_pixel == 0x1f);
-	const char *world_mouse = "!|1M00" "2S2S3232" "0000000" "^M\r";
+	CHECK(sample_pixel(console, 80, 50, &world_pixel) == 0 && world_pixel == 0x1f);
+	const char *world_mouse =
+	    "!|1M00"
+	    "2S2S3232"
+	    "0000000"
+	    "^M\r";
 	CHECK(feed(terminal, world_mouse, strlen(world_mouse)) == 0);
 	struct st_console_event world_click = {
-		.type = ST_CONSOLE_EVENT_MOUSE,
-		.data.mouse = {
-			.pixel_x = 84, .pixel_y = 52,
-			.buttons = ST_CONSOLE_MOUSE_BUTTON_LEFT,
-			.action = ST_CONSOLE_MOUSE_BUTTON,
-		},
+	    .type = ST_CONSOLE_EVENT_MOUSE,
+	    .data.mouse =
+		{
+			     .pixel_x = 84,
+			     .pixel_y = 52,
+			     .buttons = ST_CONSOLE_MOUSE_BUTTON_LEFT,
+			     .action  = ST_CONSOLE_MOUSE_BUTTON,
+			     },
 	};
 	CHECK(st_cterm_handle_mouse(terminal, &world_click));
 	world_click.data.mouse.buttons = 0;
@@ -782,99 +835,117 @@ st_cterm_rip_live_test_main(void)
 	CHECK(output.user_size == 1 && output.user_bytes[0] == '\r');
 	output.user_size = 0;
 	CHECK(feed(terminal, "!|*\r\n", 5) == 0);
-	query = "!|1\x1b" "1000G^M\r";
+	query =
+	    "!|1\x1b"
+	    "1000G^M\r";
 	CHECK(feed(terminal, query, strlen(query)) == 0);
 	/* RIP reset discards mouse fields, not deferred query templates. */
 	CHECK(feed(terminal, "!|*\r\n", 5) == 0);
 	struct st_console_event query_click = {
-		.type = ST_CONSOLE_EVENT_MOUSE,
-		.data.mouse = {
-			.x = 50, .y = 25,
-			.pixel_x = 400, .pixel_y = 200,
-			.buttons = ST_CONSOLE_MOUSE_BUTTON_LEFT,
-			.action = ST_CONSOLE_MOUSE_BUTTON,
-		},
+	    .type = ST_CONSOLE_EVENT_MOUSE,
+	    .data.mouse =
+		{
+			     .x       = 50,
+			     .y       = 25,
+			     .pixel_x = 400,
+			     .pixel_y = 200,
+			     .buttons = ST_CONSOLE_MOUSE_BUTTON_LEFT,
+			     .action  = ST_CONSOLE_MOUSE_BUTTON,
+			     },
 	};
 	(void)st_cterm_handle_mouse(terminal, &query_click);
 	query_click.data.mouse.buttons = 0;
 	CHECK(st_cterm_handle_mouse(terminal, &query_click));
-	CHECK(output.user_size == 2
-	    && memcmp(output.user_bytes, "G\r", 2) == 0);
+	CHECK(output.user_size == 2 && memcmp(output.user_bytes, "G\r", 2) == 0);
 	output.user_size = 0;
-	query = "!|1\x1b" "2000T^M\r";
+	query =
+	    "!|1\x1b"
+	    "2000T^M\r";
 	CHECK(feed(terminal, query, strlen(query)) == 0);
 	query_click.data.mouse.buttons = ST_CONSOLE_MOUSE_BUTTON_LEFT;
 	(void)st_cterm_handle_mouse(terminal, &query_click);
 	query_click.data.mouse.buttons = 0;
 	CHECK(st_cterm_handle_mouse(terminal, &query_click));
-	CHECK(output.user_size == 4
-	    && memcmp(output.user_bytes, "T\rG\r", 4) == 0);
+	CHECK(output.user_size == 4 && memcmp(output.user_bytes, "T\rG\r", 4) == 0);
 	output.user_size = 0;
-	query = "!|1\x1b" "1000$XYM$^M\r";
+	query =
+	    "!|1\x1b"
+	    "1000$XYM$^M\r";
 	CHECK(feed(terminal, query, strlen(query)) == 0);
 	query_click.data.mouse.buttons = ST_CONSOLE_MOUSE_BUTTON_LEFT;
 	(void)st_cterm_handle_mouse(terminal, &query_click);
 	query_click.data.mouse.buttons = 0;
 	CHECK(st_cterm_handle_mouse(terminal, &query_click));
 	CHECK(output.user_size == strlen("T\r0190:00c8:100\r")
-	    && memcmp(output.user_bytes, "T\r0190:00c8:100\r",
-	    output.user_size) == 0);
+	      && memcmp(output.user_bytes, "T\r0190:00c8:100\r", output.user_size) == 0);
 	output.user_size = 0;
-	query = "!|1\x1b" "1000G^M\r";
+	query =
+	    "!|1\x1b"
+	    "1000G^M\r";
 	CHECK(feed(terminal, query, strlen(query)) == 0);
-	query = "!|1\x1b" "2000$XYM$^M\r";
+	query =
+	    "!|1\x1b"
+	    "2000$XYM$^M\r";
 	CHECK(feed(terminal, query, strlen(query)) == 0);
 	query_click.data.mouse.buttons = ST_CONSOLE_MOUSE_BUTTON_LEFT;
 	(void)st_cterm_handle_mouse(terminal, &query_click);
 	query_click.data.mouse.buttons = 0;
 	CHECK(st_cterm_handle_mouse(terminal, &query_click));
 	CHECK(output.user_size == strlen("32:19:100\rG\r")
-	    && memcmp(output.user_bytes, "32:19:100\rG\r",
-	    output.user_size) == 0);
+	      && memcmp(output.user_bytes, "32:19:100\rG\r", output.user_size) == 0);
 	output.user_size = 0;
-	query = "!|1\x1b" "2000T^M\r";
+	query =
+	    "!|1\x1b"
+	    "2000T^M\r";
 	CHECK(feed(terminal, query, strlen(query)) == 0);
-	query_click.data.mouse.action = ST_CONSOLE_MOUSE_MOVE;
+	query_click.data.mouse.action  = ST_CONSOLE_MOUSE_MOVE;
 	query_click.data.mouse.pixel_x = 401;
 	query_click.data.mouse.pixel_y = 201;
 	CHECK(!st_cterm_handle_mouse(terminal, &query_click));
-	query = "!|1\x1b" "0000$XY$^M\r";
+	query =
+	    "!|1\x1b"
+	    "0000$XY$^M\r";
 	CHECK(feed(terminal, query, strlen(query)) == 0);
 	CHECK(output.user_size == strlen("0191:00c9\r")
-	    && memcmp(output.user_bytes, "0191:00c9\r",
-	    output.user_size) == 0);
-	output.user_size = 0;
-	query_click.data.mouse.action = ST_CONSOLE_MOUSE_BUTTON;
+	      && memcmp(output.user_bytes, "0191:00c9\r", output.user_size) == 0);
+	output.user_size               = 0;
+	query_click.data.mouse.action  = ST_CONSOLE_MOUSE_BUTTON;
 	query_click.data.mouse.pixel_x = 400;
 	query_click.data.mouse.pixel_y = 200;
-	const char *field = "!|1M00" "0000HR9P" "0000000" "F^M\r";
+	const char *field =
+	    "!|1M00"
+	    "0000HR9P"
+	    "0000000"
+	    "F^M\r";
 	CHECK(feed(terminal, field, strlen(field)) == 0);
 	query_click.data.mouse.buttons = ST_CONSOLE_MOUSE_BUTTON_LEFT;
 	CHECK(st_cterm_handle_mouse(terminal, &query_click));
 	query_click.data.mouse.buttons = 0;
 	CHECK(st_cterm_handle_mouse(terminal, &query_click));
-	CHECK(output.user_size == 2
-	    && memcmp(output.user_bytes, "F\r", 2) == 0);
+	CHECK(output.user_size == 2 && memcmp(output.user_bytes, "F\r", 2) == 0);
 	output.user_size = 0;
 	CHECK(feed(terminal, "!|1K\r", 5) == 0);
-	query = "!|1\x1b" "1000$OFF$\r";
+	query =
+	    "!|1\x1b"
+	    "1000$OFF$\r";
 	CHECK(feed(terminal, query, strlen(query)) == 0);
 	query_click.data.mouse.buttons = ST_CONSOLE_MOUSE_BUTTON_LEFT;
 	(void)st_cterm_handle_mouse(terminal, &query_click);
 	query_click.data.mouse.buttons = 0;
 	CHECK(st_cterm_handle_mouse(terminal, &query_click));
-	CHECK(output.user_size == 2
-	    && memcmp(output.user_bytes, "T\r", 2) == 0);
+	CHECK(output.user_size == 2 && memcmp(output.user_bytes, "T\r", 2) == 0);
 	output.user_size = 0;
 	/* RIP's post-command suppression consumes this LF, not UTF-8 input. */
-	query = "!|1\x1b" "2000$OFF$\r\n";
+	query =
+	    "!|1\x1b"
+	    "2000$OFF$\r\n";
 	CHECK(feed(terminal, query, strlen(query)) == 0);
 	CHECK(feed(terminal, "\xc3", 1) == 0);
 	CHECK(feed(terminal, "\xa9", 1) == 0);
 	CHECK(st_cterm_finish(terminal) == 0);
 	CHECK(st_console_read_cells(console, &cell_rect, &cell, 1) == 0);
-	CHECK(st_console_font_glyph_text(console, cell.glyph_font,
-	    cell.glyph, text, sizeof(text), &required) == 0);
+	CHECK(
+	    st_console_font_glyph_text(console, cell.glyph_font, cell.glyph, text, sizeof(text), &required) == 0);
 	CHECK(required == 2 && memcmp(text, "\xc3\xa9", 2) == 0);
 	CHECK(st_cterm_reset_terminal(terminal) == 0);
 	CHECK(feed(terminal, "!|X2T2T\r", 8) == 0);
@@ -885,8 +956,7 @@ st_cterm_rip_live_test_main(void)
 	CHECK(feed(terminal, "\r!|w00002I1611\r", 15) == 0);
 	CHECK(st_cterm_size(terminal, &columns, &rows) == 0);
 	CHECK(columns == 91 && rows == 43);
-	CHECK(st_console_cell_pixel_size(console, &cell_width,
-	    &cell_height) == 0);
+	CHECK(st_console_cell_pixel_size(console, &cell_width, &cell_height) == 0);
 	CHECK(cell_width == 7 && cell_height == 8);
 	rip_font = cterm_rip_text_font_data(1, &rip_font_size);
 	CHECK(rip_font != NULL && rip_font_size == 256u * 8u);
@@ -898,10 +968,8 @@ st_cterm_rip_live_test_main(void)
 	CHECK(background != foreground);
 	for (uint32_t row = 0; row < 8; row++) {
 		for (uint32_t column = 0; column < 7; column++) {
-			bool ink = (rip_font['A' * 8u + row]
-			    & (0x80u >> column)) != 0;
-			CHECK(pixels->primary[row * 7u + column]
-			    == (ink ? foreground : background));
+			bool ink = (rip_font['A' * 8u + row] & (0x80u >> column)) != 0;
+			CHECK(pixels->primary[row * 7u + column] == (ink ? foreground : background));
 		}
 	}
 	st_pixel_buffer_destroy(pixels);
@@ -915,8 +983,7 @@ st_cterm_rip_live_test_main(void)
 	CHECK(feed(terminal, "!|w0000130O14\r", 14) == 0);
 	CHECK(st_cterm_size(terminal, &columns, &rows) == 0);
 	CHECK(columns == 40 && rows == 25);
-	CHECK(st_console_cell_pixel_size(console, &cell_width,
-	    &cell_height) == 0);
+	CHECK(st_console_cell_pixel_size(console, &cell_width, &cell_height) == 0);
 	CHECK(cell_width == 16 && cell_height == 14);
 	CHECK(st_console_get_default_cursor(console, &cursor) == 0);
 	CHECK(cursor.start == 12 && cursor.end == 13 && cursor.range == 14);
@@ -931,43 +998,34 @@ st_cterm_rip_live_test_main(void)
 	const char *second_field = "!|1M003C3C3E3E1000000^N\r";
 	CHECK(feed(terminal, second_field, strlen(second_field)) == 0);
 	{
-		const struct st_console_rect focus = {97, 97, 8, 8};
-		struct st_pixel_buffer *before = NULL, *highlight = NULL;
-		struct st_pixel_buffer *cleared = NULL;
+		const struct st_console_rect focus  = {97, 97, 8, 8};
+		struct st_pixel_buffer      *before = NULL, *highlight = NULL;
+		struct st_pixel_buffer      *cleared = NULL;
 
 		CHECK(st_console_get_pixels(&before, console, &focus, false) == 0);
 		CHECK(st_cterm_handle_key(terminal, '\t', 0));
-		CHECK(st_console_get_pixels(&highlight, console, &focus, false)
-		    == 0);
-		CHECK(memcmp(before->primary, highlight->primary,
-		    64 * sizeof(uint32_t)) != 0);
+		CHECK(st_console_get_pixels(&highlight, console, &focus, false) == 0);
+		CHECK(memcmp(before->primary, highlight->primary, 64 * sizeof(uint32_t)) != 0);
 		output.user_size = 0;
 		CHECK(st_cterm_handle_key(terminal, '\r', 0));
 		CHECK(output.user_size == 1 && output.user_bytes[0] == '\r');
-		CHECK(st_console_get_pixels(&cleared, console, &focus, false)
-		    == 0);
-		CHECK(memcmp(before->primary, cleared->primary,
-		    64 * sizeof(uint32_t)) == 0);
+		CHECK(st_console_get_pixels(&cleared, console, &focus, false) == 0);
+		CHECK(memcmp(before->primary, cleared->primary, 64 * sizeof(uint32_t)) == 0);
 		st_pixel_buffer_destroy(cleared);
 		CHECK(st_cterm_handle_key(terminal, '\t', 0));
 		CHECK(feed(terminal, "!|$TABOFF$\r", 11) == 0);
-		CHECK(st_console_get_pixels(&cleared, console, &focus, false)
-		    == 0);
-		CHECK(memcmp(before->primary, cleared->primary,
-		    64 * sizeof(uint32_t)) == 0);
+		CHECK(st_console_get_pixels(&cleared, console, &focus, false) == 0);
+		CHECK(memcmp(before->primary, cleared->primary, 64 * sizeof(uint32_t)) == 0);
 		st_pixel_buffer_destroy(cleared);
 		CHECK(feed(terminal, "!|$TABON$\r", 10) == 0);
 		output.user_size = 0;
-		CHECK(st_cterm_handle_key(terminal, '\t',
-		    ST_CONSOLE_MODIFIER_SHIFT));
+		CHECK(st_cterm_handle_key(terminal, '\t', ST_CONSOLE_MODIFIER_SHIFT));
 		CHECK(st_cterm_handle_key(terminal, '\r', 0));
 		CHECK(output.user_size == 1 && output.user_bytes[0] == '\x0e');
 		CHECK(st_cterm_handle_key(terminal, '\t', 0));
 		(void)st_cterm_handle_doorway_key(terminal, 0x48);
-		CHECK(st_console_get_pixels(&cleared, console, &focus, false)
-		    == 0);
-		CHECK(memcmp(before->primary, cleared->primary,
-		    64 * sizeof(uint32_t)) == 0);
+		CHECK(st_console_get_pixels(&cleared, console, &focus, false) == 0);
+		CHECK(memcmp(before->primary, cleared->primary, 64 * sizeof(uint32_t)) == 0);
 		st_pixel_buffer_destroy(cleared);
 		st_pixel_buffer_destroy(highlight);
 		st_pixel_buffer_destroy(before);
@@ -978,12 +1036,14 @@ st_cterm_rip_live_test_main(void)
 	uint32_t original = pixels->primary[0];
 	st_pixel_buffer_destroy(pixels);
 	struct st_console_event mouse = {
-		.type = ST_CONSOLE_EVENT_MOUSE,
-		.data.mouse = {
-			.pixel_x = 101, .pixel_y = 101,
-			.buttons = ST_CONSOLE_MOUSE_BUTTON_LEFT,
-			.action = ST_CONSOLE_MOUSE_BUTTON,
-		},
+	    .type = ST_CONSOLE_EVENT_MOUSE,
+	    .data.mouse =
+		{
+			     .pixel_x = 101,
+			     .pixel_y = 101,
+			     .buttons = ST_CONSOLE_MOUSE_BUTTON_LEFT,
+			     .action  = ST_CONSOLE_MOUSE_BUTTON,
+			     },
 	};
 	CHECK(st_cterm_handle_mouse(terminal, &mouse));
 	CHECK(st_console_get_pixels(&pixels, console, &reset_pixel, false) == 0);
@@ -998,7 +1058,8 @@ st_cterm_rip_live_test_main(void)
 	CHECK(feed(terminal, "!|1K\r", 5) == 0);
 	mouse.data.mouse.buttons = ST_CONSOLE_MOUSE_BUTTON_LEFT;
 	CHECK(!st_cterm_handle_mouse(terminal, &mouse));
-	const char *button_wire = "\r!|1B140A0200ZK0300080F080700000707000000"
+	const char *button_wire =
+	    "\r!|1B140A0200ZK0300080F080700000707000000"
 	    "|1U1O1E00002G00<>EXIT<>^M\r";
 	CHECK(feed(terminal, button_wire, strlen(button_wire)) == 0);
 	output.user_size = 0;
@@ -1010,8 +1071,7 @@ st_cterm_rip_live_test_main(void)
 	output.user_size = 0;
 	CHECK(st_cterm_handle_rip_text(terminal, 'X'));
 	CHECK(output.user_size == 1 && output.user_bytes[0] == '\r');
-	CHECK(feed(terminal,
-	    "!|1U1O1E00003M00<>ACCENT<>^M\r", 29) == 0);
+	CHECK(feed(terminal, "!|1U1O1E00003M00<>ACCENT<>^M\r", 29) == 0);
 	output.user_size = 0;
 	CHECK(st_cterm_handle_rip_text(terminal, 0x00e9));
 	CHECK(output.user_size == 1 && output.user_bytes[0] == '\r');
@@ -1030,7 +1090,7 @@ st_cterm_rip_live_test_main(void)
 	CHECK(feed(terminal, "!|$MKILL$\r", 10) == 0);
 	CHECK(feed(terminal, "!|$RESTOREALL$\r", 15) == 0);
 	mouse.data.mouse.buttons = ST_CONSOLE_MOUSE_BUTTON_LEFT;
-	output.user_size = 0;
+	output.user_size         = 0;
 	CHECK(st_cterm_handle_mouse(terminal, &mouse));
 	mouse.data.mouse.buttons = 0;
 	CHECK(st_cterm_handle_mouse(terminal, &mouse));
@@ -1040,7 +1100,8 @@ st_cterm_rip_live_test_main(void)
 	CHECK(!st_cterm_handle_mouse(terminal, &mouse));
 	mouse.data.mouse.buttons = 0;
 	CHECK(!st_cterm_handle_mouse(terminal, &mouse));
-	const char *bevel_button = "\r!|1B140A0201DU0100080F080700000707000000"
+	const char *bevel_button =
+	    "\r!|1B140A0201DU0100080F080700000707000000"
 	    "|1U2S2800000000<>EDGE<>^M\r";
 	CHECK(feed(terminal, bevel_button, strlen(bevel_button)) == 0);
 	const struct st_console_rect bevel_corner = {99, 79, 1, 1};
@@ -1060,7 +1121,8 @@ st_cterm_rip_live_test_main(void)
 	CHECK(pixels->primary[0] == bevel_before);
 	st_pixel_buffer_destroy(pixels);
 	CHECK(feed(terminal, "!|1K\r", 5) == 0);
-	const char *radio_buttons = "\r!|1B140A020DMO0300080F080701000707000000"
+	const char *radio_buttons =
+	    "\r!|1B140A020DMO0300080F080701000707000000"
 	    "|1U4G2800000000<>A<>|1U642800000000<>B<>\r";
 	CHECK(feed(terminal, radio_buttons, strlen(radio_buttons)) == 0);
 	uint32_t radio_off, radio_on, radio_other;
@@ -1078,7 +1140,8 @@ st_cterm_rip_live_test_main(void)
 	CHECK(sample_pixel(console, 221, 81, &radio_other) == 0);
 	CHECK(radio_other == radio_on);
 	CHECK(feed(terminal, "!|1K\r", 5) == 0);
-	const char *checkbox = "\r!|1B140A0200ZK0300080F080700010707000000"
+	const char *checkbox =
+	    "\r!|1B140A0200ZK0300080F080700010707000000"
 	    "|1U7S2800000000<>C<>\r";
 	CHECK(feed(terminal, checkbox, strlen(checkbox)) == 0);
 	uint32_t checkbox_off, checkbox_on;
@@ -1094,8 +1157,7 @@ st_cterm_rip_live_test_main(void)
 	    "\r!|c0F|X0A0A|1C0A0A0A0A00"
 	    "|1B140A0200SJ0300080F080700000707000000"
 	    "|1U2S2800000000<>CLIP<>^M\r";
-	CHECK(feed(terminal, clipboard_button,
-	    strlen(clipboard_button)) == 0);
+	CHECK(feed(terminal, clipboard_button, strlen(clipboard_button)) == 0);
 	uint32_t clipboard_normal, clipboard_pressed;
 	CHECK(sample_pixel(console, 100, 80, &clipboard_normal) == 0);
 	mouse.data.mouse.pixel_x = 100;
@@ -1104,7 +1166,7 @@ st_cterm_rip_live_test_main(void)
 	CHECK(st_cterm_handle_mouse(terminal, &mouse));
 	CHECK(sample_pixel(console, 100, 80, &clipboard_pressed) == 0);
 	CHECK(clipboard_pressed != clipboard_normal);
-	output.user_size = 0;
+	output.user_size         = 0;
 	mouse.data.mouse.buttons = 0;
 	CHECK(st_cterm_handle_mouse(terminal, &mouse));
 	CHECK(output.user_size == 1 && output.user_bytes[0] == '\r');
@@ -1121,7 +1183,7 @@ st_cterm_rip_live_test_main(void)
 	CHECK(st_cterm_handle_mouse(terminal, &mouse));
 	CHECK(sample_pixel(console, 120, 80, &icon_pressed) == 0);
 	CHECK(icon_pressed != icon_normal);
-	output.user_size = 0;
+	output.user_size         = 0;
 	mouse.data.mouse.buttons = 0;
 	CHECK(st_cterm_handle_mouse(terminal, &mouse));
 	CHECK(output.user_size == 1 && output.user_bytes[0] == '\r');
@@ -1130,25 +1192,21 @@ st_cterm_rip_live_test_main(void)
 	    "\r!|1B140A02041U0300080F080700000707000000"
 	    "|1U4G2800000000BUTTON<><>^M"
 	    "|1I5K2800000BUTTON.HIC\r";
-	CHECK(feed(terminal, hot_icon_button,
-	    strlen(hot_icon_button)) == 0);
-	const struct st_console_rect hot_button_rect = {160, 80, 22, 17};
-	const struct st_console_rect hot_icon_rect = {200, 80, 22, 17};
-	struct st_pixel_buffer *hot_button_pixels = NULL;
-	struct st_pixel_buffer *hot_icon_pixels = NULL;
-	mouse.data.mouse.pixel_x = 160;
-	mouse.data.mouse.pixel_y = 80;
-	mouse.data.mouse.buttons = ST_CONSOLE_MOUSE_BUTTON_LEFT;
+	CHECK(feed(terminal, hot_icon_button, strlen(hot_icon_button)) == 0);
+	const struct st_console_rect hot_button_rect   = {160, 80, 22, 17};
+	const struct st_console_rect hot_icon_rect     = {200, 80, 22, 17};
+	struct st_pixel_buffer      *hot_button_pixels = NULL;
+	struct st_pixel_buffer      *hot_icon_pixels   = NULL;
+	mouse.data.mouse.pixel_x                       = 160;
+	mouse.data.mouse.pixel_y                       = 80;
+	mouse.data.mouse.buttons                       = ST_CONSOLE_MOUSE_BUTTON_LEFT;
 	CHECK(st_cterm_handle_mouse(terminal, &mouse));
-	CHECK(st_console_get_pixels(&hot_button_pixels, console,
-	    &hot_button_rect, false) == 0);
-	CHECK(st_console_get_pixels(&hot_icon_pixels, console,
-	    &hot_icon_rect, false) == 0);
-	CHECK(memcmp(hot_button_pixels->primary, hot_icon_pixels->primary,
-	    22 * 17 * sizeof(uint32_t)) == 0);
+	CHECK(st_console_get_pixels(&hot_button_pixels, console, &hot_button_rect, false) == 0);
+	CHECK(st_console_get_pixels(&hot_icon_pixels, console, &hot_icon_rect, false) == 0);
+	CHECK(memcmp(hot_button_pixels->primary, hot_icon_pixels->primary, 22 * 17 * sizeof(uint32_t)) == 0);
 	st_pixel_buffer_destroy(hot_icon_pixels);
 	st_pixel_buffer_destroy(hot_button_pixels);
-	output.user_size = 0;
+	output.user_size         = 0;
 	mouse.data.mouse.buttons = 0;
 	CHECK(st_cterm_handle_mouse(terminal, &mouse));
 	CHECK(output.user_size == 1 && output.user_bytes[0] == '\r');
@@ -1157,8 +1215,7 @@ st_cterm_rip_live_test_main(void)
 	    "\r!|1B140A02011E0300080F080700000707000000"
 	    "|1U4G2800000000<>AUTO<>^M"
 	    "|1U5K2800000000<>COPY<>^M\r";
-	CHECK(feed(terminal, autostamp_buttons,
-	    strlen(autostamp_buttons)) == 0);
+	CHECK(feed(terminal, autostamp_buttons, strlen(autostamp_buttons)) == 0);
 	uint32_t autostamp_normal, autostamp_pressed;
 	CHECK(sample_pixel(console, 200, 80, &autostamp_normal) == 0);
 	mouse.data.mouse.pixel_x = 200;
@@ -1167,7 +1224,7 @@ st_cterm_rip_live_test_main(void)
 	CHECK(st_cterm_handle_mouse(terminal, &mouse));
 	CHECK(sample_pixel(console, 200, 80, &autostamp_pressed) == 0);
 	CHECK(autostamp_pressed != autostamp_normal);
-	output.user_size = 0;
+	output.user_size         = 0;
 	mouse.data.mouse.buttons = 0;
 	CHECK(st_cterm_handle_mouse(terminal, &mouse));
 	CHECK(output.user_size == 1 && output.user_bytes[0] == '\r');
@@ -1178,41 +1235,40 @@ st_cterm_rip_live_test_main(void)
 	CHECK(sample_pixel(console, 100, 100, &extended_before) == 0);
 	CHECK(extended_before != 0x10);
 	const char *extended_window = "\r!|b080G934V140A2000X\r";
-	CHECK(feed(terminal, extended_window,
-	    strlen(extended_window)) == 0);
+	CHECK(feed(terminal, extended_window, strlen(extended_window)) == 0);
 	CHECK(st_cterm_size(terminal, &columns, &rows) == 0);
 	CHECK(columns == 80 && rows == 21);
-	CHECK(st_console_cell_pixel_size(console, &cell_width,
-	    &cell_height) == 0);
+	CHECK(st_console_cell_pixel_size(console, &cell_width, &cell_height) == 0);
 	CHECK(cell_width == 8 && cell_height == 16);
 	struct st_console_rect extended_cells;
 	CHECK(st_console_get_window(console, &extended_cells) == 0);
-	CHECK(extended_cells.x == 0 && extended_cells.y == 0
-	    && extended_cells.width == 40 && extended_cells.height == 10);
+	CHECK(extended_cells.x == 0 && extended_cells.y == 0 && extended_cells.width == 40
+	      && extended_cells.height == 10);
 	CHECK(sample_pixel(console, 100, 100, &extended_before) == 0);
 	CHECK(extended_before == 0x10);
 	const char *wide_window = "\r!|b0G0E4V490A0A4000G\r";
 	CHECK(feed(terminal, wide_window, strlen(wide_window)) == 0);
 	CHECK(st_cterm_size(terminal, &columns, &rows) == 0);
 	CHECK(columns == 40 && rows == 25);
-	CHECK(st_console_cell_pixel_size(console, &cell_width,
-	    &cell_height) == 0);
+	CHECK(st_console_cell_pixel_size(console, &cell_width, &cell_height) == 0);
 	CHECK(cell_width == 16 && cell_height == 14);
 	CHECK(st_console_get_window(console, &extended_cells) == 0);
-	CHECK(extended_cells.x == 0 && extended_cells.y == 0
-	    && extended_cells.width == 10 && extended_cells.height == 10);
+	CHECK(extended_cells.x == 0 && extended_cells.y == 0 && extended_cells.width == 10
+	      && extended_cells.height == 10);
 	CHECK(feed(terminal, "!|*\r", 4) == 0);
 	CHECK(feed(terminal, "!|c01\r", 6) == 0);
 	const char *status_on = "\n\x1b[1$~";
 	CHECK(feed(terminal, status_on, strlen(status_on)) == 0);
 	CHECK(st_cterm_size(terminal, &columns, &rows) == 0);
 	CHECK(columns == 80 && rows == 42);
-	query = "\r!|1\x1b" "0000$SBAROFF$\r";
+	query =
+	    "\r!|1\x1b"
+	    "0000$SBAROFF$\r";
 	CHECK(feed(terminal, query, strlen(query)) == 0);
 	CHECK(st_cterm_size(terminal, &columns, &rows) == 0);
 	CHECK(columns == 80 && rows == 43);
-	const char *poly_wire = "\n!|t030102S2S03C2S03C3C\r";
-	size_t poly_wire_size = strlen(poly_wire);
+	const char *poly_wire      = "\n!|t030102S2S03C2S03C3C\r";
+	size_t      poly_wire_size = strlen(poly_wire);
 	CHECK(feed(terminal, poly_wire, 11) == 0);
 	CHECK(feed(terminal, poly_wire + 11, poly_wire_size - 11) == 0);
 	const struct st_console_rect poly_pixel = {110, 100, 1, 1};

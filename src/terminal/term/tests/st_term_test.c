@@ -5,47 +5,41 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "st_term.h"
-
-#include "io_error.h"
-#include "st_pixels.h"
-#include "cterm.h"
-#include "cterm_apc.h"
-#include "st_time.h"
-#include "st_threads.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#define CHECK(expression) do { \
-	if (!(expression)) { \
-		fprintf(stderr, "check failed at %s:%d: %s\n", __FILE__, __LINE__, \
-		    #expression); \
-		return EXIT_FAILURE; \
-	} \
-} while (0)
+#include "cterm.h"
+#include "cterm_apc.h"
+#include "io_error.h"
+#include "st_pixels.h"
+#include "st_term.h"
+#include "st_threads.h"
+#include "st_time.h"
+
+#define CHECK(expression)                                                                                \
+	do {                                                                                             \
+		if (!(expression)) {                                                                     \
+			fprintf(stderr, "check failed at %s:%d: %s\n", __FILE__, __LINE__, #expression); \
+			return EXIT_FAILURE;                                                             \
+		}                                                                                        \
+	} while (0)
 
 static int
 test_paste_preparation(void)
 {
-	static const char input[] = "A\nB\r\n\x1b[201~\xc3\xa9";
-	static const char plain[] = "A\rB\r\x1b[201~\xc3\xa9";
-	static const char bracketed[] =
-	    "\x1b[200~A\rB\r\xc3\xa9\x1b[201~";
-	char *prepared = NULL;
-	size_t size = 0;
+	static const char input[]     = "A\nB\r\n\x1b[201~\xc3\xa9";
+	static const char plain[]     = "A\rB\r\x1b[201~\xc3\xa9";
+	static const char bracketed[] = "\x1b[200~A\rB\r\xc3\xa9\x1b[201~";
+	char             *prepared    = NULL;
+	size_t            size        = 0;
 
-	CHECK(st_term_prepare_paste(&prepared, &size, input,
-	    sizeof(input) - 1, false) == 0);
-	CHECK(size == sizeof(plain) - 1
-	    && memcmp(prepared, plain, size) == 0);
+	CHECK(st_term_prepare_paste(&prepared, &size, input, sizeof(input) - 1, false) == 0);
+	CHECK(size == sizeof(plain) - 1 && memcmp(prepared, plain, size) == 0);
 	free(prepared);
 	prepared = NULL;
-	CHECK(st_term_prepare_paste(&prepared, &size, input,
-	    sizeof(input) - 1, true) == 0);
-	CHECK(size == sizeof(bracketed) - 1
-	    && memcmp(prepared, bracketed, size) == 0);
+	CHECK(st_term_prepare_paste(&prepared, &size, input, sizeof(input) - 1, true) == 0);
+	CHECK(size == sizeof(bracketed) - 1 && memcmp(prepared, bracketed, size) == 0);
 	free(prepared);
 	return 0;
 }
@@ -55,18 +49,21 @@ static bool
 screen_contains(st_console_t *console, const char *wanted, bool diagnose)
 {
 	const struct st_console_rect area = {0, 0, 40, 4};
-	struct st_console_cell cells[160];
-	char text[161];
+	struct st_console_cell       cells[160];
+	char                         text[161];
 
 	if (st_console_read_cells(console, &area, cells, 40) != 0)
 		return false;
 	for (size_t i = 0; i < 160; ++i) {
-		char glyph[8];
+		char   glyph[8];
 		size_t size;
 
-		text[i] = st_console_font_glyph_text(console, cells[i].glyph_font,
-		    cells[i].glyph, glyph, sizeof(glyph), &size) == 0 && size == 1 && glyph[0] != '\0'
-		    ? glyph[0] : ' ';
+		text[i] =
+		    st_console_font_glyph_text(console, cells[i].glyph_font, cells[i].glyph, glyph, sizeof(glyph),
+			&size) == 0
+		            && size == 1 && glyph[0] != '\0'
+		        ? glyph[0]
+		        : ' ';
 	}
 	text[160] = '\0';
 	if (diagnose && strstr(text, wanted) == NULL)
@@ -80,14 +77,15 @@ struct ooii_observed {
 };
 
 static int
-ooii_text_observed(void *context, uint32_t scalar, bool *consumed,
-	char *replacement, size_t capacity, size_t *replacement_size)
+ooii_text_observed(void *context, uint32_t scalar, bool *consumed, char *replacement, size_t capacity,
+    size_t *replacement_size)
 {
 	struct ooii_observed *observed = context;
 	(void)replacement;
 	(void)capacity;
-	if (scalar == 'S') observed->text = true;
-	*consumed = false;
+	if (scalar == 'S')
+		observed->text = true;
+	*consumed         = false;
 	*replacement_size = 0;
 	return 0;
 }
@@ -96,7 +94,8 @@ static int
 ooii_wire_observed(void *context, const uint8_t *bytes, size_t size)
 {
 	struct ooii_observed *observed = context;
-	if (memchr(bytes, 0xab, size) != NULL) observed->wire_command = true;
+	if (memchr(bytes, 0xab, size) != NULL)
+		observed->wire_command = true;
 	return 0;
 }
 
@@ -105,14 +104,14 @@ test_ooii_session(enum st_cterm_encoding encoding, bool suppress)
 {
 	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
 	const struct st_console_config geometry = {.columns = 80, .rows = 25, .cell_width = 8, .cell_height = 16};
-	st_console_t *console = NULL;
-	st_font_catalog_t *fonts = NULL;
-	st_connection_t *connection = NULL;
-	st_term_session_t *session = NULL;
-	struct st_profile profile;
-	enum st_term_disposition disposition;
-	bool finished = false;
-	struct ooii_observed observed = {0};
+	st_console_t                  *console  = NULL;
+	st_font_catalog_t             *fonts    = NULL;
+	st_connection_t               *connection = NULL;
+	st_term_session_t             *session    = NULL;
+	struct st_profile              profile;
+	enum st_term_disposition       disposition;
+	bool                           finished = false;
+	struct ooii_observed           observed = {0};
 	CHECK(st_console_create(&console, &display, &geometry) == 0);
 	CHECK(st_font_catalog_create(&fonts, console) == 0);
 	st_profile_init(&profile);
@@ -120,11 +119,17 @@ test_ooii_session(enum st_cterm_encoding encoding, bool suppress)
 	strcpy(profile.address, suppress ? "sh term-fixture.sh ooii suppress" : "sh term-fixture.sh ooii normal");
 	CHECK(st_term_connect_profile(&connection, &profile, console, NULL, NULL) == 0);
 	const struct st_term_config config = {
-		.console = console, .connection = connection, .fonts = fonts,
-		.encoding = encoding, .codepage = ST_CODEPAGE_CP437,
-		.hide_status = true, .suppress_responses = suppress,
-		.input_filter = ooii_text_observed, .input_filter_context = &observed,
-		.wire_capture = ooii_wire_observed, .capture_context = &observed,
+	    .console              = console,
+	    .connection           = connection,
+	    .fonts                = fonts,
+	    .encoding             = encoding,
+	    .codepage             = ST_CODEPAGE_CP437,
+	    .hide_status          = true,
+	    .suppress_responses   = suppress,
+	    .input_filter         = ooii_text_observed,
+	    .input_filter_context = &observed,
+	    .wire_capture         = ooii_wire_observed,
+	    .capture_context      = &observed,
 	};
 	CHECK(st_term_session_create(&session, &config) == 0);
 	st_term_session_set_ooii_mode(session, 1);
@@ -133,19 +138,25 @@ test_ooii_session(enum st_cterm_encoding encoding, bool suppress)
 	CHECK(screen_contains(console, "Supply Room", true));
 	CHECK(st_term_session_ooii_mode(session) == 3);
 	CHECK(observed.text && observed.wire_command);
-	if (!suppress) CHECK(screen_contains(console, "af327c", true));
+	if (!suppress)
+		CHECK(screen_contains(console, "af327c", true));
 	CHECK(st_term_session_send_text(session, "U", 1) == 0);
 	for (unsigned i = 0; i < 100 && !finished; ++i)
 		CHECK(st_term_session_pump(session, &disposition, &finished) == 0);
 	CHECK(finished && st_term_session_ooii_mode(session) == 0);
-	struct st_console_cell cells[80 * 25];
+	struct st_console_cell       cells[80 * 25];
 	const struct st_console_rect area = {0, 0, 80, 25};
-	char text[80 * 25 + 1];
+	char                         text[80 * 25 + 1];
 	CHECK(st_console_read_cells(console, &area, cells, 80) == 0);
 	for (size_t i = 0; i < 80 * 25; ++i) {
-		char glyph[8]; size_t size;
-		text[i] = st_console_font_glyph_text(console, cells[i].glyph_font,
-		    cells[i].glyph, glyph, sizeof(glyph), &size) == 0 && size == 1 ? glyph[0] : ' ';
+		char   glyph[8];
+		size_t size;
+		text[i] =
+		    st_console_font_glyph_text(console, cells[i].glyph_font, cells[i].glyph, glyph, sizeof(glyph),
+			&size) == 0
+		            && size == 1
+		        ? glyph[0]
+		        : ' ';
 	}
 	text[80 * 25] = 0;
 	CHECK(strstr(text, "55AFTER") != NULL);
@@ -163,13 +174,13 @@ test_response_policy(void)
 	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
 	const struct st_console_config geometry = {.columns = 40, .rows = 4, .cell_width = 8, .cell_height = 16};
 	for (unsigned suppress = 0; suppress < 2; ++suppress) {
-		st_console_t *console = NULL;
-		st_font_catalog_t *fonts = NULL;
-		st_connection_t *connection = NULL;
-		st_term_session_t *session = NULL;
-		struct st_profile profile;
+		st_console_t            *console    = NULL;
+		st_font_catalog_t       *fonts      = NULL;
+		st_connection_t         *connection = NULL;
+		st_term_session_t       *session    = NULL;
+		struct st_profile        profile;
 		enum st_term_disposition disposition;
-		bool finished;
+		bool                     finished;
 		CHECK(st_console_create(&console, &display, &geometry) == 0);
 		CHECK(st_font_catalog_create(&fonts, console) == 0);
 		st_profile_init(&profile);
@@ -177,18 +188,23 @@ test_response_policy(void)
 		strcpy(profile.address, "sh term-fixture.sh responses");
 		CHECK(st_term_connect_profile(&connection, &profile, console, NULL, NULL) == 0);
 		const struct st_term_config config = {
-			.console = console, .connection = connection, .fonts = fonts,
-			.encoding = ST_CTERM_ENCODING_UTF8, .hide_status = true,
-			.suppress_responses = suppress != 0,
+		    .console            = console,
+		    .connection         = connection,
+		    .fonts              = fonts,
+		    .encoding           = ST_CTERM_ENCODING_UTF8,
+		    .hide_status        = true,
+		    .suppress_responses = suppress != 0,
 		};
 		CHECK(st_term_session_create(&session, &config) == 0);
 		for (unsigned attempt = 0; attempt < 100 && !screen_contains(console, "READY", false); ++attempt)
 			CHECK(st_term_session_pump(session, &disposition, &finished) == 0);
 		CHECK(screen_contains(console, "READY", true));
 		size_t consumed;
-		CHECK(st_cterm_write(st_term_session_cterm(session), "\x1b[5n", 4, &consumed) == 0 && consumed == 4);
+		CHECK(
+		    st_cterm_write(st_term_session_cterm(session), "\x1b[5n", 4, &consumed) == 0 && consumed == 4);
 		CHECK(st_term_session_send_text(session, "U", 1) == 0);
-		for (unsigned attempt = 0; attempt < 100 && !screen_contains(console, suppress ? "55" : "1b", false); ++attempt)
+		for (unsigned attempt = 0;
+		    attempt < 100 && !screen_contains(console, suppress ? "55" : "1b", false); ++attempt)
 			CHECK(st_term_session_pump(session, &disposition, &finished) == 0);
 		CHECK(screen_contains(console, suppress ? "55" : "1b", true));
 		st_term_session_destroy(&session);
@@ -204,14 +220,14 @@ static int
 test_shell_apc(void)
 {
 	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
-	const struct st_console_config geometry = {.columns = 40, .rows = 4, .cell_width = 8, .cell_height = 16};
-	st_console_t *console = NULL;
-	st_font_catalog_t *fonts = NULL;
-	st_connection_t *connection = NULL;
-	st_term_session_t *session = NULL;
-	struct st_profile profile;
-	enum st_term_disposition disposition;
-	bool finished = false;
+	const struct st_console_config geometry   = {.columns = 40, .rows = 4, .cell_width = 8, .cell_height = 16};
+	st_console_t                  *console    = NULL;
+	st_font_catalog_t             *fonts      = NULL;
+	st_connection_t               *connection = NULL;
+	st_term_session_t             *session    = NULL;
+	struct st_profile              profile;
+	enum st_term_disposition       disposition;
+	bool                           finished = false;
 
 	CHECK(st_console_create(&console, &display, &geometry) == 0);
 	CHECK(st_font_catalog_create(&fonts, console) == 0);
@@ -220,10 +236,15 @@ test_shell_apc(void)
 	strcpy(profile.address, "sh term-fixture.sh apc");
 	CHECK(st_term_connect_profile(&connection, &profile, console, NULL, NULL) == 0);
 	const struct st_term_config config = {
-		.console = console, .connection = connection, .fonts = fonts,
-		.screen_mode = ST_SCREEN_MODE_80X25, .encoding = ST_CTERM_ENCODING_UTF8,
-		.codepage = ST_CODEPAGE_CP437, .hide_status = true,
-		.apc_directory = ST_TERM_APC_TEST_DIRECTORY, .application_version = "X",
+	    .console             = console,
+	    .connection          = connection,
+	    .fonts               = fonts,
+	    .screen_mode         = ST_SCREEN_MODE_80X25,
+	    .encoding            = ST_CTERM_ENCODING_UTF8,
+	    .codepage            = ST_CODEPAGE_CP437,
+	    .hide_status         = true,
+	    .apc_directory       = ST_TERM_APC_TEST_DIRECTORY,
+	    .application_version = "X",
 	};
 	CHECK(st_term_session_create(&session, &config) == 0);
 	for (unsigned attempt = 0; attempt < 500 && !screen_contains(console, "READY", false); ++attempt)
@@ -233,7 +254,7 @@ test_shell_apc(void)
 	/* White-box completion setup: an observed running channel has just
 	 * stopped. No incoming data remains to trigger another parser write.
 	 * The suspended session must nevertheless poll and send its report. */
-	st_cterm_t *terminal = st_term_session_cterm(session);
+	st_cterm_t *terminal     = st_term_session_cterm(session);
 	terminal->apc->notify[2] = terminal->apc->was_running[2] = true;
 	st_term_session_set_suspended(session, true);
 	CHECK(st_term_session_pump(session, &disposition, &finished) == 0 && !finished);
@@ -250,56 +271,64 @@ test_shell_apc(void)
 	CHECK(st_term_session_pump(session, &disposition, &finished) == 0 && finished);
 	st_term_session_destroy(&session);
 	CHECK(st_connection_close(connection) == 0);
-	st_profile_dispose(&profile); st_font_catalog_destroy(fonts); st_console_destroy(console);
+	st_profile_dispose(&profile);
+	st_font_catalog_destroy(fonts);
+	st_console_destroy(console);
 	return 0;
 }
 
 static int
 test_prestel_keyboard_session(void)
 {
-	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
-	const struct st_console_config geometry = {
-		.columns = 40, .rows = 4, .cell_width = 8, .cell_height = 16,
+	const struct st_console_display_config display  = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_config         geometry = {
+	    .columns     = 40,
+	    .rows        = 4,
+	    .cell_width  = 8,
+	    .cell_height = 16,
 	};
-	st_console_t *console = NULL;
-	st_font_catalog_t *fonts = NULL;
-	st_connection_t *connection = NULL;
-	st_term_session_t *session = NULL;
-	struct st_profile profile;
+	st_console_t            *console    = NULL;
+	st_font_catalog_t       *fonts      = NULL;
+	st_connection_t         *connection = NULL;
+	st_term_session_t       *session    = NULL;
+	struct st_profile        profile;
 	enum st_term_disposition disposition;
-	bool finished = false;
+	bool                     finished = false;
 
 	CHECK(st_console_create(&console, &display, &geometry) == 0);
 	CHECK(st_font_catalog_create(&fonts, console) == 0);
 	st_profile_init(&profile);
 	profile.connection_type = ST_CONNECTION_SHELL;
-	profile.encoding = ST_CODEPAGE_PRESTEL;
+	profile.encoding        = ST_CODEPAGE_PRESTEL;
 	strcpy(profile.address, "sh term-fixture.sh prestel");
 	CHECK(st_term_connect_profile(&connection, &profile, console, NULL, NULL) == 0);
 	const struct st_term_config config = {
-		.console = console, .connection = connection, .fonts = fonts,
-		.screen_mode = ST_SCREEN_MODE_PRESTEL,
-		.encoding = ST_CTERM_ENCODING_CODEPAGE, .codepage = ST_CODEPAGE_PRESTEL,
-		.hide_status = true,
+	    .console     = console,
+	    .connection  = connection,
+	    .fonts       = fonts,
+	    .screen_mode = ST_SCREEN_MODE_PRESTEL,
+	    .encoding    = ST_CTERM_ENCODING_CODEPAGE,
+	    .codepage    = ST_CODEPAGE_PRESTEL,
+	    .hide_status = true,
 	};
 	CHECK(st_term_session_create(&session, &config) == 0);
 	const uint8_t concealed[] = {0x1b, 'X', 'A'};
-	size_t consumed;
-	CHECK(st_cterm_write(st_term_session_cterm(session), concealed,
-	    sizeof(concealed), &consumed) == 0 && consumed == sizeof(concealed));
+	size_t        consumed;
+	CHECK(st_cterm_write(st_term_session_cterm(session), concealed, sizeof(concealed), &consumed) == 0
+	      && consumed == sizeof(concealed));
 	for (unsigned attempt = 0; attempt < 500 && !screen_contains(console, "READY", false); ++attempt)
 		CHECK(st_term_session_pump(session, &disposition, &finished) == 0 && !finished);
 	CHECK(screen_contains(console, "READY", true));
 	const struct st_console_event events[] = {
-		{.type = ST_CONSOLE_EVENT_TEXT, .data.text.codepoint = '#'},
-		{.type = ST_CONSOLE_EVENT_TEXT, .data.text.codepoint = '_'},
-		{.type = ST_CONSOLE_EVENT_TEXT, .data.text.codepoint = '`'},
-		{.type = ST_CONSOLE_EVENT_KEY_CODE, .data.key.code = '\r'},
-		{.type = ST_CONSOLE_EVENT_KEY_CODE,
-		 .data.key = {.code = '\r', .modifiers = ST_CONSOLE_MODIFIER_CONTROL}},
-		{.type = ST_CONSOLE_EVENT_KEY_CODE,
-		 .data.key = {.code = ST_CONSOLE_KEY_F1, .modifiers = ST_CONSOLE_MODIFIER_SHIFT}},
-		{.type = ST_CONSOLE_EVENT_KEY_CODE, .data.key.code = ST_CONSOLE_KEY_F3},
+	    {.type = ST_CONSOLE_EVENT_TEXT,            .data.text.codepoint = '#'           },
+	    {.type = ST_CONSOLE_EVENT_TEXT,            .data.text.codepoint = '_'           },
+	    {.type = ST_CONSOLE_EVENT_TEXT,            .data.text.codepoint = '`'           },
+	    {.type = ST_CONSOLE_EVENT_KEY_CODE,        .data.key.code = '\r'                },
+	    {.type        = ST_CONSOLE_EVENT_KEY_CODE,
+	     .data.key = {.code = '\r', .modifiers = ST_CONSOLE_MODIFIER_CONTROL}           },
+	    {.type        = ST_CONSOLE_EVENT_KEY_CODE,
+	     .data.key = {.code = ST_CONSOLE_KEY_F1, .modifiers = ST_CONSOLE_MODIFIER_SHIFT}},
+	    {.type = ST_CONSOLE_EVENT_KEY_CODE,        .data.key.code = ST_CONSOLE_KEY_F3   },
 	};
 	for (size_t i = 0; i < sizeof(events) / sizeof(events[0]); ++i)
 		CHECK(st_console_post_event(console, &events[i]) == 0);
@@ -308,10 +337,10 @@ test_prestel_keyboard_session(void)
 	CHECK(finished && disposition == ST_TERM_RETURN_TO_PICKER);
 	CHECK(screen_contains(console, "5f60235f0d91", true));
 	const struct st_console_rect concealed_cell = {1, 0, 1, 1};
-	struct st_console_cell cell;
+	struct st_console_cell       cell;
 	CHECK(st_console_read_cells(console, &concealed_cell, &cell, 1) == 0);
 	CHECK((cell.flags & (ST_CONSOLE_CELL_CONCEAL | ST_CONSOLE_CELL_REVEAL))
-	    == (ST_CONSOLE_CELL_CONCEAL | ST_CONSOLE_CELL_REVEAL));
+	      == (ST_CONSOLE_CELL_CONCEAL | ST_CONSOLE_CELL_REVEAL));
 	st_term_session_destroy(&session);
 	CHECK(st_connection_close(connection) == 0);
 	st_profile_dispose(&profile);
@@ -321,16 +350,16 @@ test_prestel_keyboard_session(void)
 }
 
 static int
-test_wire_filter(void *context, uint8_t byte, bool *consumed,
-	uint8_t *replacement, size_t capacity, size_t *replacement_size)
+test_wire_filter(void *context, uint8_t byte, bool *consumed, uint8_t *replacement, size_t capacity,
+    size_t *replacement_size)
 {
 	(void)context;
-	*consumed = byte == 'A' || byte == '#' || byte == 'Z';
+	*consumed         = byte == 'A' || byte == '#' || byte == 'Z';
 	*replacement_size = 0;
 	if (byte == 'A') {
 		if (capacity < 1)
 			return IO_ERROR_OUT_OF_RANGE;
-		replacement[0] = 'C';
+		replacement[0]    = 'C';
 		*replacement_size = 1;
 	}
 	else if (byte == '#') {
@@ -346,7 +375,7 @@ test_wire_filter(void *context, uint8_t byte, bool *consumed,
 
 struct wire_capture {
 	uint8_t bytes[256];
-	size_t size;
+	size_t  size;
 };
 
 static int
@@ -360,58 +389,76 @@ capture_wire(void *context, const uint8_t *bytes, size_t size)
 }
 
 struct transfer_handoff {
-	st_transfer_t *worker;
+	st_transfer_t     *worker;
 	st_term_session_t *session;
-	st_connection_t *connection;
-	unsigned starts;
-	bool aborting;
+	st_connection_t   *connection;
+	unsigned           starts;
+	bool               aborting;
 };
-static ssize_t transfer_write(void *context, const void *data, size_t size, int64_t timeout)
+
+static ssize_t
+transfer_write(void *context, const void *data, size_t size, int64_t timeout)
 {
 	return st_connection_send(context, data, size, timeout);
 }
-static int claim_transfer(void *context, uint8_t byte, bool *consumed,
-	uint8_t *replacement, size_t capacity, size_t *size)
+
+static int
+claim_transfer(void *context, uint8_t byte, bool *consumed, uint8_t *replacement, size_t capacity, size_t *size)
 {
 	struct transfer_handoff *h = context;
-	(void)replacement; (void)capacity;
-	*consumed = byte == '~'; *size = 0;
-	if (byte != '~') return 0;
+	(void)replacement;
+	(void)capacity;
+	*consumed = byte == '~';
+	*size     = 0;
+	if (byte != '~')
+		return 0;
 	struct st_transfer_config config = {.protocol = ST_TRANSFER_ZMODEM,
-	    .directory = ".", .send = transfer_write, .send_context = h->connection};
+	    .directory                                = ".",
+	    .send                                     = transfer_write,
+	    .send_context                             = h->connection};
 	CHECK(st_transfer_create(&h->worker, &config) == 0);
 	CHECK(st_term_session_begin_transfer(h->session, h->worker) == 0);
 	st_term_session_set_suspended(h->session, true);
 	CHECK(st_transfer_launch(h->worker) == 0);
-	if (h->aborting) CHECK(st_transfer_request_abort(h->worker));
+	if (h->aborting)
+		CHECK(st_transfer_request_abort(h->worker));
 	++h->starts;
 	return 0;
 }
-static int test_transfer_handoff(bool aborting)
+
+static int
+test_transfer_handoff(bool aborting)
 {
-	static const char expected[] = "BEFORE~**\030B0800000000022d\r\nOOBETWEEN~**\030B0800000000022d\r\nOOAFTER";
+	static const char expected[] =
+	    "BEFORE~**\030B0800000000022d\r\nOOBETWEEN~**\030B0800000000022d\r\nOOAFTER";
 	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
 	const struct st_console_config geometry = {.columns = 40, .rows = 4, .cell_width = 8, .cell_height = 16};
-	st_console_t *console = NULL;
-	st_font_catalog_t *fonts = NULL;
-	struct st_profile profile;
-	struct transfer_handoff handoff = {.aborting = aborting};
-	struct wire_capture captured = {0};
+	st_console_t                  *console  = NULL;
+	st_font_catalog_t             *fonts    = NULL;
+	struct st_profile              profile;
+	struct transfer_handoff        handoff  = {.aborting = aborting};
+	struct wire_capture            captured = {0};
 	CHECK(st_console_create(&console, &display, &geometry) == 0);
 	CHECK(st_font_catalog_create(&fonts, console) == 0);
-	st_profile_init(&profile); profile.connection_type = ST_CONNECTION_SHELL;
+	st_profile_init(&profile);
+	profile.connection_type = ST_CONNECTION_SHELL;
 	strcpy(profile.address, "sh term-fixture.sh transfer");
 	CHECK(st_term_connect_profile(&handoff.connection, &profile, console, NULL, NULL) == 0);
 	CHECK(st_connection_set_binary_mode(handoff.connection, false) == 0);
-	const struct st_term_config config = {.console = console, .connection = handoff.connection,
-	    .fonts = fonts, .encoding = ST_CTERM_ENCODING_UTF8, .hide_status = true,
-	    .wire_filter = claim_transfer, .wire_filter_context = &handoff,
-	    .wire_capture = capture_wire, .capture_context = &captured};
+	const struct st_term_config config = {.console = console,
+	    .connection                                = handoff.connection,
+	    .fonts                                     = fonts,
+	    .encoding                                  = ST_CTERM_ENCODING_UTF8,
+	    .hide_status                               = true,
+	    .wire_filter                               = claim_transfer,
+	    .wire_filter_context                       = &handoff,
+	    .wire_capture                              = capture_wire,
+	    .capture_context                           = &captured};
 	CHECK(st_term_session_create(&handoff.session, &config) == 0);
 	/* This case tests handoff within one buffered read, including discard
 	 * of its suffix on cancellation. A shell printf can use several writes. */
-	struct st_deadline deadline;
-	int64_t remaining;
+	struct st_deadline    deadline;
+	int64_t               remaining;
 	const struct timespec delay = {.tv_nsec = 1000000L};
 	CHECK(st_deadline_start(&deadline, 5000) == 0);
 	while (st_connection_pending_raw(handoff.connection) < sizeof(expected) - 1) {
@@ -419,26 +466,29 @@ static int test_transfer_handoff(bool aborting)
 		CHECK(st_connection_is_connected(handoff.connection));
 		(void)st_thread_sleep(&delay, NULL);
 	}
-	enum st_term_disposition disposition; bool finished = false;
-	bool peer_released = false;
+	enum st_term_disposition disposition;
+	bool                     finished      = false;
+	bool                     peer_released = false;
 	CHECK(st_deadline_start(&deadline, 5000) == 0);
 	while (!finished) {
 		CHECK(st_deadline_remaining_ms(&deadline, &remaining) == 0);
-		if (remaining == 0) break;
+		if (remaining == 0)
+			break;
 		CHECK(st_term_session_pump(handoff.session, &disposition, &finished) == 0);
 		if (handoff.worker != NULL && st_transfer_done(handoff.worker)) {
 			CHECK(st_transfer_result(handoff.worker) == (aborting ? IO_ERROR_CANCELLED : 0));
 			CHECK(st_term_session_end_transfer(handoff.session) == 0);
 			if (!aborting) {
-				uint8_t peeked[128];
-				size_t available;
-				const char *suffix = handoff.starts == 1
-				    ? "BETWEEN~**\030B0800000000022d\r\nOOAFTER" : "AFTER";
+				uint8_t     peeked[128];
+				size_t      available;
+				const char *suffix =
+				    handoff.starts == 1 ? "BETWEEN~**\030B0800000000022d\r\nOOAFTER" : "AFTER";
 				CHECK(st_term_session_claim_wire(handoff.session, &handoff) == 0);
 				CHECK(st_term_session_wire_available(handoff.session, &handoff, &available) == 0);
 				CHECK(available == strlen(suffix));
-				CHECK(st_term_session_read_wire(handoff.session, &handoff,
-				    peeked, sizeof(peeked), false) == (ssize_t)available);
+				CHECK(st_term_session_read_wire(handoff.session, &handoff, peeked, sizeof(peeked),
+					  false)
+				      == (ssize_t)available);
 				CHECK(memcmp(peeked, suffix, available) == 0);
 				CHECK(st_term_session_release_wire(handoff.session, &handoff));
 			}
@@ -446,8 +496,7 @@ static int test_transfer_handoff(bool aborting)
 			st_transfer_destroy(&handoff.worker);
 			st_term_session_set_suspended(handoff.session, false);
 		}
-		if (!peer_released && handoff.worker == NULL
-		    && handoff.starts == (aborting ? 1U : 2U)) {
+		if (!peer_released && handoff.worker == NULL && handoff.starts == (aborting ? 1U : 2U)) {
 			CHECK(st_connection_send(handoff.connection, "!", 1, 1000) == 1);
 			peer_released = true;
 		}
@@ -461,52 +510,61 @@ static int test_transfer_handoff(bool aborting)
 	CHECK(captured.size == sizeof(expected) - 1 && memcmp(captured.bytes, expected, captured.size) == 0);
 	st_term_session_destroy(&handoff.session);
 	CHECK(st_connection_close(handoff.connection) == 0);
-	st_profile_dispose(&profile); st_font_catalog_destroy(fonts); st_console_destroy(console);
+	st_profile_dispose(&profile);
+	st_font_catalog_destroy(fonts);
+	st_console_destroy(console);
 	return 0;
 }
 
 static int
 test_wire_capture(enum st_cterm_encoding encoding, bool rip)
 {
-	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
-	const struct st_console_config geometry = {
-		.columns = 80, .rows = 25, .cell_width = 8, .cell_height = 16,
+	const struct st_console_display_config display  = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_config         geometry = {
+	    .columns     = 80,
+	    .rows        = 25,
+	    .cell_width  = 8,
+	    .cell_height = 16,
 	};
-	static const uint8_t expected[] = "A#XZ\033[32m\x80\xff\x00\xef\xbf\xbd\xc3";
-	struct wire_capture captured = {0};
-	struct st_profile profile;
-	st_console_t *console = NULL;
-	st_connection_t *connection = NULL;
-	st_font_catalog_t *fonts = NULL;
-	st_term_session_t *session = NULL;
+	static const uint8_t     expected[] = "A#XZ\033[32m\x80\xff\x00\xef\xbf\xbd\xc3";
+	struct wire_capture      captured   = {0};
+	struct st_profile        profile;
+	st_console_t            *console    = NULL;
+	st_connection_t         *connection = NULL;
+	st_font_catalog_t       *fonts      = NULL;
+	st_term_session_t       *session    = NULL;
 	enum st_term_disposition disposition;
-	bool finished = false;
+	bool                     finished = false;
 
 	CHECK(st_console_create(&console, &display, &geometry) == 0);
 	CHECK(st_font_catalog_create(&fonts, console) == 0);
 	st_profile_init(&profile);
 	profile.connection_type = ST_CONNECTION_SHELL;
-	profile.encoding = encoding == ST_CTERM_ENCODING_UTF8
-	    ? ST_PROFILE_ENCODING_UTF8 : ST_CODEPAGE_CP437;
+	profile.encoding = encoding == ST_CTERM_ENCODING_UTF8 ? ST_PROFILE_ENCODING_UTF8 : ST_CODEPAGE_CP437;
 	strcpy(profile.address, "sh term-fixture.sh capture");
 	CHECK(st_term_connect_profile(&connection, &profile, console, NULL, NULL) == 0);
 	const struct st_term_config config = {
-		.console = console, .connection = connection, .fonts = fonts,
-		.screen_mode = ST_SCREEN_MODE_80X25, .encoding = encoding,
-		.graphics_mode = rip ? ST_CTERM_GRAPHICS_RIP_1 : ST_CTERM_GRAPHICS_OFF,
-		.codepage = ST_CODEPAGE_CP437, .hide_status = true,
-		/* Replacements and drops must never change the captured wire. */
-		.wire_filter = rip ? test_wire_filter : NULL,
-		.wire_capture = capture_wire, .capture_context = &captured,
-		/* Exercise both bulk input and byte-at-a-time presentation. */
-		.throttle_supported = rip,
+	    .console       = console,
+	    .connection    = connection,
+	    .fonts         = fonts,
+	    .screen_mode   = ST_SCREEN_MODE_80X25,
+	    .encoding      = encoding,
+	    .graphics_mode = rip ? ST_CTERM_GRAPHICS_RIP_1 : ST_CTERM_GRAPHICS_OFF,
+	    .codepage      = ST_CODEPAGE_CP437,
+	    .hide_status   = true,
+	    /* Replacements and drops must never change the captured wire. */
+	    .wire_filter     = rip ? test_wire_filter : NULL,
+	    .wire_capture    = capture_wire,
+	    .capture_context = &captured,
+	    /* Exercise both bulk input and byte-at-a-time presentation. */
+	    .throttle_supported = rip,
 	};
 	CHECK(st_term_session_create(&session, &config) == 0);
 	for (size_t attempt = 0; attempt < 100 && !finished; ++attempt)
 		CHECK(st_term_session_pump(session, &disposition, &finished) == 0);
 	CHECK(finished);
-	CHECK(captured.size == sizeof(expected) - 1
-	    && memcmp(captured.bytes, expected, sizeof(expected) - 1) == 0);
+	CHECK(
+	    captured.size == sizeof(expected) - 1 && memcmp(captured.bytes, expected, sizeof(expected) - 1) == 0);
 	st_term_session_destroy(&session);
 	CHECK(st_connection_close(connection) == 0);
 	st_profile_dispose(&profile);
@@ -519,61 +577,67 @@ static int
 test_shell_wire_filter(void)
 {
 	const struct st_console_display_config display = {
-		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	    .backend = ST_CONSOLE_BACKEND_HEADLESS,
 	};
 	const struct st_console_config console_config = {
-		.columns = 80, .rows = 25, .cell_width = 8, .cell_height = 16,
+	    .columns     = 80,
+	    .rows        = 25,
+	    .cell_width  = 8,
+	    .cell_height = 16,
 	};
-	struct wire_capture captured = {0};
-	struct st_profile profile;
-	st_console_t *console = NULL;
-	st_connection_t *connection = NULL;
-	st_font_catalog_t *fonts = NULL;
-	st_term_session_t *session = NULL;
-	struct st_console_rect row = {0, 0, 3, 1};
-	struct st_console_cell cells[3];
+	struct wire_capture      captured = {0};
+	struct st_profile        profile;
+	st_console_t            *console    = NULL;
+	st_connection_t         *connection = NULL;
+	st_font_catalog_t       *fonts      = NULL;
+	st_term_session_t       *session    = NULL;
+	struct st_console_rect   row        = {0, 0, 3, 1};
+	struct st_console_cell   cells[3];
 	enum st_term_disposition disposition;
-	bool finished;
-	bool found = false;
-	char text[8];
-	size_t required;
+	bool                     finished;
+	bool                     found = false;
+	char                     text[8];
+	size_t                   required;
 
 	CHECK(st_console_create(&console, &display, &console_config) == 0);
 	CHECK(st_font_catalog_create(&fonts, console) == 0);
 	st_profile_init(&profile);
 	profile.connection_type = ST_CONNECTION_SHELL;
-	profile.screen_mode = ST_SCREEN_MODE_80X25;
+	profile.screen_mode     = ST_SCREEN_MODE_80X25;
 	strcpy(profile.address, "printf 'A#XZ'; sleep 1");
-	CHECK(st_term_connect_profile(&connection, &profile, console, NULL,
-	    NULL) == 0);
+	CHECK(st_term_connect_profile(&connection, &profile, console, NULL, NULL) == 0);
 	const struct st_term_config config = {
-		.console = console,
-		.connection = connection,
-		.fonts = fonts,
-		.screen_mode = ST_SCREEN_MODE_80X25,
-		.encoding = ST_CTERM_ENCODING_UTF8,
-		.codepage = ST_CODEPAGE_CP437,
-		.font_selector = 0,
-		.hide_status = true,
-		.wire_filter = test_wire_filter,
-		.wire_capture = capture_wire, .capture_context = &captured,
+	    .console         = console,
+	    .connection      = connection,
+	    .fonts           = fonts,
+	    .screen_mode     = ST_SCREEN_MODE_80X25,
+	    .encoding        = ST_CTERM_ENCODING_UTF8,
+	    .codepage        = ST_CODEPAGE_CP437,
+	    .font_selector   = 0,
+	    .hide_status     = true,
+	    .wire_filter     = test_wire_filter,
+	    .wire_capture    = capture_wire,
+	    .capture_context = &captured,
 	};
 	CHECK(st_term_session_create(&session, &config) == 0);
 	for (size_t attempt = 0; attempt < 100 && !found; ++attempt) {
 		CHECK(st_term_session_pump(session, &disposition, &finished) == 0);
 		CHECK(st_console_read_cells(console, &row, cells, 3) == 0);
-		found = st_console_font_glyph_text(console, cells[0].glyph_font,
-		    cells[0].glyph, text, sizeof(text), &required) == 0
-		    && required == 1 && text[0] == 'C'
-		    && st_console_font_glyph_text(console, cells[1].glyph_font,
-		    cells[1].glyph, text, sizeof(text), &required) == 0
-		    && required == 1 && text[0] == 'X';
+		found = st_console_font_glyph_text(console, cells[0].glyph_font, cells[0].glyph, text,
+			    sizeof(text), &required)
+		            == 0
+		        && required == 1 && text[0] == 'C'
+		        && st_console_font_glyph_text(console, cells[1].glyph_font, cells[1].glyph, text,
+			       sizeof(text), &required)
+		               == 0
+		        && required == 1 && text[0] == 'X';
 	}
 	CHECK(found);
 	CHECK(captured.size == 4 && memcmp(captured.bytes, "A#XZ", 4) == 0);
 	CHECK(cells[1].foreground == 17);
-	CHECK(st_console_font_glyph_text(console, cells[2].glyph_font,
-	    cells[2].glyph, text, sizeof(text), &required) == 0);
+	CHECK(
+	    st_console_font_glyph_text(console, cells[2].glyph_font, cells[2].glyph, text, sizeof(text), &required)
+	    == 0);
 	CHECK(required == 1 && text[0] == ' ');
 	st_term_session_destroy(&session);
 	CHECK(st_connection_close(connection) == 0);
@@ -585,17 +649,15 @@ test_shell_wire_filter(void)
 
 struct speed_response {
 	uint8_t bytes[64];
-	size_t size;
+	size_t  size;
 };
 
 static void
-capture_speed_response(void *context, enum st_cterm_output_origin origin,
-	const uint8_t *bytes, size_t size)
+capture_speed_response(void *context, enum st_cterm_output_origin origin, const uint8_t *bytes, size_t size)
 {
 	struct speed_response *response = context;
 
-	if (origin == ST_CTERM_OUTPUT_RESPONSE
-	    && size <= sizeof(response->bytes) - response->size) {
+	if (origin == ST_CTERM_OUTPUT_RESPONSE && size <= sizeof(response->bytes) - response->size) {
 		memcpy(response->bytes + response->size, bytes, size);
 		response->size += size;
 	}
@@ -604,23 +666,22 @@ capture_speed_response(void *context, enum st_cterm_output_origin origin,
 static int
 check_speed_reply(st_cterm_t *terminal, unsigned code)
 {
-	static const char query[] = "\x1bP$q*r\x1b\\";
-	struct speed_response response = {0};
-	st_cterm_output_callback_t saved_output = terminal->api_output;
-	void *saved_context = terminal->api_output_context;
-	char expected[32];
-	size_t consumed;
-	int length = snprintf(expected, sizeof(expected),
-	    "\x1bP1$r;%u*r\x1b\\", code);
+	static const char          query[]       = "\x1bP$q*r\x1b\\";
+	struct speed_response      response      = {0};
+	st_cterm_output_callback_t saved_output  = terminal->api_output;
+	void                      *saved_context = terminal->api_output_context;
+	char                       expected[32];
+	size_t                     consumed;
+	int                        length = snprintf(expected, sizeof(expected), "\x1bP1$r;%u*r\x1b\\", code);
 
 	CHECK(length > 0 && (size_t)length < sizeof(expected));
-	terminal->api_output = capture_speed_response;
+	terminal->api_output         = capture_speed_response;
 	terminal->api_output_context = &response;
 	for (size_t i = 0; i < sizeof(query) - 1; ++i) {
 		CHECK(st_cterm_write(terminal, query + i, 1, &consumed) == 0);
 		CHECK(consumed == 1);
 	}
-	terminal->api_output = saved_output;
+	terminal->api_output         = saved_output;
 	terminal->api_output_context = saved_context;
 	CHECK(response.size == (size_t)length);
 	CHECK(memcmp(response.bytes, expected, response.size) == 0);
@@ -630,42 +691,48 @@ check_speed_reply(st_cterm_t *terminal, unsigned code)
 static int
 test_remote_speed_transition(enum st_cterm_encoding encoding, bool close_early)
 {
-	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
-	const struct st_console_config geometry = {
-		.columns = 80, .rows = 25, .cell_width = 8, .cell_height = 16,
+	const struct st_console_display_config display  = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_config         geometry = {
+	    .columns     = 80,
+	    .rows        = 25,
+	    .cell_width  = 8,
+	    .cell_height = 16,
 	};
-	st_console_t *console = NULL;
-	st_connection_t *connection = NULL;
-	st_font_catalog_t *fonts = NULL;
-	st_term_session_t *session = NULL;
-	struct st_profile profile;
+	st_console_t         *console    = NULL;
+	st_connection_t      *connection = NULL;
+	st_font_catalog_t    *fonts      = NULL;
+	st_term_session_t    *session    = NULL;
+	struct st_profile     profile;
 	struct speed_response response = {0};
 	CHECK(st_console_create(&console, &display, &geometry) == 0);
 	CHECK(st_font_catalog_create(&fonts, console) == 0);
 	st_profile_init(&profile);
 	profile.connection_type = ST_CONNECTION_SHELL;
-	profile.screen_mode = ST_SCREEN_MODE_80X25;
+	profile.screen_mode     = ST_SCREEN_MODE_80X25;
 	/* One write contains both speed changes and termtest's thirty NULs. */
 	int command_size = snprintf(profile.address, sizeof(profile.address),
-	    "printf '\\33[;1*r%%030d\\33[*r\\33[6n'|tr 0 '\\0'%s",
-	    close_early ? "" : "; sleep 3");
+	    "printf '\\33[;1*r%%030d\\33[*r\\33[6n'|tr 0 '\\0'%s", close_early ? "" : "; sleep 3");
 	CHECK(command_size > 0 && (size_t)command_size < sizeof(profile.address));
 	CHECK(st_term_connect_profile(&connection, &profile, console, NULL, NULL) == 0);
 	const struct st_term_config config = {
-		.console = console, .connection = connection, .fonts = fonts,
-		.screen_mode = ST_SCREEN_MODE_80X25, .encoding = encoding,
-		.codepage = ST_CODEPAGE_CP437, .hide_status = true,
-		.throttle_supported = true,
+	    .console            = console,
+	    .connection         = connection,
+	    .fonts              = fonts,
+	    .screen_mode        = ST_SCREEN_MODE_80X25,
+	    .encoding           = encoding,
+	    .codepage           = ST_CODEPAGE_CP437,
+	    .hide_status        = true,
+	    .throttle_supported = true,
 	};
 	CHECK(st_term_session_create(&session, &config) == 0);
-	st_cterm_t *terminal = st_term_session_cterm(session);
-	terminal->api_output = capture_speed_response;
+	st_cterm_t *terminal         = st_term_session_cterm(session);
+	terminal->api_output         = capture_speed_response;
 	terminal->api_output_context = &response;
 	uint64_t start, now;
 	CHECK(st_time_monotonic_ms(&start) == 0);
 	do {
 		enum st_term_disposition disposition;
-		bool finished;
+		bool                     finished;
 		CHECK(st_term_session_pump(session, &disposition, &finished) == 0);
 		CHECK(!finished || (close_early && response.size != 0));
 		CHECK(st_time_monotonic_ms(&now) == 0);
@@ -684,7 +751,8 @@ static int
 count_test_key(void *context, const struct st_console_event *event, bool *consumed)
 {
 	*consumed = event->type == ST_CONSOLE_EVENT_KEY_CODE && event->data.key.code == 'K';
-	if (*consumed) ++*(unsigned *)context;
+	if (*consumed)
+		++*(unsigned *)context;
 	return 0;
 }
 
@@ -692,42 +760,47 @@ static int
 test_shell_throttle(enum st_cterm_encoding encoding)
 {
 	const struct st_console_display_config display = {
-		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	    .backend = ST_CONSOLE_BACKEND_HEADLESS,
 	};
 	const struct st_console_config console_config = {
-		.columns = 80, .rows = 25, .cell_width = 8, .cell_height = 16,
+	    .columns     = 80,
+	    .rows        = 25,
+	    .cell_width  = 8,
+	    .cell_height = 16,
 	};
-	struct st_profile profile;
-	st_console_t *console = NULL;
-	st_connection_t *connection = NULL;
-	st_font_catalog_t *fonts = NULL;
-	st_term_session_t *session = NULL;
-	struct st_console_rect row = {0, 0, 4, 1};
-	struct st_console_cell cells[4];
+	struct st_profile        profile;
+	st_console_t            *console    = NULL;
+	st_connection_t         *connection = NULL;
+	st_font_catalog_t       *fonts      = NULL;
+	st_term_session_t       *session    = NULL;
+	struct st_console_rect   row        = {0, 0, 4, 1};
+	struct st_console_cell   cells[4];
 	enum st_term_disposition disposition;
-	bool finished;
-	bool first = false;
-	bool complete = false;
+	bool                     finished;
+	bool                     first    = false;
+	bool                     complete = false;
 
 	CHECK(st_console_create(&console, &display, &console_config) == 0);
 	CHECK(st_font_catalog_create(&fonts, console) == 0);
 	st_profile_init(&profile);
 	profile.connection_type = ST_CONNECTION_SHELL;
-	profile.screen_mode = ST_SCREEN_MODE_80X25;
-	profile.bps_rate = 300;
+	profile.screen_mode     = ST_SCREEN_MODE_80X25;
+	profile.bps_rate        = 300;
 	strcpy(profile.address, "sleep 1; printf ABCD; read line");
-	CHECK(st_term_connect_profile(&connection, &profile, console, NULL,
-	    NULL) == 0);
-	unsigned keys = 0;
+	CHECK(st_term_connect_profile(&connection, &profile, console, NULL, NULL) == 0);
+	unsigned              keys   = 0;
 	struct st_term_config config = {
-		.event_hook = count_test_key, .event_hook_context = &keys,
-		.console = console, .connection = connection, .fonts = fonts,
-		.screen_mode = ST_SCREEN_MODE_80X25,
-		.encoding = encoding,
-		.codepage = ST_CODEPAGE_CP437,
-		.hide_status = true,
-		.throttle_supported = true,
-		.initial_throttle_bps = profile.bps_rate,
+	    .event_hook           = count_test_key,
+	    .event_hook_context   = &keys,
+	    .console              = console,
+	    .connection           = connection,
+	    .fonts                = fonts,
+	    .screen_mode          = ST_SCREEN_MODE_80X25,
+	    .encoding             = encoding,
+	    .codepage             = ST_CODEPAGE_CP437,
+	    .hide_status          = true,
+	    .throttle_supported   = true,
+	    .initial_throttle_bps = profile.bps_rate,
 	};
 	CHECK(st_term_session_create(&session, &config) == 0);
 	CHECK(st_term_session_throttle_speed(session) == 300);
@@ -743,7 +816,8 @@ test_shell_throttle(enum st_cterm_encoding encoding)
 		CHECK(st_term_session_service(session, &disposition, &finished) == 0 && !finished);
 		CHECK(st_console_read_cells(console, &row, cells, 4) == 0);
 		first = cells[0].glyph == 'A';
-		if (!first) CHECK(st_term_session_wait(session, 1000) == 0);
+		if (!first)
+			CHECK(st_term_session_wait(session, 1000) == 0);
 		CHECK(st_time_monotonic_ms(&now) == 0);
 	} while (!first && now - start < 3000);
 	CHECK(first && cells[1].glyph != 'B');
@@ -753,8 +827,8 @@ test_shell_throttle(enum st_cterm_encoding encoding)
 	for (size_t attempt = 0; attempt < 100 && !complete; ++attempt) {
 		CHECK(st_term_session_pump(session, &disposition, &finished) == 0);
 		CHECK(st_console_read_cells(console, &row, cells, 4) == 0);
-		complete = cells[0].glyph == 'A' && cells[1].glyph == 'B'
-		    && cells[2].glyph == 'C' && cells[3].glyph == 'D';
+		complete = cells[0].glyph == 'A' && cells[1].glyph == 'B' && cells[2].glyph == 'C'
+		           && cells[3].glyph == 'D';
 	}
 	CHECK(complete);
 	/* The peer is silent. Each posted event must be dispatched without
@@ -774,8 +848,18 @@ test_shell_throttle(enum st_cterm_encoding encoding)
 	CHECK(end_ns - start_ns < UINT64_C(180000000));
 
 	static const uint32_t speeds[] = {
-		0, 300, 600, 1200, 2400, 4800, 9600, 19200, 38400,
-		57600, 76800, 115200,
+	    0,
+	    300,
+	    600,
+	    1200,
+	    2400,
+	    4800,
+	    9600,
+	    19200,
+	    38400,
+	    57600,
+	    76800,
+	    115200,
 	};
 	for (size_t code = 0; code < sizeof(speeds) / sizeof(speeds[0]); ++code) {
 		st_term_session_set_throttle_speed(session, speeds[code]);
@@ -783,24 +867,24 @@ test_shell_throttle(enum st_cterm_encoding encoding)
 	}
 	st_term_session_set_throttle_speed(session, UINT32_MAX);
 	CHECK(check_speed_reply(terminal, 0) == 0);
-	size_t consumed;
+	size_t            consumed;
 	static const char set_speed[] = "\x1b[;2*r";
-	CHECK(st_cterm_write(terminal, set_speed, sizeof(set_speed) - 1,
-	    &consumed) == 0 && consumed == sizeof(set_speed) - 1);
+	CHECK(st_cterm_write(terminal, set_speed, sizeof(set_speed) - 1, &consumed) == 0
+	      && consumed == sizeof(set_speed) - 1);
 	CHECK(st_term_session_throttle_speed(session) == 600);
 	CHECK(check_speed_reply(terminal, 2) == 0);
 	static const char invalid[] = "\x1b[2;1*r\x1b[;12*r";
-	CHECK(st_cterm_write(terminal, invalid, sizeof(invalid) - 1,
-	    &consumed) == 0 && consumed == sizeof(invalid) - 1);
+	CHECK(st_cterm_write(terminal, invalid, sizeof(invalid) - 1, &consumed) == 0
+	      && consumed == sizeof(invalid) - 1);
 	CHECK(st_term_session_throttle_speed(session) == 600);
 	CHECK(check_speed_reply(terminal, 2) == 0);
 	static const char status_display[] = "\x1b[2$~\x1b[1$}";
-	CHECK(st_cterm_write(terminal, status_display, sizeof(status_display) - 1,
-	    &consumed) == 0 && consumed == sizeof(status_display) - 1);
+	CHECK(st_cterm_write(terminal, status_display, sizeof(status_display) - 1, &consumed) == 0
+	      && consumed == sizeof(status_display) - 1);
 	CHECK(check_speed_reply(terminal, 2) == 0);
 	static const char status_speed[] = "\x1b[;3*r\x1b[0$}";
-	CHECK(st_cterm_write(terminal, status_speed, sizeof(status_speed) - 1,
-	    &consumed) == 0 && consumed == sizeof(status_speed) - 1);
+	CHECK(st_cterm_write(terminal, status_speed, sizeof(status_speed) - 1, &consumed) == 0
+	      && consumed == sizeof(status_speed) - 1);
 	CHECK(st_term_session_throttle_speed(session) == 1200);
 	CHECK(check_speed_reply(terminal, 3) == 0);
 	st_term_session_destroy(&session);
@@ -810,8 +894,8 @@ test_shell_throttle(enum st_cterm_encoding encoding)
 	CHECK(st_term_session_create(&session, &config) == 0);
 	terminal = st_term_session_cterm(session);
 	CHECK(check_speed_reply(terminal, 0) == 0);
-	CHECK(st_cterm_write(terminal, set_speed, sizeof(set_speed) - 1,
-	    &consumed) == 0 && consumed == sizeof(set_speed) - 1);
+	CHECK(st_cterm_write(terminal, set_speed, sizeof(set_speed) - 1, &consumed) == 0
+	      && consumed == sizeof(set_speed) - 1);
 	CHECK(st_term_session_throttle_speed(session) == 0);
 	CHECK(check_speed_reply(terminal, 0) == 0);
 	st_term_session_destroy(&session);
@@ -824,23 +908,24 @@ test_shell_throttle(enum st_cterm_encoding encoding)
 
 struct utf8_resize {
 	st_console_t *console;
-	bool posted;
+	bool          posted;
 };
 
 static int
-resize_between_utf8_bytes(void *context, uint8_t byte, bool *consumed,
-	uint8_t *replacement, size_t capacity, size_t *replacement_size)
+resize_between_utf8_bytes(void *context, uint8_t byte, bool *consumed, uint8_t *replacement, size_t capacity,
+    size_t *replacement_size)
 {
 	struct utf8_resize *resize = context;
-	(void)replacement; (void)capacity;
-	*consumed = false;
+	(void)replacement;
+	(void)capacity;
+	*consumed         = false;
 	*replacement_size = 0;
 	if (byte == 0xc3 && !resize->posted) {
 		const struct st_console_event event = {
-			.type = ST_CONSOLE_EVENT_RESIZE,
-			.data.resize = {.columns = 90, .rows = 30},
+		    .type        = ST_CONSOLE_EVENT_RESIZE,
+		    .data.resize = {.columns = 90, .rows = 30},
 		};
-		int status = st_console_post_event(resize->console, &event);
+		int status     = st_console_post_event(resize->console, &event);
 		resize->posted = status == 0;
 		return status;
 	}
@@ -851,50 +936,52 @@ static int
 test_shell_utf8_boundary(void)
 {
 	const struct st_console_display_config display = {
-		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	    .backend = ST_CONSOLE_BACKEND_HEADLESS,
 	};
 	const struct st_console_config console_config = {
-		.columns = 80, .rows = 25, .cell_width = 8, .cell_height = 16,
+	    .columns     = 80,
+	    .rows        = 25,
+	    .cell_width  = 8,
+	    .cell_height = 16,
 	};
-	struct st_profile profile;
-	st_console_t *console = NULL;
-	st_connection_t *connection = NULL;
-	st_font_catalog_t *fonts = NULL;
-	st_term_session_t *session = NULL;
-	struct st_console_rect one = {6, 0, 1, 1};
-	struct st_console_cell cell;
+	struct st_profile        profile;
+	st_console_t            *console    = NULL;
+	st_connection_t         *connection = NULL;
+	st_font_catalog_t       *fonts      = NULL;
+	st_term_session_t       *session    = NULL;
+	struct st_console_rect   one        = {6, 0, 1, 1};
+	struct st_console_cell   cell;
 	enum st_term_disposition disposition;
-	bool finished;
-	uint32_t columns;
-	uint32_t rows;
-	char text[8];
-	size_t required;
-	bool found = false;
-	int status;
+	bool                     finished;
+	uint32_t                 columns;
+	uint32_t                 rows;
+	char                     text[8];
+	size_t                   required;
+	bool                     found = false;
+	int                      status;
 
 	CHECK(st_console_create(&console, &display, &console_config) == 0);
 	CHECK(st_font_catalog_create(&fonts, console) == 0);
 	st_profile_init(&profile);
 	profile.connection_type = ST_CONNECTION_SHELL;
-	profile.screen_mode = ST_SCREEN_MODE_80X25;
-	profile.encoding = ST_PROFILE_ENCODING_UTF8;
+	profile.screen_mode     = ST_SCREEN_MODE_80X25;
+	profile.encoding        = ST_PROFILE_ENCODING_UTF8;
 	strcpy(profile.address, "sh term-fixture.sh utf8");
-	CHECK(st_term_connect_profile(&connection, &profile, console, NULL, NULL)
-	    == 0);
-	struct utf8_resize resize = {.console = console};
+	CHECK(st_term_connect_profile(&connection, &profile, console, NULL, NULL) == 0);
+	struct utf8_resize          resize = {.console = console};
 	const struct st_term_config config = {
-		.console = console,
-		.connection = connection,
-		.fonts = fonts,
-		.screen_mode = ST_SCREEN_MODE_80X25,
-		.encoding = st_term_profile_encoding(&profile),
-		.codepage = ST_CODEPAGE_CP437,
-		.font_selector = 0,
-		.hide_status = true,
-		/* Queue resize after the first byte is received, so this pump
+	    .console       = console,
+	    .connection    = connection,
+	    .fonts         = fonts,
+	    .screen_mode   = ST_SCREEN_MODE_80X25,
+	    .encoding      = st_term_profile_encoding(&profile),
+	    .codepage      = ST_CODEPAGE_CP437,
+	    .font_selector = 0,
+	    .hide_status   = true,
+	    /* Queue resize after the first byte is received, so this pump
 		 * handles it while the decoder is waiting for the continuation. */
-		.wire_filter = resize_between_utf8_bytes,
-		.wire_filter_context = &resize,
+	    .wire_filter         = resize_between_utf8_bytes,
+	    .wire_filter_context = &resize,
 	};
 	CHECK(st_term_session_create(&session, &config) == 0);
 	uint64_t start, now;
@@ -903,8 +990,8 @@ test_shell_utf8_boundary(void)
 		status = st_term_session_pump(session, &disposition, &finished);
 		CHECK(status == 0);
 		CHECK(st_console_read_cells(console, &one, &cell, 1) == 0);
-		if (st_console_font_glyph_text(console, cell.glyph_font, cell.glyph,
-		    text, sizeof(text), &required) == 0
+		if (st_console_font_glyph_text(console, cell.glyph_font, cell.glyph, text, sizeof(text), &required)
+		        == 0
 		    && required == 2 && memcmp(text, "\xc3\xa9", 2) == 0)
 			found = true;
 		CHECK(st_time_monotonic_ms(&now) == 0);
@@ -918,24 +1005,21 @@ test_shell_utf8_boundary(void)
 	CHECK(encoded.utf8 && encoded.size == 6);
 	CHECK(memcmp(encoded.bytes, "\xc3\xa9\r\n\0Z", 6) == 0);
 	free(encoded.bytes);
-	encoded = (struct st_term_encoded_text){.size = 99};
-	CHECK(st_term_session_encode_text(session, "\xc3", 1, &encoded)
-	    == IO_ERROR_INVALID_ENCODING);
+	encoded = (struct st_term_encoded_text) {.size = 99};
+	CHECK(st_term_session_encode_text(session, "\xc3", 1, &encoded) == IO_ERROR_INVALID_ENCODING);
 	CHECK(encoded.bytes == NULL && encoded.size == 99);
-	CHECK(st_term_session_encode_text(session, "A\xff", 2, &encoded)
-	    == IO_ERROR_INVALID_ENCODING);
+	CHECK(st_term_session_encode_text(session, "A\xff", 2, &encoded) == IO_ERROR_INVALID_ENCODING);
 	CHECK(encoded.bytes == NULL && encoded.size == 99);
-	st_term_session_t *legacy = NULL;
+	st_term_session_t    *legacy        = NULL;
 	struct st_term_config legacy_config = config;
-	legacy_config.encoding = ST_CTERM_ENCODING_CODEPAGE;
+	legacy_config.encoding              = ST_CTERM_ENCODING_CODEPAGE;
 	CHECK(st_term_session_create(&legacy, &legacy_config) == 0);
 	CHECK(st_term_session_encode_text(legacy, "e\xcc\x81\r\n\0Z", 7, &encoded) == 0);
 	CHECK(!encoded.utf8 && encoded.size == 5);
 	CHECK(memcmp(encoded.bytes, "\x82\r\n\0Z", 5) == 0);
 	free(encoded.bytes);
-	encoded = (struct st_term_encoded_text){.size = 99};
-	CHECK(st_term_session_encode_text(legacy, "A\xe4\xb8\xad", 4, &encoded)
-	    == IO_ERROR_INVALID_ENCODING);
+	encoded = (struct st_term_encoded_text) {.size = 99};
+	CHECK(st_term_session_encode_text(legacy, "A\xe4\xb8\xad", 4, &encoded) == IO_ERROR_INVALID_ENCODING);
 	CHECK(encoded.bytes == NULL && encoded.size == 99);
 	st_term_session_destroy(&legacy);
 	st_term_session_request_end(session, false);
@@ -953,16 +1037,19 @@ test_shell_utf8_boundary(void)
 static int
 test_remote_disconnect(bool hide_status)
 {
-	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
-	const struct st_console_config geometry = {
-		.columns = 40, .rows = 4, .cell_width = 8, .cell_height = 16,
+	const struct st_console_display_config display  = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_config         geometry = {
+	    .columns     = 40,
+	    .rows        = 4,
+	    .cell_width  = 8,
+	    .cell_height = 16,
 	};
-	struct st_profile profile;
-	st_console_t *console = NULL;
-	st_connection_t *connection = NULL;
-	st_font_catalog_t *fonts = NULL;
-	st_term_session_t *session = NULL;
-	st_session_history_t *history = NULL;
+	struct st_profile     profile;
+	st_console_t         *console    = NULL;
+	st_connection_t      *connection = NULL;
+	st_font_catalog_t    *fonts      = NULL;
+	st_term_session_t    *session    = NULL;
+	st_session_history_t *history    = NULL;
 	CHECK(st_console_create(&console, &display, &geometry) == 0);
 	CHECK(st_font_catalog_create(&fonts, console) == 0);
 	CHECK(st_session_history_create(&history, 20) == 0);
@@ -971,13 +1058,18 @@ test_remote_disconnect(bool hide_status)
 	strcpy(profile.address, "printf 'completed session'");
 	CHECK(st_term_connect_profile(&connection, &profile, console, NULL, NULL) == 0);
 	const struct st_term_config config = {
-		.console = console, .connection = connection, .fonts = fonts, .history = history,
-		.screen_mode = ST_SCREEN_MODE_80X25, .encoding = ST_CTERM_ENCODING_UTF8,
-		.codepage = ST_CODEPAGE_CP437, .hide_status = hide_status,
+	    .console     = console,
+	    .connection  = connection,
+	    .fonts       = fonts,
+	    .history     = history,
+	    .screen_mode = ST_SCREEN_MODE_80X25,
+	    .encoding    = ST_CTERM_ENCODING_UTF8,
+	    .codepage    = ST_CODEPAGE_CP437,
+	    .hide_status = hide_status,
 	};
 	CHECK(st_term_session_create(&session, &config) == 0);
 	enum st_term_disposition disposition;
-	bool finished = false;
+	bool                     finished = false;
 	for (unsigned attempt = 0; attempt < 500 && !finished; ++attempt)
 		CHECK(st_term_session_pump(session, &disposition, &finished) == 0);
 	CHECK(finished && disposition == ST_TERM_RETURN_TO_PICKER);
@@ -993,34 +1085,33 @@ test_remote_disconnect(bool hide_status)
 	st_term_session_set_auxiliary_active(session, false);
 	CHECK(st_term_session_pump(session, &disposition, &finished) == 0 && finished);
 	struct st_console_cell *before = NULL, *after = NULL;
-	uint32_t before_columns;
-	size_t before_rows;
-	CHECK(st_cterm_copy_history(st_term_session_cterm(session), &before,
-	    &before_columns, &before_rows) == 0);
+	uint32_t                before_columns;
+	size_t                  before_rows;
+	CHECK(st_cterm_copy_history(st_term_session_cterm(session), &before, &before_columns, &before_rows) == 0);
 	CHECK(st_connection_close(connection) == 0);
 	/* Preparation and history publication must not touch the freed connection. */
 	CHECK(st_term_session_prepare_disconnect(session) == 0);
-	uint32_t columns;
-	size_t rows;
+	uint32_t            columns;
+	size_t              rows;
 	enum st_screen_mode mode;
-	bool has_status;
+	bool                has_status;
 	CHECK(st_session_history_copy(history, &after, &columns, &rows, &mode, &has_status) == 0);
 	CHECK(columns == before_columns && rows == before_rows && has_status == !hide_status);
 	CHECK(memcmp(before, after, before_rows * columns * sizeof(*before)) == 0);
 	/* The notice and its viewer may draw on the console, but must not enter
 	 * the completed session's history when the terminal is finally destroyed. */
-	struct st_console_cell blank = {.glyph = 'X'};
+	struct st_console_cell       blank  = {.glyph = 'X'};
 	const struct st_console_rect notice = {0, 3, 40, 1};
 	CHECK(st_console_fill(console, &notice, &blank) == 0);
 	st_term_session_destroy(&session);
 	struct st_console_cell *retained = NULL;
-	size_t retained_rows;
-	CHECK(st_session_history_copy(history, &retained, &columns, &retained_rows,
-	    &mode, &has_status) == 0);
+	size_t                  retained_rows;
+	CHECK(st_session_history_copy(history, &retained, &columns, &retained_rows, &mode, &has_status) == 0);
 	CHECK(retained_rows == rows && columns == before_columns);
 	CHECK(memcmp(after, retained, rows * columns * sizeof(*after)) == 0);
 	free(retained);
-	free(before); free(after);
+	free(before);
+	free(after);
 	st_session_history_destroy(history);
 	st_profile_dispose(&profile);
 	st_font_catalog_destroy(fonts);
@@ -1032,67 +1123,67 @@ static int
 test_shell_rip_cp437_boundary(void)
 {
 	const struct st_console_display_config display = {
-		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	    .backend = ST_CONSOLE_BACKEND_HEADLESS,
 	};
 	const struct st_console_config screen = {
-		.columns = 80, .rows = 43,
-		.cell_width = 8, .cell_height = 8,
-		.pixel_width = 640, .pixel_height = 350,
+	    .columns      = 80,
+	    .rows         = 43,
+	    .cell_width   = 8,
+	    .cell_height  = 8,
+	    .pixel_width  = 640,
+	    .pixel_height = 350,
 	};
 	const struct st_console_rect glyph = {50, 50, 8, 8};
-	struct st_profile profile;
-	st_console_t *console = NULL, *reference = NULL;
-	st_font_catalog_t *fonts = NULL, *reference_fonts = NULL;
-	st_connection_t *connection = NULL;
-	st_term_session_t *session = NULL;
-	st_cterm_t *reference_terminal = NULL;
-	struct st_pixel_buffer *expected = NULL, *actual = NULL;
-	uint32_t expected_palette[256], actual_palette[256];
-	enum st_term_disposition disposition;
-	bool finished, matched = false;
-	size_t mismatch = 0;
-	uint32_t mismatch_expected = 0, mismatch_actual = 0;
-	size_t consumed;
-	static const char raw[] = "!|c0F\r\n!|@1E1E\x82\r\n";
+	struct st_profile            profile;
+	st_console_t                *console = NULL, *reference = NULL;
+	st_font_catalog_t           *fonts = NULL, *reference_fonts = NULL;
+	st_connection_t             *connection         = NULL;
+	st_term_session_t           *session            = NULL;
+	st_cterm_t                  *reference_terminal = NULL;
+	struct st_pixel_buffer      *expected = NULL, *actual = NULL;
+	uint32_t                     expected_palette[256], actual_palette[256];
+	enum st_term_disposition     disposition;
+	bool                         finished, matched = false;
+	size_t                       mismatch          = 0;
+	uint32_t                     mismatch_expected = 0, mismatch_actual = 0;
+	size_t                       consumed;
+	static const char            raw[] = "!|c0F\r\n!|@1E1E\x82\r\n";
 
 	CHECK(st_console_create(&console, &display, &screen) == 0);
 	CHECK(st_console_create(&reference, &display, &screen) == 0);
 	CHECK(st_font_catalog_create(&fonts, console) == 0);
 	CHECK(st_font_catalog_create(&reference_fonts, reference) == 0);
 	const struct st_cterm_config reference_config = {
-		.console = reference,
-		.fonts = reference_fonts,
-		.emulation = ST_CTERM_ANSI_BBS,
-		.encoding = ST_CTERM_ENCODING_CODEPAGE,
-		.graphics_mode = ST_CTERM_GRAPHICS_RIP_1,
-		.codepage = ST_CODEPAGE_CP437,
+	    .console       = reference,
+	    .fonts         = reference_fonts,
+	    .emulation     = ST_CTERM_ANSI_BBS,
+	    .encoding      = ST_CTERM_ENCODING_CODEPAGE,
+	    .graphics_mode = ST_CTERM_GRAPHICS_RIP_1,
+	    .codepage      = ST_CODEPAGE_CP437,
 	};
 	CHECK(st_cterm_create(&reference_terminal, &reference_config) == 0);
-	CHECK(st_cterm_write(reference_terminal, raw, sizeof(raw) - 1,
-	    &consumed) == 0 && consumed == sizeof(raw) - 1);
+	CHECK(st_cterm_write(reference_terminal, raw, sizeof(raw) - 1, &consumed) == 0
+	      && consumed == sizeof(raw) - 1);
 	CHECK(st_console_get_pixels(&expected, reference, &glyph, false) == 0);
 	CHECK(st_console_get_palette(reference, 0, expected_palette, 256) == 0);
 	bool painted = false;
 	for (size_t i = 0; i < 64; i++)
-		painted |= expected_palette[expected->primary[i]]
-		    != expected_palette[0];
+		painted |= expected_palette[expected->primary[i]] != expected_palette[0];
 	CHECK(painted);
 	st_profile_init(&profile);
 	profile.connection_type = ST_CONNECTION_SHELL;
-	profile.graphics_mode = ST_GRAPHICS_RIP_1;
-	strcpy(profile.address,
-	    "printf '!|c0F\\r\\n!|@1E1E\\202\\r\\n'; sleep 2");
-	CHECK(st_term_connect_profile(&connection, &profile, console, NULL,
-	    NULL) == 0);
+	profile.graphics_mode   = ST_GRAPHICS_RIP_1;
+	strcpy(profile.address, "printf '!|c0F\\r\\n!|@1E1E\\202\\r\\n'; sleep 2");
+	CHECK(st_term_connect_profile(&connection, &profile, console, NULL, NULL) == 0);
 	const struct st_term_config config = {
-		.console = console,
-		.connection = connection,
-		.fonts = fonts,
-		.screen_mode = ST_SCREEN_MODE_80X43,
-		.encoding = ST_CTERM_ENCODING_CODEPAGE,
-		.graphics_mode = ST_CTERM_GRAPHICS_RIP_1,
-		.codepage = ST_CODEPAGE_CP437,
-		.hide_status = true,
+	    .console       = console,
+	    .connection    = connection,
+	    .fonts         = fonts,
+	    .screen_mode   = ST_SCREEN_MODE_80X43,
+	    .encoding      = ST_CTERM_ENCODING_CODEPAGE,
+	    .graphics_mode = ST_CTERM_GRAPHICS_RIP_1,
+	    .codepage      = ST_CODEPAGE_CP437,
+	    .hide_status   = true,
 	};
 	CHECK(st_term_session_create(&session, &config) == 0);
 	for (size_t attempt = 0; attempt < 100 && !matched; attempt++) {
@@ -1101,12 +1192,11 @@ test_shell_rip_cp437_boundary(void)
 		CHECK(st_console_get_palette(console, 0, actual_palette, 256) == 0);
 		matched = true;
 		for (size_t i = 0; i < 64; i++) {
-			if (expected_palette[expected->primary[i]]
-			    != actual_palette[actual->primary[i]]) {
-				matched = false;
-				mismatch = i;
+			if (expected_palette[expected->primary[i]] != actual_palette[actual->primary[i]]) {
+				matched           = false;
+				mismatch          = i;
 				mismatch_expected = expected_palette[expected->primary[i]];
-				mismatch_actual = actual_palette[actual->primary[i]];
+				mismatch_actual   = actual_palette[actual->primary[i]];
 				break;
 			}
 		}
@@ -1114,8 +1204,8 @@ test_shell_rip_cp437_boundary(void)
 		actual = NULL;
 	}
 	if (!matched)
-		fprintf(stderr, "RIP CP437 glyph mismatch at %zu: %#x != %#x\n",
-		    mismatch, mismatch_expected, mismatch_actual);
+		fprintf(stderr, "RIP CP437 glyph mismatch at %zu: %#x != %#x\n", mismatch, mismatch_expected,
+		    mismatch_actual);
 	CHECK(matched);
 	st_term_session_destroy(&session);
 	CHECK(st_connection_close(connection) == 0);
@@ -1136,31 +1226,32 @@ st_term_test_main(void)
 {
 	CHECK(test_paste_preparation() == 0);
 	const struct st_console_display_config display = {
-		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	    .backend = ST_CONSOLE_BACKEND_HEADLESS,
 	};
 	const struct st_console_config console_config = {
-		.columns = 80, .rows = 25, .cell_width = 8, .cell_height = 16,
+	    .columns     = 80,
+	    .rows        = 25,
+	    .cell_width  = 8,
+	    .cell_height = 16,
 	};
-	struct st_profile profile;
-	st_console_t *console = NULL;
-	st_connection_t *connection = NULL;
-	st_term_session_t *session = NULL;
-	char decoded[8];
-	size_t decoded_size;
+	struct st_profile    profile;
+	st_console_t        *console    = NULL;
+	st_connection_t     *connection = NULL;
+	st_term_session_t   *session    = NULL;
+	char                 decoded[8];
+	size_t               decoded_size;
 	static const uint8_t rip_wire[] = {'!', '|', 0x82, '\r'};
 
-	CHECK(st_term_rip_wire_to_utf8(decoded, sizeof(decoded),
-	    &decoded_size, rip_wire, sizeof(rip_wire), ST_CODEPAGE_CP437) == 0);
-	CHECK(decoded_size == 5
-	    && memcmp(decoded, "!|\xc3\xa9\r", 5) == 0);
+	CHECK(st_term_rip_wire_to_utf8(decoded, sizeof(decoded), &decoded_size, rip_wire, sizeof(rip_wire),
+		  ST_CODEPAGE_CP437)
+	      == 0);
+	CHECK(decoded_size == 5 && memcmp(decoded, "!|\xc3\xa9\r", 5) == 0);
 
 	for (unsigned value = 0x80; value <= 0xff; value++) {
-		uint8_t encoded = 0;
-		uint32_t scalar = st_codepage_to_unicode(ST_CODEPAGE_CP437,
-		    (uint8_t)value, false);
+		uint8_t  encoded = 0;
+		uint32_t scalar  = st_codepage_to_unicode(ST_CODEPAGE_CP437, (uint8_t)value, false);
 
-		CHECK(st_codepage_from_unicode(&encoded, ST_CODEPAGE_CP437,
-		    scalar) && encoded == value);
+		CHECK(st_codepage_from_unicode(&encoded, ST_CODEPAGE_CP437, scalar) && encoded == value);
 	}
 
 	CHECK(st_console_create(&console, &display, &console_config) == 0);
@@ -1176,18 +1267,22 @@ st_term_test_main(void)
 	profile.graphics_mode = ST_GRAPHICS_BIG_103;
 	CHECK(st_term_profile_graphics_mode(&profile) == ST_CTERM_GRAPHICS_BIG_103);
 	CHECK(st_term_profile_screen_mode(NULL) == ST_SCREEN_MODE_CURRENT);
+
 	const enum st_screen_mode inputs[] = {ST_SCREEN_MODE_CURRENT, ST_SCREEN_MODE_80X25,
-		ST_SCREEN_MODE_CGA_80X25, ST_SCREEN_MODE_EGA_80X25, ST_SCREEN_MODE_80X30,
-		ST_SCREEN_MODE_VGA_80X25, ST_SCREEN_MODE_ATARIST_40X25, ST_SCREEN_MODE_CUSTOM};
+	    ST_SCREEN_MODE_CGA_80X25, ST_SCREEN_MODE_EGA_80X25, ST_SCREEN_MODE_80X30, ST_SCREEN_MODE_VGA_80X25,
+	    ST_SCREEN_MODE_ATARIST_40X25, ST_SCREEN_MODE_CUSTOM};
+
 	const enum st_screen_mode expected[] = {ST_SCREEN_MODE_EGA_80X25, ST_SCREEN_MODE_EGA_80X25,
-		ST_SCREEN_MODE_CGA_80X25, ST_SCREEN_MODE_EGA_80X25, ST_SCREEN_MODE_80X30,
-		ST_SCREEN_MODE_EGA_80X25, ST_SCREEN_MODE_EGA_80X25, ST_SCREEN_MODE_EGA_80X25};
-	for (size_t i=0;i<sizeof(inputs)/sizeof(*inputs);++i) {
-		profile.screen_mode=inputs[i]; CHECK(st_term_profile_screen_mode(&profile)==expected[i]);
+	    ST_SCREEN_MODE_CGA_80X25, ST_SCREEN_MODE_EGA_80X25, ST_SCREEN_MODE_80X30, ST_SCREEN_MODE_EGA_80X25,
+	    ST_SCREEN_MODE_EGA_80X25, ST_SCREEN_MODE_EGA_80X25};
+
+	for (size_t i = 0; i < sizeof(inputs) / sizeof(*inputs); ++i) {
+		profile.screen_mode = inputs[i];
+		CHECK(st_term_profile_screen_mode(&profile) == expected[i]);
 	}
 	profile.graphics_mode = ST_GRAPHICS_NONE;
-	CHECK(st_term_profile_screen_mode(&profile)==ST_SCREEN_MODE_CUSTOM);
-	profile.screen_mode=ST_SCREEN_MODE_CURRENT;
+	CHECK(st_term_profile_screen_mode(&profile) == ST_SCREEN_MODE_CUSTOM);
+	profile.screen_mode     = ST_SCREEN_MODE_CURRENT;
 	profile.connection_type = ST_CONNECTION_TELNET;
 	CHECK(st_term_profile_encoding(&profile) == ST_CTERM_ENCODING_CODEPAGE);
 	profile.connection_type = ST_CONNECTION_SHELL;
@@ -1195,26 +1290,22 @@ st_term_test_main(void)
 	profile.encoding = ST_PROFILE_ENCODING_UTF8;
 	CHECK(st_term_profile_encoding(&profile) == ST_CTERM_ENCODING_UTF8);
 	profile.connection_type = ST_CONNECTION_UNKNOWN;
-	profile.encoding = ST_CODEPAGE_COUNT;
-	CHECK(st_term_connect_profile(&connection, &profile, console, NULL, NULL)
-	    == IO_ERROR_INVALID_ARGUMENT);
+	profile.encoding        = ST_CODEPAGE_COUNT;
+	CHECK(st_term_connect_profile(&connection, &profile, console, NULL, NULL) == IO_ERROR_INVALID_ARGUMENT);
 	profile.encoding = ST_PROFILE_ENCODING_UTF8;
-	CHECK(st_term_connect_profile(&connection, &profile, console, NULL, NULL)
-	    == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_term_connect_profile(&connection, &profile, console, NULL, NULL) == IO_ERROR_INVALID_ARGUMENT);
 	CHECK(connection == NULL);
 	{
-		const int types[] = {ST_CONNECTION_TELNET, ST_CONNECTION_TELNET_TLS,
-		    ST_CONNECTION_SSH, ST_CONNECTION_SSH_NO_AUTH,
-		    ST_CONNECTION_MBBS_GHOST, ST_CONNECTION_MQTT};
+		const int types[] = {ST_CONNECTION_TELNET, ST_CONNECTION_TELNET_TLS, ST_CONNECTION_SSH,
+		    ST_CONNECTION_SSH_NO_AUTH, ST_CONNECTION_MBBS_GHOST, ST_CONNECTION_MQTT};
 		for (size_t i = 0; i < sizeof(types) / sizeof(types[0]); ++i) {
 			profile.connection_type = types[i];
 			CHECK(st_term_connect_profile(&connection, &profile, console, NULL, NULL)
-			    == IO_ERROR_INVALID_ARGUMENT);
+			      == IO_ERROR_INVALID_ARGUMENT);
 			CHECK(connection == NULL);
 		}
 	}
-	CHECK(st_term_session_create(&session, NULL)
-	    == IO_ERROR_INVALID_ARGUMENT && session == NULL);
+	CHECK(st_term_session_create(&session, NULL) == IO_ERROR_INVALID_ARGUMENT && session == NULL);
 	st_profile_dispose(&profile);
 	st_console_destroy(console);
 #if !SYNCTERM_PLATFORM_WINDOWS

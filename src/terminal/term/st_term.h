@@ -8,6 +8,9 @@
 #ifndef ST_TERM_H_
 #define ST_TERM_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include "st_audio_runtime.h"
 #include "st_connection.h"
 #include "st_cterm.h"
@@ -16,22 +19,18 @@
 #include "st_session_history.h"
 #include "st_transfer.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
 typedef struct st_term_session st_term_session_t;
 /* Owner-thread keep-alive for side-band work after terminal EOF. */
 void st_term_session_set_auxiliary_active(st_term_session_t *session, bool active);
 
 /* Serialized owner-only read. A false result means there is no transfer. */
-bool st_term_session_inspect_transfer(st_term_session_t *session,
-	struct st_transfer_inspection *state, bool *reserved);
+bool st_term_session_inspect_transfer(st_term_session_t *session, struct st_transfer_inspection *state,
+    bool *reserved);
 bool st_term_session_transfer_active(const st_term_session_t *session);
 /* Protocol-number bits for IFS. Set after the transfer bridge is ready. */
-void st_term_session_set_rip3_transfer_protocols(st_term_session_t *session,
-	uint32_t protocols);
-int st_term_session_rip3_receive_asset(st_term_session_t *session, const char *directory,
-	const char *cache_root, const char *name, unsigned file_type);
+void st_term_session_set_rip3_transfer_protocols(st_term_session_t *session, uint32_t protocols);
+int  st_term_session_rip3_receive_asset(st_term_session_t *session, const char *directory, const char *cache_root,
+    const char *name, unsigned file_type);
 
 enum st_term_disposition {
 	ST_TERM_RETURN_TO_PICKER,
@@ -40,108 +39,101 @@ enum st_term_disposition {
 
 #define ST_TERM_WIRE_REPLACEMENT_CAPACITY 256
 
-typedef int (*st_term_wire_filter_t)(void *context, uint8_t byte,
-	bool *consumed, uint8_t *replacement, size_t capacity,
-	size_t *replacement_size);
+typedef int (*st_term_wire_filter_t)(void *context, uint8_t byte, bool *consumed, uint8_t *replacement,
+    size_t capacity, size_t *replacement_size);
 
 struct st_term_config {
 	/* Borrowed for the session lifetime. */
-	st_console_t *console;
-	st_connection_t *connection;
-	st_font_catalog_t *fonts;
-	st_audio_runtime_t *audio;
+	st_console_t            *console;
+	st_connection_t         *connection;
+	st_font_catalog_t       *fonts;
+	st_audio_runtime_t      *audio;
 	st_hyperlink_registry_t *hyperlinks;
-	st_session_history_t *history;
-	enum st_screen_mode screen_mode;
+	st_session_history_t    *history;
+	enum st_screen_mode      screen_mode;
 	/* Remote wire encoding. RIP sessions translate to/from UTF-8 at this
 	 * boundary; CTerm and its RIP parser always receive UTF-8. */
-	enum st_cterm_encoding encoding;
+	enum st_cterm_encoding      encoding;
 	enum st_cterm_graphics_mode graphics_mode;
-	const char *rip_directory;
-	bool rip3_nondestructive_backspace;
-	bool rip3_backspace_sends_del;
-	bool rip3_half_duplex;
+	const char                 *rip_directory;
+	bool                        rip3_nondestructive_backspace;
+	bool                        rip3_backspace_sends_del;
+	bool                        rip3_half_duplex;
 	/* Read-only fallback for RIPv3 resources. Named directories stay under rip_directory. */
 	const char *rip3_data_directory;
-	void (*rip3_alert)(void *context, const char *title, const char *message);
-	void *rip3_alert_context;
+	void        (*rip3_alert)(void *context, const char *title, const char *message);
+	void       *rip3_alert_context;
 	const char *amiga_font_directory;
 	/* Default strike is borrowed through destruction; NULL selects Pearl 8. */
-	const st_amiga_font_t *amiga_font;
-	uint32_t skypix_width, skypix_height;
+	const st_amiga_font_t              *amiga_font;
+	uint32_t                            skypix_width, skypix_height;
 	st_cterm_skypix_transfer_callback_t skypix_transfer;
-	void *skypix_transfer_context;
-	const char *apc_directory;
-	const char *application_version;
-	enum st_codepage codepage;
-	uint8_t font_selector;
-	bool hide_status;
+	void                               *skypix_transfer_context;
+	const char                         *apc_directory;
+	const char                         *application_version;
+	enum st_codepage                    codepage;
+	uint8_t                             font_selector;
+	bool                                hide_status;
 	/* Pass the entry's LF Expand setting through to CTerm. */
-	bool expand_lf;
-	bool force_lcf;
-	bool yellow_is_yellow;
+	bool            expand_lf;
+	bool            force_lcf;
+	bool            yellow_is_yellow;
 	const uint32_t *palette;
-	size_t palette_size;
+	size_t          palette_size;
 	/* MQTT accepts user input but not automatic terminal replies. */
 	bool suppress_responses;
 	/* BPS receive pacing for non-serial sessions; zero disables it. */
-	bool throttle_supported;
-	uint32_t initial_throttle_bps;
+	bool                           throttle_supported;
+	uint32_t                       initial_throttle_bps;
 	st_cterm_rip_prompt_callback_t rip_prompt;
-	void *rip_prompt_context;
+	void                          *rip_prompt_context;
 	/* RIPv3 macro editor. Device axes use -1 for centering. NULL requests
 	 * the ordinary dialog placement. */
-	int (*rip_variable_prompt)(void *context, const char *question, const char *initial,
-		size_t max_length, const char *input_mode, bool masked, bool required,
-		const int32_t position[2], char **result);
+	int (*rip_variable_prompt)(void *context, const char *question, const char *initial, size_t max_length,
+	    const char *input_mode, bool masked, bool required, const int32_t position[2], char **result);
 	/* RIPv3 1D editor with an optional confirmation policy control. Shares
 	 * rip_prompt_context and the prompt's result/cancellation convention. */
-	int (*rip_define)(void *context, const char *question, const char *initial,
-		size_t max_length, bool count_bytes, bool reject_blank, bool *require_confirmation, char **result);
-	st_cterm_rip_choice_callback_t rip_choice;
-	void *rip_choice_context;
+	int (*rip_define)(void *context, const char *question, const char *initial, size_t max_length,
+	    bool count_bytes, bool reject_blank, bool *require_confirmation, char **result);
+	st_cterm_rip_choice_callback_t   rip_choice;
+	void                            *rip_choice_context;
 	st_cterm_rip_transfer_callback_t rip_transfer;
-	void *rip_transfer_context;
+	void                            *rip_transfer_context;
 	/* Called before built-in event handling; true consumes the event. */
-	int (*event_hook)(void *context, const struct st_console_event *event,
-	    bool *consumed);
+	int   (*event_hook)(void *context, const struct st_console_event *event, bool *consumed);
 	void *event_hook_context;
 	/* Exact received bytes, before RIP/CTerm parsing. Replacement bytes are
 	 * reclassified by CTerm in order, without revisiting this filter. */
 	st_term_wire_filter_t wire_filter;
 	/* Optional fast path when no wire hooks are registered. */
-	bool (*wire_filter_active)(void *context);
+	bool  (*wire_filter_active)(void *context);
 	void *wire_filter_context;
 	/* Semantic input after CTerm's shared UTF-8 decoder or codepage map.
 	 * Replacements bypass both the wire hook and RIP parser. */
 	st_cterm_input_filter_t input_filter;
-	bool (*input_filter_active)(void *context);
-	void *input_filter_context;
+	bool                    (*input_filter_active)(void *context);
+	void                   *input_filter_context;
 	/* Original received bytes before wire hooks, RIP conversion, and decoding.
 	 * Both capture callbacks use capture_active and capture_context. */
 	int (*wire_capture)(void *context, const uint8_t *bytes, size_t size);
 	/* Decoded text after semantic hooks, with protocol bytes tagged. */
-	st_cterm_capture_t capture;
-	bool (*capture_active)(void *context);
-	void *capture_context;
-	int cterm_log_level;
+	st_cterm_capture_t      capture;
+	bool                    (*capture_active)(void *context);
+	void                   *capture_context;
+	int                     cterm_log_level;
 	st_cterm_log_callback_t cterm_diagnostic;
-	void *cterm_diagnostic_context;
+	void                   *cterm_diagnostic_context;
 };
 
-int st_term_connect_profile(st_connection_t **result,
-	const struct st_profile *profile, st_console_t *console,
-	const struct st_connection_hooks *hooks, struct st_connection_error *error);
+int st_term_connect_profile(st_connection_t **result, const struct st_profile *profile, st_console_t *console,
+    const struct st_connection_hooks *hooks, struct st_connection_error *error);
 /* The profile's explicit encoding determines the wire boundary. */
-enum st_cterm_encoding st_term_profile_encoding(
-	const struct st_profile *profile);
-enum st_cterm_graphics_mode st_term_profile_graphics_mode(
-	const struct st_profile *profile);
+enum st_cterm_encoding      st_term_profile_encoding(const struct st_profile *profile);
+enum st_cterm_graphics_mode st_term_profile_graphics_mode(const struct st_profile *profile);
 /* BIG accepts CGA/EGA/80x30 initial modes, otherwise its EGA default. */
 enum st_screen_mode st_term_profile_screen_mode(const struct st_profile *);
-int st_term_session_create(st_term_session_t **result,
-	const struct st_term_config *config);
-void st_term_session_destroy(st_term_session_t **session);
+int                 st_term_session_create(st_term_session_t **result, const struct st_term_config *config);
+void                st_term_session_destroy(st_term_session_t **session);
 /* Borrowed active parser. Reacquire after remote output can select/redefine a
  * RIP3 text window; do not cache across pumps. Bracket local writes below. */
 st_cterm_t *st_term_session_cterm(st_term_session_t *session);
@@ -150,71 +142,65 @@ st_cterm_t *st_term_session_history_terminal(st_term_session_t *session);
 /* The RIPv3 indicator lives outside ANSI display state and screen contents. */
 bool st_term_session_has_status_overlay(const st_term_session_t *session);
 bool st_term_session_status_visible(const st_term_session_t *session);
+
 /* Borrowed positioned text grid for local selection on the session display.
  * False means the display is not the session's, or its entry grid is current.
  * Reacquire after any pump; the owner must keep the session alive during use. */
 struct st_term_text_view {
 	st_console_t *console;
-	uint64_t x,y;
-	uint32_t cell_width,cell_height;
+	uint64_t      x, y;
+	uint32_t      cell_width, cell_height;
 };
-bool st_term_session_text_view(st_term_session_t *session, st_console_t *display,
-	struct st_term_text_view *view);
+
+bool st_term_session_text_view(st_term_session_t *session, st_console_t *display, struct st_term_text_view *view);
 /* Bracket local operations on that borrowed parser (such as script writes).
  * RIP3 imports/presents its virtual TTY surface; other modes are no-ops.
  * These are local renderer services, not incoming protocol processing. */
-int st_term_session_begin_local_text(st_term_session_t *session);
-int st_term_session_end_local_text(st_term_session_t *session);
-bool st_term_session_font_selector(const st_term_session_t *session,
-	uint16_t identifier, uint8_t *selector);
+int  st_term_session_begin_local_text(st_term_session_t *session);
+int  st_term_session_end_local_text(st_term_session_t *session);
+bool st_term_session_font_selector(const st_term_session_t *session, uint16_t identifier, uint8_t *selector);
 void st_term_session_request_end(st_term_session_t *session, bool exit_app);
 /* True only when the pump ended on a drained remote connection, not a local
  * hangup/exit request. Available until destruction. */
 bool st_term_session_remote_closed(const st_term_session_t *session);
 /* After closing the connection, freeze completed history, then make room for
  * the notice without resizing. Destruction does not capture subsequent UI. */
-int st_term_session_prepare_disconnect(st_term_session_t *session);
+int  st_term_session_prepare_disconnect(st_term_session_t *session);
 void st_term_session_set_suspended(st_term_session_t *session, bool suspended);
 /* Owner-thread modal editor bridge. Only an original RIP3 physical press's
  * release/cancel is retained; dialog input is never replayed as new guest input. */
-void st_term_session_observe_prompt_input(st_term_session_t *session,
-	const struct st_console_event *event);
+void st_term_session_observe_prompt_input(st_term_session_t *session, const struct st_console_event *event);
 /* Owner-only handoff. The session remains the sole transport reader and
  * feeds protocol input while a modal UI suspends ordinary terminal display. */
 int st_term_session_begin_transfer(st_term_session_t *session, st_transfer_t *transfer);
 int st_term_session_end_transfer(st_term_session_t *session);
 int st_term_session_reserve_transfer(st_term_session_t *session, bool reserved);
 /* A RIP block-mode command ends with CR; its optional LF is framing. */
-int st_term_session_reserve_rip_transfer(st_term_session_t *session);
-void st_term_session_cancel_rip_transfer(st_term_session_t *session);
+int            st_term_session_reserve_rip_transfer(st_term_session_t *session);
+void           st_term_session_cancel_rip_transfer(st_term_session_t *session);
 const uint8_t *st_term_session_prestel_frame(st_term_session_t *session, size_t *size);
 /* Effective protocol, including the separate RIP3 mouse-field owner. */
 int st_term_session_mouse_mode(st_term_session_t *session);
 /* RIP3's native pointer preference for restoring link-hover presentation.
  * False for other protocols; this does not enable input or move a pointer. */
-bool st_term_session_pointer_shape(const st_term_session_t *session, enum st_console_pointer_shape *result);
-void st_term_session_set_mouse_disabled(st_term_session_t *session,
-	bool disabled);
+bool     st_term_session_pointer_shape(const st_term_session_t *session, enum st_console_pointer_shape *result);
+void     st_term_session_set_mouse_disabled(st_term_session_t *session, bool disabled);
 uint32_t st_term_session_throttle_speed(const st_term_session_t *session);
-void st_term_session_set_throttle_speed(st_term_session_t *session,
-	uint32_t bps);
-int st_term_session_ooii_mode(const st_term_session_t *session);
-void st_term_session_set_ooii_mode(st_term_session_t *session, int mode);
+void     st_term_session_set_throttle_speed(st_term_session_t *session, uint32_t bps);
+int      st_term_session_ooii_mode(const st_term_session_t *session);
+void     st_term_session_set_ooii_mode(st_term_session_t *session, int mode);
 
 /*
  * Runs until disconnect or a local command. The caller owns and closes the
  * connection. Alt-H and Ctrl-Q return to the picker; Alt-X and CLOSE exit.
  */
-int st_term_session_run(st_term_session_t *session,
-	enum st_term_disposition *disposition);
+int st_term_session_run(st_term_session_t *session, enum st_term_disposition *disposition);
 /* Dispatch ready work without an idle wait. The application services scripts
  * and status next, then waits until activity or its nearest deadline. */
-int st_term_session_service(st_term_session_t *session,
-	enum st_term_disposition *disposition, bool *finished);
+int st_term_session_service(st_term_session_t *session, enum st_term_disposition *disposition, bool *finished);
 /* UINT32_MAX permits an indefinite wait if no owner deadline is active. */
 int st_term_session_wait(st_term_session_t *session, uint32_t timeout_ms);
-int st_term_session_pump(st_term_session_t *session,
-	enum st_term_disposition *disposition, bool *finished);
+int st_term_session_pump(st_term_session_t *session, enum st_term_disposition *disposition, bool *finished);
 
 /* Forward one native keyboard event through terminal keyboard policy and
  * wire encoding. Does not dispatch script hooks or local session commands.
@@ -222,8 +208,7 @@ int st_term_session_pump(st_term_session_t *session,
  * terminal actions); an output error is returned separately. Mouse/window
  * events are invalid. The event's text, modifiers, and physical edge are
  * preserved; CODEPAGE_BYTE is resolved using the session wire encoding. */
-int st_term_session_send_key(st_term_session_t *session,
-	const struct st_console_event *event, bool *handled);
+int st_term_session_send_key(st_term_session_t *session, const struct st_console_event *event, bool *handled);
 /* Combined RIP3 gate for local shortcuts that submit terminal data. */
 bool st_term_session_keyboard_locked(const st_term_session_t *session);
 
@@ -232,8 +217,8 @@ bool st_term_session_keyboard_locked(const st_term_session_t *session);
  * A legacy session encodes each grapheme once. An unmappable grapheme beeps
  * locally and is omitted while representable neighbours continue.
  */
-int st_term_session_send_text(st_term_session_t *session,
-	const char *utf8, size_t size);
+int st_term_session_send_text(st_term_session_t *session, const char *utf8, size_t size);
+
 /* Strict, finite conversion for owned scripted sends. Validates and NFC
  * normalizes the whole input before returning allocated wire bytes. Any
  * malformed/unmappable text fails without output or a local beep. The caller
@@ -241,33 +226,30 @@ int st_term_session_send_text(st_term_session_t *session,
  * when submitting atomic output units; codepage output uses single bytes. */
 struct st_term_encoded_text {
 	uint8_t *bytes;
-	size_t size;
-	size_t storage_size;
-	bool utf8;
+	size_t   size;
+	size_t   storage_size;
+	bool     utf8;
 };
-int st_term_session_encode_text(st_term_session_t *session,
-	const char *utf8, size_t size, struct st_term_encoded_text *result);
+
+int st_term_session_encode_text(st_term_session_t *session, const char *utf8, size_t size,
+    struct st_term_encoded_text *result);
 /* Allocates clipboard text with legacy newline and bracketed-paste rules. */
-int st_term_prepare_paste(char **result, size_t *result_size,
-	const char *utf8, size_t size, bool bracketed);
+int st_term_prepare_paste(char **result, size_t *result_size, const char *utf8, size_t size, bool bracketed);
 
 /* RIP wire-byte boundary: preserve ASCII protocol bytes, transcode high
  * codepage bytes to UTF-8. result_size excludes any terminator (none is
  * written). The input and output buffers must not overlap. */
-int st_term_rip_wire_to_utf8(char *result, size_t capacity,
-	size_t *result_size, const uint8_t *wire, size_t size,
-	enum st_codepage codepage);
-
+int st_term_rip_wire_to_utf8(char *result, size_t capacity, size_t *result_size, const uint8_t *wire, size_t size,
+    enum st_codepage codepage);
 
 /* Exclusive terminal-channel byte access, after transport decoding. The owner
  * is an opaque identity, used only on the terminal thread. Read-ahead and
  * returned transfer input precede the connection queue. Peek never captures. */
-int st_term_session_claim_wire(st_term_session_t *session, const void *owner);
-bool st_term_session_release_wire(st_term_session_t *session, const void *owner);
-bool st_term_session_wire_owned(st_term_session_t *session);
-int st_term_session_wire_available(st_term_session_t *session,
-    const void *owner, size_t *size);
-ssize_t st_term_session_read_wire(st_term_session_t *session, const void *owner,
-    void *bytes, size_t size, bool consume);
+int     st_term_session_claim_wire(st_term_session_t *session, const void *owner);
+bool    st_term_session_release_wire(st_term_session_t *session, const void *owner);
+bool    st_term_session_wire_owned(st_term_session_t *session);
+int     st_term_session_wire_available(st_term_session_t *session, const void *owner, size_t *size);
+ssize_t st_term_session_read_wire(st_term_session_t *session, const void *owner, void *bytes, size_t size,
+    bool consume);
 
 #endif

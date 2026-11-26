@@ -1,160 +1,264 @@
 /* Literal fill/WORD/cache expectations from BIG10/11/50/54/83. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
-#include "st_big_fill.h"
-#include "st_big_draw.h"
-#include "st_bgi_data.h"
-#include "io_error.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#define CHECK(x) do { if (!(x)) { fprintf(stderr,"%s:%d: %s\n",__FILE__,__LINE__,#x); exit(1); } } while (0)
+
+#include "io_error.h"
+#include "st_bgi_data.h"
+#include "st_big_draw.h"
+#include "st_big_fill.h"
+#define CHECK(x)                                                                \
+	do {                                                                    \
+		if (!(x)) {                                                     \
+			fprintf(stderr, "%s:%d: %s\n", __FILE__, __LINE__, #x); \
+			exit(1);                                                \
+		}                                                               \
+	} while (0)
 /* Original same-index stock masks, independently transcribed from BIG11. */
-static const uint8_t stock[12][8]={
-	{0,0,0,0,0,0,0,0},{255,255,255,255,255,255,255,255},
-	{255,255,0,0,255,255,0,0},{1,2,4,8,16,32,64,128},
-	{0xe0,0xc1,0x83,0x07,0x0e,0x1c,0x38,0x70},
-	{0xf0,0x78,0x3c,0x1e,0x0f,0x87,0xc3,0xe1},
-	{0xa5,0xd2,0x69,0xb4,0x5a,0x2d,0x96,0x4b},
-	{0xff,0x88,0x88,0x88,0xff,0x88,0x88,0x88},
-	{0x81,0x42,0x24,0x18,0x18,0x24,0x42,0x81},
-	{0xcc,0x33,0xcc,0x33,0xcc,0x33,0xcc,0x33},
-	{0x80,0,8,0,0x80,0,8,0},{0x88,0,0x22,0,0x88,0,0x22,0},
+static const uint8_t stock[12][8] = {
+    {0,    0,    0,    0,    0,    0,    0,    0   },
+    {255,  255,  255,  255,  255,  255,  255,  255 },
+    {255,  255,  0,    0,    255,  255,  0,    0   },
+    {1,    2,    4,    8,    16,   32,   64,   128 },
+    {0xe0, 0xc1, 0x83, 0x07, 0x0e, 0x1c, 0x38, 0x70},
+    {0xf0, 0x78, 0x3c, 0x1e, 0x0f, 0x87, 0xc3, 0xe1},
+    {0xa5, 0xd2, 0x69, 0xb4, 0x5a, 0x2d, 0x96, 0x4b},
+    {0xff, 0x88, 0x88, 0x88, 0xff, 0x88, 0x88, 0x88},
+    {0x81, 0x42, 0x24, 0x18, 0x18, 0x24, 0x42, 0x81},
+    {0xcc, 0x33, 0xcc, 0x33, 0xcc, 0x33, 0xcc, 0x33},
+    {0x80, 0,    8,    0,    0x80, 0,    8,    0   },
+    {0x88, 0,    0x22, 0,    0x88, 0,    0x22, 0   },
 };
-static void rows(const struct st_big_state *s, const uint32_t expected[8])
+
+static void
+rows(const struct st_big_state *s, const uint32_t expected[8])
 {
-	for (size_t row=0;row<8;++row) for (unsigned x=0;x<8;++x)
-		CHECK(s->bgi.fill_pixels[row*8+x]==((expected[row]>>(4*x))&15));
+	for (size_t row = 0; row < 8; ++row)
+		for (unsigned x = 0; x < 8; ++x)
+			CHECK(s->bgi.fill_pixels[row * 8 + x] == ((expected[row] >> (4 * x)) & 15));
 }
-static void data_and_owners(void)
+
+static void
+data_and_owners(void)
 {
-	CHECK(memcmp(st_bgi_fill_patterns,stock,sizeof(stock))==0);
-	struct st_big_state s; st_big_state_init(&s);
-	static const uint32_t full[]={0xffffffff,0xffffffff,0xffffffff,0xffffffff,0xffffffff,0xffffffff,0xffffffff,0xffffffff};
-	rows(&s,full); CHECK(s.bgi.device_fill_style==1 && s.bgi.fill_low==15 && s.bgi.device_fill_color==15);
-	for (size_t i=0;i<8;++i) CHECK(s.bgi.fill_user[i]==255 && s.bgi.device_fill_user[i]==255 && s.bgi.fill_pattern[i]==255);
-	s.application.colors[2]=5; CHECK(st_big_fill_select(&s,3)==0);
-	static const uint32_t slash[]={0x50000000,0x05000000,0x00500000,0x00050000,0x00005000,0x00000500,0x00000050,0x00000005};
-	rows(&s,slash); CHECK(memcmp(s.bgi.fill_pattern,stock[3],8)==0);
-	CHECK(st_big_fill_select(&s,12)==0);
-	static const uint32_t custom[]={0x05050505,0x50505050,0x05050505,0x50505050,0x05050505,0x50505050,0x05050505,0x50505050};
-	rows(&s,custom); CHECK(s.bgi.fill_style==12 && s.bgi.fill_color==5 && s.bgi.device_fill_style==12);
-	static const uint8_t checker[]={0xaa,0x55,0xaa,0x55,0xaa,0x55,0xaa,0x55};
-	CHECK(memcmp(s.bgi.fill_user,checker,8)==0 && memcmp(s.bgi.device_fill_user,checker,8)==0);
-	s.application.patterns[0][0]=0; s.application.colors[2]=9;
-	CHECK(s.bgi.fill_user[0]==0xaa && s.bgi.device_fill_user[0]==0xaa && s.bgi.fill_pattern[0]==0xaa); rows(&s,custom);
+	CHECK(memcmp(st_bgi_fill_patterns, stock, sizeof(stock)) == 0);
+	struct st_big_state s;
+	st_big_state_init(&s);
+	static const uint32_t full[] = {0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff,
+	    0xffffffff, 0xffffffff};
+	rows(&s, full);
+	CHECK(s.bgi.device_fill_style == 1 && s.bgi.fill_low == 15 && s.bgi.device_fill_color == 15);
+	for (size_t i = 0; i < 8; ++i)
+		CHECK(
+		    s.bgi.fill_user[i] == 255 && s.bgi.device_fill_user[i] == 255 && s.bgi.fill_pattern[i] == 255);
+	s.application.colors[2] = 5;
+	CHECK(st_big_fill_select(&s, 3) == 0);
+	static const uint32_t slash[] = {0x50000000, 0x05000000, 0x00500000, 0x00050000, 0x00005000, 0x00000500,
+	    0x00000050, 0x00000005};
+	rows(&s, slash);
+	CHECK(memcmp(s.bgi.fill_pattern, stock[3], 8) == 0);
+	CHECK(st_big_fill_select(&s, 12) == 0);
+	static const uint32_t custom[] = {0x05050505, 0x50505050, 0x05050505, 0x50505050, 0x05050505, 0x50505050,
+	    0x05050505, 0x50505050};
+	rows(&s, custom);
+	CHECK(s.bgi.fill_style == 12 && s.bgi.fill_color == 5 && s.bgi.device_fill_style == 12);
+	static const uint8_t checker[] = {0xaa, 0x55, 0xaa, 0x55, 0xaa, 0x55, 0xaa, 0x55};
+	CHECK(memcmp(s.bgi.fill_user, checker, 8) == 0 && memcmp(s.bgi.device_fill_user, checker, 8) == 0);
+	s.application.patterns[0][0] = 0;
+	s.application.colors[2]      = 9;
+	CHECK(s.bgi.fill_user[0] == 0xaa && s.bgi.device_fill_user[0] == 0xaa && s.bgi.fill_pattern[0] == 0xaa);
+	rows(&s, custom);
 	/* Draw-colour dispatch uses the current fill BYTE but never rebuilds
 	 * the original colour-latched pattern cache. */
-	s.bgi.fill_low=2; CHECK(st_big_draw_color(&s,7)==0 && s.bgi.device_fill_color==2); rows(&s,custom);
-	CHECK(st_big_fill_builtin(&s,0,31)==0 && s.bgi.fill_style==0 && s.bgi.fill_color==31 && s.bgi.fill_low==31 && s.bgi.device_fill_color==15);
-	static const uint32_t empty[8]={0}; rows(&s,empty);
-	CHECK(memcmp(s.bgi.fill_user,checker,8)==0 && memcmp(s.bgi.device_fill_user,checker,8)==0);
-	CHECK(st_big_fill_apply(&s)==0 && s.application.fill==12 && s.bgi.fill_color==9 && s.bgi.fill_user[0]==0 && s.bgi.device_fill_user[0]==0);
-	static const uint32_t resubmitted[]={0,0x90909090,0x09090909,0x90909090,0x09090909,0x90909090,0x09090909,0x90909090};
-	rows(&s,resubmitted);
+	s.bgi.fill_low = 2;
+	CHECK(st_big_draw_color(&s, 7) == 0 && s.bgi.device_fill_color == 2);
+	rows(&s, custom);
+	CHECK(st_big_fill_builtin(&s, 0, 31) == 0 && s.bgi.fill_style == 0 && s.bgi.fill_color == 31
+	      && s.bgi.fill_low == 31 && s.bgi.device_fill_color == 15);
+	static const uint32_t empty[8] = {0};
+	rows(&s, empty);
+	CHECK(memcmp(s.bgi.fill_user, checker, 8) == 0 && memcmp(s.bgi.device_fill_user, checker, 8) == 0);
+	CHECK(st_big_fill_apply(&s) == 0 && s.application.fill == 12 && s.bgi.fill_color == 9
+	      && s.bgi.fill_user[0] == 0 && s.bgi.device_fill_user[0] == 0);
+	static const uint32_t resubmitted[] = {0, 0x90909090, 0x09090909, 0x90909090, 0x09090909, 0x90909090,
+	    0x09090909, 0x90909090};
+	rows(&s, resubmitted);
 	/* The second source copy must use the original pointer, and both
 	 * copies must retain forward byte order if the source overlaps. */
-	for (size_t i=0;i<8;++i) s.bgi.fill_user[i]=(uint8_t)(i+1);
-	uint8_t *object=(uint8_t *)&s;
-	size_t start=(size_t)((uint8_t *)s.bgi.fill_user-object)-1;
-	object[start]=0xa5;
-	CHECK(st_big_fill_custom(&s,object+start,5)==0);
-	for (size_t i=0;i<8;++i) CHECK(s.bgi.fill_user[i]==0xa5 && s.bgi.device_fill_user[i]==0xa5);
-	for (size_t i=0;i<8;++i) s.bgi.fill_user[i]=(uint8_t)(i+1);
-	start=(size_t)((uint8_t *)s.bgi.fill_user-object)+1;
-	object[start+7]=0xb6;
-	CHECK(st_big_fill_custom(&s,object+start,5)==0);
-	static const uint8_t mirror[]={2,3,4,5,6,7,8,0xb6}, driver[]={3,4,5,6,7,8,0xb6,0xb6};
-	CHECK(memcmp(s.bgi.fill_user,mirror,8)==0 && memcmp(s.bgi.device_fill_user,driver,8)==0 && memcmp(s.bgi.fill_pattern,driver,8)==0);
+	for (size_t i = 0; i < 8; ++i)
+		s.bgi.fill_user[i] = (uint8_t)(i + 1);
+	uint8_t *object = (uint8_t *)&s;
+	size_t   start  = (size_t)((uint8_t *)s.bgi.fill_user - object) - 1;
+	object[start]   = 0xa5;
+	CHECK(st_big_fill_custom(&s, object + start, 5) == 0);
+	for (size_t i = 0; i < 8; ++i)
+		CHECK(s.bgi.fill_user[i] == 0xa5 && s.bgi.device_fill_user[i] == 0xa5);
+	for (size_t i = 0; i < 8; ++i)
+		s.bgi.fill_user[i] = (uint8_t)(i + 1);
+	start             = (size_t)((uint8_t *)s.bgi.fill_user - object) + 1;
+	object[start + 7] = 0xb6;
+	CHECK(st_big_fill_custom(&s, object + start, 5) == 0);
+	static const uint8_t mirror[] = {2, 3, 4, 5, 6, 7, 8, 0xb6}, driver[] = {3, 4, 5, 6, 7, 8, 0xb6, 0xb6};
+	CHECK(memcmp(s.bgi.fill_user, mirror, 8) == 0 && memcmp(s.bgi.device_fill_user, driver, 8) == 0
+	      && memcmp(s.bgi.fill_pattern, driver, 8) == 0);
 }
-static void words_and_selection(void)
+
+static void
+words_and_selection(void)
 {
-	struct st_big_state s; st_big_state_init(&s); s.application.colors[2]=5;
-	for (size_t slot=0;slot<12;++slot) for (size_t row=0;row<8;++row) s.application.patterns[slot][row]=(uint8_t)(slot*16+row);
-	for (unsigned raw=0;raw<=65535;++raw) {
-		CHECK(st_big_fill_select(&s,(uint16_t)raw)==0);
-		unsigned selected=raw<24?raw:1;
-		CHECK(s.application.fill==selected && s.bgi.fill_style==(selected<12?selected:12) && s.bgi.fill_color==5);
-		const uint8_t *expected=selected<12?stock[selected]:s.application.patterns[selected-12];
-		CHECK(memcmp(s.bgi.fill_pattern,expected,8)==0);
+	struct st_big_state s;
+	st_big_state_init(&s);
+	s.application.colors[2] = 5;
+	for (size_t slot = 0; slot < 12; ++slot)
+		for (size_t row = 0; row < 8; ++row)
+			s.application.patterns[slot][row] = (uint8_t)(slot * 16 + row);
+	for (unsigned raw = 0; raw <= 65535; ++raw) {
+		CHECK(st_big_fill_select(&s, (uint16_t)raw) == 0);
+		unsigned selected = raw < 24 ? raw : 1;
+		CHECK(s.application.fill == selected && s.bgi.fill_style == (selected < 12 ? selected : 12)
+		      && s.bgi.fill_color == 5);
+		const uint8_t *expected = selected < 12 ? stock[selected] : s.application.patterns[selected - 12];
+		CHECK(memcmp(s.bgi.fill_pattern, expected, 8) == 0);
 	}
-	static const uint8_t first[]={128,0,0,0,0,0,0,0};
-	for (unsigned word=0;word<=65535;++word) {
-		CHECK(st_big_fill_builtin(&s,1,(uint16_t)word)==0);
-		CHECK(s.bgi.fill_color==word && s.bgi.fill_low==(uint8_t)word && s.bgi.device_fill_color==(word&15));
-		for (size_t i=0;i<64;++i) CHECK(s.bgi.fill_pixels[i]==(word&15));
-		s.bgi.error=0;
-		CHECK(st_big_fill_custom(&s,first,(uint16_t)word)==0);
-		if (word<16) {
-			CHECK(s.bgi.fill_style==12 && s.bgi.fill_color==word && s.bgi.error==0 && s.bgi.fill_pixels[0]==word);
-			for (size_t i=1;i<64;++i) CHECK(s.bgi.fill_pixels[i]==0);
-		} else CHECK(s.bgi.fill_style==1 && s.bgi.fill_color==word && s.bgi.error==-11);
+	static const uint8_t first[] = {128, 0, 0, 0, 0, 0, 0, 0};
+	for (unsigned word = 0; word <= 65535; ++word) {
+		CHECK(st_big_fill_builtin(&s, 1, (uint16_t)word) == 0);
+		CHECK(s.bgi.fill_color == word && s.bgi.fill_low == (uint8_t)word
+		      && s.bgi.device_fill_color == (word & 15));
+		for (size_t i = 0; i < 64; ++i)
+			CHECK(s.bgi.fill_pixels[i] == (word & 15));
+		s.bgi.error = 0;
+		CHECK(st_big_fill_custom(&s, first, (uint16_t)word) == 0);
+		if (word < 16) {
+			CHECK(s.bgi.fill_style == 12 && s.bgi.fill_color == word && s.bgi.error == 0
+			      && s.bgi.fill_pixels[0] == word);
+			for (size_t i = 1; i < 64; ++i)
+				CHECK(s.bgi.fill_pixels[i] == 0);
+		}
+		else
+			CHECK(s.bgi.fill_style == 1 && s.bgi.fill_color == word && s.bgi.error == -11);
 	}
 }
-static void errors_and_defaults(void)
+
+static void
+errors_and_defaults(void)
 {
-	struct st_big_state s; st_big_state_init(&s); s.bgi.error=-11;
-	CHECK(st_big_fill_builtin(&s,3,5)==0 && s.bgi.error==-11);
-	uint8_t before[64]; memcpy(before,s.bgi.fill_pixels,64);
-	CHECK(st_big_fill_builtin(&s,12,7)==0 && s.bgi.fill_style==3 && s.bgi.fill_color==5 && s.bgi.error==-11 && memcmp(before,s.bgi.fill_pixels,64)==0);
-	CHECK(st_big_fill_select(&s,12)==0 && s.bgi.fill_style==12);
-	s.application.colors[2]=31; CHECK(st_big_fill_select(&s,13)==0);
-	CHECK(s.application.fill==13 && s.bgi.fill_style==12 && s.bgi.fill_color==15 && s.bgi.error==-11);
-	s.bgi.state=0; memcpy(before,s.bgi.fill_pixels,64);
-	CHECK(st_big_fill_builtin(&s,4,0x123)==IO_ERROR_PROTOCOL && s.bgi.fill_style==4 && s.bgi.fill_color==0x123 && s.bgi.fill_low==0x23);
-	CHECK(s.bgi.device_fill_style==12 && memcmp(before,s.bgi.fill_pixels,64)==0 && s.bgi.error==-1);
-	CHECK(st_big_fill_select(&s,12)==IO_ERROR_PROTOCOL && s.application.fill==12 && s.bgi.fill_style==4 && s.bgi.fill_color==0x123);
-	CHECK(st_big_fill_custom(&s,NULL,5)==IO_ERROR_INVALID_ARGUMENT && st_big_fill_builtin(NULL,1,5)==IO_ERROR_INVALID_ARGUMENT);
-	CHECK(st_big_fill_custom(NULL,stock[0],5)==IO_ERROR_INVALID_ARGUMENT && st_big_fill_apply(NULL)==IO_ERROR_INVALID_ARGUMENT && st_big_fill_select(NULL,1)==IO_ERROR_INVALID_ARGUMENT);
+	struct st_big_state s;
+	st_big_state_init(&s);
+	s.bgi.error = -11;
+	CHECK(st_big_fill_builtin(&s, 3, 5) == 0 && s.bgi.error == -11);
+	uint8_t before[64];
+	memcpy(before, s.bgi.fill_pixels, 64);
+	CHECK(st_big_fill_builtin(&s, 12, 7) == 0 && s.bgi.fill_style == 3 && s.bgi.fill_color == 5
+	      && s.bgi.error == -11 && memcmp(before, s.bgi.fill_pixels, 64) == 0);
+	CHECK(st_big_fill_select(&s, 12) == 0 && s.bgi.fill_style == 12);
+	s.application.colors[2] = 31;
+	CHECK(st_big_fill_select(&s, 13) == 0);
+	CHECK(s.application.fill == 13 && s.bgi.fill_style == 12 && s.bgi.fill_color == 15 && s.bgi.error == -11);
+	s.bgi.state = 0;
+	memcpy(before, s.bgi.fill_pixels, 64);
+	CHECK(st_big_fill_builtin(&s, 4, 0x123) == IO_ERROR_PROTOCOL && s.bgi.fill_style == 4
+	      && s.bgi.fill_color == 0x123 && s.bgi.fill_low == 0x23);
+	CHECK(s.bgi.device_fill_style == 12 && memcmp(before, s.bgi.fill_pixels, 64) == 0 && s.bgi.error == -1);
+	CHECK(st_big_fill_select(&s, 12) == IO_ERROR_PROTOCOL && s.application.fill == 12 && s.bgi.fill_style == 4
+	      && s.bgi.fill_color == 0x123);
+	CHECK(st_big_fill_custom(&s, NULL, 5) == IO_ERROR_INVALID_ARGUMENT
+	      && st_big_fill_builtin(NULL, 1, 5) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_big_fill_custom(NULL, stock[0], 5) == IO_ERROR_INVALID_ARGUMENT
+	      && st_big_fill_apply(NULL) == IO_ERROR_INVALID_ARGUMENT
+	      && st_big_fill_select(NULL, 1) == IO_ERROR_INVALID_ARGUMENT);
 }
-static void edit_headers_and_restore(void)
+
+static void
+edit_headers_and_restore(void)
 {
 	struct st_big_fill_edit e;
-	for (unsigned word=0;word<=65535;++word) {
-		CHECK(st_big_fill_edit_begin(&e,(uint16_t)word,1)==0);
-		CHECK(e.slot==(word>=12 && word<=23?word:12) && e.alter==1 && e.active && e.editing && e.row==0 && e.error==0);
-		CHECK(st_big_fill_edit_begin(&e,23,(uint16_t)word)==0);
-		CHECK(e.slot==23 && e.alter==(word<2?word:0) && e.editing==(word==1));
+	for (unsigned word = 0; word <= 65535; ++word) {
+		CHECK(st_big_fill_edit_begin(&e, (uint16_t)word, 1) == 0);
+		CHECK(e.slot == (word >= 12 && word <= 23 ? word : 12) && e.alter == 1 && e.active && e.editing
+		      && e.row == 0 && e.error == 0);
+		CHECK(st_big_fill_edit_begin(&e, 23, (uint16_t)word) == 0);
+		CHECK(e.slot == 23 && e.alter == (word < 2 ? word : 0) && e.editing == (word == 1));
 	}
-	struct st_big_state s; st_big_state_init(&s); s.bgi.state=0; s.bgi.error=-11; s.application.fill=7;
-	unsigned char before[sizeof(s.bgi)]; memcpy(before,&s.bgi,sizeof(before));
+	struct st_big_state s;
+	st_big_state_init(&s);
+	s.bgi.state        = 0;
+	s.bgi.error        = -11;
+	s.application.fill = 7;
+	unsigned char before[sizeof(s.bgi)];
+	memcpy(before, &s.bgi, sizeof(before));
 	/* big_profile pins the independent original96-byte restore-table hash. */
-	for (uint16_t slot=12;slot<24;++slot) {
-		memset(s.application.patterns,0xcc,96);
-		CHECK(st_big_fill_edit_begin(&e,slot,0)==0 && st_big_fill_edit_finish(&e,&s)==0 && !e.active);
-		for (size_t i=0;i<12;++i) for (size_t row=0;row<8;++row)
-			CHECK(s.application.patterns[i][row]==(i==(size_t)(slot-12)?st_big_fill_restore[i][row]:0xcc));
-		CHECK(s.application.fill==7 && memcmp(before,&s.bgi,sizeof(before))==0);
+	for (uint16_t slot = 12; slot < 24; ++slot) {
+		memset(s.application.patterns, 0xcc, 96);
+		CHECK(
+		    st_big_fill_edit_begin(&e, slot, 0) == 0 && st_big_fill_edit_finish(&e, &s) == 0 && !e.active);
+		for (size_t i = 0; i < 12; ++i)
+			for (size_t row = 0; row < 8; ++row)
+				CHECK(s.application.patterns[i][row]
+				      == (i == (size_t)(slot - 12) ? st_big_fill_restore[i][row] : 0xcc));
+		CHECK(s.application.fill == 7 && memcmp(before, &s.bgi, sizeof(before)) == 0);
 	}
-	const uint16_t values[]={257,258,65535,0,32769,291,511,264};
-	static const uint8_t expected[]={1,2,255,0,1,35,255,8};
-	memset(s.application.patterns[0],0xcc,8);
-	CHECK(st_big_fill_edit_begin(&e,12,1)==0);
-	for (size_t row=0;row<8;++row) {
-		CHECK(st_big_fill_edit_row(&e,&s,values[row])==0 && e.row==row+1);
-		for (size_t i=0;i<8;++i) CHECK(s.application.patterns[0][i]==(i<=row?expected[i]:0xcc));
+	const uint16_t       values[]   = {257, 258, 65535, 0, 32769, 291, 511, 264};
+	static const uint8_t expected[] = {1, 2, 255, 0, 1, 35, 255, 8};
+	memset(s.application.patterns[0], 0xcc, 8);
+	CHECK(st_big_fill_edit_begin(&e, 12, 1) == 0);
+	for (size_t row = 0; row < 8; ++row) {
+		CHECK(st_big_fill_edit_row(&e, &s, values[row]) == 0 && e.row == row + 1);
+		for (size_t i = 0; i < 8; ++i)
+			CHECK(s.application.patterns[0][i] == (i <= row ? expected[i] : 0xcc));
 	}
-	CHECK(st_big_fill_edit_finish(&e,&s)==0 && !e.active && memcmp(before,&s.bgi,sizeof(before))==0 && s.application.fill==7);
+	CHECK(st_big_fill_edit_finish(&e, &s) == 0 && !e.active && memcmp(before, &s.bgi, sizeof(before)) == 0
+	      && s.application.fill == 7);
 }
-static void edit_live_locals_and_errors(void)
+
+static void
+edit_live_locals_and_errors(void)
 {
-	struct st_big_state s; st_big_state_init(&s); struct st_big_fill_edit e;
-	CHECK(st_big_fill_edit_begin(&e,12,1)==0 && st_big_fill_edit_row(&e,&s,1)==0);
-	e.slot=13; e.alter=0;
-	for (uint16_t row=1;row<8;++row) CHECK(st_big_fill_edit_row(&e,&s,(uint16_t)(row+1))==0);
-	CHECK(s.application.patterns[1][0]==0x33 && s.application.patterns[1][7]==8 && e.row==8);
-	CHECK(st_big_fill_edit_finish(&e,&s)==0 && memcmp(s.application.patterns[1],st_big_fill_restore[1],8)==0);
-	CHECK(s.application.patterns[0][0]==1 && s.application.patterns[0][1]==0x55);
-	CHECK(st_big_fill_edit_begin(&e,12,1)==0 && st_big_fill_edit_row(&e,&s,9)==0);
-	e.slot=24; CHECK(st_big_fill_edit_row(&e,&s,10)==IO_ERROR_OUT_OF_RANGE && e.row==1 && s.application.patterns[0][0]==9);
-	e.slot=12; CHECK(st_big_fill_edit_row(&e,&s,11)==IO_ERROR_OUT_OF_RANGE && st_big_fill_edit_finish(&e,&s)==IO_ERROR_OUT_OF_RANGE);
-	st_big_fill_edit_cancel(&e); CHECK(!e.active && e.error==0 && s.application.patterns[0][0]==9);
-	CHECK(st_big_fill_edit_begin(&e,12,0)==0); e.slot=65535;
-	CHECK(st_big_fill_edit_finish(&e,&s)==IO_ERROR_OUT_OF_RANGE && s.application.patterns[0][0]==9);
-	CHECK(st_big_fill_edit_begin(&e,12,1)==0 && st_big_fill_edit_row(&e,&s,1)==0);
-	CHECK(st_big_fill_edit_finish(&e,&s)==IO_ERROR_PROTOCOL && st_big_fill_edit_row(&e,&s,2)==IO_ERROR_PROTOCOL);
-	st_big_fill_edit_cancel(&e); CHECK(st_big_fill_edit_row(&e,&s,2)==IO_ERROR_PROTOCOL);
-	CHECK(st_big_fill_edit_begin(NULL,12,1)==IO_ERROR_INVALID_ARGUMENT && st_big_fill_edit_row(NULL,&s,1)==IO_ERROR_INVALID_ARGUMENT);
-	CHECK(st_big_fill_edit_row(&e,NULL,1)==IO_ERROR_INVALID_ARGUMENT && st_big_fill_edit_finish(NULL,&s)==IO_ERROR_INVALID_ARGUMENT && st_big_fill_edit_finish(&e,NULL)==IO_ERROR_INVALID_ARGUMENT);
+	struct st_big_state s;
+	st_big_state_init(&s);
+	struct st_big_fill_edit e;
+	CHECK(st_big_fill_edit_begin(&e, 12, 1) == 0 && st_big_fill_edit_row(&e, &s, 1) == 0);
+	e.slot  = 13;
+	e.alter = 0;
+	for (uint16_t row = 1; row < 8; ++row)
+		CHECK(st_big_fill_edit_row(&e, &s, (uint16_t)(row + 1)) == 0);
+	CHECK(s.application.patterns[1][0] == 0x33 && s.application.patterns[1][7] == 8 && e.row == 8);
+	CHECK(st_big_fill_edit_finish(&e, &s) == 0
+	      && memcmp(s.application.patterns[1], st_big_fill_restore[1], 8) == 0);
+	CHECK(s.application.patterns[0][0] == 1 && s.application.patterns[0][1] == 0x55);
+	CHECK(st_big_fill_edit_begin(&e, 12, 1) == 0 && st_big_fill_edit_row(&e, &s, 9) == 0);
+	e.slot = 24;
+	CHECK(st_big_fill_edit_row(&e, &s, 10) == IO_ERROR_OUT_OF_RANGE && e.row == 1
+	      && s.application.patterns[0][0] == 9);
+	e.slot = 12;
+	CHECK(st_big_fill_edit_row(&e, &s, 11) == IO_ERROR_OUT_OF_RANGE
+	      && st_big_fill_edit_finish(&e, &s) == IO_ERROR_OUT_OF_RANGE);
+	st_big_fill_edit_cancel(&e);
+	CHECK(!e.active && e.error == 0 && s.application.patterns[0][0] == 9);
+	CHECK(st_big_fill_edit_begin(&e, 12, 0) == 0);
+	e.slot = 65535;
+	CHECK(st_big_fill_edit_finish(&e, &s) == IO_ERROR_OUT_OF_RANGE && s.application.patterns[0][0] == 9);
+	CHECK(st_big_fill_edit_begin(&e, 12, 1) == 0 && st_big_fill_edit_row(&e, &s, 1) == 0);
+	CHECK(st_big_fill_edit_finish(&e, &s) == IO_ERROR_PROTOCOL
+	      && st_big_fill_edit_row(&e, &s, 2) == IO_ERROR_PROTOCOL);
+	st_big_fill_edit_cancel(&e);
+	CHECK(st_big_fill_edit_row(&e, &s, 2) == IO_ERROR_PROTOCOL);
+	CHECK(st_big_fill_edit_begin(NULL, 12, 1) == IO_ERROR_INVALID_ARGUMENT
+	      && st_big_fill_edit_row(NULL, &s, 1) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_big_fill_edit_row(&e, NULL, 1) == IO_ERROR_INVALID_ARGUMENT
+	      && st_big_fill_edit_finish(NULL, &s) == IO_ERROR_INVALID_ARGUMENT
+	      && st_big_fill_edit_finish(&e, NULL) == IO_ERROR_INVALID_ARGUMENT);
 	st_big_fill_edit_cancel(NULL);
 }
-int main(void) { data_and_owners(); words_and_selection(); errors_and_defaults(); edit_headers_and_restore(); edit_live_locals_and_errors(); return 0; }
+
+int
+main(void)
+{
+	data_and_owners();
+	words_and_selection();
+	errors_and_defaults();
+	edit_headers_and_restore();
+	edit_live_locals_and_errors();
+	return 0;
+}

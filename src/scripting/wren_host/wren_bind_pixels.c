@@ -5,13 +5,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "wren_host_internal.h"
-
-#include "file_map.h"
-#include "st_console.h"
-#include "st_pixel_image.h"
-#include "st_pixels.h"
-
 #include <limits.h>
 #include <math.h>
 #include <stdint.h>
@@ -19,43 +12,48 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "file_map.h"
+#include "st_console.h"
+#include "st_pixel_image.h"
+#include "st_pixels.h"
+#include "wren_host_internal.h"
+
 #define WREN_MAX_EXACT_INTEGER ((double)ST_WREN_MAX_INTEGER)
-#define PIXEL_BUFFER_MAGIC UINT32_C(0x50425546)
-#define PIXEL_MASK_MAGIC UINT32_C(0x504d4153)
-#define PIXEL_BLIT_MAGIC UINT32_C(0x50424c54)
-#define PIXEL_ERROR_MAGIC UINT32_C(0x50455252)
+#define PIXEL_BUFFER_MAGIC     UINT32_C(0x50425546)
+#define PIXEL_MASK_MAGIC       UINT32_C(0x504d4153)
+#define PIXEL_BLIT_MAGIC       UINT32_C(0x50424c54)
+#define PIXEL_ERROR_MAGIC      UINT32_C(0x50455252)
 
 struct wren_pixel_buffer {
-	uint32_t magic;
+	uint32_t                magic;
 	struct st_pixel_buffer *pixels;
 };
 
 struct wren_pixel_mask {
-	uint32_t magic;
+	uint32_t              magic;
 	struct st_pixel_mask *mask;
 };
 
 struct wren_pixel_blit {
-	uint32_t magic;
+	uint32_t             magic;
 	struct st_pixel_blit blit;
 };
 
 struct wren_pixel_error {
 	uint32_t magic;
-	int code;
-	char message[192];
+	int      code;
+	char     message[192];
 };
 
 struct pixel_binding {
-	const char *class_name;
-	bool is_static;
-	const char *signature;
+	const char         *class_name;
+	bool                is_static;
+	const char         *signature;
 	WrenForeignMethodFn method;
 };
 
 static bool
-slot_integer(WrenVM *vm, int slot, double minimum, double maximum,
-	int64_t *result, const char *message)
+slot_integer(WrenVM *vm, int slot, double minimum, double maximum, int64_t *result, const char *message)
 {
 	double value;
 
@@ -64,8 +62,7 @@ slot_integer(WrenVM *vm, int slot, double minimum, double maximum,
 		return false;
 	}
 	value = wrenGetSlotDouble(vm, slot);
-	if (!isfinite(value) || trunc(value) != value || value < minimum
-	    || value > maximum) {
+	if (!isfinite(value) || trunc(value) != value || value < minimum || value > maximum) {
 		st_wren_abort(vm, message);
 		return false;
 	}
@@ -107,12 +104,10 @@ slot_bool(WrenVM *vm, int slot, bool *result, const char *message)
 }
 
 static bool
-dimensions(WrenVM *vm, int width_slot, int height_slot, uint32_t *width,
-	uint32_t *height, size_t element_size, size_t *count,
-	const char *message)
+dimensions(WrenVM *vm, int width_slot, int height_slot, uint32_t *width, uint32_t *height, size_t element_size,
+    size_t *count, const char *message)
 {
-	if (!slot_uint32(vm, width_slot, width, message)
-	    || !slot_uint32(vm, height_slot, height, message))
+	if (!slot_uint32(vm, width_slot, width, message) || !slot_uint32(vm, height_slot, height, message))
 		return false;
 	if (*width != 0 && (size_t)*height > SIZE_MAX / (size_t)*width) {
 		st_wren_abort(vm, message);
@@ -131,13 +126,11 @@ slot_colour(WrenVM *vm, int slot, uint32_t *colour)
 {
 	uint32_t value;
 
-	if (!slot_uint32(vm, slot, &value,
-	    "pixel colour must be a native PixelColor value"))
+	if (!slot_uint32(vm, slot, &value, "pixel colour must be a native PixelColor value"))
 		return false;
 	if (ST_PIXEL_COLOR_IS_RGB(value)) {
 		if ((value & UINT32_C(0x7f000000)) != 0) {
-			st_wren_abort(vm,
-			    "RGB pixel colour contains unsupported flag bits");
+			st_wren_abort(vm, "RGB pixel colour contains unsupported flag bits");
 			return false;
 		}
 	}
@@ -156,8 +149,7 @@ colour_to_rgb(WrenVM *vm, uint32_t colour, uint32_t *rgb)
 		*rgb = colour & UINT32_C(0x00ffffff);
 		return true;
 	}
-	return st_console_get_palette(st_wren_context_from_vm(vm)->console,
-	    (uint16_t)colour, rgb, 1) == 0;
+	return st_console_get_palette(st_wren_context_from_vm(vm)->console, (uint16_t)colour, rgb, 1) == 0;
 }
 
 static size_t
@@ -182,8 +174,7 @@ slot_pixel_buffer(WrenVM *vm, int slot, const char *message)
 		return NULL;
 	}
 	buffer = wrenGetSlotForeign(vm, slot);
-	if (buffer == NULL || buffer->magic != PIXEL_BUFFER_MAGIC
-	    || buffer->pixels == NULL) {
+	if (buffer == NULL || buffer->magic != PIXEL_BUFFER_MAGIC || buffer->pixels == NULL) {
 		st_wren_abort(vm, message);
 		return NULL;
 	}
@@ -233,16 +224,14 @@ pixel_result(WrenVM *vm, int status, const char *operation)
 	}
 	wrenEnsureSlots(vm, 2);
 	wrenGetVariable(vm, "syncterm", "PixelError", 1);
-	struct wren_pixel_error *error = wrenSetSlotNewForeign(vm, 0, 1,
-	    sizeof(*error));
-	error->magic = PIXEL_ERROR_MAGIC;
-	error->code = status;
-	const char *reason = status == IO_ERROR_OUT_OF_MEMORY ? "Out of memory"
-	    : status == IO_ERROR_OUT_OF_RANGE ? "Out of range"
-	    : status == IO_ERROR_INVALID_ARGUMENT ? "Invalid argument"
-	    : "Native operation failed";
-	(void)snprintf(error->message, sizeof(error->message), "%s: %s (%d)",
-	    operation, reason, status);
+	struct wren_pixel_error *error = wrenSetSlotNewForeign(vm, 0, 1, sizeof(*error));
+	error->magic                   = PIXEL_ERROR_MAGIC;
+	error->code                    = status;
+	const char *reason             = status == IO_ERROR_OUT_OF_MEMORY      ? "Out of memory"
+	                                 : status == IO_ERROR_OUT_OF_RANGE     ? "Out of range"
+	                                 : status == IO_ERROR_INVALID_ARGUMENT ? "Invalid argument"
+	                                                                       : "Native operation failed";
+	(void)snprintf(error->message, sizeof(error->message), "%s: %s (%d)", operation, reason, status);
 }
 
 static void
@@ -254,9 +243,9 @@ pixel_error_allocate(WrenVM *vm)
 static struct wren_pixel_error *
 pixel_error(WrenVM *vm)
 {
-	struct wren_pixel_error *error = st_wren_foreign_require(vm, 0,
-	    "syncterm", "PixelError");
-	if (error == NULL) return NULL;
+	struct wren_pixel_error *error = st_wren_foreign_require(vm, 0, "syncterm", "PixelError");
+	if (error == NULL)
+		return NULL;
 	if (error->magic != PIXEL_ERROR_MAGIC) {
 		st_wren_abort(vm, "invalid PixelError receiver");
 		return NULL;
@@ -268,24 +257,26 @@ static void
 fn_pixel_error_code(WrenVM *vm)
 {
 	struct wren_pixel_error *error = pixel_error(vm);
-	if (error != NULL) wrenSetSlotDouble(vm, 0, error->code);
+	if (error != NULL)
+		wrenSetSlotDouble(vm, 0, error->code);
 }
 
 static void
 fn_pixel_error_message(WrenVM *vm)
 {
 	struct wren_pixel_error *error = pixel_error(vm);
-	if (error != NULL) wrenSetSlotString(vm, 0, error->message);
+	if (error != NULL)
+		wrenSetSlotString(vm, 0, error->message);
 }
 
 static void
 fn_pixel_error_to_string(WrenVM *vm)
 {
 	struct wren_pixel_error *error = pixel_error(vm);
-	char text[224];
-	if (error == NULL) return;
-	(void)snprintf(text, sizeof(text), "PixelError(%d): %s",
-	    error->code, error->message);
+	char                     text[224];
+	if (error == NULL)
+		return;
+	(void)snprintf(text, sizeof(text), "PixelError(%d): %s", error->code, error->message);
 	wrenSetSlotString(vm, 0, text);
 }
 
@@ -296,8 +287,8 @@ return_pixel_buffer(WrenVM *vm, struct st_pixel_buffer *pixels)
 
 	wrenEnsureSlots(vm, 2);
 	wrenGetVariable(vm, "syncterm", "PixelBuffer", 1);
-	buffer = wrenSetSlotNewForeign(vm, 0, 1, sizeof(*buffer));
-	buffer->magic = PIXEL_BUFFER_MAGIC;
+	buffer         = wrenSetSlotNewForeign(vm, 0, 1, sizeof(*buffer));
+	buffer->magic  = PIXEL_BUFFER_MAGIC;
 	buffer->pixels = pixels;
 	return buffer;
 }
@@ -309,9 +300,9 @@ return_pixel_mask(WrenVM *vm, struct st_pixel_mask *mask)
 
 	wrenEnsureSlots(vm, 2);
 	wrenGetVariable(vm, "syncterm", "PixelMask", 1);
-	wrapper = wrenSetSlotNewForeign(vm, 0, 1, sizeof(*wrapper));
+	wrapper        = wrenSetSlotNewForeign(vm, 0, 1, sizeof(*wrapper));
 	wrapper->magic = PIXEL_MASK_MAGIC;
-	wrapper->mask = mask;
+	wrapper->mask  = mask;
 	return wrapper;
 }
 
@@ -334,8 +325,7 @@ fn_pixel_colour_palette(WrenVM *vm)
 {
 	int64_t index;
 
-	if (slot_integer(vm, 1, 0, UINT16_MAX, &index,
-	    "PixelColor.palette: index must be in 0..65535"))
+	if (slot_integer(vm, 1, 0, UINT16_MAX, &index, "PixelColor.palette: index must be in 0..65535"))
 		wrenSetSlotDouble(vm, 0, (double)index);
 }
 
@@ -358,8 +348,7 @@ fn_pixel_colour_rgb_value(WrenVM *vm)
 	if (!ST_PIXEL_COLOR_IS_RGB(colour))
 		wrenSetSlotNull(vm, 0);
 	else
-		wrenSetSlotDouble(vm, 0,
-		    (double)(colour & UINT32_C(0x00ffffff)));
+		wrenSetSlotDouble(vm, 0, (double)(colour & UINT32_C(0x00ffffff)));
 }
 
 static void
@@ -384,25 +373,25 @@ fn_pixel_colour_to_rgb(WrenVM *vm)
 		return;
 	if (ST_PIXEL_COLOR_IS_RGB(colour))
 		wrenSetSlotDouble(vm, 0, (double)(colour & UINT32_C(0x00ffffff)));
-	else if (st_wren_screen_status(vm, st_console_get_palette(st_wren_context_from_vm(vm)->console,
-	    (uint16_t)colour, &rgb, 1), "PixelColor.toRgb"))
+	else if (st_wren_screen_status(vm,
+		     st_console_get_palette(st_wren_context_from_vm(vm)->console, (uint16_t)colour, &rgb, 1),
+		     "PixelColor.toRgb"))
 		wrenSetSlotDouble(vm, 0, (double)rgb);
 }
 
 static void
 pixel_buffer_allocate(WrenVM *vm)
 {
-	struct wren_pixel_buffer *wrapper = wrenSetSlotNewForeign(vm, 0, 0,
-	    sizeof(*wrapper));
-	uint32_t width;
-	uint32_t height;
-	uint32_t fill = 0;
-	size_t count;
+	struct wren_pixel_buffer *wrapper = wrenSetSlotNewForeign(vm, 0, 0, sizeof(*wrapper));
+	uint32_t                  width;
+	uint32_t                  height;
+	uint32_t                  fill = 0;
+	size_t                    count;
 
-	wrapper->magic = PIXEL_BUFFER_MAGIC;
+	wrapper->magic  = PIXEL_BUFFER_MAGIC;
 	wrapper->pixels = NULL;
 	if (!dimensions(vm, 1, 2, &width, &height, sizeof(uint32_t), &count,
-	    "PixelBuffer.new: invalid dimensions"))
+		"PixelBuffer.new: invalid dimensions"))
 		return;
 	if (wrenGetSlotCount(vm) > 3 && !slot_colour(vm, 3, &fill))
 		return;
@@ -426,21 +415,19 @@ pixel_buffer_finalize(void *data)
 static struct st_pixel_buffer *
 pixel_buffer(WrenVM *vm)
 {
-	struct wren_pixel_buffer *wrapper = slot_pixel_buffer(vm, 0,
-	    "invalid PixelBuffer receiver");
+	struct wren_pixel_buffer *wrapper = slot_pixel_buffer(vm, 0, "invalid PixelBuffer receiver");
 
 	return wrapper == NULL ? NULL : wrapper->pixels;
 }
 
 static bool
-buffer_index(WrenVM *vm, const struct st_pixel_buffer *pixels, int slot,
-	size_t *index)
+buffer_index(WrenVM *vm, const struct st_pixel_buffer *pixels, int slot, size_t *index)
 {
 	int64_t value;
-	size_t count = buffer_count(pixels);
+	size_t  count = buffer_count(pixels);
 
 	if (!slot_integer(vm, slot, 0, WREN_MAX_EXACT_INTEGER, &value,
-	    "PixelBuffer: index must be a non-negative integer"))
+		"PixelBuffer: index must be a non-negative integer"))
 		return false;
 	if ((uint64_t)value >= count) {
 		st_wren_abort(vm, "PixelBuffer: index out of bounds");
@@ -451,16 +438,13 @@ buffer_index(WrenVM *vm, const struct st_pixel_buffer *pixels, int slot,
 }
 
 static bool
-buffer_position(WrenVM *vm, const struct st_pixel_buffer *pixels,
-	int x_slot, int y_slot, size_t *index)
+buffer_position(WrenVM *vm, const struct st_pixel_buffer *pixels, int x_slot, int y_slot, size_t *index)
 {
 	uint32_t x;
 	uint32_t y;
 
-	if (!slot_uint32(vm, x_slot, &x,
-	    "PixelBuffer: x must be a non-negative integer")
-	    || !slot_uint32(vm, y_slot, &y,
-	    "PixelBuffer: y must be a non-negative integer"))
+	if (!slot_uint32(vm, x_slot, &x, "PixelBuffer: x must be a non-negative integer")
+	    || !slot_uint32(vm, y_slot, &y, "PixelBuffer: y must be a non-negative integer"))
 		return false;
 	if (x >= pixels->width || y >= pixels->height) {
 		st_wren_abort(vm, "PixelBuffer: coordinates out of bounds");
@@ -501,7 +485,7 @@ static void
 fn_pixel_buffer_subscript(WrenVM *vm)
 {
 	struct st_pixel_buffer *pixels = pixel_buffer(vm);
-	size_t index;
+	size_t                  index;
 
 	if (pixels != NULL && buffer_index(vm, pixels, 1, &index))
 		wrenSetSlotDouble(vm, 0, pixels->primary[index]);
@@ -511,11 +495,10 @@ static void
 fn_pixel_buffer_subscript_set(WrenVM *vm)
 {
 	struct st_pixel_buffer *pixels = pixel_buffer(vm);
-	size_t index;
-	uint32_t colour;
+	size_t                  index;
+	uint32_t                colour;
 
-	if (pixels != NULL && buffer_index(vm, pixels, 1, &index)
-	    && slot_colour(vm, 2, &colour))
+	if (pixels != NULL && buffer_index(vm, pixels, 1, &index) && slot_colour(vm, 2, &colour))
 		pixels->primary[index] = colour;
 }
 
@@ -523,7 +506,7 @@ static void
 fn_pixel_buffer_pixel_at(WrenVM *vm)
 {
 	struct st_pixel_buffer *pixels = pixel_buffer(vm);
-	size_t index;
+	size_t                  index;
 
 	if (pixels != NULL && buffer_position(vm, pixels, 1, 2, &index))
 		wrenSetSlotDouble(vm, 0, pixels->primary[index]);
@@ -533,11 +516,10 @@ static void
 fn_pixel_buffer_set_pixel(WrenVM *vm)
 {
 	struct st_pixel_buffer *pixels = pixel_buffer(vm);
-	size_t index;
-	uint32_t colour;
+	size_t                  index;
+	uint32_t                colour;
 
-	if (pixels != NULL && buffer_position(vm, pixels, 1, 2, &index)
-	    && slot_colour(vm, 3, &colour))
+	if (pixels != NULL && buffer_position(vm, pixels, 1, 2, &index) && slot_colour(vm, 3, &colour))
 		pixels->primary[index] = colour;
 }
 
@@ -545,7 +527,7 @@ static void
 fn_pixel_buffer_fill(WrenVM *vm)
 {
 	struct st_pixel_buffer *pixels = pixel_buffer(vm);
-	uint32_t colour;
+	uint32_t                colour;
 
 	if (pixels != NULL && slot_colour(vm, 1, &colour))
 		for (size_t i = 0; i < buffer_count(pixels); ++i)
@@ -556,8 +538,8 @@ static void
 fn_pixel_buffer_iterate(WrenVM *vm)
 {
 	struct st_pixel_buffer *pixels = pixel_buffer(vm);
-	int64_t current;
-	size_t count;
+	int64_t                 current;
+	size_t                  count;
 
 	if (pixels == NULL)
 		return;
@@ -570,8 +552,7 @@ fn_pixel_buffer_iterate(WrenVM *vm)
 		wrenSetSlotDouble(vm, 0, 0);
 		return;
 	}
-	if (!slot_integer(vm, 1, 0, WREN_MAX_EXACT_INTEGER, &current,
-	    "PixelBuffer.iterate: invalid iterator"))
+	if (!slot_integer(vm, 1, 0, WREN_MAX_EXACT_INTEGER, &current, "PixelBuffer.iterate: invalid iterator"))
 		return;
 	if ((uint64_t)current + 1 >= count)
 		wrenSetSlotBool(vm, 0, false);
@@ -589,7 +570,7 @@ static void
 fn_pixel_buffer_clone(WrenVM *vm)
 {
 	struct st_pixel_buffer *source = pixel_buffer(vm);
-	struct st_pixel_buffer *copy = NULL;
+	struct st_pixel_buffer *copy   = NULL;
 
 	if (source == NULL)
 		return;
@@ -612,7 +593,7 @@ static void
 fn_pixel_buffer_alternate_at(WrenVM *vm)
 {
 	struct st_pixel_buffer *pixels = pixel_buffer(vm);
-	size_t index;
+	size_t                  index;
 
 	if (pixels == NULL || !buffer_index(vm, pixels, 1, &index))
 		return;
@@ -635,11 +616,11 @@ static void
 fn_pixel_buffer_set_alternate(WrenVM *vm)
 {
 	struct st_pixel_buffer *pixels = pixel_buffer(vm);
-	size_t index;
-	uint32_t colour;
+	size_t                  index;
+	uint32_t                colour;
 
-	if (pixels != NULL && buffer_position(vm, pixels, 1, 2, &index)
-	    && slot_colour(vm, 3, &colour) && ensure_alternate(vm, pixels))
+	if (pixels != NULL && buffer_position(vm, pixels, 1, 2, &index) && slot_colour(vm, 3, &colour)
+	    && ensure_alternate(vm, pixels))
 		pixels->alternate[index] = colour;
 }
 
@@ -647,10 +628,9 @@ static void
 fn_pixel_buffer_fill_alternate(WrenVM *vm)
 {
 	struct st_pixel_buffer *pixels = pixel_buffer(vm);
-	uint32_t colour;
+	uint32_t                colour;
 
-	if (pixels != NULL && slot_colour(vm, 1, &colour)
-	    && ensure_alternate(vm, pixels))
+	if (pixels != NULL && slot_colour(vm, 1, &colour) && ensure_alternate(vm, pixels))
 		for (size_t i = 0; i < buffer_count(pixels); ++i)
 			pixels->alternate[i] = colour;
 }
@@ -665,8 +645,7 @@ fn_pixel_buffer_clear_alternate(WrenVM *vm)
 }
 
 static bool
-rgb24_data(WrenVM *vm, int slot, size_t count, const uint8_t **bytes,
-	const char *message)
+rgb24_data(WrenVM *vm, int slot, size_t count, const uint8_t **bytes, const char *message)
 {
 	int length;
 
@@ -686,8 +665,7 @@ static void
 import_rgb24(uint32_t *destination, const uint8_t *bytes, size_t count)
 {
 	for (size_t i = 0; i < count; ++i)
-		destination[i] = ST_PIXEL_COLOR_RGB_VALUE(bytes[i * 3],
-		    bytes[i * 3 + 1], bytes[i * 3 + 2]);
+		destination[i] = ST_PIXEL_COLOR_RGB_VALUE(bytes[i * 3], bytes[i * 3 + 1], bytes[i * 3 + 2]);
 }
 
 static bool
@@ -716,7 +694,7 @@ export_rgb24(WrenVM *vm, const uint32_t *source, size_t count)
 			wrenSetSlotNull(vm, 0);
 			return false;
 		}
-		bytes[i * 3] = (uint8_t)(rgb >> 16);
+		bytes[i * 3]     = (uint8_t)(rgb >> 16);
 		bytes[i * 3 + 1] = (uint8_t)(rgb >> 8);
 		bytes[i * 3 + 2] = (uint8_t)rgb;
 	}
@@ -729,19 +707,19 @@ static void
 fn_pixel_buffer_from_rgb24(WrenVM *vm)
 {
 	struct st_pixel_buffer *pixels = NULL;
-	const uint8_t *primary;
-	const uint8_t *alternate = NULL;
-	uint32_t width;
-	uint32_t height;
-	size_t count;
-	bool has_alternate = wrenGetSlotCount(vm) > 4;
+	const uint8_t          *primary;
+	const uint8_t          *alternate = NULL;
+	uint32_t                width;
+	uint32_t                height;
+	size_t                  count;
+	bool                    has_alternate = wrenGetSlotCount(vm) > 4;
 
 	if (!dimensions(vm, 1, 2, &width, &height, sizeof(uint32_t), &count,
-	    "PixelBuffer.fromRgb24: invalid dimensions")
-	    || !rgb24_data(vm, 3, count, &primary,
-	    "PixelBuffer.fromRgb24: byte length must be width * height * 3")
-	    || (has_alternate && !rgb24_data(vm, 4, count, &alternate,
-	    "PixelBuffer.fromRgb24: alternate byte length must be width * height * 3")))
+		"PixelBuffer.fromRgb24: invalid dimensions")
+	    || !rgb24_data(vm, 3, count, &primary, "PixelBuffer.fromRgb24: byte length must be width * height * 3")
+	    || (has_alternate
+	        && !rgb24_data(vm, 4, count, &alternate,
+		    "PixelBuffer.fromRgb24: alternate byte length must be width * height * 3")))
 		return;
 	if (st_pixel_buffer_create(&pixels, width, height, has_alternate) != 0) {
 		wrenSetSlotNull(vm, 0);
@@ -779,49 +757,46 @@ static void
 fn_pixel_buffer_set_alternate_rgb24(WrenVM *vm)
 {
 	struct st_pixel_buffer *pixels = pixel_buffer(vm);
-	const uint8_t *bytes;
-	size_t count;
+	const uint8_t          *bytes;
+	size_t                  count;
 
 	if (pixels == NULL)
 		return;
 	count = buffer_count(pixels);
-	if (rgb24_data(vm, 1, count, &bytes,
-	    "setAlternateRgb24: byte length must be width * height * 3")
+	if (rgb24_data(vm, 1, count, &bytes, "setAlternateRgb24: byte length must be width * height * 3")
 	    && ensure_alternate(vm, pixels))
 		import_rgb24(pixels->alternate, bytes, count);
 }
 
 static int
-decode_source(WrenVM *vm, int slot, bool jxl,
-	struct st_pixel_buffer **pixel_result, struct st_pixel_mask **mask_result,
-	bool *aborted)
+decode_source(WrenVM *vm, int slot, bool jxl, struct st_pixel_buffer **pixel_result,
+    struct st_pixel_mask **mask_result, bool *aborted)
 {
 	const void *data;
-	size_t length;
+	size_t      length;
 	file_map_t *map = NULL;
-	int status;
+	int         status;
 
 	*aborted = false;
 
 	if (wrenGetSlotType(vm, slot) == WREN_TYPE_STRING) {
 		int string_length;
 
-		data = wrenGetSlotBytes(vm, slot, &string_length);
+		data   = wrenGetSlotBytes(vm, slot, &string_length);
 		length = (size_t)string_length;
 	}
 	else {
 		const char *path = st_wren_file_read_path(vm, slot);
 
 		if (path == NULL) {
-			st_wren_abort(vm,
-			    "image source must be binary String data or a readable File");
+			st_wren_abort(vm, "image source must be binary String data or a readable File");
 			*aborted = true;
 			return IO_ERROR_INVALID_ARGUMENT;
 		}
 		status = file_map_open(&map, path);
 		if (status != 0)
 			return status;
-		data = file_map_data(map);
+		data   = file_map_data(map);
 		length = file_map_size(map);
 	}
 	if (mask_result != NULL)
@@ -838,7 +813,7 @@ static void
 fn_pixel_buffer_from_ppm(WrenVM *vm)
 {
 	struct st_pixel_buffer *pixels = NULL;
-	bool aborted;
+	bool                    aborted;
 
 	if (decode_source(vm, 1, false, &pixels, NULL, &aborted) == 0)
 		(void)return_pixel_buffer(vm, pixels);
@@ -850,7 +825,7 @@ static void
 fn_pixel_buffer_from_jxl(WrenVM *vm)
 {
 	struct st_pixel_buffer *pixels = NULL;
-	bool aborted;
+	bool                    aborted;
 
 	if (!st_pixel_image_jxl_supported()) {
 		wrenSetSlotNull(vm, 0);
@@ -871,20 +846,17 @@ fn_pixel_buffer_jxl_supported(WrenVM *vm)
 static void
 pixel_mask_allocate(WrenVM *vm)
 {
-	struct wren_pixel_mask *wrapper = wrenSetSlotNewForeign(vm, 0, 0,
-	    sizeof(*wrapper));
-	uint32_t width;
-	uint32_t height;
-	size_t count;
-	bool fill = false;
+	struct wren_pixel_mask *wrapper = wrenSetSlotNewForeign(vm, 0, 0, sizeof(*wrapper));
+	uint32_t                width;
+	uint32_t                height;
+	size_t                  count;
+	bool                    fill = false;
 
 	wrapper->magic = PIXEL_MASK_MAGIC;
-	wrapper->mask = NULL;
-	if (!dimensions(vm, 1, 2, &width, &height, 1, &count,
-	    "PixelMask.new: invalid dimensions"))
+	wrapper->mask  = NULL;
+	if (!dimensions(vm, 1, 2, &width, &height, 1, &count, "PixelMask.new: invalid dimensions"))
 		return;
-	if (wrenGetSlotCount(vm) > 3 && !slot_bool(vm, 3, &fill,
-	    "PixelMask.new: fill must be Bool"))
+	if (wrenGetSlotCount(vm) > 3 && !slot_bool(vm, 3, &fill, "PixelMask.new: fill must be Bool"))
 		return;
 	if (st_pixel_mask_create(&wrapper->mask, width, height) != 0) {
 		st_wren_abort(vm, "PixelMask.new: out of memory");
@@ -893,8 +865,7 @@ pixel_mask_allocate(WrenVM *vm)
 	if (fill && count != 0) {
 		memset(wrapper->mask->bits, UINT8_MAX, (count + 7) / 8);
 		if ((count % 8) != 0)
-			wrapper->mask->bits[count / 8] &=
-			    (uint8_t)(UINT8_MAX << (8 - count % 8));
+			wrapper->mask->bits[count / 8] &= (uint8_t)(UINT8_MAX << (8 - count % 8));
 	}
 }
 
@@ -910,21 +881,19 @@ pixel_mask_finalize(void *data)
 static struct st_pixel_mask *
 pixel_mask(WrenVM *vm)
 {
-	struct wren_pixel_mask *wrapper = slot_pixel_mask(vm, 0,
-	    "invalid PixelMask receiver");
+	struct wren_pixel_mask *wrapper = slot_pixel_mask(vm, 0, "invalid PixelMask receiver");
 
 	return wrapper == NULL ? NULL : wrapper->mask;
 }
 
 static bool
-mask_index(WrenVM *vm, const struct st_pixel_mask *mask, int slot,
-	size_t *index)
+mask_index(WrenVM *vm, const struct st_pixel_mask *mask, int slot, size_t *index)
 {
 	int64_t value;
-	size_t count = mask_count(mask);
+	size_t  count = mask_count(mask);
 
 	if (!slot_integer(vm, slot, 0, WREN_MAX_EXACT_INTEGER, &value,
-	    "PixelMask: index must be a non-negative integer"))
+		"PixelMask: index must be a non-negative integer"))
 		return false;
 	if ((uint64_t)value >= count) {
 		st_wren_abort(vm, "PixelMask: index out of bounds");
@@ -935,13 +904,10 @@ mask_index(WrenVM *vm, const struct st_pixel_mask *mask, int slot,
 }
 
 static bool
-mask_position(WrenVM *vm, const struct st_pixel_mask *mask, int x_slot,
-	int y_slot, uint32_t *x, uint32_t *y)
+mask_position(WrenVM *vm, const struct st_pixel_mask *mask, int x_slot, int y_slot, uint32_t *x, uint32_t *y)
 {
-	if (!slot_uint32(vm, x_slot, x,
-	    "PixelMask: x must be a non-negative integer")
-	    || !slot_uint32(vm, y_slot, y,
-	    "PixelMask: y must be a non-negative integer"))
+	if (!slot_uint32(vm, x_slot, x, "PixelMask: x must be a non-negative integer")
+	    || !slot_uint32(vm, y_slot, y, "PixelMask: y must be a non-negative integer"))
 		return false;
 	if (*x >= mask->width || *y >= mask->height) {
 		st_wren_abort(vm, "PixelMask: coordinates out of bounds");
@@ -953,8 +919,7 @@ mask_position(WrenVM *vm, const struct st_pixel_mask *mask, int x_slot,
 static bool
 mask_bit(const struct st_pixel_mask *mask, size_t index)
 {
-	return (mask->bits[index / 8]
-	    & (uint8_t)(UINT8_C(0x80) >> (index % 8))) != 0;
+	return (mask->bits[index / 8] & (uint8_t)(UINT8_C(0x80) >> (index % 8))) != 0;
 }
 
 static void
@@ -999,7 +964,7 @@ static void
 fn_pixel_mask_subscript(WrenVM *vm)
 {
 	struct st_pixel_mask *mask = pixel_mask(vm);
-	size_t index;
+	size_t                index;
 
 	if (mask != NULL && mask_index(vm, mask, 1, &index))
 		wrenSetSlotBool(vm, 0, mask_bit(mask, index));
@@ -1009,8 +974,8 @@ static void
 fn_pixel_mask_subscript_set(WrenVM *vm)
 {
 	struct st_pixel_mask *mask = pixel_mask(vm);
-	size_t index;
-	bool value;
+	size_t                index;
+	bool                  value;
 
 	if (mask != NULL && mask_index(vm, mask, 1, &index)
 	    && slot_bool(vm, 2, &value, "PixelMask value must be Bool"))
@@ -1021,12 +986,11 @@ static void
 fn_pixel_mask_bit_at(WrenVM *vm)
 {
 	struct st_pixel_mask *mask = pixel_mask(vm);
-	uint32_t x;
-	uint32_t y;
-	bool value;
+	uint32_t              x;
+	uint32_t              y;
+	bool                  value;
 
-	if (mask != NULL && mask_position(vm, mask, 1, 2, &x, &y)
-	    && st_pixel_mask_get(mask, x, y, &value) == 0)
+	if (mask != NULL && mask_position(vm, mask, 1, 2, &x, &y) && st_pixel_mask_get(mask, x, y, &value) == 0)
 		wrenSetSlotBool(vm, 0, value);
 }
 
@@ -1034,9 +998,9 @@ static void
 fn_pixel_mask_set_bit(WrenVM *vm)
 {
 	struct st_pixel_mask *mask = pixel_mask(vm);
-	uint32_t x;
-	uint32_t y;
-	bool value;
+	uint32_t              x;
+	uint32_t              y;
+	bool                  value;
 
 	if (mask != NULL && mask_position(vm, mask, 1, 2, &x, &y)
 	    && slot_bool(vm, 3, &value, "PixelMask value must be Bool"))
@@ -1047,28 +1011,26 @@ static void
 fn_pixel_mask_fill(WrenVM *vm)
 {
 	struct st_pixel_mask *mask = pixel_mask(vm);
-	bool value;
-	size_t count;
-	size_t bytes;
+	bool                  value;
+	size_t                count;
+	size_t                bytes;
 
-	if (mask == NULL || !slot_bool(vm, 1, &value,
-	    "PixelMask.fill: value must be Bool"))
+	if (mask == NULL || !slot_bool(vm, 1, &value, "PixelMask.fill: value must be Bool"))
 		return;
 	count = mask_count(mask);
 	bytes = (count + 7) / 8;
 	if (bytes != 0)
 		memset(mask->bits, value ? UINT8_MAX : 0, bytes);
 	if (value && (count % 8) != 0)
-		mask->bits[count / 8] &=
-		    (uint8_t)(UINT8_MAX << (8 - count % 8));
+		mask->bits[count / 8] &= (uint8_t)(UINT8_MAX << (8 - count % 8));
 }
 
 static void
 fn_pixel_mask_iterate(WrenVM *vm)
 {
 	struct st_pixel_mask *mask = pixel_mask(vm);
-	int64_t current;
-	size_t count;
+	int64_t               current;
+	size_t                count;
 
 	if (mask == NULL)
 		return;
@@ -1081,8 +1043,7 @@ fn_pixel_mask_iterate(WrenVM *vm)
 		wrenSetSlotDouble(vm, 0, 0);
 		return;
 	}
-	if (!slot_integer(vm, 1, 0, WREN_MAX_EXACT_INTEGER, &current,
-	    "PixelMask.iterate: invalid iterator"))
+	if (!slot_integer(vm, 1, 0, WREN_MAX_EXACT_INTEGER, &current, "PixelMask.iterate: invalid iterator"))
 		return;
 	if ((uint64_t)current + 1 >= count)
 		wrenSetSlotBool(vm, 0, false);
@@ -1100,25 +1061,23 @@ static void
 fn_pixel_mask_from_bits(WrenVM *vm)
 {
 	struct st_pixel_mask *mask = NULL;
-	const char *bits;
-	uint32_t width;
-	uint32_t height;
-	size_t count;
-	size_t byte_count;
-	int length;
+	const char           *bits;
+	uint32_t              width;
+	uint32_t              height;
+	size_t                count;
+	size_t                byte_count;
+	int                   length;
 
-	if (!dimensions(vm, 1, 2, &width, &height, 1, &count,
-	    "PixelMask.fromBits: invalid dimensions"))
+	if (!dimensions(vm, 1, 2, &width, &height, 1, &count, "PixelMask.fromBits: invalid dimensions"))
 		return;
 	if (wrenGetSlotType(vm, 3) != WREN_TYPE_STRING) {
 		st_wren_abort(vm, "PixelMask.fromBits: bits must be a String");
 		return;
 	}
-	bits = wrenGetSlotBytes(vm, 3, &length);
+	bits       = wrenGetSlotBytes(vm, 3, &length);
 	byte_count = (count + 7) / 8;
 	if (byte_count > INT_MAX || length != (int)byte_count) {
-		st_wren_abort(vm,
-		    "PixelMask.fromBits: byte length must be ceil(width * height / 8)");
+		st_wren_abort(vm, "PixelMask.fromBits: byte length must be ceil(width * height / 8)");
 		return;
 	}
 	if (st_pixel_mask_create(&mask, width, height) != 0) {
@@ -1128,8 +1087,7 @@ fn_pixel_mask_from_bits(WrenVM *vm)
 	if (byte_count != 0)
 		memcpy(mask->bits, bits, byte_count);
 	if ((count % 8) != 0)
-		mask->bits[count / 8] &=
-		    (uint8_t)(UINT8_MAX << (8 - count % 8));
+		mask->bits[count / 8] &= (uint8_t)(UINT8_MAX << (8 - count % 8));
 	(void)return_pixel_mask(vm, mask);
 }
 
@@ -1137,20 +1095,19 @@ static void
 fn_pixel_mask_bits(WrenVM *vm)
 {
 	struct st_pixel_mask *mask = pixel_mask(vm);
-	size_t bytes;
+	size_t                bytes;
 
 	if (mask == NULL)
 		return;
 	bytes = (mask_count(mask) + 7) / 8;
-	wrenSetSlotBytes(vm, 0, bytes == 0 ? "" : (const char *)mask->bits,
-	    bytes);
+	wrenSetSlotBytes(vm, 0, bytes == 0 ? "" : (const char *)mask->bits, bytes);
 }
 
 static void
 fn_pixel_mask_from_pbm(WrenVM *vm)
 {
 	struct st_pixel_mask *mask = NULL;
-	bool aborted;
+	bool                  aborted;
 
 	if (decode_source(vm, 1, false, NULL, &mask, &aborted) == 0)
 		(void)return_pixel_mask(vm, mask);
@@ -1161,13 +1118,12 @@ fn_pixel_mask_from_pbm(WrenVM *vm)
 static void
 pixel_blit_allocate(WrenVM *vm)
 {
-	struct wren_pixel_blit *wrapper = wrenSetSlotNewForeign(vm, 0, 0,
-	    sizeof(*wrapper));
+	struct wren_pixel_blit *wrapper = wrenSetSlotNewForeign(vm, 0, 0, sizeof(*wrapper));
 
 	wrapper->magic = PIXEL_BLIT_MAGIC;
-	wrapper->blit = (struct st_pixel_blit){
-		.scale_x = 1,
-		.scale_y = 1,
+	wrapper->blit  = (struct st_pixel_blit) {
+	    .scale_x = 1,
+	    .scale_y = 1,
 	};
 }
 
@@ -1180,15 +1136,14 @@ pixel_blit_finalize(void *data)
 static struct st_pixel_blit *
 pixel_blit(WrenVM *vm)
 {
-	struct wren_pixel_blit *wrapper = slot_pixel_blit(vm, 0,
-	    "invalid PixelBlit receiver");
+	struct wren_pixel_blit *wrapper = slot_pixel_blit(vm, 0, "invalid PixelBlit receiver");
 
 	return wrapper == NULL ? NULL : &wrapper->blit;
 }
 
 static bool
-slot_blit_uint32(WrenVM *vm, uint32_t *value, bool allow_zero,
-	const char *integer_error, const char *positive_error)
+slot_blit_uint32(WrenVM *vm, uint32_t *value, bool allow_zero, const char *integer_error,
+    const char *positive_error)
 {
 	if (!slot_uint32(vm, 1, value, integer_error))
 		return false;
@@ -1199,37 +1154,38 @@ slot_blit_uint32(WrenVM *vm, uint32_t *value, bool allow_zero,
 	return true;
 }
 
-#define BLIT_UINT_FIELD(name, field, allow_zero) \
-	static void fn_pixel_blit_##name(WrenVM *vm) \
-	{ \
-		struct st_pixel_blit *blit = pixel_blit(vm); \
-		if (blit != NULL) \
-			wrenSetSlotDouble(vm, 0, blit->field); \
-	} \
-	static void fn_pixel_blit_##name##_set(WrenVM *vm) \
-	{ \
-		struct st_pixel_blit *blit = pixel_blit(vm); \
-		uint32_t value; \
-		if (blit != NULL && slot_blit_uint32(vm, &value, allow_zero, \
-		    "PixelBlit." #name ": expected a non-negative integer", \
-		    "PixelBlit." #name ": value must be positive")) \
-			blit->field = value; \
+#define BLIT_UINT_FIELD(name, field, allow_zero)                                \
+	static void fn_pixel_blit_##name(WrenVM *vm)                            \
+	{                                                                       \
+		struct st_pixel_blit *blit = pixel_blit(vm);                    \
+		if (blit != NULL)                                               \
+			wrenSetSlotDouble(vm, 0, blit->field);                  \
+	}                                                                       \
+	static void fn_pixel_blit_##name##_set(WrenVM *vm)                      \
+	{                                                                       \
+		struct st_pixel_blit *blit = pixel_blit(vm);                    \
+		uint32_t              value;                                    \
+		if (blit != NULL                                                \
+		    && slot_blit_uint32(vm, &value, allow_zero,                 \
+			"PixelBlit." #name ": expected a non-negative integer", \
+			"PixelBlit." #name ": value must be positive"))         \
+			blit->field = value;                                    \
 	}
 
-#define BLIT_INT_FIELD(name, field) \
-	static void fn_pixel_blit_##name(WrenVM *vm) \
-	{ \
-		struct st_pixel_blit *blit = pixel_blit(vm); \
-		if (blit != NULL) \
-			wrenSetSlotDouble(vm, 0, blit->field); \
-	} \
-	static void fn_pixel_blit_##name##_set(WrenVM *vm) \
-	{ \
-		struct st_pixel_blit *blit = pixel_blit(vm); \
-		int32_t value; \
-		if (blit != NULL && slot_int32(vm, 1, &value, \
-		    "PixelBlit." #name ": expected a signed 32-bit integer")) \
-			blit->field = value; \
+#define BLIT_INT_FIELD(name, field)                                                                        \
+	static void fn_pixel_blit_##name(WrenVM *vm)                                                       \
+	{                                                                                                  \
+		struct st_pixel_blit *blit = pixel_blit(vm);                                               \
+		if (blit != NULL)                                                                          \
+			wrenSetSlotDouble(vm, 0, blit->field);                                             \
+	}                                                                                                  \
+	static void fn_pixel_blit_##name##_set(WrenVM *vm)                                                 \
+	{                                                                                                  \
+		struct st_pixel_blit *blit = pixel_blit(vm);                                               \
+		int32_t               value;                                                               \
+		if (blit != NULL                                                                           \
+		    && slot_int32(vm, 1, &value, "PixelBlit." #name ": expected a signed 32-bit integer")) \
+			blit->field = value;                                                               \
 	}
 
 BLIT_UINT_FIELD(source_x, source_x, true)
@@ -1252,18 +1208,16 @@ fn_pixel_blit_flip_x(WrenVM *vm)
 	struct st_pixel_blit *blit = pixel_blit(vm);
 
 	if (blit != NULL)
-		wrenSetSlotBool(vm, 0,
-		    (blit->flags & ST_PIXEL_BLIT_FLIP_X) != 0);
+		wrenSetSlotBool(vm, 0, (blit->flags & ST_PIXEL_BLIT_FLIP_X) != 0);
 }
 
 static void
 fn_pixel_blit_flip_x_set(WrenVM *vm)
 {
 	struct st_pixel_blit *blit = pixel_blit(vm);
-	bool value;
+	bool                  value;
 
-	if (blit == NULL || !slot_bool(vm, 1, &value,
-	    "PixelBlit.flipX: expected Bool"))
+	if (blit == NULL || !slot_bool(vm, 1, &value, "PixelBlit.flipX: expected Bool"))
 		return;
 	if (value)
 		blit->flags |= ST_PIXEL_BLIT_FLIP_X;
@@ -1277,18 +1231,16 @@ fn_pixel_blit_flip_y(WrenVM *vm)
 	struct st_pixel_blit *blit = pixel_blit(vm);
 
 	if (blit != NULL)
-		wrenSetSlotBool(vm, 0,
-		    (blit->flags & ST_PIXEL_BLIT_FLIP_Y) != 0);
+		wrenSetSlotBool(vm, 0, (blit->flags & ST_PIXEL_BLIT_FLIP_Y) != 0);
 }
 
 static void
 fn_pixel_blit_flip_y_set(WrenVM *vm)
 {
 	struct st_pixel_blit *blit = pixel_blit(vm);
-	bool value;
+	bool                  value;
 
-	if (blit == NULL || !slot_bool(vm, 1, &value,
-	    "PixelBlit.flipY: expected Bool"))
+	if (blit == NULL || !slot_bool(vm, 1, &value, "PixelBlit.flipY: expected Bool"))
 		return;
 	if (value)
 		blit->flags |= ST_PIXEL_BLIT_FLIP_Y;
@@ -1300,8 +1252,10 @@ static bool
 screen_pixels_supported(WrenVM *vm)
 {
 	uint32_t capabilities;
-	if (!st_wren_screen_status(vm, st_console_capabilities(st_wren_context_from_vm(vm)->console,
-	    &capabilities), "Screen pixel capabilities")) return false;
+	if (!st_wren_screen_status(vm,
+		st_console_capabilities(st_wren_context_from_vm(vm)->console, &capabilities),
+		"Screen pixel capabilities"))
+		return false;
 	return st_wren_screen_status(vm, (capabilities & ST_CONSOLE_CAP_PIXELS) != 0 ? 0 : IO_ERROR_NOT_SUPPORTED,
 	    "Screen pixel capability");
 }
@@ -1324,8 +1278,9 @@ fn_screen_pixel_size(WrenVM *vm)
 	uint32_t height;
 
 	if (!screen_pixels_supported(vm)
-	    || !st_wren_screen_status(vm, st_console_pixel_size(st_wren_context_from_vm(vm)->console,
-	    &width, &height), "Screen.pixelSize")) {
+	    || !st_wren_screen_status(vm,
+		st_console_pixel_size(st_wren_context_from_vm(vm)->console, &width, &height),
+		"Screen.pixelSize")) {
 		return;
 	}
 	set_size_result(vm, width, height);
@@ -1338,8 +1293,9 @@ fn_screen_cell_pixel_size(WrenVM *vm)
 	uint32_t height;
 
 	if (!screen_pixels_supported(vm)
-	    || !st_wren_screen_status(vm, st_console_cell_pixel_size(st_wren_context_from_vm(vm)->console,
-	    &width, &height), "Screen.cellPixelSize")) {
+	    || !st_wren_screen_status(vm,
+		st_console_cell_pixel_size(st_wren_context_from_vm(vm)->console, &width, &height),
+		"Screen.cellPixelSize")) {
 		return;
 	}
 	set_size_result(vm, width, height);
@@ -1348,30 +1304,27 @@ fn_screen_cell_pixel_size(WrenVM *vm)
 static void
 fn_screen_read_pixels(WrenVM *vm)
 {
-	struct st_console_rect source;
+	struct st_console_rect  source;
 	struct st_pixel_buffer *pixels = NULL;
-	size_t count;
-	bool force = false;
+	size_t                  count;
+	bool                    force = false;
 
-	if (!slot_uint32(vm, 1, &source.x,
-	    "Screen.readPixels: x must be a non-negative integer")
-	    || !slot_uint32(vm, 2, &source.y,
-	    "Screen.readPixels: y must be a non-negative integer")
+	if (!slot_uint32(vm, 1, &source.x, "Screen.readPixels: x must be a non-negative integer")
+	    || !slot_uint32(vm, 2, &source.y, "Screen.readPixels: y must be a non-negative integer")
 	    || !dimensions(vm, 3, 4, &source.width, &source.height, 1, &count,
-	    "Screen.readPixels: invalid dimensions"))
+		"Screen.readPixels: invalid dimensions"))
 		return;
 	(void)count;
 	if (source.width == 0 || source.height == 0) {
-		st_wren_abort(vm,
-		    "Screen.readPixels: width and height must be positive");
+		st_wren_abort(vm, "Screen.readPixels: width and height must be positive");
 		return;
 	}
-	if (wrenGetSlotCount(vm) > 5 && !slot_bool(vm, 5, &force,
-	    "Screen.readPixels: force must be Bool"))
+	if (wrenGetSlotCount(vm) > 5 && !slot_bool(vm, 5, &force, "Screen.readPixels: force must be Bool"))
 		return;
 	if (!screen_pixels_supported(vm)
-	    || !st_wren_screen_status(vm, st_console_get_pixels(&pixels,
-	    st_wren_context_from_vm(vm)->console, &source, force), "Screen.readPixels")) {
+	    || !st_wren_screen_status(vm,
+		st_console_get_pixels(&pixels, st_wren_context_from_vm(vm)->console, &source, force),
+		"Screen.readPixels")) {
 		return;
 	}
 	(void)return_pixel_buffer(vm, pixels);
@@ -1384,46 +1337,40 @@ fn_screen_set_pixel(WrenVM *vm)
 	uint32_t y;
 	uint32_t colour;
 
-	if (!slot_uint32(vm, 1, &x,
-	    "Screen.setPixel: x must be a non-negative integer")
-	    || !slot_uint32(vm, 2, &y,
-	    "Screen.setPixel: y must be a non-negative integer")
+	if (!slot_uint32(vm, 1, &x, "Screen.setPixel: x must be a non-negative integer")
+	    || !slot_uint32(vm, 2, &y, "Screen.setPixel: y must be a non-negative integer")
 	    || !slot_colour(vm, 3, &colour))
 		return;
 	if (screen_pixels_supported(vm))
-		st_wren_screen_result(vm, st_console_set_pixel(st_wren_context_from_vm(vm)->console,
-	    x, y, colour), "Screen.setPixel");
+		st_wren_screen_result(vm, st_console_set_pixel(st_wren_context_from_vm(vm)->console, x, y, colour),
+		    "Screen.setPixel");
 }
 
 static void
 fn_screen_blit_pixels(WrenVM *vm)
 {
 	struct wren_pixel_buffer *source;
-	struct wren_pixel_mask *mask = NULL;
-	struct wren_pixel_blit *descriptor;
-	struct st_pixel_blit blit;
-	int descriptor_slot;
+	struct wren_pixel_mask   *mask = NULL;
+	struct wren_pixel_blit   *descriptor;
+	struct st_pixel_blit      blit;
+	int                       descriptor_slot;
 
-	source = slot_pixel_buffer(vm, 1,
-	    "Screen.blitPixels: source must be a PixelBuffer");
+	source = slot_pixel_buffer(vm, 1, "Screen.blitPixels: source must be a PixelBuffer");
 	if (source == NULL)
 		return;
 	if (wrenGetSlotCount(vm) == 4) {
-		mask = slot_pixel_mask(vm, 2,
-		    "Screen.blitPixels: mask must be a PixelMask");
+		mask = slot_pixel_mask(vm, 2, "Screen.blitPixels: mask must be a PixelMask");
 		if (mask == NULL)
 			return;
 		descriptor_slot = 3;
 	}
 	else
 		descriptor_slot = 2;
-	descriptor = slot_pixel_blit(vm, descriptor_slot,
-	    "Screen.blitPixels: descriptor must be a PixelBlit");
+	descriptor = slot_pixel_blit(vm, descriptor_slot, "Screen.blitPixels: descriptor must be a PixelBlit");
 	if (descriptor == NULL)
 		return;
 	blit = descriptor->blit;
-	if (blit.source_x > source->pixels->width
-	    || blit.source_y > source->pixels->height) {
+	if (blit.source_x > source->pixels->width || blit.source_y > source->pixels->height) {
 		(void)st_wren_screen_status(vm, IO_ERROR_OUT_OF_RANGE, "Screen.blitPixels source/mask region");
 		return;
 	}
@@ -1431,47 +1378,48 @@ fn_screen_blit_pixels(WrenVM *vm)
 		blit.width = source->pixels->width - blit.source_x;
 	if (blit.height == 0)
 		blit.height = source->pixels->height - blit.source_y;
-	if (blit.width == 0 || blit.height == 0
-	    || blit.width > source->pixels->width - blit.source_x
+	if (blit.width == 0 || blit.height == 0 || blit.width > source->pixels->width - blit.source_x
 	    || blit.height > source->pixels->height - blit.source_y
-	    || (mask != NULL && (blit.mask_x >= mask->mask->width
-	    || blit.mask_y >= mask->mask->height
-	    || blit.width > mask->mask->width - blit.mask_x
-	    || blit.height > mask->mask->height - blit.mask_y))) {
+	    || (mask != NULL
+	        && (blit.mask_x >= mask->mask->width || blit.mask_y >= mask->mask->height
+	            || blit.width > mask->mask->width - blit.mask_x
+	            || blit.height > mask->mask->height - blit.mask_y))) {
 		(void)st_wren_screen_status(vm, IO_ERROR_OUT_OF_RANGE, "Screen.blitPixels source/mask region");
 		return;
 	}
 	if (screen_pixels_supported(vm))
-		st_wren_screen_result(vm, st_console_blit_pixels(st_wren_context_from_vm(vm)->console,
-	    source->pixels, mask == NULL ? NULL : mask->mask, &blit), "Screen.blitPixels");
+		st_wren_screen_result(vm,
+		    st_console_blit_pixels(st_wren_context_from_vm(vm)->console, source->pixels,
+			mask == NULL ? NULL : mask->mask, &blit),
+		    "Screen.blitPixels");
 }
 
 static void
 fn_pixel_buffer_blit(WrenVM *vm)
 {
-	struct st_pixel_buffer *destination = pixel_buffer(vm);
+	struct st_pixel_buffer   *destination = pixel_buffer(vm);
 	struct wren_pixel_buffer *source;
-	struct wren_pixel_mask *mask = NULL;
-	struct wren_pixel_blit *descriptor;
-	struct st_pixel_blit blit;
-	int descriptor_slot = 2;
+	struct wren_pixel_mask   *mask = NULL;
+	struct wren_pixel_blit   *descriptor;
+	struct st_pixel_blit      blit;
+	int                       descriptor_slot = 2;
 
-	if (destination == NULL) return;
-	source = slot_pixel_buffer(vm, 1,
-	    "PixelBuffer.blit: source must be a PixelBuffer");
-	if (source == NULL) return;
+	if (destination == NULL)
+		return;
+	source = slot_pixel_buffer(vm, 1, "PixelBuffer.blit: source must be a PixelBuffer");
+	if (source == NULL)
+		return;
 	if (wrenGetSlotCount(vm) == 4) {
-		mask = slot_pixel_mask(vm, 2,
-		    "PixelBuffer.blit: mask must be a PixelMask");
-		if (mask == NULL) return;
+		mask = slot_pixel_mask(vm, 2, "PixelBuffer.blit: mask must be a PixelMask");
+		if (mask == NULL)
+			return;
 		descriptor_slot = 3;
 	}
-	descriptor = slot_pixel_blit(vm, descriptor_slot,
-	    "PixelBuffer.blit: descriptor must be a PixelBlit");
-	if (descriptor == NULL) return;
+	descriptor = slot_pixel_blit(vm, descriptor_slot, "PixelBuffer.blit: descriptor must be a PixelBlit");
+	if (descriptor == NULL)
+		return;
 	blit = descriptor->blit;
-	if (blit.source_x > source->pixels->width
-	    || blit.source_y > source->pixels->height) {
+	if (blit.source_x > source->pixels->width || blit.source_y > source->pixels->height) {
 		pixel_result(vm, IO_ERROR_OUT_OF_RANGE, "PixelBuffer.blit source/mask region");
 		return;
 	}
@@ -1479,124 +1427,107 @@ fn_pixel_buffer_blit(WrenVM *vm)
 		blit.width = source->pixels->width - blit.source_x;
 	if (blit.height == 0)
 		blit.height = source->pixels->height - blit.source_y;
-	if (blit.width == 0 || blit.height == 0
-	    || blit.width > source->pixels->width - blit.source_x
+	if (blit.width == 0 || blit.height == 0 || blit.width > source->pixels->width - blit.source_x
 	    || blit.height > source->pixels->height - blit.source_y
-	    || (mask != NULL && (blit.mask_x >= mask->mask->width
-	    || blit.mask_y >= mask->mask->height
-	    || blit.width > mask->mask->width - blit.mask_x
-	    || blit.height > mask->mask->height - blit.mask_y))) {
+	    || (mask != NULL
+	        && (blit.mask_x >= mask->mask->width || blit.mask_y >= mask->mask->height
+	            || blit.width > mask->mask->width - blit.mask_x
+	            || blit.height > mask->mask->height - blit.mask_y))) {
 		pixel_result(vm, IO_ERROR_OUT_OF_RANGE, "PixelBuffer.blit source/mask region");
 		return;
 	}
-	pixel_result(vm, st_pixel_buffer_blit(destination, source->pixels,
-	    mask == NULL ? NULL : mask->mask, &blit), "PixelBuffer.blit");
+	pixel_result(vm,
+	    st_pixel_buffer_blit(destination, source->pixels, mask == NULL ? NULL : mask->mask, &blit),
+	    "PixelBuffer.blit");
 }
 
-#define BIND(class_name_, static_, signature_, method_) \
-	{class_name_, static_, signature_, method_}
+#define BIND(class_name_, static_, signature_, method_) {class_name_, static_, signature_, method_}
 
 static const struct pixel_binding bindings[] = {
-	BIND("PixelError", false, "code", fn_pixel_error_code),
-	BIND("PixelError", false, "message", fn_pixel_error_message),
-	BIND("PixelError", false, "toString", fn_pixel_error_to_string),
-	BIND("PixelColor", true, "rgb(_)", fn_pixel_colour_rgb),
-	BIND("PixelColor", true, "palette(_)", fn_pixel_colour_palette),
-	BIND("PixelColor", true, "isRgb(_)", fn_pixel_colour_is_rgb),
-	BIND("PixelColor", true, "rgbValue(_)", fn_pixel_colour_rgb_value),
-	BIND("PixelColor", true, "paletteIndex(_)",
-	    fn_pixel_colour_palette_index),
-	BIND("PixelColor", true, "toRgb(_)", fn_pixel_colour_to_rgb),
+    BIND("PixelError", false, "code", fn_pixel_error_code),
+    BIND("PixelError", false, "message", fn_pixel_error_message),
+    BIND("PixelError", false, "toString", fn_pixel_error_to_string),
+    BIND("PixelColor", true, "rgb(_)", fn_pixel_colour_rgb),
+    BIND("PixelColor", true, "palette(_)", fn_pixel_colour_palette),
+    BIND("PixelColor", true, "isRgb(_)", fn_pixel_colour_is_rgb),
+    BIND("PixelColor", true, "rgbValue(_)", fn_pixel_colour_rgb_value),
+    BIND("PixelColor", true, "paletteIndex(_)", fn_pixel_colour_palette_index),
+    BIND("PixelColor", true, "toRgb(_)", fn_pixel_colour_to_rgb),
 
-	BIND("PixelBuffer", true, "fromRgb24(_,_,_)",
-	    fn_pixel_buffer_from_rgb24),
-	BIND("PixelBuffer", true, "fromRgb24(_,_,_,_)",
-	    fn_pixel_buffer_from_rgb24),
-	BIND("PixelBuffer", true, "fromPpm(_)", fn_pixel_buffer_from_ppm),
-	BIND("PixelBuffer", true, "fromJxl(_)", fn_pixel_buffer_from_jxl),
-	BIND("PixelBuffer", true, "jxlSupported",
-	    fn_pixel_buffer_jxl_supported),
-	BIND("PixelBuffer", false, "count", fn_pixel_buffer_count),
-	BIND("PixelBuffer", false, "[_]", fn_pixel_buffer_subscript),
-	BIND("PixelBuffer", false, "[_]=(_)", fn_pixel_buffer_subscript_set),
-	BIND("PixelBuffer", false, "iterate(_)", fn_pixel_buffer_iterate),
-	BIND("PixelBuffer", false, "iteratorValue(_)",
-	    fn_pixel_buffer_iterator_value),
-	BIND("PixelBuffer", false, "width", fn_pixel_buffer_width),
-	BIND("PixelBuffer", false, "height", fn_pixel_buffer_height),
-	BIND("PixelBuffer", false, "pixelAt(_,_)", fn_pixel_buffer_pixel_at),
-	BIND("PixelBuffer", false, "setPixel(_,_,_)",
-	    fn_pixel_buffer_set_pixel),
-	BIND("PixelBuffer", false, "fill(_)", fn_pixel_buffer_fill),
-	BIND("PixelBuffer", false, "clone()", fn_pixel_buffer_clone),
-	BIND("PixelBuffer", false, "blit(_,_)", fn_pixel_buffer_blit),
-	BIND("PixelBuffer", false, "blit(_,_,_)", fn_pixel_buffer_blit),
-	BIND("PixelBuffer", false, "rgb24", fn_pixel_buffer_rgb24),
-	BIND("PixelBuffer", false, "hasAlternate",
-	    fn_pixel_buffer_has_alternate),
-	BIND("PixelBuffer", false, "alternateAt(_)",
-	    fn_pixel_buffer_alternate_at),
-	BIND("PixelBuffer", false, "setAlternate(_,_,_)",
-	    fn_pixel_buffer_set_alternate),
-	BIND("PixelBuffer", false, "fillAlternate(_)",
-	    fn_pixel_buffer_fill_alternate),
-	BIND("PixelBuffer", false, "alternateRgb24",
-	    fn_pixel_buffer_alternate_rgb24),
-	BIND("PixelBuffer", false, "setAlternateRgb24(_)",
-	    fn_pixel_buffer_set_alternate_rgb24),
-	BIND("PixelBuffer", false, "clearAlternate()",
-	    fn_pixel_buffer_clear_alternate),
+    BIND("PixelBuffer", true, "fromRgb24(_,_,_)", fn_pixel_buffer_from_rgb24),
+    BIND("PixelBuffer", true, "fromRgb24(_,_,_,_)", fn_pixel_buffer_from_rgb24),
+    BIND("PixelBuffer", true, "fromPpm(_)", fn_pixel_buffer_from_ppm),
+    BIND("PixelBuffer", true, "fromJxl(_)", fn_pixel_buffer_from_jxl),
+    BIND("PixelBuffer", true, "jxlSupported", fn_pixel_buffer_jxl_supported),
+    BIND("PixelBuffer", false, "count", fn_pixel_buffer_count),
+    BIND("PixelBuffer", false, "[_]", fn_pixel_buffer_subscript),
+    BIND("PixelBuffer", false, "[_]=(_)", fn_pixel_buffer_subscript_set),
+    BIND("PixelBuffer", false, "iterate(_)", fn_pixel_buffer_iterate),
+    BIND("PixelBuffer", false, "iteratorValue(_)", fn_pixel_buffer_iterator_value),
+    BIND("PixelBuffer", false, "width", fn_pixel_buffer_width),
+    BIND("PixelBuffer", false, "height", fn_pixel_buffer_height),
+    BIND("PixelBuffer", false, "pixelAt(_,_)", fn_pixel_buffer_pixel_at),
+    BIND("PixelBuffer", false, "setPixel(_,_,_)", fn_pixel_buffer_set_pixel),
+    BIND("PixelBuffer", false, "fill(_)", fn_pixel_buffer_fill),
+    BIND("PixelBuffer", false, "clone()", fn_pixel_buffer_clone),
+    BIND("PixelBuffer", false, "blit(_,_)", fn_pixel_buffer_blit),
+    BIND("PixelBuffer", false, "blit(_,_,_)", fn_pixel_buffer_blit),
+    BIND("PixelBuffer", false, "rgb24", fn_pixel_buffer_rgb24),
+    BIND("PixelBuffer", false, "hasAlternate", fn_pixel_buffer_has_alternate),
+    BIND("PixelBuffer", false, "alternateAt(_)", fn_pixel_buffer_alternate_at),
+    BIND("PixelBuffer", false, "setAlternate(_,_,_)", fn_pixel_buffer_set_alternate),
+    BIND("PixelBuffer", false, "fillAlternate(_)", fn_pixel_buffer_fill_alternate),
+    BIND("PixelBuffer", false, "alternateRgb24", fn_pixel_buffer_alternate_rgb24),
+    BIND("PixelBuffer", false, "setAlternateRgb24(_)", fn_pixel_buffer_set_alternate_rgb24),
+    BIND("PixelBuffer", false, "clearAlternate()", fn_pixel_buffer_clear_alternate),
 
-	BIND("PixelMask", true, "fromPbm(_)", fn_pixel_mask_from_pbm),
-	BIND("PixelMask", true, "fromBits(_,_,_)", fn_pixel_mask_from_bits),
-	BIND("PixelMask", false, "bits", fn_pixel_mask_bits),
-	BIND("PixelMask", false, "count", fn_pixel_mask_count),
-	BIND("PixelMask", false, "[_]", fn_pixel_mask_subscript),
-	BIND("PixelMask", false, "[_]=(_)", fn_pixel_mask_subscript_set),
-	BIND("PixelMask", false, "iterate(_)", fn_pixel_mask_iterate),
-	BIND("PixelMask", false, "iteratorValue(_)",
-	    fn_pixel_mask_iterator_value),
-	BIND("PixelMask", false, "width", fn_pixel_mask_width),
-	BIND("PixelMask", false, "height", fn_pixel_mask_height),
-	BIND("PixelMask", false, "bitAt(_,_)", fn_pixel_mask_bit_at),
-	BIND("PixelMask", false, "setBit(_,_,_)", fn_pixel_mask_set_bit),
-	BIND("PixelMask", false, "fill(_)", fn_pixel_mask_fill),
+    BIND("PixelMask", true, "fromPbm(_)", fn_pixel_mask_from_pbm),
+    BIND("PixelMask", true, "fromBits(_,_,_)", fn_pixel_mask_from_bits),
+    BIND("PixelMask", false, "bits", fn_pixel_mask_bits),
+    BIND("PixelMask", false, "count", fn_pixel_mask_count),
+    BIND("PixelMask", false, "[_]", fn_pixel_mask_subscript),
+    BIND("PixelMask", false, "[_]=(_)", fn_pixel_mask_subscript_set),
+    BIND("PixelMask", false, "iterate(_)", fn_pixel_mask_iterate),
+    BIND("PixelMask", false, "iteratorValue(_)", fn_pixel_mask_iterator_value),
+    BIND("PixelMask", false, "width", fn_pixel_mask_width),
+    BIND("PixelMask", false, "height", fn_pixel_mask_height),
+    BIND("PixelMask", false, "bitAt(_,_)", fn_pixel_mask_bit_at),
+    BIND("PixelMask", false, "setBit(_,_,_)", fn_pixel_mask_set_bit),
+    BIND("PixelMask", false, "fill(_)", fn_pixel_mask_fill),
 
-#define BLIT_BIND(wren_name, c_name) \
+#define BLIT_BIND(wren_name, c_name)                                  \
 	BIND("PixelBlit", false, #wren_name, fn_pixel_blit_##c_name), \
-	BIND("PixelBlit", false, #wren_name "=(_)", fn_pixel_blit_##c_name##_set)
-	BLIT_BIND(sourceX, source_x),
-	BLIT_BIND(sourceY, source_y),
-	BLIT_BIND(sourceWidth, source_width),
-	BLIT_BIND(sourceHeight, source_height),
-	BLIT_BIND(destinationX, destination_x),
-	BLIT_BIND(destinationY, destination_y),
-	BLIT_BIND(scaleX, scale_x),
-	BLIT_BIND(scaleY, scale_y),
-	BLIT_BIND(maskX, mask_x),
-	BLIT_BIND(maskY, mask_y),
-	BLIT_BIND(flipX, flip_x),
-	BLIT_BIND(flipY, flip_y),
+	    BIND("PixelBlit", false, #wren_name "=(_)", fn_pixel_blit_##c_name##_set)
+    BLIT_BIND(sourceX, source_x),
+    BLIT_BIND(sourceY, source_y),
+    BLIT_BIND(sourceWidth, source_width),
+    BLIT_BIND(sourceHeight, source_height),
+    BLIT_BIND(destinationX, destination_x),
+    BLIT_BIND(destinationY, destination_y),
+    BLIT_BIND(scaleX, scale_x),
+    BLIT_BIND(scaleY, scale_y),
+    BLIT_BIND(maskX, mask_x),
+    BLIT_BIND(maskY, mask_y),
+    BLIT_BIND(flipX, flip_x),
+    BLIT_BIND(flipY, flip_y),
 #undef BLIT_BIND
 
-	BIND("Screen", true, "pixelSize", fn_screen_pixel_size),
-	BIND("Screen", true, "cellPixelSize", fn_screen_cell_pixel_size),
-	BIND("Screen", true, "readPixels(_,_,_,_)", fn_screen_read_pixels),
-	BIND("Screen", true, "readPixels(_,_,_,_,_)", fn_screen_read_pixels),
-	BIND("Screen", true, "setPixel(_,_,_)", fn_screen_set_pixel),
-	BIND("Screen", true, "blitPixels(_,_)", fn_screen_blit_pixels),
-	BIND("Screen", true, "blitPixels(_,_,_)", fn_screen_blit_pixels),
+    BIND("Screen", true, "pixelSize", fn_screen_pixel_size),
+    BIND("Screen", true, "cellPixelSize", fn_screen_cell_pixel_size),
+    BIND("Screen", true, "readPixels(_,_,_,_)", fn_screen_read_pixels),
+    BIND("Screen", true, "readPixels(_,_,_,_,_)", fn_screen_read_pixels),
+    BIND("Screen", true, "setPixel(_,_,_)", fn_screen_set_pixel),
+    BIND("Screen", true, "blitPixels(_,_)", fn_screen_blit_pixels),
+    BIND("Screen", true, "blitPixels(_,_,_)", fn_screen_blit_pixels),
 };
 
 #undef BIND
 
 WrenForeignMethodFn
-st_wren_pixel_bind_method(const char *class_name, bool is_static,
-	const char *signature)
+st_wren_pixel_bind_method(const char *class_name, bool is_static, const char *signature)
 {
 	for (size_t i = 0; i < sizeof(bindings) / sizeof(bindings[0]); ++i)
-		if (bindings[i].is_static == is_static
-		    && strcmp(bindings[i].class_name, class_name) == 0
+		if (bindings[i].is_static == is_static && strcmp(bindings[i].class_name, class_name) == 0
 		    && strcmp(bindings[i].signature, signature) == 0)
 			return bindings[i].method;
 	return NULL;

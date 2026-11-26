@@ -33,23 +33,23 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "cterm_render.h"
 #include "cterm.h"
-#include "cterm_skypix.h"
 #include "cterm_apc.h"
-#include "cterm_internal.h"
+#include "cterm_cterm.h" /* ANSI-music / SyncTERM DA hooks called from here */
+#include "cterm_dec.h"   /* DECSC saved state restored by RIS */
 #include "cterm_ecma48.h"
-#include "cterm_cterm.h"	/* ANSI-music / SyncTERM DA hooks called from here */
-#include "cterm_dec.h"	/* DECSC saved state restored by RIS */
+#include "cterm_internal.h"
+#include "cterm_render.h"
+#include "cterm_skypix.h"
 
 /* Forward declarations for the incremental CSI parser + param-string
  * splitter — defined further down in this file and used by
  * cterm_accumulate_ecma_seq. */
 static enum sequence_state seq_feed(struct cterminal *cterm, unsigned char ch);
-static void cterm_build_param_strs(struct cterminal *cterm);
+static void                cterm_build_param_strs(struct cterminal *cterm);
 
 void
-cterm_handle_cuu(struct cterminal *cterm, int *speed)	/* CSI A */
+cterm_handle_cuu(struct cterminal *cterm, int *speed) /* CSI A */
 {
 	(void)speed;
 	cterm_clear_lcf(cterm);
@@ -60,7 +60,7 @@ cterm_handle_cuu(struct cterminal *cterm, int *speed)	/* CSI A */
 }
 
 void
-cterm_handle_cud(struct cterminal *cterm, int *speed)	/* CSI B */
+cterm_handle_cud(struct cterminal *cterm, int *speed) /* CSI B */
 {
 	(void)speed;
 	cterm_clear_lcf(cterm);
@@ -71,7 +71,7 @@ cterm_handle_cud(struct cterminal *cterm, int *speed)	/* CSI B */
 }
 
 void
-cterm_handle_cuf(struct cterminal *cterm, int *speed)	/* CSI C */
+cterm_handle_cuf(struct cterminal *cterm, int *speed) /* CSI C */
 {
 	(void)speed;
 	cterm_seq_default(cterm, 0, 1);
@@ -81,7 +81,7 @@ cterm_handle_cuf(struct cterminal *cterm, int *speed)	/* CSI C */
 }
 
 void
-cterm_handle_cub(struct cterminal *cterm, int *speed)	/* CSI D */
+cterm_handle_cub(struct cterminal *cterm, int *speed) /* CSI D */
 {
 	(void)speed;
 	cterm_seq_default(cterm, 0, 1);
@@ -91,7 +91,7 @@ cterm_handle_cub(struct cterminal *cterm, int *speed)	/* CSI D */
 }
 
 void
-cterm_handle_cnl(struct cterminal *cterm, int *speed)	/* CSI E */
+cterm_handle_cnl(struct cterminal *cterm, int *speed) /* CSI E */
 {
 	(void)speed;
 	cterm_seq_default(cterm, 0, 1);
@@ -101,7 +101,7 @@ cterm_handle_cnl(struct cterminal *cterm, int *speed)	/* CSI E */
 }
 
 void
-cterm_handle_cpl(struct cterminal *cterm, int *speed)	/* CSI F */
+cterm_handle_cpl(struct cterminal *cterm, int *speed) /* CSI F */
 {
 	(void)speed;
 	cterm_seq_default(cterm, 0, 1);
@@ -145,7 +145,7 @@ cterm_handle_cup(struct cterminal *cterm, int *speed)
 }
 
 void
-cterm_handle_cht(struct cterminal *cterm, int *speed)	/* CSI I */
+cterm_handle_cht(struct cterminal *cterm, int *speed) /* CSI I */
 {
 	int i, j;
 	(void)speed;
@@ -161,7 +161,7 @@ cterm_handle_cht(struct cterminal *cterm, int *speed)	/* CSI I */
 }
 
 void
-cterm_handle_cvt(struct cterminal *cterm, int *speed)	/* CSI Y */
+cterm_handle_cvt(struct cterminal *cterm, int *speed) /* CSI Y */
 {
 	int i, j;
 	(void)speed;
@@ -177,7 +177,7 @@ cterm_handle_cvt(struct cterminal *cterm, int *speed)	/* CSI Y */
 }
 
 void
-cterm_handle_cbt(struct cterminal *cterm, int *speed)	/* CSI Z */
+cterm_handle_cbt(struct cterminal *cterm, int *speed) /* CSI Z */
 {
 	int i, j;
 	(void)speed;
@@ -192,7 +192,7 @@ cterm_handle_cbt(struct cterminal *cterm, int *speed)	/* CSI Z */
 }
 
 void
-cterm_handle_hpr(struct cterminal *cterm, int *speed)	/* CSI a */
+cterm_handle_hpr(struct cterminal *cterm, int *speed) /* CSI a */
 {
 	(void)speed;
 	cterm_clear_lcf(cterm);
@@ -203,7 +203,7 @@ cterm_handle_hpr(struct cterminal *cterm, int *speed)	/* CSI a */
 }
 
 void
-cterm_handle_vpa(struct cterminal *cterm, int *speed)	/* CSI d */
+cterm_handle_vpa(struct cterminal *cterm, int *speed) /* CSI d */
 {
 	int row, col;
 	(void)speed;
@@ -218,7 +218,7 @@ cterm_handle_vpa(struct cterminal *cterm, int *speed)	/* CSI d */
 }
 
 void
-cterm_handle_vpr(struct cterminal *cterm, int *speed)	/* CSI e */
+cterm_handle_vpr(struct cterminal *cterm, int *speed) /* CSI e */
 {
 	(void)speed;
 	cterm_seq_default(cterm, 0, 1);
@@ -228,7 +228,7 @@ cterm_handle_vpr(struct cterminal *cterm, int *speed)	/* CSI e */
 }
 
 void
-cterm_handle_hpb(struct cterminal *cterm, int *speed)	/* CSI j */
+cterm_handle_hpb(struct cterminal *cterm, int *speed) /* CSI j */
 {
 	(void)speed;
 	cterm_clear_lcf(cterm);
@@ -239,7 +239,7 @@ cterm_handle_hpb(struct cterminal *cterm, int *speed)	/* CSI j */
 }
 
 void
-cterm_handle_vpb(struct cterminal *cterm, int *speed)	/* CSI k */
+cterm_handle_vpb(struct cterminal *cterm, int *speed) /* CSI k */
 {
 	(void)speed;
 	cterm_seq_default(cterm, 0, 1);
@@ -249,7 +249,7 @@ cterm_handle_vpb(struct cterminal *cterm, int *speed)	/* CSI k */
 }
 
 void
-cterm_handle_ich(struct cterminal *cterm, int *speed)	/* CSI @ */
+cterm_handle_ich(struct cterminal *cterm, int *speed) /* CSI @ */
 {
 	int i, j, l, col, row, max_col;
 	(void)speed;
@@ -275,7 +275,7 @@ cterm_handle_ich(struct cterminal *cterm, int *speed)	/* CSI @ */
 }
 
 void
-cterm_handle_ed(struct cterminal *cterm, int *speed)	/* CSI J */
+cterm_handle_ed(struct cterminal *cterm, int *speed) /* CSI J */
 {
 	int i, col, row;
 	(void)speed;
@@ -308,14 +308,13 @@ cterm_handle_ed(struct cterminal *cterm, int *speed)	/* CSI J */
 }
 
 void
-cterm_handle_el(struct cterminal *cterm, int *speed)	/* CSI K */
+cterm_handle_el(struct cterminal *cterm, int *speed) /* CSI K */
 {
 	int col, row;
 	(void)speed;
 	cterm_clear_lcf(cterm);
 	cterm_seq_default(cterm, 0, 0);
-	if (cterm->skypix_engine != NULL &&
-		cterm_skypix_erase_line(cterm->skypix_engine, cterm->seq_param_int[0]))
+	if (cterm->skypix_engine != NULL && cterm_skypix_erase_line(cterm->skypix_engine, cterm->seq_param_int[0]))
 		return;
 	switch (cterm->seq_param_int[0]) {
 		case 0:
@@ -334,7 +333,7 @@ cterm_handle_el(struct cterminal *cterm, int *speed)	/* CSI K */
 }
 
 void
-cterm_handle_il(struct cterminal *cterm, int *speed)	/* CSI L */
+cterm_handle_il(struct cterminal *cterm, int *speed) /* CSI L */
 {
 	int i, j, col, row, col2, row2, max_col, max_row;
 	(void)speed;
@@ -363,13 +362,12 @@ cterm_handle_il(struct cterminal *cterm, int *speed)	/* CSI L */
 }
 
 void
-cterm_handle_dl(struct cterminal *cterm, int *speed)	/* CSI M */
+cterm_handle_dl(struct cterminal *cterm, int *speed) /* CSI M */
 {
 	int i, col, row;
 	(void)speed;
 	TERM_XY(&col, &row);
-	if (col < TERM_MINX || col > TERM_MAXX
-	    || row < TERM_MINY || row > TERM_MAXY)
+	if (col < TERM_MINX || col > TERM_MAXX || row < TERM_MINY || row > TERM_MAXY)
 		return;
 	cterm_seq_default(cterm, 0, 1);
 	i = (int)cterm->seq_param_int[0];
@@ -377,15 +375,14 @@ cterm_handle_dl(struct cterminal *cterm, int *speed)	/* CSI M */
 }
 
 void
-cterm_handle_dch(struct cterminal *cterm, int *speed)	/* CSI P */
+cterm_handle_dch(struct cterminal *cterm, int *speed) /* CSI P */
 {
 	int i, col, row, col2, row2, max_col;
 	(void)speed;
 	cterm_clear_lcf(cterm);
 	cterm_seq_default(cterm, 0, 1);
 	TERM_XY(&col, &row);
-	if (col < TERM_MINX || col > TERM_MAXX
-	    || row < TERM_MINY || row > TERM_MAXY)
+	if (col < TERM_MINX || col > TERM_MAXX || row < TERM_MINY || row > TERM_MAXY)
 		return;
 	i = (int)cterm->seq_param_int[0];
 	if (i < 1)
@@ -404,7 +401,7 @@ cterm_handle_dch(struct cterminal *cterm, int *speed)	/* CSI P */
 }
 
 void
-cterm_handle_su(struct cterminal *cterm, int *speed)	/* CSI S */
+cterm_handle_su(struct cterminal *cterm, int *speed) /* CSI S */
 {
 	int j, row;
 	(void)speed;
@@ -417,7 +414,7 @@ cterm_handle_su(struct cterminal *cterm, int *speed)	/* CSI S */
 }
 
 void
-cterm_handle_sd(struct cterminal *cterm, int *speed)	/* CSI T */
+cterm_handle_sd(struct cterminal *cterm, int *speed) /* CSI T */
 {
 	int j, row;
 	(void)speed;
@@ -430,9 +427,9 @@ cterm_handle_sd(struct cterminal *cterm, int *speed)	/* CSI T */
 }
 
 void
-cterm_handle_ech(struct cterminal *cterm, int *speed)	/* CSI X */
+cterm_handle_ech(struct cterminal *cterm, int *speed) /* CSI X */
 {
-	int i, k, col, row, col2, row2, max_col;
+	int                     i, k, col, row, col2, row2, max_col;
 	struct st_console_cell *vc;
 	(void)speed;
 	cterm_clear_lcf(cterm);
@@ -460,7 +457,7 @@ cterm_handle_ech(struct cterminal *cterm, int *speed)	/* CSI X */
 }
 
 void
-cterm_handle_rep(struct cterminal *cterm, int *speed)	/* CSI b */
+cterm_handle_rep(struct cterminal *cterm, int *speed) /* CSI b */
 {
 	(void)speed;
 	cterm_seq_default(cterm, 0, 1);
@@ -469,7 +466,7 @@ cterm_handle_rep(struct cterminal *cterm, int *speed)	/* CSI b */
 }
 
 void
-cterm_handle_da(struct cterminal *cterm, int *speed)	/* CSI c */
+cterm_handle_da(struct cterminal *cterm, int *speed) /* CSI c */
 {
 	(void)speed;
 	cterm_seq_default(cterm, 0, 0);
@@ -478,7 +475,7 @@ cterm_handle_da(struct cterminal *cterm, int *speed)	/* CSI c */
 }
 
 void
-cterm_handle_tbc(struct cterminal *cterm, int *speed)	/* CSI g */
+cterm_handle_tbc(struct cterminal *cterm, int *speed) /* CSI g */
 {
 	(void)speed;
 	cterm_seq_default(cterm, 0, 0);
@@ -490,22 +487,22 @@ cterm_handle_tbc(struct cterminal *cterm, int *speed)	/* CSI g */
 			cterm_delete_vtabstop(cterm, cterm_render_position_y(cterm));
 			break;
 		case 3:
-			cterm->tab_count = 0;
+			cterm->tab_count    = 0;
 			cterm->default_tabs = false;
 			break;
 		case 4:
 			cterm->vtab_count = 0;
 			break;
 		case 5:
-			cterm->tab_count = 0;
+			cterm->tab_count    = 0;
 			cterm->default_tabs = false;
-			cterm->vtab_count = 0;
+			cterm->vtab_count   = 0;
 			break;
 	}
 }
 
 void
-cterm_handle_sm(struct cterminal *cterm, int *speed)	/* CSI h */
+cterm_handle_sm(struct cterminal *cterm, int *speed) /* CSI h */
 {
 	int i;
 	(void)speed;
@@ -514,14 +511,14 @@ cterm_handle_sm(struct cterminal *cterm, int *speed)	/* CSI h */
 	for (i = 0; i < cterm->seq_param_count; i++) {
 		cterm_seq_default(cterm, i, 0);
 		switch (cterm->seq_param_int[i]) {
-			case 2:	/* KAM = keyboard locked */
+			case 2: /* KAM = keyboard locked */
 				if (cterm->rip3_session_owner)
 					cterm->extattr |= CTERM_EXTATTR_KAM;
 				break;
-			case 14:	/* FETM = EXCLUDE */
+			case 14: /* FETM = EXCLUDE */
 				cterm->fetm = 1;
 				break;
-			case 16:	/* TTM = ALL */
+			case 16: /* TTM = ALL */
 				cterm->ttm = 1;
 				break;
 		}
@@ -529,7 +526,7 @@ cterm_handle_sm(struct cterminal *cterm, int *speed)	/* CSI h */
 }
 
 void
-cterm_handle_rm(struct cterminal *cterm, int *speed)	/* CSI l */
+cterm_handle_rm(struct cterminal *cterm, int *speed) /* CSI l */
 {
 	int i;
 	(void)speed;
@@ -538,14 +535,14 @@ cterm_handle_rm(struct cterminal *cterm, int *speed)	/* CSI l */
 	for (i = 0; i < cterm->seq_param_count; i++) {
 		cterm_seq_default(cterm, i, 0);
 		switch (cterm->seq_param_int[i]) {
-			case 2:	/* KAM = keyboard unlocked */
+			case 2: /* KAM = keyboard unlocked */
 				if (cterm->rip3_session_owner)
 					cterm->extattr &= ~CTERM_EXTATTR_KAM;
 				break;
-			case 14:	/* FETM = INSERT */
+			case 14: /* FETM = INSERT */
 				cterm->fetm = 0;
 				break;
-			case 16:	/* TTM = CURSOR */
+			case 16: /* TTM = CURSOR */
 				cterm->ttm = 0;
 				break;
 		}
@@ -553,7 +550,7 @@ cterm_handle_rm(struct cterminal *cterm, int *speed)	/* CSI l */
 }
 
 void
-cterm_handle_dsr(struct cterminal *cterm, int *speed)	/* CSI n */
+cterm_handle_dsr(struct cterminal *cterm, int *speed) /* CSI n */
 {
 	int col, row;
 	(void)speed;
@@ -575,13 +572,13 @@ cterm_handle_dsr(struct cterminal *cterm, int *speed)	/* CSI n */
 }
 
 void
-cterm_handle_sl(struct cterminal *cterm, int *speed)	/* CSI SP @ */
+cterm_handle_sl(struct cterminal *cterm, int *speed) /* CSI SP @ */
 {
-	int i, j, k, row, col, max_row, max_col;
+	int                     i, j, k, row, col, max_row, max_col;
 	struct st_console_cell *vc;
 	(void)speed;
-	row = TERM_MINY;
-	col = TERM_MINX;
+	row     = TERM_MINY;
+	col     = TERM_MINX;
 	max_row = TERM_MAXY;
 	max_col = TERM_MAXX;
 	cterm_coord_conv_xy(cterm, CTERM_COORD_TERM, CTERM_COORD_SCREEN, &col, &row);
@@ -593,7 +590,7 @@ cterm_handle_sl(struct cterminal *cterm, int *speed)	/* CSI SP @ */
 	if (i > TERM_MAXX)
 		i = TERM_MAXX;
 	cterm_render_move_cells(cterm, col + i, row, max_col, max_row, col, row);
-	j = i * TERM_MAXY;
+	j  = i * TERM_MAXY;
 	vc = malloc(j * sizeof(*vc));
 	if (vc == NULL)
 		return;
@@ -605,13 +602,13 @@ cterm_handle_sl(struct cterminal *cterm, int *speed)	/* CSI SP @ */
 }
 
 void
-cterm_handle_sr(struct cterminal *cterm, int *speed)	/* CSI SP A */
+cterm_handle_sr(struct cterminal *cterm, int *speed) /* CSI SP A */
 {
-	int i, j, k, row, col, max_row, max_col;
+	int                     i, j, k, row, col, max_row, max_col;
 	struct st_console_cell *vc;
 	(void)speed;
-	row = TERM_MINY;
-	col = TERM_MINX;
+	row     = TERM_MINY;
+	col     = TERM_MINX;
 	max_row = TERM_MAXY;
 	max_col = TERM_MAXX;
 	cterm_coord_conv_xy(cterm, CTERM_COORD_TERM, CTERM_COORD_SCREEN, &col, &row);
@@ -623,7 +620,7 @@ cterm_handle_sr(struct cterminal *cterm, int *speed)	/* CSI SP A */
 	if (i > cterm->width)
 		i = cterm->width;
 	cterm_render_move_cells(cterm, col, row, max_col - i, max_row, col + i, row);
-	j = i * TERM_MAXY;
+	j  = i * TERM_MAXY;
 	vc = malloc(j * sizeof(*vc));
 	if (vc == NULL)
 		return;
@@ -635,7 +632,7 @@ cterm_handle_sr(struct cterminal *cterm, int *speed)	/* CSI SP A */
 }
 
 void
-cterm_handle_sgr(struct cterminal *cterm, int *speed)	/* CSI m — Select Graphic Rendition */
+cterm_handle_sgr(struct cterminal *cterm, int *speed) /* CSI m — Select Graphic Rendition */
 {
 	int i;
 	(void)speed;
@@ -655,7 +652,7 @@ cterm_handle_sgr(struct cterminal *cterm, int *speed)	/* CSI m — Select Graphi
 }
 
 void
-cterm_handle_nel(struct cterminal *cterm, int *speed)	/* ESC E */
+cterm_handle_nel(struct cterminal *cterm, int *speed) /* ESC E */
 {
 	(void)speed;
 	cterm_clear_lcf(cterm);
@@ -663,7 +660,7 @@ cterm_handle_nel(struct cterminal *cterm, int *speed)	/* ESC E */
 }
 
 void
-cterm_handle_ssa(struct cterminal *cterm, int *speed)	/* ESC F */
+cterm_handle_ssa(struct cterminal *cterm, int *speed) /* ESC F */
 {
 	int sx, sy;
 	(void)speed;
@@ -674,7 +671,7 @@ cterm_handle_ssa(struct cterminal *cterm, int *speed)	/* ESC F */
 }
 
 void
-cterm_handle_esa(struct cterminal *cterm, int *speed)	/* ESC G */
+cterm_handle_esa(struct cterminal *cterm, int *speed) /* ESC G */
 {
 	int sx, sy;
 	(void)speed;
@@ -685,21 +682,21 @@ cterm_handle_esa(struct cterminal *cterm, int *speed)	/* ESC G */
 }
 
 void
-cterm_handle_hts(struct cterminal *cterm, int *speed)	/* ESC H */
+cterm_handle_hts(struct cterminal *cterm, int *speed) /* ESC H */
 {
 	(void)speed;
 	cterm_insert_tabstop(cterm, cterm_render_position_x(cterm));
 }
 
 void
-cterm_handle_vts(struct cterminal *cterm, int *speed)	/* ESC J */
+cterm_handle_vts(struct cterminal *cterm, int *speed) /* ESC J */
 {
 	(void)speed;
 	cterm_insert_vtabstop(cterm, cterm_render_position_y(cterm));
 }
 
 void
-cterm_handle_ri(struct cterminal *cterm, int *speed)	/* ESC M */
+cterm_handle_ri(struct cterminal *cterm, int *speed) /* ESC M */
 {
 	(void)speed;
 	cterm_clear_lcf(cterm);
@@ -707,14 +704,14 @@ cterm_handle_ri(struct cterminal *cterm, int *speed)	/* ESC M */
 }
 
 void
-cterm_handle_sts(struct cterminal *cterm, int *speed)	/* ESC S */
+cterm_handle_sts(struct cterminal *cterm, int *speed) /* ESC S */
 {
 	(void)speed;
 	cterm_transmit_selected(cterm);
 }
 
 void
-cterm_handle_ris(struct cterminal *cterm, int *speed)	/* ESC c — Reset to Initial State */
+cterm_handle_ris(struct cterminal *cterm, int *speed) /* ESC c — Reset to Initial State */
 {
 	(void)speed;
 	cterm_render_clear_window(cterm);
@@ -744,16 +741,16 @@ static void
 cterm_string_alloc(struct cterminal *cterm, int type, cterm_accumulator_fn acc)
 {
 	cterm_dec_sixel_cancel(cterm);
-	cterm->string = type;
+	cterm->string      = type;
 	cterm->accumulator = acc;
 	CTERM_FREE_AND_CLEAR(cterm->strbuf);
-	cterm->strbuf = malloc(1024);
+	cterm->strbuf     = malloc(1024);
 	cterm->strbufsize = 1024;
-	cterm->strbuflen = 0;
+	cterm->strbuflen  = 0;
 }
 
 void
-cterm_handle_dcs_start(struct cterminal *cterm, int *speed)	/* ESC P */
+cterm_handle_dcs_start(struct cterminal *cterm, int *speed) /* ESC P */
 {
 	(void)speed;
 	cterm_string_alloc(cterm, CTERM_STRING_DCS, cterm_accumulate_command_string);
@@ -761,43 +758,43 @@ cterm_handle_dcs_start(struct cterminal *cterm, int *speed)	/* ESC P */
 }
 
 void
-cterm_handle_sos_start(struct cterminal *cterm, int *speed)	/* ESC X */
+cterm_handle_sos_start(struct cterminal *cterm, int *speed) /* ESC X */
 {
 	(void)speed;
 	cterm_string_alloc(cterm, CTERM_STRING_SOS, cterm_accumulate_sos);
 }
 
 void
-cterm_handle_osc_start(struct cterminal *cterm, int *speed)	/* ESC ] */
+cterm_handle_osc_start(struct cterminal *cterm, int *speed) /* ESC ] */
 {
 	(void)speed;
 	cterm_string_alloc(cterm, CTERM_STRING_OSC, cterm_accumulate_command_string);
 }
 
 void
-cterm_handle_pm_start(struct cterminal *cterm, int *speed)	/* ESC ^ */
+cterm_handle_pm_start(struct cterminal *cterm, int *speed) /* ESC ^ */
 {
 	(void)speed;
 	cterm_string_alloc(cterm, CTERM_STRING_PM, cterm_accumulate_command_string);
 }
 
 void
-cterm_handle_apc_start(struct cterminal *cterm, int *speed)	/* ESC _ */
+cterm_handle_apc_start(struct cterminal *cterm, int *speed) /* ESC _ */
 {
 	(void)speed;
 	cterm_string_alloc(cterm, CTERM_STRING_APC, cterm_accumulate_command_string);
 }
 
 void
-cterm_handle_st(struct cterminal *cterm, int *speed)	/* ESC \ (String Terminator) */
+cterm_handle_st(struct cterminal *cterm, int *speed) /* ESC \ (String Terminator) */
 {
 	char *p;
 	(void)speed;
 
 	if (cterm->strbuf == NULL) {
 		cterm->strbufsize = cterm->strbuflen = 0;
-		cterm->string = 0;
-		cterm->saved_accumulator = NULL;
+		cterm->string                        = 0;
+		cterm->saved_accumulator             = NULL;
 		return;
 	}
 	if (cterm->strbufsize == cterm->strbuflen - 1) {
@@ -812,19 +809,19 @@ cterm_handle_st(struct cterminal *cterm, int *speed)	/* ESC \ (String Terminator
 	}
 	cterm->strbuf[cterm->strbuflen] = 0;
 	switch (cterm->string) {
-		case CTERM_STRING_APC: {
+		case CTERM_STRING_APC:
+		{
 			struct cterminal *owner = cterm;
-			int hold = cterm_render_hold_update(cterm);
+			int               hold  = cterm_render_hold_update(cterm);
 
 			/* APC can wait for audio, cache I/O, or an application hook.
 			 * Release the active display's batch, including status APCs
 			 * whose handler belongs to the parent terminal. */
 			(void)cterm_render_set_hold_update(cterm, 0);
-			while (owner->parent != NULL) owner = owner->parent;
-			if (!cterm_apc_dispatch(owner, cterm->strbuf, cterm->strbuflen)
-			    && owner->api_apc != NULL)
-				owner->api_apc(owner->api_apc_context,
-				    cterm->strbuf, cterm->strbuflen);
+			while (owner->parent != NULL)
+				owner = owner->parent;
+			if (!cterm_apc_dispatch(owner, cterm->strbuf, cterm->strbuflen) && owner->api_apc != NULL)
+				owner->api_apc(owner->api_apc_context, cterm->strbuf, cterm->strbuflen);
 			(void)cterm_render_set_hold_update(cterm, hold);
 			break;
 		}
@@ -834,11 +831,11 @@ cterm_handle_st(struct cterminal *cterm, int *speed)	/* ESC \ (String Terminator
 		case CTERM_STRING_OSC:
 			cterm_cterm_osc_finish(cterm);
 			break;
-		/* SOS, PM: no registered semantics — buffer is dropped below. */
+			/* SOS, PM: no registered semantics — buffer is dropped below. */
 	}
 	CTERM_FREE_AND_CLEAR(cterm->strbuf);
 	cterm->strbufsize = cterm->strbuflen = 0;
-	cterm->string = 0;
+	cterm->string                        = 0;
 	/* The string is done; the caller (cterm_accumulate_ecma_seq) will
 	 * fall back to saved_accumulator once we return — clearing it here
 	 * tells it to clear instead of restoring. */
@@ -856,13 +853,12 @@ cterm_handle_st(struct cterminal *cterm, int *speed)	/* ESC \ (String Terminator
  * normal text (the old `j--` semantics).
  * ------------------------------------------------------------------------ */
 bool
-cterm_accumulate_command_string(struct cterminal *cterm, unsigned char byte,
-    int *speed)
+cterm_accumulate_command_string(struct cterminal *cterm, unsigned char byte, int *speed)
 {
 	(void)speed;
 
 	if (byte == 0)
-		return true;	/* media-fill; ignore */
+		return true; /* media-fill; ignore */
 
 	/* OSC also accepts BEL as its terminator. Consume it with the string
 	 * so it does not become a bell in the decoded text stream. */
@@ -879,23 +875,23 @@ cterm_accumulate_command_string(struct cterminal *cterm, unsigned char byte,
 			 * sequence falls back to it; a clean ST will have
 			 * cterm_handle_st clear saved_accumulator. */
 			cterm_uctputs(cterm, cterm->print_buf);
-			cterm->print_buf[0] = 0;
-			cterm->print_pos = cterm->print_buf;
+			cterm->print_buf[0]      = 0;
+			cterm->print_pos         = cterm->print_buf;
 			cterm->saved_accumulator = cterm->accumulator;
-			cterm->accumulator = cterm_accumulate_ecma_seq;
-			cterm->sequence = 1;
-			cterm->seq_phase = SEQ_PHASE_C1;
-			cterm->seq_key = SEQ_ESC;
-			cterm->seq_param_len = 0;
-			cterm->seq_params[0] = 0;
-			cterm->seq_param_count = 0;
-			cterm->seq_overflow = false;
+			cterm->accumulator       = cterm_accumulate_ecma_seq;
+			cterm->sequence          = 1;
+			cterm->seq_phase         = SEQ_PHASE_C1;
+			cterm->seq_key           = SEQ_ESC;
+			cterm->seq_param_len     = 0;
+			cterm->seq_params[0]     = 0;
+			cterm->seq_param_count   = 0;
+			cterm->seq_overflow      = false;
 			return true;
 		}
 		/* Malformed byte mid-string: abandon the string, let the caller
 		 * re-dispatch this byte through the normal path. */
 		cterm_dec_sixel_cancel(cterm);
-		cterm->string = 0;
+		cterm->string      = 0;
 		cterm->accumulator = NULL;
 		CTERM_FREE_AND_CLEAR(cterm->strbuf);
 		cterm->strbuflen = cterm->strbufsize = 0;
@@ -947,22 +943,21 @@ cterm_accumulate_sos(struct cterminal *cterm, unsigned char byte, int *speed)
 {
 	(void)speed;
 
-	if ((byte == 'X' || byte == '\\') &&
-	    cterm->strbuf && cterm->strbuflen &&
-	    cterm->strbuf[cterm->strbuflen - 1] == '\x1b') {
+	if ((byte == 'X' || byte == '\\') && cterm->strbuf && cterm->strbuflen
+	    && cterm->strbuf[cterm->strbuflen - 1] == '\x1b') {
 		cterm->strbuflen--;
-		cterm->string = 0;
+		cterm->string      = 0;
 		cterm->accumulator = NULL;
 		CTERM_FREE_AND_CLEAR(cterm->strbuf);
 		cterm->strbuflen = cterm->strbufsize = 0;
-		const uint8_t replay[] = {0x1b, byte};
-		size_t consumed;
-		cterm_render_record_error(cterm, cterm_input_write(cterm, replay,
-		    sizeof(replay), &consumed, CTERM_INPUT_REPLAY));
+		const uint8_t replay[]               = {0x1b, byte};
+		size_t        consumed;
+		cterm_render_record_error(cterm,
+		    cterm_input_write(cterm, replay, sizeof(replay), &consumed, CTERM_INPUT_REPLAY));
 		return true;
 	}
 	if (cterm->strbuf == NULL) {
-		cterm->string = 0;
+		cterm->string      = 0;
 		cterm->accumulator = NULL;
 		cterm->strbuflen = cterm->strbufsize = 0;
 		return true;
@@ -973,14 +968,14 @@ cterm_accumulate_sos(struct cterminal *cterm, unsigned char byte, int *speed)
 		cterm->strbufsize *= 2;
 		if (cterm->strbufsize > 1024 * 1024 * 512) {
 			CTERM_FREE_AND_CLEAR(cterm->strbuf);
-			cterm->string = 0;
+			cterm->string      = 0;
 			cterm->accumulator = NULL;
 			cterm->strbuflen = cterm->strbufsize = 0;
 			return true;
 		}
 		p = realloc(cterm->strbuf, cterm->strbufsize);
 		if (p == NULL) {
-			cterm->string = 0;
+			cterm->string      = 0;
 			cterm->accumulator = NULL;
 			CTERM_FREE_AND_CLEAR(cterm->strbuf);
 			cterm->strbuflen = cterm->strbufsize = 0;
@@ -1023,46 +1018,46 @@ cterm_dispatch_ecma(struct cterminal *cterm, unsigned char byte, int *speed)
 			cterm_text_forget(cterm);
 			if (cterm->doorway_mode) {
 				cterm->doorway_char = 1;
-				cterm->accumulator = cterm_accumulate_doorway;
+				cterm->accumulator  = cterm_accumulate_doorway;
 			}
 			break;
-		case 7:		/* BEL */
+		case 7: /* BEL */
 			cterm_text_forget(cterm);
 			cterm_uctputs(cterm, cterm->print_buf);
 			cterm->print_buf[0] = 0;
-			cterm->print_pos = cterm->print_buf;
+			cterm->print_pos    = cterm->print_buf;
 			if (cterm->log == CTERM_LOG_ASCII && cterm->logfile != NULL)
 				fputs("\x07", cterm->logfile);
 			if (!cterm->quiet) {
 				cterm_render_beep(cterm);
 			}
 			break;
-		case 12:	/* FF — clear screen (CTerm legacy) */
+		case 12: /* FF — clear screen (CTerm legacy) */
 			cterm_text_forget(cterm);
 			cterm_uctputs(cterm, cterm->print_buf);
 			cterm->print_buf[0] = 0;
-			cterm->print_pos = cterm->print_buf;
+			cterm->print_pos    = cterm->print_buf;
 			if (cterm->log == CTERM_LOG_ASCII && cterm->logfile != NULL)
 				fputs("\x0c", cterm->logfile);
 			cterm_clearscreen(cterm, (char)cterm->attr);
 			cterm_render_set_position(cterm, CURR_MINX, CURR_MINY);
 			break;
-		case 27:	/* ESC — start a sequence, prime seq_feed() */
+		case 27: /* ESC — start a sequence, prime seq_feed() */
 			cterm_uctputs(cterm, cterm->print_buf);
-			cterm->print_buf[0] = 0;
-			cterm->print_pos = cterm->print_buf;
-			cterm->accumulator = cterm_accumulate_ecma_seq;
-			cterm->sequence = 1;
-			cterm->seq_phase = SEQ_PHASE_C1;
-			cterm->seq_key = SEQ_ESC;
-			cterm->seq_param_len = 0;
-			cterm->seq_params[0] = 0;
+			cterm->print_buf[0]    = 0;
+			cterm->print_pos       = cterm->print_buf;
+			cterm->accumulator     = cterm_accumulate_ecma_seq;
+			cterm->sequence        = 1;
+			cterm->seq_phase       = SEQ_PHASE_C1;
+			cterm->seq_key         = SEQ_ESC;
+			cterm->seq_param_len   = 0;
+			cterm->seq_params[0]   = 0;
 			cterm->seq_param_count = 0;
-			cterm->seq_overflow = false;
+			cterm->seq_overflow    = false;
 			break;
 		default:
 			*cterm->print_pos++ = byte;
-			*cterm->print_pos = 0;
+			*cterm->print_pos   = 0;
 	}
 }
 
@@ -1072,16 +1067,21 @@ cterm_dispatch_ecma(struct cterminal *cterm, unsigned char byte, int *speed)
 static bool
 rip3_designation(struct cterminal *cterm)
 {
-	if (cterm->graphics_mode!=ST_CTERM_GRAPHICS_RIP_3 || cterm->emulation!=CTERM_EMULATION_ANSI_BBS)
+	if (cterm->graphics_mode != ST_CTERM_GRAPHICS_RIP_3 || cterm->emulation != CTERM_EMULATION_ANSI_BBS)
 		return false;
-	static const uint8_t finals[]={'0','A','B'};
-	for (size_t i=0;i<sizeof(finals)/sizeof(finals[0]);i++) {
-		if (cterm->seq_key==SEQ_GZD4(finals[i])) {cterm->rip3_g0=finals[i];return true;}
-		if (cterm->seq_key==SEQ_G1D4(finals[i])) {cterm->rip3_g1=finals[i];return true;}
+	static const uint8_t finals[] = {'0', 'A', 'B'};
+	for (size_t i = 0; i < sizeof(finals) / sizeof(finals[0]); i++) {
+		if (cterm->seq_key == SEQ_GZD4(finals[i])) {
+			cterm->rip3_g0 = finals[i];
+			return true;
+		}
+		if (cterm->seq_key == SEQ_G1D4(finals[i])) {
+			cterm->rip3_g1 = finals[i];
+			return true;
+		}
 	}
 	return false;
 }
-
 
 /* ------------------------------------------------------------------------
  * cterm_accumulate_ecma_seq — ANSI-BBS / ECMA-48 CSI accumulator
@@ -1107,14 +1107,14 @@ cterm_accumulate_ecma_seq(struct cterminal *cterm, unsigned char byte, int *spee
 	enum sequence_state s;
 
 	if (byte == 0)
-		return true;	/* NUL: media-fill, ignore (ECMA-48 §8.3.88) */
+		return true; /* NUL: media-fill, ignore (ECMA-48 §8.3.88) */
 
 	struct cterminal *owner = cterm->parent == NULL ? cterm : cterm->parent;
 	if (owner->rip3_autosense != NULL && cterm->saved_accumulator == NULL) {
 		if (byte == 0x18 || byte == 0x1a || byte == 0x1b) {
 			/* RIPtel closes pending ANSI without reusing an inner ESC. */
-			cterm->seq_phase = SEQ_PHASE_IDLE;
-			cterm->sequence = 0;
+			cterm->seq_phase   = SEQ_PHASE_IDLE;
+			cterm->sequence    = 0;
 			cterm->accumulator = NULL;
 			return true;
 		}
@@ -1122,12 +1122,13 @@ cterm_accumulate_ecma_seq(struct cterminal *cterm, unsigned char byte, int *spee
 			/* RIP autosense uses an ANSI intermediate as its final byte.
 			 * Let the usual parameter parser finalize the first field. */
 			(void)seq_feed(cterm, byte);
-			bool query = cterm->seq_key == (SEQ_CSI | SEQ_INTERM('!')) && !cterm->seq_overflow;
+			bool     query    = cterm->seq_key == (SEQ_CSI | SEQ_INTERM('!')) && !cterm->seq_overflow;
 			uint16_t selector = 0;
-			if (cterm->seq_param_count != 0 && cterm->seq_params[0] >= '0' && cterm->seq_params[0] <= '9')
+			if (cterm->seq_param_count != 0 && cterm->seq_params[0] >= '0'
+			    && cterm->seq_params[0] <= '9')
 				selector = (uint16_t)cterm->seq_param_int[0];
-			cterm->seq_phase = SEQ_PHASE_IDLE;
-			cterm->sequence = 0;
+			cterm->seq_phase   = SEQ_PHASE_IDLE;
+			cterm->sequence    = 0;
 			cterm->accumulator = NULL;
 			if (query)
 				owner->rip3_autosense(owner->rip3_autosense_context, selector);
@@ -1140,14 +1141,14 @@ cterm_accumulate_ecma_seq(struct cterminal *cterm, unsigned char byte, int *spee
 		return true;
 
 	if (s == SEQ_BROKEN) {
-		cterm_log_sequence(cterm, cterm->seq_overflow
-		    ? "Invalid sequence parameters (limit exceeded)" : "Invalid sequence");
+		cterm_log_sequence(cterm,
+		    cterm->seq_overflow ? "Invalid sequence parameters (limit exceeded)" : "Invalid sequence");
 		cterm_log(cterm, ST_CTERM_LOG_WARNING, "Sequence rejected at byte 0x%02X", (unsigned)byte);
 		*cterm->print_pos++ = '\033';
 		*cterm->print_pos++ = byte;
-		*cterm->print_pos = 0;
-		cterm->seq_phase = SEQ_PHASE_IDLE;
-		cterm->sequence = 0;
+		*cterm->print_pos   = 0;
+		cterm->seq_phase    = SEQ_PHASE_IDLE;
+		cterm->sequence     = 0;
 		if (byte == '\033') {
 			/* Broken-then-legal: drop the trailing ESC we just emitted
 			 * and prime a fresh sequence that consumes this ESC.
@@ -1160,11 +1161,11 @@ cterm_accumulate_ecma_seq(struct cterminal *cterm, unsigned char byte, int *spee
 				*cterm->print_pos = 0;
 			}
 			cterm_uctputs(cterm, cterm->print_buf);
-			cterm->print_buf[0] = 0;
-			cterm->print_pos = cterm->print_buf;
-			cterm->sequence = 1;
-			cterm->seq_phase = SEQ_PHASE_C1;
-			cterm->seq_key = SEQ_ESC;
+			cterm->print_buf[0]  = 0;
+			cterm->print_pos     = cterm->print_buf;
+			cterm->sequence      = 1;
+			cterm->seq_phase     = SEQ_PHASE_C1;
+			cterm->seq_key       = SEQ_ESC;
 			cterm->seq_param_len = 0;
 			cterm->seq_params[0] = 0;
 		}
@@ -1172,7 +1173,7 @@ cterm_accumulate_ecma_seq(struct cterminal *cterm, unsigned char byte, int *spee
 			/* Genuine break — restore the saved accumulator (non-NULL
 			 * when an ESC inside a DCS/OSC/… string kicked us here) or
 			 * clear otherwise. */
-			cterm->accumulator = cterm->saved_accumulator;
+			cterm->accumulator       = cterm->saved_accumulator;
 			cterm->saved_accumulator = NULL;
 		}
 		return true;
@@ -1181,12 +1182,10 @@ cterm_accumulate_ecma_seq(struct cterminal *cterm, unsigned char byte, int *spee
 	/* SEQ_COMPLETE */
 	{
 		const struct seq_dispatch *d = NULL;
-		cterm_accumulator_fn pre_handler;
+		cterm_accumulator_fn       pre_handler;
 		if (cterm->dispatch_table != NULL && cterm->dispatch_table_len > 0) {
-			d = bsearch(&cterm->seq_key, cterm->dispatch_table,
-			    cterm->dispatch_table_len,
-			    sizeof(cterm->dispatch_table[0]),
-			    cterm_seq_dispatch_cmp);
+			d = bsearch(&cterm->seq_key, cterm->dispatch_table, cterm->dispatch_table_len,
+			    sizeof(cterm->dispatch_table[0]), cterm_seq_dispatch_cmp);
 		}
 		cterm_build_param_strs(cterm);
 		memset(cterm->seq_consumed, 0, sizeof(cterm->seq_consumed));
@@ -1195,18 +1194,18 @@ cterm_accumulate_ecma_seq(struct cterminal *cterm, unsigned char byte, int *spee
 			/* Set up trailing-byte accumulation; handler fires
 			 * when cterm_accumulate_trailing counts down. */
 			cterm->seq_trailing_handler = d->handler;
-			cterm->seq_trailing_remain = d->trailing;
-			cterm->seq_param_count = 0;
-			cterm->seq_phase = SEQ_PHASE_IDLE;
-			cterm->sequence = 0;
+			cterm->seq_trailing_remain  = d->trailing;
+			cterm->seq_param_count      = 0;
+			cterm->seq_phase            = SEQ_PHASE_IDLE;
+			cterm->sequence             = 0;
 			cterm_text_forget(cterm);
 			cterm->saved_accumulator = NULL;
-			cterm->accumulator = cterm_accumulate_trailing;
+			cterm->accumulator       = cterm_accumulate_trailing;
 			return true;
 		}
-		pre_handler = cterm->accumulator;
+		pre_handler      = cterm->accumulator;
 		cterm->seq_phase = SEQ_PHASE_IDLE;
-		cterm->sequence = 0;
+		cterm->sequence  = 0;
 		if (d != NULL && d->handler != NULL)
 			d->handler(cterm, speed);
 		else if (!rip3_designation(cterm))
@@ -1216,7 +1215,7 @@ cterm_accumulate_ecma_seq(struct cterminal *cterm, unsigned char byte, int *spee
 			/* Handler didn't install a new mode.  Pop back to the
 			 * saved accumulator (string context we interrupted) or
 			 * clear to idle. */
-			cterm->accumulator = cterm->saved_accumulator;
+			cterm->accumulator       = cterm->saved_accumulator;
 			cterm->saved_accumulator = NULL;
 		}
 		/* else: handler installed a new accumulator (dcs_start, sos_start,
@@ -1232,15 +1231,15 @@ cterm_accumulate_ecma_seq(struct cterminal *cterm, unsigned char byte, int *spee
 static void
 sgr_diff(struct cterminal *cterm, const struct st_console_cell *prev, const struct st_console_cell *next)
 {
-	static const int cga2ansi[] = {0,4,2,6,1,5,3,7};
-	int need_reset = 0;
-	uint8_t pa = cterm_render_cell_attribute(cterm, prev);
-	uint8_t na = cterm_render_cell_attribute(cterm, next);
+	static const int cga2ansi[] = {0, 4, 2, 6, 1, 5, 3, 7};
+	int              need_reset = 0;
+	uint8_t          pa         = cterm_render_cell_attribute(cterm, prev);
+	uint8_t          na         = cterm_render_cell_attribute(cterm, next);
 
 	/* Check if we need a reset — if any attribute was ON in prev but OFF in next */
-	if ((pa & 0x08) && !(na & 0x08))	/* bold off */
+	if ((pa & 0x08) && !(na & 0x08)) /* bold off */
 		need_reset = 1;
-	if ((pa & 0x80) && !(na & 0x80))	/* blink off */
+	if ((pa & 0x80) && !(na & 0x80)) /* blink off */
 		need_reset = 1;
 
 	if (need_reset) {
@@ -1254,7 +1253,7 @@ sgr_diff(struct cterminal *cterm, const struct st_console_cell *prev, const stru
 		cterm_respond_printf(cterm, "m");
 	}
 	else {
-		int params = 0;
+		int  params = 0;
 		char sgrbuf[128];
 		sgrbuf[0] = '\0';
 
@@ -1280,23 +1279,22 @@ sgr_diff(struct cterminal *cterm, const struct st_console_cell *prev, const stru
 
 	if (next->foreground != prev->foreground) {
 		if (next->foreground & 0x80000000)
-			cterm_respond_printf(cterm, "\033[38;2;%d;%d;%dm",
-			    (next->foreground >> 16) & 0xff, (next->foreground >> 8) & 0xff, next->foreground & 0xff);
+			cterm_respond_printf(cterm, "\033[38;2;%d;%d;%dm", (next->foreground >> 16) & 0xff,
+			    (next->foreground >> 8) & 0xff, next->foreground & 0xff);
 		else if (next->foreground >= 16)
 			cterm_respond_printf(cterm, "\033[38;5;%dm", next->foreground & 0xffff);
 	}
 
 	if (next->background != prev->background) {
 		if (next->background & 0x80000000)
-			cterm_respond_printf(cterm, "\033[48;2;%d;%d;%dm",
-			    (next->background >> 16) & 0xff, (next->background >> 8) & 0xff, next->background & 0xff);
+			cterm_respond_printf(cterm, "\033[48;2;%d;%d;%dm", (next->background >> 16) & 0xff,
+			    (next->background >> 8) & 0xff, next->background & 0xff);
 		else if (next->background >= 16)
 			cterm_respond_printf(cterm, "\033[48;5;%dm", next->background & 0xffff);
 	}
 
 	if (next->font != prev->font)
-		cterm_respond_printf(cterm, "\033[0;%d D",
-		    cterm_render_cell_font(cterm, next));
+		cterm_respond_printf(cterm, "\033[0;%d D", cterm_render_cell_font(cterm, next));
 }
 
 /*
@@ -1313,11 +1311,11 @@ sgr_diff(struct cterminal *cterm, const struct st_console_cell *prev, const stru
 void
 cterm_transmit_selected(struct cterminal *cterm)
 {
-	int start_row, start_col, end_row, end_col;
-	int cur_row, cur_col;
+	int                     start_row, start_col, end_row, end_col;
+	int                     cur_row, cur_col;
 	struct st_console_cell *cells;
-	int total_cells, i;
-	int screen_width;
+	int                     total_cells, i;
+	int                     screen_width;
 
 	/* Emit SOS with prefix */
 	cterm_respond_printf(cterm, "\033XCTerm:STS:%d:", cterm->fetm);
@@ -1330,8 +1328,7 @@ cterm_transmit_selected(struct cterminal *cterm)
 		uint32_t columns;
 		uint32_t rows;
 
-		if (st_console_size(cterm->screen.console, &columns, &rows) != 0
-		    || columns > INT_MAX)
+		if (st_console_size(cterm->screen.console, &columns, &rows) != 0 || columns > INT_MAX)
 			goto done;
 		screen_width = (int)columns;
 	}
@@ -1380,8 +1377,8 @@ cterm_transmit_selected(struct cterminal *cterm)
 	/* Calculate the row-major cell count before reading the selected rows. */
 	/* Convert to a linear cell range */
 	int start_linear = (start_row - 1) * screen_width + (start_col - 1);
-	int end_linear = (end_row - 1) * screen_width + (end_col - 1);
-	total_cells = end_linear - start_linear + 1;
+	int end_linear   = (end_row - 1) * screen_width + (end_col - 1);
+	total_cells      = end_linear - start_linear + 1;
 
 	if (total_cells <= 0)
 		goto done;
@@ -1394,11 +1391,11 @@ cterm_transmit_selected(struct cterminal *cterm)
 	/* Read cells — by row for efficiency */
 	{
 		int pos = 0;
-		int r = start_row;
-		int c = start_col;
+		int r   = start_row;
+		int c   = start_col;
 		while (pos < total_cells) {
 			int row_end = (r == end_row) ? end_col : screen_width;
-			int count = row_end - c + 1;
+			int count   = row_end - c + 1;
 			if (pos + count > total_cells)
 				count = total_cells - pos;
 			cterm_render_read_cells(cterm, c, r, c + count - 1, r, &cells[pos]);
@@ -1420,12 +1417,11 @@ cterm_transmit_selected(struct cterminal *cterm)
 	else {
 		/* FETM=INSERT: characters with SGR diffs, hyperlinks, doorway encoding */
 		struct st_console_cell prev;
-		uint32_t foreground;
-		uint32_t background;
+		uint32_t               foreground;
+		uint32_t               background;
 
 		cterm_render_attribute_colours(cterm, 7, &foreground, &background);
-		cterm_render_make_cell(cterm, &prev, ' ', 7, foreground,
-		    background, 0, 0, 0);
+		cterm_render_make_cell(cterm, &prev, ' ', 7, foreground, background, 0, 0, 0);
 
 		for (i = 0; i < total_cells; i++) {
 			/* Emit SGR diff */
@@ -1443,10 +1439,10 @@ cterm_transmit_selected(struct cterminal *cterm)
 					cterm_respond_printf(cterm, "\033]8;;\033:\\");
 				}
 				else {
-					char *url = cterm_render_hyperlink_url(cterm, cells[i].hyperlink);
+					char *url    = cterm_render_hyperlink_url(cterm, cells[i].hyperlink);
 					char *params = cterm_render_hyperlink_params(cterm, cells[i].hyperlink);
-					cterm_respond_printf(cterm, "\033]8;%s;%s\033:\\",
-					    params ? params : "", url ? url : "");
+					cterm_respond_printf(cterm, "\033]8;%s;%s\033:\\", params ? params : "",
+					    url ? url : "");
 					free(url);
 					free(params);
 				}
@@ -1456,7 +1452,7 @@ cterm_transmit_selected(struct cterminal *cterm)
 			if (ch < 0x20 || ch == 0x7f) {
 				/* Doorway encode C0/DEL */
 				char doorway[] = "\033[=255h\x00X\033[=255l";
-				doorway[8] = ch;
+				doorway[8]     = ch;
 				cterm_respond(cterm, doorway, sizeof(doorway) - 1);
 			}
 			else {
@@ -1512,11 +1508,12 @@ seq_feed(struct cterminal *cterm, unsigned char ch)
 				/* In RIP3 designation sequences A/B are final bytes after
 				 * the parenthesis, not fresh C1 introducers. Keep the old
 				 * parsing of other routes/sequences outside this scope. */
-				if (cterm->graphics_mode==ST_CTERM_GRAPHICS_RIP_3
-				    && cterm->emulation==CTERM_EMULATION_ANSI_BBS
-				    && (cterm->seq_key==(SEQ_ESC|SEQ_INTERM('('))
-				        || cterm->seq_key==(SEQ_ESC|SEQ_INTERM(')')))) {
-					cterm->seq_key|=SEQ_FINAL(ch);cterm->seq_phase=SEQ_PHASE_COMPLETE;
+				if (cterm->graphics_mode == ST_CTERM_GRAPHICS_RIP_3
+				    && cterm->emulation == CTERM_EMULATION_ANSI_BBS
+				    && (cterm->seq_key == (SEQ_ESC | SEQ_INTERM('('))
+				        || cterm->seq_key == (SEQ_ESC | SEQ_INTERM(')')))) {
+					cterm->seq_key |= SEQ_FINAL(ch);
+					cterm->seq_phase = SEQ_PHASE_COMPLETE;
 					return SEQ_COMPLETE;
 				}
 				if (ch >= 0x40 && ch <= 0x5F) {
@@ -1524,14 +1521,14 @@ seq_feed(struct cterminal *cterm, unsigned char ch)
 					cterm->seq_key = SEQ_C1(ch);
 					if (ch == '[') {
 						/* CSI -- expect params + final */
-						cterm->seq_phase = SEQ_PHASE_PARAMS;
-						cterm->seq_param_len = 0;
-						cterm->seq_param_count = 0;
-						cterm->seq_cur_value = 0;
+						cterm->seq_phase          = SEQ_PHASE_PARAMS;
+						cterm->seq_param_len      = 0;
+						cterm->seq_param_count    = 0;
+						cterm->seq_cur_value      = 0;
 						cterm->seq_cur_has_digits = false;
-						cterm->seq_cur_has_sub = false;
-						cterm->seq_overflow = false;
-						cterm->seq_params[0] = 0;
+						cterm->seq_cur_has_sub    = false;
+						cterm->seq_overflow       = false;
+						cterm->seq_params[0]      = 0;
 						return SEQ_INCOMPLETE;
 					}
 					/* Other C1 standalones (RI, NEL, DCS, OSC, PM, APC, ST, ...) */
@@ -1554,7 +1551,7 @@ seq_feed(struct cterminal *cterm, unsigned char ch)
 					return SEQ_INCOMPLETE;
 				}
 				cterm->seq_params[cterm->seq_param_len++] = ch;
-				cterm->seq_params[cterm->seq_param_len] = 0;
+				cterm->seq_params[cterm->seq_param_len]   = 0;
 
 				if (ch >= 0x3C) {
 					/* Private indicator -- only valid as first byte. */
@@ -1569,28 +1566,27 @@ seq_feed(struct cterminal *cterm, unsigned char ch)
 						return SEQ_INCOMPLETE;
 					}
 					cterm->seq_param_int[cterm->seq_param_count] =
-					    cterm->seq_cur_has_digits
-					        ? cterm->seq_cur_value : UINT64_MAX;
+					    cterm->seq_cur_has_digits ? cterm->seq_cur_value : UINT64_MAX;
 					cterm->seq_param_count++;
-					cterm->seq_cur_value = 0;
+					cterm->seq_cur_value      = 0;
 					cterm->seq_cur_has_digits = false;
-					cterm->seq_cur_has_sub = false;
+					cterm->seq_cur_has_sub    = false;
 				}
 				else if (ch == ':') {
 					if (!cterm->seq_cur_has_sub) {
 						if (cterm->seq_param_count < MAX_SEQ_PARAMS) {
 							cterm->seq_param_int[cterm->seq_param_count] =
-							    cterm->seq_cur_has_digits
-							        ? cterm->seq_cur_value : UINT64_MAX;
+							    cterm->seq_cur_has_digits ? cterm->seq_cur_value
+							                              : UINT64_MAX;
 						}
 						cterm->seq_cur_has_sub = true;
 					}
-					cterm->seq_cur_value = 0;
+					cterm->seq_cur_value      = 0;
 					cterm->seq_cur_has_digits = false;
 				}
 				else {
 					/* Digit 0x30-0x39 */
-					cterm->seq_cur_value = cterm->seq_cur_value * 10 + (ch - '0');
+					cterm->seq_cur_value      = cterm->seq_cur_value * 10 + (ch - '0');
 					cterm->seq_cur_has_digits = true;
 				}
 				return SEQ_INCOMPLETE;
@@ -1606,12 +1602,10 @@ seq_feed(struct cterminal *cterm, unsigned char ch)
 			 * detect "no explicit parameters"). */
 			if (!cterm->seq_overflow) {
 				if (cterm->seq_param_count < MAX_SEQ_PARAMS
-				    && (cterm->seq_cur_has_digits
-				        || cterm->seq_param_count > 0)) {
+				    && (cterm->seq_cur_has_digits || cterm->seq_param_count > 0)) {
 					if (!cterm->seq_cur_has_sub) {
 						cterm->seq_param_int[cterm->seq_param_count] =
-						    cterm->seq_cur_has_digits
-						        ? cterm->seq_cur_value : UINT64_MAX;
+						    cterm->seq_cur_has_digits ? cterm->seq_cur_value : UINT64_MAX;
 					}
 					cterm->seq_param_count++;
 				}
@@ -1651,7 +1645,7 @@ seq_feed(struct cterminal *cterm, unsigned char ch)
 static void
 cterm_build_param_strs(struct cterminal *cterm)
 {
-	int n = 0;
+	int   n = 0;
 	char *p = cterm->seq_params;
 
 	if (*p >= '<' && *p <= '?')
@@ -1662,7 +1656,7 @@ cterm_build_param_strs(struct cterminal *cterm)
 			p++;
 		if (*p == 0)
 			break;
-		*p++ = 0;	/* split this ';' */
+		*p++ = 0; /* split this ';' */
 	}
 	while (n < MAX_SEQ_PARAMS)
 		cterm->seq_param_strs[n++] = "";
@@ -1718,7 +1712,7 @@ cterm_ecma48_apply_sgr(struct cterminal *cterm, int *pi)
 				CTERM_FREE_AND_CLEAR(cterm->fg_tc_str);
 			}
 			break;
-		case 4:	/* Underscore */
+		case 4: /* Underscore */
 			break;
 		case 5:
 		case 6:
@@ -1735,11 +1729,11 @@ cterm_ecma48_apply_sgr(struct cterminal *cterm, int *pi)
 			cterm_set_negative(cterm, true);
 			break;
 		case 8:
-			{
-				int j = cterm->attr & 112;
-				cterm->attr &= 112;
-				cterm->attr |= j >> 4;
-			}
+		{
+			int j = cterm->attr & 112;
+			cterm->attr &= 112;
+			cterm->attr |= j >> 4;
+		}
 			cterm->fg_color = cterm->bg_color;
 			CTERM_FREE_AND_CLEAR(cterm->fg_tc_str);
 			if (cterm->bg_tc_str != NULL)

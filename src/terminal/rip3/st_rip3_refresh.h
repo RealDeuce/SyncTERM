@@ -10,11 +10,11 @@ struct st_rip3_query;
  * The evaluated source is owned by the query across prompts and delays. */
 struct st_rip3_refresh {
 	struct st_rip3_resident_query expression;
-	struct st_rip3_query *query;
+	struct st_rip3_query         *query;
 };
 
-int st_rip3_refresh_define(struct st_rip3_refresh *, const uint8_t *bytes, size_t length);
+int  st_rip3_refresh_define(struct st_rip3_refresh *, const uint8_t *bytes, size_t length);
 void st_rip3_refresh_clear(struct st_rip3_refresh *);
-int st_rip3_refresh_start(struct st_rip3_refresh *);
+int  st_rip3_refresh_start(struct st_rip3_refresh *);
 bool st_rip3_refresh_pending(const struct st_rip3_refresh *);
 #endif

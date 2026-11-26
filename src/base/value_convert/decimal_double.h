@@ -12,9 +12,7 @@
 #include <stddef.h>
 
 bool decimal_parse_double(const char *begin, const char *end, double *result);
-bool decimal_format_double(char *buffer, size_t size, double value,
-    int precision);
-bool decimal_format_fixed(char *buffer, size_t size, double value,
-    unsigned places);
+bool decimal_format_double(char *buffer, size_t size, double value, int precision);
+bool decimal_format_fixed(char *buffer, size_t size, double value, unsigned places);
 
 #endif

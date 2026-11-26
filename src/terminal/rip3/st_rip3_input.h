@@ -20,10 +20,10 @@ struct st_rip3_input;
  * callback may reenter process(), reset/destroy this driver or change bindings.
  * The queue/context and downstream parser must outlive the driver. */
 struct st_rip3_input_source {
-	void *context;
+	void    *context;
 	uint64_t (*now_ns)(void *context);
-	bool (*next)(void *context, uint8_t *byte);
-	void (*consume)(void *context, uint8_t byte);
+	bool     (*next)(void *context, uint8_t *byte);
+	void     (*consume)(void *context, uint8_t byte);
 	/* Optional bounded local continuation, run after the gate is ready and
 	 * before next(). False yields this pump without reading source bytes;
 	 * it is not a failure. May begin another delay even when returning true.
@@ -31,8 +31,7 @@ struct st_rip3_input_source {
 	bool (*prepare)(void *context);
 };
 
-int st_rip3_input_create(struct st_rip3_input **result,
-	const struct st_rip3_input_source *source);
+int  st_rip3_input_create(struct st_rip3_input **result, const struct st_rip3_input_source *source);
 void st_rip3_input_destroy(struct st_rip3_input *input);
 /* Cancel the gate only. The borrowed queue/parser are neither read nor reset. */
 void st_rip3_input_reset(struct st_rip3_input *input);

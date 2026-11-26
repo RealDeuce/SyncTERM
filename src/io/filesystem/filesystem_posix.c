@@ -3,10 +3,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "filesystem.h"
-
-#include "io_error.h"
-
+#include <sys/types.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
@@ -15,9 +12,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <sys/types.h>
 #include <unistd.h>
 #include <utime.h>
+
+#include "filesystem.h"
+#include "io_error.h"
 
 static int
 fs_errno_error(int error)
@@ -51,7 +50,7 @@ fs_stat_result(struct fs_info *result, const struct stat *status)
 	else
 		info.size = 0;
 	info.modified_time = (int64_t)status->st_mtime;
-	*result = info;
+	*result            = info;
 	return 0;
 }
 
@@ -97,8 +96,7 @@ fs_open(FILE **result, const char *path, const char *mode)
 {
 	FILE *stream;
 
-	if (result == NULL || path == NULL || *path == '\0' || mode == NULL ||
-	    *mode == '\0')
+	if (result == NULL || path == NULL || *path == '\0' || mode == NULL || *mode == '\0')
 		return IO_ERROR_INVALID_ARGUMENT;
 	stream = fopen(path, mode);
 	if (stream == NULL)
@@ -111,7 +109,7 @@ int64_t
 fs_stream_size(FILE *stream)
 {
 	struct stat status;
-	int descriptor;
+	int         descriptor;
 
 	if (stream == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -159,7 +157,7 @@ fs_stream_seek(FILE *stream, int64_t offset)
 int
 fs_stream_truncate(FILE *stream, uint64_t size)
 {
-	int descriptor;
+	int   descriptor;
 	off_t native_size;
 
 	if (stream == NULL)
@@ -190,9 +188,9 @@ fs_time_value(int64_t value, time_t *result)
 int
 fs_set_modified_time(const char *path, int64_t modified_time)
 {
-	struct stat status;
+	struct stat    status;
 	struct utimbuf times;
-	int error;
+	int            error;
 
 	if (path == NULL || *path == '\0')
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -242,8 +240,7 @@ fs_remove_directory(const char *path)
 int
 fs_rename(const char *source, const char *destination)
 {
-	if (source == NULL || *source == '\0' || destination == NULL ||
-	    *destination == '\0')
+	if (source == NULL || *source == '\0' || destination == NULL || *destination == '\0')
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (rename(source, destination) != 0)
 		return fs_errno_error(errno);
@@ -267,19 +264,17 @@ int
 fs_copy_file(const char *source, const char *destination)
 {
 	unsigned char buffer[64 * 1024];
-	struct stat source_status;
-	FILE *input = NULL;
-	FILE *output = NULL;
-	int error = 0;
+	struct stat   source_status;
+	FILE         *input  = NULL;
+	FILE         *output = NULL;
+	int           error  = 0;
 
-	if (source == NULL || *source == '\0' || destination == NULL ||
-	    *destination == '\0')
+	if (source == NULL || *source == '\0' || destination == NULL || *destination == '\0')
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (stat(source, &source_status) != 0)
 		return fs_errno_error(errno);
 	if (!S_ISREG(source_status.st_mode))
-		return S_ISDIR(source_status.st_mode) ? IO_ERROR_IS_DIRECTORY :
-		    IO_ERROR_NOT_SUPPORTED;
+		return S_ISDIR(source_status.st_mode) ? IO_ERROR_IS_DIRECTORY : IO_ERROR_NOT_SUPPORTED;
 	int same = fs_same_file(&source_status, destination);
 	if (same < 0)
 		return same;
@@ -312,8 +307,7 @@ fs_copy_file(const char *source, const char *destination)
 		error = fs_errno_error(errno);
 	(void)fclose(input);
 	if (error == 0)
-		error = fs_set_modified_time(destination,
-		    (int64_t)source_status.st_mtime);
+		error = fs_set_modified_time(destination, (int64_t)source_status.st_mtime);
 	return error;
 }
 
@@ -344,21 +338,20 @@ fs_create_or_confirm_directory(const char *path)
 int
 fs_create_directories(const char *path)
 {
-	char *copy;
+	char  *copy;
 	size_t length;
-	int error = 0;
+	int    error = 0;
 
 	if (path == NULL || *path == '\0')
 		return IO_ERROR_INVALID_ARGUMENT;
 	length = strlen(path);
-	copy = malloc(length + 1);
+	copy   = malloc(length + 1);
 	if (copy == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
 	memcpy(copy, path, length + 1);
 	while (length > 1 && copy[length - 1] == '/')
 		copy[--length] = '\0';
-	for (char *current = copy + (copy[0] == '/' ? 1 : 0);
-	    *current != '\0'; current++) {
+	for (char *current = copy + (copy[0] == '/' ? 1 : 0); *current != '\0'; current++) {
 		if (*current != '/')
 			continue;
 		*current = '\0';

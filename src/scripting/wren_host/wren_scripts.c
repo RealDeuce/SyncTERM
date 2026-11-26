@@ -5,13 +5,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "wren_host_internal.h"
+#include <stdlib.h>
+#include <string.h>
 
 #include "io_error.h"
 #include "path.h"
-
-#include <stdlib.h>
-#include <string.h>
+#include "wren_host_internal.h"
 
 static int
 compare_entries(const void *left, const void *right)
@@ -23,14 +22,13 @@ compare_entries(const void *left, const void *right)
 }
 
 int
-st_wren_script_inventory(const char *directory, const char *event,
-	struct st_wren_directory_entries *entries)
+st_wren_script_inventory(const char *directory, const char *event, struct st_wren_directory_entries *entries)
 {
-	char *automatic = NULL;
-	char *event_directory = NULL;
-	const char *source = directory;
-	size_t retained = 0;
-	int status;
+	char       *automatic       = NULL;
+	char       *event_directory = NULL;
+	const char *source          = directory;
+	size_t      retained        = 0;
+	int         status;
 
 	if (directory == NULL || entries == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -50,22 +48,20 @@ st_wren_script_inventory(const char *directory, const char *event,
 		return status;
 	}
 	for (size_t i = 0; i < entries->count; ++i) {
-		struct st_wren_directory_entry entry = entries->items[i];
-		size_t length = strlen(entry.name);
+		struct st_wren_directory_entry entry  = entries->items[i];
+		size_t                         length = strlen(entry.name);
 
 		if (entry.directory || length < sizeof(".wren") - 1
-		    || strcmp(entry.name + length - (sizeof(".wren") - 1),
-		    ".wren") != 0) {
+		    || strcmp(entry.name + length - (sizeof(".wren") - 1), ".wren") != 0) {
 			free(entry.name);
 			continue;
 		}
 		entry.name[length - (sizeof(".wren") - 1)] = '\0';
-		entries->items[retained++] = entry;
+		entries->items[retained++]                 = entry;
 	}
 	entries->count = retained;
 	if (entries->count > 1)
-		qsort(entries->items, entries->count, sizeof(entries->items[0]),
-		    compare_entries);
+		qsort(entries->items, entries->count, sizeof(entries->items[0]), compare_entries);
 	return 0;
 }
 

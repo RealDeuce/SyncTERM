@@ -95,10 +95,8 @@ void cterm_handle_st(struct cterminal *cterm, int *speed);
  * in cterm.c.  SOS gets its own accumulator because it captures literally
  * everything up to the ST, while the other four (DCS / OSC / PM / APC)
  * share cterm_accumulate_command_string. */
-bool cterm_accumulate_command_string(struct cterminal *cterm, unsigned char byte,
-    int *speed);
-bool cterm_accumulate_sos(struct cterminal *cterm, unsigned char byte,
-    int *speed);
+bool cterm_accumulate_command_string(struct cterminal *cterm, unsigned char byte, int *speed);
+bool cterm_accumulate_sos(struct cterminal *cterm, unsigned char byte, int *speed);
 
 /* Base of the SGR cascade — handles the ECMA-48 parameters; called
  * from cterm_dec_apply_sgr (which in turn is called from

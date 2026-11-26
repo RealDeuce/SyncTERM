@@ -1,15 +1,6 @@
 /* Operation Overkill ][ terminal codes and resources, extracted from SyncTERM. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 
-#include "st_ooii.h"
-#include "io_error.h"
-#include "string_compat.h"
-#include "value_convert_time.h"
-#include "ooii_bmenus.h"
-#include "ooii_cmenus.h"
-#include "ooii_logons.h"
-#include "ooii_sounds.h"
-
 #include <errno.h>
 #include <limits.h>
 #include <stdbool.h>
@@ -18,26 +9,35 @@
 #include <string.h>
 #include <time.h>
 
+#include "io_error.h"
+#include "ooii_bmenus.h"
+#include "ooii_cmenus.h"
+#include "ooii_logons.h"
+#include "ooii_sounds.h"
+#include "st_ooii.h"
+#include "string_compat.h"
+#include "value_convert_time.h"
+
 struct st_ooii {
 	struct st_ooii_config config;
-	int mode;
-	size_t mode_generation;
-	int error;
-	unsigned attribute;
-	uint32_t random;
-	size_t match[2];
-	uint8_t command[256];
-	uint8_t *end;
-	size_t command_size;
-	bool discard;
+	int                   mode;
+	size_t                mode_generation;
+	int                   error;
+	unsigned              attribute;
+	uint32_t              random;
+	size_t                match[2];
+	uint8_t               command[256];
+	uint8_t              *end;
+	size_t                command_size;
+	bool                  discard;
 };
 
 static void
 write_text(st_ooii_t *ooii, const void *bytes, ptrdiff_t size)
 {
 	if (ooii->error == 0)
-		ooii->error = ooii->config.render(ooii->config.context, bytes,
-		    size < 0 ? strlen(bytes) : (size_t)size);
+		ooii->error =
+		    ooii->config.render(ooii->config.context, bytes, size < 0 ? strlen(bytes) : (size_t)size);
 }
 
 static void
@@ -50,8 +50,7 @@ play_sound(st_ooii_t *ooii, const uint8_t *samples, size_t size)
 static unsigned
 current_attributes(st_ooii_t *ooii)
 {
-	return ooii->config.attributes == NULL ? ooii->attribute
-	    : ooii->config.attributes(ooii->config.context);
+	return ooii->config.attributes == NULL ? ooii->attribute : ooii->config.attributes(ooii->config.context);
 }
 
 static unsigned
@@ -79,143 +78,128 @@ block_number(const char *text)
 	errno = 0;
 	value = strtoll(text, NULL, 10);
 	/* Leave room for the legacy renderer's one-based coordinate offsets. */
-	if (value > INT_MAX - 1LL) return INT_MAX - 1;
-	if (value < INT_MIN + 1LL) return INT_MIN + 1;
+	if (value > INT_MAX - 1LL)
+		return INT_MAX - 1;
+	if (value < INT_MIN + 1LL)
+		return INT_MIN + 1;
 	return (int)value;
 }
 
 static const unsigned char stormColors[7] = {7, 12, 8, 15, 14, 13, 1};
 
-static char          diseases[11][14] = // #,str length
-{
-	"None",                         // 0
-	"Pneumonia",                    // 1
-	"Malaria",                      // 2
-	"Yellow Fever",                 // 3
-	"Hydrocism",                    // 4
-	"Staph",                        // 5
-	"Rabies",                       // 6
-	"Polio",                        // 7
-	"Black Plague",                 // 8
-	"Delyria",                      // 9
-	"Poison"
-};                                      // 10
+static char diseases[11][14] =           // #,str length
+    {"None",                             // 0
+	"Pneumonia",                     // 1
+	"Malaria",                       // 2
+	"Yellow Fever",                  // 3
+	"Hydrocism",                     // 4
+	"Staph",                         // 5
+	"Rabies",                        // 6
+	"Polio",                         // 7
+	"Black Plague",                  // 8
+	"Delyria",                       // 9
+	"Poison"};                       // 10
 
+static char weapons[27][20] = {"\xfa",   // 0
+    "Steel Chain",                       // 1
+    "Salanger",                          // 2
+    "Natase",                            // 3
+    "TransAxe",                          // 4 {  Power Pack   }
+    "Electric Sword",                    // 5 { Power Pack   }
+    "Tevix-Bahn",                        // 6     { Cirze Supply }
+    "Xendrix",                           // 7 { NOT FOR SALE!  Infinex }
+    "Trilasm",                           // 8 { ZZETs        }
+    "Exavator",                          // 9 { ZZETs        }
+    "Raxhaven",                          // 10        { Power Pack   }
+    "SanPlizer",                         // 11        { Power Pack   }
+    "Devastator",                        // 12        { Cirze Supply }
+    "Z-Tempest",                         // 13        { Cirze Supply }
+    "Herculean",                         // 14        { NOT FOR SALE!  Infinex }
+    "Trignet",                           // 15        { NOT FOR SALE!  Firenet }
+    "Extinguisher",                      // 16
+    "Shovel",                            // 17
+    "Nail Gun",                          // 18
+    "Jack Knife",                        // 19
+    "Metal Shears",                      // 20
+    "Wall Hook",                         // 21
+    "Hoist",                             // 22
+    "Propeller",                         // 23
+    "Pickaxe",                           // 24
+    "Sledge Hammer",                     // 25
+    "Hydra-Jack"};                       // 26
 
-static char weapons[27][20] = {
-	"\xfa",              // 0
-	"Steel Chain",    // 1
-	"Salanger",       // 2
-	"Natase",         // 3
-	"TransAxe",       // 4 {  Power Pack   }
-	"Electric Sword", // 5 { Power Pack   }
-	"Tevix-Bahn",     // 6     { Cirze Supply }
-	"Xendrix",        // 7 { NOT FOR SALE!  Infinex }
-	"Trilasm",        // 8 { ZZETs        }
-	"Exavator",       // 9 { ZZETs        }
-	"Raxhaven",       // 10        { Power Pack   }
-	"SanPlizer",      // 11        { Power Pack   }
-	"Devastator",     // 12        { Cirze Supply }
-	"Z-Tempest",      // 13        { Cirze Supply }
-	"Herculean",      // 14        { NOT FOR SALE!  Infinex }
-	"Trignet",        // 15        { NOT FOR SALE!  Firenet }
-	"Extinguisher",   // 16
-	"Shovel",         // 17
-	"Nail Gun",       // 18
-	"Jack Knife",     // 19
-	"Metal Shears",   // 20
-	"Wall Hook",      // 21
-	"Hoist",          // 22
-	"Propeller",      // 23
-	"Pickaxe",        // 24
-	"Sledge Hammer",  // 25
-	"Hydra-Jack"
-};                        // 26
+static char ammos[6][20] = {"\xfa",      // 0
+    "ZZETs",                             // 1   {  (Trilasm/Exavator) }
+    "Power Pack",                        // 2   {  (SanPlizer/RaxHaven/E-Sword/)        }
+    "Cirze Supply",                      // 3   {  (Z-Tempest/Devastator/Tevix-Bahn)    }
+    "Infinex",                           // 4   {  NOT FOR SALE!! (Herculean/Xendrix)   }
+    "Firenet"};                          // 5   {  NOT FOR SALE!! (Trignet)             }
 
+static char equips[46][20] = {"\xfa",    // 0
+    "Rations",                           // 1
+    "Hemp Rope",                         // 2
+    "Silencer",                          // 3
+    "Transmitter",                       // 4
+    "Summoner",                          // 5
+    "MedPack",                           // 6
+    "Thumpers",                          // 7
+    "Galacticom",                        // 8
+    "Gasmask",                           // 9
+    "Duroplast",                         // 10
+    "Aerial Scan",                       // 11
+    "VacPack",                           // 12
+    "Telegrasp",                         // 13        { NOT FOR SALE! }
+    "Red Key",                           // 14        { NOT FOR SALE! }
+    "Blue Key",                          // 15        { NOT FOR SALE! }
+    "Green Key",                         // 16        { NOT FOR SALE! }
+    "Techkit",                           // 17        { NOT FOR SALE! }
+    "Rusted Wire",                       // 18        { NOT FOR SALE! }{Arming Device}
+    "Clay Package",                      // 19        { NOT FOR SALE! }{Plutonium}
+    "Alarm Clock",                       // 20        { NOT FOR SALE! }{Timer}
+    "Broken Keypad",                     // 21        { NOT FOR SALE! }{Keypad}
+    "Code Key",                          // 22        { NOT FOR SALE! }{Entry Into AFBase}
+    "Alien Device",                      // 23        { NOT FOR SALE! }{Entry Into SpaceShip}
+    "Trikorder",                         // 24        { NOT FOR SALE! }
+    "Remote Control",                    // 25        { NOT FOR SALE! }
+    "Human Skull",                       // 26        { NOT FOR SALE! }
+    "Floppy Disk",                       // 27        { NOT FOR SALE! }{Entry to Computer Silo}
+    "Alien Skull",                       // 28        { NOT FOR SALE! }
+    "Hydrite Egg",                       // 29        { NOT FOR SALE! }
+    "Lazer Key",                         // 30        { NOT FOR SALE! }{Entry thru AFB doorways }
+    "Landmine",                          // 31        { For Sale Only In AirForce Base}
+    "Zimmer",                            // 32        { For Sale Only In AirForce Base}
+    "Re-Bar Scrap",                      // 33
+    "Door Hinge",                        // 34
+    "Broken Wrench",                     // 35
+    "Steel Coupling",                    // 36
+    "Pipe Fitting",                      // 37
+    "Rotted Cabling",                    // 38
+    "Pipe Die",                          // 39
+    "Chrome Pipe",                       // 40
+    "Gate Valve",                        // 41
+    "Butane Tank",                       // 42
+    "Drill Bit",                         // 43
+    "I-Bar Clamp",                       // 44
+    "Copper Tubing"};                    // 45
 
-static char ammos[6][20] = {
-	"\xfa",            // 0
-	"ZZETs",        // 1   {  (Trilasm/Exavator) }
-	"Power Pack",   // 2   {  (SanPlizer/RaxHaven/E-Sword/)        }
-	"Cirze Supply", // 3   {  (Z-Tempest/Devastator/Tevix-Bahn)    }
-	"Infinex",      // 4   {  NOT FOR SALE!! (Herculean/Xendrix)   }
-	"Firenet"
-};                      // 5   {  NOT FOR SALE!! (Trignet)             }
+static char suits[4][20] = {"\xfa",      // 0
+    "Environmental Suit",                // 1
+    "Combat Suit",                       // 2
+    "Anti-G Suit"};                      // 3
 
-
-static char equips[46][20] = {
-	"\xfa",              // 0
-	"Rations",        // 1
-	"Hemp Rope",      // 2
-	"Silencer",       // 3
-	"Transmitter",    // 4
-	"Summoner",       // 5
-	"MedPack",        // 6
-	"Thumpers",       // 7
-	"Galacticom",     // 8
-	"Gasmask",        // 9
-	"Duroplast",      // 10
-	"Aerial Scan",    // 11
-	"VacPack",        // 12
-	"Telegrasp",      // 13        { NOT FOR SALE! }
-	"Red Key",        // 14        { NOT FOR SALE! }
-	"Blue Key",       // 15        { NOT FOR SALE! }
-	"Green Key",      // 16        { NOT FOR SALE! }
-	"Techkit",        // 17        { NOT FOR SALE! }
-	"Rusted Wire",    // 18        { NOT FOR SALE! }{Arming Device}
-	"Clay Package",   // 19        { NOT FOR SALE! }{Plutonium}
-	"Alarm Clock",    // 20        { NOT FOR SALE! }{Timer}
-	"Broken Keypad",  // 21        { NOT FOR SALE! }{Keypad}
-	"Code Key",       // 22        { NOT FOR SALE! }{Entry Into AFBase}
-	"Alien Device",   // 23        { NOT FOR SALE! }{Entry Into SpaceShip}
-	"Trikorder",      // 24        { NOT FOR SALE! }
-	"Remote Control", // 25        { NOT FOR SALE! }
-	"Human Skull",    // 26        { NOT FOR SALE! }
-	"Floppy Disk",    // 27        { NOT FOR SALE! }{Entry to Computer Silo}
-	"Alien Skull",    // 28        { NOT FOR SALE! }
-	"Hydrite Egg",    // 29        { NOT FOR SALE! }
-	"Lazer Key",      // 30        { NOT FOR SALE! }{Entry thru AFB doorways }
-	"Landmine",       // 31        { For Sale Only In AirForce Base}
-	"Zimmer",         // 32        { For Sale Only In AirForce Base}
-	"Re-Bar Scrap",   // 33
-	"Door Hinge",     // 34
-	"Broken Wrench",  // 35
-	"Steel Coupling", // 36
-	"Pipe Fitting",   // 37
-	"Rotted Cabling", // 38
-	"Pipe Die",       // 39
-	"Chrome Pipe",    // 40
-	"Gate Valve",     // 41
-	"Butane Tank",    // 42
-	"Drill Bit",      // 43
-	"I-Bar Clamp",    // 44
-	"Copper Tubing"
-};                        // 45
-
-
-static char suits[4][20] = {
-	"\xfa",                  // 0
-	"Environmental Suit", // 1
-	"Combat Suit",        // 2
-	"Anti-G Suit"
-};                            // 3
-
-
-static char armors[13][20] = {
-	"\xfa",                  // 0
-	"Leather",            // 1
-	"HeXonium",           // 2
-	"Laser Vest",         // 3
-	"Shezvarin",          // 4
-	"Reflecto",           // 5
-	"Mudrane Sheathing",  // 6
-	"Breonesin Sheeting", // 7
-	"Barbed Wire",        // 8
-	"Asbestos Pads",      // 9
-	"Cuprid Vest",        // 10
-	"Sheet Metal",        // 11
-	"PolyCarbon"
-};                            // 12
+static char armors[13][20] = {"\xfa",    // 0
+    "Leather",                           // 1
+    "HeXonium",                          // 2
+    "Laser Vest",                        // 3
+    "Shezvarin",                         // 4
+    "Reflecto",                          // 5
+    "Mudrane Sheathing",                 // 6
+    "Breonesin Sheeting",                // 7
+    "Barbed Wire",                       // 8
+    "Asbestos Pads",                     // 9
+    "Cuprid Vest",                       // 10
+    "Sheet Metal",                       // 11
+    "PolyCarbon"};                       // 12
 
 static void
 term_gotoxy(st_ooii_t *ooii, int x, int y)
@@ -254,7 +238,7 @@ term_setattr(st_ooii_t *ooii, int attr)
 	fg = attr & 0x07;
 	br = attr & 0x08;
 
-	oa = (int)current_attributes(ooii);
+	oa  = (int)current_attributes(ooii);
 	obl = oa & 0x80;
 	obg = (oa >> 4) & 0x7;
 	ofg = oa & 0x07;
@@ -278,7 +262,7 @@ term_setattr(st_ooii_t *ooii, int attr)
 	if (bg != obg)
 		snprintf(str + strlen(str), sizeof(str) - strlen(str), "4%d;", term_colours[bg]);
 	str[strlen(str) - 1] = 'm';
-	ooii->attribute = (unsigned)attr;
+	ooii->attribute      = (unsigned)attr;
 	write_text(ooii, str, strlen(str));
 }
 
@@ -290,7 +274,7 @@ readInPix(st_ooii_t *ooii, char codeCh, int ooii_mode)
 	term_clearscreen(ooii);
 	term_gotoxy(ooii, 1, 1);
 	switch ((char)codeCh) {
-                // complex pictures
+		// complex pictures
 		case 'A':
 			fptr = 0; /* Main = 0 */
 			break;
@@ -307,7 +291,7 @@ readInPix(st_ooii_t *ooii, char codeCh, int ooii_mode)
 			fptr = 4; /* Wastelands = 4 */
 			break;
 
-                // base pictures
+		// base pictures
 		case 'F':
 			fptr = 0; /* Main menu = 0 */
 			break;
@@ -327,29 +311,26 @@ readInPix(st_ooii_t *ooii, char codeCh, int ooii_mode)
 			fptr = 4; /* Radio Room = 4 */
 			break;
 
-                // logon pictures
+		// logon pictures
 		case '0':
 			fptr = (int)random_choice(ooii, 10);
 			break;
 	}
 
 	if ((codeCh >= 'A') && (codeCh <= 'E')) {
-		write_text(ooii,
-		    ooii_cmenus[ooii_mode - 1][fptr],
+		write_text(ooii, ooii_cmenus[ooii_mode - 1][fptr],
 		    (ptrdiff_t)ooii_cmenus_sizes[ooii_mode - 1][fptr]);
 	}
 	else if ((codeCh >= 'F') && (codeCh <= 'K')) {
-		write_text(ooii,
-		    ooii_bmenus[ooii_mode - 1][fptr],
+		write_text(ooii, ooii_bmenus[ooii_mode - 1][fptr],
 		    (ptrdiff_t)ooii_bmenus_sizes[ooii_mode - 1][fptr]);
 	}
 	else if (codeCh == '0') {
-		write_text(ooii,
-		    ooii_logon[ooii_mode - 1][fptr],
+		write_text(ooii, ooii_logon[ooii_mode - 1][fptr],
 		    (ptrdiff_t)ooii_logon_sizes[ooii_mode - 1][fptr]);
 	}
 
-        /*
+	/*
          * We don't overwrite the status line, so we don't need to redraw it
          * statusLine();
          */
@@ -366,39 +347,28 @@ readInText(st_ooii_t *ooii, unsigned char *codeStr)
 		case '1':
 			term_setattr(ooii, 6);
 			write_text(ooii,
-			    "You mosey on over to the bar and take a seat on a scuffed barstool.  The\r\n",
-			    -1);
+			    "You mosey on over to the bar and take a seat on a scuffed barstool.  The\r\n", -1);
 			write_text(ooii,
-			    "slighty deformed keeper grunts, \"Woth ja leeke?\"  A galacticom on the top\r\n",
-			    -1);
+			    "slighty deformed keeper grunts, \"Woth ja leeke?\"  A galacticom on the top\r\n", -1);
 			write_text(ooii,
-			    "shelf behind him translates his jumble into \"What would you like?\"  You\r\n",
-			    -1);
+			    "shelf behind him translates his jumble into \"What would you like?\"  You\r\n", -1);
 			write_text(ooii,
-			    "start to wonder what ever happened to the old standard human language.\r\n\r\n",
-			    -1);
+			    "start to wonder what ever happened to the old standard human language.\r\n\r\n", -1);
 			term_setattr(ooii, 10);
 			write_text(ooii, "\"Give me the House Special,\" you smirk.\r\n\r\n", -1);
 			term_setattr(ooii, 2);
 			write_text(ooii,
-			    "The bartender stares at you with one eye and then drools in agreement.  He\r\n",
-			    -1);
+			    "The bartender stares at you with one eye and then drools in agreement.  He\r\n", -1);
 			write_text(ooii,
-			    "vanishes from behind the bar and pops back up a few seconds later.  He\r\n",
-			    -1);
+			    "vanishes from behind the bar and pops back up a few seconds later.  He\r\n", -1);
 			write_text(ooii,
-			    "slides you the mysterious drink as he begins to chuckle.  White smoke\r\n",
-			    -1);
+			    "slides you the mysterious drink as he begins to chuckle.  White smoke\r\n", -1);
 			write_text(ooii,
-			    "slithers from the bubbling green slime over onto the bar counter.\r\n\r\n",
-			    -1);
+			    "slithers from the bubbling green slime over onto the bar counter.\r\n\r\n", -1);
 			term_setattr(ooii, 10);
 			write_text(ooii,
-			    "\"What do I owe you?\" you inquire to the barman.  He promptly responds\r\n",
-			    -1);
-			write_text(ooii,
-			    "with that same smirk on his face, \"Youkla telph me.\"\r\n",
-			    -1);
+			    "\"What do I owe you?\" you inquire to the barman.  He promptly responds\r\n", -1);
+			write_text(ooii, "with that same smirk on his face, \"Youkla telph me.\"\r\n", -1);
 			break;
 	}
 
@@ -413,10 +383,9 @@ getBlock(st_ooii_t *ooii, unsigned char **codeStr, char *menuBlock, size_t maxle
 	menuBlock[0] = 0;
 	if (*codeStr < ooii->end && **codeStr == '_')
 		(*codeStr)++;
-	while (*codeStr < ooii->end && **codeStr && **codeStr != '_' && **codeStr != '|'
-	    && pos < maxlen - 1) {
+	while (*codeStr < ooii->end && **codeStr && **codeStr != '_' && **codeStr != '|' && pos < maxlen - 1) {
 		menuBlock[pos++] = (char)*((*codeStr)++);
-		menuBlock[pos] = 0;
+		menuBlock[pos]   = 0;
 	}
 	while (*codeStr < ooii->end && **codeStr && **codeStr != '_' && **codeStr != '|')
 		(*codeStr)++;
@@ -452,12 +421,10 @@ readSmallMenu(st_ooii_t *ooii, unsigned char *codeStr)
 #define MultS 3
 #define MultW 2
 
-	long           aPrice[5] = {0, 4500, 14500, 29000, 42500};
-	long           ePrice[13] = {0, 50, 200, 300, 500, 800, 1000, 1500, 1750, 2000, 3000, 5000, 15000};
-	long           sPrice[3] = {0, 4500, 13500};
-	long           wPrice[15] = {
-		0, 700, 4250, 9500, 18000, 32500, 55750, 0, 7500, 12000, 19250, 30500, 41000, 64750, 0
-	};
+	long aPrice[5]  = {0, 4500, 14500, 29000, 42500};
+	long ePrice[13] = {0, 50, 200, 300, 500, 800, 1000, 1500, 1750, 2000, 3000, 5000, 15000};
+	long sPrice[3]  = {0, 4500, 13500};
+	long wPrice[15] = {0, 700, 4250, 9500, 18000, 32500, 55750, 0, 7500, 12000, 19250, 30500, 41000, 64750, 0};
 
 	char           tempBlock[255];
 	char           menuBlock[255];
@@ -573,11 +540,9 @@ readSmallMenu(st_ooii_t *ooii, unsigned char *codeStr)
 
 			term_setattr(ooii, 14);
 			write_text(ooii,
-			    "You are now in the Games Room, a delightful place to leisurely relax from\r\n",
-			    -1);
+			    "You are now in the Games Room, a delightful place to leisurely relax from\r\n", -1);
 			write_text(ooii,
-			    "the everyday hack n' slash.   A small bar is located on the south wall.\r\n\r\n",
-			    -1);
+			    "the everyday hack n' slash.   A small bar is located on the south wall.\r\n\r\n", -1);
 
 			term_setattr(ooii, 15);
 			getBlock(ooii, &codeStr, menuBlock, sizeof(menuBlock));
@@ -1189,7 +1154,7 @@ readSmallMenu(st_ooii_t *ooii, unsigned char *codeStr)
 }
 
 static void
-checkStamp(st_ooii_t *ooii, int xx, int yy, char stampStr[]) // used w/ incomingCheck
+checkStamp(st_ooii_t *ooii, int xx, int yy, char stampStr[])   // used w/ incomingCheck
 {
 	term_gotoxy(ooii, xx + 1, yy + 1);
 	term_setattr(ooii, 11);
@@ -1214,7 +1179,9 @@ incomingCheckStatus(st_ooii_t *ooii, unsigned char *codeStr)
 	who = block_number(menuBlock);
 
 	term_setattr(ooii, who);
-	write_text(ooii, "\r\n\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xbf\r\n", -1);
+	write_text(ooii,
+	    "\r\n\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xbf\r\n",
+	    -1);
 	term_setattr(ooii, 11);
 	write_text(ooii, "Recruit   ", -1);
 	term_setattr(ooii, 3);
@@ -1298,7 +1265,7 @@ scanChar(unsigned char s, int where, int miniTrik)
 
 	switch (s) {
 		case 1:
-			if (where == 4) // AFB
+			if (where == 4)   // AFB
 				return "\xb2\xb2\xb2";
 			return "OO ";
 		case 2:
@@ -1346,7 +1313,7 @@ scanChar(unsigned char s, int where, int miniTrik)
 		case 24:
 			return " \xf9 ";
 		case 25:
-			if (where == 4) // AFB
+			if (where == 4)   // AFB
 				return "\xf3\xf2 ";
 			return "\xc9\xbb ";
 		case 26:
@@ -1357,13 +1324,14 @@ scanChar(unsigned char s, int where, int miniTrik)
 			return "cc ";
 		case 29:
 			return "@@ ";
-		case 30: {
+		case 30:
+		{
 			struct tm local = {0};
 			(void)value_convert_localtime(time(NULL), &local);
 			struct tm *tblock = &local;
 
 			switch (tblock->tm_wday) {
-                                // 0 : no storms on Sunday!
+				// 0 : no storms on Sunday!
 				case 1:
 					return ")) ";
 				case 2:
@@ -1377,8 +1345,7 @@ scanChar(unsigned char s, int where, int miniTrik)
 				case 6:
 					return "00 ";
 			}
-		}
-		break;
+		} break;
 
 		case 31:
 			return "YY ";
@@ -1490,7 +1457,7 @@ static ptrdiff_t
 incomingMapScanner(st_ooii_t *ooii, unsigned char *codeStr)
 {
 	int            zz, scanPtr, yy;
-	unsigned char  scanVals[10];      // ScanVals  : ARRAY[1..9] OF BYTE;
+	unsigned char  scanVals[10];   // ScanVals  : ARRAY[1..9] OF BYTE;
 	char           scan[30];
 	char           menuBlock[255];
 	unsigned char *origCodeStr = codeStr;
@@ -1515,9 +1482,7 @@ incomingMapScanner(st_ooii_t *ooii, unsigned char *codeStr)
 			term_setattr(ooii, 5);
 			write_text(ooii, "\xc4\xb7", -1);
 			term_setattr(ooii, 13);
-			write_text(ooii,
-			    "     Compass      Sector Monitor     System Monitor           ",
-			    -1);
+			write_text(ooii, "     Compass      Sector Monitor     System Monitor           ", -1);
 			term_setattr(ooii, 1);
 			write_text(ooii, "\xb3\r\n", -1);
 			write_text(ooii, "\xb3 ", -1);
@@ -1590,9 +1555,9 @@ incomingMapScanner(st_ooii_t *ooii, unsigned char *codeStr)
 				break;
 
 			if (codeStr[0] == 'A')
-				where = 4;  // AFB
+				where = 4;   // AFB
 			else
-				where = 1;  // wasteland
+				where = 1;   // wasteland
 
 			advance_code(ooii, &codeStr);
 			if (!*codeStr)
@@ -1644,10 +1609,10 @@ incomingMapScanner(st_ooii_t *ooii, unsigned char *codeStr)
 				(void)strlcpy(scan, scanChar(scanVals[zz], where, miniTrik), sizeof(scan));
 
 				if (scanVals[zz] == 30) {
-                                        /* TODO: timer/tblock were not declared... */
+					/* TODO: timer/tblock were not declared... */
 					struct tm local = {0};
-			(void)value_convert_localtime(time(NULL), &local);
-			struct tm *tblock = &local;
+					(void)value_convert_localtime(time(NULL), &local);
+					struct tm *tblock = &local;
 
 					term_setattr(ooii, stormColors[tblock->tm_wday]);
 				}
@@ -1841,12 +1806,10 @@ incomingMapScanner(st_ooii_t *ooii, unsigned char *codeStr)
 			zz = block_number(menuBlock);
 			term_gotoxy(ooii, 3, 10);
 			write_text(ooii,
-			    "                                                                          ",
-			    -1);
+			    "                                                                          ", -1);
 			term_gotoxy(ooii, 3, 11);
 			write_text(ooii,
-			    "                                                                          ",
-			    -1);
+			    "                                                                          ", -1);
 			term_gotoxy(ooii, 3, 10);
 
 			term_setattr(ooii, 11);
@@ -1857,9 +1820,7 @@ incomingMapScanner(st_ooii_t *ooii, unsigned char *codeStr)
 					    "Crumbling walls of ancient cities scatter the plains, and smoke lazily",
 					    -1);
 					term_gotoxy(ooii, 3, 11);
-					write_text(ooii,
-					    "rises from the destructed relics of the past.",
-					    -1);
+					write_text(ooii, "rises from the destructed relics of the past.", -1);
 					break;
 
 				case 3:
@@ -1892,18 +1853,15 @@ incomingMapScanner(st_ooii_t *ooii, unsigned char *codeStr)
 
 				case 6:
 					write_text(ooii,
-					    "A mist glides along the flat terrain and summons you forward.",
-					    -1);
+					    "A mist glides along the flat terrain and summons you forward.", -1);
 					break;
 
-				case 7:
-					;
-					break; // pits
+				case 7:;
+					break;   // pits
 
 				case 8:
 					write_text(ooii,
-					    "A small hole in the ground leads down into a realm of darkness.",
-					    -1);
+					    "A small hole in the ground leads down into a realm of darkness.", -1);
 					break;
 
 				case 9:
@@ -1926,8 +1884,7 @@ incomingMapScanner(st_ooii_t *ooii, unsigned char *codeStr)
 					    -1);
 					term_gotoxy(ooii, 3, 11);
 					write_text(ooii,
-					    "lay wretched with oozing radioactive substances forming.",
-					    -1);
+					    "lay wretched with oozing radioactive substances forming.", -1);
 					break;
 
 				case 12:
@@ -1944,8 +1901,7 @@ incomingMapScanner(st_ooii_t *ooii, unsigned char *codeStr)
 
 				case 14:
 					write_text(ooii,
-					    "As you look up, you notice a small hole that leads upwards.",
-					    -1);
+					    "As you look up, you notice a small hole that leads upwards.", -1);
 					break;
 
 				case 15:
@@ -1960,12 +1916,10 @@ incomingMapScanner(st_ooii_t *ooii, unsigned char *codeStr)
 			advance_code(ooii, &codeStr);
 			term_gotoxy(ooii, 3, 10);
 			write_text(ooii,
-			    "                                                                          ",
-			    -1);
+			    "                                                                          ", -1);
 			term_gotoxy(ooii, 3, 11);
 			write_text(ooii,
-			    "                                                                          ",
-			    -1);
+			    "                                                                          ", -1);
 			term_gotoxy(ooii, 3, 10);
 			term_setattr(ooii, 11);
 			write_text(ooii, "20 foot pit!", -1);
@@ -1988,7 +1942,7 @@ incomingSoundVoc(st_ooii_t *ooii, unsigned char *codeStr)
 		case '3':
 			play_sound(ooii, ooii_snd_countdn, sizeof(ooii_snd_countdn));
 
-                /* Fallthrough */
+		/* Fallthrough */
 		case '2':
 			play_sound(ooii, ooii_snd_explode, sizeof(ooii_snd_explode));
 			break;
@@ -2135,7 +2089,7 @@ handle_ooii_code(st_ooii_t *ooii, unsigned char *codeStr, int *ooii_mode, unsign
 
 	for (; codeStr < ooii->end && *codeStr && *codeStr != '|'; advance_code(ooii, &codeStr)) {
 		if ((codeStr[0] >= 'A') && (codeStr[0] <= 'Z')) {
-                        /* This one never takes an extra char */
+			/* This one never takes an extra char */
 			readInPix(ooii, codeStr[0], *ooii_mode);
 		}
 		else if ((codeStr[0] >= '1') && (codeStr[0] <= '9')) {
@@ -2147,7 +2101,7 @@ handle_ooii_code(st_ooii_t *ooii, unsigned char *codeStr, int *ooii_mode, unsign
 		else {
 			switch (codeStr[0]) {
 				case '0':
-                                        /* This one never takes an extra char */
+					/* This one never takes an extra char */
 					readInPix(ooii, codeStr[0], *ooii_mode);
 					break;
 				case '!':
@@ -2162,7 +2116,7 @@ handle_ooii_code(st_ooii_t *ooii, unsigned char *codeStr, int *ooii_mode, unsign
 				case '\\':
 					quit = true;
 
-                                        // quitTerm=1;
+					// quitTerm=1;
 					break;
 				case '?':
 					if (retbuf != NULL) {
@@ -2170,11 +2124,11 @@ handle_ooii_code(st_ooii_t *ooii, unsigned char *codeStr, int *ooii_mode, unsign
 						getBlock(ooii, &codeStr, menuBlock, sizeof(menuBlock));
 						zz = block_number(menuBlock);
 
-                                                /* Highest we support is two */
+						/* Highest we support is two */
 						if (zz >= ST_OOII_MAX_MODE)
 							zz = ST_OOII_MAX_MODE - 1;
 
-                                                /* Old (1.22) versions don't include a number */
+						/* Old (1.22) versions don't include a number */
 						if (zz < 1)
 							zz = 1;
 						*ooii_mode = zz + 1;
@@ -2198,15 +2152,16 @@ st_ooii_create(st_ooii_t **result, const struct st_ooii_config *config)
 {
 	st_ooii_t *ooii;
 
-	if (result == NULL || config == NULL || config->pass == NULL
-	    || config->render == NULL)
+	if (result == NULL || config == NULL || config->pass == NULL || config->render == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	ooii = calloc(1, sizeof(*ooii));
-	if (ooii == NULL) return IO_ERROR_OUT_OF_MEMORY;
-	ooii->config = *config;
+	if (ooii == NULL)
+		return IO_ERROR_OUT_OF_MEMORY;
+	ooii->config    = *config;
 	ooii->attribute = 7;
-	ooii->random = (uint32_t)time(NULL);
-	if (ooii->random == 0) ooii->random = 1;
+	ooii->random    = (uint32_t)time(NULL);
+	if (ooii->random == 0)
+		ooii->random = 1;
 	*result = ooii;
 	return 0;
 }
@@ -2226,20 +2181,21 @@ st_ooii_mode(const st_ooii_t *ooii)
 void
 st_ooii_set_mode(st_ooii_t *ooii, int mode)
 {
-	if (ooii == NULL) return;
+	if (ooii == NULL)
+		return;
 	++ooii->mode_generation;
-	ooii->mode = mode < 0 ? 0 : mode > ST_OOII_MAX_MODE ? ST_OOII_MAX_MODE : mode;
+	ooii->mode         = mode < 0 ? 0 : mode > ST_OOII_MAX_MODE ? ST_OOII_MAX_MODE : mode;
 	ooii->command_size = 0;
-	ooii->discard = false;
+	ooii->discard      = false;
 	ooii->match[0] = ooii->match[1] = 0;
 }
 
 int
 st_ooii_write(st_ooii_t *ooii, const void *data, size_t size)
 {
-	const uint8_t *bytes = data;
+	const uint8_t *bytes      = data;
 	const uint8_t *patterns[] = {init1, init2};
-	const size_t lengths[] = {sizeof(init1) - 1, sizeof(init2) - 1};
+	const size_t   lengths[]  = {sizeof(init1) - 1, sizeof(init2) - 1};
 
 	if (ooii == NULL || (data == NULL && size != 0))
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -2249,40 +2205,43 @@ st_ooii_write(st_ooii_t *ooii, const void *data, size_t size)
 		if (ooii->mode != 0 && (ooii->command_size != 0 || byte == 0xab)) {
 			if (byte == 0 || ooii->command_size >= sizeof(ooii->command) - 1)
 				ooii->discard = true;
-			if (!ooii->discard) ooii->command[ooii->command_size++] = byte;
+			if (!ooii->discard)
+				ooii->command[ooii->command_size++] = byte;
 			if (byte == '|') {
 				if (!ooii->discard) {
 					uint8_t response[16];
-					int mode = ooii->mode;
-					size_t generation = ooii->mode_generation;
+					int     mode                      = ooii->mode;
+					size_t  generation                = ooii->mode_generation;
 					ooii->command[ooii->command_size] = 0;
-					ooii->end = ooii->command + ooii->command_size - 1;
-					bool quit = handle_ooii_code(ooii, ooii->command, &mode,
-					    response, sizeof(response));
+					ooii->end                         = ooii->command + ooii->command_size - 1;
+					bool quit = handle_ooii_code(ooii, ooii->command, &mode, response,
+					    sizeof(response));
 					/* Text hooks may select another mode while a screen expands.
 					 * Finish with a stable artwork index, then honor their choice. */
 					if (generation == ooii->mode_generation)
 						ooii->mode = quit ? 0 : mode;
-					if (ooii->error == 0 && response[0] != 0
-					    && ooii->config.reply != NULL)
-						ooii->error = ooii->config.reply(ooii->config.context,
-						    response, strlen((const char *)response));
+					if (ooii->error == 0 && response[0] != 0 && ooii->config.reply != NULL)
+						ooii->error = ooii->config.reply(ooii->config.context, response,
+						    strlen((const char *)response));
 				}
 				ooii->command_size = 0;
-				ooii->discard = false;
+				ooii->discard      = false;
 			}
 			++i;
-		} else {
+		}
+		else {
 			/* Preserve ordinary receive chunks, stopping at protocol boundaries.
 			 * Deliver the banner before enabling the commands that follow it. */
 			size_t start = i, generation = ooii->mode_generation;
-			int detected = 0;
+			int    detected = 0;
 			do {
 				byte = bytes[i++];
 				if (ooii->mode == 0) {
 					for (size_t p = 0; p < 2; ++p) {
-						if (byte == patterns[p][ooii->match[p]]) ++ooii->match[p];
-						else ooii->match[p] = byte == patterns[p][0] ? 1 : 0;
+						if (byte == patterns[p][ooii->match[p]])
+							++ooii->match[p];
+						else
+							ooii->match[p] = byte == patterns[p][0] ? 1 : 0;
 						if (ooii->match[p] == lengths[p]) {
 							detected = (int)p + 1;
 							break;
@@ -2294,7 +2253,8 @@ st_ooii_write(st_ooii_t *ooii, const void *data, size_t size)
 			if (detected != 0 && generation == ooii->mode_generation)
 				st_ooii_set_mode(ooii, detected);
 		}
-		if (ooii->error != 0) return ooii->error;
+		if (ooii->error != 0)
+			return ooii->error;
 	}
 	return 0;
 }

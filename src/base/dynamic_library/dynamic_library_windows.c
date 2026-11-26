@@ -3,15 +3,14 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "dynamic_library.h"
-
-#include "io_error.h"
-
+#include <windows.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include <windows.h>
+
+#include "dynamic_library.h"
+#include "io_error.h"
 
 static bool
 dynamic_library_name_valid(const char *name)
@@ -28,19 +27,17 @@ dynamic_library_name_valid(const char *name)
 }
 
 int
-dynamic_library_open(dynamic_library_t **result, const char *const names[],
-    size_t name_count, unsigned preferred_major,
-    enum dynamic_library_visibility visibility)
+dynamic_library_open(dynamic_library_t **result, const char *const names[], size_t name_count,
+    unsigned preferred_major, enum dynamic_library_visibility visibility)
 {
-	size_t maximum_name = 0;
-	size_t i;
+	size_t   maximum_name = 0;
+	size_t   i;
 	wchar_t *filename;
-	HMODULE handle = NULL;
+	HMODULE  handle = NULL;
 
 	(void)preferred_major;
-	if (result == NULL || names == NULL || name_count == 0 ||
-	    (visibility != DYNAMIC_LIBRARY_LOCAL &&
-	    visibility != DYNAMIC_LIBRARY_GLOBAL))
+	if (result == NULL || names == NULL || name_count == 0
+	    || (visibility != DYNAMIC_LIBRARY_LOCAL && visibility != DYNAMIC_LIBRARY_GLOBAL))
 		return IO_ERROR_INVALID_ARGUMENT;
 	for (i = 0; i < name_count; i++) {
 		size_t length;
@@ -65,8 +62,8 @@ dynamic_library_open(dynamic_library_t **result, const char *const names[],
 		filename[j++] = L'd';
 		filename[j++] = L'l';
 		filename[j++] = L'l';
-		filename[j] = L'\0';
-		handle = LoadLibraryW(filename);
+		filename[j]   = L'\0';
+		handle        = LoadLibraryW(filename);
 	}
 	free(filename);
 	if (handle == NULL)

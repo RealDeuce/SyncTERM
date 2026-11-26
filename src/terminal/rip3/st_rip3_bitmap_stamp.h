@@ -2,9 +2,10 @@
 #ifndef ST_RIP3_BITMAP_STAMP_H_
 #define ST_RIP3_BITMAP_STAMP_H_
 
+#include <stdint.h>
+
 #include "st_rip3_bitmap.h"
 #include "st_rip3_surface.h"
-#include <stdint.h>
 
 struct st_rip3_ports;
 struct st_rip3_port_info;
@@ -27,8 +28,8 @@ enum st_rip3_bitmap_colors {
  * the limit the index is unchanged; otherwise the first exact RGB match wins,
  * or the last equal-distance minimum. Failure retains result. This does not
  * select a palette or infer a device profile from ENV RGB input precision. */
-int st_rip3_bitmap_translate_key(const struct st_rip3_palette *palette,
-	unsigned direct_index_limit, uint32_t color, uint8_t *result);
+int st_rip3_bitmap_translate_key(const struct st_rip3_palette *palette, unsigned direct_index_limit,
+    uint32_t color, uint8_t *result);
 
 /* Stamp a decoded BMP without image-style fitting or clearing.
  * Nearest source pixel centers are computed against the original requested
@@ -56,18 +57,15 @@ int st_rip3_bitmap_translate_key(const struct st_rip3_palette *palette,
  * check. Complete validation and scratch allocation precede drawing; protection allows
  * contents to change. One session thread owns source, ports and invocation.
  * Status belongs to the owning parser, never a terminal/session error path. */
-int st_rip3_draw_bitmap(struct st_rip3_ports *ports,
-	const struct st_rip3_bitmap *bitmap,
-	const struct st_rip3_bitmap_destination *destination,
-	const struct st_rip3_palette *palette, enum st_rip3_bitmap_colors colors,
-	enum st_rip3_transfer_mode mode,
-	const uint8_t *transparent_color);
+int st_rip3_draw_bitmap(struct st_rip3_ports *ports, const struct st_rip3_bitmap *bitmap,
+    const struct st_rip3_bitmap_destination *destination, const struct st_rip3_palette *palette,
+    enum st_rip3_bitmap_colors colors, enum st_rip3_transfer_mode mode, const uint8_t *transparent_color);
 
 /* Present an HCL bitmap into the captured active current port. The caller
  * checks the playback gates before loading the file. Uses the stored surface
  * rectangle or the viewport fallback, clipping to the port as well as the
  * viewport and backing surface. COPY and dither are independent of style flags. */
 int st_rip3_draw_bitmap_playback(struct st_rip3_ports *ports, const struct st_rip3_port_info *port,
-	const struct st_rip3_bitmap *bitmap, const struct st_rip3_palette *palette);
+    const struct st_rip3_bitmap *bitmap, const struct st_rip3_palette *palette);
 
 #endif

@@ -5,18 +5,16 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "theme_internal.h"
-
-#include "io_error.h"
-#include "path_windows.h"
-#include "st_windows_utf.h"
-
 #include <windows.h>
-
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <wchar.h>
+
+#include "io_error.h"
+#include "path_windows.h"
+#include "st_windows_utf.h"
+#include "theme_internal.h"
 
 void
 st_theme_directory_dispose(struct st_theme_directory *directory)
@@ -26,7 +24,7 @@ st_theme_directory_dispose(struct st_theme_directory *directory)
 	for (size_t i = 0; i < directory->count; ++i)
 		free(directory->entries[i].name);
 	free(directory->entries);
-	*directory = (struct st_theme_directory){0};
+	*directory = (struct st_theme_directory) {0};
 }
 
 static int
@@ -34,11 +32,11 @@ append_entry(struct st_theme_directory *result, char *name)
 {
 	if (result->count == SIZE_MAX / sizeof(result->entries[0]))
 		return IO_ERROR_OUT_OF_MEMORY;
-	struct st_theme_directory_entry *entries = realloc(result->entries,
-	    (result->count + 1) * sizeof(result->entries[0]));
+	struct st_theme_directory_entry *entries =
+	    realloc(result->entries, (result->count + 1) * sizeof(result->entries[0]));
 	if (entries == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
-	result->entries = entries;
+	result->entries               = entries;
 	entries[result->count++].name = name;
 	return 0;
 }
@@ -46,13 +44,13 @@ append_entry(struct st_theme_directory *result, char *name)
 int
 st_theme_directory_read(struct st_theme_directory *result, const char *path)
 {
-	struct st_theme_directory value = {0};
-	wchar_t *extended = NULL;
-	wchar_t *pattern = NULL;
-	WIN32_FIND_DATAW data;
-	HANDLE search;
-	size_t length;
-	int status;
+	struct st_theme_directory value    = {0};
+	wchar_t                  *extended = NULL;
+	wchar_t                  *pattern  = NULL;
+	WIN32_FIND_DATAW          data;
+	HANDLE                    search;
+	size_t                    length;
+	int                       status;
 
 	if (result == NULL || path == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -73,7 +71,7 @@ st_theme_directory_read(struct st_theme_directory *result, const char *path)
 	if (length != 0 && pattern[length - 1] != L'\\')
 		pattern[length++] = L'\\';
 	pattern[length++] = L'*';
-	pattern[length] = L'\0';
+	pattern[length]   = L'\0';
 	free(extended);
 	search = FindFirstFileW(pattern, &data);
 	free(pattern);

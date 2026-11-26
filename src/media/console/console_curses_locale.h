@@ -10,9 +10,8 @@
 
 struct st_curses_locale;
 
-int st_curses_locale_create(struct st_curses_locale **result);
+int  st_curses_locale_create(struct st_curses_locale **result);
 void st_curses_locale_destroy(struct st_curses_locale *locale);
-int st_curses_locale_call(struct st_curses_locale *locale,
-	int (*call)(void *), void *argument);
+int  st_curses_locale_call(struct st_curses_locale *locale, int (*call)(void *), void *argument);
 
 #endif

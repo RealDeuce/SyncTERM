@@ -10,11 +10,14 @@ enum st_rip3_arc_kind {
 	ST_RIP3_ARC_EMPTY,
 };
 
-struct st_rip3_arc_ray { int64_t x, y; };
+struct st_rip3_arc_ray {
+	int64_t x, y;
+};
+
 struct st_rip3_arc {
 	struct st_rip3_arc_ray first, last;
-	enum st_rip3_arc_kind kind;
-	double start, sweep;
+	enum st_rip3_arc_kind  kind;
+	double                 start, sweep;
 };
 
 /* Axis-aligned A/V/I/i/_ endpoint rays, with radii already converted to device
@@ -23,7 +26,7 @@ struct st_rip3_arc {
  * center-collapsed ray is empty. For a singular ellipse, nonzero rays use
  * their ordinary bearing and the renderer's degenerate-ellipse policy.
  * These last two policies do not claim native GDI pixel reproduction. */
-int st_rip3_arc_axis(struct st_rip3_arc *result, uint64_t radius_x,
-	uint64_t radius_y, unsigned start, unsigned end);
+int st_rip3_arc_axis(struct st_rip3_arc *result, uint64_t radius_x, uint64_t radius_y, unsigned start,
+    unsigned end);
 
 #endif

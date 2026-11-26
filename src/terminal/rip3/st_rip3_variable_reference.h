@@ -7,12 +7,12 @@
 #include <stdint.h>
 
 enum st_rip3_variable_directive {
-	ST_RIP3_VARIABLE_REQUIRED = 1u << 0,
+	ST_RIP3_VARIABLE_REQUIRED   = 1u << 0,
 	ST_RIP3_VARIABLE_PERSISTENT = 1u << 1,
-	ST_RIP3_VARIABLE_SESSION = 1u << 2,
-	ST_RIP3_VARIABLE_MASKED = 1u << 3,
-	ST_RIP3_VARIABLE_SET = 1u << 4,
-	ST_RIP3_VARIABLE_GET = 1u << 5,
+	ST_RIP3_VARIABLE_SESSION    = 1u << 2,
+	ST_RIP3_VARIABLE_MASKED     = 1u << 3,
+	ST_RIP3_VARIABLE_SET        = 1u << 4,
+	ST_RIP3_VARIABLE_GET        = 1u << 5,
 };
 
 enum st_rip3_variable_mode {
@@ -29,7 +29,9 @@ enum st_rip3_variable_conversion {
 	ST_RIP3_VARIABLE_TOLOWER,
 };
 
-enum { ST_RIP3_PROMPT_TEXT_LIMIT = 100 };
+enum {
+	ST_RIP3_PROMPT_TEXT_LIMIT = 100
+};
 
 struct st_rip3_variable_prompt_text {
 	size_t length;
@@ -39,13 +41,13 @@ struct st_rip3_variable_prompt_text {
 };
 
 struct st_rip3_variable_reference {
-	char name[21];
-	unsigned directives;
-	enum st_rip3_variable_mode mode;
-	enum st_rip3_variable_conversion conversion;
-	bool has_position, has_x, has_y, has_width, has_question, has_default;
-	int32_t x, y;
-	uint32_t width;
+	char                                name[21];
+	unsigned                            directives;
+	enum st_rip3_variable_mode          mode;
+	enum st_rip3_variable_conversion    conversion;
+	bool                                has_position, has_x, has_y, has_width, has_question, has_default;
+	int32_t                             x, y;
+	uint32_t                            width;
 	struct st_rip3_variable_prompt_text question, default_value;
 };
 

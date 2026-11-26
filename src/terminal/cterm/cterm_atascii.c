@@ -25,10 +25,10 @@
 
 #include <limits.h>
 
-#include "cterm_render.h"
 #include "cterm.h"
-#include "cterm_internal.h"
 #include "cterm_atascii.h"
+#include "cterm_internal.h"
+#include "cterm_render.h"
 
 static void atascii_return(struct cterminal *cterm);
 
@@ -52,13 +52,13 @@ atascii_literal_byte(struct cterminal *cterm, unsigned char byte, int *speed)
  * ------------------------------------------------------------------------ */
 
 static void
-atascii_escape(struct cterminal *cterm)	/* 27 */
+atascii_escape(struct cterminal *cterm) /* 27 */
 {
 	cterm->accumulator = atascii_literal_byte;
 }
 
 static void
-atascii_up(struct cterminal *cterm)	/* 28 — wraps to bottom of same column */
+atascii_up(struct cterminal *cterm) /* 28 — wraps to bottom of same column */
 {
 	int x, y;
 	CURR_XY(&x, &y);
@@ -69,7 +69,7 @@ atascii_up(struct cterminal *cterm)	/* 28 — wraps to bottom of same column */
 }
 
 static void
-atascii_down(struct cterminal *cterm)	/* 29 — wraps to top of same column */
+atascii_down(struct cterminal *cterm) /* 29 — wraps to top of same column */
 {
 	int x, y;
 	CURR_XY(&x, &y);
@@ -80,7 +80,7 @@ atascii_down(struct cterminal *cterm)	/* 29 — wraps to top of same column */
 }
 
 static void
-atascii_left(struct cterminal *cterm)	/* 30 — wraps to right side of same row */
+atascii_left(struct cterminal *cterm) /* 30 — wraps to right side of same row */
 {
 	int x, y;
 	CURR_XY(&x, &y);
@@ -91,7 +91,7 @@ atascii_left(struct cterminal *cterm)	/* 30 — wraps to right side of same row 
 }
 
 static void
-atascii_right(struct cterminal *cterm)	/* 31 — wraps to left side of same row */
+atascii_right(struct cterminal *cterm) /* 31 — wraps to left side of same row */
 {
 	int x, y;
 	CURR_XY(&x, &y);
@@ -102,13 +102,13 @@ atascii_right(struct cterminal *cterm)	/* 31 — wraps to left side of same row 
 }
 
 static void
-atascii_clear_screen(struct cterminal *cterm)	/* 125 */
+atascii_clear_screen(struct cterminal *cterm) /* 125 */
 {
 	cterm_clearscreen(cterm, cterm->attr);
 }
 
 static void
-atascii_backspace(struct cterminal *cterm)	/* 126 — erase, no wrap */
+atascii_backspace(struct cterminal *cterm) /* 126 — erase, no wrap */
 {
 	int x, y;
 	CURR_XY(&x, &y);
@@ -121,26 +121,26 @@ atascii_backspace(struct cterminal *cterm)	/* 126 — erase, no wrap */
 }
 
 static void
-atascii_tab(struct cterminal *cterm)	/* 127 — wraps to next line */
+atascii_tab(struct cterminal *cterm) /* 127 — wraps to next line */
 {
 	cterm_do_tab(cterm);
 }
 
 static void
-atascii_return(struct cterminal *cterm)	/* 155 */
+atascii_return(struct cterminal *cterm) /* 155 */
 {
 	cterm_adjust_currpos(cterm, INT_MIN, +1, 1);
 }
 
 static void
-atascii_delete_line(struct cterminal *cterm)	/* 156 */
+atascii_delete_line(struct cterminal *cterm) /* 156 */
 {
 	cterm_dellines(cterm, 1);
 	cterm_adjust_currpos(cterm, INT_MIN, 0, 0);
 }
 
 static void
-atascii_insert_line(struct cterminal *cterm)	/* 157 */
+atascii_insert_line(struct cterminal *cterm) /* 157 */
 {
 	int x, y, sx, sy, ex, ey;
 	CURR_XY(&x, &y);
@@ -158,19 +158,19 @@ atascii_insert_line(struct cterminal *cterm)	/* 157 */
 }
 
 static void
-atascii_clear_tab(struct cterminal *cterm)	/* 158 */
+atascii_clear_tab(struct cterminal *cterm) /* 158 */
 {
 	cterm_delete_tabstop(cterm, cterm_render_position_x(cterm));
 }
 
 static void
-atascii_set_tab(struct cterminal *cterm)	/* 159 */
+atascii_set_tab(struct cterminal *cterm) /* 159 */
 {
 	cterm_insert_tabstop(cterm, cterm_render_position_x(cterm));
 }
 
 static void
-atascii_bell(struct cterminal *cterm)	/* 253 */
+atascii_bell(struct cterminal *cterm) /* 253 */
 {
 	if (!cterm->quiet) {
 		cterm_render_beep(cterm);
@@ -178,7 +178,7 @@ atascii_bell(struct cterminal *cterm)	/* 253 */
 }
 
 static void
-atascii_delete_char(struct cterminal *cterm)	/* 254 */
+atascii_delete_char(struct cterminal *cterm) /* 254 */
 {
 	int x, y, sx, sy, ex;
 	CURR_XY(&x, &y);
@@ -196,7 +196,7 @@ atascii_delete_char(struct cterminal *cterm)	/* 254 */
 }
 
 static void
-atascii_insert_char(struct cterminal *cterm)	/* 255 */
+atascii_insert_char(struct cterminal *cterm) /* 255 */
 {
 	int x, y, sx, sy, ex;
 	CURR_XY(&x, &y);
@@ -219,43 +219,63 @@ atascii_insert_char(struct cterminal *cterm)	/* 255 */
  * default path".
  * ------------------------------------------------------------------------ */
 
-#define BIT(b)	((uint8_t)1 << ((b) & 7))
+#define BIT(b) ((uint8_t)1 << ((b) & 7))
 const uint8_t cterm_atascii_ctrl_bitmap[32] = {
-	/* 0x00-0x1F */
-	0,
-	0,
-	0,
-	/* byte 27 = ESC (bit 3 of byte 3) */
-	BIT(27) | BIT(28) | BIT(29) | BIT(30) | BIT(31),
-	/* 0x20-0x7F: only 125 (0x7D), 126 (0x7E), 127 (0x7F) */
-	0, 0, 0, 0,	/* 0x20-0x3F */
-	0, 0, 0, 0,	/* 0x40-0x5F */
-	0, 0, 0,	/* 0x60-0x7B */
-	BIT(125) | BIT(126) | BIT(127),
-	/* 0x80-0x9F: 155 (0x9B), 156, 157, 158, 159 */
-	0, 0, 0,	/* 0x80-0x97 */
-	BIT(155) | BIT(156) | BIT(157) | BIT(158) | BIT(159),
-	/* 0xA0-0xFF: only 253, 254, 255 */
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,	/* 0xA0-0xF7 */
-	BIT(253) | BIT(254) | BIT(255),
+    /* 0x00-0x1F */
+    0,
+    0,
+    0,
+    /* byte 27 = ESC (bit 3 of byte 3) */
+    BIT(27) | BIT(28) | BIT(29) | BIT(30) | BIT(31),
+    /* 0x20-0x7F: only 125 (0x7D), 126 (0x7E), 127 (0x7F) */
+    0,
+    0,
+    0,
+    0, /* 0x20-0x3F */
+    0,
+    0,
+    0,
+    0, /* 0x40-0x5F */
+    0,
+    0,
+    0, /* 0x60-0x7B */
+    BIT(125) | BIT(126) | BIT(127),
+    /* 0x80-0x9F: 155 (0x9B), 156, 157, 158, 159 */
+    0,
+    0,
+    0, /* 0x80-0x97 */
+    BIT(155) | BIT(156) | BIT(157) | BIT(158) | BIT(159),
+    /* 0xA0-0xFF: only 253, 254, 255 */
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0, /* 0xA0-0xF7 */
+    BIT(253) | BIT(254) | BIT(255),
 };
 #undef BIT
 
 void (*const cterm_atascii_handlers[256])(struct cterminal *) = {
-	[27]  = atascii_escape,
-	[28]  = atascii_up,
-	[29]  = atascii_down,
-	[30]  = atascii_left,
-	[31]  = atascii_right,
-	[125] = atascii_clear_screen,
-	[126] = atascii_backspace,
-	[127] = atascii_tab,
-	[155] = atascii_return,
-	[156] = atascii_delete_line,
-	[157] = atascii_insert_line,
-	[158] = atascii_clear_tab,
-	[159] = atascii_set_tab,
-	[253] = atascii_bell,
-	[254] = atascii_delete_char,
-	[255] = atascii_insert_char,
+    [27]  = atascii_escape,
+    [28]  = atascii_up,
+    [29]  = atascii_down,
+    [30]  = atascii_left,
+    [31]  = atascii_right,
+    [125] = atascii_clear_screen,
+    [126] = atascii_backspace,
+    [127] = atascii_tab,
+    [155] = atascii_return,
+    [156] = atascii_delete_line,
+    [157] = atascii_insert_line,
+    [158] = atascii_clear_tab,
+    [159] = atascii_set_tab,
+    [253] = atascii_bell,
+    [254] = atascii_delete_char,
+    [255] = atascii_insert_char,
 };

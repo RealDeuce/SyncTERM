@@ -1,18 +1,21 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
-#include "amiga_directory_internal.h"
-#include "io_error.h"
 #include <dirent.h>
 #include <errno.h>
 #include <string.h>
-int amiga_directory_names(struct amiga_names *result, const char *path)
+
+#include "amiga_directory_internal.h"
+#include "io_error.h"
+
+int
+amiga_directory_names(struct amiga_names *result, const char *path)
 {
-	struct amiga_names names = {0};
-	DIR *directory = opendir(path);
+	struct amiga_names names     = {0};
+	DIR               *directory = opendir(path);
 	if (!directory)
 		return io_error_from_errno(errno);
 	int status = 0;
 	for (;;) {
-		errno = 0;
+		errno                = 0;
 		struct dirent *entry = readdir(directory);
 		if (!entry) {
 			if (errno)

@@ -14,7 +14,7 @@ struct st_rip3_bitmap_destination;
  * useful for embedding and independent expectations. No STYLE/ENV/cursor,
  * palette, port selection or image-style configuration is changed. */
 struct st_rip3_bitmap_error_ui {
-	struct st_rip3_ports *ports;
+	struct st_rip3_ports          *ports;
 	const struct st_rip3_palettes *palettes;
 	const struct st_rip3_maf_font *font;
 };
@@ -30,6 +30,6 @@ struct st_rip3_bitmap_error_ui {
  * are staged before COPY painting. No status escapes to the parser/session.
  * The caller retains bindings and invokes this on its exclusive session thread. */
 void st_rip3_bitmap_error_show(void *context, const char *name, unsigned port,
-	const struct st_rip3_bitmap_destination *area, bool natural_size);
+    const struct st_rip3_bitmap_destination *area, bool natural_size);
 
 #endif

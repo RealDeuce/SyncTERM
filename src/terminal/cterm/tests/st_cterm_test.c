@@ -3,35 +3,33 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "st_cterm.h"
-#include "st_session_history.h"
-#include "cterm.h"
-#include "cterm_dec.h"
-
-#include "io_error.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#define CHECK(expression) do { \
-	if (!(expression)) { \
-		fprintf(stderr, "check failed at %s:%d: %s\n", __FILE__, __LINE__, \
-		    #expression); \
-		exit(EXIT_FAILURE); \
-	} \
-} while (false)
+#include "cterm.h"
+#include "cterm_dec.h"
+#include "io_error.h"
+#include "st_cterm.h"
+#include "st_session_history.h"
+
+#define CHECK(expression)                                                                                \
+	do {                                                                                             \
+		if (!(expression)) {                                                                     \
+			fprintf(stderr, "check failed at %s:%d: %s\n", __FILE__, __LINE__, #expression); \
+			exit(EXIT_FAILURE);                                                              \
+		}                                                                                        \
+	} while (false)
 
 struct output {
 	uint8_t bytes[4096];
-	size_t size;
-	size_t responses;
-	size_t user;
+	size_t  size;
+	size_t  responses;
+	size_t  user;
 };
 
 static void
-capture(void *context, enum st_cterm_output_origin origin,
-	const uint8_t *bytes, size_t size)
+capture(void *context, enum st_cterm_output_origin origin, const uint8_t *bytes, size_t size)
 {
 	struct output *output = context;
 
@@ -55,9 +53,9 @@ feed(st_cterm_t *terminal, const void *bytes, size_t size)
 
 struct input_filter_state {
 	uint32_t seen[16];
-	size_t count;
-	char captured[64];
-	size_t captured_size;
+	size_t   count;
+	char     captured[64];
+	size_t   captured_size;
 };
 
 static bool
@@ -68,19 +66,25 @@ input_filter_active(void *context)
 }
 
 static int
-filter_input(void *context, uint32_t scalar, bool *consumed,
-	char *replacement, size_t capacity, size_t *replacement_size)
+filter_input(void *context, uint32_t scalar, bool *consumed, char *replacement, size_t capacity,
+    size_t *replacement_size)
 {
 	struct input_filter_state *state = context;
-	const char *text = NULL;
-	size_t size = 0;
+	const char                *text  = NULL;
+	size_t                     size  = 0;
 
 	if (state->count < sizeof(state->seen) / sizeof(state->seen[0]))
 		state->seen[state->count++] = scalar;
-	*consumed = scalar == 'Q' || scalar == 0xe9 || scalar == '\n';
+	*consumed         = scalar == 'Q' || scalar == 0xe9 || scalar == '\n';
 	*replacement_size = 0;
-	if (scalar == 0xe9) { text = "X"; size = 1; }
-	if (scalar == '\n') { text = "\r\n"; size = 2; }
+	if (scalar == 0xe9) {
+		text = "X";
+		size = 1;
+	}
+	if (scalar == '\n') {
+		text = "\r\n";
+		size = 2;
+	}
 	if (text != NULL) {
 		if (size > capacity)
 			return IO_ERROR_OUT_OF_RANGE;
@@ -108,14 +112,13 @@ static uint16_t
 crc16(const void *data, size_t size)
 {
 	const uint8_t *bytes = data;
-	uint16_t crc = 0;
+	uint16_t       crc   = 0;
 
 	for (size_t i = 0; i < size; ++i) {
 		crc ^= (uint16_t)bytes[i] << 8;
 		for (unsigned bit = 0; bit < 8; ++bit)
-			crc = (crc & UINT16_C(0x8000)) != 0
-			    ? (uint16_t)((crc << 1) ^ UINT16_C(0x1021))
-			    : (uint16_t)(crc << 1);
+			crc = (crc & UINT16_C(0x8000)) != 0 ? (uint16_t)((crc << 1) ^ UINT16_C(0x1021))
+			                                    : (uint16_t)(crc << 1);
 	}
 	return crc;
 }
@@ -129,19 +132,30 @@ check_clear_scrollback_bounds(void)
 		for (int origin = 0; origin <= 1; ++origin) {
 			for (int offset = 0; offset <= 2; offset += 2) {
 				for (size_t command = 0; command < sizeof(clears) / sizeof(clears[0]); ++command) {
-					st_console_t *console = NULL;
-					st_font_catalog_t *fonts = NULL;
-					st_cterm_t *terminal = NULL;
-					const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
-					const struct st_console_config geometry = {.columns = 8, .rows = 25, .cell_width = 8, .cell_height = 16};
+					st_console_t                          *console  = NULL;
+					st_font_catalog_t                     *fonts    = NULL;
+					st_cterm_t                            *terminal = NULL;
+					const struct st_console_display_config display  = {
+					    .backend = ST_CONSOLE_BACKEND_HEADLESS};
+					const struct st_console_config geometry = {.columns = 8,
+					    .rows                                           = 25,
+					    .cell_width                                     = 8,
+					    .cell_height                                    = 16};
 					CHECK(st_console_create(&console, &display, &geometry) == 0);
 					CHECK(st_font_catalog_create(&fonts, console) == 0);
-					const struct st_cterm_config config = {.console = console, .fonts = fonts,
-						.emulation = ST_CTERM_ANSI_BBS, .encoding = encoding, .codepage = ST_CODEPAGE_CP437,
-						.terminal_rows = 20, .scrollback_lines = 64, .quiet = true};
+					const struct st_cterm_config config = {.console = console,
+					    .fonts                                      = fonts,
+					    .emulation                                  = ST_CTERM_ANSI_BBS,
+					    .encoding                                   = encoding,
+					    .codepage                                   = ST_CODEPAGE_CP437,
+					    .terminal_rows                              = 20,
+					    .scrollback_lines                           = 64,
+					    .quiet                                      = true};
 					CHECK(st_cterm_create(&terminal, &config) == 0);
 					feed(terminal, "\x1b[0m", 4);
-					CHECK(st_console_set_window(console, &(const struct st_console_rect){0, 0, 8, 25}) == 0);
+					CHECK(st_console_set_window(console,
+						  &(const struct st_console_rect) {0, 0, 8, 25})
+					      == 0);
 					/* Seed all rows through text decoding before positioning the viewport. */
 					for (uint32_t row = 0; row < 25; ++row) {
 						CHECK(st_console_set_position(console, 0, row) == 0);
@@ -150,31 +164,50 @@ check_clear_scrollback_bounds(void)
 					}
 					terminal->y += offset;
 					feed(terminal, "\x1b[5;16r", strlen("\x1b[5;16r"));
-					if (origin) feed(terminal, "\x1b[?6h", strlen("\x1b[?6h"));
+					if (origin)
+						feed(terminal, "\x1b[?6h", strlen("\x1b[?6h"));
 					terminal->backfilled = terminal->backpos = terminal->backstart = 0;
 					feed(terminal, clears[command], strlen(clears[command]));
-					const int first = offset + (origin ? 4 : 0);
+					const int    first = offset + (origin ? 4 : 0);
 					const size_t count = origin ? 12 : 20;
-					uint32_t columns;
-					size_t rows;
+					uint32_t     columns;
+					size_t       rows;
 					CHECK(st_cterm_scrollback_size(terminal, &columns, &rows) == 0);
 					CHECK(columns == 8 && rows == count);
 					struct st_console_cell history[20 * 8], screen[25 * 8];
-					CHECK(st_cterm_copy_scrollback_rows(terminal, history, 8, count, 0, count, 0) == (int)count);
-					CHECK(st_console_read_cells(console, &(const struct st_console_rect){0, 0, 8, 25}, screen, 8) == 0);
+					CHECK(
+					    st_cterm_copy_scrollback_rows(terminal, history, 8, count, 0, count, 0)
+					    == (int)count);
+					CHECK(st_console_read_cells(console,
+						  &(const struct st_console_rect) {0, 0, 8, 25}, screen, 8)
+					      == 0);
 					for (size_t row = 0; row < count; ++row) {
-						char text[8]; size_t size;
-						CHECK(st_console_font_glyph_text(console, history[row * 8].glyph_font,
-						    history[row * 8].glyph, text, sizeof(text), &size) == 0);
+						char   text[8];
+						size_t size;
+						CHECK(st_console_font_glyph_text(console,
+							  history[row * 8].glyph_font, history[row * 8].glyph,
+							  text, sizeof(text), &size)
+						      == 0);
 						if (size != 1 || text[0] != 'A' + first + (int)row)
-							fprintf(stderr, "clear encoding=%d origin=%d offset=%d cmd=%zu row=%zu glyph=%u text=%d expected=%d\n", encoding, origin, offset, command, row, history[row*8].glyph, (unsigned char)text[0], 'A'+first+(int)row);
+							fprintf(stderr,
+							    "clear encoding=%d origin=%d offset=%d cmd=%zu row=%zu glyph=%u text=%d expected=%d\n",
+							    encoding, origin, offset, command, row,
+							    history[row * 8].glyph, (unsigned char)text[0],
+							    'A' + first + (int)row);
 						CHECK(size == 1 && text[0] == 'A' + first + (int)row);
 					}
 					for (int row = 0; row < 25; ++row) {
-						char text[8]; size_t size;
-						CHECK(st_console_font_glyph_text(console, screen[row * 8].glyph_font,
-						    screen[row * 8].glyph, text, sizeof(text), &size) == 0);
-						CHECK(size == 1 && text[0] == (row >= first && row < first + (int)count ? ' ' : 'A' + row));
+						char   text[8];
+						size_t size;
+						CHECK(
+						    st_console_font_glyph_text(console, screen[row * 8].glyph_font,
+							screen[row * 8].glyph, text, sizeof(text), &size)
+						    == 0);
+						CHECK(size == 1
+						      && text[0]
+						             == (row >= first && row < first + (int)count
+								     ? ' '
+								     : 'A' + row));
 					}
 					st_cterm_destroy(&terminal);
 					st_font_catalog_destroy(fonts);
@@ -188,24 +221,36 @@ check_clear_scrollback_bounds(void)
 static void
 check_insert_lines_bounds(void)
 {
-	static const struct { int row; const char *command; } cases[] = {
-		{4, "\x1b[L"}, {2, "\x1b[3L"}, {2, "\x1b[99L"},
+	static const struct {
+		int         row;
+		const char *command;
+	} cases[] = {
+	    {4, "\x1b[L"  },
+	    {2, "\x1b[3L" },
+	    {2, "\x1b[99L"},
 	};
+
 	for (size_t test = 0; test < sizeof(cases) / sizeof(cases[0]); ++test) {
 		for (size_t split = 0; split <= strlen(cases[test].command); ++split) {
-			st_console_t *console = NULL;
-			st_font_catalog_t *fonts = NULL;
-			st_cterm_t *terminal = NULL;
-			const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
-			const struct st_console_config geometry = {.columns = 8, .rows = 6, .cell_width = 8, .cell_height = 16};
+			st_console_t                          *console  = NULL;
+			st_font_catalog_t                     *fonts    = NULL;
+			st_cterm_t                            *terminal = NULL;
+			const struct st_console_display_config display  = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+			const struct st_console_config         geometry = {.columns = 8,
+			    .rows                                                   = 6,
+			    .cell_width                                             = 8,
+			    .cell_height                                            = 16};
 			CHECK(st_console_create(&console, &display, &geometry) == 0);
 			CHECK(st_font_catalog_create(&fonts, console) == 0);
-			const struct st_cterm_config config = {.console = console, .fonts = fonts,
-				.emulation = ST_CTERM_ANSI_BBS, .encoding = ST_CTERM_ENCODING_UTF8,
-				.terminal_rows = 5, .quiet = true};
+			const struct st_cterm_config config = {.console = console,
+			    .fonts                                      = fonts,
+			    .emulation                                  = ST_CTERM_ANSI_BBS,
+			    .encoding                                   = ST_CTERM_ENCODING_UTF8,
+			    .terminal_rows                              = 5,
+			    .quiet                                      = true};
 			CHECK(st_cterm_create(&terminal, &config) == 0);
 			feed(terminal, "\x1b[0m", 4);
-			CHECK(st_console_set_window(console, &(const struct st_console_rect){0, 0, 8, 6}) == 0);
+			CHECK(st_console_set_window(console, &(const struct st_console_rect) {0, 0, 8, 6}) == 0);
 			for (uint32_t row = 0; row < 6; ++row) {
 				CHECK(st_console_set_position(console, 0, row) == 0);
 				const char letter = (char)('A' + row);
@@ -216,12 +261,17 @@ check_insert_lines_bounds(void)
 			feed(terminal, cases[test].command, split);
 			feed(terminal, cases[test].command + split, strlen(cases[test].command) - split);
 			struct st_console_cell cells[48];
-			CHECK(st_console_read_cells(console, &(const struct st_console_rect){0, 0, 8, 6}, cells, 8) == 0);
+			CHECK(
+			    st_console_read_cells(console, &(const struct st_console_rect) {0, 0, 8, 6}, cells, 8)
+			    == 0);
 			for (int row = 1; row <= 6; ++row) {
-				char text[8]; size_t size;
+				char   text[8];
+				size_t size;
 				CHECK(st_console_font_glyph_text(console, cells[(row - 1) * 8].glyph_font,
-				    cells[(row - 1) * 8].glyph, text, sizeof(text), &size) == 0);
-				CHECK(size == 1 && text[0] == (row >= cases[test].row && row <= 4 ? ' ' : 'A' + row - 1));
+					  cells[(row - 1) * 8].glyph, text, sizeof(text), &size)
+				      == 0);
+				CHECK(size == 1
+				      && text[0] == (row >= cases[test].row && row <= 4 ? ' ' : 'A' + row - 1));
 			}
 			struct st_cterm_state state;
 			CHECK(st_cterm_state(terminal, &state) == 0 && state.x == 1 && state.y == cases[test].row);
@@ -235,168 +285,249 @@ check_insert_lines_bounds(void)
 static void
 check_local_text_position(void)
 {
-	st_console_t *console=NULL;st_font_catalog_t *fonts=NULL;st_cterm_t *terminal=NULL;
-	struct input_filter_state observed={0};struct st_cterm_state state;
-	const struct st_console_display_config display={.backend=ST_CONSOLE_BACKEND_HEADLESS};
-	const struct st_console_config geometry={.columns=4,.rows=3,.cell_width=8,.cell_height=8};
-	CHECK(st_console_create(&console,&display,&geometry)==0 && st_font_catalog_create(&fonts,console)==0);
-	const struct st_cterm_config config={.console=console,.fonts=fonts,.emulation=ST_CTERM_ANSI_BBS,
-	    .encoding=ST_CTERM_ENCODING_CODEPAGE,.codepage=ST_CODEPAGE_CP437,.quiet=true,
-	    .input_filter=filter_input,.input_filter_context=&observed,
-	    .input_filter_active=input_filter_active,.capture=capture_input,.capture_context=&observed};
-	CHECK(st_cterm_create(&terminal,&config)==0);
-	CHECK(st_cterm_position_text(terminal,UINT32_MAX,UINT32_MAX)==0);
-	CHECK(st_cterm_state(terminal,&state)==0 && state.x==4 && state.y==3);
-	CHECK(observed.count==0 && observed.captured_size==0);
-	CHECK(st_cterm_position_text(terminal,0,0)==0 && st_cterm_state(terminal,&state)==0 && state.x==1 && state.y==1);
-	const char margins[]="\x1b[2;3r\x1b[?6h";
-	feed(terminal,margins,sizeof(margins)-1);observed.count=0;observed.captured_size=0;
-	CHECK(st_cterm_position_text(terminal,0,0)==0 && st_cterm_state(terminal,&state)==0 && state.x==1 && state.y==2);
-	CHECK(st_cterm_position_text(terminal,UINT32_MAX,UINT32_MAX)==0
-	    && st_cterm_state(terminal,&state)==0 && state.x==4 && state.y==3);
-	CHECK(observed.count==0 && observed.captured_size==0);
-	const char reset[]="\x1b[?6l\x1b[r";feed(terminal,reset,sizeof(reset)-1);
-	CHECK(st_cterm_position_text(terminal,3,0)==0);feed(terminal,"X",1);
-	CHECK(st_cterm_position_text(terminal,0,1)==0);feed(terminal,"B",1);
-	CHECK(st_cterm_state(terminal,&state)==0 && state.x==2 && state.y==2);
-	struct st_console_cell cell;const struct st_console_rect at={0,1,1,1};
-	char text[2];size_t required;
-	CHECK(st_console_read_cells(console,&at,&cell,1)==0);
-	CHECK(st_console_font_glyph_text(console,cell.glyph_font,cell.glyph,text,sizeof(text),&required)==0
-	    && required==1 && text[0]=='B');
-	CHECK(st_cterm_position_text(NULL,0,0)==IO_ERROR_INVALID_ARGUMENT);
-	CHECK(st_cterm_set_text_cursor_visible(NULL,false)==IO_ERROR_INVALID_ARGUMENT);
-	CHECK(st_cterm_set_text_cursor_visible(terminal,false)==IO_ERROR_NOT_SUPPORTED);
-	bool requested=true;
-	CHECK(st_cterm_get_text_cursor_visible(terminal,&requested)==IO_ERROR_NOT_SUPPORTED && requested);
-	CHECK(st_cterm_get_text_cursor_visible(NULL,&requested)==IO_ERROR_INVALID_ARGUMENT);
-	CHECK(st_cterm_erase_text(NULL,true,0)==IO_ERROR_INVALID_ARGUMENT);
-	CHECK(st_cterm_erase_text(terminal,true,0)==IO_ERROR_NOT_SUPPORTED);
-	CHECK(st_cterm_erase_ansi_text_eol(NULL)==IO_ERROR_INVALID_ARGUMENT);
-	CHECK(st_cterm_erase_ansi_text_eol(terminal)==IO_ERROR_NOT_SUPPORTED);
-	st_cterm_destroy(&terminal);st_font_catalog_destroy(fonts);st_console_destroy(console);
+	st_console_t                          *console  = NULL;
+	st_font_catalog_t                     *fonts    = NULL;
+	st_cterm_t                            *terminal = NULL;
+	struct input_filter_state              observed = {0};
+	struct st_cterm_state                  state;
+	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_config geometry = {.columns = 4, .rows = 3, .cell_width = 8, .cell_height = 8};
+	CHECK(
+	    st_console_create(&console, &display, &geometry) == 0 && st_font_catalog_create(&fonts, console) == 0);
+	const struct st_cterm_config config = {.console = console,
+	    .fonts                                      = fonts,
+	    .emulation                                  = ST_CTERM_ANSI_BBS,
+	    .encoding                                   = ST_CTERM_ENCODING_CODEPAGE,
+	    .codepage                                   = ST_CODEPAGE_CP437,
+	    .quiet                                      = true,
+	    .input_filter                               = filter_input,
+	    .input_filter_context                       = &observed,
+	    .input_filter_active                        = input_filter_active,
+	    .capture                                    = capture_input,
+	    .capture_context                            = &observed};
+	CHECK(st_cterm_create(&terminal, &config) == 0);
+	CHECK(st_cterm_position_text(terminal, UINT32_MAX, UINT32_MAX) == 0);
+	CHECK(st_cterm_state(terminal, &state) == 0 && state.x == 4 && state.y == 3);
+	CHECK(observed.count == 0 && observed.captured_size == 0);
+	CHECK(st_cterm_position_text(terminal, 0, 0) == 0 && st_cterm_state(terminal, &state) == 0 && state.x == 1
+	      && state.y == 1);
+	const char margins[] = "\x1b[2;3r\x1b[?6h";
+	feed(terminal, margins, sizeof(margins) - 1);
+	observed.count         = 0;
+	observed.captured_size = 0;
+	CHECK(st_cterm_position_text(terminal, 0, 0) == 0 && st_cterm_state(terminal, &state) == 0 && state.x == 1
+	      && state.y == 2);
+	CHECK(st_cterm_position_text(terminal, UINT32_MAX, UINT32_MAX) == 0
+	      && st_cterm_state(terminal, &state) == 0 && state.x == 4 && state.y == 3);
+	CHECK(observed.count == 0 && observed.captured_size == 0);
+	const char reset[] = "\x1b[?6l\x1b[r";
+	feed(terminal, reset, sizeof(reset) - 1);
+	CHECK(st_cterm_position_text(terminal, 3, 0) == 0);
+	feed(terminal, "X", 1);
+	CHECK(st_cterm_position_text(terminal, 0, 1) == 0);
+	feed(terminal, "B", 1);
+	CHECK(st_cterm_state(terminal, &state) == 0 && state.x == 2 && state.y == 2);
+	struct st_console_cell       cell;
+	const struct st_console_rect at = {0, 1, 1, 1};
+	char                         text[2];
+	size_t                       required;
+	CHECK(st_console_read_cells(console, &at, &cell, 1) == 0);
+	CHECK(st_console_font_glyph_text(console, cell.glyph_font, cell.glyph, text, sizeof(text), &required) == 0
+	      && required == 1 && text[0] == 'B');
+	CHECK(st_cterm_position_text(NULL, 0, 0) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_cterm_set_text_cursor_visible(NULL, false) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_cterm_set_text_cursor_visible(terminal, false) == IO_ERROR_NOT_SUPPORTED);
+	bool requested = true;
+	CHECK(st_cterm_get_text_cursor_visible(terminal, &requested) == IO_ERROR_NOT_SUPPORTED && requested);
+	CHECK(st_cterm_get_text_cursor_visible(NULL, &requested) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_cterm_erase_text(NULL, true, 0) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_cterm_erase_text(terminal, true, 0) == IO_ERROR_NOT_SUPPORTED);
+	CHECK(st_cterm_erase_ansi_text_eol(NULL) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_cterm_erase_ansi_text_eol(terminal) == IO_ERROR_NOT_SUPPORTED);
+	st_cterm_destroy(&terminal);
+	st_font_catalog_destroy(fonts);
+	st_console_destroy(console);
 }
 
 static void
 check_rip3_absolute_text_position(void)
 {
-	for (int encoding=ST_CTERM_ENCODING_UTF8;encoding<=ST_CTERM_ENCODING_CODEPAGE;encoding++) {
-		st_console_t *console=NULL;st_font_catalog_t *fonts=NULL;st_cterm_t *terminal=NULL;
-		const struct st_console_display_config display={.backend=ST_CONSOLE_BACKEND_HEADLESS};
-		const struct st_console_config geometry={.columns=8,.rows=6,.cell_width=8,.cell_height=8};
-		CHECK(st_console_create(&console,&display,&geometry)==0 && st_font_catalog_create(&fonts,console)==0);
-		const struct st_cterm_config config={.console=console,.fonts=fonts,.emulation=ST_CTERM_ANSI_BBS,
-		    .encoding=encoding,.codepage=ST_CODEPAGE_CP437,.quiet=true,
-		    .graphics_mode=ST_CTERM_GRAPHICS_RIP_3,.rip3_session_owner=true};
-		CHECK(st_cterm_create(&terminal,&config)==0);
-		const char rows[]="11111111\x1b[2;1H22222222\x1b[3;1H33333333"
+	for (int encoding = ST_CTERM_ENCODING_UTF8; encoding <= ST_CTERM_ENCODING_CODEPAGE; encoding++) {
+		st_console_t                          *console  = NULL;
+		st_font_catalog_t                     *fonts    = NULL;
+		st_cterm_t                            *terminal = NULL;
+		const struct st_console_display_config display  = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+		const struct st_console_config         geometry = {.columns = 8,
+		    .rows                                                   = 6,
+		    .cell_width                                             = 8,
+		    .cell_height                                            = 8};
+		CHECK(st_console_create(&console, &display, &geometry) == 0
+		      && st_font_catalog_create(&fonts, console) == 0);
+		const struct st_cterm_config config = {.console = console,
+		    .fonts                                      = fonts,
+		    .emulation                                  = ST_CTERM_ANSI_BBS,
+		    .encoding                                   = encoding,
+		    .codepage                                   = ST_CODEPAGE_CP437,
+		    .quiet                                      = true,
+		    .graphics_mode                              = ST_CTERM_GRAPHICS_RIP_3,
+		    .rip3_session_owner                         = true};
+		CHECK(st_cterm_create(&terminal, &config) == 0);
+		const char rows[] =
+		    "11111111\x1b[2;1H22222222\x1b[3;1H33333333"
 		    "\x1b[4;1H44444444\x1b[5;1H55555555\x1b[6;1H66666666";
-		feed(terminal,rows,sizeof(rows)-1);
+		feed(terminal, rows, sizeof(rows) - 1);
 		/* Save the ANSI cursor here. RIP3 ESC 7/8 hand off the full window
 		 * definition to the session owner. */
-		const char modes[]="\x1b[2;5r\x1b[?6h\x1b[2;3H\x1b[s\x1b[31;44m";
-		feed(terminal,modes,sizeof(modes)-1);
-		struct st_console_cell before[48],after[48];const struct st_console_rect all={0,0,8,6};
-		CHECK(st_console_read_cells(console,&all,before,8)==0);
-		CHECK(st_cterm_position_text(terminal,0,0)==0);
+		const char modes[] = "\x1b[2;5r\x1b[?6h\x1b[2;3H\x1b[s\x1b[31;44m";
+		feed(terminal, modes, sizeof(modes) - 1);
+		struct st_console_cell       before[48], after[48];
+		const struct st_console_rect all = {0, 0, 8, 6};
+		CHECK(st_console_read_cells(console, &all, before, 8) == 0);
+		CHECK(st_cterm_position_text(terminal, 0, 0) == 0);
 		struct st_cterm_state state;
-		CHECK(st_cterm_state(terminal,&state)==0 && state.x==1 && state.y==1);
-		CHECK(state.ext_attr.origin_mode && state.top_margin==2 && state.bottom_margin==5 && state.attr==0x14);
-		CHECK(terminal->save_xpos==3 && terminal->save_ypos==2);
-		CHECK(st_console_read_cells(console,&all,after,8)==0 && memcmp(before,after,sizeof(before))==0);
-		feed(terminal,"A",1);
-		CHECK(st_cterm_state(terminal,&state)==0 && state.x==2 && state.y==1);
-		CHECK(st_cterm_position_text(terminal,UINT32_MAX,UINT32_MAX)==0);
-		CHECK(st_cterm_state(terminal,&state)==0 && state.x==8 && state.y==6);
-		feed(terminal,"Z",1);
-		CHECK(st_cterm_state(terminal,&state)==0 && state.last_column_flag.set);
-		CHECK(st_cterm_position_text(terminal,0,0)==0);
-		CHECK(st_cterm_state(terminal,&state)==0 && !state.last_column_flag.set);
-		feed(terminal,"B",1);
-		const char cup[]="\x1b[1;1H";feed(terminal,cup,sizeof(cup)-1);
-		CHECK(st_cterm_state(terminal,&state)==0 && state.x==1 && state.y==2);
-		const char scroll[]="\x1b[4;1HS\n";feed(terminal,scroll,sizeof(scroll)-1);
-		CHECK(st_cterm_state(terminal,&state)==0 && state.x==2 && state.y==5);
-		CHECK(st_console_read_cells(console,&all,after,8)==0);
-		const char expected[]="B1111111" "33333333" "44444444" "S5555555" "        " "6666666Z";
-		for (size_t i=0;i<48;i++) {
-			char text[8];size_t length;
-			CHECK(st_console_font_glyph_text(console,after[i].glyph_font,after[i].glyph,text,sizeof(text),&length)==0);
-			CHECK(length==1 && text[0]==expected[i]);
+		CHECK(st_cterm_state(terminal, &state) == 0 && state.x == 1 && state.y == 1);
+		CHECK(state.ext_attr.origin_mode && state.top_margin == 2 && state.bottom_margin == 5
+		      && state.attr == 0x14);
+		CHECK(terminal->save_xpos == 3 && terminal->save_ypos == 2);
+		CHECK(st_console_read_cells(console, &all, after, 8) == 0
+		      && memcmp(before, after, sizeof(before)) == 0);
+		feed(terminal, "A", 1);
+		CHECK(st_cterm_state(terminal, &state) == 0 && state.x == 2 && state.y == 1);
+		CHECK(st_cterm_position_text(terminal, UINT32_MAX, UINT32_MAX) == 0);
+		CHECK(st_cterm_state(terminal, &state) == 0 && state.x == 8 && state.y == 6);
+		feed(terminal, "Z", 1);
+		CHECK(st_cterm_state(terminal, &state) == 0 && state.last_column_flag.set);
+		CHECK(st_cterm_position_text(terminal, 0, 0) == 0);
+		CHECK(st_cterm_state(terminal, &state) == 0 && !state.last_column_flag.set);
+		feed(terminal, "B", 1);
+		const char cup[] = "\x1b[1;1H";
+		feed(terminal, cup, sizeof(cup) - 1);
+		CHECK(st_cterm_state(terminal, &state) == 0 && state.x == 1 && state.y == 2);
+		const char scroll[] = "\x1b[4;1HS\n";
+		feed(terminal, scroll, sizeof(scroll) - 1);
+		CHECK(st_cterm_state(terminal, &state) == 0 && state.x == 2 && state.y == 5);
+		CHECK(st_console_read_cells(console, &all, after, 8) == 0);
+		const char expected[] =
+		    "B1111111"
+		    "33333333"
+		    "44444444"
+		    "S5555555"
+		    "        "
+		    "6666666Z";
+		for (size_t i = 0; i < 48; i++) {
+			char   text[8];
+			size_t length;
+			CHECK(st_console_font_glyph_text(console, after[i].glyph_font, after[i].glyph, text,
+				  sizeof(text), &length)
+			      == 0);
+			CHECK(length == 1 && text[0] == expected[i]);
 		}
-		const char restore[]="\x1b[u";feed(terminal,restore,sizeof(restore)-1);
-		CHECK(st_cterm_state(terminal,&state)==0 && state.x==3 && state.y==3 && state.ext_attr.origin_mode);
+		const char restore[] = "\x1b[u";
+		feed(terminal, restore, sizeof(restore) - 1);
+		CHECK(st_cterm_state(terminal, &state) == 0 && state.x == 3 && state.y == 3
+		      && state.ext_attr.origin_mode);
 		/* A cursor outside both horizontal and vertical margins stays legal
 		 * for RIP movement and following text; ANSI CUP still uses margins. */
-		const char horizontal[]="\x1b[?69h\x1b[3;6s\x1b[?6h";
-		feed(terminal,horizontal,sizeof(horizontal)-1);
-		CHECK(st_cterm_position_text(terminal,0,0)==0);feed(terminal,"L",1);
-		CHECK(st_cterm_state(terminal,&state)==0 && state.x==2 && state.y==1);
-		feed(terminal,cup,sizeof(cup)-1);
-		CHECK(st_cterm_state(terminal,&state)==0 && state.x==3 && state.y==2
-		    && state.left_margin==3 && state.right_margin==6 && state.ext_attr.origin_mode);
-		CHECK(st_cterm_position_text(terminal,UINT32_MAX,UINT32_MAX)==0);
-		CHECK(st_cterm_state(terminal,&state)==0 && state.x==8 && state.y==6);
-		feed(terminal,"R",1);
-		CHECK(st_cterm_state(terminal,&state)==0 && state.x==8 && state.y==6 && state.last_column_flag.set);
-		CHECK(st_cterm_position_text(terminal,7,4)==0);feed(terminal,"TU",2);
-		CHECK(st_cterm_state(terminal,&state)==0 && state.x==2 && state.y==6);
-		feed(terminal,cup,sizeof(cup)-1);
-		const char erase[]="\x1b[K";feed(terminal,erase,sizeof(erase)-1);
-		CHECK(st_cterm_position_text(terminal,0,0)==0);feed(terminal,erase,sizeof(erase)-1);
-		CHECK(st_cterm_state(terminal,&state)==0 && state.x==1 && state.y==1 && state.ext_attr.origin_mode);
-		CHECK(st_console_read_cells(console,&all,after,8)==0);
-		const char erased[]="      11" "33    33" "44444444" "S5555555" "       T" "U666666R";
-		for (size_t i=0;i<48;i++) {
-			char text[8];size_t length;
-			CHECK(st_console_font_glyph_text(console,after[i].glyph_font,after[i].glyph,text,sizeof(text),&length)==0);
-			CHECK(length==1 && text[0]==erased[i]);
+		const char horizontal[] = "\x1b[?69h\x1b[3;6s\x1b[?6h";
+		feed(terminal, horizontal, sizeof(horizontal) - 1);
+		CHECK(st_cterm_position_text(terminal, 0, 0) == 0);
+		feed(terminal, "L", 1);
+		CHECK(st_cterm_state(terminal, &state) == 0 && state.x == 2 && state.y == 1);
+		feed(terminal, cup, sizeof(cup) - 1);
+		CHECK(st_cterm_state(terminal, &state) == 0 && state.x == 3 && state.y == 2
+		      && state.left_margin == 3 && state.right_margin == 6 && state.ext_attr.origin_mode);
+		CHECK(st_cterm_position_text(terminal, UINT32_MAX, UINT32_MAX) == 0);
+		CHECK(st_cterm_state(terminal, &state) == 0 && state.x == 8 && state.y == 6);
+		feed(terminal, "R", 1);
+		CHECK(st_cterm_state(terminal, &state) == 0 && state.x == 8 && state.y == 6
+		      && state.last_column_flag.set);
+		CHECK(st_cterm_position_text(terminal, 7, 4) == 0);
+		feed(terminal, "TU", 2);
+		CHECK(st_cterm_state(terminal, &state) == 0 && state.x == 2 && state.y == 6);
+		feed(terminal, cup, sizeof(cup) - 1);
+		const char erase[] = "\x1b[K";
+		feed(terminal, erase, sizeof(erase) - 1);
+		CHECK(st_cterm_position_text(terminal, 0, 0) == 0);
+		feed(terminal, erase, sizeof(erase) - 1);
+		CHECK(st_cterm_state(terminal, &state) == 0 && state.x == 1 && state.y == 1
+		      && state.ext_attr.origin_mode);
+		CHECK(st_console_read_cells(console, &all, after, 8) == 0);
+		const char erased[] =
+		    "      11"
+		    "33    33"
+		    "44444444"
+		    "S5555555"
+		    "       T"
+		    "U666666R";
+		for (size_t i = 0; i < 48; i++) {
+			char   text[8];
+			size_t length;
+			CHECK(st_console_font_glyph_text(console, after[i].glyph_font, after[i].glyph, text,
+				  sizeof(text), &length)
+			      == 0);
+			CHECK(length == 1 && text[0] == erased[i]);
 		}
-		const char block[]="\x1b[2 q";feed(terminal,block,sizeof(block)-1);
-		struct st_console_custom_cursor cursor,hidden,shown;
-		CHECK(st_console_get_custom_cursor(console,&cursor)==0 && cursor.visible);
-		CHECK(st_cterm_set_text_cursor_visible(terminal,false)==0);
-		bool requested=true;
-		CHECK(st_cterm_get_text_cursor_visible(terminal,&requested)==0 && !requested);
-		CHECK(st_console_get_custom_cursor(console,&hidden)==0 && !hidden.visible
-		    && hidden.start==cursor.start && hidden.end==cursor.end && hidden.range==cursor.range);
-		CHECK(st_cterm_state(terminal,&state)==0 && state.x==1 && state.y==1 && state.ext_attr.origin_mode && state.attr==0x14);
+		const char block[] = "\x1b[2 q";
+		feed(terminal, block, sizeof(block) - 1);
+		struct st_console_custom_cursor cursor, hidden, shown;
+		CHECK(st_console_get_custom_cursor(console, &cursor) == 0 && cursor.visible);
+		CHECK(st_cterm_set_text_cursor_visible(terminal, false) == 0);
+		bool requested = true;
+		CHECK(st_cterm_get_text_cursor_visible(terminal, &requested) == 0 && !requested);
+		CHECK(st_console_get_custom_cursor(console, &hidden) == 0 && !hidden.visible
+		      && hidden.start == cursor.start && hidden.end == cursor.end && hidden.range == cursor.range);
+		CHECK(st_cterm_state(terminal, &state) == 0 && state.x == 1 && state.y == 1
+		      && state.ext_attr.origin_mode && state.attr == 0x14);
 		/* Subsequent input must not undo the control's native terminal state. */
-		feed(terminal,"V",1);
-		CHECK(st_console_get_custom_cursor(console,&hidden)==0 && !hidden.visible);
-		CHECK(st_cterm_set_text_cursor_visible(terminal,false)==0);
-		CHECK(st_cterm_set_text_cursor_visible(terminal,true)==0);
-		CHECK(st_console_get_custom_cursor(console,&shown)==0 && shown.visible
-		    && shown.start==cursor.start && shown.end==cursor.end && shown.range==cursor.range);
-		CHECK(st_cterm_state(terminal,&state)==0 && state.x==2 && state.y==1 && state.attr==0x14);
-		CHECK(st_cterm_position_text(terminal,7,5)==0);feed(terminal,"W",1);
-		CHECK(st_cterm_set_text_cursor_visible(terminal,false)==0 && st_cterm_set_text_cursor_visible(terminal,true)==0);
-		CHECK(st_cterm_state(terminal,&state)==0 && state.last_column_flag.set && state.x==8 && state.y==6);
-		CHECK(st_cterm_reset_terminal(terminal)==0);
-		const char hide[]="\x1b[?25l";feed(terminal,hide,sizeof(hide)-1);
-		CHECK(st_cterm_set_text_cursor_visible(terminal,true)==0);
-		CHECK(st_console_get_default_cursor(console,&cursor)==0 && st_console_get_custom_cursor(console,&shown)==0
-		    && shown.visible && shown.start==cursor.start && shown.end==cursor.end);
-		st_cterm_destroy(&terminal);st_font_catalog_destroy(fonts);st_console_destroy(console);
+		feed(terminal, "V", 1);
+		CHECK(st_console_get_custom_cursor(console, &hidden) == 0 && !hidden.visible);
+		CHECK(st_cterm_set_text_cursor_visible(terminal, false) == 0);
+		CHECK(st_cterm_set_text_cursor_visible(terminal, true) == 0);
+		CHECK(st_console_get_custom_cursor(console, &shown) == 0 && shown.visible
+		      && shown.start == cursor.start && shown.end == cursor.end && shown.range == cursor.range);
+		CHECK(st_cterm_state(terminal, &state) == 0 && state.x == 2 && state.y == 1 && state.attr == 0x14);
+		CHECK(st_cterm_position_text(terminal, 7, 5) == 0);
+		feed(terminal, "W", 1);
+		CHECK(st_cterm_set_text_cursor_visible(terminal, false) == 0
+		      && st_cterm_set_text_cursor_visible(terminal, true) == 0);
+		CHECK(st_cterm_state(terminal, &state) == 0 && state.last_column_flag.set && state.x == 8
+		      && state.y == 6);
+		CHECK(st_cterm_reset_terminal(terminal) == 0);
+		const char hide[] = "\x1b[?25l";
+		feed(terminal, hide, sizeof(hide) - 1);
+		CHECK(st_cterm_set_text_cursor_visible(terminal, true) == 0);
+		CHECK(st_console_get_default_cursor(console, &cursor) == 0
+		      && st_console_get_custom_cursor(console, &shown) == 0 && shown.visible
+		      && shown.start == cursor.start && shown.end == cursor.end);
+		st_cterm_destroy(&terminal);
+		st_font_catalog_destroy(fonts);
+		st_console_destroy(console);
 	}
 }
 
 static void
 check_rip3_window_action_handoff(void)
 {
-	st_console_t *console = NULL;
-	st_font_catalog_t *fonts = NULL;
-	st_cterm_t *terminal = NULL;
-	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+	st_console_t                          *console  = NULL;
+	st_font_catalog_t                     *fonts    = NULL;
+	st_cterm_t                            *terminal = NULL;
+	const struct st_console_display_config display  = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
 	const struct st_console_config geometry = {.columns = 8, .rows = 6, .cell_width = 8, .cell_height = 8};
 	CHECK(st_console_create(&console, &display, &geometry) == 0);
 	CHECK(st_font_catalog_create(&fonts, console) == 0);
-	const struct st_cterm_config config = {.console = console, .fonts = fonts, .emulation = ST_CTERM_ANSI_BBS,
-	    .encoding = ST_CTERM_ENCODING_UTF8, .quiet = true,
-	    .graphics_mode = ST_CTERM_GRAPHICS_RIP_3, .rip3_session_owner = true};
+	const struct st_cterm_config config = {.console = console,
+	    .fonts                                      = fonts,
+	    .emulation                                  = ST_CTERM_ANSI_BBS,
+	    .encoding                                   = ST_CTERM_ENCODING_UTF8,
+	    .quiet                                      = true,
+	    .graphics_mode                              = ST_CTERM_GRAPHICS_RIP_3,
+	    .rip3_session_owner                         = true};
 	CHECK(st_cterm_create(&terminal, &config) == 0);
 
-	const char wire[] = "\x1b[2;5r\x1b[?6h\x1b[2;3H\x1b" "7\x1b[31;44m\x1b" "8\x1b[37;40m";
+	const char wire[] =
+	    "\x1b[2;5r\x1b[?6h\x1b[2;3H\x1b"
+	    "7\x1b[31;44m\x1b"
+	    "8\x1b[37;40m";
 	size_t used;
 	CHECK(st_cterm_write(terminal, wire, sizeof(wire) - 1, &used) == 0 && used == 19);
 	CHECK(st_cterm_take_rip3_window_action(terminal) == ST_CTERM_RIP3_WINDOW_SAVE);
@@ -419,127 +550,183 @@ check_rip3_window_action_handoff(void)
 static void
 check_rip3_text_erase(void)
 {
-	for (int encoding=ST_CTERM_ENCODING_UTF8;encoding<=ST_CTERM_ENCODING_CODEPAGE;encoding++) {
-		st_console_t *console=NULL;st_font_catalog_t *fonts=NULL;st_cterm_t *terminal=NULL;
-		const struct st_console_display_config display={.backend=ST_CONSOLE_BACKEND_HEADLESS};
-		const struct st_console_config geometry={.columns=6,.rows=4,.cell_width=8,.cell_height=8};
-		CHECK(st_console_create(&console,&display,&geometry)==0 && st_font_catalog_create(&fonts,console)==0);
-		const struct st_cterm_config config={.console=console,.fonts=fonts,.emulation=ST_CTERM_ANSI_BBS,
-		    .encoding=encoding,.codepage=ST_CODEPAGE_CP437,.quiet=true,
-		    .graphics_mode=ST_CTERM_GRAPHICS_RIP_3,.rip3_session_owner=true};
-		CHECK(st_cterm_create(&terminal,&config)==0);
-		const char rows[]="\x1b[31;44mABCDEF\x1b[2;1HGHIJKL\x1b[3;1HMNOPQR\x1b[4;1HSTUVWX"
+	for (int encoding = ST_CTERM_ENCODING_UTF8; encoding <= ST_CTERM_ENCODING_CODEPAGE; encoding++) {
+		st_console_t                          *console  = NULL;
+		st_font_catalog_t                     *fonts    = NULL;
+		st_cterm_t                            *terminal = NULL;
+		const struct st_console_display_config display  = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+		const struct st_console_config         geometry = {.columns = 6,
+		    .rows                                                   = 4,
+		    .cell_width                                             = 8,
+		    .cell_height                                            = 8};
+		CHECK(st_console_create(&console, &display, &geometry) == 0
+		      && st_font_catalog_create(&fonts, console) == 0);
+		const struct st_cterm_config config = {.console = console,
+		    .fonts                                      = fonts,
+		    .emulation                                  = ST_CTERM_ANSI_BBS,
+		    .encoding                                   = encoding,
+		    .codepage                                   = ST_CODEPAGE_CP437,
+		    .quiet                                      = true,
+		    .graphics_mode                              = ST_CTERM_GRAPHICS_RIP_3,
+		    .rip3_session_owner                         = true};
+		CHECK(st_cterm_create(&terminal, &config) == 0);
+		const char rows[] =
+		    "\x1b[31;44mABCDEF\x1b[2;1HGHIJKL\x1b[3;1HMNOPQR\x1b[4;1HSTUVWX"
 		    "\x1b[2;3r\x1b[?6h\x1b[2;2H\x1b[s\x1b[4m";
-		feed(terminal,rows,sizeof(rows)-1);
-		struct st_pixel_buffer *before=NULL,*after=NULL;
-		const struct st_console_rect all={0,0,48,32};
-		CHECK(st_console_get_pixels(&before,console,&all,false)==0);
-		CHECK(st_cterm_erase_text(terminal,false,0x123456)==0);
+		feed(terminal, rows, sizeof(rows) - 1);
+		struct st_pixel_buffer      *before = NULL, *after = NULL;
+		const struct st_console_rect all = {0, 0, 48, 32};
+		CHECK(st_console_get_pixels(&before, console, &all, false) == 0);
+		CHECK(st_cterm_erase_text(terminal, false, 0x123456) == 0);
 		struct st_cterm_state state;
-		CHECK(st_cterm_state(terminal,&state)==0 && state.x==2 && state.y==3 && state.attr==0x14
-		    && state.ext_attr.origin_mode && state.top_margin==2 && state.bottom_margin==3);
-		CHECK(terminal->save_xpos==2 && terminal->save_ypos==2);
-		CHECK(st_console_get_pixels(&after,console,&all,false)==0);
-		for (size_t y=0;y<32;y++) for (size_t x=0;x<48;x++) {
-			uint32_t expected=y>=16 && y<24 && x>=8 ? ST_PIXEL_COLOR_RGB_TAG|0x123456 : before->primary[y*48+x];
-			CHECK(after->primary[y*48+x]==expected);
-		}
-		st_pixel_buffer_destroy(before);st_pixel_buffer_destroy(after);
-		CHECK(st_cterm_erase_text(terminal,true,0xabcdef)==0);
-		CHECK(st_cterm_state(terminal,&state)==0 && state.x==1 && state.y==1 && state.attr==0x14
-		    && state.ext_attr.origin_mode && state.top_margin==2 && state.bottom_margin==3);
-		CHECK(st_console_get_pixels(&after,console,&all,false)==0);
-		for (size_t i=0;i<48*32;i++) CHECK(after->primary[i]==(ST_PIXEL_COLOR_RGB_TAG|0xabcdef));
+		CHECK(st_cterm_state(terminal, &state) == 0 && state.x == 2 && state.y == 3 && state.attr == 0x14
+		      && state.ext_attr.origin_mode && state.top_margin == 2 && state.bottom_margin == 3);
+		CHECK(terminal->save_xpos == 2 && terminal->save_ypos == 2);
+		CHECK(st_console_get_pixels(&after, console, &all, false) == 0);
+		for (size_t y = 0; y < 32; y++)
+			for (size_t x = 0; x < 48; x++) {
+				uint32_t expected = y >= 16 && y < 24 && x >= 8 ? ST_PIXEL_COLOR_RGB_TAG | 0x123456
+				                                                : before->primary[y * 48 + x];
+				CHECK(after->primary[y * 48 + x] == expected);
+			}
+		st_pixel_buffer_destroy(before);
 		st_pixel_buffer_destroy(after);
-		const char restore[]="\x1b[u";feed(terminal,restore,sizeof(restore)-1);
-		CHECK(st_cterm_state(terminal,&state)==0 && state.x==2 && state.y==3 && state.attr==0x14);
-		CHECK(st_cterm_erase_text(terminal,true,0x1000000)==IO_ERROR_OUT_OF_RANGE);
-		CHECK(st_cterm_state(terminal,&state)==0 && state.x==2 && state.y==3);
-		CHECK(st_cterm_position_text(terminal,5,3)==0);feed(terminal,"Z",1);
-		CHECK(st_cterm_erase_text(terminal,false,0x112233)==0);
-		CHECK(st_cterm_state(terminal,&state)==0 && state.x==6 && state.y==4 && state.last_column_flag.set);
-		CHECK(st_cterm_erase_text(terminal,true,0xabcdef)==0);
-		CHECK(st_cterm_state(terminal,&state)==0 && state.x==1 && state.y==1 && !state.last_column_flag.set);
-		st_cterm_destroy(&terminal);st_font_catalog_destroy(fonts);st_console_destroy(console);
+		CHECK(st_cterm_erase_text(terminal, true, 0xabcdef) == 0);
+		CHECK(st_cterm_state(terminal, &state) == 0 && state.x == 1 && state.y == 1 && state.attr == 0x14
+		      && state.ext_attr.origin_mode && state.top_margin == 2 && state.bottom_margin == 3);
+		CHECK(st_console_get_pixels(&after, console, &all, false) == 0);
+		for (size_t i = 0; i < 48 * 32; i++)
+			CHECK(after->primary[i] == (ST_PIXEL_COLOR_RGB_TAG | 0xabcdef));
+		st_pixel_buffer_destroy(after);
+		const char restore[] = "\x1b[u";
+		feed(terminal, restore, sizeof(restore) - 1);
+		CHECK(st_cterm_state(terminal, &state) == 0 && state.x == 2 && state.y == 3 && state.attr == 0x14);
+		CHECK(st_cterm_erase_text(terminal, true, 0x1000000) == IO_ERROR_OUT_OF_RANGE);
+		CHECK(st_cterm_state(terminal, &state) == 0 && state.x == 2 && state.y == 3);
+		CHECK(st_cterm_position_text(terminal, 5, 3) == 0);
+		feed(terminal, "Z", 1);
+		CHECK(st_cterm_erase_text(terminal, false, 0x112233) == 0);
+		CHECK(st_cterm_state(terminal, &state) == 0 && state.x == 6 && state.y == 4
+		      && state.last_column_flag.set);
+		CHECK(st_cterm_erase_text(terminal, true, 0xabcdef) == 0);
+		CHECK(st_cterm_state(terminal, &state) == 0 && state.x == 1 && state.y == 1
+		      && !state.last_column_flag.set);
+		st_cterm_destroy(&terminal);
+		st_font_catalog_destroy(fonts);
+		st_console_destroy(console);
 	}
 }
 
 static void
 check_rip3_ansi_eol(void)
 {
-	for (int encoding=ST_CTERM_ENCODING_UTF8;encoding<=ST_CTERM_ENCODING_CODEPAGE;encoding++) {
-		st_console_t *console=NULL;st_font_catalog_t *fonts=NULL;st_cterm_t *terminal=NULL;
-		const struct st_console_display_config display={.backend=ST_CONSOLE_BACKEND_HEADLESS};
-		const struct st_console_config geometry={.columns=6,.rows=4,.cell_width=8,.cell_height=8};
-		CHECK(st_console_create(&console,&display,&geometry)==0 && st_font_catalog_create(&fonts,console)==0);
-		const uint16_t mapping[16]={0,1,2,3,42,5,6,7,8,9,10,11,12,13,14,15};
-		const struct st_cterm_config config={.console=console,.fonts=fonts,.emulation=ST_CTERM_ANSI_BBS,
-		    .encoding=encoding,.codepage=ST_CODEPAGE_CP437,.quiet=true,
-		    .graphics_mode=ST_CTERM_GRAPHICS_RIP_3,.rip3_session_owner=true,.palette_mapping=mapping};
-		CHECK(st_cterm_create(&terminal,&config)==0 && st_cterm_start_text(terminal)==0);
-		uint32_t red=0x2468ac;
+	for (int encoding = ST_CTERM_ENCODING_UTF8; encoding <= ST_CTERM_ENCODING_CODEPAGE; encoding++) {
+		st_console_t                          *console  = NULL;
+		st_font_catalog_t                     *fonts    = NULL;
+		st_cterm_t                            *terminal = NULL;
+		const struct st_console_display_config display  = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+		const struct st_console_config         geometry = {.columns = 6,
+		    .rows                                                   = 4,
+		    .cell_width                                             = 8,
+		    .cell_height                                            = 8};
+		CHECK(st_console_create(&console, &display, &geometry) == 0
+		      && st_font_catalog_create(&fonts, console) == 0);
+		const uint16_t               mapping[16] = {0, 1, 2, 3, 42, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+		const struct st_cterm_config config      = {.console = console,
+		    .fonts                                      = fonts,
+		    .emulation                                  = ST_CTERM_ANSI_BBS,
+		    .encoding                                   = encoding,
+		    .codepage                                   = ST_CODEPAGE_CP437,
+		    .quiet                                      = true,
+		    .graphics_mode                              = ST_CTERM_GRAPHICS_RIP_3,
+		    .rip3_session_owner                         = true,
+		    .palette_mapping                            = mapping};
+		CHECK(st_cterm_create(&terminal, &config) == 0 && st_cterm_start_text(terminal) == 0);
+		uint32_t red = 0x2468ac;
 		/* CTerm's extended ANSI bank follows the 16 system entries. */
-		CHECK(st_console_set_palette(console,16+42,&red,1)==0);
-		const char *const rendition[]={"\x1b[31;41;4m","\x1b[38;2;9;8;7;48;2;18;52;86m"};
-		const uint32_t colours[]={0x2468ac,0x123456};
-		for (size_t n=0;n<2;n++) {
-			CHECK(st_cterm_erase_text(terminal,true,0xabcdef)==0);
+		CHECK(st_console_set_palette(console, 16 + 42, &red, 1) == 0);
+		const char *const rendition[] = {"\x1b[31;41;4m", "\x1b[38;2;9;8;7;48;2;18;52;86m"};
+		const uint32_t    colours[]   = {0x2468ac, 0x123456};
+		for (size_t n = 0; n < 2; n++) {
+			CHECK(st_cterm_erase_text(terminal, true, 0xabcdef) == 0);
 			/* CSI s saves the cursor before horizontal-margin mode is enabled. */
-			const char modes[]="\x1b[2;3r\x1b[?69l\x1b[?6h\x1b[2;2H\x1b[s\x1b[?69h\x1b[2;4s";
-			feed(terminal,modes,sizeof(modes)-1);feed(terminal,rendition[n],strlen(rendition[n]));
-			CHECK(st_cterm_set_text_cursor_visible(terminal,false)==0 && st_cterm_position_text(terminal,4,0)==0);
-			struct st_cterm_state before,after;
-			CHECK(st_cterm_state(terminal,&before)==0 && before.x==5 && before.y==1);
-			CHECK(st_cterm_erase_ansi_text_eol(terminal)==0 && st_cterm_state(terminal,&after)==0);
-			CHECK(after.x==5 && after.y==1 && after.attr==before.attr && after.ext_attr.origin_mode
-			    && after.top_margin==2 && after.bottom_margin==3 && after.left_margin==2 && after.right_margin==4);
-			CHECK(terminal->save_xpos==2 && terminal->save_ypos==2);
-			bool visible=true;CHECK(st_cterm_get_text_cursor_visible(terminal,&visible)==0 && !visible);
-			struct st_pixel_buffer *pixels=NULL;const struct st_console_rect all={0,0,48,32};
-			CHECK(st_console_get_pixels(&pixels,console,&all,false)==0);
-			for (size_t y=0;y<32;y++) for (size_t x=0;x<48;x++) {
-				uint32_t rgb=pixels->primary[y*48+x];
-				if (!ST_PIXEL_COLOR_IS_RGB(rgb)) CHECK(st_console_get_palette(console,(uint16_t)rgb,&rgb,1)==0);
-				if ((rgb&0xffffff)!=(y<8 && x>=32 ? colours[n] : 0xabcdef))
-					fprintf(stderr,"ANSI EOL case %zu at %zu,%zu: %06x, expected %06x\n",n,x,y,
-					    (unsigned)(rgb&0xffffff),(unsigned)(y<8 && x>=32 ? colours[n] : 0xabcdef));
-				CHECK((rgb&0xffffff)==(y<8 && x>=32 ? colours[n] : 0xabcdef));
-			}
+			const char modes[] = "\x1b[2;3r\x1b[?69l\x1b[?6h\x1b[2;2H\x1b[s\x1b[?69h\x1b[2;4s";
+			feed(terminal, modes, sizeof(modes) - 1);
+			feed(terminal, rendition[n], strlen(rendition[n]));
+			CHECK(st_cterm_set_text_cursor_visible(terminal, false) == 0
+			      && st_cterm_position_text(terminal, 4, 0) == 0);
+			struct st_cterm_state before, after;
+			CHECK(st_cterm_state(terminal, &before) == 0 && before.x == 5 && before.y == 1);
+			CHECK(
+			    st_cterm_erase_ansi_text_eol(terminal) == 0 && st_cterm_state(terminal, &after) == 0);
+			CHECK(after.x == 5 && after.y == 1 && after.attr == before.attr
+			      && after.ext_attr.origin_mode && after.top_margin == 2 && after.bottom_margin == 3
+			      && after.left_margin == 2 && after.right_margin == 4);
+			CHECK(terminal->save_xpos == 2 && terminal->save_ypos == 2);
+			bool visible = true;
+			CHECK(st_cterm_get_text_cursor_visible(terminal, &visible) == 0 && !visible);
+			struct st_pixel_buffer      *pixels = NULL;
+			const struct st_console_rect all    = {0, 0, 48, 32};
+			CHECK(st_console_get_pixels(&pixels, console, &all, false) == 0);
+			for (size_t y = 0; y < 32; y++)
+				for (size_t x = 0; x < 48; x++) {
+					uint32_t rgb = pixels->primary[y * 48 + x];
+					if (!ST_PIXEL_COLOR_IS_RGB(rgb))
+						CHECK(
+						    st_console_get_palette(console, (uint16_t)rgb, &rgb, 1) == 0);
+					if ((rgb & 0xffffff) != (y < 8 && x >= 32 ? colours[n] : 0xabcdef))
+						fprintf(stderr,
+						    "ANSI EOL case %zu at %zu,%zu: %06x, expected %06x\n", n, x, y,
+						    (unsigned)(rgb & 0xffffff),
+						    (unsigned)(y < 8 && x >= 32 ? colours[n] : 0xabcdef));
+					CHECK((rgb & 0xffffff) == (y < 8 && x >= 32 ? colours[n] : 0xabcdef));
+				}
 			st_pixel_buffer_destroy(pixels);
-			CHECK(st_cterm_position_text(terminal,5,3)==0);feed(terminal,"Z",1);
-			CHECK(st_cterm_state(terminal,&before)==0 && before.last_column_flag.set);
-			CHECK(st_cterm_erase_ansi_text_eol(terminal)==0 && st_cterm_state(terminal,&after)==0
-			    && after.x==6 && after.y==4 && after.last_column_flag.set);
+			CHECK(st_cterm_position_text(terminal, 5, 3) == 0);
+			feed(terminal, "Z", 1);
+			CHECK(st_cterm_state(terminal, &before) == 0 && before.last_column_flag.set);
+			CHECK(st_cterm_erase_ansi_text_eol(terminal) == 0 && st_cterm_state(terminal, &after) == 0
+			      && after.x == 6 && after.y == 4 && after.last_column_flag.set);
 			/* The service must not consume an unfinished received CSI. */
-			feed(terminal,"\x1b[3",3);CHECK(st_cterm_erase_ansi_text_eol(terminal)==0);feed(terminal,"2m",2);
-			CHECK(st_cterm_state(terminal,&after)==0 && (after.attr&7)==2);
+			feed(terminal, "\x1b[3", 3);
+			CHECK(st_cterm_erase_ansi_text_eol(terminal) == 0);
+			feed(terminal, "2m", 2);
+			CHECK(st_cterm_state(terminal, &after) == 0 && (after.attr & 7) == 2);
 		}
-		st_cterm_destroy(&terminal);st_font_catalog_destroy(fonts);st_console_destroy(console);
+		st_cterm_destroy(&terminal);
+		st_font_catalog_destroy(fonts);
+		st_console_destroy(console);
 	}
 }
 
 static void
 test_profile_presentation(void)
 {
-	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
-	const struct st_console_config geometry = {
-		.columns = 20, .rows = 4, .cell_width = 8, .cell_height = 16,
+	const struct st_console_display_config display  = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_config         geometry = {
+	    .columns     = 20,
+	    .rows        = 4,
+	    .cell_width  = 8,
+	    .cell_height = 16,
 	};
-	st_console_t *console = NULL;
-	st_font_catalog_t *fonts = NULL;
+	st_console_t      *console = NULL;
+	st_font_catalog_t *fonts   = NULL;
 	CHECK(st_console_create(&console, &display, &geometry) == 0);
 	CHECK(st_font_catalog_create(&fonts, console) == 0);
 	for (unsigned custom = 0; custom < 2; ++custom) {
-		st_cterm_t *terminal = NULL;
-		uint32_t palette[16];
-		uint32_t actual;
+		st_cterm_t           *terminal = NULL;
+		uint32_t              palette[16];
+		uint32_t              actual;
 		struct st_cterm_state state;
 		for (unsigned i = 0; i < 16; ++i)
 			palette[i] = 0x123400 + i;
 		const struct st_cterm_config config = {
-			.console = console, .fonts = fonts, .encoding = ST_CTERM_ENCODING_UTF8,
-			.force_lcf = true, .yellow_is_yellow = true,
-			.palette_override = custom ? palette : NULL,
+		    .console          = console,
+		    .fonts            = fonts,
+		    .encoding         = ST_CTERM_ENCODING_UTF8,
+		    .force_lcf        = true,
+		    .yellow_is_yellow = true,
+		    .palette_override = custom ? palette : NULL,
 		};
 		CHECK(st_cterm_create(&terminal, &config) == 0);
 		for (unsigned reset = 0; reset < 2; ++reset) {
@@ -560,7 +747,7 @@ test_profile_presentation(void)
 }
 
 struct reset_capture {
-	int status;
+	int      status;
 	unsigned replacements;
 };
 
@@ -579,25 +766,32 @@ static void
 test_direct_reset(void)
 {
 	for (int encoding = ST_CTERM_ENCODING_UTF8; encoding <= ST_CTERM_ENCODING_CODEPAGE; ++encoding) {
-		const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
-		const struct st_console_config geometry = {
-			.columns = 20, .rows = 4, .cell_width = 8, .cell_height = 16};
-		st_console_t *console = NULL;
-		st_font_catalog_t *fonts = NULL;
-		st_cterm_t *terminal = NULL;
-		struct reset_capture capture = {0};
+		const struct st_console_display_config display  = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+		const struct st_console_config         geometry = {.columns = 20,
+		    .rows                                                   = 4,
+		    .cell_width                                             = 8,
+		    .cell_height                                            = 16};
+		st_console_t                          *console  = NULL;
+		st_font_catalog_t                     *fonts    = NULL;
+		st_cterm_t                            *terminal = NULL;
+		struct reset_capture                   capture  = {0};
 		CHECK(st_console_create(&console, &display, &geometry) == 0);
 		CHECK(st_font_catalog_create(&fonts, console) == 0);
-		const struct st_cterm_config config = {
-			.console = console, .fonts = fonts, .encoding = (enum st_cterm_encoding)encoding,
-			.codepage = ST_CODEPAGE_CP437, .quiet = true, .force_lcf = true,
-			.scrollback_lines = 8, .capture = reset_capture, .capture_context = &capture};
+		const struct st_cterm_config config = {.console = console,
+		    .fonts                                      = fonts,
+		    .encoding                                   = (enum st_cterm_encoding)encoding,
+		    .codepage                                   = ST_CODEPAGE_CP437,
+		    .quiet                                      = true,
+		    .force_lcf                                  = true,
+		    .scrollback_lines                           = 8,
+		    .capture                                    = reset_capture,
+		    .capture_context                            = &capture};
 		CHECK(st_cterm_create(&terminal, &config) == 0);
 		feed(terminal, "A\r\nB\r\nC\r\nD\r\nE", 13);
 		CHECK(st_cterm_finish(terminal) == 0);
 		struct st_console_cell *before = NULL, *after = NULL;
-		uint32_t columns, after_columns;
-		size_t rows, after_rows;
+		uint32_t                columns, after_columns;
+		size_t                  rows, after_rows;
 		CHECK(st_cterm_copy_history(terminal, &before, &columns, &rows) == 0);
 		CHECK(st_cterm_reset_terminal(terminal) == 0);
 		CHECK(st_cterm_copy_history(terminal, &after, &after_columns, &after_rows) == 0);
@@ -611,17 +805,17 @@ test_direct_reset(void)
 		struct st_cterm_state state;
 		CHECK(st_cterm_state(terminal, &state) == 0);
 		CHECK(state.x == 1 && state.y == 1 && state.top_margin == 1 && state.bottom_margin == 4
-		    && state.left_margin == 1 && state.right_margin == 20 && state.attr == 7
-		    && !state.ext_attr.bracket_paste && state.ext_attr.auto_wrap);
+		      && state.left_margin == 1 && state.right_margin == 20 && state.attr == 7
+		      && !state.ext_attr.bracket_paste && state.ext_attr.auto_wrap);
 		CHECK(st_cterm_encoding(terminal) == (enum st_cterm_encoding)encoding
-		    && st_cterm_codepage(terminal) == ST_CODEPAGE_CP437);
+		      && st_cterm_codepage(terminal) == ST_CODEPAGE_CP437);
 		feed(terminal, "Z", 1);
 		CHECK(st_cterm_finish(terminal) == 0);
-		struct st_console_cell cells[4];
+		struct st_console_cell       cells[4];
 		const struct st_console_rect area = {0, 0, 4, 1};
 		CHECK(st_console_read_cells(console, &area, cells, 4) == 0);
-		CHECK(cells[0].glyph == 'Z' && cells[1].glyph == 'E'
-		    && cells[2].glyph == 'E' && cells[3].glyph == 'P');
+		CHECK(cells[0].glyph == 'Z' && cells[1].glyph == 'E' && cells[2].glyph == 'E'
+		      && cells[3].glyph == 'P');
 		if (encoding == ST_CTERM_ENCODING_UTF8) {
 			feed(terminal, "\033[2;3r", 6);
 			feed(terminal, "\xe2\x82", 2);
@@ -639,7 +833,7 @@ test_direct_reset(void)
 		CHECK(st_console_resize(console, 1, 1) == 0);
 		CHECK(st_cterm_reset_terminal(terminal) == IO_ERROR_OUT_OF_RANGE);
 		CHECK(st_cterm_state(terminal, &state) == 0 && state.top_margin == 1
-		    && state.bottom_margin == 4); /* Reset committed before render rejection. */
+		      && state.bottom_margin == 4); /* Reset committed before render rejection. */
 		CHECK(st_console_resize(console, 20, 4) == 0);
 		CHECK(st_cterm_reset_terminal(terminal) == 0);
 		st_cterm_destroy(&terminal);
@@ -651,36 +845,46 @@ test_direct_reset(void)
 static void
 test_lf_expand(void)
 {
-	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
-	const struct st_console_config geometry = {
-		.columns = 20, .rows = 4, .cell_width = 8, .cell_height = 16,
+	const struct st_console_display_config display  = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_config         geometry = {
+	    .columns     = 20,
+	    .rows        = 4,
+	    .cell_width  = 8,
+	    .cell_height = 16,
 	};
-	st_console_t *console = NULL;
-	st_font_catalog_t *fonts = NULL;
+	st_console_t      *console = NULL;
+	st_font_catalog_t *fonts   = NULL;
+
 	static const enum st_cterm_encoding encodings[] = {
-		ST_CTERM_ENCODING_UTF8, ST_CTERM_ENCODING_CODEPAGE,
+	    ST_CTERM_ENCODING_UTF8,
+	    ST_CTERM_ENCODING_CODEPAGE,
 	};
 
 	CHECK(st_console_create(&console, &display, &geometry) == 0);
 	CHECK(st_font_catalog_create(&fonts, console) == 0);
 	for (size_t encoding = 0; encoding < sizeof(encodings) / sizeof(encodings[0]); ++encoding) {
 		for (unsigned enabled = 0; enabled < 2; ++enabled) {
-			st_cterm_t *terminal = NULL;
-			struct output output = {0};
-			const struct st_cterm_config config = {
-				.console = console, .fonts = fonts, .emulation = ST_CTERM_ANSI_BBS,
-				.encoding = encodings[encoding], .codepage = ST_CODEPAGE_CP437,
-				.expand_lf = enabled != 0, .quiet = true,
-				.output = capture, .output_context = &output,
+			st_cterm_t                  *terminal = NULL;
+			struct output                output   = {0};
+			const struct st_cterm_config config   = {
+			    .console        = console,
+			    .fonts          = fonts,
+			    .emulation      = ST_CTERM_ANSI_BBS,
+			    .encoding       = encodings[encoding],
+			    .codepage       = ST_CODEPAGE_CP437,
+			    .expand_lf      = enabled != 0,
+			    .quiet          = true,
+			    .output         = capture,
+			    .output_context = &output,
 			};
 			CHECK(st_cterm_create(&terminal, &config) == 0);
 			for (unsigned split = 0; split < 2; ++split) {
-				static const char input[] = "AB\nC\r\nD";
-				struct st_cterm_state state;
-				struct st_console_cell cell;
+				static const char            input[] = "AB\nC\r\nD";
+				struct st_cterm_state        state;
+				struct st_console_cell       cell;
 				const struct st_console_rect area = {enabled ? 0 : 2, 1, 1, 1};
-				char text[8];
-				size_t size;
+				char                         text[8];
+				size_t                       size;
 
 				/* Reset must retain this local entry policy. */
 				CHECK(st_cterm_reset_terminal(terminal) == 0);
@@ -688,12 +892,15 @@ test_lf_expand(void)
 				if (split) {
 					for (size_t i = 0; i < sizeof(input) - 1; ++i)
 						feed(terminal, input + i, 1);
-				} else {
+				}
+				else {
 					feed(terminal, input, sizeof(input) - 1);
 				}
 				CHECK(st_console_read_cells(console, &area, &cell, 1) == 0);
-				CHECK(st_console_font_glyph_text(console, cell.glyph_font, cell.glyph,
-				    text, sizeof(text), &size) == 0 && size == 1 && text[0] == 'C');
+				CHECK(st_console_font_glyph_text(console, cell.glyph_font, cell.glyph, text,
+					  sizeof(text), &size)
+				          == 0
+				      && size == 1 && text[0] == 'C');
 				CHECK(st_cterm_state(terminal, &state) == 0);
 				CHECK(state.x == 2 && state.y == 3);
 				CHECK(output.size == 0);
@@ -708,29 +915,40 @@ test_lf_expand(void)
 static void
 test_disconnect_boundary(void)
 {
-	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
-	const struct st_console_config geometry = {
-		.columns = 40, .rows = 4, .cell_width = 8, .cell_height = 16,
+	const struct st_console_display_config display  = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_config         geometry = {
+	    .columns     = 40,
+	    .rows        = 4,
+	    .cell_width  = 8,
+	    .cell_height = 16,
 	};
 	for (int status_type = 0; status_type <= 2; ++status_type) {
-		st_console_t *console = NULL;
-		st_font_catalog_t *fonts = NULL;
-		st_cterm_t *terminal = NULL;
-		struct output output = {0};
+		st_console_t           *console  = NULL;
+		st_font_catalog_t      *fonts    = NULL;
+		st_cterm_t             *terminal = NULL;
+		struct output           output   = {0};
 		struct st_console_cell *before = NULL, *after = NULL;
-		uint32_t before_width, after_width;
-		size_t before_rows, after_rows;
+		uint32_t                before_width, after_width;
+		size_t                  before_rows, after_rows;
 		CHECK(st_console_create(&console, &display, &geometry) == 0);
 		CHECK(st_font_catalog_create(&fonts, console) == 0);
 		const struct st_cterm_config config = {
-			.console = console, .fonts = fonts, .emulation = ST_CTERM_ANSI_BBS,
-			.encoding = ST_CTERM_ENCODING_UTF8, .codepage = ST_CODEPAGE_CP437,
-			.terminal_rows = 4, .scrollback_lines = 10,
-			.output = capture, .output_context = &output, .quiet = true,
+		    .console          = console,
+		    .fonts            = fonts,
+		    .emulation        = ST_CTERM_ANSI_BBS,
+		    .encoding         = ST_CTERM_ENCODING_UTF8,
+		    .codepage         = ST_CODEPAGE_CP437,
+		    .terminal_rows    = 4,
+		    .scrollback_lines = 10,
+		    .output           = capture,
+		    .output_context   = &output,
+		    .quiet            = true,
 		};
 		CHECK(st_cterm_create(&terminal, &config) == 0);
-		if (status_type == 1) feed(terminal, "\x1b[1$~", 5);
-		if (status_type == 2) feed(terminal, "\x1b[2$~", 5);
+		if (status_type == 1)
+			feed(terminal, "\x1b[1$~", 5);
+		if (status_type == 2)
+			feed(terminal, "\x1b[2$~", 5);
 		uint32_t columns, rows;
 		CHECK(st_cterm_size(terminal, &columns, &rows) == 0);
 		for (uint32_t y = 0; y < rows; ++y) {
@@ -750,23 +968,27 @@ test_disconnect_boundary(void)
 		CHECK(after_columns == columns && after_height == rows);
 		CHECK(st_cterm_state(terminal, &after_state) == 0);
 		CHECK(before_state.top_margin == after_state.top_margin
-		    && before_state.bottom_margin == after_state.bottom_margin
-		    && before_state.left_margin == after_state.left_margin
-		    && before_state.right_margin == after_state.right_margin
-		    && before_state.x == after_state.x && before_state.y == after_state.y);
+		      && before_state.bottom_margin == after_state.bottom_margin
+		      && before_state.left_margin == after_state.left_margin
+		      && before_state.right_margin == after_state.right_margin && before_state.x == after_state.x
+		      && before_state.y == after_state.y);
 		CHECK(st_cterm_copy_history(terminal, &after, &after_width, &after_rows) == 0);
-		CHECK(before_width == 40 && after_width == 40 && after_rows == before_rows + (status_type == 0 ? 1 : 0));
+		CHECK(before_width == 40 && after_width == 40
+		      && after_rows == before_rows + (status_type == 0 ? 1 : 0));
 		CHECK(memcmp(before, after, before_rows * 40 * sizeof(*before)) == 0);
 		if (status_type == 0) {
 			for (uint32_t x = 0; x < 40; ++x) {
-				char text[4];
-				size_t required;
+				char                    text[4];
+				size_t                  required;
 				struct st_console_cell *cell = &after[(after_rows - 1) * 40 + x];
-				CHECK(st_console_font_glyph_text(console, cell->glyph_font, cell->glyph,
-				    text, sizeof(text), &required) == 0 && required == 1 && text[0] == ' ');
+				CHECK(st_console_font_glyph_text(console, cell->glyph_font, cell->glyph, text,
+					  sizeof(text), &required)
+				          == 0
+				      && required == 1 && text[0] == ' ');
 			}
 		}
-		free(before); free(after);
+		free(before);
+		free(after);
 		st_cterm_destroy(&terminal);
 		st_font_catalog_destroy(fonts);
 		st_console_destroy(console);
@@ -776,42 +998,57 @@ test_disconnect_boundary(void)
 static void
 test_zero_width_text(void)
 {
-	enum { COLUMNS = 80, ROWS = 43, CELLS = COLUMNS * ROWS };
-	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
-	const struct st_console_config geometry = {
-		.columns = COLUMNS, .rows = ROWS, .cell_width = 8, .cell_height = 8,
-		.pixel_width = 640, .pixel_height = 350,
+	enum {
+		COLUMNS = 80,
+		ROWS    = 43,
+		CELLS   = COLUMNS * ROWS
 	};
-	const struct st_console_rect full = {0, 0, COLUMNS, ROWS};
-	st_console_t *console = NULL;
-	st_font_catalog_t *fonts = NULL;
-	st_cterm_t *terminal = NULL;
-	struct input_filter_state captured = {0};
-	struct st_console_cell before[CELLS], after[CELLS];
-	struct st_cterm_state state;
-	uint32_t x, y;
+	const struct st_console_display_config display  = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_config         geometry = {
+	    .columns      = COLUMNS,
+	    .rows         = ROWS,
+	    .cell_width   = 8,
+	    .cell_height  = 8,
+	    .pixel_width  = 640,
+	    .pixel_height = 350,
+	};
+	const struct st_console_rect full     = {0, 0, COLUMNS, ROWS};
+	st_console_t                *console  = NULL;
+	st_font_catalog_t           *fonts    = NULL;
+	st_cterm_t                  *terminal = NULL;
+	struct input_filter_state    captured = {0};
+	struct st_console_cell       before[CELLS], after[CELLS];
+	struct st_cterm_state        state;
+	uint32_t                     x, y;
 
 	CHECK(st_console_create(&console, &display, &geometry) == 0);
 	CHECK(st_font_catalog_create(&fonts, console) == 0);
 	const struct st_cterm_config config = {
-		.console = console, .fonts = fonts, .emulation = ST_CTERM_ANSI_BBS,
-		.encoding = ST_CTERM_ENCODING_UTF8, .codepage = ST_CODEPAGE_CP437,
-		.quiet = true, .capture = capture_input,
-		.graphics_mode = ST_CTERM_GRAPHICS_RIP_1,
-		.input_filter = filter_input, .input_filter_active = input_filter_active,
-		.input_filter_context = &captured,
-		.capture_active = input_filter_active, .capture_context = &captured,
+	    .console              = console,
+	    .fonts                = fonts,
+	    .emulation            = ST_CTERM_ANSI_BBS,
+	    .encoding             = ST_CTERM_ENCODING_UTF8,
+	    .codepage             = ST_CODEPAGE_CP437,
+	    .quiet                = true,
+	    .capture              = capture_input,
+	    .graphics_mode        = ST_CTERM_GRAPHICS_RIP_1,
+	    .input_filter         = filter_input,
+	    .input_filter_active  = input_filter_active,
+	    .input_filter_context = &captured,
+	    .capture_active       = input_filter_active,
+	    .capture_context      = &captured,
 	};
 	CHECK(st_cterm_create(&terminal, &config) == 0);
-	static const char input[] = "A\xe2\x81\xa0\xef\xbb\xbf" "B";
+	static const char input[] =
+	    "A\xe2\x81\xa0\xef\xbb\xbf"
+	    "B";
 	for (size_t i = 0; i < sizeof(input) - 1; ++i)
 		feed(terminal, input + i, 1);
 	CHECK(st_console_get_position(console, &x, &y) == 0 && x == 2 && y == 0);
 	CHECK(captured.captured_size == sizeof(input) - 1
-	    && memcmp(captured.captured, input, sizeof(input) - 1) == 0);
-	CHECK(captured.count == 4 && captured.seen[0] == 'A'
-	    && captured.seen[1] == 0x2060 && captured.seen[2] == 0xfeff
-	    && captured.seen[3] == 'B');
+	      && memcmp(captured.captured, input, sizeof(input) - 1) == 0);
+	CHECK(captured.count == 4 && captured.seen[0] == 'A' && captured.seen[1] == 0x2060
+	      && captured.seen[2] == 0xfeff && captured.seen[3] == 'B');
 	/* Preserve the pending ANSI wrap even at the bottom-right corner. */
 	feed(terminal, "\x1b[43;80HZ", 9);
 	CHECK(st_cterm_state(terminal, &state) == 0 && state.last_column_flag.set);
@@ -834,7 +1071,7 @@ test_zero_width_text(void)
 	static const char doorway[] = "\x1b[1;1H\x1b[=255h\0\0";
 	feed(terminal, doorway, sizeof(doorway) - 1);
 	const struct st_console_rect first = {0, 0, 1, 1};
-	struct st_console_cell literal;
+	struct st_console_cell       literal;
 	CHECK(st_console_read_cells(console, &first, &literal, 1) == 0);
 	CHECK(literal.glyph == 0 && (literal.flags & ST_CONSOLE_CELL_CONTINUATION) == 0);
 	CHECK(st_console_get_position(console, &x, &y) == 0 && x == 1 && y == 0);
@@ -849,46 +1086,53 @@ test_status_display_routing(void)
 	static const struct {
 		const char *stream;
 		const char *main_text;
-		char status_text;
-		int type;
+		char        status_text;
+		int         type;
 	} cases[] = {
-		{"M\033[2$~\033[1$}S\033[0$}N", "MN", 'S', 2},
-		{"M\033[2$~\033[1$}S\033[1$~N", "MN", ' ', 1},
-		{"M\033[2$~\033[1$}S\033[0$~N\033[2$~\033[1$}T\033[0$}O",
-		    "MNO", 'T', 2},
+	    {"M\033[2$~\033[1$}S\033[0$}N",                           "MN",  'S', 2},
+	    {"M\033[2$~\033[1$}S\033[1$~N",                           "MN",  ' ', 1},
+	    {"M\033[2$~\033[1$}S\033[0$~N\033[2$~\033[1$}T\033[0$}O", "MNO", 'T', 2},
 	};
 	const struct st_console_display_config display = {
-		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	    .backend = ST_CONSOLE_BACKEND_HEADLESS,
 	};
 	const struct st_console_config geometry = {
-		.columns = 20, .rows = 4, .cell_width = 8, .cell_height = 16,
+	    .columns     = 20,
+	    .rows        = 4,
+	    .cell_width  = 8,
+	    .cell_height = 16,
 	};
+
 	const enum st_cterm_encoding encodings[] = {
-		ST_CTERM_ENCODING_UTF8, ST_CTERM_ENCODING_CODEPAGE,
+	    ST_CTERM_ENCODING_UTF8,
+	    ST_CTERM_ENCODING_CODEPAGE,
 	};
 
 	for (size_t encoding = 0; encoding < sizeof(encodings) / sizeof(encodings[0]); ++encoding) {
 		for (size_t scenario = 0; scenario < sizeof(cases) / sizeof(cases[0]); ++scenario) {
-			const char *stream = cases[scenario].stream;
-			size_t length = strlen(stream);
-			size_t main_length = strlen(cases[scenario].main_text);
+			const char *stream      = cases[scenario].stream;
+			size_t      length      = strlen(stream);
+			size_t      main_length = strlen(cases[scenario].main_text);
 			for (size_t chunk = 1; chunk <= length; ++chunk) {
-				st_console_t *console = NULL;
-				st_font_catalog_t *fonts = NULL;
-				st_cterm_t *terminal = NULL;
-				struct st_console_cell cells[3];
-				const struct st_console_rect main_row = {0, 0, (uint32_t)main_length, 1};
+				st_console_t                *console  = NULL;
+				st_font_catalog_t           *fonts    = NULL;
+				st_cterm_t                  *terminal = NULL;
+				struct st_console_cell       cells[3];
+				const struct st_console_rect main_row   = {0, 0, (uint32_t)main_length, 1};
 				const struct st_console_rect status_row = {0, 3, 1, 1};
-				char text[8];
-				size_t required;
+				char                         text[8];
+				size_t                       required;
 
 				CHECK(st_console_create(&console, &display, &geometry) == 0);
 				CHECK(st_font_catalog_create(&fonts, console) == 0);
 				const struct st_cterm_config config = {
-					.console = console, .fonts = fonts,
-					.emulation = ST_CTERM_ANSI_BBS, .encoding = encodings[encoding],
-					.codepage = ST_CODEPAGE_CP437, .status_line = true,
-					.quiet = true,
+				    .console     = console,
+				    .fonts       = fonts,
+				    .emulation   = ST_CTERM_ANSI_BBS,
+				    .encoding    = encodings[encoding],
+				    .codepage    = ST_CODEPAGE_CP437,
+				    .status_line = true,
+				    .quiet       = true,
 				};
 				CHECK(st_cterm_create(&terminal, &config) == 0);
 				for (size_t offset = 0; offset < length;) {
@@ -904,17 +1148,21 @@ test_status_display_routing(void)
 				CHECK(st_console_read_cells(console, &main_row, cells, main_length) == 0);
 				for (size_t i = 0; i < main_length; ++i) {
 					CHECK(st_console_font_glyph_text(console, cells[i].glyph_font,
-					    cells[i].glyph, text, sizeof(text), &required) == 0);
+						  cells[i].glyph, text, sizeof(text), &required)
+					      == 0);
 					if (required != 1 || text[0] != cases[scenario].main_text[i])
-						fprintf(stderr, "status routing: encoding=%d scenario=%zu chunk=%zu column=%zu\n",
+						fprintf(stderr,
+						    "status routing: encoding=%d scenario=%zu chunk=%zu column=%zu\n",
 						    (int)encodings[encoding], scenario, chunk, i);
 					CHECK(required == 1 && text[0] == cases[scenario].main_text[i]);
 				}
 				CHECK(st_console_read_cells(console, &status_row, cells, 1) == 0);
-				CHECK(st_console_font_glyph_text(console, cells[0].glyph_font,
-				    cells[0].glyph, text, sizeof(text), &required) == 0);
+				CHECK(st_console_font_glyph_text(console, cells[0].glyph_font, cells[0].glyph,
+					  text, sizeof(text), &required)
+				      == 0);
 				if (required != 1 || text[0] != cases[scenario].status_text)
-					fprintf(stderr, "status row: encoding=%d scenario=%zu chunk=%zu actual=%.*s\n",
+					fprintf(stderr,
+					    "status row: encoding=%d scenario=%zu chunk=%zu actual=%.*s\n",
 					    (int)encodings[encoding], scenario, chunk, (int)required, text);
 				CHECK(required == 1 && text[0] == cases[scenario].status_text);
 				st_cterm_destroy(&terminal);
@@ -929,18 +1177,23 @@ static void
 test_graphics_history(void)
 {
 	for (unsigned utf8 = 0; utf8 < 2; ++utf8) {
-		const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
-		const struct st_console_config geometry = {
-			.columns = 20, .rows = 4, .cell_width = 8, .cell_height = 16, .wrap = true};
-		st_console_t *console = NULL;
-		st_font_catalog_t *fonts = NULL;
-		st_cterm_t *terminal = NULL;
+		const struct st_console_display_config display  = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+		const struct st_console_config         geometry = {.columns = 20,
+		    .rows                                                   = 4,
+		    .cell_width                                             = 8,
+		    .cell_height                                            = 16,
+		    .wrap                                                   = true};
+		st_console_t                          *console  = NULL;
+		st_font_catalog_t                     *fonts    = NULL;
+		st_cterm_t                            *terminal = NULL;
 		CHECK(st_console_create(&console, &display, &geometry) == 0);
 		CHECK(st_font_catalog_create(&fonts, console) == 0);
-		const struct st_cterm_config config = {.console = console, .fonts = fonts,
-			.emulation = ST_CTERM_ANSI_BBS, .codepage = ST_CODEPAGE_CP437,
-			.encoding = utf8 ? ST_CTERM_ENCODING_UTF8 : ST_CTERM_ENCODING_CODEPAGE,
-			.scrollback_lines = 2};
+		const struct st_cterm_config config = {.console = console,
+		    .fonts                                      = fonts,
+		    .emulation                                  = ST_CTERM_ANSI_BBS,
+		    .codepage                                   = ST_CODEPAGE_CP437,
+		    .encoding         = utf8 ? ST_CTERM_ENCODING_UTF8 : ST_CTERM_ENCODING_CODEPAGE,
+		    .scrollback_lines = 2};
 		CHECK(st_cterm_create(&terminal, &config) == 0);
 		feed(terminal, "X", 1);
 		CHECK(st_cterm_finish(terminal) == 0);
@@ -949,8 +1202,12 @@ test_graphics_history(void)
 		CHECK(st_pixel_buffer_fill(mark, 1, 2) == 0);
 		uint32_t colours[] = {0xff0000, 0x00ff00};
 		CHECK(st_console_set_palette(console, 1, colours, 2) == 0);
-		const struct st_pixel_blit at = {.width = 8, .height = 16,
-			.destination_x = 16, .destination_y = 0, .scale_x = 1, .scale_y = 1};
+		const struct st_pixel_blit at = {.width = 8,
+		    .height                             = 16,
+		    .destination_x                      = 16,
+		    .destination_y                      = 0,
+		    .scale_x                            = 1,
+		    .scale_y                            = 1};
 		CHECK(st_console_blit_pixels(console, mark, NULL, &at) == 0);
 		feed(terminal, "\x1b[4;1H\n", 7);
 		struct st_pixel_buffer *copy = NULL;
@@ -1000,24 +1257,24 @@ st_cterm_test_main(void)
 	test_disconnect_boundary();
 	test_zero_width_text();
 	const struct st_console_display_config display = {
-		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	    .backend = ST_CONSOLE_BACKEND_HEADLESS,
 	};
 	const struct st_console_config console_config = {
-		.columns = 20,
-		.rows = 4,
-		.cell_width = 8,
-		.cell_height = 16,
-		.wrap = true,
+	    .columns     = 20,
+	    .rows        = 4,
+	    .cell_width  = 8,
+	    .cell_height = 16,
+	    .wrap        = true,
 	};
-	st_console_t *console = NULL;
-	st_font_catalog_t *fonts = NULL;
-	st_cterm_t *terminal = NULL;
-	struct output output = {0};
+	st_console_t          *console  = NULL;
+	st_font_catalog_t     *fonts    = NULL;
+	st_cterm_t            *terminal = NULL;
+	struct output          output   = {0};
 	struct st_console_cell cell;
 	struct st_console_rect one = {0, 0, 1, 1};
-	uint32_t palette[2];
-	char text[8];
-	size_t required;
+	uint32_t               palette[2];
+	char                   text[8];
+	size_t                 required;
 
 	CHECK(st_console_create(&console, &display, &console_config) == 0);
 	CHECK(st_font_catalog_create(&fonts, console) == 0);
@@ -1025,11 +1282,14 @@ st_cterm_test_main(void)
 	 * both displays share the terminal's communication speed. */
 	for (unsigned encoding = 0; encoding < 2; ++encoding) {
 		const struct st_cterm_config speed_config = {
-			.console = console, .fonts = fonts,
-			.emulation = ST_CTERM_ANSI_BBS,
-			.encoding = encoding ? ST_CTERM_ENCODING_CODEPAGE : ST_CTERM_ENCODING_UTF8,
-			.codepage = ST_CODEPAGE_CP437, .quiet = true,
-			.output = capture, .output_context = &output,
+		    .console        = console,
+		    .fonts          = fonts,
+		    .emulation      = ST_CTERM_ANSI_BBS,
+		    .encoding       = encoding ? ST_CTERM_ENCODING_CODEPAGE : ST_CTERM_ENCODING_UTF8,
+		    .codepage       = ST_CODEPAGE_CP437,
+		    .quiet          = true,
+		    .output         = capture,
+		    .output_context = &output,
 		};
 		static const char input[] =
 		    "\x1bP$q*r\x1b\\\x1b[;1*r\x1bP$q*r\x1b\\"
@@ -1043,16 +1303,18 @@ st_cterm_test_main(void)
 		CHECK(output.size == sizeof(expected) - 1);
 		CHECK(memcmp(output.bytes, expected, output.size) == 0);
 		st_cterm_destroy(&terminal);
-		output = (struct output){0};
+		output = (struct output) {0};
 	}
 	/* DECDMAC's body parser must not depend on plain-char signedness.
 	 * Isolate it from the outer command-string framer's 7-bit restrictions. */
 	{
 		const struct st_cterm_config macro_config = {
-			.console = console, .fonts = fonts,
-			.emulation = ST_CTERM_ANSI_BBS,
-			.encoding = ST_CTERM_ENCODING_CODEPAGE,
-			.codepage = ST_CODEPAGE_CP437, .quiet = true,
+		    .console   = console,
+		    .fonts     = fonts,
+		    .emulation = ST_CTERM_ANSI_BBS,
+		    .encoding  = ST_CTERM_ENCODING_CODEPAGE,
+		    .codepage  = ST_CODEPAGE_CP437,
+		    .quiet     = true,
 		};
 		static const uint8_t bytes[] = {0x20, 0x7e, 0xa0, 0xff, 0x7f};
 		for (size_t i = 0; i < sizeof(bytes); ++i) {
@@ -1065,8 +1327,8 @@ st_cterm_test_main(void)
 			cterm_dec_dcs_byte(terminal);
 			cterm_dec_dcs_finish(terminal);
 			if (terminal->macro_lens[0] != (bytes[i] == 0x7f ? 0U : 1U))
-				fprintf(stderr, "macro byte=%02x length=%zu state=%d\n",
-				    bytes[i], terminal->macro_lens[0], terminal->macro);
+				fprintf(stderr, "macro byte=%02x length=%zu state=%d\n", bytes[i],
+				    terminal->macro_lens[0], terminal->macro);
 			CHECK(terminal->macro_lens[0] == (bytes[i] == 0x7f ? 0U : 1U));
 			if (bytes[i] != 0x7f)
 				CHECK((uint8_t)terminal->macros[0][0] == bytes[i]);
@@ -1074,53 +1336,51 @@ st_cterm_test_main(void)
 		}
 	}
 	const struct st_cterm_config config = {
-		.console = console,
-		.fonts = fonts,
-		.emulation = ST_CTERM_ANSI_BBS,
-		.encoding = ST_CTERM_ENCODING_UTF8,
-		.codepage = ST_CODEPAGE_CP437,
-		.font_selector = 0,
-		.terminal_rows = 3,
-		.status_line = true,
-		.output = capture,
-		.output_context = &output,
-		.quiet = true,
+	    .console        = console,
+	    .fonts          = fonts,
+	    .emulation      = ST_CTERM_ANSI_BBS,
+	    .encoding       = ST_CTERM_ENCODING_UTF8,
+	    .codepage       = ST_CODEPAGE_CP437,
+	    .font_selector  = 0,
+	    .terminal_rows  = 3,
+	    .status_line    = true,
+	    .output         = capture,
+	    .output_context = &output,
+	    .quiet          = true,
 	};
 	CHECK(st_cterm_create(&terminal, &config) == 0);
 	{
-		static const uint8_t blank_font[4096] = {0};
-		const char path[] = "st_cterm_test_runtime_font.f16";
+		static const uint8_t  blank_font[4096] = {0};
+		const char            path[]           = "st_cterm_test_runtime_font.f16";
 		struct st_cterm_state state;
-		uint16_t identifier = UINT16_MAX;
-		FILE *stream;
+		uint16_t              identifier = UINT16_MAX;
+		FILE                 *stream;
 
 		CHECK(st_cterm_state(terminal, &state) == 0);
 		CHECK(state.alt_fonts[0] == 0);
-		CHECK(st_cterm_register_font(terminal, 250,
-		    "missing-font-file", ST_CODEPAGE_CP1251, &identifier, NULL) == IO_ERROR_NOT_FOUND);
+		CHECK(st_cterm_register_font(terminal, 250, "missing-font-file", ST_CODEPAGE_CP1251, &identifier,
+			  NULL)
+		      == IO_ERROR_NOT_FOUND);
 		CHECK(identifier == UINT16_MAX);
 		stream = fopen(path, "wb");
 		CHECK(stream != NULL);
-		CHECK(fwrite(blank_font, 1, sizeof(blank_font), stream)
-		    == sizeof(blank_font));
+		CHECK(fwrite(blank_font, 1, sizeof(blank_font), stream) == sizeof(blank_font));
 		CHECK(fclose(stream) == 0);
-		CHECK(st_cterm_register_font(terminal, 250, path,
-		    ST_CODEPAGE_CP1251, &identifier, NULL) == 0);
+		CHECK(st_cterm_register_font(terminal, 250, path, ST_CODEPAGE_CP1251, &identifier, NULL) == 0);
 		CHECK(identifier != UINT16_MAX);
 		CHECK(st_cterm_set_fonts(terminal, 250, ST_CTERM_FONT_NORMAL | ST_CTERM_FONT_BRIGHT) == 0);
 		CHECK(st_cterm_state(terminal, &state) == 0);
-		CHECK(state.alt_fonts[0] == 250 && state.alt_fonts[1] == 250
-		    && state.alt_fonts[2] == 0 && state.alt_fonts[3] == 0);
+		CHECK(state.alt_fonts[0] == 250 && state.alt_fonts[1] == 250 && state.alt_fonts[2] == 0
+		      && state.alt_fonts[3] == 0);
 		enum st_codepage mapping;
-		uint16_t actual;
+		uint16_t         actual;
 		CHECK(st_cterm_font_info(terminal, 250, &actual, &mapping));
 		CHECK(actual == identifier && mapping == ST_CODEPAGE_CP1251);
 		CHECK(st_cterm_set_fonts(terminal, 0, 0) == IO_ERROR_INVALID_ARGUMENT);
 		CHECK(st_cterm_set_fonts(terminal, 0, 16) == IO_ERROR_INVALID_ARGUMENT);
 		CHECK(st_cterm_state(terminal, &state) == 0 && state.alt_fonts[0] == 250);
 		CHECK(st_cterm_set_fonts(terminal, 0, ST_CTERM_FONT_ALL) == 0);
-		CHECK(st_cterm_set_fonts(terminal, 251, ST_CTERM_FONT_ALL)
-		    == IO_ERROR_NOT_FOUND);
+		CHECK(st_cterm_set_fonts(terminal, 251, ST_CTERM_FONT_ALL) == IO_ERROR_NOT_FOUND);
 		/* Each remote geometry remembers its mapping at download time. A
 		 * missing geometry restores the original registration and mapping. */
 		CHECK(st_cterm_set_encoding(terminal, ST_CTERM_ENCODING_UTF8, ST_CODEPAGE_CP437) == 0);
@@ -1159,44 +1419,39 @@ st_cterm_test_main(void)
 	CHECK(palette[0] == 0x000000 && palette[1] == 0xa80000);
 	CHECK(st_console_read_cells(console, &one, &cell, 1) == 0);
 	CHECK(cell.foreground == 17 && cell.background == 16);
-	CHECK(st_console_font_glyph_text(console, cell.glyph_font, cell.glyph,
-	    text, sizeof(text), &required) == 0);
+	CHECK(
+	    st_console_font_glyph_text(console, cell.glyph_font, cell.glyph, text, sizeof(text), &required) == 0);
 	CHECK(required == 1 && text[0] == 'e');
 	{
-		FILE *snapshot = tmpfile();
+		FILE   *snapshot = tmpfile();
 		uint8_t bytes[129];
-		int native_error = -1;
+		int     native_error = -1;
 
 		CHECK(snapshot != NULL);
-		CHECK(st_cterm_save_binary(terminal, snapshot, true,
-		    "Board", "User", &native_error) == 0);
+		CHECK(st_cterm_save_binary(terminal, snapshot, true, "Board", "User", &native_error) == 0);
 		CHECK(native_error == 0 && ftell(snapshot) == 20 * 3 * 2 + 129);
 		CHECK(fseek(snapshot, 0, SEEK_SET) == 0);
 		CHECK(fread(bytes, 1, 2, snapshot) == 2);
 		CHECK(bytes[0] == 'e');
 		CHECK(fseek(snapshot, -(long)sizeof(bytes), SEEK_END) == 0);
-		CHECK(fread(bytes, 1, sizeof(bytes), snapshot)
-		    == sizeof(bytes));
-		CHECK(bytes[0] == 0x1a
-		    && memcmp(bytes + 1, "SAUCE00", 7) == 0
-		    && memcmp(bytes + 8, "Board", 5) == 0
-		    && memcmp(bytes + 43, "User", 4) == 0
-		    && bytes[91] == 120 && bytes[95] == 5
-		    && bytes[96] == 10);
+		CHECK(fread(bytes, 1, sizeof(bytes), snapshot) == sizeof(bytes));
+		CHECK(bytes[0] == 0x1a && memcmp(bytes + 1, "SAUCE00", 7) == 0
+		      && memcmp(bytes + 8, "Board", 5) == 0 && memcmp(bytes + 43, "User", 4) == 0
+		      && bytes[91] == 120 && bytes[95] == 5 && bytes[96] == 10);
 		CHECK(fclose(snapshot) == 0);
 	}
 	feed(terminal, "\xcc", 1);
 	feed(terminal, "\x81", 1);
 	CHECK(st_console_read_cells(console, &one, &cell, 1) == 0);
-	CHECK(st_console_font_glyph_text(console, cell.glyph_font, cell.glyph,
-	    text, sizeof(text), &required) == 0);
+	CHECK(
+	    st_console_font_glyph_text(console, cell.glyph_font, cell.glyph, text, sizeof(text), &required) == 0);
 	CHECK(required == 2 && memcmp(text, "\xc3\xa9", 2) == 0);
 	CHECK(st_cterm_finish(terminal) == 0);
 	/* A control in the same receive buffer still reaches the parser. */
 	feed(terminal, "x\ry", 3);
 	CHECK(st_console_read_cells(console, &one, &cell, 1) == 0);
-	CHECK(st_console_font_glyph_text(console, cell.glyph_font, cell.glyph,
-	    text, sizeof(text), &required) == 0);
+	CHECK(
+	    st_console_font_glyph_text(console, cell.glyph_font, cell.glyph, text, sizeof(text), &required) == 0);
 	CHECK(required == 1 && text[0] == 'y');
 
 	/* BEL is local: it neither becomes a cell nor emits host bytes. */
@@ -1205,28 +1460,26 @@ st_cterm_test_main(void)
 	CHECK(st_cterm_handle_key(terminal, 3, 0));
 	CHECK(output.size == 1 && output.bytes[0] == 3);
 	CHECK(output.user == 1 && output.responses == 0);
-	output = (struct output){0};
+	output = (struct output) {0};
 
 	/* A host-writable status display routes Unicode into the reserved row. */
-	feed(terminal, "\x1b[2$~\x1b[1$}S",
-	    strlen("\x1b[2$~\x1b[1$}S"));
+	feed(terminal, "\x1b[2$~\x1b[1$}S", strlen("\x1b[2$~\x1b[1$}S"));
 	one.x = 0;
 	one.y = 3;
 	CHECK(st_console_read_cells(console, &one, &cell, 1) == 0);
-	CHECK(st_console_font_glyph_text(console, cell.glyph_font, cell.glyph,
-	    text, sizeof(text), &required) == 0);
+	CHECK(
+	    st_console_font_glyph_text(console, cell.glyph_font, cell.glyph, text, sizeof(text), &required) == 0);
 	CHECK(required == 1 && text[0] == 'S');
-	feed(terminal, "\x1b[0$}\x1b[0$~",
-	    strlen("\x1b[0$}\x1b[0$~"));
+	feed(terminal, "\x1b[0$}\x1b[0$~", strlen("\x1b[0$}\x1b[0$~"));
 	CHECK(st_console_read_cells(console, &one, &cell, 1) == 0);
-	CHECK(st_console_font_glyph_text(console, cell.glyph_font, cell.glyph,
-	    text, sizeof(text), &required) == 0);
+	CHECK(
+	    st_console_font_glyph_text(console, cell.glyph_font, cell.glyph, text, sizeof(text), &required) == 0);
 	CHECK(required == 1 && text[0] == ' ');
 	feed(terminal, "\x1b[1$~", strlen("\x1b[1$~"));
 
 	/* DEC cursor styles retain their block/underline distinction. */
 	{
-		bool visible;
+		bool                         visible;
 		enum st_console_cursor_shape shape;
 
 		feed(terminal, "\x1b[4 q", strlen("\x1b[4 q"));
@@ -1238,44 +1491,42 @@ st_cterm_test_main(void)
 	}
 
 	/* DEC mouse state is owned by CTerm and emits on the user lane. */
-	feed(terminal, "\x1b[?1000h\x1b[?1006h",
-	    strlen("\x1b[?1000h\x1b[?1006h"));
+	feed(terminal, "\x1b[?1000h\x1b[?1006h", strlen("\x1b[?1000h\x1b[?1006h"));
 	struct st_console_event mouse = {
-		.type = ST_CONSOLE_EVENT_MOUSE,
-		.data.mouse = {
-			.x = 2, .y = 1,
-			.pixel_x = -1, .pixel_y = -1,
-			.buttons = ST_CONSOLE_MOUSE_BUTTON_LEFT,
-			.action = ST_CONSOLE_MOUSE_BUTTON,
-		},
+	    .type = ST_CONSOLE_EVENT_MOUSE,
+	    .data.mouse =
+		{
+			     .x       = 2,
+			     .y       = 1,
+			     .pixel_x = -1,
+			     .pixel_y = -1,
+			     .buttons = ST_CONSOLE_MOUSE_BUTTON_LEFT,
+			     .action  = ST_CONSOLE_MOUSE_BUTTON,
+			     },
 	};
 	CHECK(st_cterm_handle_mouse(terminal, &mouse));
 	CHECK(output.user == 1 && output.size == strlen("\x1b[<0;3;2M")
-	    && memcmp(output.bytes, "\x1b[<0;3;2M", output.size) == 0);
-	output.size = 0;
-	output.user = 0;
+	      && memcmp(output.bytes, "\x1b[<0;3;2M", output.size) == 0);
+	output.size      = 0;
+	output.user      = 0;
 	output.responses = 0;
 
 	/* Geometry reports the actual configured cell dimensions. */
 	feed(terminal, "\x1b[=3n", strlen("\x1b[=3n"));
-	CHECK(output.responses == 1
-	    && output.size == strlen("\x1b[=3;16;8n")
-	    && memcmp(output.bytes, "\x1b[=3;16;8n", output.size) == 0);
-	output.size = 0;
+	CHECK(output.responses == 1 && output.size == strlen("\x1b[=3;16;8n")
+	      && memcmp(output.bytes, "\x1b[=3;16;8n", output.size) == 0);
+	output.size      = 0;
 	output.responses = 0;
 	/* Font selector zero is a successful selection, not a false failure. */
-	feed(terminal, "\x1b[0;0 D\x1b[=1n",
-	    strlen("\x1b[0;0 D\x1b[=1n"));
+	feed(terminal, "\x1b[0;0 D\x1b[=1n", strlen("\x1b[0;0 D\x1b[=1n"));
 	CHECK(output.responses == 1 && output.size > strlen("\x1b[=1;46;0"));
 	CHECK(memcmp(output.bytes, "\x1b[=1;46;0", strlen("\x1b[=1;46;0")) == 0);
-	output.size = 0;
+	output.size      = 0;
 	output.responses = 0;
 	feed(terminal, "\x1b[<c", strlen("\x1b[<c"));
-	CHECK(output.responses == 1
-	    && output.size == strlen("\x1b[<0;1;2;3;4;5;6;7;8c")
-	    && memcmp(output.bytes, "\x1b[<0;1;2;3;4;5;6;7;8c",
-	    output.size) == 0);
-	output.size = 0;
+	CHECK(output.responses == 1 && output.size == strlen("\x1b[<0;1;2;3;4;5;6;7;8c")
+	      && memcmp(output.bytes, "\x1b[<0;1;2;3;4;5;6;7;8c", output.size) == 0);
+	output.size      = 0;
 	output.responses = 0;
 
 	/* A truncated sequence produces exactly one decode-error glyph. */
@@ -1286,17 +1537,17 @@ st_cterm_test_main(void)
 	CHECK(cell.glyph != 0);
 	uint32_t decode_error_glyph = cell.glyph;
 	feed(terminal, "z", 1);
-	CHECK(st_console_read_cells(console, &one, &cell, 1) == 0
-	    && cell.glyph == decode_error_glyph);
+	CHECK(st_console_read_cells(console, &one, &cell, 1) == 0 && cell.glyph == decode_error_glyph);
 	{
 		struct st_console_cell row[20];
 		struct st_console_rect row_rect = {0, 0, 20, 1};
-		bool found = false;
+		bool                   found    = false;
 
 		CHECK(st_console_read_cells(console, &row_rect, row, 20) == 0);
 		for (size_t i = 0; i < 20; ++i) {
-			if (st_console_font_glyph_text(console, row[i].glyph_font,
-			    row[i].glyph, text, sizeof(text), &required) == 0
+			if (st_console_font_glyph_text(console, row[i].glyph_font, row[i].glyph, text,
+				sizeof(text), &required)
+			        == 0
 			    && required == 1 && text[0] == 'z')
 				found = true;
 		}
@@ -1306,21 +1557,19 @@ st_cterm_test_main(void)
 	/* DECCKSR returns a response over the response lane. */
 	struct st_console_cell checked[2];
 	struct st_console_rect checked_rect = {0, 0, 2, 1};
-	char expected[32];
+	char                   expected[32];
 	CHECK(st_console_read_cells(console, &checked_rect, checked, 2) == 0);
-	int expected_size = snprintf(expected, sizeof(expected),
-	    "\x1bP7!~%04X\x1b\\", crc16(checked, sizeof(checked)));
+	int expected_size =
+	    snprintf(expected, sizeof(expected), "\x1bP7!~%04X\x1b\\", crc16(checked, sizeof(checked)));
 	CHECK(expected_size > 0 && (size_t)expected_size < sizeof(expected));
-	feed(terminal, "\x1b[7;1;1;1;1;2*y",
-	    strlen("\x1b[7;1;1;1;1;2*y"));
+	feed(terminal, "\x1b[7;1;1;1;1;2*y", strlen("\x1b[7;1;1;1;1;2*y"));
 	CHECK(output.responses == 1);
-	CHECK(output.size == (size_t)expected_size
-	    && memcmp(output.bytes, expected, output.size) == 0);
+	CHECK(output.size == (size_t)expected_size && memcmp(output.bytes, expected, output.size) == 0);
 	CHECK(output.user == 0);
 	{
 		struct st_console_cell *history = NULL;
-		uint32_t columns;
-		size_t rows;
+		uint32_t                columns;
+		size_t                  rows;
 
 		CHECK(st_cterm_copy_history(terminal, &history, &columns, &rows) == 0);
 		CHECK(history != NULL && columns == 20 && rows == 3);
@@ -1335,37 +1584,37 @@ st_cterm_test_main(void)
 		CHECK(columns == 24 && rows == 6);
 		CHECK(st_cterm_size(terminal, &columns, &rows) == 0);
 		CHECK(columns == 24 && rows == 5);
-		feed(terminal, "\x1b[2$~\x1b[1$}R",
-		    strlen("\x1b[2$~\x1b[1$}R"));
+		feed(terminal, "\x1b[2$~\x1b[1$}R", strlen("\x1b[2$~\x1b[1$}R"));
 		one.x = 0;
 		one.y = 5;
 		CHECK(st_console_read_cells(console, &one, &cell, 1) == 0);
-		CHECK(st_console_font_glyph_text(console, cell.glyph_font, cell.glyph,
-		    text, sizeof(text), &required) == 0);
+		CHECK(
+		    st_console_font_glyph_text(console, cell.glyph_font, cell.glyph, text, sizeof(text), &required)
+		    == 0);
 		CHECK(required == 1 && text[0] == 'R');
 	}
 
 	st_cterm_destroy(&terminal);
 	CHECK(st_console_resize(console, 20, 4) == 0);
-	for (int encoding = ST_CTERM_ENCODING_UTF8;
-	    encoding <= ST_CTERM_ENCODING_CODEPAGE; ++encoding) {
-		struct input_filter_state state = {0};
+	for (int encoding = ST_CTERM_ENCODING_UTF8; encoding <= ST_CTERM_ENCODING_CODEPAGE; ++encoding) {
+		struct input_filter_state    state         = {0};
 		const struct st_cterm_config filter_config = {
-			.console = console, .fonts = fonts,
-			.emulation = ST_CTERM_ANSI_BBS,
-			.encoding = (enum st_cterm_encoding)encoding,
-			.codepage = ST_CODEPAGE_CP437,
-			.quiet = true,
-			.input_filter = filter_input,
-			.input_filter_active = input_filter_active,
-			.input_filter_context = &state,
-			.capture = capture_input,
-			.capture_active = input_filter_active,
-			.capture_context = &state,
+		    .console              = console,
+		    .fonts                = fonts,
+		    .emulation            = ST_CTERM_ANSI_BBS,
+		    .encoding             = (enum st_cterm_encoding)encoding,
+		    .codepage             = ST_CODEPAGE_CP437,
+		    .quiet                = true,
+		    .input_filter         = filter_input,
+		    .input_filter_active  = input_filter_active,
+		    .input_filter_context = &state,
+		    .capture              = capture_input,
+		    .capture_active       = input_filter_active,
+		    .capture_context      = &state,
 		};
 		const struct st_console_rect first = {0, 0, 1, 1};
-		const struct st_console_rect next = {0, 1, 1, 1};
-		size_t consumed;
+		const struct st_console_rect next  = {0, 1, 1, 1};
+		size_t                       consumed;
 
 		CHECK(st_cterm_create(&terminal, &filter_config) == 0);
 		if (encoding == ST_CTERM_ENCODING_UTF8) {
@@ -1376,41 +1625,34 @@ st_cterm_test_main(void)
 		else {
 			feed(terminal, "\x82Q\nB", 4);
 		}
-		CHECK(state.count == 4 && state.seen[0] == 0xe9
-		    && state.seen[1] == 'Q' && state.seen[2] == '\n'
-		    && state.seen[3] == 'B');
-		CHECK(state.captured_size == 4
-		    && memcmp(state.captured, "X\r\nB", 4) == 0);
-		CHECK(st_console_read_cells(console, &first, &cell, 1) == 0
-		    && cell.glyph == 'X');
-		CHECK(st_console_read_cells(console, &next, &cell, 1) == 0
-		    && cell.glyph == 'B');
-		CHECK(st_cterm_write_utf8(terminal, "!", 1, &consumed) == 0
-		    && consumed == 1 && state.count == 4);
-		CHECK(state.captured_size == 5
-		    && memcmp(state.captured, "X\r\nB!", 5) == 0);
+		CHECK(state.count == 4 && state.seen[0] == 0xe9 && state.seen[1] == 'Q' && state.seen[2] == '\n'
+		      && state.seen[3] == 'B');
+		CHECK(state.captured_size == 4 && memcmp(state.captured, "X\r\nB", 4) == 0);
+		CHECK(st_console_read_cells(console, &first, &cell, 1) == 0 && cell.glyph == 'X');
+		CHECK(st_console_read_cells(console, &next, &cell, 1) == 0 && cell.glyph == 'B');
+		CHECK(st_cterm_write_utf8(terminal, "!", 1, &consumed) == 0 && consumed == 1 && state.count == 4);
+		CHECK(state.captured_size == 5 && memcmp(state.captured, "X\r\nB!", 5) == 0);
 		st_cterm_destroy(&terminal);
 	}
 	{
 		const struct st_cterm_config codepage_config = {
-			.console = console,
-			.fonts = fonts,
-			.emulation = ST_CTERM_ANSI_BBS,
-			.encoding = ST_CTERM_ENCODING_CODEPAGE,
-			.codepage = ST_CODEPAGE_CP437,
-			.quiet = true,
+		    .console   = console,
+		    .fonts     = fonts,
+		    .emulation = ST_CTERM_ANSI_BBS,
+		    .encoding  = ST_CTERM_ENCODING_CODEPAGE,
+		    .codepage  = ST_CODEPAGE_CP437,
+		    .quiet     = true,
 		};
-		size_t consumed;
+		size_t   consumed;
 		uint32_t utf8_glyph;
 		uint16_t utf8_font;
 
 		CHECK(st_cterm_create(&terminal, &codepage_config) == 0);
-		CHECK(st_cterm_write_utf8(terminal, "\xc3\xa9", 2,
-		    &consumed) == 0 && consumed == 2);
-		one = (struct st_console_rect){0, 0, 1, 1};
+		CHECK(st_cterm_write_utf8(terminal, "\xc3\xa9", 2, &consumed) == 0 && consumed == 2);
+		one = (struct st_console_rect) {0, 0, 1, 1};
 		CHECK(st_console_read_cells(console, &one, &cell, 1) == 0);
 		utf8_glyph = cell.glyph;
-		utf8_font = cell.glyph_font;
+		utf8_font  = cell.glyph_font;
 		st_cterm_destroy(&terminal);
 		CHECK(st_cterm_create(&terminal, &codepage_config) == 0);
 		feed(terminal, "\x82", 1);
@@ -1421,27 +1663,26 @@ st_cterm_test_main(void)
 	{
 		static const struct {
 			enum st_cterm_emulation emulation;
-			enum st_codepage codepage;
-			uint8_t bytes[2];
+			enum st_codepage        codepage;
+			uint8_t                 bytes[2];
 		} smoke[] = {
-			{ST_CTERM_PETSCII, ST_CODEPAGE_PETSCII_UPPER, {147, 'A'}},
-			{ST_CTERM_ATASCII, ST_CODEPAGE_ATASCII, {125, 'A'}},
-			{ST_CTERM_PRESTEL, ST_CODEPAGE_PRESTEL, {12, 'A'}},
-			{ST_CTERM_BBC, ST_CODEPAGE_PRESTEL, {12, 'A'}},
-			{ST_CTERM_ATARI_ST_VT52, ST_CODEPAGE_ATARI_ST,
-			    {0x1b, 'E'}},
+		    {ST_CTERM_PETSCII,       ST_CODEPAGE_PETSCII_UPPER, {147, 'A'} },
+		    {ST_CTERM_ATASCII,       ST_CODEPAGE_ATASCII,       {125, 'A'} },
+		    {ST_CTERM_PRESTEL,       ST_CODEPAGE_PRESTEL,       {12, 'A'}  },
+		    {ST_CTERM_BBC,           ST_CODEPAGE_PRESTEL,       {12, 'A'}  },
+		    {ST_CTERM_ATARI_ST_VT52, ST_CODEPAGE_ATARI_ST,      {0x1b, 'E'}},
 		};
 
 		for (size_t i = 0; i < sizeof(smoke) / sizeof(smoke[0]); ++i) {
 			const struct st_cterm_config smoke_config = {
-				.console = console,
-				.fonts = fonts,
-				.emulation = smoke[i].emulation,
-				.encoding = ST_CTERM_ENCODING_CODEPAGE,
-				.codepage = smoke[i].codepage,
-				.font_selector = 0,
-				.terminal_rows = 3,
-				.quiet = true,
+			    .console       = console,
+			    .fonts         = fonts,
+			    .emulation     = smoke[i].emulation,
+			    .encoding      = ST_CTERM_ENCODING_CODEPAGE,
+			    .codepage      = smoke[i].codepage,
+			    .font_selector = 0,
+			    .terminal_rows = 3,
+			    .quiet         = true,
 			};
 
 			CHECK(st_cterm_create(&terminal, &smoke_config) == 0);
@@ -1450,61 +1691,56 @@ st_cterm_test_main(void)
 		}
 	}
 	{
-		uint16_t mapping[16];
+		uint16_t                mapping[16];
 		struct st_console_cell *history = NULL;
-		uint32_t history_columns;
-		size_t history_rows;
-		bool found = false;
+		uint32_t                history_columns;
+		size_t                  history_rows;
+		bool                    found = false;
 
 		for (size_t i = 0; i < 16; ++i)
 			mapping[i] = (uint16_t)(100 + i);
 		const struct st_cterm_config mapped_config = {
-			.console = console,
-			.fonts = fonts,
-			.emulation = ST_CTERM_ANSI_BBS,
-			.encoding = ST_CTERM_ENCODING_CODEPAGE,
-			.codepage = ST_CODEPAGE_CP437,
-			.palette_mapping = mapping,
-			.font_selector = 0,
-			.scrollback_lines = 2,
-			.quiet = true,
+		    .console          = console,
+		    .fonts            = fonts,
+		    .emulation        = ST_CTERM_ANSI_BBS,
+		    .encoding         = ST_CTERM_ENCODING_CODEPAGE,
+		    .codepage         = ST_CODEPAGE_CP437,
+		    .palette_mapping  = mapping,
+		    .font_selector    = 0,
+		    .scrollback_lines = 2,
+		    .quiet            = true,
 		};
 
 		CHECK(st_cterm_create(&terminal, &mapped_config) == 0);
 		feed(terminal, "A", 1);
-		one = (struct st_console_rect){0, 0, 1, 1};
+		one = (struct st_console_rect) {0, 0, 1, 1};
 		CHECK(st_console_read_cells(console, &one, &cell, 1) == 0);
 		cell.foreground = mapping[4] + 16;
 		cell.background = mapping[0] + 16;
 		cell.flags &= ~ST_CONSOLE_CELL_BRIGHT;
 		CHECK(st_console_write_complete_cells(console, &one, &cell, 1) == 0);
-		feed(terminal, "\x1b[1;1;1;1;1$r",
-		    strlen("\x1b[1;1;1;1;1$r"));
+		feed(terminal, "\x1b[1;1;1;1;1$r", strlen("\x1b[1;1;1;1;1$r"));
 		CHECK(st_console_read_cells(console, &one, &cell, 1) == 0);
 		CHECK(cell.foreground == (uint32_t)mapping[12] + 16);
 		/* Fill both history slots with received rows before resizing. */
-		feed(terminal, "\r\nB\r\nC\r\nD\r\nE\r\nF",
-		    strlen("\r\nB\r\nC\r\nD\r\nE\r\nF"));
+		feed(terminal, "\r\nB\r\nC\r\nD\r\nE\r\nF", strlen("\r\nB\r\nC\r\nD\r\nE\r\nF"));
 		CHECK(st_cterm_resize(terminal, 10, 5) == 0);
-		CHECK(st_cterm_copy_history(terminal, &history, &history_columns,
-		    &history_rows) == 0);
+		CHECK(st_cterm_copy_history(terminal, &history, &history_columns, &history_rows) == 0);
 		{
-			uint32_t ring_columns;
-			size_t ring_rows;
+			uint32_t               ring_columns;
+			size_t                 ring_rows;
 			struct st_console_cell copied[20];
 
-			CHECK(st_cterm_scrollback_size(terminal, &ring_columns,
-			    &ring_rows) == 0);
+			CHECK(st_cterm_scrollback_size(terminal, &ring_columns, &ring_rows) == 0);
 			CHECK(ring_columns == history_columns && ring_rows == 2);
-			CHECK(st_cterm_copy_scrollback_rows(terminal, copied,
-			    ring_columns, 2, 0, 2, 0) == 2);
+			CHECK(st_cterm_copy_scrollback_rows(terminal, copied, ring_columns, 2, 0, 2, 0) == 2);
 			CHECK(memcmp(copied, history, sizeof(copied)) == 0);
-			CHECK(st_cterm_copy_scrollback_rows(terminal, copied,
-			    ring_columns, 2, 2, 1, 0) == 0);
+			CHECK(st_cterm_copy_scrollback_rows(terminal, copied, ring_columns, 2, 2, 1, 0) == 0);
 		}
 		for (size_t i = 0; i < (size_t)history_columns * history_rows; ++i) {
-			if (st_console_font_glyph_text(console, history[i].glyph_font,
-			    history[i].glyph, text, sizeof(text), &required) == 0
+			if (st_console_font_glyph_text(console, history[i].glyph_font, history[i].glyph, text,
+				sizeof(text), &required)
+			        == 0
 			    && required == 1 && text[0] == 'A') {
 				CHECK(history[i].foreground == (uint32_t)mapping[12] + 16);
 				found = true;
@@ -1517,39 +1753,39 @@ st_cterm_test_main(void)
 	}
 	{
 		const struct st_cterm_config c128_config = {
-			.console = console,
-			.fonts = fonts,
-			.emulation = ST_CTERM_PETSCII,
-			.encoding = ST_CTERM_ENCODING_CODEPAGE,
-			.codepage = ST_CODEPAGE_PETSCII_UPPER,
-			.petscii_machine = ST_CTERM_PETSCII_C128_80,
-			.font_selector = 0,
-			.quiet = true,
+		    .console         = console,
+		    .fonts           = fonts,
+		    .emulation       = ST_CTERM_PETSCII,
+		    .encoding        = ST_CTERM_ENCODING_CODEPAGE,
+		    .codepage        = ST_CODEPAGE_PETSCII_UPPER,
+		    .petscii_machine = ST_CTERM_PETSCII_C128_80,
+		    .font_selector   = 0,
+		    .quiet           = true,
 		};
 
 		CHECK(st_cterm_create(&terminal, &c128_config) == 0);
 		feed(terminal, "A", 1);
-		one = (struct st_console_rect){0, 0, 1, 1};
+		one = (struct st_console_rect) {0, 0, 1, 1};
 		CHECK(st_console_read_cells(console, &one, &cell, 1) == 0);
 		CHECK(cell.foreground == 31);
 		st_cterm_destroy(&terminal);
 	}
 	{
 		const struct st_cterm_config prestel_config = {
-			.console = console,
-			.fonts = fonts,
-			.emulation = ST_CTERM_PRESTEL,
-			.encoding = ST_CTERM_ENCODING_CODEPAGE,
-			.codepage = ST_CODEPAGE_PRESTEL,
-			.font_selector = 0,
-			.terminal_rows = 3,
-			.quiet = true,
+		    .console       = console,
+		    .fonts         = fonts,
+		    .emulation     = ST_CTERM_PRESTEL,
+		    .encoding      = ST_CTERM_ENCODING_CODEPAGE,
+		    .codepage      = ST_CODEPAGE_PRESTEL,
+		    .font_selector = 0,
+		    .terminal_rows = 3,
+		    .quiet         = true,
 		};
-		const uint8_t concealed[] = {0x1b, 'X', 'A'};
+		const uint8_t          concealed[] = {0x1b, 'X', 'A'};
 		struct st_console_cell row[20];
-		struct st_console_rect row_rect = {0, 0, 20, 1};
-		bool found_concealed = false;
-		bool found_revealed = false;
+		struct st_console_rect row_rect        = {0, 0, 20, 1};
+		bool                   found_concealed = false;
+		bool                   found_revealed  = false;
 
 		CHECK(st_cterm_create(&terminal, &prestel_config) == 0);
 		feed(terminal, concealed, sizeof(concealed));
@@ -1562,8 +1798,7 @@ st_cterm_test_main(void)
 		(void)st_cterm_handle_key(terminal, ST_CONSOLE_KEY_F3, 0);
 		CHECK(st_console_read_cells(console, &row_rect, row, 20) == 0);
 		for (size_t i = 0; i < 20; ++i)
-			if ((row[i].flags & (ST_CONSOLE_CELL_CONCEAL
-			    | ST_CONSOLE_CELL_REVEAL))
+			if ((row[i].flags & (ST_CONSOLE_CELL_CONCEAL | ST_CONSOLE_CELL_REVEAL))
 			    == (ST_CONSOLE_CELL_CONCEAL | ST_CONSOLE_CELL_REVEAL))
 				found_revealed = true;
 		CHECK(found_revealed);
@@ -1573,24 +1808,23 @@ st_cterm_test_main(void)
 		CHECK(st_console_read_cells(console, &row_rect, row, 20) == 0);
 		found_revealed = false;
 		for (size_t i = 0; i < 20; ++i)
-			if ((row[i].flags & (ST_CONSOLE_CELL_CONCEAL
-			    | ST_CONSOLE_CELL_REVEAL))
+			if ((row[i].flags & (ST_CONSOLE_CELL_CONCEAL | ST_CONSOLE_CELL_REVEAL))
 			    == (ST_CONSOLE_CELL_CONCEAL | ST_CONSOLE_CELL_REVEAL))
 				found_revealed = true;
 		CHECK(!found_revealed);
 		st_cterm_destroy(&terminal);
 	}
 	{
-		size_t consumed = 99;
+		size_t                       consumed       = 99;
 		const struct st_cterm_config failure_config = {
-			.console = console,
-			.fonts = fonts,
-			.emulation = ST_CTERM_ANSI_BBS,
-			.encoding = ST_CTERM_ENCODING_CODEPAGE,
-			.codepage = ST_CODEPAGE_CP437,
-			.font_selector = 0,
-			.terminal_rows = 3,
-			.quiet = true,
+		    .console       = console,
+		    .fonts         = fonts,
+		    .emulation     = ST_CTERM_ANSI_BBS,
+		    .encoding      = ST_CTERM_ENCODING_CODEPAGE,
+		    .codepage      = ST_CODEPAGE_CP437,
+		    .font_selector = 0,
+		    .terminal_rows = 3,
+		    .quiet         = true,
 		};
 
 		CHECK(st_cterm_create(&terminal, &failure_config) == 0);
@@ -1601,8 +1835,7 @@ st_cterm_test_main(void)
 		CHECK(st_console_resize(console, 20, 4) == 0);
 		CHECK(st_cterm_create(&terminal, &failure_config) == 0);
 		CHECK(st_console_resize(console, 256, 4) == 0);
-		CHECK(st_cterm_write(terminal, "\x1b[=3n", 5, &consumed)
-		    == 0);
+		CHECK(st_cterm_write(terminal, "\x1b[=3n", 5, &consumed) == 0);
 		CHECK(consumed == 5);
 		st_cterm_destroy(&terminal);
 	}
@@ -1610,22 +1843,24 @@ st_cterm_test_main(void)
 	st_console_destroy(console);
 	{
 		const struct st_console_config wide_config = {
-			.columns = 256, .rows = 25, .cell_width = 8,
-			.cell_height = 16,
+		    .columns     = 256,
+		    .rows        = 25,
+		    .cell_width  = 8,
+		    .cell_height = 16,
 		};
 		const struct st_cterm_config wide_cterm_config = {
-			.console = NULL,
-			.fonts = NULL,
-			.emulation = ST_CTERM_ANSI_BBS,
-			.encoding = ST_CTERM_ENCODING_CODEPAGE,
-			.codepage = ST_CODEPAGE_CP437,
+		    .console   = NULL,
+		    .fonts     = NULL,
+		    .emulation = ST_CTERM_ANSI_BBS,
+		    .encoding  = ST_CTERM_ENCODING_CODEPAGE,
+		    .codepage  = ST_CODEPAGE_CP437,
 		};
 		struct st_cterm_config attempted = wide_cterm_config;
 
 		CHECK(st_console_create(&console, &display, &wide_config) == 0);
 		CHECK(st_font_catalog_create(&fonts, console) == 0);
 		attempted.console = console;
-		attempted.fonts = fonts;
+		attempted.fonts   = fonts;
 		CHECK(st_cterm_create(&terminal, &attempted) == 0);
 		CHECK(terminal != NULL);
 		st_cterm_destroy(&terminal);

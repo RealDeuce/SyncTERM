@@ -5,19 +5,18 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "theme_internal.h"
-
-#include "filesystem.h"
-#include "io_error.h"
-#include "path.h"
-#include "string_compat.h"
-#include "st_utf8.h"
-
 #include <dirent.h>
 #include <errno.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "filesystem.h"
+#include "io_error.h"
+#include "path.h"
+#include "st_utf8.h"
+#include "string_compat.h"
+#include "theme_internal.h"
 
 void
 st_theme_directory_dispose(struct st_theme_directory *directory)
@@ -27,7 +26,7 @@ st_theme_directory_dispose(struct st_theme_directory *directory)
 	for (size_t i = 0; i < directory->count; ++i)
 		free(directory->entries[i].name);
 	free(directory->entries);
-	*directory = (struct st_theme_directory){0};
+	*directory = (struct st_theme_directory) {0};
 }
 
 static int
@@ -35,11 +34,11 @@ append_entry(struct st_theme_directory *result, const char *name)
 {
 	if (result->count == SIZE_MAX / sizeof(result->entries[0]))
 		return IO_ERROR_OUT_OF_MEMORY;
-	struct st_theme_directory_entry *entries = realloc(result->entries,
-	    (result->count + 1) * sizeof(result->entries[0]));
+	struct st_theme_directory_entry *entries =
+	    realloc(result->entries, (result->count + 1) * sizeof(result->entries[0]));
 	if (entries == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
-	result->entries = entries;
+	result->entries             = entries;
 	entries[result->count].name = strdup(name);
 	if (entries[result->count].name == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
@@ -55,10 +54,9 @@ valid_utf8(const char *text)
 
 	while (offset < length) {
 		uint32_t codepoint;
-		size_t consumed;
+		size_t   consumed;
 
-		if (st_utf8_decode_one(&codepoint, &consumed, text + offset,
-		    length - offset) != 0)
+		if (st_utf8_decode_one(&codepoint, &consumed, text + offset, length - offset) != 0)
 			return false;
 		offset += consumed;
 	}
@@ -69,8 +67,8 @@ int
 st_theme_directory_read(struct st_theme_directory *result, const char *path)
 {
 	struct st_theme_directory value = {0};
-	DIR *directory;
-	int status = 0;
+	DIR                      *directory;
+	int                       status = 0;
 
 	if (result == NULL || path == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -79,7 +77,7 @@ st_theme_directory_read(struct st_theme_directory *result, const char *path)
 		return io_error_from_errno(errno);
 	for (;;) {
 		struct dirent *entry;
-		char *full = NULL;
+		char          *full = NULL;
 		struct fs_info info;
 
 		errno = 0;
@@ -90,8 +88,7 @@ st_theme_directory_read(struct st_theme_directory *result, const char *path)
 			break;
 		}
 
-		if (strcmp(entry->d_name, ".") == 0
-		    || strcmp(entry->d_name, "..") == 0
+		if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0
 		    || !valid_utf8(entry->d_name))
 			continue;
 		status = path_join_alloc(&full, path, entry->d_name);

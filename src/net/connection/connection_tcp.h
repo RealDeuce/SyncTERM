@@ -7,6 +7,6 @@
 #include "tcp_client.h"
 
 void st_connection_tcp_diagnostic(void *context, enum tcp_client_event event,
-	enum tcp_client_address_family family, int status);
+    enum tcp_client_address_family family, int status);
 
 #endif

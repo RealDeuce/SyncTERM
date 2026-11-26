@@ -11,33 +11,33 @@
 
 // draft-ietf-secsh-filexfer-02
 
-#define SSH_FXP_INIT             UINT8_C(1)
-#define SSH_FXP_VERSION          UINT8_C(2)
-#define SSH_FXP_OPEN             UINT8_C(3)
-#define SSH_FXP_CLOSE            UINT8_C(4)
-#define SSH_FXP_READ             UINT8_C(5)
-#define SSH_FXP_WRITE            UINT8_C(6)
-#define SSH_FXP_LSTAT            UINT8_C(7)
-#define SSH_FXP_FSTAT            UINT8_C(8)
-#define SSH_FXP_SETSTAT          UINT8_C(9)
-#define SSH_FXP_FSETSTAT         UINT8_C(10)
-#define SSH_FXP_OPENDIR          UINT8_C(11)
-#define SSH_FXP_READDIR          UINT8_C(12)
-#define SSH_FXP_REMOVE           UINT8_C(13)
-#define SSH_FXP_MKDIR            UINT8_C(14)
-#define SSH_FXP_RMDIR            UINT8_C(15)
-#define SSH_FXP_REALPATH         UINT8_C(16)
-#define SSH_FXP_STAT             UINT8_C(17)
-#define SSH_FXP_RENAME           UINT8_C(18)
-#define SSH_FXP_READLINK         UINT8_C(19)
-#define SSH_FXP_SYMLINK          UINT8_C(20)
-#define SSH_FXP_STATUS           UINT8_C(101)
-#define SSH_FXP_HANDLE           UINT8_C(102)
-#define SSH_FXP_DATA             UINT8_C(103)
-#define SSH_FXP_NAME             UINT8_C(104)
-#define SSH_FXP_ATTRS            UINT8_C(105)
-#define SSH_FXP_EXTENDED         UINT8_C(200)
-#define SSH_FXP_EXTENDED_REPLY   UINT8_C(201)
+#define SSH_FXP_INIT           UINT8_C(1)
+#define SSH_FXP_VERSION        UINT8_C(2)
+#define SSH_FXP_OPEN           UINT8_C(3)
+#define SSH_FXP_CLOSE          UINT8_C(4)
+#define SSH_FXP_READ           UINT8_C(5)
+#define SSH_FXP_WRITE          UINT8_C(6)
+#define SSH_FXP_LSTAT          UINT8_C(7)
+#define SSH_FXP_FSTAT          UINT8_C(8)
+#define SSH_FXP_SETSTAT        UINT8_C(9)
+#define SSH_FXP_FSETSTAT       UINT8_C(10)
+#define SSH_FXP_OPENDIR        UINT8_C(11)
+#define SSH_FXP_READDIR        UINT8_C(12)
+#define SSH_FXP_REMOVE         UINT8_C(13)
+#define SSH_FXP_MKDIR          UINT8_C(14)
+#define SSH_FXP_RMDIR          UINT8_C(15)
+#define SSH_FXP_REALPATH       UINT8_C(16)
+#define SSH_FXP_STAT           UINT8_C(17)
+#define SSH_FXP_RENAME         UINT8_C(18)
+#define SSH_FXP_READLINK       UINT8_C(19)
+#define SSH_FXP_SYMLINK        UINT8_C(20)
+#define SSH_FXP_STATUS         UINT8_C(101)
+#define SSH_FXP_HANDLE         UINT8_C(102)
+#define SSH_FXP_DATA           UINT8_C(103)
+#define SSH_FXP_NAME           UINT8_C(104)
+#define SSH_FXP_ATTRS          UINT8_C(105)
+#define SSH_FXP_EXTENDED       UINT8_C(200)
+#define SSH_FXP_EXTENDED_REPLY UINT8_C(201)
 
 #define SSH_FX_OK                UINT32_C(0)
 #define SSH_FX_EOF               UINT32_C(1)
@@ -49,12 +49,12 @@
 #define SSH_FX_CONNECTION_LOST   UINT32_C(7)
 #define SSH_FX_OP_UNSUPPORTED    UINT32_C(8)
 
-#define SSH_FXF_READ             UINT32_C(0x00000001)
-#define SSH_FXF_WRITE            UINT32_C(0x00000002)
-#define SSH_FXF_APPEND           UINT32_C(0x00000004)
-#define SSH_FXF_CREAT            UINT32_C(0x00000008)
-#define SSH_FXF_TRUNC            UINT32_C(0x00000010)
-#define SSH_FXF_EXCL             UINT32_C(0x00000020)
+#define SSH_FXF_READ   UINT32_C(0x00000001)
+#define SSH_FXF_WRITE  UINT32_C(0x00000002)
+#define SSH_FXF_APPEND UINT32_C(0x00000004)
+#define SSH_FXF_CREAT  UINT32_C(0x00000008)
+#define SSH_FXF_TRUNC  UINT32_C(0x00000010)
+#define SSH_FXF_EXCL   UINT32_C(0x00000020)
 
 #define SSH_FILEXFER_ATTR_SIZE        UINT32_C(0x00000001)
 #define SSH_FILEXFER_ATTR_UIDGID      UINT32_C(0x00000002)
@@ -63,8 +63,8 @@
 #define SSH_FILEXFER_ATTR_EXTENDED    UINT32_C(0x80000000)
 
 #define SFTP_MIN_PACKET_ALLOC 4096
-#define SFTP_VERSION UINT32_C(3)
-#define SFTP_MAX_PACKET_SIZE (256*1024)
+#define SFTP_VERSION          UINT32_C(3)
+#define SFTP_MAX_PACKET_SIZE  (256 * 1024)
 
 /*
  * SFTP extensions negotiated during INIT/VERSION handshake.
@@ -80,16 +80,14 @@
 #define SFTP_EXT_NAME_MD5S   "md5s@syncterm.net"
 #define SFTP_EXT_NAME_PUBDIR "pubdir@syncterm.net"
 
-#define SFTP_EXT_LNAME      UINT32_C(0x00000001)
-#define SFTP_EXT_DESCS      UINT32_C(0x00000002)
-#define SFTP_EXT_SHA1S      UINT32_C(0x00000004)
-#define SFTP_EXT_MD5S       UINT32_C(0x00000008)
-#define SFTP_EXT_PUBDIR     UINT32_C(0x00000010)
+#define SFTP_EXT_LNAME  UINT32_C(0x00000001)
+#define SFTP_EXT_DESCS  UINT32_C(0x00000002)
+#define SFTP_EXT_SHA1S  UINT32_C(0x00000004)
+#define SFTP_EXT_MD5S   UINT32_C(0x00000008)
+#define SFTP_EXT_PUBDIR UINT32_C(0x00000010)
 
 /* Client advertisement set. */
-#define SFTP_EXT_ALL        (SFTP_EXT_LNAME | SFTP_EXT_DESCS | \
-                             SFTP_EXT_SHA1S | SFTP_EXT_MD5S  | \
-                             SFTP_EXT_PUBDIR)
+#define SFTP_EXT_ALL (SFTP_EXT_LNAME | SFTP_EXT_DESCS | SFTP_EXT_SHA1S | SFTP_EXT_MD5S | SFTP_EXT_PUBDIR)
 
 /* Packet buffers are private to the protocol translation unit. */
 typedef struct sftp_tx_pkt *sftp_tx_pkt_t;
@@ -109,10 +107,10 @@ typedef struct sftp_rx_pkt *sftp_rx_pkt_t;
  *     and supplies a ->release callback (refcount, mmap teardown, etc.)
  *     that fires when the library is done with the bytes. */
 typedef struct sftp_string {
-	uint32_t  len;
-	uint8_t  *c_str;
-	void    (*release)(struct sftp_string *str);
-	void     *release_cbdata;
+	uint32_t len;
+	uint8_t *c_str;
+	void     (*release)(struct sftp_string *str);
+	void    *release_cbdata;
 } *sftp_str_t;
 
 struct sftp_file_attributes;
@@ -131,8 +129,8 @@ typedef struct sftp_client_state *sftpc_state_t;
 /* sftp_pkt.c — public diagnostic helpers.  The raw packet codec
  * (get32 / append32 / getstring / rx_pkt_append / …) is internal to the
  * single-TU library and intentionally not declared here. */
-const char * sftp_get_type_name(uint8_t type);
-const char * sftp_get_errcode_name(uint32_t errcode);
+const char *sftp_get_type_name(uint8_t type);
+const char *sftp_get_errcode_name(uint32_t errcode);
 
 /* sftp_str.c */
 sftp_str_t sftp_alloc_str(uint32_t len);
@@ -178,8 +176,8 @@ bool sftp_err_is_transient(sftp_err_code_t err);
 
 /* sftp_client.c */
 struct sftpc_dir_entry {
-	sftp_str_t filename;
-	sftp_str_t longname;
+	sftp_str_t       filename;
+	sftp_str_t       longname;
 	sftp_file_attr_t attrs;
 };
 
@@ -200,22 +198,22 @@ struct sftpc_dir_entry {
  */
 struct sftpc_pending {
 	/* Library-managed bookkeeping; callers don't read or write these. */
-	uint32_t                  req_id;
-	struct sftpc_pending     *prev;
-	struct sftpc_pending     *next;
-	void                    (*parse)(struct sftpc_pending *);
-	void                    (*free_self)(struct sftpc_pending *);
-	sftp_rx_pkt_t             reply;
-	bool                      delivered;
-	bool                      aborted;
-	size_t                    estr_len;   /* current estr length, no NUL */
-	size_t                    estr_cap;   /* allocated capacity */
+	uint32_t              req_id;
+	struct sftpc_pending *prev;
+	struct sftpc_pending *next;
+	void                  (*parse)(struct sftpc_pending *);
+	void                  (*free_self)(struct sftpc_pending *);
+	sftp_rx_pkt_t         reply;
+	bool                  delivered;
+	bool                  aborted;
+	size_t                estr_len; /* current estr length, no NUL */
+	size_t                estr_cap; /* allocated capacity */
 
 	/* Set by the caller before sftpc_<op>() returns; fired when the
 	 * back half completes (or synchronously if the front half
 	 * encounters an error before sending). */
-	void                    (*cb)(struct sftpc_pending *);
-	void                     *cbdata;
+	void  (*cb)(struct sftpc_pending *);
+	void *cbdata;
 
 	/* Outcome — populated by the back half (or by an early-error
 	 * code path); valid once the callback fires.
@@ -229,9 +227,9 @@ struct sftpc_pending {
 	 * estr is library-allocated and grown via realloc as records
 	 * accumulate; freed by sftpc_pending_free.  May be NULL if no
 	 * diagnostic was ever recorded. */
-	sftp_err_code_t           err;
-	uint32_t                  result;
-	char                     *estr;
+	sftp_err_code_t err;
+	uint32_t        result;
+	char           *estr;
 };
 
 /* Op-specific extensions: each is allocated with sizeof(this struct)
@@ -240,12 +238,12 @@ struct sftpc_pending {
  * since `base` is the first field. */
 struct sftpc_realpath_pending {
 	struct sftpc_pending base;
-	sftp_str_t           ret;       /* server-resolved path */
+	sftp_str_t           ret; /* server-resolved path */
 };
 
 struct sftpc_open_pending {
 	struct sftpc_pending base;
-	sftp_str_t           handle;    /* server file/dir handle */
+	sftp_str_t           handle; /* server file/dir handle */
 };
 
 struct sftpc_read_pending {
@@ -259,10 +257,10 @@ struct sftpc_stat_pending {
 };
 
 struct sftpc_readdir_pending {
-	struct sftpc_pending      base;
-	struct sftpc_dir_entry   *entries;
-	uint32_t                  count;
-	bool                      eof;
+	struct sftpc_pending    base;
+	struct sftpc_dir_entry *entries;
+	uint32_t                count;
+	bool                    eof;
 };
 
 struct sftpc_descs_pending {
@@ -272,8 +270,8 @@ struct sftpc_descs_pending {
 
 /* Lifecycle. */
 sftpc_state_t sftpc_begin(bool (*send_cb)(uint8_t *buf, size_t len, void *cb_data), void *cb_data);
-void sftpc_finish(sftpc_state_t state);
-void sftpc_end(sftpc_state_t state);
+void          sftpc_finish(sftpc_state_t state);
+void          sftpc_end(sftpc_state_t state);
 
 /* Drains incoming SFTP-channel bytes into pending replies.  Called
  * from the SSH recv thread; safe alongside any in-flight ops. */
@@ -290,70 +288,35 @@ void sftpc_pending_free(struct sftpc_pending *p);
  * the front half returns if the request couldn't be sent (state
  * terminating, packet build / transport failure, etc.).  `outcome`
  * carries the result either way. */
-struct sftpc_pending          *sftpc_init(sftpc_state_t state,
-                                          void (*cb)(struct sftpc_pending *),
-                                          void *cbdata);
-struct sftpc_realpath_pending *sftpc_realpath(sftpc_state_t state,
-                                              const char *path,
-                                              void (*cb)(struct sftpc_pending *),
-                                              void *cbdata);
-struct sftpc_open_pending     *sftpc_open(sftpc_state_t state,
-                                          const char *path, uint32_t flags,
-                                          void (*cb)(struct sftpc_pending *),
-                                          void *cbdata);
-struct sftpc_open_pending     *sftpc_opendir(sftpc_state_t state,
-                                              const char *path,
-                                              void (*cb)(struct sftpc_pending *),
-                                              void *cbdata);
-struct sftpc_pending          *sftpc_close(sftpc_state_t state,
-                                            sftp_str_t handle,
-                                            void (*cb)(struct sftpc_pending *),
-                                            void *cbdata);
-struct sftpc_read_pending     *sftpc_read(sftpc_state_t state,
-                                          sftp_str_t handle,
-                                          uint64_t offset, uint32_t len,
-                                          void (*cb)(struct sftpc_pending *),
-                                          void *cbdata);
-struct sftpc_pending          *sftpc_write(sftpc_state_t state,
-                                            sftp_str_t handle,
-                                            uint64_t offset, sftp_str_t data,
-                                            void (*cb)(struct sftpc_pending *),
-                                            void *cbdata);
-struct sftpc_stat_pending     *sftpc_stat(sftpc_state_t state,
-                                          const char *path,
-                                          void (*cb)(struct sftpc_pending *),
-                                          void *cbdata);
-struct sftpc_pending          *sftpc_setstat(sftpc_state_t state,
-                                              const char *path,
-                                              sftp_file_attr_t attr,
-                                              void (*cb)(struct sftpc_pending *),
-                                              void *cbdata);
-struct sftpc_readdir_pending  *sftpc_readdir(sftpc_state_t state,
-                                              sftp_str_t handle,
-                                              void (*cb)(struct sftpc_pending *),
-                                              void *cbdata);
-struct sftpc_descs_pending    *sftpc_descs(sftpc_state_t state,
-                                            const char *path,
-                                            void (*cb)(struct sftpc_pending *),
-                                            void *cbdata);
-struct sftpc_pending          *sftpc_mkdir(sftpc_state_t state,
-                                            const char *path,
-                                            sftp_file_attr_t attr,
-                                            void (*cb)(struct sftpc_pending *),
-                                            void *cbdata);
-struct sftpc_pending          *sftpc_rmdir(sftpc_state_t state,
-                                            const char *path,
-                                            void (*cb)(struct sftpc_pending *),
-                                            void *cbdata);
-struct sftpc_pending          *sftpc_remove(sftpc_state_t state,
-                                            const char *path,
-                                            void (*cb)(struct sftpc_pending *),
-                                            void *cbdata);
-struct sftpc_pending          *sftpc_rename(sftpc_state_t state,
-                                            const char *oldpath,
-                                            const char *newpath,
-                                            void (*cb)(struct sftpc_pending *),
-                                            void *cbdata);
+struct sftpc_pending          *sftpc_init(sftpc_state_t state, void (*cb)(struct sftpc_pending *), void *cbdata);
+struct sftpc_realpath_pending *sftpc_realpath(sftpc_state_t state, const char *path,
+    void (*cb)(struct sftpc_pending *), void *cbdata);
+struct sftpc_open_pending     *sftpc_open(sftpc_state_t state, const char *path, uint32_t flags,
+    void (*cb)(struct sftpc_pending *), void *cbdata);
+struct sftpc_open_pending *sftpc_opendir(sftpc_state_t state, const char *path, void (*cb)(struct sftpc_pending *),
+    void *cbdata);
+struct sftpc_pending      *sftpc_close(sftpc_state_t state, sftp_str_t handle, void (*cb)(struct sftpc_pending *),
+    void *cbdata);
+struct sftpc_read_pending *sftpc_read(sftpc_state_t state, sftp_str_t handle, uint64_t offset, uint32_t len,
+    void (*cb)(struct sftpc_pending *), void *cbdata);
+struct sftpc_pending      *sftpc_write(sftpc_state_t state, sftp_str_t handle, uint64_t offset, sftp_str_t data,
+    void (*cb)(struct sftpc_pending *), void *cbdata);
+struct sftpc_stat_pending *sftpc_stat(sftpc_state_t state, const char *path, void (*cb)(struct sftpc_pending *),
+    void *cbdata);
+struct sftpc_pending      *sftpc_setstat(sftpc_state_t state, const char *path, sftp_file_attr_t attr,
+    void (*cb)(struct sftpc_pending *), void *cbdata);
+struct sftpc_readdir_pending *sftpc_readdir(sftpc_state_t state, sftp_str_t handle,
+    void (*cb)(struct sftpc_pending *), void *cbdata);
+struct sftpc_descs_pending *sftpc_descs(sftpc_state_t state, const char *path, void (*cb)(struct sftpc_pending *),
+    void *cbdata);
+struct sftpc_pending       *sftpc_mkdir(sftpc_state_t state, const char *path, sftp_file_attr_t attr,
+    void (*cb)(struct sftpc_pending *), void *cbdata);
+struct sftpc_pending       *sftpc_rmdir(sftpc_state_t state, const char *path, void (*cb)(struct sftpc_pending *),
+    void *cbdata);
+struct sftpc_pending       *sftpc_remove(sftpc_state_t state, const char *path, void (*cb)(struct sftpc_pending *),
+    void *cbdata);
+struct sftpc_pending       *sftpc_rename(sftpc_state_t state, const char *oldpath, const char *newpath,
+    void (*cb)(struct sftpc_pending *), void *cbdata);
 
 /* Free the entries array attached to a struct sftpc_readdir_pending.
  * Callers that transfer ownership out (setting pending->entries=NULL
@@ -369,16 +332,15 @@ const char *sftpc_get_pubdir(sftpc_state_t state);
 
 /* sftp_attr.c */
 sftp_file_attr_t sftp_fattr_alloc(void);
-void sftp_fattr_free(sftp_file_attr_t fattr);
-bool sftp_fattr_get_size(sftp_file_attr_t fattr, uint64_t *sz);
-bool sftp_fattr_get_uid(sftp_file_attr_t fattr, uint32_t *uid);
-bool sftp_fattr_get_gid(sftp_file_attr_t fattr, uint32_t *gid);
-bool sftp_fattr_get_permissions(sftp_file_attr_t fattr, uint32_t *perm);
-void sftp_fattr_set_times(sftp_file_attr_t fattr, uint32_t atime, uint32_t mtime);
-bool sftp_fattr_get_atime(sftp_file_attr_t fattr, uint32_t *atime);
-bool sftp_fattr_get_mtime(sftp_file_attr_t fattr, uint32_t *mtime);
-bool sftp_fattr_add_ext(sftp_file_attr_t *fattr, sftp_str_t type, sftp_str_t data);
-sftp_str_t sftp_fattr_get_ext_by_type(sftp_file_attr_t fattr, const char *type);
-
+void             sftp_fattr_free(sftp_file_attr_t fattr);
+bool             sftp_fattr_get_size(sftp_file_attr_t fattr, uint64_t *sz);
+bool             sftp_fattr_get_uid(sftp_file_attr_t fattr, uint32_t *uid);
+bool             sftp_fattr_get_gid(sftp_file_attr_t fattr, uint32_t *gid);
+bool             sftp_fattr_get_permissions(sftp_file_attr_t fattr, uint32_t *perm);
+void             sftp_fattr_set_times(sftp_file_attr_t fattr, uint32_t atime, uint32_t mtime);
+bool             sftp_fattr_get_atime(sftp_file_attr_t fattr, uint32_t *atime);
+bool             sftp_fattr_get_mtime(sftp_file_attr_t fattr, uint32_t *mtime);
+bool             sftp_fattr_add_ext(sftp_file_attr_t *fattr, sftp_str_t type, sftp_str_t data);
+sftp_str_t       sftp_fattr_get_ext_by_type(sftp_file_attr_t fattr, const char *type);
 
 #endif

@@ -21,16 +21,16 @@ static void
 raw_case(struct fixture *f, int index, int color)
 {
 	struct cterm_igs *igs = f->terminal->igs_engine;
-	uint16_t raw[16];
-	uint32_t realized[16], saved[16], published[16];
-	int requested[16][3];
+	uint16_t          raw[16];
+	uint32_t          realized[16], saved[16], published[16];
+	int               requested[16][3];
 	memcpy(raw, igs->raw_palette, sizeof(raw));
 	memcpy(realized, igs->palette, sizeof(realized));
 	memcpy(saved, igs->saved_palette, sizeof(saved));
 	memcpy(requested, igs->requested_palette, sizeof(requested));
 	if (color >= 0) {
 		unsigned physical = (unsigned)(index > 15 ? 15 : index) & 15;
-		raw[physical] = (uint16_t)color;
+		raw[physical]     = (uint16_t)color;
 		if (igs->resolution != 2)
 			realized[physical] = rgb((unsigned)color);
 		else if (physical == 0) {
@@ -38,9 +38,9 @@ raw_case(struct fixture *f, int index, int color)
 			realized[1] = realized[0] ^ UINT32_C(0xffffff);
 		}
 	}
-	igs->math[0] = (int16_t)index;
-	igs->math[1] = (int16_t)color;
-	uint32_t final = literal_words(igs, (int[]){index, color}, 2);
+	igs->math[0]   = (int16_t)index;
+	igs->math[1]   = (int16_t)color;
+	uint32_t final = literal_words(igs, (int[]) {index, color}, 2);
 	feed(f, "G#X 1,0],1]:");
 	CHECK(igs->random_seed == final);
 	CHECK(memcmp(raw, igs->raw_palette, sizeof(raw)) == 0);
@@ -55,14 +55,14 @@ static void
 words_and_state(void)
 {
 	static const int indices[] = {INT16_MIN, -17, -16, -1, 0, 1, 3, 15, 16, 9999, INT16_MAX};
-	static const int colors[] = {INT16_MIN, -1, 0, 1, 0x777, 0x7888, INT16_MAX};
+	static const int colors[]  = {INT16_MIN, -1, 0, 1, 0x777, 0x7888, INT16_MAX};
 	for (unsigned resolution = 0; resolution < 3; ++resolution)
 		for (unsigned reserved = 0; reserved < 2; ++reserved) {
 			struct fixture f;
 			create(&f, resolution, reserved != 0);
-			struct cterminal *t = f.terminal;
+			struct cterminal *t   = f.terminal;
 			struct cterm_igs *igs = t->igs_engine;
-			t->response_cb = no_reply;
+			t->response_cb        = no_reply;
 			feed(&f, "\033fG#p>3,2:X 10,19,17:\033b");
 			struct cterm_igs_attributes attributes;
 			memcpy(&attributes, &igs->attributes, sizeof(attributes));
@@ -75,7 +75,8 @@ words_and_state(void)
 				for (size_t i = 0; i < sizeof(indices) / sizeof(*indices); ++i)
 					for (size_t c = 0; c < sizeof(colors) / sizeof(*colors); ++c)
 						raw_case(&f, indices[i], colors[c]);
-				CHECK(igs->scaling_mode == (int)scaling && igs->scaling_resolution == (int)resolution);
+				CHECK(igs->scaling_mode == (int)scaling
+				      && igs->scaling_resolution == (int)resolution);
 			}
 			if (!reserved && resolution == 0)
 				for (int index = INT16_MIN; index <= INT16_MAX; ++index)
@@ -105,33 +106,37 @@ partitions_and_errors(void)
 		for (size_t which = 0; which < sizeof(wires) / sizeof(*wires); ++which) {
 			struct fixture f;
 			create(&f, resolution, false);
-			struct cterminal *t = f.terminal;
+			struct cterminal *t   = f.terminal;
 			struct cterm_igs *igs = t->igs_engine;
-			t->response_cb = no_reply;
-			const size_t size = strlen(wires[which]);
+			t->response_cb        = no_reply;
+			const size_t size     = strlen(wires[which]);
 			for (size_t split = 0; split <= size + 1; ++split) {
 				CHECK(st_cterm_reset_terminal(t) == 0);
 				/* Chapter 124's recurrence yields selector 1, index 240,
 				 * then color 51 from this seed. */
-				igs->random_seed = 109;
+				igs->random_seed        = 109;
 				igs->random_range[0][1] = igs->random_range[1][1] = 255;
 				size_t used;
 				if (split > size) {
 					for (size_t i = 0; i < size; ++i)
-						CHECK(st_cterm_write(t, wires[which] + i, 1, &used) == 0 && used == 1);
-				} else {
+						CHECK(st_cterm_write(t, wires[which] + i, 1, &used) == 0
+						      && used == 1);
+				}
+				else {
 					CHECK(st_cterm_write(t, wires[which], split, &used) == 0 && used == split);
-					CHECK(st_cterm_write(t, wires[which] + split, size - split, &used) == 0 && used == size - split);
+					CHECK(st_cterm_write(t, wires[which] + split, size - split, &used) == 0
+					      && used == size - split);
 				}
 				CHECK(igs->attributes.writing_mode == 2 && t->xpos == 3 && t->ypos == 1);
 				const struct st_console_rect area = {0, 0, 2, 1};
-				struct st_console_cell cells[2];
+				struct st_console_cell       cells[2];
 				CHECK(st_console_read_cells(f.console, &area, cells, 2) == 0);
 				CHECK(cells[0].glyph == 'A' && cells[1].glyph == 'B');
 				if (which == 0)
 					CHECK(igs->raw_palette[1] == 0x700 && igs->random_seed == 109);
 				else
-					CHECK(igs->raw_palette[15] == 51 && igs->random_seed == UINT32_C(0x84c43368));
+					CHECK(igs->raw_palette[15] == 51
+					      && igs->random_seed == UINT32_C(0x84c43368));
 			}
 			uint16_t raw[16];
 			memcpy(raw, igs->raw_palette, sizeof(raw));
@@ -144,7 +149,7 @@ partitions_and_errors(void)
 				CHECK(st_cterm_poll(t) == 0 && memcmp(raw, igs->raw_palette, sizeof(raw)) == 0);
 			}
 			const char bad[] = "G#X 1,0,10000:";
-			size_t used;
+			size_t     used;
 			CHECK(st_cterm_write(t, bad, sizeof(bad) - 1, &used) == 0);
 			CHECK(memcmp(raw, igs->raw_palette, sizeof(raw)) == 0);
 			destroy(&f);
@@ -160,7 +165,7 @@ lifetime(void)
 	create(&medium, 1, false);
 	feed(&medium, "G#X>1,15,1792:R 0,0:");
 	struct cterm_igs *retained = medium.terminal->igs_engine;
-	local_ms = retained->wait_deadline;
+	local_ms                   = retained->wait_deadline;
 	CHECK(st_cterm_poll(medium.terminal) == 0);
 	CHECK(retained->resolution == 0 && retained->raw_palette[15] == 0x700);
 	CHECK(retained->palette[15] == 0xff0000);

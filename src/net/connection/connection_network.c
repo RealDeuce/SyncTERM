@@ -5,56 +5,55 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "connection_internal.h"
-#include "connection_tcp.h"
-
-#include "io_error.h"
-#include "socket.h"
-
 #include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "connection_internal.h"
+#include "connection_tcp.h"
+#include "io_error.h"
+#include "socket.h"
+
 void
-st_connection_tcp_diagnostic(void *context, enum tcp_client_event event,
-	enum tcp_client_address_family family, int status)
+st_connection_tcp_diagnostic(void *context, enum tcp_client_event event, enum tcp_client_address_family family,
+    int status)
 {
 	const struct st_connection_hooks *hooks = context;
-	const char *name = family == TCP_CLIENT_ADDRESS_IPV4 ? "IPv4"
-	    : family == TCP_CLIENT_ADDRESS_IPV6 ? "IPv6" : "any";
+	const char                       *name  = family == TCP_CLIENT_ADDRESS_IPV4   ? "IPv4"
+	                                          : family == TCP_CLIENT_ADDRESS_IPV6 ? "IPv6"
+	                                                                              : "any";
 	if (event == TCP_CLIENT_RESOLVING)
 		st_connection_log_hooks(hooks, "TCP", ST_CONNECTION_LOG_DEBUG,
 		    "resolving remote endpoint family=%s", name);
 	else if (event == TCP_CLIENT_ATTEMPT)
-		st_connection_log_hooks(hooks, "TCP", ST_CONNECTION_LOG_DEBUG,
-		    "trying address family=%s", name);
+		st_connection_log_hooks(hooks, "TCP", ST_CONNECTION_LOG_DEBUG, "trying address family=%s", name);
 	else if (event == TCP_CLIENT_ATTEMPT_FAILED)
 		st_connection_log_hooks(hooks, "TCP", ST_CONNECTION_LOG_WARNING,
 		    "address attempt failed family=%s error=%d", name, status);
 	else if (event == TCP_CLIENT_CONNECTED)
-		st_connection_log_hooks(hooks, "TCP", ST_CONNECTION_LOG_INFO,
-		    "connection established family=%s", name);
+		st_connection_log_hooks(hooks, "TCP", ST_CONNECTION_LOG_INFO, "connection established family=%s",
+		    name);
 	else
-		st_connection_log_hooks(hooks, "TCP", status == IO_ERROR_CANCELLED
-		    ? ST_CONNECTION_LOG_INFO : ST_CONNECTION_LOG_ERROR,
+		st_connection_log_hooks(hooks, "TCP",
+		    status == IO_ERROR_CANCELLED ? ST_CONNECTION_LOG_INFO : ST_CONNECTION_LOG_ERROR,
 		    "connection setup failed (%d)", status);
 }
 
 struct network_transport {
-	st_connection_t *connection;
-	st_mutex_t mutex;
-	socket_handle_t socket;
+	st_connection_t          *connection;
+	st_mutex_t                mutex;
+	socket_handle_t           socket;
 	struct st_screen_geometry geometry;
-	bool rlogin;
-	bool window_enabled;
-	bool urgent_pending;
-	bool urgent_control_known;
-	bool urgent_flush_pending;
-	uint8_t urgent_control;
-	uint8_t *pending_input;
-	size_t pending_input_size;
-	size_t pending_input_head;
+	bool                      rlogin;
+	bool                      window_enabled;
+	bool                      urgent_pending;
+	bool                      urgent_control_known;
+	bool                      urgent_flush_pending;
+	uint8_t                   urgent_control;
+	uint8_t                  *pending_input;
+	size_t                    pending_input_size;
+	size_t                    pending_input_head;
 };
 
 /* Free receive-window space for a pending urgent byte without turning the
@@ -70,8 +69,7 @@ cancel_connect(void *context)
 {
 	const struct connect_cancel_context *cancel = context;
 
-	return st_connection_cancelled(cancel->hooks,
-	    ST_CONNECTION_SETUP_CONNECTING);
+	return st_connection_cancelled(cancel->hooks, ST_CONNECTION_SETUP_CONNECTING);
 }
 
 static void
@@ -87,38 +85,35 @@ network_bind(void *state, st_connection_t *connection)
 }
 
 static int
-send_window(struct network_transport *transport,
-	const struct st_screen_geometry *geometry)
+send_window(struct network_transport *transport, const struct st_screen_geometry *geometry)
 {
-	uint8_t packet[12];
+	uint8_t  packet[12];
 	uint16_t columns;
 	uint16_t rows;
 	uint16_t width;
 	uint16_t height;
-	ssize_t result;
+	ssize_t  result;
 
-	if (geometry->columns > UINT16_MAX || geometry->rows > UINT16_MAX
-	    || geometry->pixel_width > UINT16_MAX
+	if (geometry->columns > UINT16_MAX || geometry->rows > UINT16_MAX || geometry->pixel_width > UINT16_MAX
 	    || geometry->pixel_height > UINT16_MAX)
 		return IO_ERROR_OUT_OF_RANGE;
-	columns = (uint16_t)geometry->columns;
-	rows = (uint16_t)geometry->rows;
-	width = (uint16_t)geometry->pixel_width;
-	height = (uint16_t)geometry->pixel_height;
-	packet[0] = 0xff;
-	packet[1] = 0xff;
-	packet[2] = 's';
-	packet[3] = 's';
-	packet[4] = (uint8_t)(rows >> 8);
-	packet[5] = (uint8_t)rows;
-	packet[6] = (uint8_t)(columns >> 8);
-	packet[7] = (uint8_t)columns;
-	packet[8] = (uint8_t)(width >> 8);
-	packet[9] = (uint8_t)width;
+	columns    = (uint16_t)geometry->columns;
+	rows       = (uint16_t)geometry->rows;
+	width      = (uint16_t)geometry->pixel_width;
+	height     = (uint16_t)geometry->pixel_height;
+	packet[0]  = 0xff;
+	packet[1]  = 0xff;
+	packet[2]  = 's';
+	packet[3]  = 's';
+	packet[4]  = (uint8_t)(rows >> 8);
+	packet[5]  = (uint8_t)rows;
+	packet[6]  = (uint8_t)(columns >> 8);
+	packet[7]  = (uint8_t)columns;
+	packet[8]  = (uint8_t)(width >> 8);
+	packet[9]  = (uint8_t)width;
 	packet[10] = (uint8_t)(height >> 8);
 	packet[11] = (uint8_t)height;
-	result = st_connection_queue_output_atomic(transport->connection, packet,
-	    sizeof(packet), -1);
+	result     = st_connection_queue_output_atomic(transport->connection, packet, sizeof(packet), -1);
 	if (result == (ssize_t)sizeof(packet)) {
 		st_connection_log(transport->connection, ST_CONNECTION_LOG_DEBUG,
 		    "sending window size rows=%u columns=%u pixels=%ux%u", rows, columns, width, height);
@@ -131,39 +126,38 @@ static int
 handle_urgent(struct network_transport *transport, uint8_t control)
 {
 	st_connection_t *connection = transport->connection;
-	int result = 0;
+	int              result     = 0;
 
 	st_connection_log(connection, ST_CONNECTION_LOG_DEBUG, "received RFC 1282 urgent control=0x%02X", control);
 	switch (control) {
-	case 0x02:
-		break;
-	case 0x10:
-		result = st_connection_set_binary_mode(connection, true);
-		break;
-	case 0x20:
-		result = st_connection_set_binary_mode(connection, false);
-		break;
-	case 0x80:
-		(void)st_mutex_lock(&transport->mutex);
-		transport->window_enabled = true;
-		result = send_window(transport, &transport->geometry);
-		(void)st_mutex_unlock(&transport->mutex);
-		break;
-	default:
-		break;
+		case 0x02:
+			break;
+		case 0x10:
+			result = st_connection_set_binary_mode(connection, true);
+			break;
+		case 0x20:
+			result = st_connection_set_binary_mode(connection, false);
+			break;
+		case 0x80:
+			(void)st_mutex_lock(&transport->mutex);
+			transport->window_enabled = true;
+			result                    = send_window(transport, &transport->geometry);
+			(void)st_mutex_unlock(&transport->mutex);
+			break;
+		default:
+			break;
 	}
 	return result;
 }
 
 static int
-process_urgent(struct network_transport *transport, bool *handled,
-	bool *discard_input)
+process_urgent(struct network_transport *transport, bool *handled, bool *discard_input)
 {
 	uint8_t control;
 	ssize_t received;
-	int result;
+	int     result;
 
-	*handled = false;
+	*handled       = false;
 	*discard_input = false;
 	if (!transport->urgent_control_known) {
 		bool at_mark = false;
@@ -172,8 +166,7 @@ process_urgent(struct network_transport *transport, bool *handled,
 		if (result != 0 && result != IO_ERROR_NOT_SUPPORTED)
 			return result;
 		bool mark_supported = result == 0;
-		received = socket_receive(transport->socket,
-		    &transport->urgent_control, 1, SOCKET_RECEIVE_URGENT);
+		received = socket_receive(transport->socket, &transport->urgent_control, 1, SOCKET_RECEIVE_URGENT);
 		if (received == IO_ERROR_WOULD_BLOCK)
 			transport->urgent_pending = true;
 		if (received < 0)
@@ -181,7 +174,7 @@ process_urgent(struct network_transport *transport, bool *handled,
 		if (received != 1)
 			return IO_ERROR_CONNECTION_RESET;
 		transport->urgent_control_known = true;
-		transport->urgent_pending = true;
+		transport->urgent_pending       = true;
 		/* Darwin clears its at-mark flag when receiving OOB, even though the
 		 * normal stream has not advanced. Preserve a mark already reached so
 		 * FLUSHWRITE never drains fresh data after that boundary. */
@@ -189,7 +182,7 @@ process_urgent(struct network_transport *transport, bool *handled,
 			st_connection_clear_input(transport->connection);
 			transport->pending_input_size = 0;
 			transport->pending_input_head = 0;
-			*discard_input = true;
+			*discard_input                = true;
 			/* Without a positional mark, only discard data we already own.
 			 * Draining the native socket could also destroy fresh output. */
 			transport->urgent_flush_pending = mark_supported && !at_mark;
@@ -211,8 +204,8 @@ process_urgent(struct network_transport *transport, bool *handled,
 				return result;
 			if (at_mark)
 				break;
-			received = socket_receive(transport->socket, discarded,
-			    sizeof(discarded), SOCKET_RECEIVE_NONE);
+			received =
+			    socket_receive(transport->socket, discarded, sizeof(discarded), SOCKET_RECEIVE_NONE);
 			if (received > 0)
 				continue;
 			if (received < 0)
@@ -220,11 +213,11 @@ process_urgent(struct network_transport *transport, bool *handled,
 			return IO_ERROR_CONNECTION_RESET;
 		}
 	}
-	control = transport->urgent_control;
-	transport->urgent_pending = false;
+	control                         = transport->urgent_control;
+	transport->urgent_pending       = false;
 	transport->urgent_control_known = false;
 	transport->urgent_flush_pending = false;
-	result = handle_urgent(transport, control);
+	result                          = handle_urgent(transport, control);
 	if (result == 0)
 		*handled = true;
 	return result;
@@ -234,49 +227,44 @@ static ssize_t
 network_read(void *state, void *data, size_t size, int64_t timeout_ms)
 {
 	struct network_transport *transport = state;
-	unsigned interests = SOCKET_WAIT_READABLE;
-	unsigned events;
-	bool urgent_handled = false;
-	bool discard_input = false;
-	bool awaiting_urgent_byte = false;
-	int result;
+	unsigned                  interests = SOCKET_WAIT_READABLE;
+	unsigned                  events;
+	bool                      urgent_handled       = false;
+	bool                      discard_input        = false;
+	bool                      awaiting_urgent_byte = false;
+	int                       result;
 
 	if (transport->urgent_pending) {
-		result = process_urgent(transport, &urgent_handled, &discard_input);
-		awaiting_urgent_byte = result == IO_ERROR_WOULD_BLOCK
-		    && !transport->urgent_control_known;
-		if (result != 0 && result != IO_ERROR_WOULD_BLOCK
-		    && result != IO_ERROR_INVALID_ARGUMENT)
+		result               = process_urgent(transport, &urgent_handled, &discard_input);
+		awaiting_urgent_byte = result == IO_ERROR_WOULD_BLOCK && !transport->urgent_control_known;
+		if (result != 0 && result != IO_ERROR_WOULD_BLOCK && result != IO_ERROR_INVALID_ARGUMENT)
 			return result;
 	}
 	if (transport->rlogin)
 		interests |= SOCKET_WAIT_URGENT;
-	result = socket_wait(transport->socket, interests,
-	    transport->pending_input_size != 0 ? 0 : timeout_ms, &events);
+	result = socket_wait(transport->socket, interests, transport->pending_input_size != 0 ? 0 : timeout_ms,
+	    &events);
 	if (result == IO_ERROR_TIMED_OUT && transport->pending_input_size != 0)
 		result = 0;
 	if (result != 0)
 		return result;
 	if ((events & SOCKET_WAIT_ERROR) != 0)
 		return IO_ERROR_IO;
-	if (!urgent_handled && ((events & SOCKET_WAIT_URGENT) != 0
-	    || transport->urgent_pending)) {
-		result = process_urgent(transport, &urgent_handled, &discard_input);
-		awaiting_urgent_byte = result == IO_ERROR_WOULD_BLOCK
-		    && !transport->urgent_control_known;
+	if (!urgent_handled && ((events & SOCKET_WAIT_URGENT) != 0 || transport->urgent_pending)) {
+		result               = process_urgent(transport, &urgent_handled, &discard_input);
+		awaiting_urgent_byte = result == IO_ERROR_WOULD_BLOCK && !transport->urgent_control_known;
 		if (result == IO_ERROR_INVALID_ARGUMENT) {
 			/* An exception can remain asserted at the last urgent mark
 			 * after its byte was consumed. It must not mask stream EOF. */
 			if ((events & SOCKET_WAIT_CLOSED) != 0 && transport->pending_input_size == 0)
 				return 0;
-			transport->urgent_pending = transport->urgent_pending
-			    || (events & SOCKET_WAIT_READABLE) != 0;
+			transport->urgent_pending =
+			    transport->urgent_pending || (events & SOCKET_WAIT_READABLE) != 0;
 			if ((events & SOCKET_WAIT_READABLE) == 0 && transport->pending_input_size == 0)
 				return IO_ERROR_WOULD_BLOCK;
 			result = IO_ERROR_WOULD_BLOCK;
 		}
-		if (result == IO_ERROR_WOULD_BLOCK
-		    && transport->urgent_control_known)
+		if (result == IO_ERROR_WOULD_BLOCK && transport->urgent_control_known)
 			return result;
 		if (result != 0 && result != IO_ERROR_WOULD_BLOCK)
 			return result;
@@ -293,17 +281,15 @@ network_read(void *state, void *data, size_t size, int64_t timeout_ms)
 	if ((events & SOCKET_WAIT_READABLE) != 0 || urgent_handled) {
 		if (awaiting_urgent_byte) {
 			bool at_mark = false;
-			result = socket_at_urgent_mark(transport->socket, &at_mark);
+			result       = socket_at_urgent_mark(transport->socket, &at_mark);
 			if (result != 0 && result != IO_ERROR_NOT_SUPPORTED)
 				return result;
 			if (result == 0 && at_mark)
 				return IO_ERROR_WOULD_BLOCK;
 		}
-		ssize_t received = socket_receive(transport->socket, data, size,
-		    SOCKET_RECEIVE_NONE);
+		ssize_t received = socket_receive(transport->socket, data, size, SOCKET_RECEIVE_NONE);
 
-		if (urgent_handled && (received == 0
-		    || received == IO_ERROR_WOULD_BLOCK))
+		if (urgent_handled && (received == 0 || received == IO_ERROR_WOULD_BLOCK))
 			return IO_ERROR_WOULD_BLOCK;
 		return received;
 	}
@@ -316,9 +302,8 @@ static ssize_t
 network_write(void *state, const void *data, size_t size, int64_t timeout_ms)
 {
 	struct network_transport *transport = state;
-	unsigned events;
-	int result = socket_wait(transport->socket, SOCKET_WAIT_WRITABLE,
-	    timeout_ms, &events);
+	unsigned                  events;
+	int result = socket_wait(transport->socket, SOCKET_WAIT_WRITABLE, timeout_ms, &events);
 
 	if (result != 0)
 		return result;
@@ -336,16 +321,14 @@ network_interrupt(void *state)
 }
 
 static int
-network_update_terminal_size(void *state,
-	const struct st_screen_geometry *geometry)
+network_update_terminal_size(void *state, const struct st_screen_geometry *geometry)
 {
 	struct network_transport *transport = state;
-	int result = 0;
+	int                       result    = 0;
 
 	if (!transport->rlogin)
 		return 0;
-	if (geometry->columns > UINT16_MAX || geometry->rows > UINT16_MAX
-	    || geometry->pixel_width > UINT16_MAX
+	if (geometry->columns > UINT16_MAX || geometry->rows > UINT16_MAX || geometry->pixel_width > UINT16_MAX
 	    || geometry->pixel_height > UINT16_MAX)
 		return IO_ERROR_OUT_OF_RANGE;
 	(void)st_mutex_lock(&transport->mutex);
@@ -381,25 +364,23 @@ buffer_pending_urgent(struct network_transport *transport)
 		    "retaining normal input to make a pending urgent byte readable");
 	}
 	if (transport->pending_input_head != 0) {
-		memmove(transport->pending_input,
-		    transport->pending_input + transport->pending_input_head,
+		memmove(transport->pending_input, transport->pending_input + transport->pending_input_head,
 		    transport->pending_input_size);
 		transport->pending_input_head = 0;
 	}
 	while (transport->pending_input_size < PENDING_URGENT_INPUT_LIMIT) {
 		bool handled, discard;
 		bool at_mark = false;
-		int status = socket_at_urgent_mark(transport->socket, &at_mark);
+		int  status  = socket_at_urgent_mark(transport->socket, &at_mark);
 		if (status != 0 && status != IO_ERROR_NOT_SUPPORTED)
 			return status;
 		/* Do not skip an unread urgent byte if it arrives between the
 		 * OOB probe and the next ordinary receive. */
 		if (status == 0 && at_mark)
 			return ST_CONNECTION_INPUT_CONTROL_NONE;
-		size_t available = PENDING_URGENT_INPUT_LIMIT - transport->pending_input_size;
-		ssize_t count = socket_receive(transport->socket,
-		    transport->pending_input + transport->pending_input_size,
-		    available, SOCKET_RECEIVE_NONE);
+		size_t  available = PENDING_URGENT_INPUT_LIMIT - transport->pending_input_size;
+		ssize_t count     = socket_receive(transport->socket,
+		    transport->pending_input + transport->pending_input_size, available, SOCKET_RECEIVE_NONE);
 		if (count == IO_ERROR_WOULD_BLOCK)
 			return ST_CONNECTION_INPUT_CONTROL_NONE;
 		if (count < 0)
@@ -409,8 +390,8 @@ buffer_pending_urgent(struct network_transport *transport)
 		transport->pending_input_size += (size_t)count;
 		status = process_urgent(transport, &handled, &discard);
 		if (discard)
-			return status == 0 || status == IO_ERROR_WOULD_BLOCK
-			    ? ST_CONNECTION_INPUT_CONTROL_DISCARD : status;
+			return status == 0 || status == IO_ERROR_WOULD_BLOCK ? ST_CONNECTION_INPUT_CONTROL_DISCARD
+			                                                     : status;
 		if (status == 0 || status == IO_ERROR_INVALID_ARGUMENT)
 			return ST_CONNECTION_INPUT_CONTROL_NONE;
 		if (status != IO_ERROR_WOULD_BLOCK)
@@ -423,12 +404,11 @@ static int
 network_poll_input_control(void *state)
 {
 	struct network_transport *transport = state;
-	unsigned events = 0;
-	bool handled, discard_input;
-	int status;
+	unsigned                  events    = 0;
+	bool                      handled, discard_input;
+	int                       status;
 
-	status = socket_wait(transport->socket,
-	    SOCKET_WAIT_READABLE | SOCKET_WAIT_URGENT, 0, &events);
+	status = socket_wait(transport->socket, SOCKET_WAIT_READABLE | SOCKET_WAIT_URGENT, 0, &events);
 	if (status != 0 && status != IO_ERROR_TIMED_OUT)
 		return status;
 	if ((events & SOCKET_WAIT_ERROR) != 0)
@@ -448,8 +428,7 @@ network_poll_input_control(void *state)
 			/* The last urgent byte is already consumed. It is now safe
 			 * to peek past its stale mark to detect EOF without taking
 			 * any normal data away from a full input queue. */
-			ssize_t count = socket_receive(transport->socket, &byte, 1,
-			    SOCKET_RECEIVE_PEEK);
+			ssize_t count = socket_receive(transport->socket, &byte, 1, SOCKET_RECEIVE_PEEK);
 			if (count == 0)
 				return ST_CONNECTION_INPUT_CONTROL_EOF;
 			if (count < 0 && count != IO_ERROR_WOULD_BLOCK)
@@ -457,7 +436,8 @@ network_poll_input_control(void *state)
 		}
 		if (status == IO_ERROR_WOULD_BLOCK || status == IO_ERROR_INVALID_ARGUMENT) {
 			transport->urgent_pending = true;
-		} else if (status != 0)
+		}
+		else if (status != 0)
 			return status;
 		if (discard_input)
 			return ST_CONNECTION_INPUT_CONTROL_DISCARD;
@@ -468,29 +448,29 @@ network_poll_input_control(void *state)
 	 * application queue. A normal peek cannot distinguish that from a live
 	 * peer. Observe the half-close without consuming or dropping that data. */
 	bool closed = false;
-	status = socket_peer_write_closed(transport->socket, &closed);
+	status      = socket_peer_write_closed(transport->socket, &closed);
 	if (status != 0 && status != IO_ERROR_NOT_SUPPORTED)
 		return status;
 	return closed ? ST_CONNECTION_INPUT_CONTROL_EOF : ST_CONNECTION_INPUT_CONTROL_NONE;
 }
 
 static const struct st_connection_transport_ops network_operations = {
-	.bind = network_bind,
-	.read = network_read,
-	.write = network_write,
-	.interrupt = network_interrupt,
-	.update_terminal_size = network_update_terminal_size,
-	.destroy = network_destroy,
+    .bind                 = network_bind,
+    .read                 = network_read,
+    .write                = network_write,
+    .interrupt            = network_interrupt,
+    .update_terminal_size = network_update_terminal_size,
+    .destroy              = network_destroy,
 };
 
 static const struct st_connection_transport_ops rlogin_operations = {
-	.bind = network_bind,
-	.read = network_read,
-	.write = network_write,
-	.poll_input_control = network_poll_input_control,
-	.interrupt = network_interrupt,
-	.update_terminal_size = network_update_terminal_size,
-	.destroy = network_destroy,
+    .bind                 = network_bind,
+    .read                 = network_read,
+    .write                = network_write,
+    .poll_input_control   = network_poll_input_control,
+    .interrupt            = network_interrupt,
+    .update_terminal_size = network_update_terminal_size,
+    .destroy              = network_destroy,
 };
 
 /* Atomic polls commit local flow-control effects only after the entire
@@ -500,10 +480,10 @@ static ssize_t
 rlogin_send_atomic(st_connection_t *connection, const uint8_t *bytes, size_t size)
 {
 	uint8_t output[ST_CONNECTION_ATOMIC_SEND_MAX];
-	size_t used = 0;
+	size_t  used = 0;
 	ssize_t result;
-	bool cooked;
-	bool paused;
+	bool    cooked;
+	bool    paused;
 
 	if (size > sizeof(output))
 		return IO_ERROR_MESSAGE_TOO_LARGE;
@@ -527,39 +507,38 @@ rlogin_send_atomic(st_connection_t *connection, const uint8_t *bytes, size_t siz
 	if (cooked) {
 		for (size_t i = 0; i < size; ++i) {
 			if (bytes[i] == 0x11 || bytes[i] == 0x13)
-				st_connection_log(connection, ST_CONNECTION_LOG_DEBUG,
-				    "local %s consumed", bytes[i] == 0x13 ? "XOFF" : "XON");
+				st_connection_log(connection, ST_CONNECTION_LOG_DEBUG, "local %s consumed",
+				    bytes[i] == 0x13 ? "XOFF" : "XON");
 		}
 	}
 	return (ssize_t)size;
 }
 
 static ssize_t
-rlogin_send(st_connection_t *connection, const void *data, size_t size,
-	int64_t timeout_ms, bool atomic_write, enum st_connection_send_kind kind)
+rlogin_send(st_connection_t *connection, const void *data, size_t size, int64_t timeout_ms, bool atomic_write,
+    enum st_connection_send_kind kind)
 {
-	const uint8_t *bytes = data;
-	size_t consumed = 0;
+	const uint8_t *bytes    = data;
+	size_t         consumed = 0;
 
 	if (timeout_ms < -1 || (data == NULL && size != 0))
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (kind == ST_CONNECTION_SEND_BYTES)
 		return atomic_write ? st_connection_queue_output_atomic(connection, data, size, timeout_ms)
-		    : st_connection_queue_output(connection, data, size, timeout_ms);
+		                    : st_connection_queue_output(connection, data, size, timeout_ms);
 	if (atomic_write)
 		return rlogin_send_atomic(connection, bytes, size);
 	if (atomic_load(&connection->binary_mode))
 		return st_connection_queue_output(connection, data, size, timeout_ms);
 	while (consumed < size) {
-		size_t start = consumed;
+		size_t  start = consumed;
 		ssize_t result;
 
-		while (consumed < size && bytes[consumed] != 0x11
-		    && bytes[consumed] != 0x13)
+		while (consumed < size && bytes[consumed] != 0x11 && bytes[consumed] != 0x13)
 			++consumed;
 		if (consumed != start) {
-			result = st_connection_queue_output(connection, bytes + start,
-			    consumed - start, timeout_ms);
+			result =
+			    st_connection_queue_output(connection, bytes + start, consumed - start, timeout_ms);
 			if (result < 0)
 				return start == 0 ? result : (ssize_t)start;
 			if ((size_t)result != consumed - start)
@@ -567,11 +546,10 @@ rlogin_send(st_connection_t *connection, const void *data, size_t size,
 		}
 		if (consumed < size) {
 			if (st_connection_consume_flow_control(connection, bytes[consumed]))
-				st_connection_log(connection, ST_CONNECTION_LOG_DEBUG,
-				    "local %s consumed", bytes[consumed] == 0x13 ? "XOFF" : "XON");
+				st_connection_log(connection, ST_CONNECTION_LOG_DEBUG, "local %s consumed",
+				    bytes[consumed] == 0x13 ? "XOFF" : "XON");
 			else {
-				result = st_connection_queue_output(connection, bytes + consumed,
-				    1, timeout_ms);
+				result = st_connection_queue_output(connection, bytes + consumed, 1, timeout_ms);
 				if (result != 1)
 					return consumed != 0 ? (ssize_t)consumed : result;
 			}
@@ -582,18 +560,16 @@ rlogin_send(st_connection_t *connection, const void *data, size_t size,
 }
 
 static int
-send_direct(socket_handle_t socket, const void *data, size_t size,
-	const struct st_connection_hooks *hooks)
+send_direct(socket_handle_t socket, const void *data, size_t size, const struct st_connection_hooks *hooks)
 {
 	const uint8_t *bytes = data;
-	size_t sent = 0;
+	size_t         sent  = 0;
 
 	while (sent < size) {
 		unsigned events;
-		ssize_t result;
+		ssize_t  result;
 
-		if (st_connection_cancelled(hooks,
-		    ST_CONNECTION_SETUP_CONNECTING))
+		if (st_connection_cancelled(hooks, ST_CONNECTION_SETUP_CONNECTING))
 			return IO_ERROR_CANCELLED;
 		result = socket_wait(socket, SOCKET_WAIT_WRITABLE, 100, &events);
 		if (result == IO_ERROR_TIMED_OUT)
@@ -609,8 +585,7 @@ send_direct(socket_handle_t socket, const void *data, size_t size,
 }
 
 static int
-send_c_string(socket_handle_t socket, const char *string,
-	const struct st_connection_hooks *hooks)
+send_c_string(socket_handle_t socket, const char *string, const struct st_connection_hooks *hooks)
 {
 	return send_direct(socket, string, strlen(string) + 1, hooks);
 }
@@ -620,7 +595,7 @@ rlogin_acknowledge(socket_handle_t socket, const struct st_connection_hooks *hoo
 {
 	for (;;) {
 		unsigned events;
-		uint8_t status_byte = 0;
+		uint8_t  status_byte = 0;
 		if (st_connection_cancelled(hooks, ST_CONNECTION_SETUP_NEGOTIATING))
 			return IO_ERROR_CANCELLED;
 		int status = socket_wait(socket, SOCKET_WAIT_READABLE, 100, &events);
@@ -639,71 +614,65 @@ rlogin_acknowledge(socket_handle_t socket, const struct st_connection_hooks *hoo
 
 static int
 connect_network(st_connection_t **result, const struct st_profile *profile,
-	const struct st_screen_geometry *current_screen,
-	const struct st_connection_hooks *hooks,
-	struct st_connection_error *error, bool rlogin)
+    const struct st_screen_geometry *current_screen, const struct st_connection_hooks *hooks,
+    struct st_connection_error *error, bool rlogin)
 {
-	struct network_transport *transport;
-	struct tcp_client_options options = {0};
-	struct connect_cancel_context cancel = {hooks};
-	socket_handle_t socket;
-	uint16_t port;
-	int status;
+	struct network_transport     *transport;
+	struct tcp_client_options     options = {0};
+	struct connect_cancel_context cancel  = {hooks};
+	socket_handle_t               socket;
+	uint16_t                      port;
+	int                           status;
 
 	if (result == NULL || profile == NULL || profile->address[0] == '\0')
-		return st_connection_fail(error, IO_ERROR_INVALID_ARGUMENT,
-		    ST_CONNECTION_SETUP_NONE, "invalid network profile");
+		return st_connection_fail(error, IO_ERROR_INVALID_ARGUMENT, ST_CONNECTION_SETUP_NONE,
+		    "invalid network profile");
 	if (rlogin && profile->connection_type != ST_CONNECTION_RLOGIN
 	    && profile->connection_type != ST_CONNECTION_RLOGIN_REVERSED)
-		return st_connection_fail(error, IO_ERROR_INVALID_ARGUMENT,
-		    ST_CONNECTION_SETUP_NONE, "profile is not an RLogin connection");
+		return st_connection_fail(error, IO_ERROR_INVALID_ARGUMENT, ST_CONNECTION_SETUP_NONE,
+		    "profile is not an RLogin connection");
 	if (!rlogin && profile->connection_type != ST_CONNECTION_RAW)
-		return st_connection_fail(error, IO_ERROR_INVALID_ARGUMENT,
-		    ST_CONNECTION_SETUP_NONE, "profile is not a raw TCP connection");
+		return st_connection_fail(error, IO_ERROR_INVALID_ARGUMENT, ST_CONNECTION_SETUP_NONE,
+		    "profile is not a raw TCP connection");
 	if (st_connection_cancelled(hooks, ST_CONNECTION_SETUP_RESOLVING))
-		return st_connection_fail(error, IO_ERROR_CANCELLED,
-		    ST_CONNECTION_SETUP_RESOLVING, "connection cancelled");
+		return st_connection_fail(error, IO_ERROR_CANCELLED, ST_CONNECTION_SETUP_RESOLVING,
+		    "connection cancelled");
 	if (st_connection_cancelled(hooks, ST_CONNECTION_SETUP_CONNECTING))
-		return st_connection_fail(error, IO_ERROR_CANCELLED,
-		    ST_CONNECTION_SETUP_CONNECTING, "connection cancelled");
+		return st_connection_fail(error, IO_ERROR_CANCELLED, ST_CONNECTION_SETUP_CONNECTING,
+		    "connection cancelled");
 	status = socket_runtime_init();
 	if (status != 0)
-		return st_connection_fail(error, status,
-		    ST_CONNECTION_SETUP_CONNECTING,
+		return st_connection_fail(error, status, ST_CONNECTION_SETUP_CONNECTING,
 		    "unable to initialize the socket environment");
-	options.family = profile->address_family == ST_ADDRESS_FAMILY_IPV4
-	    ? TCP_CLIENT_ADDRESS_IPV4
-	    : profile->address_family == ST_ADDRESS_FAMILY_IPV6
-	    ? TCP_CLIENT_ADDRESS_IPV6 : TCP_CLIENT_ADDRESS_ANY;
-	options.timeout_ms = -1;
-	options.happy_eyeballs = profile->address_family == ST_ADDRESS_FAMILY_HAPPY_EYEBALLS;
-	options.cancel = cancel_connect;
-	options.cancel_context = &cancel;
-	options.diagnostic = st_connection_tcp_diagnostic;
+	options.family             = profile->address_family == ST_ADDRESS_FAMILY_IPV4   ? TCP_CLIENT_ADDRESS_IPV4
+	                             : profile->address_family == ST_ADDRESS_FAMILY_IPV6 ? TCP_CLIENT_ADDRESS_IPV6
+	                                                                                 : TCP_CLIENT_ADDRESS_ANY;
+	options.timeout_ms         = -1;
+	options.happy_eyeballs     = profile->address_family == ST_ADDRESS_FAMILY_HAPPY_EYEBALLS;
+	options.cancel             = cancel_connect;
+	options.cancel_context     = &cancel;
+	options.diagnostic         = st_connection_tcp_diagnostic;
 	options.diagnostic_context = (void *)hooks;
-	port = profile->port != 0 ? profile->port : (rlogin ? 513 : 23);
-	status = tcp_client_connect(&socket, NULL, profile->address, port,
-	    &options);
+	port                       = profile->port != 0 ? profile->port : (rlogin ? 513 : 23);
+	status                     = tcp_client_connect(&socket, NULL, profile->address, port, &options);
 	if (status != 0) {
 		(void)socket_runtime_cleanup();
-		return st_connection_fail(error, status,
-		    ST_CONNECTION_SETUP_CONNECTING, "unable to connect to host");
+		return st_connection_fail(error, status, ST_CONNECTION_SETUP_CONNECTING,
+		    "unable to connect to host");
 	}
 	st_connection_socket_diagnostic(hooks, "keepalive", socket_set_keepalive(socket, true));
 	st_connection_socket_diagnostic(hooks, "send buffer", socket_set_send_buffer_size(socket, 1024U * 1024U));
-	st_connection_socket_diagnostic(hooks, "receive buffer", socket_set_receive_buffer_size(socket, 1024U * 1024U));
+	st_connection_socket_diagnostic(hooks, "receive buffer",
+	    socket_set_receive_buffer_size(socket, 1024U * 1024U));
 	if (rlogin) {
-		const char nul = '\0';
-		const char *first = profile->connection_type
-		    == ST_CONNECTION_RLOGIN_REVERSED
-		    ? profile->username : profile->password;
-		const char *second = profile->connection_type
-		    == ST_CONNECTION_RLOGIN_REVERSED
-		    ? profile->password : profile->username;
-		char terminal[ST_PROFILE_TERMINAL_NAME_MAX + 32];
+		const char  nul    = '\0';
+		const char *first  = profile->connection_type == ST_CONNECTION_RLOGIN_REVERSED ? profile->username
+		                                                                               : profile->password;
+		const char *second = profile->connection_type == ST_CONNECTION_RLOGIN_REVERSED ? profile->password
+		                                                                               : profile->username;
+		char        terminal[ST_PROFILE_TERMINAL_NAME_MAX + 32];
 
-		(void)snprintf(terminal, sizeof(terminal), "%s/%u",
-		    st_connection_terminal_name(profile),
+		(void)snprintf(terminal, sizeof(terminal), "%s/%u", st_connection_terminal_name(profile),
 		    profile->bps_rate != 0 ? profile->bps_rate : 115200U);
 		st_connection_log_hooks(hooks, "RLogin", ST_CONNECTION_LOG_INFO,
 		    "sending RFC 1282 handshake (login fields omitted)");
@@ -717,15 +686,14 @@ connect_network(st_connection_t **result, const struct st_profile *profile,
 		if (status == 0)
 			status = rlogin_acknowledge(socket, hooks);
 		if (status != 0) {
-			st_connection_log_hooks(hooks, "RLogin", status == IO_ERROR_CANCELLED
-			    ? ST_CONNECTION_LOG_INFO : ST_CONNECTION_LOG_ERROR,
+			st_connection_log_hooks(hooks, "RLogin",
+			    status == IO_ERROR_CANCELLED ? ST_CONNECTION_LOG_INFO : ST_CONNECTION_LOG_ERROR,
 			    "RLogin negotiation failed (%d)", status);
 			(void)socket_close(socket);
 			(void)socket_runtime_cleanup();
-			return st_connection_fail(error, status,
-			    ST_CONNECTION_SETUP_NEGOTIATING,
+			return st_connection_fail(error, status, ST_CONNECTION_SETUP_NEGOTIATING,
 			    status == IO_ERROR_PERMISSION_DENIED ? "RLogin server rejected the login"
-			    : "RLogin negotiation failed");
+			                                         : "RLogin negotiation failed");
 		}
 		st_connection_log_hooks(hooks, "RLogin", ST_CONNECTION_LOG_DEBUG,
 		    "sent terminal parameters emulation=%s rate=%u", st_connection_terminal_name(profile),
@@ -737,64 +705,51 @@ connect_network(st_connection_t **result, const struct st_profile *profile,
 		    "nonblocking socket configuration failed (%d)", status);
 		(void)socket_close(socket);
 		(void)socket_runtime_cleanup();
-		return st_connection_fail(error, status,
-		    ST_CONNECTION_SETUP_CONNECTING,
+		return st_connection_fail(error, status, ST_CONNECTION_SETUP_CONNECTING,
 		    "unable to configure connected socket");
 	}
 	transport = calloc(1, sizeof(*transport));
 	if (transport == NULL) {
 		(void)socket_close(socket);
 		(void)socket_runtime_cleanup();
-		return st_connection_fail(error, IO_ERROR_OUT_OF_MEMORY,
-		    ST_CONNECTION_SETUP_CONNECTING,
+		return st_connection_fail(error, IO_ERROR_OUT_OF_MEMORY, ST_CONNECTION_SETUP_CONNECTING,
 		    "unable to allocate network transport");
 	}
 	transport->socket = socket;
 	transport->rlogin = rlogin;
-	if (st_mutex_init(&transport->mutex, ST_MUTEX_PLAIN)
-	    != ST_THREAD_SUCCESS) {
+	if (st_mutex_init(&transport->mutex, ST_MUTEX_PLAIN) != ST_THREAD_SUCCESS) {
 		free(transport);
 		(void)socket_close(socket);
 		(void)socket_runtime_cleanup();
-		return st_connection_fail(error, IO_ERROR_OUT_OF_MEMORY,
-		    ST_CONNECTION_SETUP_CONNECTING,
+		return st_connection_fail(error, IO_ERROR_OUT_OF_MEMORY, ST_CONNECTION_SETUP_CONNECTING,
 		    "unable to initialize network transport");
 	}
 	if (rlogin) {
-		status = st_connection_profile_geometry(profile, current_screen,
-		    &transport->geometry);
+		status = st_connection_profile_geometry(profile, current_screen, &transport->geometry);
 		if (status != 0) {
 			network_destroy(transport);
-			return st_connection_fail(error, status,
-			    ST_CONNECTION_SETUP_NONE,
+			return st_connection_fail(error, status, ST_CONNECTION_SETUP_NONE,
 			    "invalid initial terminal geometry");
 		}
 	}
-	status = st_connection_start(result, transport,
-	    rlogin ? &rlogin_operations : &network_operations,
-	    rlogin ? "RLogin" : "Raw", hooks, rlogin ? rlogin_send : NULL,
-	    error);
+	status = st_connection_start(result, transport, rlogin ? &rlogin_operations : &network_operations,
+	    rlogin ? "RLogin" : "Raw", hooks, rlogin ? rlogin_send : NULL, error);
 	if (status == 0)
-		st_connection_log(*result, ST_CONNECTION_LOG_INFO,
-		    "session established");
+		st_connection_log(*result, ST_CONNECTION_LOG_INFO, "session established");
 	return status;
 }
 
 int
-st_connection_connect_raw(st_connection_t **result,
-	const struct st_profile *profile, const struct st_connection_hooks *hooks,
-	struct st_connection_error *error)
+st_connection_connect_raw(st_connection_t **result, const struct st_profile *profile,
+    const struct st_connection_hooks *hooks, struct st_connection_error *error)
 {
 	return connect_network(result, profile, NULL, hooks, error, false);
 }
 
 int
-st_connection_connect_rlogin(st_connection_t **result,
-	const struct st_profile *profile,
-	const struct st_screen_geometry *current_screen,
-	const struct st_connection_hooks *hooks,
-	struct st_connection_error *error)
+st_connection_connect_rlogin(st_connection_t **result, const struct st_profile *profile,
+    const struct st_screen_geometry *current_screen, const struct st_connection_hooks *hooks,
+    struct st_connection_error *error)
 {
-	return connect_network(result, profile, current_screen, hooks, error,
-	    true);
+	return connect_network(result, profile, current_screen, hooks, error, true);
 }

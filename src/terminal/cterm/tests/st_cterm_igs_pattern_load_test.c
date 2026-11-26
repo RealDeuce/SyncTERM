@@ -2,8 +2,8 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "igs_test_fixture.h"
 
-static const uint16_t rows[16] = {0x8000, 0x4000, 0x2000, 0x1000, 0x0800, 0x0400, 0x0200, 0x0100,
-    0x0080, 0x0040, 0x0020, 0x0010, 0x0008, 0x0004, 0x0002, 0x0001};
+static const uint16_t rows[16] = {0x8000, 0x4000, 0x2000, 0x1000, 0x0800, 0x0400, 0x0200, 0x0100, 0x0080, 0x0040,
+    0x0020, 0x0010, 0x0008, 0x0004, 0x0002, 0x0001};
 
 static void
 write_bytes(struct fixture *f, const void *bytes, size_t size)
@@ -52,11 +52,13 @@ matrix(void)
 					CHECK(memcmp(&attributes, &igs->attributes, sizeof(attributes)) == 0);
 					CHECK(memcmp(palette, igs->palette, sizeof(palette)) == 0);
 					CHECK(igs->shared_text_size == 16 && igs->shared_text[15] == 'X');
-					CHECK(igs->draw_x == 19 && igs->draw_y == 17 && igs->scaling_mode == (int)scaling);
+					CHECK(igs->draw_x == 19 && igs->draw_y == 17
+					      && igs->scaling_mode == (int)scaling);
 					CHECK(igs->random_seed == 1 && igs->pattern_seed == 0);
 					CHECK(igs->text_deadline == 0 && igs->input_deadline == 0);
 				}
-			CHECK(f.terminal->xpos == 4 && f.terminal->ypos == 3 && f.terminal->seq_trailing_remain == 1);
+			CHECK(f.terminal->xpos == 4 && f.terminal->ypos == 3
+			      && f.terminal->seq_trailing_remain == 1);
 			struct st_pixel_buffer *pixels = NULL;
 			CHECK(st_console_get_pixels(&pixels, f.console, &full, false) == 0);
 			for (size_t i = 0; i < (size_t)igs->width * igs->height; ++i)
@@ -65,7 +67,8 @@ matrix(void)
 			feed(&f, "\001G#A 4,7,0:");
 			CHECK(memcmp(igs->attributes.user_fill, rows, sizeof(rows)) == 0);
 			feed(&f, "G#X 7,7,................@");
-			CHECK(igs->patterns[7][0] == 0 && memcmp(igs->attributes.user_fill, rows, sizeof(rows)) == 0);
+			CHECK(igs->patterns[7][0] == 0
+			      && memcmp(igs->attributes.user_fill, rows, sizeof(rows)) == 0);
 			CHECK(st_cterm_finish(f.terminal) == 0);
 			feed(&f, "G#I 2:");
 			CHECK(memcmp(igs->attributes.user_fill, rows, sizeof(rows)) == 0);
@@ -110,9 +113,13 @@ readers(void)
 	CHECK(igs->patterns[4][0] == 0x86ff);
 	CHECK(st_cterm_finish(f.terminal) == 0 && igs->patterns[4][0] == 0x86ff);
 	for (unsigned byte = 0; byte < 256; ++byte) {
-		if (byte == '@' || byte == '\r' || byte == '\n') continue;
+		if (byte == '@' || byte == '\r' || byte == '\n')
+			continue;
 		feed(&f, "G#X 7,4,");
-		uint8_t row[17]; memset(row, '.', 16); row[0] = (uint8_t)byte; row[16] = '@';
+		uint8_t row[17];
+		memset(row, '.', 16);
+		row[0]  = (uint8_t)byte;
+		row[16] = '@';
 		write_bytes(&f, row, sizeof(row));
 		CHECK(igs->patterns[4][0] == (byte == 'x' || byte == 'X' ? 0x8000 : 0));
 		CHECK(st_cterm_finish(f.terminal) == 0);
@@ -127,20 +134,26 @@ partitions_and_errors(void)
 	create(&f, 0, false);
 	struct cterm_igs *igs = f.terminal->igs_engine;
 	for (unsigned random = 0; random < 2; ++random) {
-		char wire[512];
+		char   wire[512];
 		size_t size = load_wire(wire, sizeof(wire), random ? "AG#X>r,R," : "AG#X>7,4,");
-		memcpy(wire + size, "M 2:B", 5); size += 5;
+		memcpy(wire + size, "M 2:B", 5);
+		size += 5;
 		for (size_t split = 0; split <= size + 1; ++split) {
 			CHECK(st_cterm_reset_terminal(f.terminal) == 0);
-			igs->random_seed = 2250;
+			igs->random_seed        = 2250;
 			igs->random_range[0][1] = igs->random_range[1][1] = 255;
 			if (split > size)
-				for (size_t i = 0; i < size; ++i) write_bytes(&f, wire + i, 1);
-			else { write_bytes(&f, wire, split); write_bytes(&f, wire + split, size - split); }
+				for (size_t i = 0; i < size; ++i)
+					write_bytes(&f, wire + i, 1);
+			else {
+				write_bytes(&f, wire, split);
+				write_bytes(&f, wire + split, size - split);
+			}
 			CHECK(memcmp(igs->patterns[4], rows, sizeof(rows)) == 0);
 			CHECK(igs->random_seed == (random ? UINT32_C(0x5c9c0408) : 2250));
 			CHECK(igs->attributes.writing_mode == 2 && f.terminal->xpos == 3);
-			struct st_console_cell cells[2]; const struct st_console_rect area = {0, 0, 2, 1};
+			struct st_console_cell       cells[2];
+			const struct st_console_rect area = {0, 0, 2, 1};
 			CHECK(st_console_read_cells(f.console, &area, cells, 2) == 0);
 			CHECK(cells[0].glyph == 'A' && cells[1].glyph == 'B');
 		}
@@ -148,14 +161,16 @@ partitions_and_errors(void)
 	static const int invalid[] = {INT16_MIN, -1, 8, 1024, 2048, 9999, INT16_MAX};
 	for (size_t i = 0; i < sizeof(invalid) / sizeof(*invalid); ++i) {
 		igs->math[0] = (int16_t)invalid[i];
-		uint16_t saved[8][16]; memcpy(saved, igs->patterns, sizeof(saved));
-		const char wire[] = "G#X 7,0],XXXXXXXXXXXXXXXX@"; size_t used;
+		uint16_t saved[8][16];
+		memcpy(saved, igs->patterns, sizeof(saved));
+		const char wire[] = "G#X 7,0],XXXXXXXXXXXXXXXX@";
+		size_t     used;
 		CHECK(st_cterm_write(f.terminal, wire, sizeof(wire) - 1, &used) == 0);
-		CHECK(used == sizeof(wire)-1 && memcmp(saved, igs->patterns, sizeof(saved)) == 0);
+		CHECK(used == sizeof(wire) - 1 && memcmp(saved, igs->patterns, sizeof(saved)) == 0);
 	}
 	feed(&f, "G#X 7,0,X@");
 	CHECK(st_cterm_reset_terminal(f.terminal) == 0 && igs->shared_text_size == 0);
-	igs->random_seed = 2250;
+	igs->random_seed        = 2250;
 	igs->random_range[0][1] = igs->random_range[1][1] = 255;
 	feed(&f, "G#X r,R,partial");
 	CHECK(igs->random_seed == UINT32_C(0x5c9c0408) && igs->pattern_loading);
@@ -186,24 +201,37 @@ reuse_and_flow(void)
 	struct fixture f;
 	create(&f, 0, false);
 	struct cterm_igs *igs = f.terminal->igs_engine;
-	memset(igs->shared_text, 'x', 16); igs->shared_text[16] = 0; igs->shared_text_size = 16;
-	igs->loop_mode = 1; igs->loop_kind = 'W';
+	memset(igs->shared_text, 'x', 16);
+	igs->shared_text[16]  = 0;
+	igs->shared_text_size = 16;
+	igs->loop_mode        = 1;
+	igs->loop_kind        = 'W';
 	feed(&f, "G#X 7,2:");
-	for (unsigned row = 0; row < 16; ++row) CHECK(igs->patterns[2][row] == 0xffff);
+	for (unsigned row = 0; row < 16; ++row)
+		CHECK(igs->patterns[2][row] == 0xffff);
 	CHECK(igs->shared_text[0] == 'X' && igs->text_deadline == 0 && igs->text_counter == 0);
-	igs->loop_mode = 0; igs->loop_kind = 'Z';
+	igs->loop_mode = 0;
+	igs->loop_kind = 'Z';
 	feed(&f, "G#X 7,3,");
 	CHECK(igs->patterns[3][0] == 0xffff && igs->loop_kind == ' ');
-	for (unsigned row = 1; row < 16; ++row) feed(&f, "................@");
-	for (unsigned row = 1; row < 16; ++row) CHECK(igs->patterns[3][row] == 0);
-	unsigned count = 0;
-	f.terminal->response_cb = reply; f.terminal->response_cbdata = &count;
-	igs->loop_mode = 1; igs->loop_kind = '@'; igs->flow_on = 0xfe; igs->flow_on_count = 2;
-	char wire[512]; size_t size = load_wire(wire, sizeof(wire), "G#X 7,4,");
+	for (unsigned row = 1; row < 16; ++row)
+		feed(&f, "................@");
+	for (unsigned row = 1; row < 16; ++row)
+		CHECK(igs->patterns[3][row] == 0);
+	unsigned count              = 0;
+	f.terminal->response_cb     = reply;
+	f.terminal->response_cbdata = &count;
+	igs->loop_mode              = 1;
+	igs->loop_kind              = '@';
+	igs->flow_on                = 0xfe;
+	igs->flow_on_count          = 2;
+	char   wire[512];
+	size_t size = load_wire(wire, sizeof(wire), "G#X 7,4,");
 	write_bytes(&f, wire, size);
 	CHECK(count == 2 && igs->text_counter == 16 && memcmp(igs->patterns[4], rows, sizeof(rows)) == 0);
-	f.terminal->response_cb = reset_reply; f.terminal->response_cbdata = &f;
-	igs->text_counter = 0;
+	f.terminal->response_cb     = reset_reply;
+	f.terminal->response_cbdata = &f;
+	igs->text_counter           = 0;
 	feed(&f, "G#X 7,4,G#M 2:");
 	CHECK(!igs->pattern_loading && igs->patterns[4][0] == 0 && igs->shared_text_size == 0);
 	CHECK(igs->attributes.writing_mode == 2);
@@ -211,6 +239,7 @@ reuse_and_flow(void)
 }
 
 static unsigned clock_reads;
+
 static int
 first_clock(uint64_t *value)
 {
@@ -222,10 +251,11 @@ clock_errors(void)
 {
 	struct fixture f;
 	create(&f, 0, false);
-	struct cterm_igs *igs = f.terminal->igs_engine;
-	const char header[] = "G#X 7,0,";
-	size_t used;
-	clock_reads = 0; igs->now_ms = first_clock;
+	struct cterm_igs *igs      = f.terminal->igs_engine;
+	const char        header[] = "G#X 7,0,";
+	size_t            used;
+	clock_reads = 0;
+	igs->now_ms = first_clock;
 	CHECK(st_cterm_write(f.terminal, header, sizeof(header) - 1, &used) == IO_ERROR_IO);
 	/* The reader's entry sample succeeded. A later progress-clock error
 	 * retains the acquired prefix and its original deadline for recovery. */
@@ -235,7 +265,8 @@ clock_errors(void)
 	/* Row acceptance precedes the next reader's failing entry sample. */
 	CHECK(igs->patterns[0][0] == 0x8000 && !igs->pattern_loading && igs->text_deadline == 0);
 	igs->now_ms = now;
-	feed(&f, "G#M 2:"); CHECK(igs->attributes.writing_mode == 2);
+	feed(&f, "G#M 2:");
+	CHECK(igs->attributes.writing_mode == 2);
 	destroy(&f);
 }
 

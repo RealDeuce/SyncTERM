@@ -2,14 +2,15 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "st_time.h"
-#include "io_error.h"
 #include <stdio.h>
 
+#include "io_error.h"
+#include "st_time.h"
+
 static struct timespec fake_utc;
-static int utc_status = TIME_UTC;
-static uint64_t fake_ms;
-static int monotonic_status;
+static int             utc_status = TIME_UTC;
+static uint64_t        fake_ms;
+static int             monotonic_status;
 
 static int
 audit_timespec_get(struct timespec *result, int base)
@@ -31,28 +32,29 @@ st_time_monotonic_ms(uint64_t *result)
 #define timespec_get audit_timespec_get
 #include "../st_time.c"
 
-#define CHECK(condition) do { \
-	if (!(condition)) { \
-		fprintf(stderr, "failed: %s:%d: %s\n", __FILE__, __LINE__, #condition); \
-		return 1; \
-	} \
-} while (0)
+#define CHECK(condition)                                                                        \
+	do {                                                                                    \
+		if (!(condition)) {                                                             \
+			fprintf(stderr, "failed: %s:%d: %s\n", __FILE__, __LINE__, #condition); \
+			return 1;                                                               \
+		}                                                                               \
+	} while (0)
 
 int
 main(void)
 {
-	struct timespec output = {123, 456};
-	struct st_deadline deadline = {123, false};
-	int64_t remaining = 456;
+	struct timespec    output    = {123, 456};
+	struct st_deadline deadline  = {123, false};
+	int64_t            remaining = 456;
 
 	utc_status = 0;
 	CHECK(st_time_utc_deadline_after_ms(&output, 10) == IO_ERROR_IO);
 	CHECK(output.tv_sec == 123 && output.tv_nsec == 456);
 	utc_status = TIME_UTC;
-	fake_utc = (struct timespec){42, 1000000000L};
+	fake_utc   = (struct timespec) {42, 1000000000L};
 	CHECK(st_time_utc_deadline_after_ms(&output, 10) == IO_ERROR_IO);
 	CHECK(output.tv_sec == 123 && output.tv_nsec == 456);
-	fake_utc = (struct timespec){42, 999999999L};
+	fake_utc = (struct timespec) {42, 999999999L};
 	CHECK(st_time_utc_deadline_after_ms(&output, 1) == 0);
 	CHECK(output.tv_sec == 43 && output.tv_nsec == 999999L);
 	CHECK(st_time_utc_deadline_after_ms(&output, -1) == IO_ERROR_INVALID_ARGUMENT);
@@ -65,7 +67,7 @@ main(void)
 	CHECK(st_deadline_start(&deadline, -1) == 0);
 	CHECK(st_deadline_remaining_ms(&deadline, &remaining) == 0 && remaining == -1);
 	monotonic_status = 0;
-	fake_ms = UINT64_MAX - 5;
+	fake_ms          = UINT64_MAX - 5;
 	CHECK(st_deadline_start(&deadline, 10) == 0);
 	CHECK(deadline.end_ms == UINT64_MAX && !deadline.infinite);
 	CHECK(st_deadline_remaining_ms(&deadline, &remaining) == 0 && remaining == 5);

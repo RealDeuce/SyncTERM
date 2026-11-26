@@ -8,5 +8,5 @@
  * BIG calls once per expanded output row after rereading its source;
  * RIP calls once per source row with both magnifications. */
 int st_bgi_bitmap_expand_row(uint8_t bits, unsigned scale_x, unsigned scale_y,
-	int (*pixel)(void *, unsigned x, unsigned y), void *context);
+    int (*pixel)(void *, unsigned x, unsigned y), void *context);
 #endif

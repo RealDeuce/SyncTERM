@@ -5,20 +5,20 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "decimal_double.h"
-
 #include <float.h>
 #include <math.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
 
+#include "decimal_double.h"
+
 #if FLT_RADIX != 2
-	#error "decimal conversion currently requires radix-two double"
+ #error "decimal conversion currently requires radix-two double"
 #endif
 
 #if DBL_MANT_DIG > 63
-	#error "decimal conversion currently supports at most 63 double significand bits"
+ #error "decimal conversion currently supports at most 63 double significand bits"
 #endif
 
 #define DECIMAL_EXPONENT_LIMIT 5000
@@ -27,8 +27,8 @@
 /* Digits are stored least-significant first. */
 struct decimal_integer {
 	uint8_t digit[DECIMAL_DIGIT_CAPACITY];
-	size_t length;
-	int exponent;
+	size_t  length;
+	int     exponent;
 };
 
 static void
@@ -51,7 +51,7 @@ decimal_multiply(struct decimal_integer *value, unsigned factor)
 		unsigned product = value->digit[index] * factor + carry;
 
 		value->digit[index] = (uint8_t)(product % 10);
-		carry = product / 10;
+		carry               = product / 10;
 	}
 	while (carry != 0) {
 		if (value->length == DECIMAL_DIGIT_CAPACITY)
@@ -65,7 +65,7 @@ decimal_multiply(struct decimal_integer *value, unsigned factor)
 static void
 decimal_set_uint64(struct decimal_integer *value, uint64_t initial)
 {
-	value->length = 0;
+	value->length   = 0;
 	value->exponent = 0;
 	do {
 		value->digit[value->length++] = (uint8_t)(initial % 10);
@@ -84,8 +84,7 @@ decimal_digit_at(const struct decimal_integer *value, int position)
 }
 
 static int
-decimal_compare(const struct decimal_integer *left,
-    const struct decimal_integer *right)
+decimal_compare(const struct decimal_integer *left, const struct decimal_integer *right)
 {
 	int left_top;
 	int right_top;
@@ -96,14 +95,13 @@ decimal_compare(const struct decimal_integer *left,
 			return 0;
 		return left->length == 0 ? -1 : 1;
 	}
-	left_top = (int)left->length + left->exponent;
+	left_top  = (int)left->length + left->exponent;
 	right_top = (int)right->length + right->exponent;
 	if (left_top != right_top)
 		return left_top < right_top ? -1 : 1;
-	bottom = left->exponent < right->exponent ?
-	    left->exponent : right->exponent;
+	bottom = left->exponent < right->exponent ? left->exponent : right->exponent;
 	for (int position = left_top - 1; position >= bottom; position--) {
-		int left_digit = decimal_digit_at(left, position);
+		int left_digit  = decimal_digit_at(left, position);
 		int right_digit = decimal_digit_at(right, position);
 
 		if (left_digit != right_digit)
@@ -115,7 +113,7 @@ decimal_compare(const struct decimal_integer *left,
 static bool
 decimal_power_of_two(int exponent, struct decimal_integer *result)
 {
-	result->length = 1;
+	result->length   = 1;
 	result->digit[0] = 1;
 	result->exponent = 0;
 	if (exponent >= 0) {
@@ -136,13 +134,12 @@ decimal_power_of_two(int exponent, struct decimal_integer *result)
 }
 
 static bool
-decimal_find_binary_exponent(const struct decimal_integer *value,
-    int *result)
+decimal_find_binary_exponent(const struct decimal_integer *value, int *result)
 {
 	struct decimal_integer power;
 	struct decimal_integer next;
-	int decimal_exponent = (int)value->length + value->exponent - 1;
-	int exponent = decimal_exponent * 3321 / 1000;
+	int                    decimal_exponent = (int)value->length + value->exponent - 1;
+	int                    exponent         = decimal_exponent * 3321 / 1000;
 
 	if (!decimal_power_of_two(exponent, &power))
 		return false;
@@ -167,13 +164,11 @@ decimal_find_binary_exponent(const struct decimal_integer *value,
 }
 
 static bool
-decimal_round_to_uint64(const struct decimal_integer *value,
-    uint64_t *result)
+decimal_round_to_uint64(const struct decimal_integer *value, uint64_t *result)
 {
-	size_t fractional = value->exponent < 0 ?
-	    (size_t)-value->exponent : 0;
-	uint64_t integer = 0;
-	int comparison = -1;
+	size_t   fractional = value->exponent < 0 ? (size_t)-value->exponent : 0;
+	uint64_t integer    = 0;
+	int      comparison = -1;
 
 	if (fractional < value->length) {
 		for (size_t index = value->length; index > fractional; index--) {
@@ -193,14 +188,13 @@ decimal_round_to_uint64(const struct decimal_integer *value,
 	}
 	if (fractional > 0) {
 		size_t tenths = fractional - 1;
-		int first = tenths < value->length ? value->digit[tenths] : 0;
+		int    first  = tenths < value->length ? value->digit[tenths] : 0;
 
 		if (first > 5)
 			comparison = 1;
 		else if (first == 5) {
 			comparison = 0;
-			for (size_t index = 0; index < tenths && index < value->length;
-			    index++) {
+			for (size_t index = 0; index < tenths && index < value->length; index++) {
 				if (value->digit[index] != 0) {
 					comparison = 1;
 					break;
@@ -218,18 +212,17 @@ decimal_round_to_uint64(const struct decimal_integer *value,
 }
 
 static bool
-parse_decimal(const char *begin, const char *end, bool *negative,
-    struct decimal_integer *value)
+parse_decimal(const char *begin, const char *end, bool *negative, struct decimal_integer *value)
 {
 	const char *mantissa_begin;
 	const char *mantissa_end;
 	const char *cursor;
-	int fractional_digits = 0;
-	int explicit_exponent = 0;
-	bool exponent_negative = false;
-	bool exponent_too_large = false;
-	bool fraction = false;
-	bool any = false;
+	int         fractional_digits  = 0;
+	int         explicit_exponent  = 0;
+	bool        exponent_negative  = false;
+	bool        exponent_too_large = false;
+	bool        fraction           = false;
+	bool        any                = false;
 
 	*negative = false;
 	if (begin < end && (*begin == '+' || *begin == '-')) {
@@ -237,7 +230,7 @@ parse_decimal(const char *begin, const char *end, bool *negative,
 		begin++;
 	}
 	mantissa_begin = begin;
-	cursor = begin;
+	cursor         = begin;
 	while (cursor < end) {
 		unsigned char character = (unsigned char)*cursor;
 
@@ -273,11 +266,10 @@ parse_decimal(const char *begin, const char *end, bool *negative,
 		while (cursor < end && *cursor >= '0' && *cursor <= '9') {
 			if (explicit_exponent > DECIMAL_EXPONENT_LIMIT / 10
 			    || (explicit_exponent == DECIMAL_EXPONENT_LIMIT / 10
-			    && *cursor - '0' > DECIMAL_EXPONENT_LIMIT % 10))
+			        && *cursor - '0' > DECIMAL_EXPONENT_LIMIT % 10))
 				exponent_too_large = true;
 			else if (!exponent_too_large)
-				explicit_exponent = explicit_exponent * 10
-				    + (*cursor - '0');
+				explicit_exponent = explicit_exponent * 10 + (*cursor - '0');
 			exponent_digit = true;
 			cursor++;
 		}
@@ -287,7 +279,7 @@ parse_decimal(const char *begin, const char *end, bool *negative,
 	if (cursor != end)
 		return false;
 	value->length = 0;
-	for (cursor = mantissa_end; cursor > mantissa_begin; ) {
+	for (cursor = mantissa_end; cursor > mantissa_begin;) {
 		unsigned char character = (unsigned char)*--cursor;
 
 		if (character == '.')
@@ -315,13 +307,13 @@ bool
 decimal_parse_double(const char *begin, const char *end, double *result)
 {
 	struct decimal_integer value;
-	uint64_t significand;
-	uint64_t significand_limit = UINT64_C(1) << DBL_MANT_DIG;
-	int binary_exponent;
-	int result_exponent;
-	int shift;
-	bool negative;
-	double converted;
+	uint64_t               significand;
+	uint64_t               significand_limit = UINT64_C(1) << DBL_MANT_DIG;
+	int                    binary_exponent;
+	int                    result_exponent;
+	int                    shift;
+	bool                   negative;
+	double                 converted;
 
 	if (begin == NULL || end == NULL || result == NULL || begin > end
 	    || !parse_decimal(begin, end, &negative, &value))
@@ -332,16 +324,15 @@ decimal_parse_double(const char *begin, const char *end, double *result)
 	}
 	if ((int)value.length + value.exponent - 1 > DBL_MAX_10_EXP)
 		return false;
-	if (!decimal_find_binary_exponent(&value, &binary_exponent)
-	    || binary_exponent > DBL_MAX_EXP - 1)
+	if (!decimal_find_binary_exponent(&value, &binary_exponent) || binary_exponent > DBL_MAX_EXP - 1)
 		return false;
 	if (binary_exponent >= DBL_MIN_EXP - 1) {
 		result_exponent = binary_exponent - (DBL_MANT_DIG - 1);
-		shift = DBL_MANT_DIG - 1 - binary_exponent;
+		shift           = DBL_MANT_DIG - 1 - binary_exponent;
 	}
 	else {
 		result_exponent = DBL_MIN_EXP - DBL_MANT_DIG;
-		shift = -result_exponent;
+		shift           = -result_exponent;
 	}
 	if (shift >= 0) {
 		for (int index = 0; index < shift; index++) {
@@ -357,8 +348,7 @@ decimal_parse_double(const char *begin, const char *end, double *result)
 		}
 	}
 	decimal_normalize(&value);
-	if (!decimal_round_to_uint64(&value, &significand)
-	    || significand == 0)
+	if (!decimal_round_to_uint64(&value, &significand) || significand == 0)
 		return false;
 	if (significand == significand_limit) {
 		significand >>= 1;
@@ -374,8 +364,7 @@ decimal_parse_double(const char *begin, const char *end, double *result)
 }
 
 static bool
-append_character(char *output, size_t capacity, size_t *length,
-    char character)
+append_character(char *output, size_t capacity, size_t *length, char character)
 {
 	if (*length == capacity)
 		return false;
@@ -386,8 +375,8 @@ append_character(char *output, size_t capacity, size_t *length,
 static bool
 append_exponent(char *output, size_t capacity, size_t *length, int exponent)
 {
-	char reverse[16];
-	size_t digits = 0;
+	char     reverse[16];
+	size_t   digits = 0;
 	unsigned magnitude;
 
 	if (exponent < 0) {
@@ -411,12 +400,12 @@ append_exponent(char *output, size_t capacity, size_t *length, int exponent)
 static bool
 decimal_from_double(double value, struct decimal_integer *exact)
 {
-	double fraction;
+	double   fraction;
 	uint64_t significand;
-	int binary_exponent;
-	int binary_shift;
+	int      binary_exponent;
+	int      binary_shift;
 
-	fraction = frexp(value, &binary_exponent);
+	fraction    = frexp(value, &binary_exponent);
 	significand = (uint64_t)ldexp(fraction, DBL_MANT_DIG);
 	decimal_set_uint64(exact, significand);
 	binary_shift = binary_exponent - DBL_MANT_DIG;
@@ -441,32 +430,28 @@ bool
 decimal_format_fixed(char *buffer, size_t size, double value, unsigned places)
 {
 	struct decimal_integer exact;
-	char output[DBL_MAX_10_EXP + DBL_MANT_DIG + 16];
-	size_t length = 0;
-	bool negative;
-	int target_exponent;
+	char                   output[DBL_MAX_10_EXP + DBL_MANT_DIG + 16];
+	size_t                 length = 0;
+	bool                   negative;
+	int                    target_exponent;
 
-	if (buffer == NULL || places > (unsigned)DBL_MANT_DIG
-	    || !isfinite(value))
+	if (buffer == NULL || places > (unsigned)DBL_MANT_DIG || !isfinite(value))
 		return false;
 	negative = signbit(value);
-	value = fabs(value);
+	value    = fabs(value);
 	if (!decimal_from_double(value, &exact))
 		return false;
 	target_exponent = -(int)places;
 	if (exact.exponent < target_exponent) {
 		size_t discarded = (size_t)(target_exponent - exact.exponent);
-		int first = discarded <= exact.length ?
-		    exact.digit[discarded - 1] : 0;
-		bool round_up = first > 5;
+		int    first     = discarded <= exact.length ? exact.digit[discarded - 1] : 0;
+		bool   round_up  = first > 5;
 
 		if (first == 5) {
-			int retained = discarded < exact.length ?
-			    exact.digit[discarded] : 0;
+			int retained = discarded < exact.length ? exact.digit[discarded] : 0;
 
 			round_up = (retained & 1) != 0;
-			for (size_t index = 0;
-			    index + 1 < discarded && index < exact.length; index++) {
+			for (size_t index = 0; index + 1 < discarded && index < exact.length; index++) {
 				if (exact.digit[index] != 0) {
 					round_up = true;
 					break;
@@ -474,8 +459,7 @@ decimal_format_fixed(char *buffer, size_t size, double value, unsigned places)
 			}
 		}
 		if (discarded < exact.length) {
-			memmove(exact.digit, exact.digit + discarded,
-			    exact.length - discarded);
+			memmove(exact.digit, exact.digit + discarded, exact.length - discarded);
 			exact.length -= discarded;
 		}
 		else
@@ -498,14 +482,13 @@ decimal_format_fixed(char *buffer, size_t size, double value, unsigned places)
 	if (negative && !append_character(output, sizeof(output), &length, '-'))
 		return false;
 	{
-		int top = exact.length == 0 ? 0 :
-		    (int)exact.length + exact.exponent - 1;
+		int top = exact.length == 0 ? 0 : (int)exact.length + exact.exponent - 1;
 
 		if (top < 0)
 			top = 0;
 		for (int position = top; position >= 0; position--) {
 			if (!append_character(output, sizeof(output), &length,
-			    (char)('0' + decimal_digit_at(&exact, position))))
+				(char)('0' + decimal_digit_at(&exact, position))))
 				return false;
 		}
 	}
@@ -514,7 +497,7 @@ decimal_format_fixed(char *buffer, size_t size, double value, unsigned places)
 			return false;
 		for (unsigned index = 1; index <= places; index++) {
 			if (!append_character(output, sizeof(output), &length,
-			    (char)('0' + decimal_digit_at(&exact, -(int)index))))
+				(char)('0' + decimal_digit_at(&exact, -(int)index))))
 				return false;
 		}
 	}
@@ -529,15 +512,14 @@ bool
 decimal_format_double(char *buffer, size_t size, double value, int precision)
 {
 	struct decimal_integer exact;
-	char digits[DBL_MANT_DIG + 1];
-	char output[DBL_MANT_DIG + 32];
-	int scientific_exponent;
-	size_t digit_count;
-	size_t length = 0;
-	bool negative;
+	char                   digits[DBL_MANT_DIG + 1];
+	char                   output[DBL_MANT_DIG + 32];
+	int                    scientific_exponent;
+	size_t                 digit_count;
+	size_t                 length = 0;
+	bool                   negative;
 
-	if (buffer == NULL || precision < 1 || precision > DBL_MANT_DIG
-	    || !isfinite(value))
+	if (buffer == NULL || precision < 1 || precision > DBL_MANT_DIG || !isfinite(value))
 		return false;
 	negative = signbit(value);
 	if (negative)
@@ -548,20 +530,19 @@ decimal_format_double(char *buffer, size_t size, double value, int precision)
 		if (negative)
 			buffer[length++] = '-';
 		buffer[length++] = '0';
-		buffer[length] = '\0';
+		buffer[length]   = '\0';
 		return true;
 	}
 	if (!decimal_from_double(value, &exact))
 		return false;
 	scientific_exponent = (int)exact.length + exact.exponent - 1;
-	digit_count = exact.length < (size_t)precision ?
-	    exact.length : (size_t)precision;
+	digit_count         = exact.length < (size_t)precision ? exact.length : (size_t)precision;
 	for (size_t index = 0; index < digit_count; index++)
 		digits[index] = (char)('0' + exact.digit[exact.length - index - 1]);
 	if (exact.length > digit_count) {
 		size_t discarded = exact.length - digit_count;
-		int first = exact.digit[discarded - 1];
-		bool round_up = first > 5;
+		int    first     = exact.digit[discarded - 1];
+		bool   round_up  = first > 5;
 
 		if (first == 5) {
 			round_up = (digits[digit_count - 1] - '0') % 2 != 0;
@@ -578,7 +559,7 @@ decimal_format_double(char *buffer, size_t size, double value, int precision)
 			while (index > 0 && digits[index - 1] == '9')
 				digits[--index] = '0';
 			if (index == 0) {
-				digits[0] = '1';
+				digits[0]   = '1';
 				digit_count = 1;
 				scientific_exponent++;
 			}
@@ -600,18 +581,16 @@ decimal_format_double(char *buffer, size_t size, double value, int precision)
 					return false;
 			}
 			for (size_t index = 0; index < digit_count; index++) {
-				if (!append_character(output, sizeof(output), &length,
-				    digits[index]))
+				if (!append_character(output, sizeof(output), &length, digits[index]))
 					return false;
 			}
 		}
 		else {
-			size_t whole = (size_t)scientific_exponent + 1;
+			size_t whole  = (size_t)scientific_exponent + 1;
 			size_t copied = whole < digit_count ? whole : digit_count;
 
 			for (size_t index = 0; index < copied; index++) {
-				if (!append_character(output, sizeof(output), &length,
-				    digits[index]))
+				if (!append_character(output, sizeof(output), &length, digits[index]))
 					return false;
 			}
 			for (size_t index = copied; index < whole; index++) {
@@ -622,8 +601,7 @@ decimal_format_double(char *buffer, size_t size, double value, int precision)
 				if (!append_character(output, sizeof(output), &length, '.'))
 					return false;
 				for (size_t index = whole; index < digit_count; index++) {
-					if (!append_character(output, sizeof(output), &length,
-					    digits[index]))
+					if (!append_character(output, sizeof(output), &length, digits[index]))
 						return false;
 				}
 			}
@@ -636,14 +614,12 @@ decimal_format_double(char *buffer, size_t size, double value, int precision)
 			if (!append_character(output, sizeof(output), &length, '.'))
 				return false;
 			for (size_t index = 1; index < digit_count; index++) {
-				if (!append_character(output, sizeof(output), &length,
-				    digits[index]))
+				if (!append_character(output, sizeof(output), &length, digits[index]))
 					return false;
 			}
 		}
 		if (!append_character(output, sizeof(output), &length, 'e')
-		    || !append_exponent(output, sizeof(output), &length,
-		    scientific_exponent))
+		    || !append_exponent(output, sizeof(output), &length, scientific_exponent))
 			return false;
 	}
 	if (size <= length)

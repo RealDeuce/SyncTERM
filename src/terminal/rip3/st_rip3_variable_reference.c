@@ -1,16 +1,15 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
-#include "st_rip3_host_internal.h"
-#include "st_rip3_variable_reference.h"
-#include "st_rip3_graphical_bytes.h"
-
-#include "io_error.h"
-
 #include <stdio.h>
 #include <string.h>
 
+#include "io_error.h"
+#include "st_rip3_graphical_bytes.h"
+#include "st_rip3_host_internal.h"
+#include "st_rip3_variable_reference.h"
+
 struct parser {
 	const uint8_t *text;
-	size_t at, end;
+	size_t         at, end;
 };
 
 static uint8_t
@@ -41,13 +40,20 @@ static unsigned
 directive(uint8_t ch)
 {
 	switch (ch) {
-	case '*': return ST_RIP3_VARIABLE_REQUIRED;
-	case '+': return ST_RIP3_VARIABLE_PERSISTENT;
-	case '=': return ST_RIP3_VARIABLE_SESSION;
-	case '#': return ST_RIP3_VARIABLE_MASKED;
-	case '-': return ST_RIP3_VARIABLE_SET;
-	case '&': return ST_RIP3_VARIABLE_GET;
-	default: return 0;
+		case '*':
+			return ST_RIP3_VARIABLE_REQUIRED;
+		case '+':
+			return ST_RIP3_VARIABLE_PERSISTENT;
+		case '=':
+			return ST_RIP3_VARIABLE_SESSION;
+		case '#':
+			return ST_RIP3_VARIABLE_MASKED;
+		case '-':
+			return ST_RIP3_VARIABLE_SET;
+		case '&':
+			return ST_RIP3_VARIABLE_GET;
+		default:
+			return 0;
 	}
 }
 
@@ -74,14 +80,14 @@ static int
 coordinate(struct parser *parser, int32_t *result, bool *present)
 {
 	uint32_t value;
-	int status;
+	int      status;
 
 	if (!digit(peek(parser)))
 		return 0;
 	status = decimal(parser, UINT16_MAX, &value);
 	if (status != 0)
 		return status;
-	*result = (int32_t)value;
+	*result  = (int32_t)value;
 	*present = true;
 	return 0;
 }
@@ -110,25 +116,32 @@ options(struct parser *parser, struct st_rip3_variable_reference *reference)
 	}
 	for (unsigned option = 0; option < 2; option++) {
 		size_t start = parser->at, length;
-		int mode = -1, conversion = -1;
+		int    mode = -1, conversion = -1;
 
 		while (letter(peek(parser)))
 			parser->at++;
 		length = parser->at - start;
-		if (word(parser->text + start, length, "ANY")) mode = ST_RIP3_VARIABLE_ANY;
-		if (word(parser->text + start, length, "ALPHA")) mode = ST_RIP3_VARIABLE_ALPHA;
-		if (word(parser->text + start, length, "NUMBER")) mode = ST_RIP3_VARIABLE_NUMBER;
-		if (word(parser->text + start, length, "ALPHANUM")) mode = ST_RIP3_VARIABLE_ALPHANUM;
-		if (word(parser->text + start, length, "TONAME")) conversion = ST_RIP3_VARIABLE_TONAME;
-		if (word(parser->text + start, length, "TOUPPER")) conversion = ST_RIP3_VARIABLE_TOUPPER;
-		if (word(parser->text + start, length, "TOLOWER")) conversion = ST_RIP3_VARIABLE_TOLOWER;
+		if (word(parser->text + start, length, "ANY"))
+			mode = ST_RIP3_VARIABLE_ANY;
+		if (word(parser->text + start, length, "ALPHA"))
+			mode = ST_RIP3_VARIABLE_ALPHA;
+		if (word(parser->text + start, length, "NUMBER"))
+			mode = ST_RIP3_VARIABLE_NUMBER;
+		if (word(parser->text + start, length, "ALPHANUM"))
+			mode = ST_RIP3_VARIABLE_ALPHANUM;
+		if (word(parser->text + start, length, "TONAME"))
+			conversion = ST_RIP3_VARIABLE_TONAME;
+		if (word(parser->text + start, length, "TOUPPER"))
+			conversion = ST_RIP3_VARIABLE_TOUPPER;
+		if (word(parser->text + start, length, "TOLOWER"))
+			conversion = ST_RIP3_VARIABLE_TOLOWER;
 		if (mode >= 0 && !mode_seen && !conversion_seen) {
 			reference->mode = (enum st_rip3_variable_mode)mode;
-			mode_seen = true;
+			mode_seen       = true;
 		}
 		else if (conversion >= 0 && !conversion_seen) {
 			reference->conversion = (enum st_rip3_variable_conversion)conversion;
-			conversion_seen = true;
+			conversion_seen       = true;
 		}
 		else
 			return IO_ERROR_INVALID_FORMAT;
@@ -144,21 +157,20 @@ options(struct parser *parser, struct st_rip3_variable_reference *reference)
 }
 
 static void
-prompt_text(struct st_rip3_variable_prompt_text *result,
-    const uint8_t *text, size_t length, bool utf8)
+prompt_text(struct st_rip3_variable_prompt_text *result, const uint8_t *text, size_t length, bool utf8)
 {
 	result->length = st_rip3_graphical_prefix(text, length, ST_RIP3_PROMPT_TEXT_LIMIT, utf8);
 	memcpy(result->bytes, text, result->length);
 }
 
 static void
-definition_text(struct st_rip3_variable_prompt_text *result, const uint8_t *text,
-    size_t length, size_t budget, bool utf8, bool converted)
+definition_text(struct st_rip3_variable_prompt_text *result, const uint8_t *text, size_t length, size_t budget,
+    bool utf8, bool converted)
 {
 	for (size_t offset = 0; offset < length;) {
 		if (text[offset] == '\\' && offset + 1 < length && text[offset + 1] == '|')
 			offset++;
-		size_t size = utf8 ? st_rip3_graphical_character(text + offset, length - offset) : 1;
+		size_t size  = utf8 ? st_rip3_graphical_character(text + offset, length - offset) : 1;
 		size_t units = converted ? 1 : size;
 		if (units > budget)
 			break;
@@ -170,11 +182,11 @@ definition_text(struct st_rip3_variable_prompt_text *result, const uint8_t *text
 }
 
 int
-st_rip3_variable_definition_parse(struct st_rip3_variable_reference *result,
-    const uint8_t *text, size_t length, bool utf8, bool converted)
+st_rip3_variable_definition_parse(struct st_rip3_variable_reference *result, const uint8_t *text, size_t length,
+    bool utf8, bool converted)
 {
 	struct st_rip3_variable_reference definition = {.has_width = true, .width = 60, .has_question = true};
-	const uint8_t *colon = memchr(text, ':', length);
+	const uint8_t                    *colon      = memchr(text, ':', length);
 	if (colon == NULL || colon == text + length - 1)
 		return IO_ERROR_INVALID_FORMAT;
 	const uint8_t *name_end = memchr(text, ',', (size_t)(colon - text));
@@ -199,11 +211,11 @@ st_rip3_variable_definition_parse(struct st_rip3_variable_reference *result,
 		if (width >= 1 && width <= 60)
 			definition.width = width;
 	}
-	const uint8_t *end = text + length;
+	const uint8_t *end   = text + length;
 	const uint8_t *value = colon + 1;
 	if (*value == '?') {
 		const uint8_t *question = ++value;
-		const uint8_t *close = memchr(question, '?', (size_t)(end - question));
+		const uint8_t *close    = memchr(question, '?', (size_t)(end - question));
 		definition_text(&definition.question, question, (size_t)((close == NULL ? end : close) - question),
 		    60, utf8, converted);
 		value = close == NULL ? end : close + 1;
@@ -217,21 +229,22 @@ st_rip3_variable_definition_parse(struct st_rip3_variable_reference *result,
 	}
 	else
 		definition.question.bytes[definition.question.length++] = '?';
-	definition_text(&definition.default_value, value, (size_t)(end - value), definition.width - 1, utf8, converted);
+	definition_text(&definition.default_value, value, (size_t)(end - value), definition.width - 1, utf8,
+	    converted);
 	definition.has_default = definition.default_value.length != 0;
-	*result = definition;
+	*result                = definition;
 	return 0;
 }
 
 int
-st_rip3_variable_reference_parse(struct st_rip3_variable_reference *result,
-    const uint8_t *text, size_t length, bool utf8)
+st_rip3_variable_reference_parse(struct st_rip3_variable_reference *result, const uint8_t *text, size_t length,
+    bool utf8)
 {
-	struct st_rip3_variable_reference reference = {0};
-	struct parser parser = {text, 1, length == 0 ? 0 : length - 1};
-	size_t name_length = 0;
-	unsigned flag;
-	int status;
+	struct st_rip3_variable_reference reference   = {0};
+	struct parser                     parser      = {text, 1, length == 0 ? 0 : length - 1};
+	size_t                            name_length = 0;
+	unsigned                          flag;
+	int                               status;
 
 	if (result == NULL || text == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -248,7 +261,7 @@ st_rip3_variable_reference_parse(struct st_rip3_variable_reference *result,
 	}
 	if (peek(&parser) == ',' || digit(peek(&parser))) {
 		reference.has_position = true;
-		status = coordinate(&parser, &reference.x, &reference.has_x);
+		status                 = coordinate(&parser, &reference.x, &reference.has_x);
 		if (status != 0)
 			return status;
 		if (peek(&parser) != ',')

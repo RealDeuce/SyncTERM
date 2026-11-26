@@ -5,14 +5,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "st_file_lock_internal.h"
-
 #include "io_error.h"
 #include "path_windows.h"
+#include "st_file_lock_internal.h"
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
-
 #include <stdlib.h>
 #include <string.h>
 
@@ -23,16 +21,15 @@ map_error(DWORD error)
 }
 
 int
-st_file_lock_platform_acquire(st_file_lock_t *lock, const char *path,
-    bool exclusive)
+st_file_lock_platform_acquire(st_file_lock_t *lock, const char *path, bool exclusive)
 {
 	OVERLAPPED overlap = {0};
-	wchar_t *wide;
-	char *sidecar;
-	size_t length;
-	HANDLE handle;
-	DWORD flags = exclusive ? LOCKFILE_EXCLUSIVE_LOCK : 0;
-	int status;
+	wchar_t   *wide;
+	char      *sidecar;
+	size_t     length;
+	HANDLE     handle;
+	DWORD      flags = exclusive ? LOCKFILE_EXCLUSIVE_LOCK : 0;
+	int        status;
 
 	length = strlen(path);
 	if (length > SIZE_MAX - sizeof(".lock"))
@@ -46,9 +43,9 @@ st_file_lock_platform_acquire(st_file_lock_t *lock, const char *path,
 	free(sidecar);
 	if (status < 0)
 		return status;
-	handle = CreateFileW(wide, GENERIC_READ | GENERIC_WRITE,
-	    FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL,
-	    OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+	handle =
+	    CreateFileW(wide, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+		NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 	free(wide);
 	if (handle == INVALID_HANDLE_VALUE)
 		return map_error(GetLastError());
@@ -65,7 +62,7 @@ void
 st_file_lock_platform_release(st_file_lock_t *lock)
 {
 	OVERLAPPED overlap = {0};
-	HANDLE handle = (HANDLE)lock->native;
+	HANDLE     handle  = (HANDLE)lock->native;
 
 	(void)UnlockFileEx(handle, 0, MAXDWORD, MAXDWORD, &overlap);
 	(void)CloseHandle(handle);

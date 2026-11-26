@@ -13,7 +13,7 @@
 struct st_md5 {
 	uint32_t state[4];
 	uint64_t bytes;
-	uint8_t block[64];
+	uint8_t  block[64];
 };
 
 void st_md5_init(struct st_md5 *context);

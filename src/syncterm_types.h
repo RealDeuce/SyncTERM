@@ -9,12 +9,12 @@
 #include "syncterm_config.h"
 
 #if SYNCTERM_HAVE_SSIZE_T
-	#include <sys/types.h>
+ #include <sys/types.h>
 #elif SYNCTERM_PLATFORM_WINDOWS
-	#include <basetsd.h>
-	typedef SSIZE_T ssize_t;
+ #include <basetsd.h>
+typedef SSIZE_T ssize_t;
 #else
-	#error "ssize_t is unavailable on this target"
+ #error "ssize_t is unavailable on this target"
 #endif
 
 #endif

@@ -5,14 +5,19 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-enum { ST_BIG_SPEAKER_RATE=44100 };
+
+enum {
+	ST_BIG_SPEAKER_RATE = 44100
+};
+
 struct st_big_speaker {
 	uint32_t phase; /* Cycle fraction in Q32; retained by running F updates. */
-	uint64_t step; /* Local frame advance; can exceed one whole cycle. */
-	int64_t low; /* Carried Q16 amplitude in the one-pole low-pass. */
+	uint64_t step;  /* Local frame advance; can exceed one whole cycle. */
+	int64_t  low;   /* Carried Q16 amplitude in the one-pole low-pass. */
 	uint16_t frequency, divisor;
-	bool playing;
+	bool     playing;
 };
+
 /* Init clears oscillator/filter state. All calls use only the caller-owned,
  * serialized value; no device, heap, lock, thread or calibration is involved.
  * Source gain is the fixed0.279224085 measured in the device-free fixture. */

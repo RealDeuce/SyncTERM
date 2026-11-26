@@ -3,24 +3,23 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "tcp_client.h"
-
-#include "io_error.h"
-#include "socket_internal.h"
-#include "tcp_client_internal.h"
-
 #include <limits.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "io_error.h"
+#include "socket_internal.h"
+#include "tcp_client.h"
+#include "tcp_client_internal.h"
+
 #define TCP_CLIENT_ATTEMPT_DELAY_MS 250
-#define TCP_CLIENT_CANCEL_POLL_MS 50
+#define TCP_CLIENT_CANCEL_POLL_MS   50
 
 struct tcp_client_attempt {
 	socket_handle_t socket;
-	size_t address_index;
-	bool active;
+	size_t          address_index;
+	bool            active;
 };
 
 static void
@@ -55,14 +54,12 @@ tcp_client_error_rank(int error)
 static void
 tcp_client_remember_error(int *saved, int error)
 {
-	if (error != 0 && (*saved == 0 ||
-	    tcp_client_error_rank(error) > tcp_client_error_rank(*saved)))
+	if (error != 0 && (*saved == 0 || tcp_client_error_rank(error) > tcp_client_error_rank(*saved)))
 		*saved = error;
 }
 
 static void
-tcp_client_close_attempts(struct tcp_client_attempt *attempts, size_t count,
-    socket_handle_t except)
+tcp_client_close_attempts(struct tcp_client_attempt *attempts, size_t count, socket_handle_t except)
 {
 	for (size_t index = 0; index < count; index++) {
 		if (attempts[index].active && attempts[index].socket != except) {
@@ -75,9 +72,9 @@ tcp_client_close_attempts(struct tcp_client_attempt *attempts, size_t count,
 static int
 tcp_client_interleave(struct tcp_client_address_list *addresses)
 {
-	struct tcp_client_address *ordered;
+	struct tcp_client_address     *ordered;
 	enum tcp_client_address_family wanted;
-	size_t used = 0;
+	size_t                         used = 0;
 
 	if (addresses->count < 2)
 		return 0;
@@ -88,25 +85,23 @@ tcp_client_interleave(struct tcp_client_address_list *addresses)
 	while (used < addresses->count) {
 		bool found = false;
 		for (size_t index = 0; index < addresses->count; index++) {
-			if (addresses->items[index].length != 0 &&
-			    addresses->items[index].family == wanted) {
-				ordered[used++] = addresses->items[index];
+			if (addresses->items[index].length != 0 && addresses->items[index].family == wanted) {
+				ordered[used++]                = addresses->items[index];
 				addresses->items[index].length = 0;
-				found = true;
+				found                          = true;
 				break;
 			}
 		}
 		if (!found) {
 			for (size_t index = 0; index < addresses->count; index++) {
 				if (addresses->items[index].length != 0) {
-					ordered[used++] = addresses->items[index];
+					ordered[used++]                = addresses->items[index];
 					addresses->items[index].length = 0;
 					break;
 				}
 			}
 		}
-		wanted = wanted == TCP_CLIENT_ADDRESS_IPV4 ?
-		    TCP_CLIENT_ADDRESS_IPV6 : TCP_CLIENT_ADDRESS_IPV4;
+		wanted = wanted == TCP_CLIENT_ADDRESS_IPV4 ? TCP_CLIENT_ADDRESS_IPV6 : TCP_CLIENT_ADDRESS_IPV4;
 	}
 	free(addresses->items);
 	addresses->items = ordered;
@@ -114,8 +109,7 @@ tcp_client_interleave(struct tcp_client_address_list *addresses)
 }
 
 static int64_t
-tcp_client_wait_time(int64_t now, int64_t deadline, int64_t next_attempt,
-    bool has_next, bool has_cancel)
+tcp_client_wait_time(int64_t now, int64_t deadline, int64_t next_attempt, bool has_next, bool has_cancel)
 {
 	int64_t wait = INT64_MAX;
 
@@ -129,10 +123,8 @@ tcp_client_wait_time(int64_t now, int64_t deadline, int64_t next_attempt,
 }
 
 static int
-tcp_client_finish(socket_handle_t candidate,
-    struct tcp_client_attempt *attempts, size_t count,
-    const struct tcp_client_address_list *addresses,
-    size_t address_index, socket_handle_t *result,
+tcp_client_finish(socket_handle_t candidate, struct tcp_client_attempt *attempts, size_t count,
+    const struct tcp_client_address_list *addresses, size_t address_index, socket_handle_t *result,
     enum tcp_client_address_family *connected_family)
 {
 	int error = socket_set_blocking(candidate, true);
@@ -147,28 +139,25 @@ tcp_client_finish(socket_handle_t candidate,
 }
 
 int
-tcp_client_connect(socket_handle_t *result,
-    enum tcp_client_address_family *connected_family, const char *host,
+tcp_client_connect(socket_handle_t *result, enum tcp_client_address_family *connected_family, const char *host,
     uint16_t port, const struct tcp_client_options *options)
 {
-	struct tcp_client_address_list addresses = {0};
-	struct tcp_client_attempt *attempts = NULL;
-	struct socket_wait_item *wait_items = NULL;
-	size_t *wait_indices = NULL;
-	size_t next_address = 0;
-	size_t active = 0;
-	size_t capacity;
-	int64_t now;
-	int64_t deadline;
-	int64_t next_attempt;
-	int saved_error = 0;
-	int error;
+	struct tcp_client_address_list addresses    = {0};
+	struct tcp_client_attempt     *attempts     = NULL;
+	struct socket_wait_item       *wait_items   = NULL;
+	size_t                        *wait_indices = NULL;
+	size_t                         next_address = 0;
+	size_t                         active       = 0;
+	size_t                         capacity;
+	int64_t                        now;
+	int64_t                        deadline;
+	int64_t                        next_attempt;
+	int                            saved_error = 0;
+	int                            error;
 
-	if (result == NULL || host == NULL || *host == '\0' || options == NULL ||
-	    options->timeout_ms < -1 ||
-	    (options->family != TCP_CLIENT_ADDRESS_ANY &&
-	    options->family != TCP_CLIENT_ADDRESS_IPV4 &&
-	    options->family != TCP_CLIENT_ADDRESS_IPV6))
+	if (result == NULL || host == NULL || *host == '\0' || options == NULL || options->timeout_ms < -1
+	    || (options->family != TCP_CLIENT_ADDRESS_ANY && options->family != TCP_CLIENT_ADDRESS_IPV4
+	        && options->family != TCP_CLIENT_ADDRESS_IPV6))
 		return IO_ERROR_INVALID_ARGUMENT;
 	diagnose(options, TCP_CLIENT_RESOLVING, options->family, 0);
 	error = tcp_client_resolve(&addresses, host, port, options->family);
@@ -190,8 +179,8 @@ tcp_client_connect(socket_handle_t *result,
 		 * serial bridge. Use only the resolver's preferred address. */
 		addresses.count = 1;
 	}
-	attempts = calloc(addresses.count, sizeof(*attempts));
-	wait_items = calloc(addresses.count, sizeof(*wait_items));
+	attempts     = calloc(addresses.count, sizeof(*attempts));
+	wait_items   = calloc(addresses.count, sizeof(*wait_items));
 	wait_indices = calloc(addresses.count, sizeof(*wait_indices));
 	if (attempts == NULL || wait_items == NULL || wait_indices == NULL) {
 		error = IO_ERROR_OUT_OF_MEMORY;
@@ -216,8 +205,7 @@ tcp_client_connect(socket_handle_t *result,
 	for (;;) {
 		size_t wait_count = 0;
 
-		if (options->cancel != NULL &&
-		    options->cancel(options->cancel_context)) {
+		if (options->cancel != NULL && options->cancel(options->cancel_context)) {
 			error = IO_ERROR_CANCELLED;
 			goto done;
 		}
@@ -230,26 +218,22 @@ tcp_client_connect(socket_handle_t *result,
 		}
 		if (next_address < addresses.count && active == 0)
 			next_attempt = now;
-		if (next_address < addresses.count && active < capacity &&
-		    now >= next_attempt) {
-			bool complete;
+		if (next_address < addresses.count && active < capacity && now >= next_attempt) {
+			bool            complete;
 			socket_handle_t candidate = SOCKET_HANDLE_INVALID;
-			size_t index = next_address++;
+			size_t          index     = next_address++;
 
 			diagnose(options, TCP_CLIENT_ATTEMPT, addresses.items[index].family, 0);
-			error = socket_internal_start_connect(
-			    addresses.items[index].storage,
-			    addresses.items[index].length,
-			    addresses.items[index].native_family, &candidate,
+			error = socket_internal_start_connect(addresses.items[index].storage,
+			    addresses.items[index].length, addresses.items[index].native_family, &candidate,
 			    &complete);
 			if (error != 0) {
 				diagnose(options, TCP_CLIENT_ATTEMPT_FAILED, addresses.items[index].family, error);
 				tcp_client_remember_error(&saved_error, error);
 			}
 			else if (complete) {
-				error = tcp_client_finish(candidate, attempts,
-				    addresses.count, &addresses, index, result,
-				    connected_family);
+				error = tcp_client_finish(candidate, attempts, addresses.count, &addresses, index,
+				    result, connected_family);
 				if (error == 0) {
 					diagnose(options, TCP_CLIENT_CONNECTED, addresses.items[index].family, 0);
 					goto done;
@@ -259,9 +243,9 @@ tcp_client_connect(socket_handle_t *result,
 				tcp_client_remember_error(&saved_error, error);
 			}
 			else {
-				attempts[index].socket = candidate;
+				attempts[index].socket        = candidate;
 				attempts[index].address_index = index;
-				attempts[index].active = true;
+				attempts[index].active        = true;
 				active++;
 			}
 			next_attempt = now + TCP_CLIENT_ATTEMPT_DELAY_MS;
@@ -274,41 +258,35 @@ tcp_client_connect(socket_handle_t *result,
 		for (size_t index = 0; index < addresses.count; index++) {
 			if (!attempts[index].active)
 				continue;
-			wait_items[wait_count].socket = attempts[index].socket;
+			wait_items[wait_count].socket    = attempts[index].socket;
 			wait_items[wait_count].interests = SOCKET_WAIT_WRITABLE;
-			wait_indices[wait_count] = index;
+			wait_indices[wait_count]         = index;
 			wait_count++;
 		}
 		error = socket_internal_wait_many(wait_items, wait_count,
 		    tcp_client_wait_time(now, deadline, next_attempt,
-		    next_address < addresses.count && active < capacity,
-		    options->cancel != NULL));
+			next_address < addresses.count && active < capacity, options->cancel != NULL));
 		if (error == IO_ERROR_TIMED_OUT || error == IO_ERROR_INTERRUPTED)
 			continue;
 		if (error != 0)
 			goto done;
 		for (size_t wait_index = 0; wait_index < wait_count; wait_index++) {
 			size_t index = wait_indices[wait_index];
-			int connect_error;
+			int    connect_error;
 
 			if (wait_items[wait_index].events == 0)
 				continue;
 			if (wait_items[wait_index].error != 0)
 				connect_error = wait_items[wait_index].error;
-			else if ((wait_items[wait_index].events
-			    & SOCKET_WAIT_ERROR) != 0)
+			else if ((wait_items[wait_index].events & SOCKET_WAIT_ERROR) != 0)
 				connect_error = IO_ERROR_IO;
 			else
-				connect_error = socket_internal_connect_result(
-				    attempts[index].socket);
-			if (connect_error == IO_ERROR_IN_PROGRESS ||
-			    connect_error == IO_ERROR_WOULD_BLOCK)
+				connect_error = socket_internal_connect_result(attempts[index].socket);
+			if (connect_error == IO_ERROR_IN_PROGRESS || connect_error == IO_ERROR_WOULD_BLOCK)
 				continue;
 			if (connect_error == 0) {
-				error = tcp_client_finish(attempts[index].socket,
-				    attempts, addresses.count, &addresses,
-				    attempts[index].address_index, result,
-				    connected_family);
+				error = tcp_client_finish(attempts[index].socket, attempts, addresses.count,
+				    &addresses, attempts[index].address_index, result, connected_family);
 				if (error == 0) {
 					diagnose(options, TCP_CLIENT_CONNECTED, addresses.items[index].family, 0);
 					goto done;
@@ -317,7 +295,8 @@ tcp_client_connect(socket_handle_t *result,
 				tcp_client_remember_error(&saved_error, error);
 			}
 			else {
-				diagnose(options, TCP_CLIENT_ATTEMPT_FAILED, addresses.items[index].family, connect_error);
+				diagnose(options, TCP_CLIENT_ATTEMPT_FAILED, addresses.items[index].family,
+				    connect_error);
 				tcp_client_remember_error(&saved_error, connect_error);
 			}
 			(void)socket_close(attempts[index].socket);
@@ -327,10 +306,10 @@ tcp_client_connect(socket_handle_t *result,
 	}
 
 done:
-	if (error != 0) diagnose(options, TCP_CLIENT_FAILED, options->family, error);
+	if (error != 0)
+		diagnose(options, TCP_CLIENT_FAILED, options->family, error);
 	if (attempts != NULL)
-		tcp_client_close_attempts(attempts, addresses.count,
-		    error == 0 ? *result : SOCKET_HANDLE_INVALID);
+		tcp_client_close_attempts(attempts, addresses.count, error == 0 ? *result : SOCKET_HANDLE_INVALID);
 	free(wait_indices);
 	free(wait_items);
 	free(attempts);

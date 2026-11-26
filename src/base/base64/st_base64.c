@@ -5,12 +5,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "st_base64.h"
-
 #include <stdint.h>
 
-static const char alphabet[] =
-	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+#include "st_base64.h"
+
+static const char alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
 bool
 st_base64_encoded_size(size_t source_size, size_t *result)
@@ -42,11 +41,10 @@ value(unsigned char character, uint8_t *result)
 bool
 st_base64_decoded_size(const char *source, size_t source_size, size_t *result)
 {
-	size_t padding = 0;
+	size_t  padding = 0;
 	uint8_t ignored;
 
-	if (result == NULL || (source == NULL && source_size != 0)
-	    || source_size % 4 != 0)
+	if (result == NULL || (source == NULL && source_size != 0) || source_size % 4 != 0)
 		return false;
 	if (source_size != 0 && source[source_size - 1] == '=')
 		padding++;
@@ -67,8 +65,7 @@ st_base64_decoded_size(const char *source, size_t source_size, size_t *result)
 
 		if (!value((unsigned char)source[source_size - padding - 1], &tail))
 			return false;
-		if ((padding == 1 && (tail & 0x03U) != 0)
-		    || (padding == 2 && (tail & 0x0fU) != 0))
+		if ((padding == 1 && (tail & 0x03U) != 0) || (padding == 2 && (tail & 0x0fU) != 0))
 			return false;
 	}
 	*result = source_size / 4 * 3 - padding;
@@ -76,20 +73,19 @@ st_base64_decoded_size(const char *source, size_t source_size, size_t *result)
 }
 
 bool
-st_base64_encode(char *destination, size_t destination_capacity,
-	const void *source, size_t source_size)
+st_base64_encode(char *destination, size_t destination_capacity, const void *source, size_t source_size)
 {
 	const uint8_t *input = source;
-	size_t encoded;
-	size_t output = 0;
+	size_t         encoded;
+	size_t         output = 0;
 
 	if (destination == NULL || (source == NULL && source_size != 0)
-	    || !st_base64_encoded_size(source_size, &encoded)
-	    || encoded == SIZE_MAX || destination_capacity <= encoded)
+	    || !st_base64_encoded_size(source_size, &encoded) || encoded == SIZE_MAX
+	    || destination_capacity <= encoded)
 		return false;
 	for (size_t i = 0; i < source_size; i += 3) {
-		uint32_t block = (uint32_t)input[i] << 16;
-		size_t remaining = source_size - i;
+		uint32_t block     = (uint32_t)input[i] << 16;
+		size_t   remaining = source_size - i;
 
 		if (remaining > 1)
 			block |= (uint32_t)input[i + 1] << 8;
@@ -97,38 +93,32 @@ st_base64_encode(char *destination, size_t destination_capacity,
 			block |= input[i + 2];
 		destination[output++] = alphabet[(block >> 18) & 0x3fU];
 		destination[output++] = alphabet[(block >> 12) & 0x3fU];
-		destination[output++] = remaining > 1
-		    ? alphabet[(block >> 6) & 0x3fU] : '=';
-		destination[output++] = remaining > 2
-		    ? alphabet[block & 0x3fU] : '=';
+		destination[output++] = remaining > 1 ? alphabet[(block >> 6) & 0x3fU] : '=';
+		destination[output++] = remaining > 2 ? alphabet[block & 0x3fU] : '=';
 	}
 	destination[output] = '\0';
 	return true;
 }
 
 bool
-st_base64_decode(void *destination, size_t destination_capacity,
-	const char *source, size_t source_size)
+st_base64_decode(void *destination, size_t destination_capacity, const char *source, size_t source_size)
 {
 	uint8_t *output = destination;
-	size_t decoded;
-	size_t position = 0;
+	size_t   decoded;
+	size_t   position = 0;
 
 	if ((destination == NULL && destination_capacity != 0)
-	    || !st_base64_decoded_size(source, source_size, &decoded)
-	    || destination_capacity < decoded)
+	    || !st_base64_decoded_size(source, source_size, &decoded) || destination_capacity < decoded)
 		return false;
 	for (size_t i = 0; i < source_size; i += 4) {
-		uint8_t a, b, c = 0, d = 0;
+		uint8_t  a, b, c = 0, d = 0;
 		uint32_t block;
 
-		if (!value((unsigned char)source[i], &a)
-		    || !value((unsigned char)source[i + 1], &b)
+		if (!value((unsigned char)source[i], &a) || !value((unsigned char)source[i + 1], &b)
 		    || (source[i + 2] != '=' && !value((unsigned char)source[i + 2], &c))
 		    || (source[i + 3] != '=' && !value((unsigned char)source[i + 3], &d)))
 			return false;
-		block = ((uint32_t)a << 18) | ((uint32_t)b << 12)
-		    | ((uint32_t)c << 6) | d;
+		block = ((uint32_t)a << 18) | ((uint32_t)b << 12) | ((uint32_t)c << 6) | d;
 		if (position < decoded)
 			output[position++] = (uint8_t)(block >> 16);
 		if (position < decoded)

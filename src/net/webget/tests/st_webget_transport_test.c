@@ -5,26 +5,25 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "st_webget.h"
+#include <stdio.h>
 
 #include "filesystem.h"
 #include "io_error.h"
 #include "socket.h"
+#include "st_webget.h"
 #include "tcp_client.h"
 
-#include <stdio.h>
-
 #ifndef ST_WEBGET_TRANSPORT_TEST_DIRECTORY
-#error "ST_WEBGET_TRANSPORT_TEST_DIRECTORY is required"
+ #error "ST_WEBGET_TRANSPORT_TEST_DIRECTORY is required"
 #endif
 
-#define CHECK(expression) do { \
-	if (!(expression)) { \
-		fprintf(stderr, "failed: %s:%d: %s\n", __FILE__, __LINE__, \
-		    #expression); \
-		return 1; \
-	} \
-} while (0)
+#define CHECK(expression)                                                                        \
+	do {                                                                                     \
+		if (!(expression)) {                                                             \
+			fprintf(stderr, "failed: %s:%d: %s\n", __FILE__, __LINE__, #expression); \
+			return 1;                                                                \
+		}                                                                                \
+	} while (0)
 
 #define FAKE_SOCKET ((socket_handle_t)42)
 
@@ -33,9 +32,9 @@ struct st_tls_session {
 };
 
 struct fake_state {
-	bool tls_success;
-	bool happy_eyeballs;
-	bool raw_closed;
+	bool   tls_success;
+	bool   happy_eyeballs;
+	bool   raw_closed;
 	size_t runtime_init_calls;
 	size_t runtime_cleanup_calls;
 	size_t connect_calls;
@@ -52,7 +51,7 @@ static struct st_tls_session fake_session;
 static void
 fake_reset(bool tls_success)
 {
-	fake = (struct fake_state){0};
+	fake             = (struct fake_state) {0};
 	fake.tls_success = tls_success;
 }
 
@@ -98,8 +97,7 @@ socket_send(socket_handle_t socket, const void *buffer, size_t size)
 }
 
 ssize_t
-socket_receive(socket_handle_t socket, void *buffer, size_t size,
-    unsigned flags)
+socket_receive(socket_handle_t socket, void *buffer, size_t size, unsigned flags)
 {
 	(void)socket;
 	(void)buffer;
@@ -109,8 +107,7 @@ socket_receive(socket_handle_t socket, void *buffer, size_t size,
 }
 
 int
-socket_wait(socket_handle_t socket, unsigned interests, int64_t timeout_ms,
-    unsigned *events)
+socket_wait(socket_handle_t socket, unsigned interests, int64_t timeout_ms, unsigned *events)
 {
 	(void)socket;
 	(void)interests;
@@ -121,8 +118,7 @@ socket_wait(socket_handle_t socket, unsigned interests, int64_t timeout_ms,
 }
 
 int
-tcp_client_connect(socket_handle_t *result,
-    enum tcp_client_address_family *connected_family, const char *host,
+tcp_client_connect(socket_handle_t *result, enum tcp_client_address_family *connected_family, const char *host,
     uint16_t port, const struct tcp_client_options *options)
 {
 	(void)host;
@@ -136,8 +132,7 @@ tcp_client_connect(socket_handle_t *result,
 }
 
 int
-st_tls_client_open(st_tls_session_t **result, socket_handle_t socket,
-    const struct st_tls_client_options *options)
+st_tls_client_open(st_tls_session_t **result, socket_handle_t socket, const struct st_tls_client_options *options)
 {
 	(void)options;
 	if (socket != FAKE_SOCKET)
@@ -150,8 +145,7 @@ st_tls_client_open(st_tls_session_t **result, socket_handle_t socket,
 }
 
 int
-st_tls_send(st_tls_session_t *session, const void *data, size_t size,
-    int64_t timeout_ms, size_t *sent)
+st_tls_send(st_tls_session_t *session, const void *data, size_t size, int64_t timeout_ms, size_t *sent)
 {
 	(void)session;
 	(void)data;
@@ -163,8 +157,7 @@ st_tls_send(st_tls_session_t *session, const void *data, size_t size,
 }
 
 int
-st_tls_receive(st_tls_session_t *session, void *data, size_t size,
-    int64_t timeout_ms, size_t *received)
+st_tls_receive(st_tls_session_t *session, void *data, size_t size, int64_t timeout_ms, size_t *received)
 {
 	(void)session;
 	(void)data;
@@ -194,11 +187,11 @@ static void
 clean_fixture(void)
 {
 	static const char *const keys[] = {"tls-cancel", "tls-fail", "tls-ok"};
-	char path[sizeof(ST_WEBGET_TRANSPORT_TEST_DIRECTORY) + 64];
+	char                     path[sizeof(ST_WEBGET_TRANSPORT_TEST_DIRECTORY) + 64];
 
 	for (size_t i = 0; i < sizeof(keys) / sizeof(keys[0]); ++i) {
-		(void)snprintf(path, sizeof(path), "%s/%s.cacheinfo.lock",
-		    ST_WEBGET_TRANSPORT_TEST_DIRECTORY, keys[i]);
+		(void)snprintf(path, sizeof(path), "%s/%s.cacheinfo.lock", ST_WEBGET_TRANSPORT_TEST_DIRECTORY,
+		    keys[i]);
 		(void)fs_remove_file(path);
 	}
 	(void)fs_remove_directory(ST_WEBGET_TRANSPORT_TEST_DIRECTORY);
@@ -208,14 +201,14 @@ static int
 run_request(const char *key, enum st_webget_phase cancel_phase)
 {
 	struct st_webget_request request = {
-		.url = "https://example.invalid/resource",
-		.cache_directory = ST_WEBGET_TRANSPORT_TEST_DIRECTORY,
-		.cache_key = key,
-		.output_name = "unused.out",
-		.connect_timeout_ms = 1000,
-		.io_timeout_ms = 1000,
-		.progress = cancel_at_phase,
-		.progress_context = &cancel_phase,
+	    .url                = "https://example.invalid/resource",
+	    .cache_directory    = ST_WEBGET_TRANSPORT_TEST_DIRECTORY,
+	    .cache_key          = key,
+	    .output_name        = "unused.out",
+	    .connect_timeout_ms = 1000,
+	    .io_timeout_ms      = 1000,
+	    .progress           = cancel_at_phase,
+	    .progress_context   = &cancel_phase,
 	};
 	struct st_webget_result result;
 
@@ -236,8 +229,7 @@ main(void)
 	CHECK(fake.tls_close_calls == 0);
 
 	fake_reset(false);
-	CHECK(run_request("tls-fail", ST_WEBGET_REQUESTING)
-	    == IO_ERROR_NOT_SUPPORTED);
+	CHECK(run_request("tls-fail", ST_WEBGET_REQUESTING) == IO_ERROR_NOT_SUPPORTED);
 	CHECK(fake.runtime_init_calls == 1 && fake.runtime_cleanup_calls == 1);
 	CHECK(fake.connect_calls == 1 && fake.tls_open_calls == 1);
 	CHECK(fake.raw_close_calls == 1 && fake.repeated_close_calls == 0);

@@ -16,8 +16,7 @@ struct st_rip3_palette;
  * Inactive viewports are no-ops. Failed validation/staging changes no pixels;
  * success changes content only, including in protected ports. The owning void
  * parser consumes this service status. No file or clipboard policy occurs. */
-int st_rip3_wallpaper(struct st_rip3_ports *ports,
-	const struct st_rip3_bitmap_destination *seed, bool stagger,
-	const struct st_rip3_palette *palette);
+int st_rip3_wallpaper(struct st_rip3_ports *ports, const struct st_rip3_bitmap_destination *seed, bool stagger,
+    const struct st_rip3_palette *palette);
 
 #endif

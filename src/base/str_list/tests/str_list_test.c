@@ -9,20 +9,20 @@
 
 #include "str_list.h"
 
-#define CHECK(condition) do { \
-	if (!(condition)) { \
-		fprintf(stderr, "check failed at %s:%d: %s\n", \
-		    __FILE__, __LINE__, #condition); \
-		return false; \
-	} \
-} while (0)
+#define CHECK(condition)                                                                                \
+	do {                                                                                            \
+		if (!(condition)) {                                                                     \
+			fprintf(stderr, "check failed at %s:%d: %s\n", __FILE__, __LINE__, #condition); \
+			return false;                                                                   \
+		}                                                                                       \
+	} while (0)
 
 static bool
 test_append_and_clone(void)
 {
-	char source[] = "first";
-	str_list_t list = NULL;
-	str_list_t clone = NULL;
+	char       source[] = "first";
+	str_list_t list     = NULL;
+	str_list_t clone    = NULL;
 
 	CHECK(str_list_count(NULL) == 0);
 	CHECK(str_list_append(&list, source));
@@ -61,7 +61,7 @@ static bool
 test_append_list(void)
 {
 	str_list_t destination = NULL;
-	str_list_t source = NULL;
+	str_list_t source      = NULL;
 
 	CHECK(str_list_append_list(&destination, source));
 	CHECK(destination == NULL);
@@ -91,7 +91,7 @@ static bool
 test_take(void)
 {
 	str_list_t list = NULL;
-	char *item;
+	char      *item;
 
 	CHECK(str_list_append(&list, "one"));
 	CHECK(str_list_append(&list, "two"));
@@ -122,10 +122,10 @@ test_take(void)
 static bool
 test_split_and_join(void)
 {
-	str_list_t list = NULL;
-	str_list_t empty = NULL;
+	str_list_t list      = NULL;
+	str_list_t empty     = NULL;
 	str_list_t undivided = NULL;
-	char *joined;
+	char      *joined;
 
 	CHECK(str_list_split(&list, ",one,,two;three,", ",;"));
 	CHECK(str_list_count(list) == 3);
@@ -168,10 +168,7 @@ test_split_and_join(void)
 int
 main(void)
 {
-	if (!test_append_and_clone()
-	    || !test_append_list()
-	    || !test_take()
-	    || !test_split_and_join())
+	if (!test_append_and_clone() || !test_append_list() || !test_take() || !test_split_and_join())
 		return EXIT_FAILURE;
 	return EXIT_SUCCESS;
 }

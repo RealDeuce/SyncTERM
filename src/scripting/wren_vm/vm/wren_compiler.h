@@ -32,8 +32,7 @@ typedef struct sCompiler Compiler;
 //
 // If [printErrors] is `true`, any compile errors are output to stderr.
 // Otherwise, they are silently discarded.
-ObjFn* wrenCompile(WrenVM* vm, ObjModule* module, const char* source,
-                   bool isExpression, bool printErrors);
+ObjFn *wrenCompile(WrenVM *vm, ObjModule *module, const char *source, bool isExpression, bool printErrors);
 
 // When a class is defined, its superclass is not known until runtime since
 // class definitions are just imperative statements. Most of the bytecode for a
@@ -48,10 +47,10 @@ ObjFn* wrenCompile(WrenVM* vm, ObjModule* module, const char* source,
 //
 // We could handle this dynamically, but that adds overhead. Instead, when a
 // method is bound, we walk the bytecode for the function and patch it up.
-void wrenBindMethodCode(ObjClass* classObj, ObjFn* fn);
+void wrenBindMethodCode(ObjClass *classObj, ObjFn *fn);
 
 // Reaches all of the heap-allocated objects in use by [compiler] (and all of
 // its parents) so that they are not collected by the GC.
-void wrenMarkCompiler(WrenVM* vm, Compiler* compiler);
+void wrenMarkCompiler(WrenVM *vm, Compiler *compiler);
 
 #endif

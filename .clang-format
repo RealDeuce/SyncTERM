@@ -1,5 +1,4 @@
 ---
-Language: Cpp
 BasedOnStyle: WebKit
 AccessModifierOffset: -2
 AlignAfterOpenBracket: DontAlign
@@ -131,26 +130,34 @@ ForEachMacros:
 IfMacros:
 IncludeBlocks:   Regroup
 IncludeCategories:
-  - Regex:           '<sys/types.h>'
-    Priority:        1
-    SortPriority:    0
-    CaseSensitive:   false
-  - Regex:           '<sys/.*>'
-    Priority:        1
-    SortPriority:    1
-    CaseSensitive:   false
-  - Regex:           '<[^/]*/.*>'
-    Priority:        2
-    SortPriority:    0
-    CaseSensitive:   false
-  - Regex:           '<.*>'
-    Priority:        3
-    SortPriority:    0
-    CaseSensitive:   false
-  - Regex:           '".*"'
-    Priority:        4
-    SortPriority:    0
-    CaseSensitive:   false
+  # Platform prerequisites must precede the system headers that consume them.
+  - Regex: '<sys/types\.h>'
+    Priority: 1
+    SortPriority: -5
+  - Regex: '<(winsock2|initguid)\.h>'
+    Priority: 1
+    SortPriority: -4
+  - Regex: '<ws2tcpip\.h>'
+    Priority: 1
+    SortPriority: -3
+  - Regex: '<windows\.h>'
+    Priority: 1
+    SortPriority: -2
+  - Regex: '<(sys|arpa|netinet|linux|machine|AppKit|AudioToolbox|AudioUnit|Carbon|CoreFoundation)/'
+    Priority: 1
+  # C, C++, POSIX and native platform headers. Other angle includes are libraries.
+  - Regex: '<(algorithm|atomic|chrono|cstdio|cstring|deque|limits|memory|mutex|optional|span|stdexcept|string|vector)>'
+    Priority: 1
+  - Regex: '<(alloca|assert|ctype|dirent|dlfcn|errno|fcntl|float|fnmatch|inttypes|limits|locale|malloc|math|netdb|poll|pthread|pty|sched|setjmp|signal|spawn|stdarg|stdatomic|stdbool|stddef|stdint|stdio|stdlib|string|strings|termios|time|unistd|utime|wchar)\.h>'
+    Priority: 1
+  - Regex: '<(audioclient|avrt|basetsd|bcrypt|FindDirectory|fs_info|io|knownfolders|libutil|mmdeviceapi|mmsystem|process|shellapi|shlobj|util|windowsx)\.h>'
+    Priority: 1
+  - Regex: '<.*>'
+    Priority: 2
+  - Regex: '".*\.(inc|c)"'
+    Priority: 4
+  - Regex: '".*"'
+    Priority: 3
 IncludeIsMainRegex: '^DO_NOT_MATCH_THIS_REGEXDERPDERP$'
 IncludeIsMainSourceRegex: '^DO_NOT_MATCH_THIS_REGEXDERPDERP$'
 IndentAccessModifiers: false
@@ -264,3 +271,7 @@ WhitespaceSensitiveMacros:
   - STRINGIZE
 ...
 
+---
+Language: JavaScript
+DisableFormat: true
+...

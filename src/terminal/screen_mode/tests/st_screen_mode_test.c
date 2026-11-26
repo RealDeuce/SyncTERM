@@ -5,37 +5,36 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "st_screen_mode.h"
-
 #include <stdio.h>
 #include <string.h>
 
-#define CHECK(expression) do { \
-	if (!(expression)) { \
-		fprintf(stderr, "check failed at %s:%d: %s\n", __FILE__, __LINE__, \
-		    #expression); \
-		return 1; \
-	} \
-} while (0)
+#include "st_screen_mode.h"
+
+#define CHECK(expression)                                                                                \
+	do {                                                                                             \
+		if (!(expression)) {                                                                     \
+			fprintf(stderr, "check failed at %s:%d: %s\n", __FILE__, __LINE__, #expression); \
+			return 1;                                                                        \
+		}                                                                                        \
+	} while (0)
 
 int
 main(void)
 {
 	const struct st_screen_mode_descriptor *mode;
-	struct st_screen_mode_descriptor custom;
-	uint32_t console_palette[16];
-	uint16_t palette_mapping[16];
-	static const uint32_t palette[] = {0x123456, 0x789abc, 0xdef012};
+	struct st_screen_mode_descriptor        custom;
+	uint32_t                                console_palette[16];
+	uint16_t                                palette_mapping[16];
+	static const uint32_t                   palette[] = {0x123456, 0x789abc, 0xdef012};
 
 	CHECK(ST_SCREEN_MODE_AMIGA_640X200 == 30);
 	CHECK(ST_SCREEN_MODE_AMIGA_640X400 == 31);
 	CHECK(ST_SCREEN_MODE_EGA_80X25 == 23 && ST_SCREEN_MODE_VGA_80X25 == 24);
 	CHECK(ST_SCREEN_MODE_CGA_80X25 == 32);
 	CHECK(st_screen_mode_count() == 33);
-	static const unsigned choices[] = {
-		0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,
-		32,23,24,25,26,27,28,29,30,31};
-	for (size_t i = 0; i < sizeof(choices)/sizeof(*choices); ++i) {
+	static const unsigned choices[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
+	    20, 21, 22, 32, 23, 24, 25, 26, 27, 28, 29, 30, 31};
+	for (size_t i = 0; i < sizeof(choices) / sizeof(*choices); ++i) {
 		mode = st_screen_mode_choice_at(i);
 		CHECK(mode != NULL && (unsigned)mode->mode == choices[i]);
 	}
@@ -51,21 +50,30 @@ main(void)
 		for (size_t colour = 0; colour < 16; ++colour) {
 			size_t index = colour;
 			switch (mode->palette) {
-			case ST_SCREEN_PALETTE_ATARI:
-			case ST_SCREEN_PALETTE_MONO: index = colour != 0; break;
-			case ST_SCREEN_PALETTE_GREYSCALE:
-				index = colour == 0 ? 0 : colour < 8 ? 1 : colour == 8 ? 2 : 3;
-				break;
-			case ST_SCREEN_PALETTE_PRESTEL: index %= 8; break;
-			case ST_SCREEN_PALETTE_ATARI_ST_4: index %= 4; break;
-			case ST_SCREEN_PALETTE_ATARI_ST_2: index %= 2; break;
-			default: break;
+				case ST_SCREEN_PALETTE_ATARI:
+				case ST_SCREEN_PALETTE_MONO:
+					index = colour != 0;
+					break;
+				case ST_SCREEN_PALETTE_GREYSCALE:
+					index = colour == 0 ? 0 : colour < 8 ? 1 : colour == 8 ? 2 : 3;
+					break;
+				case ST_SCREEN_PALETTE_PRESTEL:
+					index %= 8;
+					break;
+				case ST_SCREEN_PALETTE_ATARI_ST_4:
+					index %= 4;
+					break;
+				case ST_SCREEN_PALETTE_ATARI_ST_2:
+					index %= 2;
+					break;
+				default:
+					break;
 			}
 			CHECK(console_palette[colour] == palette[index % 3]);
 		}
 	}
 	CHECK(st_screen_mode_at(st_screen_mode_count()) == NULL);
-	CHECK(st_screen_mode_get((enum st_screen_mode)-1) == NULL);
+	CHECK(st_screen_mode_get((enum st_screen_mode) - 1) == NULL);
 	/* New CGA ID is appended; its presentation order is independent. */
 	mode = st_screen_mode_get(ST_SCREEN_MODE_CGA_80X25);
 	CHECK(mode != NULL);
@@ -76,7 +84,7 @@ main(void)
 	CHECK(mode->console.pixel_width == 640 && mode->console.pixel_height == 200);
 	CHECK(mode->console.aspect_width == 4 && mode->console.aspect_height == 3);
 	CHECK(mode->console.default_cursor.start == 6 && mode->console.default_cursor.end == 7
-	    && mode->console.default_cursor.range == 8);
+	      && mode->console.default_cursor.range == 8);
 	CHECK(mode->console.blink_mode == ST_CONSOLE_BLINK_PC && mode->console.video_flags == 0);
 	CHECK(mode->font_selector == 0 && mode->default_attribute == 7);
 	CHECK(mode->palette == ST_SCREEN_PALETTE_COLOUR && mode->palette_count == 16);
@@ -87,10 +95,9 @@ main(void)
 	CHECK(mode->console.cell_width == 8 && mode->console.cell_height == 8);
 	CHECK(mode->console.pixel_width == 640 && mode->console.pixel_height == 400);
 	CHECK(mode->console.aspect_width == 4 && mode->console.aspect_height == 3);
-	CHECK(mode->console.default_cursor.start == 7
-	    && mode->console.default_cursor.end == 7
-	    && mode->console.default_cursor.range == 8
-	    && mode->console.default_cursor.visible && mode->console.default_cursor.blink);
+	CHECK(mode->console.default_cursor.start == 7 && mode->console.default_cursor.end == 7
+	      && mode->console.default_cursor.range == 8 && mode->console.default_cursor.visible
+	      && mode->console.default_cursor.blink);
 	CHECK(mode->console.blink_mode == ST_CONSOLE_BLINK_PC && mode->console.video_flags == 0);
 	CHECK(mode->font_selector == 0 && mode->default_attribute == 7);
 	CHECK(mode->palette == ST_SCREEN_PALETTE_COLOUR && mode->palette_count == 16);
@@ -113,8 +120,7 @@ main(void)
 	CHECK(palette_mapping[0] == 256 && palette_mapping[15] == 271);
 	mode = st_screen_mode_get(ST_SCREEN_MODE_80X25);
 	st_screen_mode_palette_mapping(mode, palette_mapping);
-	CHECK(palette_mapping[1] == 4 && palette_mapping[4] == 1
-	    && palette_mapping[15] == 15);
+	CHECK(palette_mapping[1] == 4 && palette_mapping[4] == 1 && palette_mapping[15] == 15);
 	mode = st_screen_mode_get(ST_SCREEN_MODE_ATARIST_80X25_MONO);
 	CHECK(mode->palette_count == 2);
 	CHECK(mode->palette_rgb[0] == 0xffffff);

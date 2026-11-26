@@ -2,8 +2,8 @@
 #ifndef ST_RIP3_RESOURCES_H_
 #define ST_RIP3_RESOURCES_H_
 
-#include <stddef.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 
@@ -43,8 +43,8 @@ struct st_rip3_resource {
 
 /* Exclusively create a client-owned scratch file directly in the BBS RIP
  * cache. Removal requires a scratch resource returned by this function. */
-int st_rip3_resource_scratch(struct st_rip3_resource *, const struct st_rip3_resource_paths *);
-int st_rip3_resource_read_scratch(struct st_rip3_resource *, const struct st_rip3_resource *);
+int  st_rip3_resource_scratch(struct st_rip3_resource *, const struct st_rip3_resource_paths *);
+int  st_rip3_resource_read_scratch(struct st_rip3_resource *, const struct st_rip3_resource *);
 void st_rip3_resource_remove_scratch(struct st_rip3_resource *);
 
 /*
@@ -60,13 +60,12 @@ void st_rip3_resource_remove_scratch(struct st_rip3_resource *);
  * allocated native path. Dispose it before replacing it with another result.
  * No directories or files are created, modified or deleted.
  */
-int st_rip3_resource_open(struct st_rip3_resource *result,
-    const struct st_rip3_resource_paths *paths,
+int st_rip3_resource_open(struct st_rip3_resource *result, const struct st_rip3_resource_paths *paths,
     enum st_rip3_resource_kind kind, const char *name);
 /* File queries and scene playback stop at the first matching media file, even if its open fails.
  * matched distinguishes that failure from a miss, including on a name race. */
 int st_rip3_resource_open_first(struct st_rip3_resource *result, bool *matched,
-	const struct st_rip3_resource_paths *paths, const char *name);
+    const struct st_rip3_resource_paths *paths, const char *name);
 /* Return success for a unique regular media file without opening it or
  * following a final symlink/reparse point. Uses the media lookup order. */
 int st_rip3_resource_exists(const struct st_rip3_resource_paths *paths, const char *name);
@@ -82,25 +81,25 @@ int st_rip3_resource_exists(const struct st_rip3_resource_paths *paths, const ch
  * pre-rename failures retain prior contents. This is a storage status for the
  * owning parser to consume, never a terminal/session processing return.
  * No clipboard/port capture, encoding, reset or connection setup is implied. */
-int st_rip3_resource_write(const struct st_rip3_resource_paths *paths,
-	const char *name, const void *bytes, size_t size);
+int st_rip3_resource_write(const struct st_rip3_resource_paths *paths, const char *name, const void *bytes,
+    size_t size);
 /* Export and register the resolved cache location in one operation. A failed
  * write leaves the list untouched. The interpreter owns the list through
  * disconnect/destruction, independently of scene and resource selection. */
-int st_rip3_resource_write_temporary(const struct st_rip3_resource_paths *paths,
-	const char *name, const void *bytes, size_t size, struct st_rip3_temporary_resource **entries);
+int st_rip3_resource_write_temporary(const struct st_rip3_resource_paths *paths, const char *name,
+    const void *bytes, size_t size, struct st_rip3_temporary_resource **entries);
 /* Register a completed cache download. Purge consumes all registrations and
  * attempts removal through the same confined cache lookup as FILEDEL. */
-int st_rip3_resource_register_temporary(const struct st_rip3_resource_paths *paths,
-	const char *name, struct st_rip3_temporary_resource **entries);
+int  st_rip3_resource_register_temporary(const struct st_rip3_resource_paths *paths, const char *name,
+    struct st_rip3_temporary_resource **entries);
 void st_rip3_resource_purge_temporary(struct st_rip3_temporary_resource **entries);
 /* Resolve a regular cache file or a new download name, with no fallback.
  * Result owns the UTF-8 path on success. Uploads never create a directory. */
-int st_rip3_resource_transfer_path(char **result, const struct st_rip3_resource_paths *paths,
-	const char *name, bool upload);
+int st_rip3_resource_transfer_path(char **result, const struct st_rip3_resource_paths *paths, const char *name,
+    bool upload);
 /* Remove a unique regular file from the active BBS RIP directory. Uses the
  * same bare-name and caseless matching as writes. No fallback or creation. */
-int st_rip3_resource_remove(const struct st_rip3_resource_paths *paths, const char *name);
+int  st_rip3_resource_remove(const struct st_rip3_resource_paths *paths, const char *name);
 void st_rip3_resource_dispose(struct st_rip3_resource *resource);
 
 #endif

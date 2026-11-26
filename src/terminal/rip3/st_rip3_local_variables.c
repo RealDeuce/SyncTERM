@@ -1,65 +1,79 @@
 /* Local queries, separated from platform-specific input/device mechanisms. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
-#include "st_rip3_host_internal.h"
-#include "st_rip3_local_variables.h"
-#include "st_rip3_environments.h"
-#include "st_rip3_mouse.h"
-#include "io_error.h"
-
 #include <inttypes.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
+#include "io_error.h"
+#include "st_rip3_environments.h"
+#include "st_rip3_host_internal.h"
+#include "st_rip3_local_variables.h"
+#include "st_rip3_mouse.h"
+
 static bool
 word_equal(const char *text, const char *uppercase)
 {
-	for (size_t i=0; ; i++) {
-		unsigned char c=(unsigned char)text[i];
-		if (c>='a' && c<='z') c=(unsigned char)(c-'a'+'A');
-		if (c!=(unsigned char)uppercase[i]) return false;
-		if (c==0) return true;
+	for (size_t i = 0;; i++) {
+		unsigned char c = (unsigned char)text[i];
+		if (c >= 'a' && c <= 'z')
+			c = (unsigned char)(c - 'a' + 'A');
+		if (c != (unsigned char)uppercase[i])
+			return false;
+		if (c == 0)
+			return true;
 	}
 }
 
 static int
 frame(const struct st_rip3_host_variables *host, struct st_rip3_frame *result)
 {
-	const struct st_rip3_environments *env=host->tables==NULL ? NULL : host->tables->tables[ST_RIP3_TABLE_ENV].live;
-	if (env!=NULL) {
-		unsigned current;int status=st_rip3_environments_current(env,&current);
-		return status==0 ? st_rip3_environments_frame(env,current,result) : status;
+	const struct st_rip3_environments *env =
+	    host->tables == NULL ? NULL : host->tables->tables[ST_RIP3_TABLE_ENV].live;
+	if (env != NULL) {
+		unsigned current;
+		int      status = st_rip3_environments_current(env, &current);
+		return status == 0 ? st_rip3_environments_frame(env, current, result) : status;
 	}
-	if (host->frame==NULL) return IO_ERROR_NOT_SUPPORTED;
-	struct st_rip3_frame checked=*host->frame;
-	int status=st_rip3_frame_world(&checked,checked.world_width,checked.world_height);
-	if (status==0) *result=checked;
+	if (host->frame == NULL)
+		return IO_ERROR_NOT_SUPPORTED;
+	struct st_rip3_frame checked = *host->frame;
+	int                  status  = st_rip3_frame_world(&checked, checked.world_width, checked.world_height);
+	if (status == 0)
+		*result = checked;
 	return status;
 }
 
 static int64_t
 signed_word(int64_t value)
 {
-	int64_t low=(int64_t)((uint64_t)value&UINT64_C(65535));
-	return low>=32768 ? low-65536 : low;
+	int64_t low = (int64_t)((uint64_t)value & UINT64_C(65535));
+	return low >= 32768 ? low - 65536 : low;
 }
 
 static int64_t
 cell(int32_t position, int32_t origin, unsigned size, unsigned count)
 {
-	int64_t value=((int64_t)position-origin)/size;
-	return value<0 ? 0 : (uint64_t)value>=count ? (int64_t)count-1 : value;
+	int64_t value = ((int64_t)position - origin) / size;
+	return value < 0 ? 0 : (uint64_t)value >= count ? (int64_t)count - 1 : value;
 }
 
 static int
-terminal_option(const struct st_rip3_host_variables *host,
-    const struct st_rip3_builtin_reference *reference, char *result, size_t capacity)
+terminal_option(const struct st_rip3_host_variables *host, const struct st_rip3_builtin_reference *reference,
+    char *result, size_t capacity)
 {
 	const struct st_rip3_local_queries *local = host->local;
 	bool has_doorway = local != NULL && local->doorway_mode != NULL && local->set_doorway_mode != NULL;
-	bool has_mouse = host->mouse != NULL;
+	bool has_mouse   = host->mouse != NULL;
 	struct st_rip3_builtin_reference words;
-	enum {DOORWAY, HOTKEY, TAB, STATBAR} target;
+
+	enum {
+		DOORWAY,
+		HOTKEY,
+		TAB,
+		STATBAR
+	} target;
+
 	const char *mode;
 	if (strcmp(reference->name, "OPTION") == 0) {
 		int status = st_rip3_builtin_reference_words(&words, reference);
@@ -72,9 +86,8 @@ terminal_option(const struct st_rip3_host_variables *host,
 			if (words.count != 1)
 				return IO_ERROR_INVALID_FORMAT;
 			char list[sizeof("DOORWAY,HOTKEY,TAB,STATBAR")];
-			int length = snprintf(list, sizeof(list), "%s%s%s%s%s",
-			    has_doorway ? "DOORWAY" : "", has_doorway && has_mouse ? "," : "",
-			    has_mouse ? "HOTKEY,TAB" : "",
+			int  length = snprintf(list, sizeof(list), "%s%s%s%s%s", has_doorway ? "DOORWAY" : "",
+			    has_doorway && has_mouse ? "," : "", has_mouse ? "HOTKEY,TAB" : "",
 			    (has_doorway || has_mouse) && host->status_bar != NULL ? "," : "",
 			    host->status_bar != NULL ? "STATBAR" : "");
 			if (length < 0 || (size_t)length >= sizeof(list))
@@ -99,13 +112,17 @@ terminal_option(const struct st_rip3_host_variables *host,
 	else {
 		if (reference->count != 0)
 			return IO_ERROR_INVALID_FORMAT;
-		target = reference->name[0] == 'D' ? DOORWAY : reference->name[0] == 'H' ? HOTKEY
-		    : reference->name[0] == 'S' ? STATBAR : TAB;
-		mode = strcmp(reference->name, "DWAYON") == 0 || strcmp(reference->name, "HKEYON") == 0
-		    || strcmp(reference->name, "TABON") == 0 || strcmp(reference->name, "SBARON") == 0 ? "ON" : "OFF";
+		target = reference->name[0] == 'D'   ? DOORWAY
+		         : reference->name[0] == 'H' ? HOTKEY
+		         : reference->name[0] == 'S' ? STATBAR
+		                                     : TAB;
+		mode   = strcmp(reference->name, "DWAYON") == 0 || strcmp(reference->name, "HKEYON") == 0
+		                 || strcmp(reference->name, "TABON") == 0 || strcmp(reference->name, "SBARON") == 0
+		             ? "ON"
+		             : "OFF";
 	}
 	bool query = word_equal(mode, "QUERY");
-	bool on = word_equal(mode, "ON");
+	bool on    = word_equal(mode, "ON");
 	if (!query && !on && !word_equal(mode, "OFF"))
 		return IO_ERROR_INVALID_FORMAT;
 	if (!(target == DOORWAY ? has_doorway : target == STATBAR ? host->status_bar != NULL : has_mouse))
@@ -143,8 +160,8 @@ terminal_option(const struct st_rip3_host_variables *host,
 }
 
 static int
-backspace_mode(struct st_rip3_backspace *settings,
-    const struct st_rip3_builtin_reference *reference, char *result, size_t capacity)
+backspace_mode(struct st_rip3_backspace *settings, const struct st_rip3_builtin_reference *reference, char *result,
+    size_t capacity)
 {
 	if (reference->count > 1)
 		return IO_ERROR_INVALID_FORMAT;
@@ -152,10 +169,10 @@ backspace_mode(struct st_rip3_backspace *settings,
 		return IO_ERROR_NOT_SUPPORTED;
 	if (capacity == 0)
 		return IO_ERROR_OUT_OF_RANGE;
-	bool transmit = strcmp(reference->name, "BSXMIT") == 0;
-	bool *option = transmit ? &settings->send_del : &settings->nondestructive;
+	bool                             transmit = strcmp(reference->name, "BSXMIT") == 0;
+	bool                            *option   = transmit ? &settings->send_del : &settings->nondestructive;
 	struct st_rip3_builtin_reference words;
-	int status = st_rip3_builtin_reference_words(&words, reference);
+	int                              status = st_rip3_builtin_reference_words(&words, reference);
 	if (status != 0)
 		return status;
 	const char *selector = words.parameters[0].text;
@@ -180,21 +197,24 @@ int
 st_rip3_local_variables_execute(const struct st_rip3_host_variables *host,
     const struct st_rip3_builtin_reference *reference, char *result, size_t capacity)
 {
-	if (host==NULL || reference==NULL || result==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (host == NULL || reference == NULL || result == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
 	const char *name = reference->name;
 	if (strcmp(name, "BSMODE") == 0 || strcmp(name, "BSXMIT") == 0)
 		return backspace_mode(host->backspace, reference, result, capacity);
 	if (strcmp(name, "OPTION") == 0 || strcmp(name, "DWAYON") == 0 || strcmp(name, "DWAYOFF") == 0
-	    || strcmp(name, "HKEYON") == 0 || strcmp(name, "HKEYOFF") == 0
-	    || strcmp(name, "TABON") == 0 || strcmp(name, "TABOFF") == 0
-	    || strcmp(name, "SBARON") == 0 || strcmp(name, "SBAROFF") == 0)
+	    || strcmp(name, "HKEYON") == 0 || strcmp(name, "HKEYOFF") == 0 || strcmp(name, "TABON") == 0
+	    || strcmp(name, "TABOFF") == 0 || strcmp(name, "SBARON") == 0 || strcmp(name, "SBAROFF") == 0)
 		return terminal_option(host, reference, result, capacity);
 	if (strcmp(name, "STATBAR") == 0) {
-		if (reference->count != 0) return IO_ERROR_INVALID_FORMAT;
-		if (host->status_bar == NULL) return IO_ERROR_NOT_SUPPORTED;
+		if (reference->count != 0)
+			return IO_ERROR_INVALID_FORMAT;
+		if (host->status_bar == NULL)
+			return IO_ERROR_NOT_SUPPORTED;
 		const char *value = *host->status_bar ? "YES" : "NO";
-		size_t size = strlen(value) + 1;
-		if (size > capacity) return IO_ERROR_OUT_OF_RANGE;
+		size_t      size  = strlen(value) + 1;
+		if (size > capacity)
+			return IO_ERROR_OUT_OF_RANGE;
 		memcpy(result, value, size);
 		return 0;
 	}
@@ -231,23 +251,29 @@ st_rip3_local_variables_execute(const struct st_rip3_host_variables *host,
 		memcpy(result, value, size);
 		return 0;
 	}
-	bool shift=strcmp(reference->name,"SHIFT")==0,ctrl=strcmp(reference->name,"CTRL")==0;
-	bool mouse=strcmp(reference->name,"MSTAT")==0,colors=strcmp(reference->name,"COLORS")==0;
+	bool shift = strcmp(reference->name, "SHIFT") == 0, ctrl = strcmp(reference->name, "CTRL") == 0;
+	bool mouse = strcmp(reference->name, "MSTAT") == 0, colors = strcmp(reference->name, "COLORS") == 0;
 	bool x_only = strcmp(name, "X") == 0, y_only = strcmp(name, "Y") == 0;
 	bool buttons_only = strcmp(name, "M") == 0, with_buttons = strcmp(name, "XYM") == 0;
 	bool position = x_only || y_only || with_buttons || strcmp(name, "XY") == 0;
-	if (!shift && !ctrl && !mouse && !colors && !position && !buttons_only) return IO_ERROR_NOT_SUPPORTED;
-	if (reference->count>(position ? 1u : 0u)) return IO_ERROR_INVALID_FORMAT;
+	if (!shift && !ctrl && !mouse && !colors && !position && !buttons_only)
+		return IO_ERROR_NOT_SUPPORTED;
+	if (reference->count > (position ? 1u : 0u))
+		return IO_ERROR_INVALID_FORMAT;
 	struct st_rip3_builtin_reference words;
-	bool device=false,world=false;
-	if (position && reference->count==1) {
-		int status=st_rip3_builtin_reference_words(&words,reference);
-		if (status!=0) return status;
-		device=word_equal(words.parameters[0].text,"DEVICE");world=word_equal(words.parameters[0].text,"WORLD");
-		if (!device && !world) return IO_ERROR_INVALID_FORMAT;
+	bool                             device = false, world = false;
+	if (position && reference->count == 1) {
+		int status = st_rip3_builtin_reference_words(&words, reference);
+		if (status != 0)
+			return status;
+		device = word_equal(words.parameters[0].text, "DEVICE");
+		world  = word_equal(words.parameters[0].text, "WORLD");
+		if (!device && !world)
+			return IO_ERROR_INVALID_FORMAT;
 	}
-	const struct st_rip3_local_queries *local=host->local;
-	if (local==NULL) return IO_ERROR_NOT_SUPPORTED;
+	const struct st_rip3_local_queries *local = host->local;
+	if (local == NULL)
+		return IO_ERROR_NOT_SUPPORTED;
 	char buttons[4] = {0};
 	if (buttons_only || with_buttons) {
 		if (local->mouse_buttons == NULL)
@@ -256,58 +282,77 @@ st_rip3_local_variables_execute(const struct st_rip3_host_variables *host,
 		buttons[1] = local->mouse_buttons->middle ? '1' : '0';
 		buttons[2] = local->mouse_buttons->right ? '1' : '0';
 	}
-	char text[32];int length;
+	char text[32];
+	int  length;
 	if (shift || ctrl) {
-		if (capacity<2) return IO_ERROR_OUT_OF_RANGE;
-		if (local->modifiers==NULL) return IO_ERROR_NOT_SUPPORTED;
-		unsigned down=0;
-		int status=local->modifiers(local->context,&down);
-		if (status!=0) return status;
-		text[0]=(down & (shift ? ST_RIP3_MODIFIER_SHIFT : ST_RIP3_MODIFIER_CTRL))!=0 ? '1' : '0';
-		text[1]=0;length=1;
+		if (capacity < 2)
+			return IO_ERROR_OUT_OF_RANGE;
+		if (local->modifiers == NULL)
+			return IO_ERROR_NOT_SUPPORTED;
+		unsigned down   = 0;
+		int      status = local->modifiers(local->context, &down);
+		if (status != 0)
+			return status;
+		text[0] = (down & (shift ? ST_RIP3_MODIFIER_SHIFT : ST_RIP3_MODIFIER_CTRL)) != 0 ? '1' : '0';
+		text[1] = 0;
+		length  = 1;
 	}
 	else if (mouse) {
-		if (local->mouse_present == NULL) return IO_ERROR_NOT_SUPPORTED;
+		if (local->mouse_present == NULL)
+			return IO_ERROR_NOT_SUPPORTED;
 		bool present;
-		int status = local->mouse_present(local->context, &present);
-		if (status != 0) return status;
+		int  status = local->mouse_present(local->context, &present);
+		if (status != 0)
+			return status;
 		const char *answer = present ? "YES" : "NO";
-		length=(int)strlen(answer);memcpy(text,answer,(size_t)length+1);
+		length             = (int)strlen(answer);
+		memcpy(text, answer, (size_t)length + 1);
 	}
 	else if (colors) {
-		if (local->colors==NULL) return IO_ERROR_NOT_SUPPORTED;
-		length=snprintf(text,sizeof(text),"%u",*local->colors);
+		if (local->colors == NULL)
+			return IO_ERROR_NOT_SUPPORTED;
+		length = snprintf(text, sizeof(text), "%u", *local->colors);
 	}
 	else if (buttons_only) {
 		memcpy(text, buttons, sizeof(buttons));
 		length = 3;
 	}
 	else {
-		struct st_rip3_point captured = local->mouse_position != NULL
-		    ? *local->mouse_position : (struct st_rip3_point){0};
-		int64_t x=captured.x,y=captured.y;int padding=4;
+		struct st_rip3_point captured =
+		    local->mouse_position != NULL ? *local->mouse_position : (struct st_rip3_point) {0};
+		int64_t x = captured.x, y = captured.y;
+		int     padding = 4;
 		if (!device && !world && local->text_window_query) {
-			const struct st_rip3_query_cells *window=local->text_window;
-			if (window==NULL) return IO_ERROR_NOT_SUPPORTED;
-			if (window->cell_width==0 || window->cell_height==0 || window->columns==0 || window->rows==0)
+			const struct st_rip3_query_cells *window = local->text_window;
+			if (window == NULL)
+				return IO_ERROR_NOT_SUPPORTED;
+			if (window->cell_width == 0 || window->cell_height == 0 || window->columns == 0
+			    || window->rows == 0)
 				return IO_ERROR_CONFLICT;
-			x=cell(captured.x,window->origin.x,window->cell_width,window->columns);
-			y=cell(captured.y,window->origin.y,window->cell_height,window->rows);padding=2;
+			x       = cell(captured.x, window->origin.x, window->cell_width, window->columns);
+			y       = cell(captured.y, window->origin.y, window->cell_height, window->rows);
+			padding = 2;
 		}
 		else if (!device) {
-			struct st_rip3_frame current;int status=frame(host,&current);
-			if (status!=0) return status;
+			struct st_rip3_frame current;
+			int                  status = frame(host, &current);
+			if (status != 0)
+				return status;
 			/* Pointer queries truncate signed products, unlike pixel mapping's
 			 * containing-cell floor rule. Narrow only after this conversion. */
-			x=x*current.world_width/current.device_width;y=y*current.world_height/current.device_height;
+			x = x * current.world_width / current.device_width;
+			y = y * current.world_height / current.device_height;
 		}
 		if (x_only || y_only)
 			length = snprintf(text, sizeof(text), "%0*" PRId64, padding, signed_word(x_only ? x : y));
 		else
-			length = snprintf(text, sizeof(text), "%0*" PRId64 ":%0*" PRId64 "%s%s",
-			    padding, signed_word(x), padding, signed_word(y), with_buttons ? ":" : "", buttons);
+			length = snprintf(text, sizeof(text), "%0*" PRId64 ":%0*" PRId64 "%s%s", padding,
+			    signed_word(x), padding, signed_word(y), with_buttons ? ":" : "", buttons);
 	}
-	if (length<0 || (size_t)length>=sizeof(text)) return IO_ERROR_IO;
-	if ((size_t)length>=capacity) return IO_ERROR_OUT_OF_RANGE;
-	memcpy(result,text,(size_t)length+1);return 0;
+	if (length < 0 || (size_t)length >= sizeof(text))
+		return IO_ERROR_IO;
+	if ((size_t)length >= capacity)
+		return IO_ERROR_OUT_OF_RANGE;
+	memcpy(result, text, (size_t)length + 1);
+	return 0;
 }

@@ -7,9 +7,9 @@
 #include <stddef.h>
 
 struct st_wren_license {
-	const char *name;
+	const char          *name;
 	const unsigned char *text;
-	size_t length;
+	size_t               length;
 };
 
 /* Generated from the checked-in notices, terminated by a NULL name. */

@@ -5,37 +5,36 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "st_hyperlink.h"
-
-#include "io_error.h"
-#include "st_threads.h"
-
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "io_error.h"
+#include "st_hyperlink.h"
+#include "st_threads.h"
+
 struct hyperlink_entry {
 	char *uri;
 	char *parameter;
-	bool occupied;
-	bool marked;
+	bool  occupied;
+	bool  marked;
 };
 
 struct hyperlink_root {
 	st_hyperlink_root_fn function;
-	void *context;
+	void                *context;
 };
 
 struct st_hyperlink_registry {
 	struct hyperlink_entry *entries;
-	size_t count;
-	size_t used;
-	size_t capacity;
-	size_t free_hint;
-	struct hyperlink_root *roots;
-	size_t root_count;
-	size_t root_capacity;
-	st_mutex_t mutex;
+	size_t                  count;
+	size_t                  used;
+	size_t                  capacity;
+	size_t                  free_hint;
+	struct hyperlink_root  *roots;
+	size_t                  root_count;
+	size_t                  root_capacity;
+	st_mutex_t              mutex;
 };
 
 static char *
@@ -56,9 +55,8 @@ copy_span(const char *text, size_t length)
 static bool
 span_valid(const char *text, size_t length, bool empty_allowed)
 {
-	return (text != NULL || length == 0)
-	    && (empty_allowed || length != 0)
-	    && (length == 0 || memchr(text, '\0', length) == NULL);
+	return (text != NULL || length == 0) && (empty_allowed || length != 0)
+	       && (length == 0 || memchr(text, '\0', length) == NULL);
 }
 
 int
@@ -71,8 +69,7 @@ st_hyperlink_registry_create(st_hyperlink_registry_t **result)
 	registry = calloc(1, sizeof(*registry));
 	if (registry == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
-	if (st_mutex_init(&registry->mutex, ST_MUTEX_PLAIN)
-	    != ST_THREAD_SUCCESS) {
+	if (st_mutex_init(&registry->mutex, ST_MUTEX_PLAIN) != ST_THREAD_SUCCESS) {
 		free(registry);
 		return IO_ERROR_IO;
 	}
@@ -98,7 +95,7 @@ st_hyperlink_registry_destroy(st_hyperlink_registry_t *registry)
 static int
 grow_registry(st_hyperlink_registry_t *registry)
 {
-	size_t capacity = registry->capacity == 0 ? 64 : registry->capacity * 2;
+	size_t                  capacity = registry->capacity == 0 ? 64 : registry->capacity * 2;
 	struct hyperlink_entry *entries;
 
 	if (capacity > UINT16_MAX)
@@ -109,8 +106,7 @@ grow_registry(st_hyperlink_registry_t *registry)
 	if (entries == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
 	registry->entries = entries;
-	memset(entries + registry->capacity, 0,
-	    (capacity - registry->capacity) * sizeof(*entries));
+	memset(entries + registry->capacity, 0, (capacity - registry->capacity) * sizeof(*entries));
 	registry->capacity = capacity;
 	return 0;
 }
@@ -120,8 +116,7 @@ mark_identifier(void *context, uint16_t identifier)
 {
 	st_hyperlink_registry_t *registry = context;
 
-	if (identifier != 0 && (size_t)identifier <= registry->count
-	    && registry->entries[identifier - 1].occupied)
+	if (identifier != 0 && (size_t)identifier <= registry->count && registry->entries[identifier - 1].occupied)
 		registry->entries[identifier - 1].marked = true;
 	return 0;
 }
@@ -129,7 +124,7 @@ mark_identifier(void *context, uint16_t identifier)
 static int
 collect_locked(st_hyperlink_registry_t *registry)
 {
-	int status = 0;
+	int    status    = 0;
 	size_t free_hint = registry->count;
 
 	if (registry->root_count == 0)
@@ -137,8 +132,7 @@ collect_locked(st_hyperlink_registry_t *registry)
 	for (size_t i = 0; i < registry->count; ++i)
 		registry->entries[i].marked = false;
 	for (size_t i = 0; i < registry->root_count; ++i) {
-		status = registry->roots[i].function(registry->roots[i].context,
-		    mark_identifier, registry);
+		status = registry->roots[i].function(registry->roots[i].context, mark_identifier, registry);
 		if (status != 0)
 			break;
 	}
@@ -156,7 +150,7 @@ collect_locked(st_hyperlink_registry_t *registry)
 			continue;
 		free(entry->uri);
 		free(entry->parameter);
-		*entry = (struct hyperlink_entry){0};
+		*entry = (struct hyperlink_entry) {0};
 		--registry->used;
 		if (free_hint == registry->count)
 			free_hint = i;
@@ -166,16 +160,14 @@ collect_locked(st_hyperlink_registry_t *registry)
 }
 
 int
-st_hyperlink_registry_add(st_hyperlink_registry_t *registry,
-	const char *uri, size_t uri_length, const char *parameter,
-	size_t parameter_length, uint16_t *identifier)
+st_hyperlink_registry_add(st_hyperlink_registry_t *registry, const char *uri, size_t uri_length,
+    const char *parameter, size_t parameter_length, uint16_t *identifier)
 {
-	char *uri_copy = NULL;
+	char *uri_copy       = NULL;
 	char *parameter_copy = NULL;
-	int status = 0;
+	int   status         = 0;
 
-	if (registry == NULL || identifier == NULL
-	    || !span_valid(uri, uri_length, false)
+	if (registry == NULL || identifier == NULL || !span_valid(uri, uri_length, false)
 	    || !span_valid(parameter, parameter_length, true))
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (st_mutex_lock(&registry->mutex) != ST_THREAD_SUCCESS)
@@ -184,12 +176,10 @@ st_hyperlink_registry_add(st_hyperlink_registry_t *registry,
 		for (size_t i = 0; i < registry->count; ++i) {
 			const struct hyperlink_entry *entry = &registry->entries[i];
 
-			if (entry->occupied && entry->parameter != NULL
-			    && strlen(entry->uri) == uri_length
+			if (entry->occupied && entry->parameter != NULL && strlen(entry->uri) == uri_length
 			    && strlen(entry->parameter) == parameter_length
 			    && memcmp(entry->uri, uri, uri_length) == 0
-			    && memcmp(entry->parameter, parameter,
-			    parameter_length) == 0) {
+			    && memcmp(entry->parameter, parameter, parameter_length) == 0) {
 				*identifier = (uint16_t)(i + 1);
 				(void)st_mutex_unlock(&registry->mutex);
 				return 0;
@@ -200,8 +190,7 @@ st_hyperlink_registry_add(st_hyperlink_registry_t *registry,
 		status = collect_locked(registry);
 	if (status == 0 && registry->used == UINT16_MAX)
 		status = IO_ERROR_OUT_OF_RANGE;
-	else if (status == 0 && registry->count == registry->capacity
-	    && registry->used == registry->count)
+	else if (status == 0 && registry->count == registry->capacity && registry->used == registry->count)
 		status = grow_registry(registry);
 	if (status == 0) {
 		uri_copy = copy_span(uri, uri_length);
@@ -218,14 +207,13 @@ st_hyperlink_registry_add(st_hyperlink_registry_t *registry,
 
 		if (index == registry->count)
 			++registry->count;
-		registry->entries[index] = (struct hyperlink_entry){
-			.uri = uri_copy,
-			.parameter = parameter_copy,
-			.occupied = true,
+		registry->entries[index] = (struct hyperlink_entry) {
+		    .uri       = uri_copy,
+		    .parameter = parameter_copy,
+		    .occupied  = true,
 		};
 		++registry->used;
-		while (registry->free_hint < registry->count
-		    && registry->entries[registry->free_hint].occupied)
+		while (registry->free_hint < registry->count && registry->entries[registry->free_hint].occupied)
 			++registry->free_hint;
 		*identifier = (uint16_t)(index + 1);
 	}
@@ -238,28 +226,25 @@ st_hyperlink_registry_add(st_hyperlink_registry_t *registry,
 }
 
 int
-st_hyperlink_registry_copy(st_hyperlink_registry_t *registry,
-	uint16_t identifier, struct st_hyperlink *result)
+st_hyperlink_registry_copy(st_hyperlink_registry_t *registry, uint16_t identifier, struct st_hyperlink *result)
 {
-	struct st_hyperlink copy = {0};
+	struct st_hyperlink           copy = {0};
 	const struct hyperlink_entry *entry;
-	int status = 0;
+	int                           status = 0;
 
 	if (registry == NULL || identifier == 0 || result == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (st_mutex_lock(&registry->mutex) != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
-	if ((size_t)identifier > registry->count
-	    || !registry->entries[identifier - 1].occupied)
+	if ((size_t)identifier > registry->count || !registry->entries[identifier - 1].occupied)
 		status = IO_ERROR_NOT_FOUND;
 	else {
-		entry = &registry->entries[identifier - 1];
+		entry    = &registry->entries[identifier - 1];
 		copy.uri = copy_span(entry->uri, strlen(entry->uri));
 		if (copy.uri == NULL)
 			status = IO_ERROR_OUT_OF_MEMORY;
 		else if (entry->parameter != NULL) {
-			copy.parameter = copy_span(entry->parameter,
-			    strlen(entry->parameter));
+			copy.parameter = copy_span(entry->parameter, strlen(entry->parameter));
 			if (copy.parameter == NULL)
 				status = IO_ERROR_OUT_OF_MEMORY;
 		}
@@ -273,43 +258,38 @@ st_hyperlink_registry_copy(st_hyperlink_registry_t *registry,
 }
 
 int
-st_hyperlink_registry_contains(st_hyperlink_registry_t *registry,
-	uint16_t identifier, bool *result)
+st_hyperlink_registry_contains(st_hyperlink_registry_t *registry, uint16_t identifier, bool *result)
 {
 	if (registry == NULL || result == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (st_mutex_lock(&registry->mutex) != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
-	*result = identifier != 0 && (size_t)identifier <= registry->count
-	    && registry->entries[identifier - 1].occupied;
+	*result =
+	    identifier != 0 && (size_t)identifier <= registry->count && registry->entries[identifier - 1].occupied;
 	(void)st_mutex_unlock(&registry->mutex);
 	return 0;
 }
 
 int
-st_hyperlink_registry_register_root(st_hyperlink_registry_t *registry,
-	st_hyperlink_root_fn root, void *context)
+st_hyperlink_registry_register_root(st_hyperlink_registry_t *registry, st_hyperlink_root_fn root, void *context)
 {
 	struct hyperlink_root *roots;
-	size_t capacity;
-	int status = 0;
+	size_t                 capacity;
+	int                    status = 0;
 
 	if (registry == NULL || root == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (st_mutex_lock(&registry->mutex) != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
 	for (size_t i = 0; i < registry->root_count; ++i) {
-		if (registry->roots[i].function == root
-		    && registry->roots[i].context == context) {
+		if (registry->roots[i].function == root && registry->roots[i].context == context) {
 			status = IO_ERROR_ALREADY_EXISTS;
 			goto done;
 		}
 	}
 	if (registry->root_count == registry->root_capacity) {
-		capacity = registry->root_capacity == 0
-		    ? 4 : registry->root_capacity * 2;
-		if (capacity < registry->root_capacity
-		    || capacity > SIZE_MAX / sizeof(*roots)) {
+		capacity = registry->root_capacity == 0 ? 4 : registry->root_capacity * 2;
+		if (capacity < registry->root_capacity || capacity > SIZE_MAX / sizeof(*roots)) {
 			status = IO_ERROR_OUT_OF_RANGE;
 			goto done;
 		}
@@ -318,12 +298,12 @@ st_hyperlink_registry_register_root(st_hyperlink_registry_t *registry,
 			status = IO_ERROR_OUT_OF_MEMORY;
 			goto done;
 		}
-		registry->roots = roots;
+		registry->roots         = roots;
 		registry->root_capacity = capacity;
 	}
-	registry->roots[registry->root_count++] = (struct hyperlink_root){
-		.function = root,
-		.context = context,
+	registry->roots[registry->root_count++] = (struct hyperlink_root) {
+	    .function = root,
+	    .context  = context,
 	};
 done:
 	(void)st_mutex_unlock(&registry->mutex);
@@ -331,15 +311,12 @@ done:
 }
 
 void
-st_hyperlink_registry_unregister_root(st_hyperlink_registry_t *registry,
-	st_hyperlink_root_fn root, void *context)
+st_hyperlink_registry_unregister_root(st_hyperlink_registry_t *registry, st_hyperlink_root_fn root, void *context)
 {
-	if (registry == NULL || root == NULL
-	    || st_mutex_lock(&registry->mutex) != ST_THREAD_SUCCESS)
+	if (registry == NULL || root == NULL || st_mutex_lock(&registry->mutex) != ST_THREAD_SUCCESS)
 		return;
 	for (size_t i = 0; i < registry->root_count; ++i) {
-		if (registry->roots[i].function != root
-		    || registry->roots[i].context != context)
+		if (registry->roots[i].function != root || registry->roots[i].context != context)
 			continue;
 		memmove(&registry->roots[i], &registry->roots[i + 1],
 		    (registry->root_count - i - 1) * sizeof(*registry->roots));
@@ -370,5 +347,5 @@ st_hyperlink_dispose(struct st_hyperlink *hyperlink)
 		return;
 	free(hyperlink->uri);
 	free(hyperlink->parameter);
-	*hyperlink = (struct st_hyperlink){0};
+	*hyperlink = (struct st_hyperlink) {0};
 }

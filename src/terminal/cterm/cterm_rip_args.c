@@ -17,16 +17,16 @@ cterm_rip_signed_word(uint16_t word)
 bool
 cterm_rip_read_number(const char **cursor, size_t width, int *value)
 {
-	const char *text = *cursor;
-	uint16_t magnitude = 0;
-	bool negative = false, stopped = false;
-	size_t used = 0;
+	const char *text      = *cursor;
+	uint16_t    magnitude = 0;
+	bool        negative = false, stopped = false;
+	size_t      used = 0;
 
 	if (width == 0 || width > 5)
 		return false;
 	for (; used < width; ++used) {
 		unsigned char ch = (unsigned char)text[used];
-		unsigned digit;
+		unsigned      digit;
 
 		if (used != 0 && (ch == '\0' || ch == '|'))
 			break;
@@ -51,18 +51,16 @@ cterm_rip_read_number(const char **cursor, size_t width, int *value)
 			magnitude = (uint16_t)((uint32_t)magnitude * 36u + digit);
 	}
 	uint16_t word = negative ? (uint16_t)(0u - magnitude) : magnitude;
-	*value = cterm_rip_signed_word(word);
-	*cursor = text + used;
+	*value        = cterm_rip_signed_word(word);
+	*cursor       = text + used;
 	return true;
 }
 
 size_t
-cterm_rip_read_fields(const char **cursor, const uint8_t *widths,
-    size_t count, int *values)
+cterm_rip_read_fields(const char **cursor, const uint8_t *widths, size_t count, int *values)
 {
 	size_t parsed = 0;
-	while (parsed < count
-	    && cterm_rip_read_number(cursor, widths[parsed], &values[parsed]))
+	while (parsed < count && cterm_rip_read_number(cursor, widths[parsed], &values[parsed]))
 		++parsed;
 	return parsed;
 }

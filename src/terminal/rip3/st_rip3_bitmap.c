@@ -1,10 +1,10 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
-#include "st_rip3_bitmap.h"
-#include "io_error.h"
-#include "st_pixels.h"
-
 #include <stdbool.h>
 #include <stdlib.h>
+
+#include "io_error.h"
+#include "st_pixels.h"
+#include "st_rip3_bitmap.h"
 
 static unsigned
 word(const uint8_t *data)
@@ -15,27 +15,27 @@ word(const uint8_t *data)
 static uint32_t
 dword(const uint8_t *data)
 {
-	return (uint32_t)data[0] | (uint32_t)data[1] << 8
-	    | (uint32_t)data[2] << 16 | (uint32_t)data[3] << 24;
+	return (uint32_t)data[0] | (uint32_t)data[1] << 8 | (uint32_t)data[2] << 16 | (uint32_t)data[3] << 24;
 }
 
 void
 st_rip3_bitmap_destroy(struct st_rip3_bitmap *bitmap)
 {
-	if (bitmap == NULL) return;
+	if (bitmap == NULL)
+		return;
 	st_pixel_buffer_destroy(bitmap->pixels);
 	free(bitmap);
 }
 
 int
-st_rip3_bitmap_decode_legacy(struct st_rip3_bitmap **result,
-    const void *bytes, size_t size, const uint32_t palette[16])
+st_rip3_bitmap_decode_legacy(struct st_rip3_bitmap **result, const void *bytes, size_t size,
+    const uint32_t palette[16])
 {
-	const uint8_t *data = bytes;
+	const uint8_t         *data = bytes;
 	struct st_rip3_bitmap *bitmap;
-	uint32_t width, height;
-	size_t plane_bytes, row_bytes, pixel_bytes;
-	int status;
+	uint32_t               width, height;
+	size_t                 plane_bytes, row_bytes, pixel_bytes;
+	int                    status;
 
 	if (result == NULL || data == NULL || palette == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -47,10 +47,10 @@ st_rip3_bitmap_decode_legacy(struct st_rip3_bitmap **result,
 	}
 	/* There is no magic. Widen the WORDs before adding one; 0xffff does
 	 * not become a zero dimension. Pixel storage is four top-down planes. */
-	width = (uint32_t)word(data) + 1;
-	height = (uint32_t)word(data + 2) + 1;
+	width       = (uint32_t)word(data) + 1;
+	height      = (uint32_t)word(data + 2) + 1;
 	plane_bytes = (width + 7) / 8;
-	row_bytes = plane_bytes * 4;
+	row_bytes   = plane_bytes * 4;
 	/* This source-format bound also proves subsequent size_t products safe,
 	 * including on a small host. Slack belongs to BGI's buffer, not pixels. */
 	if (height > (65535U - 6U) / row_bytes)
@@ -61,7 +61,7 @@ st_rip3_bitmap_decode_legacy(struct st_rip3_bitmap **result,
 	bitmap = calloc(1, sizeof(*bitmap));
 	if (bitmap == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
-	bitmap->bit_depth = 4;
+	bitmap->bit_depth    = 4;
 	bitmap->palette_size = 16;
 	for (size_t i = 0; i < 16; i++)
 		bitmap->palette[i] = palette[i];
@@ -78,7 +78,7 @@ st_rip3_bitmap_decode_legacy(struct st_rip3_bitmap **result,
 
 			for (unsigned plane = 0; plane < 4; plane++)
 				index |= (uint32_t)((row[plane * plane_bytes + x / 8] >> shift) & 1)
-				    << (3 - plane);
+				         << (3 - plane);
 			bitmap->pixels->primary[(size_t)y * width + x] = index;
 		}
 	}
@@ -87,18 +87,18 @@ st_rip3_bitmap_decode_legacy(struct st_rip3_bitmap **result,
 }
 
 int
-st_rip3_bitmap_decode(struct st_rip3_bitmap **result,
-	const void *bytes, size_t size)
+st_rip3_bitmap_decode(struct st_rip3_bitmap **result, const void *bytes, size_t size)
 {
-	const uint8_t *data = bytes;
+	const uint8_t         *data = bytes;
 	struct st_rip3_bitmap *bitmap;
-	uint32_t width, height, offset, colours = 0;
-	unsigned depth;
-	size_t stride;
-	bool short_rows = false;
-	int status;
+	uint32_t               width, height, offset, colours = 0;
+	unsigned               depth;
+	size_t                 stride;
+	bool                   short_rows = false;
+	int                    status;
 
-	if (result == NULL || data == NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (result == NULL || data == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
 	if (size < 54 || data[0] != 'B' || data[1] != 'M')
 		return IO_ERROR_INVALID_FORMAT;
 	/* RIPtel uses the physical byte count even when bfSize disagrees. */
@@ -107,43 +107,49 @@ st_rip3_bitmap_decode(struct st_rip3_bitmap **result,
 		return IO_ERROR_INVALID_FORMAT;
 	if (dword(data + 14) != 40 || dword(data + 30) != 0)
 		return IO_ERROR_NOT_SUPPORTED;
-	if (word(data + 26) != 1) return IO_ERROR_INVALID_FORMAT;
+	if (word(data + 26) != 1)
+		return IO_ERROR_INVALID_FORMAT;
 	depth = word(data + 28);
 	if (depth != 1 && depth != 4 && depth != 8 && depth != 16 && depth != 24 && depth != 32)
 		return IO_ERROR_NOT_SUPPORTED;
-	width = dword(data + 18);
+	width  = dword(data + 18);
 	height = dword(data + 22);
-	if (width == 0 || height == 0) return IO_ERROR_INVALID_FORMAT;
+	if (width == 0 || height == 0)
+		return IO_ERROR_INVALID_FORMAT;
 	if (width > INT32_MAX || height > INT32_MAX)
 		return IO_ERROR_NOT_SUPPORTED;
-	if (width > (SIZE_MAX - 31) / depth) return IO_ERROR_OUT_OF_RANGE;
+	if (width > (SIZE_MAX - 31) / depth)
+		return IO_ERROR_OUT_OF_RANGE;
 	stride = (((size_t)width * depth + 31) / 32) * 4;
 	if (height > (size - offset) / stride) {
 		/* RADIOBUT.BMP and .BMH use RIPtel's rounded-down 4-bit rows.
 		 * Require an exact fit and at least one stored byte per row. */
-		if (depth != 4 || width == 1 || width % 8 != 1
-		    || (uint64_t)(width / 2) * height != size - offset)
+		if (depth != 4 || width == 1 || width % 8 != 1 || (uint64_t)(width / 2) * height != size - offset)
 			return IO_ERROR_INVALID_FORMAT;
-		stride = width / 2;
+		stride     = width / 2;
 		short_rows = true;
 	}
 	if (depth <= 8) {
 		colours = dword(data + 46);
-		if (colours == 0) colours = 1U << depth;
+		if (colours == 0)
+			colours = 1U << depth;
 		if (colours > (1U << depth) || colours > (offset - 54) / 4)
 			return IO_ERROR_INVALID_FORMAT;
 	}
 	bitmap = calloc(1, sizeof(*bitmap));
-	if (bitmap == NULL) return IO_ERROR_OUT_OF_MEMORY;
-	bitmap->bit_depth = depth;
+	if (bitmap == NULL)
+		return IO_ERROR_OUT_OF_MEMORY;
+	bitmap->bit_depth    = depth;
 	bitmap->palette_size = colours;
 	for (size_t i = 0; i < colours; ++i) {
 		const uint8_t *entry = data + 54 + 4 * i;
-		bitmap->palette[i] = (uint32_t)entry[2] << 16
-		    | (uint32_t)entry[1] << 8 | entry[0];
+		bitmap->palette[i]   = (uint32_t)entry[2] << 16 | (uint32_t)entry[1] << 8 | entry[0];
 	}
 	status = st_pixel_buffer_create(&bitmap->pixels, width, height, false);
-	if (status != 0) { st_rip3_bitmap_destroy(bitmap); return status; }
+	if (status != 0) {
+		st_rip3_bitmap_destroy(bitmap);
+		return status;
+	}
 	for (uint32_t y = 0; y < height; ++y) {
 		const uint8_t *row = data + offset + (size_t)(height - 1 - y) * stride;
 		/* The last pixel of a short row comes from the high nibble of
@@ -156,20 +162,23 @@ st_rip3_bitmap_decode(struct st_rip3_bitmap **result,
 		for (uint32_t x = 0; x < stored_width; ++x) {
 			uint32_t pixel;
 			if (depth == 16) {
-				unsigned value = word(row+(size_t)x*2);
+				unsigned value = word(row + (size_t)x * 2);
 				/* BI_RGB RGB555; high bit has no alpha. Expand to the
 				 * renderer's RGB components using floor(v*255/31). */
-				pixel = ST_PIXEL_COLOR_RGB_VALUE(((value>>10)&31)*255/31,
-				    ((value>>5)&31)*255/31,(value&31)*255/31);
+				pixel = ST_PIXEL_COLOR_RGB_VALUE(((value >> 10) & 31) * 255 / 31,
+				    ((value >> 5) & 31) * 255 / 31, (value & 31) * 255 / 31);
 			}
 			else if (depth == 24 || depth == 32) {
-				const uint8_t *bgr = row + (size_t)x * (depth/8);
-				pixel = ST_PIXEL_COLOR_RGB_VALUE(bgr[2], bgr[1], bgr[0]);
+				const uint8_t *bgr = row + (size_t)x * (depth / 8);
+				pixel              = ST_PIXEL_COLOR_RGB_VALUE(bgr[2], bgr[1], bgr[0]);
 			}
 			else {
-				if (depth == 1) pixel = (row[x / 8] >> (7 - (x % 8))) & 1;
-				else if (depth == 4) pixel = (row[x / 2] >> ((x & 1) == 0 ? 4 : 0)) & 15;
-				else pixel = row[x];
+				if (depth == 1)
+					pixel = (row[x / 8] >> (7 - (x % 8))) & 1;
+				else if (depth == 4)
+					pixel = (row[x / 2] >> ((x & 1) == 0 ? 4 : 0)) & 15;
+				else
+					pixel = row[x];
 				if (pixel >= colours) {
 					st_rip3_bitmap_destroy(bitmap);
 					return IO_ERROR_INVALID_FORMAT;
@@ -197,49 +206,53 @@ put32(uint8_t *data, uint32_t value)
 }
 
 int
-st_rip3_bitmap_encode(uint8_t **result, size_t *result_size,
-	const struct st_rip3_bitmap *bitmap)
+st_rip3_bitmap_encode(uint8_t **result, size_t *result_size, const struct st_rip3_bitmap *bitmap)
 {
 	const struct st_pixel_buffer *pixels;
-	unsigned depth;
-	size_t stride, offset, size;
-	uint8_t *data;
+	unsigned                      depth;
+	size_t                        stride, offset, size;
+	uint8_t                      *data;
 
-	if (result == NULL || result_size == NULL || bitmap == NULL
-	    || bitmap->pixels == NULL || bitmap->pixels->primary == NULL)
+	if (result == NULL || result_size == NULL || bitmap == NULL || bitmap->pixels == NULL
+	    || bitmap->pixels->primary == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	pixels = bitmap->pixels;
-	depth = bitmap->bit_depth;
+	depth  = bitmap->bit_depth;
 	if (depth != 1 && depth != 4 && depth != 8 && depth != 16 && depth != 24 && depth != 32)
 		return IO_ERROR_NOT_SUPPORTED;
-	if (pixels->width == 0 || pixels->height == 0
-	    || pixels->width > INT32_MAX || pixels->height > INT32_MAX
-	    || bitmap->palette_size > (depth > 8 ? 0 : 1U << depth)
-	    || (depth <= 8 && bitmap->palette_size == 0))
+	if (pixels->width == 0 || pixels->height == 0 || pixels->width > INT32_MAX || pixels->height > INT32_MAX
+	    || bitmap->palette_size > (depth > 8 ? 0 : 1U << depth) || (depth <= 8 && bitmap->palette_size == 0))
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (pixels->width > (SIZE_MAX - 31) / depth)
 		return IO_ERROR_OUT_OF_RANGE;
 	stride = (((size_t)pixels->width * depth + 31) / 32) * 4;
 	offset = 54 + bitmap->palette_size * 4;
-	if (pixels->height > (UINT32_MAX - offset) / stride
-	    || pixels->height > (SIZE_MAX - offset) / stride
+	if (pixels->height > (UINT32_MAX - offset) / stride || pixels->height > (SIZE_MAX - offset) / stride
 	    || pixels->height > SIZE_MAX / sizeof(uint32_t) / pixels->width)
 		return IO_ERROR_OUT_OF_RANGE;
 	size = offset + stride * pixels->height;
 	for (size_t i = 0; i < bitmap->palette_size; ++i)
-		if (bitmap->palette[i] > 0xffffff) return IO_ERROR_INVALID_ARGUMENT;
+		if (bitmap->palette[i] > 0xffffff)
+			return IO_ERROR_INVALID_ARGUMENT;
 	data = calloc(1, size);
-	if (data == NULL) return IO_ERROR_OUT_OF_MEMORY;
-	data[0] = 'B'; data[1] = 'M';
-	put32(data + 2, (uint32_t)size); put32(data + 10, (uint32_t)offset);
-	put32(data + 14, 40); put32(data + 18, pixels->width); put32(data + 22, pixels->height);
-	put16(data + 26, 1); put16(data + 28, depth);
+	if (data == NULL)
+		return IO_ERROR_OUT_OF_MEMORY;
+	data[0] = 'B';
+	data[1] = 'M';
+	put32(data + 2, (uint32_t)size);
+	put32(data + 10, (uint32_t)offset);
+	put32(data + 14, 40);
+	put32(data + 18, pixels->width);
+	put32(data + 22, pixels->height);
+	put16(data + 26, 1);
+	put16(data + 28, depth);
 	/* Match the documented RIP writer's advisory fields and zero image size. */
-	put32(data + 38, pixels->width); put32(data + 42, pixels->height);
+	put32(data + 38, pixels->width);
+	put32(data + 42, pixels->height);
 	if (depth <= 8 && bitmap->palette_size != (1U << depth))
 		put32(data + 46, (uint32_t)bitmap->palette_size);
 	for (size_t i = 0; i < bitmap->palette_size; ++i) {
-		uint32_t rgb = bitmap->palette[i];
+		uint32_t rgb     = bitmap->palette[i];
 		data[54 + 4 * i] = (uint8_t)rgb;
 		data[55 + 4 * i] = (uint8_t)(rgb >> 8);
 		data[56 + 4 * i] = (uint8_t)(rgb >> 16);
@@ -249,28 +262,39 @@ st_rip3_bitmap_encode(uint8_t **result, size_t *result_size,
 		for (uint32_t x = 0; x < pixels->width; ++x) {
 			uint32_t pixel = pixels->primary[(size_t)y * pixels->width + x];
 			if (depth > 8) {
-				if (!ST_PIXEL_COLOR_IS_RGB(pixel) || (pixel & ~ST_PIXEL_COLOR_RGB_TAG) > 0xffffff) {
-					free(data); return IO_ERROR_INVALID_ARGUMENT;
+				if (!ST_PIXEL_COLOR_IS_RGB(pixel)
+				    || (pixel & ~ST_PIXEL_COLOR_RGB_TAG) > 0xffffff) {
+					free(data);
+					return IO_ERROR_INVALID_ARGUMENT;
 				}
 				if (depth == 16) {
-					unsigned r = ((pixel>>16)&255)*31+127, g = ((pixel>>8)&255)*31+127;
-					unsigned b = (pixel&255)*31+127;
-					put16(row+(size_t)x*2,(r/255)<<10 | (g/255)<<5 | b/255);
+					unsigned r = ((pixel >> 16) & 255) * 31 + 127,
+						 g = ((pixel >> 8) & 255) * 31 + 127;
+					unsigned b = (pixel & 255) * 31 + 127;
+					put16(row + (size_t)x * 2, (r / 255) << 10 | (g / 255) << 5 | b / 255);
 				}
 				else {
-					size_t at = (size_t)x*(depth/8);
-					row[at] = (uint8_t)pixel; row[at+1] = (uint8_t)(pixel>>8); row[at+2] = (uint8_t)(pixel>>16);
+					size_t at   = (size_t)x * (depth / 8);
+					row[at]     = (uint8_t)pixel;
+					row[at + 1] = (uint8_t)(pixel >> 8);
+					row[at + 2] = (uint8_t)(pixel >> 16);
 				}
 			}
 			else {
-				if (pixel >= bitmap->palette_size) { free(data); return IO_ERROR_INVALID_ARGUMENT; }
-				if (depth == 1) row[x / 8] |= (uint8_t)(pixel << (7 - (x % 8)));
-				else if (depth == 4) row[x / 2] |= (uint8_t)(pixel << ((x & 1) == 0 ? 4 : 0));
-				else row[x] = (uint8_t)pixel;
+				if (pixel >= bitmap->palette_size) {
+					free(data);
+					return IO_ERROR_INVALID_ARGUMENT;
+				}
+				if (depth == 1)
+					row[x / 8] |= (uint8_t)(pixel << (7 - (x % 8)));
+				else if (depth == 4)
+					row[x / 2] |= (uint8_t)(pixel << ((x & 1) == 0 ? 4 : 0));
+				else
+					row[x] = (uint8_t)pixel;
 			}
 		}
 	}
-	*result = data;
+	*result      = data;
 	*result_size = size;
 	return 0;
 }

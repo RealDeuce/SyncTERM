@@ -5,28 +5,28 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "st_base64.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "st_base64.h"
+
 static int failures;
 
-#define CHECK(expression) do { \
-	if (!(expression)) { \
-		fprintf(stderr, "%s:%d: check failed: %s\n", \
-		    __FILE__, __LINE__, #expression); \
-		failures++; \
-	} \
-} while (0)
+#define CHECK(expression)                                                                              \
+	do {                                                                                           \
+		if (!(expression)) {                                                                   \
+			fprintf(stderr, "%s:%d: check failed: %s\n", __FILE__, __LINE__, #expression); \
+			failures++;                                                                    \
+		}                                                                                      \
+	} while (0)
 
 static void
 check_vector(const char *plain, size_t plain_size, const char *encoded)
 {
-	char output[64];
+	char          output[64];
 	unsigned char decoded[64];
-	size_t size;
+	size_t        size;
 
 	CHECK(st_base64_encoded_size(plain_size, &size));
 	CHECK(size == strlen(encoded));
@@ -34,8 +34,7 @@ check_vector(const char *plain, size_t plain_size, const char *encoded)
 	CHECK(strcmp(output, encoded) == 0);
 	CHECK(st_base64_decoded_size(encoded, strlen(encoded), &size));
 	CHECK(size == plain_size);
-	CHECK(st_base64_decode(decoded, sizeof(decoded), encoded,
-	    strlen(encoded)));
+	CHECK(st_base64_decode(decoded, sizeof(decoded), encoded, strlen(encoded)));
 	CHECK(memcmp(decoded, plain, plain_size) == 0);
 }
 
@@ -43,7 +42,7 @@ int
 main(void)
 {
 	size_t size = 99;
-	char empty[1];
+	char   empty[1];
 
 	check_vector("", 0, "");
 	check_vector("f", 1, "Zg==");
@@ -64,13 +63,12 @@ main(void)
 	/* Reject invalid bytes anywhere, including a later block, before
 	 * publishing any decoded prefix to the destination. */
 	for (unsigned value = 0; value <= 255; ++value) {
-		bool valid = (value >= 'A' && value <= 'Z')
-		    || (value >= 'a' && value <= 'z')
-		    || (value >= '0' && value <= '9') || value == '+' || value == '/';
+		bool valid = (value >= 'A' && value <= 'Z') || (value >= 'a' && value <= 'z')
+		             || (value >= '0' && value <= '9') || value == '+' || value == '/';
 		if (valid)
 			continue;
 		for (size_t offset = 0; offset < 8; ++offset) {
-			char input[] = "Zm9vYmFy";
+			char          input[] = "Zm9vYmFy";
 			unsigned char output[8];
 			memset(output, 0xa5, sizeof(output));
 			input[offset] = (char)(unsigned char)value;

@@ -1,157 +1,205 @@
 /* A separate-process SSH server keeps DeuceSSH's global callbacks isolated.
  * Copyright (c) 2026 Stephen Hurd
  * SPDX-License-Identifier: BSD-2-Clause */
-#include <deucessh.h>
-#include <deucessh-algorithms.h>
-#include <deucessh-auth.h>
-#include <deucessh-conn.h>
-#include "st_threads.h"
-#include "st_base64.h"
-#include "socket.h"
 #include <arpa/inet.h>
 #include <netinet/in.h>
-#include <sys/socket.h>
-#include <sys/time.h>
-#include <unistd.h>
 #include <poll.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/socket.h>
+#include <sys/time.h>
 #include <time.h>
+#include <unistd.h>
 
-#define CHECK(e) do { if (!(e)) { fprintf(stderr, "SSH fixture %d: %s\n", __LINE__, #e); return 1; } } while (0)
-static int descriptor = -1;
-int st_connection_sftp_fixture(dssh_session session, dssh_channel shell, const char *mode);
+#include <deucessh-algorithms.h>
+#include <deucessh-auth.h>
+#include <deucessh-conn.h>
+#include <deucessh.h>
+
+#include "socket.h"
+#include "st_base64.h"
+#include "st_threads.h"
+
+#define CHECK(e)                                                               \
+	do {                                                                   \
+		if (!(e)) {                                                    \
+			fprintf(stderr, "SSH fixture %d: %s\n", __LINE__, #e); \
+			return 1;                                              \
+		}                                                              \
+	} while (0)
+static int         descriptor = -1;
+int                st_connection_sftp_fixture(dssh_session session, dssh_channel shell, const char *mode);
 static const char *mode;
 static const char *authorized_line;
-static unsigned auth_round, password_attempts;
+static unsigned    auth_round, password_attempts;
+
 static int
 io(uint8_t *data, size_t size, dssh_session session, bool sending)
 {
 	for (size_t used = 0; used < size;) {
 		struct pollfd p = {.fd = descriptor, .events = sending ? POLLOUT : POLLIN};
-		ssize_t n;
-		if (dssh_session_is_terminated(session)) return DSSH_ERROR_TERMINATED;
+		ssize_t       n;
+		if (dssh_session_is_terminated(session))
+			return DSSH_ERROR_TERMINATED;
 		int status = poll(&p, 1, 100);
-		if (status < 0) return DSSH_ERROR_TERMINATED;
-		if (status == 0) continue;
+		if (status < 0)
+			return DSSH_ERROR_TERMINATED;
+		if (status == 0)
+			continue;
 		n = sending ? send(descriptor, data + used, size - used, 0)
-		    : recv(descriptor, data + used, size - used, 0);
-		if (n <= 0) return DSSH_ERROR_TERMINATED;
+		            : recv(descriptor, data + used, size - used, 0);
+		if (n <= 0)
+			return DSSH_ERROR_TERMINATED;
 		used += (size_t)n;
 	}
 	return 0;
 }
+
 static int
 tx(uint8_t *data, size_t size, dssh_session session, void *context)
 {
-	(void)context; return io(data, size, session, true);
+	(void)context;
+	return io(data, size, session, true);
 }
+
 static int
 rx(uint8_t *data, size_t size, dssh_session session, void *context)
 {
-	(void)context; return io(data, size, session, false);
+	(void)context;
+	return io(data, size, session, false);
 }
+
 static void
 terminate(dssh_session session, void *context)
 {
-	(void)session; (void)context; (void)shutdown(descriptor, SHUT_RDWR);
+	(void)session;
+	(void)context;
+	(void)shutdown(descriptor, SHUT_RDWR);
 }
+
 static int
 auth_none(const uint8_t *user, size_t size, void *context)
 {
-	(void)user; (void)size; (void)context;
+	(void)user;
+	(void)size;
+	(void)context;
 	return strcmp(mode, "none") == 0 ? DSSH_AUTH_SUCCESS : DSSH_AUTH_FAILURE;
 }
+
 static int
-auth_password(const uint8_t *user, size_t user_size, const uint8_t *password,
-	size_t password_size, struct dssh_bytes_result *change, void *context)
+auth_password(const uint8_t *user, size_t user_size, const uint8_t *password, size_t password_size,
+    struct dssh_bytes_result *change, void *context)
 {
 	(void)change;
-	if (strcmp(mode, "retry") == 0 && ++password_attempts <= 2) return DSSH_AUTH_FAILURE;
-	if (strcmp(mode, "partial") == 0 && user_size == 5 && memcmp(user, "guest", 5) == 0
-	    && password_size == 6 && memcmp(password, "secret", 6) == 0) {
+	if (strcmp(mode, "retry") == 0 && ++password_attempts <= 2)
+		return DSSH_AUTH_FAILURE;
+	if (strcmp(mode, "partial") == 0 && user_size == 5 && memcmp(user, "guest", 5) == 0 && password_size == 6
+	    && memcmp(password, "secret", 6) == 0) {
 		struct dssh_auth_server_cbs *auth = context;
-		auth->methods_str = "keyboard-interactive";
+		auth->methods_str                 = "keyboard-interactive";
 		return ++password_attempts == 1 ? DSSH_AUTH_PARTIAL : DSSH_AUTH_DISCONNECT;
 	}
-	return user_size == 5 && memcmp(user, "guest", 5) == 0
-	    && password_size == 6 && memcmp(password, "secret", 6) == 0
-	    ? DSSH_AUTH_SUCCESS : DSSH_AUTH_FAILURE;
+	return user_size == 5 && memcmp(user, "guest", 5) == 0 && password_size == 6
+	               && memcmp(password, "secret", 6) == 0
+		   ? DSSH_AUTH_SUCCESS
+		   : DSSH_AUTH_FAILURE;
 }
+
 static int
-auth_publickey(const uint8_t *user, size_t user_size, const char *algorithm,
-	const uint8_t *blob, size_t blob_size, bool signed_request, void *context)
+auth_publickey(const uint8_t *user, size_t user_size, const char *algorithm, const uint8_t *blob, size_t blob_size,
+    bool signed_request, void *context)
 {
-	(void)signed_request; (void)context;
-	char encoded[512]; size_t length;
+	(void)signed_request;
+	(void)context;
+	char   encoded[512];
+	size_t length;
 	if (authorized_line == NULL || user_size != 5 || memcmp(user, "guest", 5) != 0
-	    || strcmp(algorithm, "ssh-ed25519") != 0
-	    || strncmp(authorized_line, "ssh-ed25519 ", 12) != 0
+	    || strcmp(algorithm, "ssh-ed25519") != 0 || strncmp(authorized_line, "ssh-ed25519 ", 12) != 0
 	    || !st_base64_encoded_size(blob_size, &length) || length + 1 > sizeof(encoded)
-	    || !st_base64_encode(encoded, sizeof(encoded), blob, blob_size)) return DSSH_AUTH_FAILURE;
-	return strncmp(authorized_line + 12, encoded, length) == 0
-	    && authorized_line[12 + length] == ' ' ? DSSH_AUTH_SUCCESS : DSSH_AUTH_FAILURE;
+	    || !st_base64_encode(encoded, sizeof(encoded), blob, blob_size))
+		return DSSH_AUTH_FAILURE;
+	return strncmp(authorized_line + 12, encoded, length) == 0 && authorized_line[12 + length] == ' '
+		   ? DSSH_AUTH_SUCCESS
+		   : DSSH_AUTH_FAILURE;
 }
+
 static void
 release_static(void *context)
 {
 	(void)context;
 }
+
 static int
-auth_keyboard(const uint8_t *user, size_t user_size, uint32_t count,
-	const uint8_t **responses, const size_t *sizes,
-	struct dssh_auth_challenge *out, void *context)
+auth_keyboard(const uint8_t *user, size_t user_size, uint32_t count, const uint8_t **responses,
+    const size_t *sizes, struct dssh_auth_challenge *out, void *context)
 {
-	(void)user; (void)user_size; (void)context;
+	(void)user;
+	(void)user_size;
+	(void)context;
 	static const struct dssh_auth_prompt prompts[] = {
-		{{(const uint8_t *)"Password: ", 10}, false},
-		{{(const uint8_t *)"OTP: ", 5}, false},
+	    {{(const uint8_t *)"Password: ", 10}, false},
+	    {{(const uint8_t *)"OTP: ", 5},       false},
 	};
 	bool multi = strncmp(mode, "keyboard-multi", 14) == 0;
 	if (strcmp(mode, "keyboard-zero") == 0 && auth_round++ != 0)
 		return count == 0 ? DSSH_AUTH_SUCCESS : DSSH_AUTH_FAILURE;
 	if (count != 0) {
-		const char *expected = strcmp(mode, "keyboard-otp") == 0
-		    || strcmp(mode, "partial") == 0 || auth_round != 0 ? "654321" : "secret";
+		const char *expected =
+		    strcmp(mode, "keyboard-otp") == 0 || strcmp(mode, "partial") == 0 || auth_round != 0
+		        ? "654321"
+		        : "secret";
 		if (count != (multi ? 2u : 1u) || sizes[0] != 6 || memcmp(responses[0], expected, 6) != 0
 		    || (multi && (sizes[1] != 6 || memcmp(responses[1], "654321", 6) != 0)))
 			return DSSH_AUTH_FAILURE;
-		if (strcmp(mode, "keyboard-repeat") != 0 || auth_round++ != 0) return DSSH_AUTH_SUCCESS;
+		if (strcmp(mode, "keyboard-repeat") != 0 || auth_round++ != 0)
+			return DSSH_AUTH_SUCCESS;
 	}
-	out->name = (struct dssh_bytes){(const uint8_t *)"Fixture", 7};
-	out->instruction = (struct dssh_bytes){(const uint8_t *)"Authentication", 14};
-	out->prompts = prompts + (strcmp(mode, "keyboard-otp") == 0 || strcmp(mode, "partial") == 0);
-	out->count = strcmp(mode, "keyboard-zero") == 0 ? 0 : multi ? 2 : 1;
+	out->name          = (struct dssh_bytes) {(const uint8_t *)"Fixture", 7};
+	out->instruction   = (struct dssh_bytes) {(const uint8_t *)"Authentication", 14};
+	out->prompts       = prompts + (strcmp(mode, "keyboard-otp") == 0 || strcmp(mode, "partial") == 0);
+	out->count         = strcmp(mode, "keyboard-zero") == 0 ? 0 : multi ? 2 : 1;
 	out->lease.release = release_static;
 	return DSSH_AUTH_KBI_PROMPT;
 }
+
 static int
 pty(dssh_channel ch, const struct dssh_chan_params *p, void *context)
 {
 	bool utf8 = false, flow = false;
-	(void)ch; (void)context;
+	(void)ch;
+	(void)context;
 	if (strcmp(mode, "log-ui") == 0)
 		return p->cols == 80 && p->rows == 24 ? 0 : -1;
 	if (p->cols != 80 || p->rows != 24 || p->term == NULL || strcmp(p->term, "ansi") != 0)
 		return -1;
 	for (size_t i = 0; i < p->mode_count; ++i) {
-		if (p->modes[i].opcode == 42 && p->modes[i].value == 1) utf8 = true;
-		if (p->modes[i].opcode == 38 && p->modes[i].value == 0) flow = true;
+		if (p->modes[i].opcode == 42 && p->modes[i].value == 1)
+			utf8 = true;
+		if (p->modes[i].opcode == 38 && p->modes[i].value == 0)
+			flow = true;
 	}
 	return utf8 && flow ? 0 : -1;
 }
+
 static int
 environment(dssh_channel ch, const struct dssh_chan_params *p, void *context)
 {
-	(void)ch; (void)p; (void)context; return 0;
+	(void)ch;
+	(void)p;
+	(void)context;
+	return 0;
 }
+
 static int
-shell(dssh_channel ch, const struct dssh_chan_params *p,
-	struct dssh_chan_accept_result *result, void *context)
+shell(dssh_channel ch, const struct dssh_chan_params *p, struct dssh_chan_accept_result *result, void *context)
 {
-	(void)ch; (void)p; (void)result; (void)context; return 0;
+	(void)ch;
+	(void)p;
+	(void)result;
+	(void)context;
+	return 0;
 }
 
 static int
@@ -166,15 +214,16 @@ send_text(dssh_channel channel, const char *text)
 	}
 	return 0;
 }
+
 static int
 send_bulk(dssh_channel channel)
 {
-	uint8_t bytes[16384];
+	uint8_t      bytes[16384];
 	const size_t size = 6 * 1024 * 1024;
 	for (size_t used = 0; used < size;) {
 		for (size_t i = 0; i < sizeof(bytes); ++i) {
 			size_t offset = used + i;
-			bytes[i] = (uint8_t)(offset ^ (offset >> 8) ^ (offset >> 16));
+			bytes[i]      = (uint8_t)(offset ^ (offset >> 8) ^ (offset >> 16));
 		}
 		size_t sent = 0;
 		while (sent < sizeof(bytes)) {
@@ -191,26 +240,31 @@ send_bulk(dssh_channel channel)
 int
 main(int argc, char **argv)
 {
-	int listener, status;
-	struct sockaddr_in address = {.sin_family = AF_INET, .sin_addr.s_addr = htonl(INADDR_LOOPBACK)};
-	socklen_t length = sizeof(address);
-	dssh_session session;
-	dssh_channel channel;
+	int                         listener, status;
+	struct sockaddr_in          address = {.sin_family = AF_INET, .sin_addr.s_addr = htonl(INADDR_LOOPBACK)};
+	socklen_t                   length  = sizeof(address);
+	dssh_session                session;
+	dssh_channel                channel;
 	struct dssh_auth_server_cbs auth = {
-		.none_cb = auth_none, .password_cb = auth_password,
-		.publickey_cb = auth_publickey,
-		.keyboard_interactive_cb = auth_keyboard,
+	    .none_cb                 = auth_none,
+	    .password_cb             = auth_password,
+	    .publickey_cb            = auth_publickey,
+	    .keyboard_interactive_cb = auth_keyboard,
 	};
-	auth.cbdata = &auth;
+	auth.cbdata                                        = &auth;
 	const struct dssh_chan_accept_cbs accept_callbacks = {
-		.pty_req = pty, .env = environment, .shell = shell,
+	    .pty_req = pty,
+	    .env     = environment,
+	    .shell   = shell,
 	};
-	bool resized = false;
-	uint8_t received[5];
-	size_t used = 0;
-	static const uint8_t expected[] = {'x',3,255,'\r','\n'};
-	CHECK(argc == 2 || argc == 3); mode = argv[1];
-	if (argc == 3) authorized_line = argv[2];
+	bool                 resized = false;
+	uint8_t              received[5];
+	size_t               used       = 0;
+	static const uint8_t expected[] = {'x', 3, 255, '\r', '\n'};
+	CHECK(argc == 2 || argc == 3);
+	mode = argv[1];
+	if (argc == 3)
+		authorized_line = argv[2];
 	(void)signal(SIGPIPE, SIG_IGN);
 	CHECK(dssh_register_curve25519_sha256() == 0);
 	bool weak = strncmp(mode, "weak", 4) == 0;
@@ -222,10 +276,11 @@ main(int argc, char **argv)
 	CHECK(dssh_transport_set_callbacks(tx, rx, NULL, NULL) == 0);
 	listener = socket(AF_INET, SOCK_STREAM, 0);
 	CHECK(listener >= 0 && bind(listener, (struct sockaddr *)&address, sizeof(address)) == 0
-	    && listen(listener, 1) == 0
-	    && getsockname(listener, (struct sockaddr *)&address, &length) == 0);
-	printf("%u\n", (unsigned)ntohs(address.sin_port)); fflush(stdout);
-	descriptor = accept(listener, NULL, NULL); CHECK(descriptor >= 0);
+	      && listen(listener, 1) == 0 && getsockname(listener, (struct sockaddr *)&address, &length) == 0);
+	printf("%u\n", (unsigned)ntohs(address.sin_port));
+	fflush(stdout);
+	descriptor = accept(listener, NULL, NULL);
+	CHECK(descriptor >= 0);
 	/* Preserve the channel-level reply fragments without waiting for TCP's
 	 * delayed ACK timer between each small SSH packet. */
 	CHECK(socket_set_no_delay(descriptor, true) == 0);
@@ -236,35 +291,43 @@ main(int argc, char **argv)
 		close(descriptor);
 		return 0;
 	}
-	session = dssh_session_init(false, 0); CHECK(session != NULL);
+	session = dssh_session_init(false, 0);
+	CHECK(session != NULL);
 	CHECK(dssh_session_set_timeout(session, 10000) == 0);
 	if (strcmp(mode, "rekey") == 0)
 		CHECK(dssh_session_set_rekey_seconds(session, 1) == 0);
 	CHECK(dssh_session_set_terminate_cb(session, terminate, NULL) == 0);
 	CHECK(dssh_transport_handshake(session) == 0);
-	if (strcmp(mode, "banner") == 0) CHECK(dssh_auth_set_banner(session, "Fixture banner", "en") == 0);
-	auth.methods_str = authorized_line != NULL ? "publickey"
-	    : strncmp(mode, "keyboard", 8) == 0 ? "keyboard-interactive" : "password";
-	status = dssh_auth_server(session, &auth, NULL, NULL);
+	if (strcmp(mode, "banner") == 0)
+		CHECK(dssh_auth_set_banner(session, "Fixture banner", "en") == 0);
+	auth.methods_str = authorized_line != NULL             ? "publickey"
+	                   : strncmp(mode, "keyboard", 8) == 0 ? "keyboard-interactive"
+	                                                       : "password";
+	status           = dssh_auth_server(session, &auth, NULL, NULL);
 	if (status != 0) {
-		dssh_session_cleanup(session); close(descriptor);
+		dssh_session_cleanup(session);
+		close(descriptor);
 		return 0; /* client-side rejection cases */
 	}
 	CHECK(dssh_session_start(session) == 0);
 	channel = dssh_chan_accept(session, &accept_callbacks, 10000);
 	CHECK(channel != NULL);
 	CHECK(send_text(channel, "hello") == 0);
-	if (strcmp(mode, "bulk") == 0) CHECK(send_bulk(channel) == 0);
+	if (strcmp(mode, "bulk") == 0)
+		CHECK(send_bulk(channel) == 0);
 	if (authorized_line != NULL) {
 		uint8_t done;
 		CHECK((dssh_chan_poll(channel, DSSH_POLL_READ, 10000) & DSSH_POLL_READ) != 0);
 		CHECK(dssh_chan_read(channel, 0, &done, 1) == 1 && done == 'q');
 		CHECK(send_text(channel, "ok") == 0);
-		dssh_session_cleanup(session); close(descriptor); return 0;
+		dssh_session_cleanup(session);
+		close(descriptor);
+		return 0;
 	}
 	if (strncmp(mode, "sftp", 4) == 0) {
 		status = st_connection_sftp_fixture(session, channel, mode);
-		dssh_session_cleanup(session); close(descriptor);
+		dssh_session_cleanup(session);
+		close(descriptor);
 		return status;
 	}
 	if (strcmp(mode, "log-ui") == 0) {
@@ -274,7 +337,8 @@ main(int argc, char **argv)
 		CHECK((dssh_chan_poll(channel, DSSH_POLL_READ, 10000) & DSSH_POLL_READ) != 0);
 		CHECK(dssh_chan_read(channel, 0, &acknowledged, 1) == 1);
 		CHECK(dssh_chan_close(channel, 0) == 0);
-		dssh_session_cleanup(session); close(descriptor);
+		dssh_session_cleanup(session);
+		close(descriptor);
 		return 0;
 	}
 	if (strcmp(mode, "rekey") == 0) {
@@ -287,18 +351,20 @@ main(int argc, char **argv)
 		if ((events & DSSH_POLL_EVENT) != 0) {
 			struct dssh_chan_event event;
 			while (dssh_chan_read_event(channel, &event) == 0)
-				if (event.type == DSSH_EVENT_WINDOW_CHANGE
-				    && event.window_change.cols == 120 && event.window_change.rows == 40)
+				if (event.type == DSSH_EVENT_WINDOW_CHANGE && event.window_change.cols == 120
+				    && event.window_change.rows == 40)
 					resized = true;
 		}
 		if ((events & DSSH_POLL_READ) != 0 && used < sizeof(received)) {
 			int64_t n = dssh_chan_read(channel, 0, received + used, sizeof(received) - used);
-			CHECK(n > 0); used += (size_t)n;
+			CHECK(n > 0);
+			used += (size_t)n;
 		}
 	}
 	CHECK(resized && used == sizeof(received) && memcmp(received, expected, used) == 0);
 	CHECK(send_text(channel, "bye") == 0);
 	CHECK(dssh_chan_close(channel, 0) == 0);
-	dssh_session_cleanup(session); close(descriptor);
+	dssh_session_cleanup(session);
+	close(descriptor);
 	return 0;
 }

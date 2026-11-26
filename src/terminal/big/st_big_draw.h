@@ -3,6 +3,7 @@
 #ifndef ST_BIG_DRAW_H_
 #define ST_BIG_DRAW_H_
 #include "st_big_state.h"
+
 struct st_big_draw_sink {
 	void *context;
 	/* Accepted physical pixels, logical pen0..15; serialized callbacks.
@@ -10,6 +11,7 @@ struct st_big_draw_sink {
 	 * Failure stops subsequent writes and point tails without rollback. */
 	int (*pixel)(void *, uint16_t x, uint16_t y, uint8_t pen, bool xor_mode);
 };
+
 /* Original fixed-slope WORD clip. Rejection sets all endpointsffff.
  * Signed divide faults/cycles return OUT_OF_RANGE rather than trapping/hanging. */
 int st_big_draw_clip(const uint16_t bounds[4], uint16_t points[4], bool *visible);
@@ -19,7 +21,8 @@ int st_big_draw_bar_clip(const uint16_t bounds[4], uint16_t points[4], bool *vis
 int st_big_draw_style(struct st_big_state *, uint16_t style, uint16_t pattern, uint16_t width);
 int st_big_draw_color(struct st_big_state *, uint16_t);
 int st_big_draw_move(struct st_big_state *, uint16_t x, uint16_t y);
-int st_big_draw_point(struct st_big_state *, uint16_t x, uint16_t y, uint16_t color, const struct st_big_draw_sink *);
+int st_big_draw_point(struct st_big_state *, uint16_t x, uint16_t y, uint16_t color,
+    const struct st_big_draw_sink *);
 int st_big_draw_line(struct st_big_state *, const uint16_t points[4], const struct st_big_draw_sink *);
 /* Already translated direct text stroke: original fixed-slope clipping
  * and shared thin kernel, no origin addition, width expansion or CP store. */
@@ -37,8 +40,8 @@ int st_big_draw_bar(struct st_big_state *, const uint16_t points[4], const struc
  * selects the thin device kernel without viewport clipping or thickness.
  * No origin addition or point stores. Raw endpoints outside native geometry
  * fail before output rather than addressing foreign video memory. */
-int st_big_draw_polygon_span(struct st_big_state *, bool raw_line,
-	const uint16_t points[4], const struct st_big_draw_sink *);
+int st_big_draw_polygon_span(struct st_big_state *, bool raw_line, const uint16_t points[4],
+    const struct st_big_draw_sink *);
 /* Direct helper: type0 draws nothing; crosshair ends at its right ray tip.
  * P's standalone dot/tail and input's XOR/restore belong to those callers. */
 int st_big_draw_marker(struct st_big_state *, uint16_t x, uint16_t y, const struct st_big_draw_sink *);

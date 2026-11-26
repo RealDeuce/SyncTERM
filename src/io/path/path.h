@@ -5,14 +5,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-
 #ifndef SYNCTERM_PATH_H_
 #define SYNCTERM_PATH_H_
 
-#include "io_error.h"
-
 #include <stdbool.h>
 #include <stddef.h>
+
+#include "io_error.h"
 
 bool path_is_separator(char character);
 /* Returns a view into path. Local parsing recognizes native separators. */
@@ -34,13 +33,10 @@ int path_join_alloc(char **result, const char *directory, const char *name);
  * Exact in-place operation (result == path) is supported.
  */
 ptrdiff_t path_parent(char *result, size_t result_size, const char *path);
-ptrdiff_t path_append_separator(char *result, size_t result_size,
-    const char *path);
+ptrdiff_t path_append_separator(char *result, size_t result_size, const char *path);
 /* Lexical normalization does not require the named object to exist. */
-ptrdiff_t path_make_absolute(char *result, size_t result_size,
-    const char *path);
+ptrdiff_t path_make_absolute(char *result, size_t result_size, const char *path);
 /* Expands '~' and '~/' from HOME on POSIX; Windows leaves them literal. */
-ptrdiff_t path_expand_user(char *result, size_t result_size,
-    const char *path);
+ptrdiff_t path_expand_user(char *result, size_t result_size, const char *path);
 
 #endif

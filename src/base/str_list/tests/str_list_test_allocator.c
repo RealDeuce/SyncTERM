@@ -4,7 +4,6 @@
  */
 
 #include <stdbool.h>
-#include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -57,7 +56,7 @@ str_list_test_malloc(size_t size)
 void *
 str_list_test_realloc(void *pointer, size_t size)
 {
-	bool new_allocation = pointer == NULL;
+	bool  new_allocation = pointer == NULL;
 	void *resized;
 
 	if (str_list_test_should_fail())
@@ -81,7 +80,7 @@ char *
 str_list_test_strdup(const char *string)
 {
 	size_t length = strlen(string);
-	char *copy;
+	char  *copy;
 
 	if (length == SIZE_MAX)
 		return NULL;

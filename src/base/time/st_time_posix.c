@@ -5,14 +5,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "st_time.h"
-#include "st_time_config.h"
-
-#include "io_error.h"
-
 #include <errno.h>
 #include <stdint.h>
 #include <time.h>
+
+#include "io_error.h"
+#include "st_time.h"
+#include "st_time_config.h"
 
 int
 st_time_process_cpu_ns(uint64_t *result)
@@ -33,7 +32,7 @@ st_time_process_cpu_ns(uint64_t *result)
 	*result = (uint64_t)now.tv_sec * UINT64_C(1000000000) + (uint64_t)now.tv_nsec;
 	return 0;
 #else
-	clock_t ticks;
+	clock_t  ticks;
 	uint64_t seconds;
 
 	if (result == NULL)
@@ -46,8 +45,7 @@ st_time_process_cpu_ns(uint64_t *result)
 	if (seconds >= UINT64_MAX / UINT64_C(1000000000))
 		return IO_ERROR_OUT_OF_RANGE;
 	*result = seconds * UINT64_C(1000000000)
-	    + (uint64_t)((long double)((uint64_t)ticks % CLOCKS_PER_SEC)
-	    * 1000000000.0L / CLOCKS_PER_SEC);
+	          + (uint64_t)((long double)((uint64_t)ticks % CLOCKS_PER_SEC) * 1000000000.0L / CLOCKS_PER_SEC);
 	return 0;
 #endif
 }
@@ -66,13 +64,10 @@ st_time_monotonic_ns(uint64_t *result)
 	}
 	if (now.tv_sec < 0 || now.tv_nsec < 0 || now.tv_nsec >= 1000000000L
 	    || (uint64_t)now.tv_sec > UINT64_MAX / UINT64_C(1000000000)
-	    || ((uint64_t)now.tv_sec
-	    == UINT64_MAX / UINT64_C(1000000000)
-	    && (uint64_t)now.tv_nsec
-	    > UINT64_MAX % UINT64_C(1000000000)))
+	    || ((uint64_t)now.tv_sec == UINT64_MAX / UINT64_C(1000000000)
+	        && (uint64_t)now.tv_nsec > UINT64_MAX % UINT64_C(1000000000)))
 		return IO_ERROR_OUT_OF_RANGE;
-	*result = (uint64_t)now.tv_sec * UINT64_C(1000000000)
-	    + (uint64_t)now.tv_nsec;
+	*result = (uint64_t)now.tv_sec * UINT64_C(1000000000) + (uint64_t)now.tv_nsec;
 	return 0;
 }
 
@@ -80,7 +75,7 @@ int
 st_time_monotonic_ms(uint64_t *result)
 {
 	uint64_t nanoseconds;
-	int status;
+	int      status;
 
 	if (result == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;

@@ -3,26 +3,25 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "st_settings.h"
+#include <stdlib.h>
+#include <string.h>
 
 #include "ini.h"
+#include "st_settings.h"
 #include "st_settings_internal.h"
 #include "st_unicode_compare.h"
 #include "string_compat.h"
 #include "string_util.h"
-
-#include <stdlib.h>
-#include <string.h>
 
 struct st_settings st_settings;
 
 ARRAY_LIST_DEFINE(st_settings_font_list, struct st_settings_font)
 
 static const struct name_value default_sort_profiles[] = {
-	{ .name = "Name", .value = "29,1" },
-	{ .name = "Last Connected", .value = "29,3,1" },
-	{ .name = "Most Called", .value = "29,4,1" },
-	{ .name = "Date Added", .value = "29,2,1" },
+    {.name = "Name",           .value = "29,1"  },
+    {.name = "Last Connected", .value = "29,3,1"},
+    {.name = "Most Called",    .value = "29,4,1"},
+    {.name = "Date Added",     .value = "29,2,1"},
 };
 
 static bool
@@ -30,8 +29,7 @@ names_equal(const char *left, const char *right)
 {
 	bool equal;
 
-	return st_unicode_caseless_equal(&equal, left, strlen(left), right,
-	    strlen(right)) == 0 && equal;
+	return st_unicode_caseless_equal(&equal, left, strlen(left), right, strlen(right)) == 0 && equal;
 }
 
 static bool
@@ -51,8 +49,7 @@ copy_web_downloads(name_value_list_t *result, name_value_list_t source)
 	size_t i;
 
 	for (i = 0; i < name_value_list_count(source); ++i) {
-		if (!name_value_list_append(result, source[i]->name,
-		    source[i]->value))
+		if (!name_value_list_append(result, source[i]->name, source[i]->value))
 			return false;
 	}
 	return true;
@@ -94,8 +91,7 @@ failed:
 }
 
 bool
-st_settings_fonts_copy(st_settings_font_list_t *result,
-    st_settings_font_list_t source)
+st_settings_fonts_copy(st_settings_font_list_t *result, st_settings_font_list_t source)
 {
 	for (size_t i = 0; i < st_settings_font_list_count(source); ++i) {
 		struct st_settings_font *copy = font_copy(source[i]);
@@ -117,8 +113,7 @@ st_settings_fonts_free(st_settings_font_list_t *fonts)
 }
 
 bool
-st_settings_fonts_equal(st_settings_font_list_t left,
-    st_settings_font_list_t right)
+st_settings_fonts_equal(st_settings_font_list_t left, st_settings_font_list_t right)
 {
 	if (st_settings_font_list_count(left) != st_settings_font_list_count(right))
 		return false;
@@ -137,8 +132,7 @@ st_settings_fonts_equal(st_settings_font_list_t left,
 }
 
 static bool
-font_name_available(st_settings_font_list_t fonts, const char *name,
-    size_t except)
+font_name_available(st_settings_font_list_t fonts, const char *name, size_t except)
 {
 	for (size_t i = 0; i < st_settings_font_list_count(fonts); ++i) {
 		if (i != except && names_equal(fonts[i]->name, name))
@@ -148,13 +142,11 @@ font_name_available(st_settings_font_list_t fonts, const char *name,
 }
 
 static int
-font_list_insert(st_settings_font_list_t *fonts, size_t index,
-    const char *name)
+font_list_insert(st_settings_font_list_t *fonts, size_t index, const char *name)
 {
 	struct st_settings_font *font;
 
-	if (!st_settings_font_name_valid(name)
-	    || index > st_settings_font_list_count(*fonts)
+	if (!st_settings_font_name_valid(name) || index > st_settings_font_list_count(*fonts)
 	    || st_settings_font_list_count(*fonts) >= ST_SETTINGS_CUSTOM_FONT_MAX
 	    || !font_name_available(*fonts, name, SIZE_MAX))
 		return -1;
@@ -168,13 +160,11 @@ font_list_insert(st_settings_font_list_t *fonts, size_t index,
 }
 
 static int
-font_list_rename(st_settings_font_list_t fonts, size_t index,
-    const char *name)
+font_list_rename(st_settings_font_list_t fonts, size_t index, const char *name)
 {
 	char *replacement;
 
-	if (index >= st_settings_font_list_count(fonts)
-	    || !st_settings_font_name_valid(name)
+	if (index >= st_settings_font_list_count(fonts) || !st_settings_font_name_valid(name)
 	    || !font_name_available(fonts, name, index))
 		return -1;
 	replacement = strdup(name);
@@ -186,13 +176,11 @@ font_list_rename(st_settings_font_list_t fonts, size_t index,
 }
 
 static int
-font_list_set_path(st_settings_font_list_t fonts, size_t index,
-    enum st_settings_font_path slot, const char *path)
+font_list_set_path(st_settings_font_list_t fonts, size_t index, enum st_settings_font_path slot, const char *path)
 {
 	char *replacement = NULL;
 
-	if (index >= st_settings_font_list_count(fonts)
-	    || slot < 0 || slot >= ST_SETTINGS_FONT_PATH_COUNT)
+	if (index >= st_settings_font_list_count(fonts) || slot < 0 || slot >= ST_SETTINGS_FONT_PATH_COUNT)
 		return -1;
 	if (path != NULL && path[0] != '\0' && (replacement = strdup(path)) == NULL)
 		return -1;
@@ -237,8 +225,7 @@ st_settings_font_draft_dispose(struct st_settings_font_draft *draft)
 }
 
 int
-st_settings_font_draft_replace(struct st_settings_font_draft *draft,
-    st_settings_font_list_t fonts)
+st_settings_font_draft_replace(struct st_settings_font_draft *draft, st_settings_font_list_t fonts)
 {
 	struct st_settings_font_draft replacement = {0};
 
@@ -278,38 +265,32 @@ st_settings_font_draft_count(const struct st_settings_font_draft *draft)
 }
 
 const struct st_settings_font *
-st_settings_font_draft_at(const struct st_settings_font_draft *draft,
-    size_t index)
+st_settings_font_draft_at(const struct st_settings_font_draft *draft, size_t index)
 {
-	return draft != NULL && index < st_settings_font_draft_count(draft)
-	    ? draft->fonts[index] : NULL;
+	return draft != NULL && index < st_settings_font_draft_count(draft) ? draft->fonts[index] : NULL;
 }
 
 int
-st_settings_font_draft_insert(struct st_settings_font_draft *draft,
-    size_t index, const char *name)
+st_settings_font_draft_insert(struct st_settings_font_draft *draft, size_t index, const char *name)
 {
 	return draft == NULL ? -1 : font_list_insert(&draft->fonts, index, name);
 }
 
 int
-st_settings_font_draft_rename(struct st_settings_font_draft *draft,
-    size_t index, const char *name)
+st_settings_font_draft_rename(struct st_settings_font_draft *draft, size_t index, const char *name)
 {
 	return draft == NULL ? -1 : font_list_rename(draft->fonts, index, name);
 }
 
 int
-st_settings_font_draft_set_path(struct st_settings_font_draft *draft,
-    size_t index, enum st_settings_font_path slot, const char *path)
+st_settings_font_draft_set_path(struct st_settings_font_draft *draft, size_t index,
+    enum st_settings_font_path slot, const char *path)
 {
-	return draft == NULL ? -1
-	    : font_list_set_path(draft->fonts, index, slot, path);
+	return draft == NULL ? -1 : font_list_set_path(draft->fonts, index, slot, path);
 }
 
 int
-st_settings_font_draft_remove(struct st_settings_font_draft *draft,
-    size_t index)
+st_settings_font_draft_remove(struct st_settings_font_draft *draft, size_t index)
 {
 	return draft == NULL ? -1 : font_list_remove(draft->fonts, index);
 }
@@ -317,11 +298,9 @@ st_settings_font_draft_remove(struct st_settings_font_draft *draft,
 static bool
 append_default_sort_profiles(name_value_list_t *profiles)
 {
-	for (size_t i = 0;
-	    i < sizeof(default_sort_profiles) / sizeof(default_sort_profiles[0]);
-	    ++i) {
+	for (size_t i = 0; i < sizeof(default_sort_profiles) / sizeof(default_sort_profiles[0]); ++i) {
 		if (!name_value_list_append(profiles, default_sort_profiles[i].name,
-		    default_sort_profiles[i].value))
+			default_sort_profiles[i].value))
 			return false;
 	}
 	return true;
@@ -355,8 +334,7 @@ st_settings_dispose(struct st_settings *settings)
 }
 
 bool
-st_settings_copy(struct st_settings *result,
-	const struct st_settings *source)
+st_settings_copy(struct st_settings *result, const struct st_settings *source)
 {
 	struct st_settings copy;
 
@@ -364,33 +342,31 @@ st_settings_copy(struct st_settings *result,
 		return false;
 	if (result == source)
 		return true;
-	copy = *source;
-	copy.modem_device = NULL;
-	copy.list_path = NULL;
-	copy.stored_list_path = NULL;
+	copy                        = *source;
+	copy.modem_device           = NULL;
+	copy.list_path              = NULL;
+	copy.stored_list_path       = NULL;
 	copy.tls_client_certificate = NULL;
-	copy.tls_client_key = NULL;
-	copy.theme_file = NULL;
-	copy.theme_package = NULL;
-	copy.sort_order = NULL;
-	copy.active_sort_profile = NULL;
-	copy.web_downloads = NULL;
-	copy.sort_profiles = NULL;
-	copy.custom_fonts = NULL;
+	copy.tls_client_key         = NULL;
+	copy.theme_file             = NULL;
+	copy.theme_package          = NULL;
+	copy.sort_order             = NULL;
+	copy.active_sort_profile    = NULL;
+	copy.web_downloads          = NULL;
+	copy.sort_profiles          = NULL;
+	copy.custom_fonts           = NULL;
 	if (!copy_web_downloads(&copy.web_downloads, source->web_downloads)
 	    || !copy_web_downloads(&copy.sort_profiles, source->sort_profiles)
 	    || !st_settings_fonts_copy(&copy.custom_fonts, source->custom_fonts)
 	    || !copy_path(&copy.modem_device, source->modem_device)
 	    || !copy_path(&copy.list_path, source->list_path)
 	    || !copy_path(&copy.stored_list_path, source->stored_list_path)
-	    || !copy_path(&copy.tls_client_certificate,
-	    source->tls_client_certificate)
+	    || !copy_path(&copy.tls_client_certificate, source->tls_client_certificate)
 	    || !copy_path(&copy.tls_client_key, source->tls_client_key)
 	    || !copy_path(&copy.theme_file, source->theme_file)
 	    || !copy_path(&copy.theme_package, source->theme_package)
 	    || !copy_path(&copy.sort_order, source->sort_order)
-	    || !copy_path(&copy.active_sort_profile,
-	    source->active_sort_profile)) {
+	    || !copy_path(&copy.active_sort_profile, source->active_sort_profile)) {
 		st_settings_dispose(&copy);
 		return false;
 	}
@@ -408,8 +384,7 @@ st_settings_sort_profile_count(void)
 const struct name_value *
 st_settings_sort_profile_at(size_t index)
 {
-	return index < st_settings_sort_profile_count()
-	    ? st_settings.sort_profiles[index] : NULL;
+	return index < st_settings_sort_profile_count() ? st_settings.sort_profiles[index] : NULL;
 }
 
 size_t
@@ -417,8 +392,7 @@ st_settings_active_sort_profile(void)
 {
 	for (size_t i = 0; i < st_settings_sort_profile_count(); ++i) {
 		if (st_settings.active_sort_profile != NULL
-		    && names_equal(st_settings.sort_profiles[i]->name,
-		    st_settings.active_sort_profile))
+		    && names_equal(st_settings.sort_profiles[i]->name, st_settings.active_sort_profile))
 			return i;
 	}
 	return 0;
@@ -428,12 +402,12 @@ int
 st_settings_sort_profile_select(size_t index)
 {
 	const struct name_value *profile = st_settings_sort_profile_at(index);
-	char *name;
-	char *order;
+	char                    *name;
+	char                    *order;
 
 	if (profile == NULL)
 		return -1;
-	name = strdup(profile->name);
+	name  = strdup(profile->name);
 	order = strdup(profile->value);
 	if (name == NULL || order == NULL) {
 		free(name);
@@ -443,18 +417,16 @@ st_settings_sort_profile_select(size_t index)
 	free(st_settings.active_sort_profile);
 	free(st_settings.sort_order);
 	st_settings.active_sort_profile = name;
-	st_settings.sort_order = order;
+	st_settings.sort_order          = order;
 	return 0;
 }
 
 int
-st_settings_sort_profile_add(size_t index, const char *name,
-	const char *order)
+st_settings_sort_profile_add(size_t index, const char *name, const char *order)
 {
 	struct name_value *profile;
 
-	if (!st_unicode_name_valid(name, 19, 38, "=:")
-	    || name[0] == ';' || name[0] == '[' || order == NULL
+	if (!st_unicode_name_valid(name, 19, 38, "=:") || name[0] == ';' || name[0] == '[' || order == NULL
 	    || index > st_settings_sort_profile_count())
 		return -1;
 	for (size_t i = 0; i < st_settings_sort_profile_count(); ++i) {
@@ -472,26 +444,22 @@ st_settings_sort_profile_add(size_t index, const char *name,
 }
 
 int
-st_settings_sort_profile_update(size_t index, const char *name,
-	const char *order)
+st_settings_sort_profile_update(size_t index, const char *name, const char *order)
 {
 	struct name_value *replacement;
 	struct name_value *old;
-	bool active;
+	bool               active;
 
-	if (index >= st_settings_sort_profile_count()
-	    || !st_unicode_name_valid(name, 19, 38, "=:")
-	    || name[0] == ';' || name[0] == '['
-	    || order == NULL)
+	if (index >= st_settings_sort_profile_count() || !st_unicode_name_valid(name, 19, 38, "=:")
+	    || name[0] == ';' || name[0] == '[' || order == NULL)
 		return -1;
 	for (size_t i = 0; i < st_settings_sort_profile_count(); ++i) {
-		if (i != index && names_equal(st_settings.sort_profiles[i]->name,
-		    name))
+		if (i != index && names_equal(st_settings.sort_profiles[i]->name, name))
 			return -1;
 	}
 	old = st_settings.sort_profiles[index];
-	active = st_settings.active_sort_profile != NULL
-	    && names_equal(old->name, st_settings.active_sort_profile);
+	active =
+	    st_settings.active_sort_profile != NULL && names_equal(old->name, st_settings.active_sort_profile);
 	replacement = name_value_create(name, order);
 	if (replacement == NULL)
 		return -1;
@@ -506,7 +474,7 @@ int
 st_settings_sort_profile_remove(size_t index)
 {
 	size_t count = st_settings_sort_profile_count();
-	bool active;
+	bool   active;
 
 	if (index >= count)
 		return -1;
@@ -535,6 +503,5 @@ st_settings_font_count(void)
 const struct st_settings_font *
 st_settings_font_at(size_t index)
 {
-	return index < st_settings_font_count()
-	    ? st_settings.custom_fonts[index] : NULL;
+	return index < st_settings_font_count() ? st_settings.custom_fonts[index] : NULL;
 }

@@ -2,19 +2,19 @@
 #ifndef ST_RIP3_STROKE_TEXT_H_
 #define ST_RIP3_STROKE_TEXT_H_
 
-#include "st_rip3_chr.h"
-#include "st_rip3_geometry.h"
-#include "st_rip3_surface.h"
-
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+
+#include "st_rip3_chr.h"
+#include "st_rip3_geometry.h"
+#include "st_rip3_surface.h"
 
 struct st_rip3_ports;
 
 struct st_rip3_chr_text_metrics {
 	uint32_t advance; /* Sum of unscaled table advances, not ink bounds. */
-	unsigned height; /* capital - descender; independent of string length. */
+	unsigned height;  /* capital - descender; independent of string length. */
 };
 
 /* Map font coordinates (u = cumulative advance + glyph x, v = glyph y up)
@@ -31,20 +31,18 @@ struct st_rip3_chr_text_matrix {
  * then projected to DEVICE relative to the port/viewport origin. */
 struct st_rip3_chr_label_projection {
 	struct st_rip3_frame frame;
-	int numerator, denominator;
-	int64_t offset_x, offset_y;
+	int                  numerator, denominator;
+	int64_t              offset_x, offset_y;
 };
 
-int st_rip3_draw_chr_label(struct st_rip3_ports *ports,
-	const struct st_rip3_chr *font, const uint8_t *text, size_t length,
-	const struct st_rip3_text_position *world_baseline,
-	const struct st_rip3_chr_label_projection *projection,
-	bool shadow, uint32_t foreground, uint32_t background);
+int st_rip3_draw_chr_label(struct st_rip3_ports *ports, const struct st_rip3_chr *font, const uint8_t *text,
+    size_t length, const struct st_rip3_text_position *world_baseline,
+    const struct st_rip3_chr_label_projection *projection, bool shadow, uint32_t foreground, uint32_t background);
 
 /* Explicit CP437 span, including zero. Missing glyphs have zero advance/ink.
  * Widths are accumulated before any scaling, avoiding per-character drift. */
-int st_rip3_chr_text_measure(const struct st_rip3_chr *font,
-	const uint8_t *text, size_t length, struct st_rip3_chr_text_metrics *result);
+int st_rip3_chr_text_measure(const struct st_rip3_chr *font, const uint8_t *text, size_t length,
+    struct st_rip3_chr_text_metrics *result);
 /* Solid one-device-pixel strokes, independent of line style. Whole-text union
  * coverage applies each write mode once, including repeated strokes/glyphs.
  * Shadow is one device pixel down/right, with foreground precedence. All input
@@ -52,10 +50,8 @@ int st_rip3_chr_text_measure(const struct st_rip3_chr *font,
  * and contributes no ink. Inactive viewports have no painting work.
  * Font and text bytes stay immutable for the call. Caller inputs and protocol
  * cursor/style state are not changed. */
-int st_rip3_draw_chr_text(struct st_rip3_ports *ports,
-	const struct st_rip3_chr *font, const uint8_t *text, size_t length,
-	const struct st_rip3_text_position *origin, const struct st_rip3_chr_text_matrix *matrix,
-	bool shadow, uint32_t foreground, uint32_t background,
-	enum st_rip3_write_mode mode);
+int st_rip3_draw_chr_text(struct st_rip3_ports *ports, const struct st_rip3_chr *font, const uint8_t *text,
+    size_t length, const struct st_rip3_text_position *origin, const struct st_rip3_chr_text_matrix *matrix,
+    bool shadow, uint32_t foreground, uint32_t background, enum st_rip3_write_mode mode);
 
 #endif

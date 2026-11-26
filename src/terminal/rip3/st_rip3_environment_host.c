@@ -1,16 +1,16 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
-#include "st_rip3_host_internal.h"
-#include "st_rip3_environments.h"
-#include "io_error.h"
-
 #include <inttypes.h>
 #include <stdio.h>
 #include <string.h>
 
+#include "io_error.h"
+#include "st_rip3_environments.h"
+#include "st_rip3_host_internal.h"
+
 static bool
 equal(const char *text, const char *uppercase)
 {
-	for (size_t i = 0; ; i++) {
+	for (size_t i = 0;; i++) {
 		unsigned char ch = (unsigned char)text[i];
 		if (ch >= 'a' && ch <= 'z')
 			ch = (unsigned char)(ch - 'a' + 'A');
@@ -31,8 +31,7 @@ decimal_number(const char *text, uint64_t *result)
 	for (size_t i = 0; text[i] != 0; i++) {
 		unsigned digit = (unsigned char)text[i] - (unsigned)'0';
 
-		if (digit > 9 || value > UINT64_MAX / 10
-		    || (value == UINT64_MAX / 10 && digit > UINT64_MAX % 10))
+		if (digit > 9 || value > UINT64_MAX / 10 || (value == UINT64_MAX / 10 && digit > UINT64_MAX % 10))
 			return IO_ERROR_INVALID_FORMAT;
 		value = value * 10 + digit;
 	}
@@ -66,8 +65,8 @@ charset_keyword(const char *text, enum st_rip3_charset *charset)
 }
 
 static int
-charset_metadata(const struct st_rip3_host_variables *host,
-    const struct st_rip3_builtin_reference *reference, char *result, size_t capacity)
+charset_metadata(const struct st_rip3_host_variables *host, const struct st_rip3_builtin_reference *reference,
+    char *result, size_t capacity)
 {
 	bool shared = strcmp(reference->name, "SDCS") == 0;
 	bool stored = strcmp(reference->name, "DCS") == 0;
@@ -78,11 +77,11 @@ charset_metadata(const struct st_rip3_host_variables *host,
 	if (host->tables == NULL || host->tables->tables[ST_RIP3_TABLE_ENV].live == NULL)
 		return IO_ERROR_NOT_SUPPORTED;
 	struct st_rip3_builtin_reference words;
-	int status = st_rip3_builtin_reference_words(&words, reference);
+	int                              status = st_rip3_builtin_reference_words(&words, reference);
 	if (status != 0)
 		return status;
 	struct st_rip3_environments *environments = host->tables->tables[ST_RIP3_TABLE_ENV].live;
-	enum st_rip3_charset charset = st_rip3_environments_shared_charset(environments);
+	enum st_rip3_charset         charset      = st_rip3_environments_shared_charset(environments);
 	if (shared) {
 		if (words.count != 0 && !equal(words.parameters[0].text, "QUERY")) {
 			status = charset_keyword(words.parameters[0].text, &charset);
@@ -94,7 +93,7 @@ charset_metadata(const struct st_rip3_host_variables *host,
 		}
 	}
 	else {
-		unsigned index;
+		unsigned                   index;
 		struct st_rip3_environment value;
 		if (words.count == 0 || equal(words.parameters[0].text, "CUR"))
 			status = st_rip3_environments_active(environments, &index, &value);
@@ -124,8 +123,8 @@ charset_metadata(const struct st_rip3_host_variables *host,
 }
 
 static int
-playback_rate(const struct st_rip3_host_variables *host,
-    const struct st_rip3_builtin_reference *reference, char *result, size_t capacity)
+playback_rate(const struct st_rip3_host_variables *host, const struct st_rip3_builtin_reference *reference,
+    char *result, size_t capacity)
 {
 	if (reference->count > 1)
 		return IO_ERROR_INVALID_FORMAT;
@@ -140,7 +139,7 @@ playback_rate(const struct st_rip3_host_variables *host,
 		return reply_text(result, capacity, text);
 	}
 	uint64_t rate;
-	int status = decimal_number(reference->parameters[0].text, &rate);
+	int      status = decimal_number(reference->parameters[0].text, &rate);
 	if (status != 0 || rate > INT32_MAX)
 		return IO_ERROR_INVALID_FORMAT;
 	result[0] = 0;
@@ -152,19 +151,26 @@ st_rip3_environment_host_execute(const struct st_rip3_host_variables *host,
     const struct st_rip3_builtin_reference *reference, char *result, size_t capacity)
 {
 	struct st_rip3_environments *environments;
-	struct st_rip3_environment value;
+	struct st_rip3_environment   value;
 
 	if (host == NULL || reference == NULL || result == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	if (strcmp(reference->name,"MCURSOR")==0) {
-		if (reference->count>1) return IO_ERROR_INVALID_FORMAT;
-		if (capacity==0) return IO_ERROR_OUT_OF_RANGE;
-		unsigned pointer=0;int status=0;
-		if (reference->count!=0) status=st_rip3_host_number(reference->parameters[0].text,0,7,&pointer);
-		if (status!=0) return status;
-		if (host->tables==NULL || host->tables->tables[ST_RIP3_TABLE_ENV].live==NULL) return IO_ERROR_NOT_SUPPORTED;
-		status=st_rip3_environments_mouse(host->tables->tables[ST_RIP3_TABLE_ENV].live,pointer);
-		if (status==0) result[0]=0;
+	if (strcmp(reference->name, "MCURSOR") == 0) {
+		if (reference->count > 1)
+			return IO_ERROR_INVALID_FORMAT;
+		if (capacity == 0)
+			return IO_ERROR_OUT_OF_RANGE;
+		unsigned pointer = 0;
+		int      status  = 0;
+		if (reference->count != 0)
+			status = st_rip3_host_number(reference->parameters[0].text, 0, 7, &pointer);
+		if (status != 0)
+			return status;
+		if (host->tables == NULL || host->tables->tables[ST_RIP3_TABLE_ENV].live == NULL)
+			return IO_ERROR_NOT_SUPPORTED;
+		status = st_rip3_environments_mouse(host->tables->tables[ST_RIP3_TABLE_ENV].live, pointer);
+		if (status == 0)
+			result[0] = 0;
 		return status;
 	}
 	const char *name = reference->name;
@@ -172,22 +178,23 @@ st_rip3_environment_host_execute(const struct st_rip3_host_variables *host,
 		return playback_rate(host, reference, result, capacity);
 	if (strcmp(name, "CHARSET") == 0 || strcmp(name, "DCS") == 0 || strcmp(name, "SDCS") == 0)
 		return charset_metadata(host, reference, result, capacity);
-	bool base = strcmp(name, "BASEMATH") == 0;
-	bool coord = strcmp(name, "COORDSIZE") == 0;
-	bool world = strcmp(name, "WORLD") == 0;
-	bool width = strcmp(name, "WORLDW") == 0;
-	bool height = strcmp(name, "WORLDH") == 0;
-	bool color = strcmp(name, "COLORMODE") == 0;
-	bool compat = strcmp(name, "COMPAT") == 0;
+	bool     base   = strcmp(name, "BASEMATH") == 0;
+	bool     coord  = strcmp(name, "COORDSIZE") == 0;
+	bool     world  = strcmp(name, "WORLD") == 0;
+	bool     width  = strcmp(name, "WORLDW") == 0;
+	bool     height = strcmp(name, "WORLDH") == 0;
+	bool     color  = strcmp(name, "COLORMODE") == 0;
+	bool     compat = strcmp(name, "COMPAT") == 0;
 	unsigned index;
-	int status;
+	int      status;
 
 	if (!base && !coord && !world && !width && !height && !color && !compat)
 		return IO_ERROR_NOT_SUPPORTED;
 	struct st_rip3_builtin_reference words;
-	status=st_rip3_builtin_reference_words(&words,reference);
-	if (status!=0) return status;
-	reference=&words;
+	status = st_rip3_builtin_reference_words(&words, reference);
+	if (status != 0)
+		return status;
+	reference = &words;
 	if (capacity == 0)
 		return IO_ERROR_OUT_OF_RANGE;
 	if (reference->count > (compat ? 1u : world || color ? 3u : 2u))
@@ -195,8 +202,8 @@ st_rip3_environment_host_execute(const struct st_rip3_host_variables *host,
 	/* The shipped two-argument axis setters invert their target test:
 	 * literal CUR errors; every other target text writes the current ENV.
 	 * Getter forms still validate and honor the requested numeric slot. */
-	bool axis_setting=(width || height) && reference->count==2;
-	if (axis_setting && equal(reference->parameters[0].text,"CUR"))
+	bool axis_setting = (width || height) && reference->count == 2;
+	if (axis_setting && equal(reference->parameters[0].text, "CUR"))
 		return IO_ERROR_INVALID_FORMAT;
 	bool active = axis_setting || reference->count == 0 || equal(reference->parameters[0].text, "CUR");
 	if (!active) {
@@ -214,8 +221,8 @@ st_rip3_environment_host_execute(const struct st_rip3_host_variables *host,
 		return status;
 	}
 	bool setting = reference->count >= 2;
-	status = active ? st_rip3_environments_active(environments, &index, &value)
-	    : st_rip3_environments_get(environments, index, &value);
+	status       = active ? st_rip3_environments_active(environments, &index, &value)
+	                      : st_rip3_environments_get(environments, index, &value);
 	if (status == IO_ERROR_NOT_FOUND) {
 		if (setting)
 			return IO_ERROR_INVALID_FORMAT;
@@ -225,15 +232,18 @@ st_rip3_environment_host_execute(const struct st_rip3_host_variables *host,
 		return status;
 	if (!setting) {
 		char text[48];
-		int length;
+		int  length;
 
 		if (world)
-			length = snprintf(text, sizeof(text), "%" PRIu32 ":%" PRIu32,
-			    value.world_width, value.world_height);
+			length = snprintf(text, sizeof(text), "%" PRIu32 ":%" PRIu32, value.world_width,
+			    value.world_height);
 		else {
-			uint32_t number = base ? value.base_math : coord ? value.coordinate_size
-			    : width ? value.world_width : height ? value.world_height : value.rgb_bits;
-			length = snprintf(text, sizeof(text), "%" PRIu32, number);
+			uint32_t number = base     ? value.base_math
+			                  : coord  ? value.coordinate_size
+			                  : width  ? value.world_width
+			                  : height ? value.world_height
+			                           : value.rgb_bits;
+			length          = snprintf(text, sizeof(text), "%" PRIu32, number);
 		}
 		if (length < 0 || (size_t)length >= sizeof(text))
 			return IO_ERROR_IO;
@@ -241,7 +251,7 @@ st_rip3_environment_host_execute(const struct st_rip3_host_variables *host,
 	}
 	if (color) {
 		const char *mode = reference->parameters[1].text;
-		unsigned bits;
+		unsigned    bits;
 
 		if (equal(mode, "PAL") && reference->count == 2)
 			value.rgb_bits = 0;
@@ -258,7 +268,7 @@ st_rip3_environment_host_execute(const struct st_rip3_host_variables *host,
 		uint64_t x, y;
 
 		if (reference->count == 2 && equal(reference->parameters[1].text, "DEFAULT")) {
-			value.world_width = value.base_math == 36 ? 1280 : 4096;
+			value.world_width  = value.base_math == 36 ? 1280 : 4096;
 			value.world_height = value.base_math == 36 ? 960 : 3072;
 		}
 		else if (reference->count == 3) {
@@ -269,9 +279,10 @@ st_rip3_environment_host_execute(const struct st_rip3_host_variables *host,
 				return status;
 			/* Preserve WORLD's documented AND-shaped validation defect;
 			 * the wire f command independently rejects either oversized axis. */
-			if (x>65535 && y>65535) return IO_ERROR_INVALID_FORMAT;
-			value.world_width=(uint32_t)(x&UINT64_C(65535));
-			value.world_height=(uint32_t)(y&UINT64_C(65535));
+			if (x > 65535 && y > 65535)
+				return IO_ERROR_INVALID_FORMAT;
+			value.world_width  = (uint32_t)(x & UINT64_C(65535));
+			value.world_height = (uint32_t)(y & UINT64_C(65535));
 		}
 		else
 			return IO_ERROR_INVALID_FORMAT;
@@ -279,7 +290,13 @@ st_rip3_environment_host_execute(const struct st_rip3_host_variables *host,
 	else {
 		unsigned number;
 		status = st_rip3_host_number(reference->parameters[1].text,
-		    base ? 36 : coord ? 2 : 0, base ? 64 : coord ? 5 : 65535, &number);
+		    base    ? 36
+		    : coord ? 2
+		            : 0,
+		    base    ? 64
+		    : coord ? 5
+		            : 65535,
+		    &number);
 		if (status != 0)
 			return status;
 		if (base) {
@@ -294,8 +311,8 @@ st_rip3_environment_host_execute(const struct st_rip3_host_variables *host,
 		else
 			value.world_height = number;
 	}
-	status = color ? st_rip3_environments_color(environments,index,value.rgb_bits)
-	    : st_rip3_environments_set(environments, index, &value);
+	status = color ? st_rip3_environments_color(environments, index, value.rgb_bits)
+	               : st_rip3_environments_set(environments, index, &value);
 	if (status == 0)
 		result[0] = 0;
 	return status;

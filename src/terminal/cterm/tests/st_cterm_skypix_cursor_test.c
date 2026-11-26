@@ -2,57 +2,76 @@
  * Reference: SKYTERM_PROTOCOL.adoc, H01:2cfe..2d68, 5d0c..5d82;
  * native/ROM cursor probe rectangles for 8x8, 9x12 and 20x20 metrics. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
-#include "cterm.h"
-#include "cterm_skypix.h"
-#include "st_amiga_fonts.h"
-#include "st_cterm.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#define CHECK(e) do { if (!(e)) { fprintf(stderr, "%d: %s\n", __LINE__, #e); exit(1); } } while (false)
+#include "cterm.h"
+#include "cterm_skypix.h"
+#include "st_amiga_fonts.h"
+#include "st_cterm.h"
 
-static void feed(st_cterm_t *t, const char *wire)
+#define CHECK(e)                                                   \
+	do {                                                       \
+		if (!(e)) {                                        \
+			fprintf(stderr, "%d: %s\n", __LINE__, #e); \
+			exit(1);                                   \
+		}                                                  \
+	} while (false)
+
+static void
+feed(st_cterm_t *t, const char *wire)
 {
 	size_t used, size = strlen(wire);
 	CHECK(st_cterm_write(t, wire, size, &used) == 0 && used == size);
 	CHECK(st_cterm_finish(t) == 0);
 }
 
-static void rectangle(st_cterm_t *t, unsigned x, unsigned y, unsigned width, uint32_t colour)
+static void
+rectangle(st_cterm_t *t, unsigned x, unsigned y, unsigned width, uint32_t colour)
 {
-	struct st_pixel_buffer *pixels = NULL;
-	const struct st_console_rect area = {x, y, width, 1};
+	struct st_pixel_buffer      *pixels = NULL;
+	const struct st_console_rect area   = {x, y, width, 1};
 	CHECK(st_console_get_pixels(&pixels, t->screen.console, &area, false) == 0);
 	for (unsigned i = 0; i < width; ++i) {
 		if (pixels->primary[i] != colour || pixels->alternate[i] != colour)
-			fprintf(stderr, "pixel %u,%u: %u/%u expected %u\n", x + i, y,
-				pixels->primary[i], pixels->alternate[i], colour);
+			fprintf(stderr, "pixel %u,%u: %u/%u expected %u\n", x + i, y, pixels->primary[i],
+			    pixels->alternate[i], colour);
 		CHECK(pixels->primary[i] == colour && pixels->alternate[i] == colour);
 	}
 	st_pixel_buffer_destroy(pixels);
 }
 
-static void run(enum st_cterm_graphics_mode mode, bool utf8, bool status, unsigned colours)
+static void
+run(enum st_cterm_graphics_mode mode, bool utf8, bool status, unsigned colours)
 {
-	st_console_t *console = NULL;
-	st_font_catalog_t *fonts = NULL;
-	st_cterm_t *t = NULL;
+	st_console_t                          *console = NULL;
+	st_font_catalog_t                     *fonts   = NULL;
+	st_cterm_t                            *t       = NULL;
 	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
-	const struct st_console_config grid = {.columns = 80, .rows = 25,
-		.cell_width = 8, .cell_height = 8, .wrap = true};
+	const struct st_console_config         grid    = {.columns = 80,
+	    .rows                                               = 25,
+	    .cell_width                                         = 8,
+	    .cell_height                                        = 8,
+	    .wrap                                               = true};
 	CHECK(st_console_create(&console, &display, &grid) == 0);
 	CHECK(st_font_catalog_create(&fonts, console) == 0);
-	const struct st_cterm_config config = {.console = console, .fonts = fonts,
-		.emulation = ST_CTERM_ANSI_BBS, .graphics_mode = mode, .status_line = status,
-		.encoding = utf8 ? ST_CTERM_ENCODING_UTF8 : ST_CTERM_ENCODING_CODEPAGE,
-		.codepage = ST_CODEPAGE_CP437, .scrollback_lines = 3, .quiet = true};
+	const struct st_cterm_config config = {.console = console,
+	    .fonts                                      = fonts,
+	    .emulation                                  = ST_CTERM_ANSI_BBS,
+	    .graphics_mode                              = mode,
+	    .status_line                                = status,
+	    .encoding         = utf8 ? ST_CTERM_ENCODING_UTF8 : ST_CTERM_ENCODING_CODEPAGE,
+	    .codepage         = ST_CODEPAGE_CP437,
+	    .scrollback_lines = 3,
+	    .quiet            = true};
 	CHECK(st_cterm_create(&t, &config) == 0);
 	CHECK(t->skypix_engine->colours == 16);
-	if (colours == 8) feed(t, "\x1b[17;1!\x1b[0m");
-	const uint32_t cursor = colours == 16 ? 527 : 519;
+	if (colours == 8)
+		feed(t, "\x1b[17;1!\x1b[0m");
+	const uint32_t cursor     = colours == 16 ? 527 : 519;
 	const uint32_t ink_cursor = colours == 16 ? 525 : 517;
 	feed(t, "\f");
 	/* Default home is zero-origin with the complete Pearl/8 strike. The
@@ -60,7 +79,7 @@ static void run(enum st_cterm_graphics_mode mode, bool utf8, bool status, unsign
 	rectangle(t, 0, 6, 8, cursor);
 	struct st_console_pixel_cursor overlay;
 	CHECK(st_console_get_pixel_cursor(console, &overlay) == 0 && !overlay.enabled);
-	bool visible;
+	bool                         visible;
 	enum st_console_cursor_shape shape;
 	CHECK(st_console_get_cursor(console, &visible, &shape) == 0 && !visible);
 	feed(t, "A");
@@ -77,7 +96,10 @@ static void run(enum st_cterm_graphics_mode mode, bool utf8, bool status, unsign
 	CHECK(cterm_skypix_poll(t->skypix_engine, 1) == 0);
 	CHECK(cterm_skypix_poll(t->skypix_engine, 10000) == 0);
 	rectangle(t, 8, 6, 8, cursor); /* Idle time has no phase effect. */
-	feed(t, "\x1b" "7B\x1b" "8");
+	feed(t,
+	    "\x1b"
+	    "7B\x1b"
+	    "8");
 	rectangle(t, 16, 6, 8, 512); /* DECSC/DECRC must not abandon B's cursor. */
 	for (unsigned x = 0; x < 8; ++x)
 		rectangle(t, 8 + x, 6, 1, (0xfcu & (128u >> x)) ? ink_cursor : cursor);
@@ -108,7 +130,8 @@ static void run(enum st_cterm_graphics_mode mode, bool utf8, bool status, unsign
 	 * an underline abandoned at an earlier position. */
 	feed(t, "\x1b[10;0!\fA\x1b[sB\x1b[u\x1b[6;16;5;8;1!");
 	CHECK(t->skypix_engine->brush != NULL && t->skypix_engine->brush->width == 8);
-	for (unsigned i = 0; i < 8; ++i) CHECK(t->skypix_engine->brush->primary[i] == 512);
+	for (unsigned i = 0; i < 8; ++i)
+		CHECK(t->skypix_engine->brush->primary[i] == 512);
 	feed(t, "\x1b[7;0;0;32;6;8;1;192;255!");
 	rectangle(t, 32, 6, 8, 512);
 	/* A cursor temporarily moved home must not be retired into history
@@ -117,7 +140,7 @@ static void run(enum st_cterm_graphics_mode mode, bool utf8, bool status, unsign
 	snprintf(scroll, sizeof(scroll), "\x1b[0m\x1b[2J\x1b[%d;1HA\x1b[s\x1b[H\x1b[u\n", t->height);
 	feed(t, scroll);
 	uint32_t columns;
-	size_t rows;
+	size_t   rows;
 	CHECK(st_cterm_scrollback_size(t, &columns, &rows) == 0 && rows != 0);
 	struct st_pixel_buffer *history = NULL;
 	CHECK(st_cterm_copy_history_pixels(t, rows - 1, &history) == 0 && history != NULL);
@@ -133,9 +156,11 @@ static void run(enum st_cterm_graphics_mode mode, bool utf8, bool status, unsign
 	const char wire[] = "\fA\x1b[1;0!B\x1b[10;0!A";
 	for (size_t split = 0; split < sizeof(wire); ++split) {
 		CHECK(st_cterm_reset_terminal(t) == 0);
-		if (colours == 8) feed(t, "\x1b[17;1!\x1b[0m");
+		if (colours == 8)
+			feed(t, "\x1b[17;1!\x1b[0m");
 		CHECK(st_cterm_write(t, wire, split, &used) == 0 && used == split);
-		CHECK(st_cterm_write(t, wire + split, sizeof(wire) - 1 - split, &used) == 0 && used == sizeof(wire) - 1 - split);
+		CHECK(st_cterm_write(t, wire + split, sizeof(wire) - 1 - split, &used) == 0
+		      && used == sizeof(wire) - 1 - split);
 		CHECK(st_cterm_finish(t) == 0);
 		rectangle(t, 24, 6, 8, cursor);
 	}
@@ -148,8 +173,9 @@ static void run(enum st_cterm_graphics_mode mode, bool utf8, bool status, unsign
 		for (size_t i = 0; i < sizeof(composed) - 1; ++i)
 			CHECK(st_cterm_write(t, composed + i, 1, &used) == 0 && used == 1);
 		CHECK(st_cterm_finish(t) == 0);
-		for (unsigned y = 0; y < 8; ++y) for (unsigned x = 0; x < 8; ++x)
-			rectangle(t, x, y, 1, accent[y] & (128u >> x) ? 514 : 512);
+		for (unsigned y = 0; y < 8; ++y)
+			for (unsigned x = 0; x < 8; ++x)
+				rectangle(t, x, y, 1, accent[y] & (128u >> x) ? 514 : 512);
 		rectangle(t, 8, 6, 8, cursor);
 	}
 	st_cterm_destroy(&t);
@@ -157,24 +183,29 @@ static void run(enum st_cterm_graphics_mode mode, bool utf8, bool status, unsign
 	st_console_destroy(console);
 }
 
-static void widths(enum st_cterm_graphics_mode mode, const char *name,
-	unsigned height, unsigned baseline, unsigned width)
+static void
+widths(enum st_cterm_graphics_mode mode, const char *name, unsigned height, unsigned baseline, unsigned width)
 {
-	st_console_t *console = NULL;
-	st_font_catalog_t *fonts = NULL;
-	st_cterm_t *t = NULL;
+	st_console_t                          *console = NULL;
+	st_font_catalog_t                     *fonts   = NULL;
+	st_cterm_t                            *t       = NULL;
 	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
-	const struct st_console_config grid = {.columns = 80, .rows = 25,
-		.cell_width = 8, .cell_height = 8};
+	const struct st_console_config grid = {.columns = 80, .rows = 25, .cell_width = 8, .cell_height = 8};
 	CHECK(st_console_create(&console, &display, &grid) == 0);
 	CHECK(st_font_catalog_create(&fonts, console) == 0);
-	const struct st_cterm_config config = {.console = console, .fonts = fonts,
-		.emulation = ST_CTERM_ANSI_BBS, .graphics_mode = mode,
-		.encoding = ST_CTERM_ENCODING_CODEPAGE, .codepage = ST_CODEPAGE_CP437,
-		.amiga_font = st_amiga_font_builtin(mode == ST_CTERM_GRAPHICS_SKYPIX_13 ? ST_AMIGA_FONT_SET_13 : ST_AMIGA_FONT_SET_2PLUS, name, height), .quiet = true};
+	const struct st_cterm_config config = {.console = console,
+	    .fonts                                      = fonts,
+	    .emulation                                  = ST_CTERM_ANSI_BBS,
+	    .graphics_mode                              = mode,
+	    .encoding                                   = ST_CTERM_ENCODING_CODEPAGE,
+	    .codepage                                   = ST_CODEPAGE_CP437,
+	    .amiga_font = st_amiga_font_builtin(mode == ST_CTERM_GRAPHICS_SKYPIX_13 ? ST_AMIGA_FONT_SET_13
+	                                                                            : ST_AMIGA_FONT_SET_2PLUS,
+		name, height),
+	    .quiet = true};
 	CHECK(st_cterm_create(&t, &config) == 0);
 	char select[128];
-	int length = snprintf(select, sizeof(select), "\x1b[10;%u!%s!", height, name);
+	int  length = snprintf(select, sizeof(select), "\x1b[10;%u!%s!", height, name);
 	CHECK(length > 0 && (size_t)length < sizeof(select));
 	feed(t, select);
 	CHECK(st_amiga_font_width(t->skypix_engine->font) == width);
@@ -198,8 +229,12 @@ static void widths(enum st_cterm_graphics_mode mode, const char *name,
 	struct st_pixel_buffer *background = NULL;
 	CHECK(st_pixel_buffer_create(&background, width, 1, true) == 0);
 	st_pixel_buffer_fill(background, 515, 516);
-	const struct st_pixel_blit blit = {.width = width, .height = 1,
-		.destination_x = 2, .destination_y = (int)(11 + height - 1), .scale_x = 1, .scale_y = 1};
+	const struct st_pixel_blit blit = {.width = width,
+	    .height                               = 1,
+	    .destination_x                        = 2,
+	    .destination_y                        = (int)(11 + height - 1),
+	    .scale_x                              = 1,
+	    .scale_y                              = 1};
 	CHECK(st_console_blit_pixels(console, background, NULL, &blit) == 0);
 	st_pixel_buffer_destroy(background);
 	feed(t, "\x1b[?25h");
@@ -218,15 +253,19 @@ static void widths(enum st_cterm_graphics_mode mode, const char *name,
 	st_console_destroy(console);
 }
 
-int st_cterm_skypix_cursor_test_main(void)
+int
+st_cterm_skypix_cursor_test_main(void)
 {
 	for (int kick = 0; kick < 2; ++kick) {
 		for (int utf8 = 0; utf8 < 2; ++utf8)
 			for (int status = 0; status < 2; ++status)
 				for (unsigned colours = 8; colours <= 16; colours += 8)
-					run(kick ? ST_CTERM_GRAPHICS_SKYPIX_31 : ST_CTERM_GRAPHICS_SKYPIX_13, utf8, status, colours);
-		widths(kick ? ST_CTERM_GRAPHICS_SKYPIX_31 : ST_CTERM_GRAPHICS_SKYPIX_13, "Opal.font", 12, kick ? 8 : 9, kick ? 9 : 12);
-		widths(kick ? ST_CTERM_GRAPHICS_SKYPIX_31 : ST_CTERM_GRAPHICS_SKYPIX_13, "Diamond.font", 20, kick ? 13 : 14, kick ? 12 : 20);
+					run(kick ? ST_CTERM_GRAPHICS_SKYPIX_31 : ST_CTERM_GRAPHICS_SKYPIX_13, utf8,
+					    status, colours);
+		widths(kick ? ST_CTERM_GRAPHICS_SKYPIX_31 : ST_CTERM_GRAPHICS_SKYPIX_13, "Opal.font", 12,
+		    kick ? 8 : 9, kick ? 9 : 12);
+		widths(kick ? ST_CTERM_GRAPHICS_SKYPIX_31 : ST_CTERM_GRAPHICS_SKYPIX_13, "Diamond.font", 20,
+		    kick ? 13 : 14, kick ? 12 : 20);
 	}
 	return 0;
 }

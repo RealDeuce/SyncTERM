@@ -45,18 +45,14 @@ void cterm_cterm_handle_font_dcs(struct cterminal *cterm);
  * in cterm.c.  doorway passes one raw byte after a NUL, music
  * captures a string until the SO terminator, font collects a fixed
  * number of bytes into fontbuf. */
-bool cterm_accumulate_doorway(struct cterminal *cterm, unsigned char byte,
-    int *speed);
-bool cterm_accumulate_music(struct cterminal *cterm, unsigned char byte,
-    int *speed);
-bool cterm_accumulate_font(struct cterminal *cterm, unsigned char byte,
-    int *speed);
+bool cterm_accumulate_doorway(struct cterminal *cterm, unsigned char byte, int *speed);
+bool cterm_accumulate_music(struct cterminal *cterm, unsigned char byte, int *speed);
+bool cterm_accumulate_font(struct cterminal *cterm, unsigned char byte, int *speed);
 
 /* Extended-colour SGR helpers (truecolor / 256-colour — SGR 38/48).
  * Called from cterm_cterm_apply_sgr for the 38/48 sub-parameter
  * parsing and from the DECRQSS save-back path. */
-void cterm_save_extended_colour_seq(struct cterminal *cterm, int fg,
-    int seqoff, int count);
+void cterm_save_extended_colour_seq(struct cterminal *cterm, int fg, int seqoff, int count);
 void cterm_parse_extended_colour(struct cterminal *cterm, int *i, bool fg);
 
 /* Top of the SGR cascade.  Owns the extensions ECMA-48 doesn't define

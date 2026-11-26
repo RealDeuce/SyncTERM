@@ -12,7 +12,7 @@ struct st_rip3_resource_paths;
  * Missing JPEG support returns NOT_SUPPORTED without accessing the disk.
  * No source deletion, rewriting, delivery or image-style policy is implied.
  * Storage/decoder statuses are consumed by the owning void parser boundary. */
-int st_rip3_jpeg_load(struct st_pixel_buffer **result,
-	const struct st_rip3_resource_paths *paths, const char *name);
+int st_rip3_jpeg_load(struct st_pixel_buffer **result, const struct st_rip3_resource_paths *paths,
+    const char *name);
 
 #endif

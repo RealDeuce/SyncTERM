@@ -11,13 +11,12 @@
 
 #include "string_compat.h"
 
-#if !STRING_COMPAT_HAVE_STRDUP || !STRING_COMPAT_HAVE_STRNDUP \
-    || defined(STRING_COMPAT_FORCE_FALLBACKS)
+#if !STRING_COMPAT_HAVE_STRDUP || !STRING_COMPAT_HAVE_STRNDUP || defined(STRING_COMPAT_FORCE_FALLBACKS)
 static char *
 string_compat_duplicate(const char *string, size_t maximum)
 {
 	size_t length = 0;
-	char *copy;
+	char  *copy;
 
 	while (length < maximum && string[length] != '\0')
 		length++;
@@ -55,8 +54,7 @@ syncterm_strlcpy(char *destination, const char *source, size_t size)
 	size_t source_length = strlen(source);
 
 	if (size != 0) {
-		size_t copy_length = source_length < size - 1
-		    ? source_length : size - 1;
+		size_t copy_length = source_length < size - 1 ? source_length : size - 1;
 
 		memcpy(destination, source, copy_length);
 		destination[copy_length] = '\0';
@@ -70,17 +68,15 @@ size_t
 syncterm_strlcat(char *destination, const char *source, size_t size)
 {
 	size_t destination_length = 0;
-	size_t source_length = strlen(source);
+	size_t source_length      = strlen(source);
 
-	while (destination_length < size
-	    && destination[destination_length] != '\0')
+	while (destination_length < size && destination[destination_length] != '\0')
 		destination_length++;
 	if (destination_length == size)
 		return size + source_length;
 
-	size_t available = size - destination_length - 1;
-	size_t copy_length = source_length < available
-	    ? source_length : available;
+	size_t available   = size - destination_length - 1;
+	size_t copy_length = source_length < available ? source_length : available;
 	memcpy(destination + destination_length, source, copy_length);
 	destination[destination_length + copy_length] = '\0';
 	return destination_length + source_length;
@@ -99,7 +95,7 @@ syncterm_strtok_r(char *string, const char *delimiters, char **state)
 		return NULL;
 	}
 	char *end = token + strcspn(token, delimiters);
-	*state = *end == '\0' ? end : end + 1;
+	*state    = *end == '\0' ? end : end + 1;
 	if (*end != '\0')
 		*end = '\0';
 	return token;

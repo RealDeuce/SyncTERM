@@ -7,22 +7,20 @@
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
-
-#include "st_console.h"
-
-#include "io_error.h"
-
 #include <stdint.h>
 #include <stdio.h>
 #include <time.h>
 
-#define CHECK(expression) do { \
-	if (!(expression)) { \
-		fprintf(stderr, "check failed at %s:%d: %s\n", __FILE__, \
-		    __LINE__, #expression); \
-		return 1; \
-	} \
-} while (0)
+#include "io_error.h"
+#include "st_console.h"
+
+#define CHECK(expression)                                                                                \
+	do {                                                                                             \
+		if (!(expression)) {                                                                     \
+			fprintf(stderr, "check failed at %s:%d: %s\n", __FILE__, __LINE__, #expression); \
+			return 1;                                                                        \
+		}                                                                                        \
+	} while (0)
 
 static int
 check_client_size(const wchar_t *title, LONG width, LONG height)
@@ -33,9 +31,8 @@ check_client_size(const wchar_t *title, LONG width, LONG height)
 	CHECK(window != NULL);
 	CHECK(GetClientRect(window, &rectangle));
 	if (rectangle.right != width || rectangle.bottom != height)
-		fprintf(stderr, "client size: %ldx%ld, expected %ldx%ld\n",
-		    (long)rectangle.right, (long)rectangle.bottom, (long)width,
-		    (long)height);
+		fprintf(stderr, "client size: %ldx%ld, expected %ldx%ld\n", (long)rectangle.right,
+		    (long)rectangle.bottom, (long)width, (long)height);
 	CHECK(rectangle.right == width && rectangle.bottom == height);
 	return 0;
 }
@@ -43,25 +40,23 @@ check_client_size(const wchar_t *title, LONG width, LONG height)
 static int
 post_key(HWND window, UINT virtual_key, bool pressed)
 {
-	LPARAM detail = (LPARAM)(MapVirtualKeyW(virtual_key, MAPVK_VK_TO_VSC)
-	    << 16);
+	LPARAM detail = (LPARAM)(MapVirtualKeyW(virtual_key, MAPVK_VK_TO_VSC) << 16);
 
 	if (!pressed)
 		detail |= (LPARAM)3 << 30;
-	return PostMessageW(window, pressed ? WM_KEYDOWN : WM_KEYUP,
-	    virtual_key, detail) ? 0 : 1;
+	return PostMessageW(window, pressed ? WM_KEYDOWN : WM_KEYUP, virtual_key, detail) ? 0 : 1;
 }
 
 static int
 check_escape_event(st_console_t *console)
 {
-	static const wchar_t title[] = L"st_console GDI input test";
+	static const wchar_t    title[] = L"st_console GDI input test";
 	struct st_console_event event;
-	struct timespec deadline;
-	HWND window;
-	unsigned int escape_keys = 0;
-	unsigned int escape_text = 0;
-	bool marker = false;
+	struct timespec         deadline;
+	HWND                    window;
+	unsigned int            escape_keys = 0;
+	unsigned int            escape_text = 0;
+	bool                    marker      = false;
 
 	CHECK(st_console_set_title(console, "st_console GDI input test") == 0);
 	window = FindWindowW(NULL, title);
@@ -73,16 +68,14 @@ check_escape_event(st_console_t *console)
 	CHECK(post_key(window, VK_F1, false) == 0);
 	CHECK(timespec_get(&deadline, TIME_UTC) == TIME_UTC);
 	++deadline.tv_sec;
-	while (!marker
-	    && st_console_event_timedwait(console, &event, &deadline) == 0) {
+	while (!marker && st_console_event_timedwait(console, &event, &deadline) == 0) {
 		if (event.type == ST_CONSOLE_EVENT_KEY_CODE) {
 			if (event.data.key.code == 27)
 				++escape_keys;
 			else if (event.data.key.code == ST_CONSOLE_KEY_F1)
 				marker = true;
 		}
-		else if (event.type == ST_CONSOLE_EVENT_TEXT
-		    && event.data.text.codepoint == 0x1b)
+		else if (event.type == ST_CONSOLE_EVENT_TEXT && event.data.text.codepoint == 0x1b)
 			++escape_text;
 	}
 	CHECK(marker);
@@ -95,26 +88,26 @@ int
 main(void)
 {
 	const struct st_console_display_config config_display = {
-		.backend = ST_CONSOLE_BACKEND_GDI,
+	    .backend = ST_CONSOLE_BACKEND_GDI,
 	};
 	const struct st_console_config config = {
-		.columns = 80,
-		.rows = 25,
-		.cell_width = 8,
-		.cell_height = 16,
-		.wrap = true,
-		.aspect_width = 4,
-		.aspect_height = 3,
+	    .columns       = 80,
+	    .rows          = 25,
+	    .cell_width    = 8,
+	    .cell_height   = 16,
+	    .wrap          = true,
+	    .aspect_width  = 4,
+	    .aspect_height = 3,
 	};
 	struct st_console_display_config scaled_display = config_display;
-	struct st_console_config scaled = config;
-	st_console_t *first = NULL;
-	st_console_t *second = NULL;
-	st_console_display_t *first_display = NULL;
-	uint32_t width;
-	uint32_t height;
-	double scaling;
-	int status = st_console_display_create(&first_display, &config_display);
+	struct st_console_config         scaled         = config;
+	st_console_t                    *first          = NULL;
+	st_console_t                    *second         = NULL;
+	st_console_display_t            *first_display  = NULL;
+	uint32_t                         width;
+	uint32_t                         height;
+	double                           scaling;
+	int                              status = st_console_display_create(&first_display, &config_display);
 
 	if (status == 0)
 		status = st_console_create_on_display(&first, first_display, &config);
@@ -134,11 +127,10 @@ main(void)
 	CHECK(st_console_set_pointer_visible(first, true) == 0);
 	CHECK(st_console_set_pointer_shape(first, ST_CONSOLE_POINTER_TEXT) == 0);
 	CHECK(st_console_set_pointer_shape(first, ST_CONSOLE_POINTER_LINK) == 0);
-	for (unsigned shape=ST_CONSOLE_POINTER_WATCH;shape<ST_CONSOLE_POINTER_COUNT;shape++)
-		CHECK(st_console_set_pointer_shape(first,(enum st_console_pointer_shape)shape)==0);
+	for (unsigned shape = ST_CONSOLE_POINTER_WATCH; shape < ST_CONSOLE_POINTER_COUNT; shape++)
+		CHECK(st_console_set_pointer_shape(first, (enum st_console_pointer_shape)shape) == 0);
 	CHECK(st_console_set_pointer_shape(first, ST_CONSOLE_POINTER_DEFAULT) == 0);
-	CHECK(st_console_set_pixel(first, 4, 5,
-	    ST_CONSOLE_COLOR_RGB_VALUE(0x12, 0x34, 0x56)) == 0);
+	CHECK(st_console_set_pixel(first, 4, 5, ST_CONSOLE_COLOR_RGB_VALUE(0x12, 0x34, 0x56)) == 0);
 	CHECK(st_console_present(first) == 0);
 	CHECK(st_console_present(second) == 0);
 	CHECK(check_escape_event(first) == 0);

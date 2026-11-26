@@ -5,9 +5,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "st_hex.h"
-
 #include <stdint.h>
+
+#include "st_hex.h"
 
 bool
 st_hex_digit_value(unsigned char character, uint8_t *result)
@@ -29,18 +29,16 @@ st_hex_digit_value(unsigned char character, uint8_t *result)
 }
 
 bool
-st_hex_encode(char *destination, size_t destination_capacity,
-	const void *source, size_t source_size)
+st_hex_encode(char *destination, size_t destination_capacity, const void *source, size_t source_size)
 {
-	static const char digits[] = "0123456789abcdef";
-	const unsigned char *bytes = source;
+	static const char    digits[] = "0123456789abcdef";
+	const unsigned char *bytes    = source;
 
-	if (destination == NULL || source == NULL
-	    || source_size > (SIZE_MAX - 1) / 2
+	if (destination == NULL || source == NULL || source_size > (SIZE_MAX - 1) / 2
 	    || destination_capacity < source_size * 2 + 1)
 		return false;
 	for (size_t i = 0; i < source_size; ++i) {
-		destination[i * 2] = digits[bytes[i] >> 4];
+		destination[i * 2]     = digits[bytes[i] >> 4];
 		destination[i * 2 + 1] = digits[bytes[i] & 15];
 	}
 	destination[source_size * 2] = '\0';
@@ -48,11 +46,10 @@ st_hex_encode(char *destination, size_t destination_capacity,
 }
 
 bool
-st_hex_decode(void *destination, size_t destination_capacity,
-	const char *source, size_t source_size)
+st_hex_decode(void *destination, size_t destination_capacity, const char *source, size_t source_size)
 {
 	unsigned char *bytes = destination;
-	size_t decoded_size;
+	size_t         decoded_size;
 
 	if (destination == NULL || source == NULL || (source_size & 1U) != 0)
 		return false;

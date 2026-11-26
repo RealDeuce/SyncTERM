@@ -2,20 +2,22 @@
 #ifndef ST_RIP3_BUILTIN_REFERENCE_H_
 #define ST_RIP3_BUILTIN_REFERENCE_H_
 
-#include <stddef.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
-enum { ST_RIP3_BUILTIN_PARAMETER_LIMIT = 20 };
+enum {
+	ST_RIP3_BUILTIN_PARAMETER_LIMIT = 20
+};
 
 struct st_rip3_builtin_parameter {
 	size_t length;
-	char text[4 * ST_RIP3_BUILTIN_PARAMETER_LIMIT + 1];
+	char   text[4 * ST_RIP3_BUILTIN_PARAMETER_LIMIT + 1];
 };
 
 struct st_rip3_builtin_reference {
-	char name[21];
-	size_t count;
+	char                             name[21];
+	size_t                           count;
 	struct st_rip3_builtin_parameter parameters[40];
 };
 

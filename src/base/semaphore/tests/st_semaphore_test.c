@@ -3,21 +3,21 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "st_semaphore.h"
-
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 
-#define CHECK(expression) do { \
-	if (!(expression)) { \
-		fprintf(stderr, "%s:%d: check failed: %s\n", \
-		    __FILE__, __LINE__, #expression); \
-		return false; \
-	} \
-} while (false)
+#include "st_semaphore.h"
+
+#define CHECK(expression)                                                                              \
+	do {                                                                                           \
+		if (!(expression)) {                                                                   \
+			fprintf(stderr, "%s:%d: check failed: %s\n", __FILE__, __LINE__, #expression); \
+			return false;                                                                  \
+		}                                                                                      \
+	} while (false)
 
 static struct timespec
 deadline_after(long milliseconds)
@@ -54,26 +54,26 @@ test_counts_and_limit(void)
 	CHECK(st_semaphore_trywait(semaphore) == ST_THREAD_SUCCESS);
 	CHECK(st_semaphore_trywait(semaphore) == ST_THREAD_BUSY);
 	deadline = deadline_after(25);
-	CHECK(st_semaphore_timedwait(semaphore, &deadline)
-	    == ST_THREAD_TIMED_OUT);
+	CHECK(st_semaphore_timedwait(semaphore, &deadline) == ST_THREAD_TIMED_OUT);
 	st_semaphore_destroy(semaphore);
 	return true;
 }
 
 #define WAITER_COUNT 5
+
 struct waiter_state {
 	st_semaphore_t *semaphore;
-	st_mutex_t mutex;
-	st_condition_t condition;
-	int ready;
-	int completed;
+	st_mutex_t      mutex;
+	st_condition_t  condition;
+	int             ready;
+	int             completed;
 };
 
 static int
 waiter(void *argument)
 {
 	struct waiter_state *state = argument;
-	int status;
+	int                  status;
 
 	if (st_mutex_lock(&state->mutex) != ST_THREAD_SUCCESS)
 		return ST_THREAD_ERROR;
@@ -98,8 +98,7 @@ wait_for_count(struct waiter_state *state, int count)
 
 	CHECK(st_mutex_lock(&state->mutex) == ST_THREAD_SUCCESS);
 	while (state->completed < count) {
-		CHECK(st_condition_timedwait(&state->condition, &state->mutex,
-		    &deadline) == ST_THREAD_SUCCESS);
+		CHECK(st_condition_timedwait(&state->condition, &state->mutex, &deadline) == ST_THREAD_SUCCESS);
 	}
 	CHECK(st_mutex_unlock(&state->mutex) == ST_THREAD_SUCCESS);
 	return true;
@@ -109,24 +108,21 @@ static bool
 test_one_waiter_per_post(void)
 {
 	struct waiter_state state = {0};
-	st_thread_t threads[WAITER_COUNT];
-	struct timespec pause = {0, 20000000L};
-	int expected;
-	int index;
-	int result;
+	st_thread_t         threads[WAITER_COUNT];
+	struct timespec     pause = {0, 20000000L};
+	int                 expected;
+	int                 index;
+	int                 result;
 
-	CHECK(st_semaphore_create(&state.semaphore, 0, WAITER_COUNT)
-	    == ST_THREAD_SUCCESS);
+	CHECK(st_semaphore_create(&state.semaphore, 0, WAITER_COUNT) == ST_THREAD_SUCCESS);
 	CHECK(st_mutex_init(&state.mutex, ST_MUTEX_PLAIN) == ST_THREAD_SUCCESS);
 	CHECK(st_condition_init(&state.condition) == ST_THREAD_SUCCESS);
 	CHECK(st_mutex_lock(&state.mutex) == ST_THREAD_SUCCESS);
 	for (index = 0; index < WAITER_COUNT; ++index) {
-		CHECK(st_thread_create(&threads[index], waiter, &state)
-		    == ST_THREAD_SUCCESS);
+		CHECK(st_thread_create(&threads[index], waiter, &state) == ST_THREAD_SUCCESS);
 	}
 	while (state.ready < WAITER_COUNT) {
-		CHECK(st_condition_wait(&state.condition, &state.mutex)
-		    == ST_THREAD_SUCCESS);
+		CHECK(st_condition_wait(&state.condition, &state.mutex) == ST_THREAD_SUCCESS);
 	}
 	CHECK(st_mutex_unlock(&state.mutex) == ST_THREAD_SUCCESS);
 
@@ -141,8 +137,7 @@ test_one_waiter_per_post(void)
 		}
 	}
 	for (index = 0; index < WAITER_COUNT; ++index) {
-		CHECK(st_thread_join(threads[index], &result)
-		    == ST_THREAD_SUCCESS);
+		CHECK(st_thread_join(threads[index], &result) == ST_THREAD_SUCCESS);
 		CHECK(result == ST_THREAD_SUCCESS);
 	}
 	CHECK(st_semaphore_trywait(state.semaphore) == ST_THREAD_BUSY);
@@ -152,22 +147,23 @@ test_one_waiter_per_post(void)
 	return true;
 }
 
-#define WORKER_COUNT 8
-#define PERMIT_COUNT 3
+#define WORKER_COUNT    8
+#define PERMIT_COUNT    3
 #define ITERATION_COUNT 500
+
 struct pool_state {
 	st_semaphore_t *semaphore;
-	st_mutex_t mutex;
-	int active;
-	int maximum_active;
-	bool failed;
+	st_mutex_t      mutex;
+	int             active;
+	int             maximum_active;
+	bool            failed;
 };
 
 static int
 pool_worker(void *argument)
 {
 	struct pool_state *state = argument;
-	int iteration;
+	int                iteration;
 
 	for (iteration = 0; iteration < ITERATION_COUNT; ++iteration) {
 		if (st_semaphore_wait(state->semaphore) != ST_THREAD_SUCCESS)
@@ -197,20 +193,17 @@ static bool
 test_resource_pool(void)
 {
 	struct pool_state state = {0};
-	st_thread_t threads[WORKER_COUNT];
-	int index;
-	int result;
+	st_thread_t       threads[WORKER_COUNT];
+	int               index;
+	int               result;
 
-	CHECK(st_semaphore_create(&state.semaphore, PERMIT_COUNT, PERMIT_COUNT)
-	    == ST_THREAD_SUCCESS);
+	CHECK(st_semaphore_create(&state.semaphore, PERMIT_COUNT, PERMIT_COUNT) == ST_THREAD_SUCCESS);
 	CHECK(st_mutex_init(&state.mutex, ST_MUTEX_PLAIN) == ST_THREAD_SUCCESS);
 	for (index = 0; index < WORKER_COUNT; ++index) {
-		CHECK(st_thread_create(&threads[index], pool_worker, &state)
-		    == ST_THREAD_SUCCESS);
+		CHECK(st_thread_create(&threads[index], pool_worker, &state) == ST_THREAD_SUCCESS);
 	}
 	for (index = 0; index < WORKER_COUNT; ++index) {
-		CHECK(st_thread_join(threads[index], &result)
-		    == ST_THREAD_SUCCESS);
+		CHECK(st_thread_join(threads[index], &result) == ST_THREAD_SUCCESS);
 		CHECK(result == 0);
 	}
 	CHECK(!state.failed);
@@ -227,7 +220,7 @@ static bool
 test_errors(void)
 {
 	st_semaphore_t *semaphore = NULL;
-	struct timespec deadline = deadline_after(1);
+	struct timespec deadline  = deadline_after(1);
 
 	CHECK(st_semaphore_create(NULL, 0, 1) == ST_THREAD_ERROR);
 	CHECK(st_semaphore_create(&semaphore, 0, 0) == ST_THREAD_ERROR);
@@ -246,8 +239,8 @@ test_errors(void)
 static bool
 test_boundaries(void)
 {
-	const struct timespec expired = {0, 0};
-	st_semaphore_t *semaphore = NULL;
+	const struct timespec expired   = {0, 0};
+	st_semaphore_t       *semaphore = NULL;
 
 	CHECK(st_semaphore_create(&semaphore, 1, 1) == ST_THREAD_SUCCESS);
 	CHECK(st_semaphore_timedwait(semaphore, NULL) == ST_THREAD_ERROR);
@@ -257,8 +250,7 @@ test_boundaries(void)
 	CHECK(st_semaphore_trywait(semaphore) == ST_THREAD_SUCCESS);
 	CHECK(st_semaphore_trywait(semaphore) == ST_THREAD_BUSY);
 	st_semaphore_destroy(semaphore);
-	CHECK(st_semaphore_create(&semaphore, SIZE_MAX, SIZE_MAX)
-	    == ST_THREAD_SUCCESS);
+	CHECK(st_semaphore_create(&semaphore, SIZE_MAX, SIZE_MAX) == ST_THREAD_SUCCESS);
 	CHECK(st_semaphore_post(semaphore) == ST_THREAD_ERROR);
 	CHECK(st_semaphore_trywait(semaphore) == ST_THREAD_SUCCESS);
 	CHECK(st_semaphore_post(semaphore) == ST_THREAD_SUCCESS);
@@ -270,8 +262,8 @@ test_boundaries(void)
 int
 main(void)
 {
-	if (!test_counts_and_limit() || !test_one_waiter_per_post()
-	    || !test_resource_pool() || !test_errors() || !test_boundaries())
+	if (!test_counts_and_limit() || !test_one_waiter_per_post() || !test_resource_pool() || !test_errors()
+	    || !test_boundaries())
 		return EXIT_FAILURE;
 	return EXIT_SUCCESS;
 }

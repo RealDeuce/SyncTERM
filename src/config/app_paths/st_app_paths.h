@@ -36,8 +36,7 @@ struct st_app_paths {
 	char *themes_directory;
 };
 
-int st_app_paths_init(struct st_app_paths *paths,
-    const struct st_app_path_overrides *overrides);
+int  st_app_paths_init(struct st_app_paths *paths, const struct st_app_path_overrides *overrides);
 void st_app_paths_dispose(struct st_app_paths *paths);
 
 /* Creates only the parent required by the selected output path. */

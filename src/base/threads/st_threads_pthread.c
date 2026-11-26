@@ -3,16 +3,16 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "st_threads.h"
-
 #include <errno.h>
 #include <sched.h>
 #include <stdint.h>
 #include <stdlib.h>
 
+#include "st_threads.h"
+
 struct thread_arguments {
 	st_thread_start_t function;
-	void *argument;
+	void             *argument;
 };
 
 static void *
@@ -27,9 +27,8 @@ thread_entry(void *argument)
 static bool
 valid_mutex_type(int type)
 {
-	return type == ST_MUTEX_PLAIN || type == ST_MUTEX_RECURSIVE
-	    || type == ST_MUTEX_TIMED
-	    || type == (ST_MUTEX_RECURSIVE | ST_MUTEX_TIMED);
+	return type == ST_MUTEX_PLAIN || type == ST_MUTEX_RECURSIVE || type == ST_MUTEX_TIMED
+	       || type == (ST_MUTEX_RECURSIVE | ST_MUTEX_TIMED);
 }
 
 #if !ST_THREADS_HAVE_PTHREAD_MUTEX_TIMEDLOCK
@@ -55,8 +54,7 @@ st_call_once(st_once_flag_t *flag, void (*function)(void))
 int
 st_condition_broadcast(st_condition_t *condition)
 {
-	return pthread_cond_broadcast(condition) == 0
-	    ? ST_THREAD_SUCCESS : ST_THREAD_ERROR;
+	return pthread_cond_broadcast(condition) == 0 ? ST_THREAD_SUCCESS : ST_THREAD_ERROR;
 }
 
 void
@@ -78,13 +76,12 @@ st_condition_init(st_condition_t *condition)
 int
 st_condition_signal(st_condition_t *condition)
 {
-	return pthread_cond_signal(condition) == 0
-	    ? ST_THREAD_SUCCESS : ST_THREAD_ERROR;
+	return pthread_cond_signal(condition) == 0 ? ST_THREAD_SUCCESS : ST_THREAD_ERROR;
 }
 
 int
-st_condition_timedwait(st_condition_t *restrict condition,
-    st_mutex_t *restrict mutex, const struct timespec *restrict deadline)
+st_condition_timedwait(st_condition_t *restrict condition, st_mutex_t *restrict mutex,
+    const struct timespec *restrict deadline)
 {
 	int result = pthread_cond_timedwait(condition, mutex, deadline);
 
@@ -96,8 +93,7 @@ st_condition_timedwait(st_condition_t *restrict condition,
 int
 st_condition_wait(st_condition_t *condition, st_mutex_t *mutex)
 {
-	return pthread_cond_wait(condition, mutex) == 0
-	    ? ST_THREAD_SUCCESS : ST_THREAD_ERROR;
+	return pthread_cond_wait(condition, mutex) == 0 ? ST_THREAD_SUCCESS : ST_THREAD_ERROR;
 }
 
 void
@@ -110,7 +106,7 @@ int
 st_mutex_init(st_mutex_t *mutex, int type)
 {
 	pthread_mutexattr_t attributes;
-	int result;
+	int                 result;
 
 	if (!valid_mutex_type(type))
 		return ST_THREAD_ERROR;
@@ -118,11 +114,9 @@ st_mutex_init(st_mutex_t *mutex, int type)
 	if (result != 0)
 		return result == ENOMEM ? ST_THREAD_NO_MEMORY : ST_THREAD_ERROR;
 	if ((type & ST_MUTEX_RECURSIVE) != 0)
-		result = pthread_mutexattr_settype(&attributes,
-		    PTHREAD_MUTEX_RECURSIVE);
+		result = pthread_mutexattr_settype(&attributes, PTHREAD_MUTEX_RECURSIVE);
 	else
-		result = pthread_mutexattr_settype(&attributes,
-		    PTHREAD_MUTEX_NORMAL);
+		result = pthread_mutexattr_settype(&attributes, PTHREAD_MUTEX_NORMAL);
 	if (result == 0)
 		result = pthread_mutex_init(mutex, &attributes);
 	(void)pthread_mutexattr_destroy(&attributes);
@@ -134,13 +128,11 @@ st_mutex_init(st_mutex_t *mutex, int type)
 int
 st_mutex_lock(st_mutex_t *mutex)
 {
-	return pthread_mutex_lock(mutex) == 0
-	    ? ST_THREAD_SUCCESS : ST_THREAD_ERROR;
+	return pthread_mutex_lock(mutex) == 0 ? ST_THREAD_SUCCESS : ST_THREAD_ERROR;
 }
 
 int
-st_mutex_timedlock(st_mutex_t *restrict mutex,
-    const struct timespec *restrict deadline)
+st_mutex_timedlock(st_mutex_t *restrict mutex, const struct timespec *restrict deadline)
 {
 #if ST_THREADS_HAVE_PTHREAD_MUTEX_TIMEDLOCK
 	int result = pthread_mutex_timedlock(mutex, deadline);
@@ -150,8 +142,8 @@ st_mutex_timedlock(st_mutex_t *restrict mutex,
 	return result == ETIMEDOUT ? ST_THREAD_TIMED_OUT : ST_THREAD_ERROR;
 #else
 	static const struct timespec retry_delay = {0, 1000000};
-	struct timespec now;
-	int result;
+	struct timespec              now;
+	int                          result;
 
 	do {
 		result = pthread_mutex_trylock(mutex);
@@ -181,22 +173,20 @@ st_mutex_trylock(st_mutex_t *mutex)
 int
 st_mutex_unlock(st_mutex_t *mutex)
 {
-	return pthread_mutex_unlock(mutex) == 0
-	    ? ST_THREAD_SUCCESS : ST_THREAD_ERROR;
+	return pthread_mutex_unlock(mutex) == 0 ? ST_THREAD_SUCCESS : ST_THREAD_ERROR;
 }
 
 int
-st_thread_create(st_thread_t *thread, st_thread_start_t function,
-    void *argument)
+st_thread_create(st_thread_t *thread, st_thread_start_t function, void *argument)
 {
 	struct thread_arguments *arguments = malloc(sizeof(*arguments));
-	int result;
+	int                      result;
 
 	if (arguments == NULL)
 		return ST_THREAD_NO_MEMORY;
 	arguments->function = function;
 	arguments->argument = argument;
-	result = pthread_create(thread, NULL, thread_entry, arguments);
+	result              = pthread_create(thread, NULL, thread_entry, arguments);
 	if (result != 0) {
 		free(arguments);
 		return result == ENOMEM ? ST_THREAD_NO_MEMORY : ST_THREAD_ERROR;
@@ -213,8 +203,7 @@ st_thread_current(void)
 int
 st_thread_detach(st_thread_t thread)
 {
-	return pthread_detach(thread) == 0
-	    ? ST_THREAD_SUCCESS : ST_THREAD_ERROR;
+	return pthread_detach(thread) == 0 ? ST_THREAD_SUCCESS : ST_THREAD_ERROR;
 }
 
 bool
@@ -255,11 +244,9 @@ st_thread_yield(void)
 }
 
 int
-st_thread_storage_create(st_thread_storage_t *storage,
-    st_thread_storage_destructor_t destructor)
+st_thread_storage_create(st_thread_storage_t *storage, st_thread_storage_destructor_t destructor)
 {
-	return pthread_key_create(storage, destructor) == 0
-	    ? ST_THREAD_SUCCESS : ST_THREAD_ERROR;
+	return pthread_key_create(storage, destructor) == 0 ? ST_THREAD_SUCCESS : ST_THREAD_ERROR;
 }
 
 void
@@ -277,6 +264,5 @@ st_thread_storage_get(st_thread_storage_t storage)
 int
 st_thread_storage_set(st_thread_storage_t storage, void *value)
 {
-	return pthread_setspecific(storage, value) == 0
-	    ? ST_THREAD_SUCCESS : ST_THREAD_ERROR;
+	return pthread_setspecific(storage, value) == 0 ? ST_THREAD_SUCCESS : ST_THREAD_ERROR;
 }

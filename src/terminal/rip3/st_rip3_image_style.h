@@ -10,7 +10,7 @@ struct st_rip3_rect;
  * No viewport clipping, selection, protection or activation gating occurs.
  * Macro callers apply their separate gates before using this shared setter.
  * Invalid/unrepresentable input retains the complete stored record. */
-int st_rip3_image_style_define(struct st_rip3_ports *ports, unsigned number,
-	const struct st_rip3_frame *frame, const struct st_rip3_rect *world, unsigned flags);
+int st_rip3_image_style_define(struct st_rip3_ports *ports, unsigned number, const struct st_rip3_frame *frame,
+    const struct st_rip3_rect *world, unsigned flags);
 
 #endif

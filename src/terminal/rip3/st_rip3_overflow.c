@@ -1,21 +1,20 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
-#include "st_rip3_overflow.h"
-
-#include "st_rip3_resources.h"
-#include "io_error.h"
-#include "string_util.h"
-
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "io_error.h"
+#include "st_rip3_overflow.h"
+#include "st_rip3_resources.h"
+#include "string_util.h"
+
 struct st_rip3_saved_page {
 	struct st_rip3_saved_page *next;
-	struct st_rip3_resource file;
-	unsigned article;
-	int32_t page;
-	bool visible;
+	struct st_rip3_resource    file;
+	unsigned                   article;
+	int32_t                    page;
+	bool                       visible;
 };
 
 bool
@@ -32,11 +31,12 @@ st_rip3_overflow_frontier(const struct st_rip3_overflow *overflow, unsigned arti
 }
 
 int
-st_rip3_overflow_name(const struct st_rip3_overflow *overflow, unsigned article, int32_t page,
-    char *result, size_t capacity)
+st_rip3_overflow_name(const struct st_rip3_overflow *overflow, unsigned article, int32_t page, char *result,
+    size_t capacity)
 {
 	static const char digits[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-	int length = snprintf(result, capacity, "%03u%c%04" PRId32 ".OVR", overflow->instance, digits[article], page);
+	int               length =
+	    snprintf(result, capacity, "%03u%c%04" PRId32 ".OVR", overflow->instance, digits[article], page);
 	return length < 0 || (size_t)length >= capacity ? IO_ERROR_OUT_OF_RANGE : 0;
 }
 
@@ -50,8 +50,8 @@ discard(struct st_rip3_saved_page *page)
 }
 
 static int
-output(struct st_rip3_saved_page **current, const struct st_rip3_resource_paths *paths,
-    unsigned article, int32_t page, const uint8_t *bytes, size_t length)
+output(struct st_rip3_saved_page **current, const struct st_rip3_resource_paths *paths, unsigned article,
+    int32_t page, const uint8_t *bytes, size_t length)
 {
 	if (*current == NULL) {
 		struct st_rip3_saved_page *created = calloc(1, sizeof(*created));
@@ -63,8 +63,8 @@ output(struct st_rip3_saved_page **current, const struct st_rip3_resource_paths 
 			return status;
 		}
 		created->article = article;
-		created->page = page;
-		*current = created;
+		created->page    = page;
+		*current         = created;
 	}
 	if (fwrite(bytes, 1, length, (*current)->file.stream) != length) {
 		discard(*current);
@@ -101,7 +101,7 @@ publish(struct st_rip3_overflow *overflow, struct st_rip3_saved_page *page, bool
 {
 	if (page == NULL)
 		return 0;
-	int status = fclose(page->file.stream);
+	int status        = fclose(page->file.stream);
 	page->file.stream = NULL;
 	if (status != 0) {
 		discard(page);
@@ -110,9 +110,9 @@ publish(struct st_rip3_overflow *overflow, struct st_rip3_saved_page *page, bool
 	for (struct st_rip3_saved_page *old = overflow->pages; old != NULL; old = old->next)
 		if (old->article == page->article && old->page == page->page)
 			old->visible = false;
-	page->visible = true;
-	page->next = overflow->pages;
-	overflow->pages = page;
+	page->visible                            = true;
+	page->next                               = overflow->pages;
+	overflow->pages                          = page;
 	struct st_rip3_overflow_article *article = &overflow->articles[page->article];
 	if (source)
 		article->captured = true;
@@ -124,19 +124,19 @@ publish(struct st_rip3_overflow *overflow, struct st_rip3_saved_page *page, bool
 int
 st_rip3_overflow_close(struct st_rip3_overflow *overflow, unsigned article)
 {
-	struct st_rip3_overflow_article *state = &overflow->articles[article];
-	int status = publish(overflow, state->source, true);
-	int next_status = publish(overflow, state->remainder, false);
-	state->source = NULL;
-	state->remainder = NULL;
+	struct st_rip3_overflow_article *state       = &overflow->articles[article];
+	int                              status      = publish(overflow, state->source, true);
+	int                              next_status = publish(overflow, state->remainder, false);
+	state->source                                = NULL;
+	state->remainder                             = NULL;
 	return status == 0 ? next_status : status;
 }
 
 int
 st_rip3_overflow_reset_article(struct st_rip3_overflow *overflow, unsigned article)
 {
-	int status = st_rip3_overflow_close(overflow, article);
-	overflow->articles[article] = (struct st_rip3_overflow_article){0};
+	int status                  = st_rip3_overflow_close(overflow, article);
+	overflow->articles[article] = (struct st_rip3_overflow_article) {0};
 	for (struct st_rip3_saved_page *page = overflow->pages; page != NULL; page = page->next)
 		if (page->article == article)
 			page->visible = false;
@@ -152,7 +152,7 @@ st_rip3_overflow_reset(struct st_rip3_overflow *overflow, bool hard)
 		if (status == 0)
 			status = closed;
 		if (hard)
-			overflow->articles[n] = (struct st_rip3_overflow_article){0};
+			overflow->articles[n] = (struct st_rip3_overflow_article) {0};
 		else
 			overflow->articles[n].enabled = false;
 	}
@@ -171,32 +171,32 @@ st_rip3_overflow_dispose(struct st_rip3_overflow *overflow)
 	}
 	while (overflow->pages != NULL) {
 		struct st_rip3_saved_page *page = overflow->pages;
-		overflow->pages = page->next;
+		overflow->pages                 = page->next;
 		discard(page);
 	}
 }
 
 static bool
-page_named(const struct st_rip3_overflow *overflow, const struct st_rip3_saved_page *page,
-    const char *name)
+page_named(const struct st_rip3_overflow *overflow, const struct st_rip3_saved_page *page, const char *name)
 {
 	char wanted[32];
-	return page != NULL && st_rip3_overflow_name(overflow, page->article, page->page, wanted, sizeof(wanted)) == 0
-	    && ascii_case_compare(name, wanted) == 0;
+	return page != NULL
+	       && st_rip3_overflow_name(overflow, page->article, page->page, wanted, sizeof(wanted)) == 0
+	       && ascii_case_compare(name, wanted) == 0;
 }
 
 int
-st_rip3_overflow_open(struct st_rip3_overflow *overflow, const char *name,
-    struct st_rip3_resource *result, bool *recognized)
+st_rip3_overflow_open(struct st_rip3_overflow *overflow, const char *name, struct st_rip3_resource *result,
+    bool *recognized)
 {
-	*recognized = false;
+	*recognized   = false;
 	size_t length = strlen(name);
 	if (length < 12 || ascii_case_compare(name + length - 4, ".OVR") != 0)
 		return IO_ERROR_NOT_FOUND;
 	/* A lookalike asset outside the private page store cannot satisfy a
 	 * name issued by this session. Other ordinary scene names still resolve. */
 	char prefix[sizeof("655350")];
-	int written = snprintf(prefix, sizeof(prefix), "%03u", overflow->instance);
+	int  written = snprintf(prefix, sizeof(prefix), "%03u", overflow->instance);
 	if (written < 0 || (size_t)written >= sizeof(prefix) || length < (size_t)written + 9
 	    || strncmp(name, prefix, (size_t)written) != 0)
 		return IO_ERROR_NOT_FOUND;
@@ -209,9 +209,9 @@ st_rip3_overflow_open(struct st_rip3_overflow *overflow, const char *name,
 		++index;
 	if (strspn(index, "0123456789") != (size_t)(name + length - 4 - index))
 		return IO_ERROR_NOT_FOUND;
-	*recognized = true;
+	*recognized     = true;
 	unsigned number = article <= '9' ? (unsigned)(article - '0')
-	    : (unsigned)(article >= 'a' ? article - 'a' : article - 'A') + 10;
+	                                 : (unsigned)(article >= 'a' ? article - 'a' : article - 'A') + 10;
 	const struct st_rip3_overflow_article *state = &overflow->articles[number];
 	if (page_named(overflow, state->source, name) || page_named(overflow, state->remainder, name)) {
 		int status = st_rip3_overflow_close(overflow, number);

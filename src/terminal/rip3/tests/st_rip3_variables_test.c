@@ -1,30 +1,31 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
-#include "st_rip3_variables.h"
-#include "io_error.h"
-
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#define CHECK(expression) do { \
-	if (!(expression)) { \
-		fprintf(stderr, "check failed at line %d: %s\n", __LINE__, #expression); \
-		return 1; \
-	} \
-} while (0)
+#include "io_error.h"
+#include "st_rip3_variables.h"
+
+#define CHECK(expression)                                                                        \
+	do {                                                                                     \
+		if (!(expression)) {                                                             \
+			fprintf(stderr, "check failed at line %d: %s\n", __LINE__, #expression); \
+			return 1;                                                                \
+		}                                                                                \
+	} while (0)
 
 static int
 names_and_values(void)
 {
-	struct st_rip3_variables *variables = NULL;
-	struct st_rip3_variable_value value = {0};
-	const char boundary[] = "ABCDEFGHIJKLMNOPQRST";
-	const uint8_t cp437[] = {'c','a','f',0x82};
-	const uint8_t utf8[] = {'c','a','f',0xc3,0xa9};
-	const uint8_t binary[] = {'A',0,'B'};
-	uint8_t long_value[sizeof(value.bytes)];
-	size_t count = 77;
+	struct st_rip3_variables     *variables  = NULL;
+	struct st_rip3_variable_value value      = {0};
+	const char                    boundary[] = "ABCDEFGHIJKLMNOPQRST";
+	const uint8_t                 cp437[]    = {'c', 'a', 'f', 0x82};
+	const uint8_t                 utf8[]     = {'c', 'a', 'f', 0xc3, 0xa9};
+	const uint8_t                 binary[]   = {'A', 0, 'B'};
+	uint8_t                       long_value[sizeof(value.bytes)];
+	size_t                        count = 77;
 
 	for (size_t i = 0; i < sizeof(long_value); i++)
 		long_value[i] = (uint8_t)(i + 1);
@@ -44,12 +45,14 @@ names_and_values(void)
 	CHECK(st_rip3_variables_get(variables, "abcdefghijklmnopqrst", 20, &value) == 0);
 	CHECK(value.length == 3 && memcmp(value.bytes, binary, 3) == 0 && value.bytes[3] == 0);
 	CHECK(st_rip3_variables_set(variables, "Long", 4, long_value, sizeof(long_value) - 1) == 0);
-	CHECK(st_rip3_variables_set(variables, "Long", 4, long_value, sizeof(long_value)) == IO_ERROR_OUT_OF_RANGE);
+	CHECK(
+	    st_rip3_variables_set(variables, "Long", 4, long_value, sizeof(long_value)) == IO_ERROR_OUT_OF_RANGE);
 	CHECK(st_rip3_variables_get(variables, "LONG", 4, &value) == 0);
 	CHECK(value.length == sizeof(long_value) - 1 && memcmp(value.bytes, long_value, value.length) == 0
-	    && value.bytes[value.length] == 0);
+	      && value.bytes[value.length] == 0);
 	CHECK(st_rip3_variables_set(variables, "Long", 4, (const uint8_t *)"Z", 1) == 0);
-	CHECK(st_rip3_variables_get(variables, "LONG", 4, &value) == 0 && value.length == 1 && value.bytes[0] == 'Z');
+	CHECK(st_rip3_variables_get(variables, "LONG", 4, &value) == 0 && value.length == 1
+	      && value.bytes[0] == 'Z');
 	for (size_t i = 1; i < sizeof(value.bytes); i++)
 		CHECK(value.bytes[i] == 0);
 	CHECK(st_rip3_variables_set(variables, "Empty", 5, NULL, 0) == 0);
@@ -66,12 +69,14 @@ names_and_values(void)
 static int
 invalid_names(void)
 {
-	struct st_rip3_variables *variables = NULL;
-	struct st_rip3_variable_value value = {3,{'o','l','d',0}};
-	const char *const invalid[] = {"_NAME","0NAME","A-B","A B","A.B","A/B","A(B)","A$B"};
-	const char embedded[] = {'A',0,'B'};
-	const char nonascii[] = {'A',(char)0xe9};
-	size_t count;
+	struct st_rip3_variables     *variables = NULL;
+	struct st_rip3_variable_value value     = {
+	    3, {'o', 'l', 'd', 0}
+        };
+	const char *const invalid[]  = {"_NAME", "0NAME", "A-B", "A B", "A.B", "A/B", "A(B)", "A$B"};
+	const char        embedded[] = {'A', 0, 'B'};
+	const char        nonascii[] = {'A', (char)0xe9};
+	size_t            count;
 
 	CHECK(st_rip3_variables_create(&variables) == 0);
 	CHECK(st_rip3_variables_set(variables, "", 0, NULL, 0) == IO_ERROR_OUT_OF_RANGE);
@@ -79,7 +84,8 @@ invalid_names(void)
 	CHECK(st_rip3_variables_set(variables, "A", SIZE_MAX, NULL, 0) == IO_ERROR_OUT_OF_RANGE);
 	CHECK(st_rip3_variables_set(variables, NULL, 1, NULL, 0) == IO_ERROR_INVALID_ARGUMENT);
 	for (size_t i = 0; i < sizeof(invalid) / sizeof(*invalid); i++)
-		CHECK(st_rip3_variables_set(variables, invalid[i], strlen(invalid[i]), NULL, 0) == IO_ERROR_INVALID_FORMAT);
+		CHECK(st_rip3_variables_set(variables, invalid[i], strlen(invalid[i]), NULL, 0)
+		      == IO_ERROR_INVALID_FORMAT);
 	CHECK(st_rip3_variables_set(variables, embedded, sizeof(embedded), NULL, 0) == IO_ERROR_INVALID_FORMAT);
 	CHECK(st_rip3_variables_set(variables, nonascii, sizeof(nonascii), NULL, 0) == IO_ERROR_INVALID_FORMAT);
 	CHECK(st_rip3_variables_set(variables, "GOOD", 4, NULL, 1) == IO_ERROR_INVALID_ARGUMENT);
@@ -96,18 +102,18 @@ invalid_names(void)
 static int
 growth_and_snapshots(void)
 {
-	struct st_rip3_variables *variables = NULL, *restored = NULL;
+	struct st_rip3_variables        *variables = NULL, *restored = NULL;
 	struct st_rip3_variable_snapshot snapshot = {0};
-	struct st_rip3_variable_value value;
-	size_t count;
+	struct st_rip3_variable_value    value;
+	size_t                           count;
 
 	CHECK(st_rip3_variables_create(&variables) == 0);
 	CHECK(st_rip3_variables_snapshot(variables, &snapshot) == 0);
 	CHECK(snapshot.entries == NULL && snapshot.count == 0);
 	st_rip3_variables_snapshot_free(&snapshot);
 	for (unsigned i = 0; i < 4096; i++) {
-		char name[21];
-		uint8_t bytes[] = {(uint8_t)(i >> 8),(uint8_t)i};
+		char    name[21];
+		uint8_t bytes[] = {(uint8_t)(i >> 8), (uint8_t)i};
 
 		(void)snprintf(name, sizeof(name), "N%08u", i);
 		CHECK(st_rip3_variables_set(variables, name, strlen(name), bytes, sizeof(bytes)) == 0);
@@ -124,14 +130,14 @@ growth_and_snapshots(void)
 	}
 	CHECK(st_rip3_variables_snapshot(variables, &snapshot) == 0 && snapshot.count == 2048);
 	for (size_t i = 0; i < snapshot.count; i++) {
-		char name[21];
+		char     name[21];
 		unsigned number = (unsigned)i * 2 + 1;
 
 		(void)snprintf(name, sizeof(name), "N%08u", number);
 		CHECK(strcmp(snapshot.entries[i].name, name) == 0);
 		CHECK(snapshot.entries[i].value.length == 2
-		    && snapshot.entries[i].value.bytes[0] == (uint8_t)(number >> 8)
-		    && snapshot.entries[i].value.bytes[1] == (uint8_t)number);
+		      && snapshot.entries[i].value.bytes[0] == (uint8_t)(number >> 8)
+		      && snapshot.entries[i].value.bytes[1] == (uint8_t)number);
 	}
 	CHECK(st_rip3_variables_set(variables, "N00000001", 9, (const uint8_t *)"new", 3) == 0);
 	CHECK(snapshot.entries[0].value.length == 2 && snapshot.entries[0].value.bytes[1] == 1);
@@ -149,12 +155,16 @@ growth_and_snapshots(void)
 static int
 invalid_import(void)
 {
-	struct st_rip3_variables *variables = NULL;
-	struct st_rip3_variable_entry entries[2] = {0};
-	struct st_rip3_variable_snapshot snapshot = {entries,2};
+	struct st_rip3_variables        *variables  = NULL;
+	struct st_rip3_variable_entry    entries[2] = {0};
+	struct st_rip3_variable_snapshot snapshot   = {entries, 2};
 
-	memcpy(entries[0].name, "First", 6); entries[0].value.length = 1; entries[0].value.bytes[0] = 'A';
-	memcpy(entries[1].name, "first", 6); entries[1].value.length = 1; entries[1].value.bytes[0] = 'B';
+	memcpy(entries[0].name, "First", 6);
+	entries[0].value.length   = 1;
+	entries[0].value.bytes[0] = 'A';
+	memcpy(entries[1].name, "first", 6);
+	entries[1].value.length   = 1;
+	entries[1].value.bytes[0] = 'B';
 	CHECK(st_rip3_variables_from_snapshot(&variables, &snapshot) == IO_ERROR_INVALID_FORMAT);
 	CHECK(variables == NULL);
 	memset(entries[1].name, 'A', sizeof(entries[1].name));
@@ -167,7 +177,8 @@ invalid_import(void)
 	snapshot.count = SIZE_MAX;
 	CHECK(st_rip3_variables_from_snapshot(&variables, &snapshot) == IO_ERROR_OUT_OF_RANGE);
 	CHECK(variables == NULL);
-	snapshot.count = 1; snapshot.entries = NULL;
+	snapshot.count   = 1;
+	snapshot.entries = NULL;
 	CHECK(st_rip3_variables_from_snapshot(&variables, &snapshot) == IO_ERROR_INVALID_ARGUMENT);
 	CHECK(variables == NULL);
 	return 0;
@@ -176,9 +187,9 @@ invalid_import(void)
 static int
 independent_tables(void)
 {
-	struct st_rip3_variables *session = NULL, *persistent = NULL, *reloaded = NULL;
+	struct st_rip3_variables        *session = NULL, *persistent = NULL, *reloaded = NULL;
 	struct st_rip3_variable_snapshot snapshot = {0};
-	struct st_rip3_variable_value value;
+	struct st_rip3_variable_value    value;
 
 	CHECK(st_rip3_variables_create(&session) == 0);
 	CHECK(st_rip3_variables_create(&persistent) == 0);

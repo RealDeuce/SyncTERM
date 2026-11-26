@@ -5,16 +5,15 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "st_file_lock_internal.h"
-
-#include "io_error.h"
-
 #include <errno.h>
 #include <fcntl.h>
-#include <sys/file.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/file.h>
 #include <unistd.h>
+
+#include "io_error.h"
+#include "st_file_lock_internal.h"
 
 static int
 map_error(int error)
@@ -23,12 +22,11 @@ map_error(int error)
 }
 
 int
-st_file_lock_platform_acquire(st_file_lock_t *lock, const char *path,
-    bool exclusive)
+st_file_lock_platform_acquire(st_file_lock_t *lock, const char *path, bool exclusive)
 {
 	size_t length;
-	char *sidecar;
-	int descriptor;
+	char  *sidecar;
+	int    descriptor;
 
 	length = strlen(path);
 	if (length > SIZE_MAX - sizeof(".lock"))

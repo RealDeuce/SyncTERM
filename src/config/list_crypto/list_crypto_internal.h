@@ -10,9 +10,7 @@
 
 #include <stddef.h>
 
-int st_legacy_idea_decrypt_cbc(const void *key, size_t key_size,
-	const void *iv, void *data, size_t size);
-int st_legacy_rc2_decrypt_cbc(const void *key, size_t key_size,
-	const void *iv, void *data, size_t size);
+int st_legacy_idea_decrypt_cbc(const void *key, size_t key_size, const void *iv, void *data, size_t size);
+int st_legacy_rc2_decrypt_cbc(const void *key, size_t key_size, const void *iv, void *data, size_t size);
 
 #endif

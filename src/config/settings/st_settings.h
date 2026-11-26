@@ -8,14 +8,14 @@
 #ifndef ST_SETTINGS_H_
 #define ST_SETTINGS_H_
 
-#include "name_value_list.h"
-
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
-#define ST_SETTINGS_VALUE_MAX 1023
-#define ST_SETTINGS_KDF_MAX 31
+#include "name_value_list.h"
+
+#define ST_SETTINGS_VALUE_MAX       1023
+#define ST_SETTINGS_KDF_MAX         31
 #define ST_SETTINGS_CUSTOM_FONT_MAX 210
 #define ST_SETTINGS_FONT_PATH_COUNT 4
 
@@ -55,22 +55,22 @@ enum st_main_ui {
 struct st_settings {
 	enum st_main_ui main_ui;
 	/* These path fields are owned; NULL represents an absent path. */
-	char *modem_device;
-	char *list_path;
-	char *stored_list_path;
-	char *tls_client_certificate;
-	char *tls_client_key;
-	char *theme_file;
-	char *theme_package;
-	char *sort_order;
-	char *active_sort_profile;
-	name_value_list_t web_downloads;
-	name_value_list_t sort_profiles;
+	char                   *modem_device;
+	char                   *list_path;
+	char                   *stored_list_path;
+	char                   *tls_client_certificate;
+	char                   *tls_client_key;
+	char                   *theme_file;
+	char                   *theme_package;
+	char                   *sort_order;
+	char                   *active_sort_profile;
+	name_value_list_t       web_downloads;
+	name_value_list_t       sort_profiles;
 	st_settings_font_list_t custom_fonts;
-	double scaling_factor;
-	uint32_t modem_rate;
-	uint32_t audio_output_modes;
-	uint32_t midi_output_modes;
+	double                  scaling_factor;
+	uint32_t                modem_rate;
+	uint32_t                audio_output_modes;
+	uint32_t                midi_output_modes;
 	/*
 	 * Classic foregrounds use 0..15 plus 16 for the role default;
 	 * backgrounds use 0..7 plus 8. Out-of-range values use the default.
@@ -81,32 +81,32 @@ struct st_settings {
 	unsigned theme_inverse_color;
 	unsigned theme_lightbar_color;
 	unsigned theme_lightbar_background_color;
-	int confirm_close;
-	int startup_mode;
-	int output_mode;
-	int scrollback_lines;
-	int prompt_save;
-	int transfer_failure_keypress_timeout;
-	int transfer_success_keypress_timeout;
-	int custom_columns;
-	int custom_rows;
-	int custom_font_height;
-	int custom_aspect_width;
-	int custom_aspect_height;
-	int window_width;
-	int window_height;
-	int left_justify;
-	int blocky_scaling;
-	int external_scaling;
-	int default_cursor;
-	char modem_init_string[ST_SETTINGS_VALUE_MAX + 1];
-	char modem_dial_string[ST_SETTINGS_VALUE_MAX + 1];
-	char terminal_type[ST_SETTINGS_VALUE_MAX + 1];
-	char key_derivation_iterations[ST_SETTINGS_KDF_MAX + 1];
-	bool invert_wheel;
-	bool color_emoji;
-	bool atari_st_key_clicks;
-	bool download_system_list;
+	int      confirm_close;
+	int      startup_mode;
+	int      output_mode;
+	int      scrollback_lines;
+	int      prompt_save;
+	int      transfer_failure_keypress_timeout;
+	int      transfer_success_keypress_timeout;
+	int      custom_columns;
+	int      custom_rows;
+	int      custom_font_height;
+	int      custom_aspect_width;
+	int      custom_aspect_height;
+	int      window_width;
+	int      window_height;
+	int      left_justify;
+	int      blocky_scaling;
+	int      external_scaling;
+	int      default_cursor;
+	char     modem_init_string[ST_SETTINGS_VALUE_MAX + 1];
+	char     modem_dial_string[ST_SETTINGS_VALUE_MAX + 1];
+	char     terminal_type[ST_SETTINGS_VALUE_MAX + 1];
+	char     key_derivation_iterations[ST_SETTINGS_KDF_MAX + 1];
+	bool     invert_wheel;
+	bool     color_emoji;
+	bool     atari_st_key_clicks;
+	bool     download_system_list;
 };
 
 extern struct st_settings st_settings;
@@ -116,8 +116,7 @@ struct st_app_paths;
 void st_settings_init(struct st_settings *settings);
 void st_settings_dispose(struct st_settings *settings);
 /* Result must previously have been initialized; it is replaced on success. */
-bool st_settings_copy(struct st_settings *result,
-	const struct st_settings *source);
+bool st_settings_copy(struct st_settings *result, const struct st_settings *source);
 
 /*
  * The process-global settings store is bound to the supplied application
@@ -135,36 +134,33 @@ int st_settings_save_value(const struct st_settings *value);
 int st_settings_save(void);
 /* Update only SyncTERM.ScalingFactor in the latest on-disk document.
  * Installed settings and the merge baseline are unchanged. */
-int st_settings_persist_scaling_factor(double scaling_factor);
+int  st_settings_persist_scaling_factor(double scaling_factor);
 void st_settings_shutdown(void);
 
 #define ST_SETTINGS_RECENT_EMOJI_MAX 32
-size_t st_settings_recent_emoji_count(void);
+size_t      st_settings_recent_emoji_count(void);
 const char *st_settings_recent_emoji_at(size_t index);
 /* Always updates session recents; persist=false performs no file writes. */
 int st_settings_remember_emoji(const char *text, bool persist);
 
-size_t st_settings_web_download_count(void);
+size_t                   st_settings_web_download_count(void);
 const struct name_value *st_settings_web_download_at(size_t index);
 /* Names passed to set or append must be valid INI key names. */
-int st_settings_web_download_set(size_t index, const char *name,
-    const char *url);
+int st_settings_web_download_set(size_t index, const char *name, const char *url);
 int st_settings_web_download_append(const char *name, const char *url);
 int st_settings_web_download_remove(size_t index);
 int st_settings_web_download_move(size_t from, size_t to);
 
-size_t st_settings_sort_profile_count(void);
+size_t                   st_settings_sort_profile_count(void);
 const struct name_value *st_settings_sort_profile_at(size_t index);
-size_t st_settings_active_sort_profile(void);
-int st_settings_sort_profile_select(size_t index);
+size_t                   st_settings_active_sort_profile(void);
+int                      st_settings_sort_profile_select(size_t index);
 /* Names passed to add or update must be valid INI key names. */
-int st_settings_sort_profile_add(size_t index, const char *name,
-	const char *order);
-int st_settings_sort_profile_update(size_t index, const char *name,
-	const char *order);
+int st_settings_sort_profile_add(size_t index, const char *name, const char *order);
+int st_settings_sort_profile_update(size_t index, const char *name, const char *order);
 int st_settings_sort_profile_remove(size_t index);
 
-size_t st_settings_font_count(void);
+size_t                         st_settings_font_count(void);
 const struct st_settings_font *st_settings_font_at(size_t index);
 
 bool st_settings_font_name_valid(const char *name);
@@ -174,18 +170,13 @@ void st_settings_font_draft_dispose(struct st_settings_font_draft *draft);
 int st_settings_font_draft_open(struct st_settings_font_draft *draft);
 int st_settings_font_draft_reload(struct st_settings_font_draft *draft);
 /* Save merges only Font: sections and publishes them after a successful write. */
-int st_settings_font_draft_save(struct st_settings_font_draft *draft);
-size_t st_settings_font_draft_count(
-	const struct st_settings_font_draft *draft);
-const struct st_settings_font *st_settings_font_draft_at(
-	const struct st_settings_font_draft *draft, size_t index);
-int st_settings_font_draft_insert(struct st_settings_font_draft *draft,
-	size_t index, const char *name);
-int st_settings_font_draft_rename(struct st_settings_font_draft *draft,
-	size_t index, const char *name);
-int st_settings_font_draft_set_path(struct st_settings_font_draft *draft,
-	size_t index, enum st_settings_font_path slot, const char *path);
-int st_settings_font_draft_remove(struct st_settings_font_draft *draft,
-	size_t index);
+int                            st_settings_font_draft_save(struct st_settings_font_draft *draft);
+size_t                         st_settings_font_draft_count(const struct st_settings_font_draft *draft);
+const struct st_settings_font *st_settings_font_draft_at(const struct st_settings_font_draft *draft, size_t index);
+int st_settings_font_draft_insert(struct st_settings_font_draft *draft, size_t index, const char *name);
+int st_settings_font_draft_rename(struct st_settings_font_draft *draft, size_t index, const char *name);
+int st_settings_font_draft_set_path(struct st_settings_font_draft *draft, size_t index,
+    enum st_settings_font_path slot, const char *path);
+int st_settings_font_draft_remove(struct st_settings_font_draft *draft, size_t index);
 
 #endif

@@ -25,8 +25,7 @@ struct cterm_rip_font_metric {
 };
 
 /* Exact RIPterm button-label metrics, including its byte-truncated values. */
-const struct cterm_rip_font_metric *cterm_rip_font_button_metric(
-    int number, int size);
-bool cterm_rip_button_char_descends(uint8_t ch);
+const struct cterm_rip_font_metric *cterm_rip_font_button_metric(int number, int size);
+bool                                cterm_rip_button_char_descends(uint8_t ch);
 
 #endif

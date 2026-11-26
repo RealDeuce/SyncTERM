@@ -3,26 +3,25 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "socket_internal.h"
-
-#include "io_error.h"
-#include "socket_config.h"
-#include "st_time.h"
-
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <poll.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <netinet/in.h>
-#include <netinet/tcp.h>
 #include <sys/select.h>
 #include <sys/socket.h>
 #include <time.h>
 #include <unistd.h>
+
+#include "io_error.h"
+#include "socket_config.h"
+#include "socket_internal.h"
+#include "st_time.h"
 #if SYNCTERM_SOCKET_HAVE_KQUEUE && !SYNCTERM_SOCKET_HAVE_POLLRDHUP
-	#include <sys/event.h>
+ #include <sys/event.h>
 #endif
 
 int
@@ -113,8 +112,7 @@ socket_close(socket_handle_t socket)
 }
 
 int
-socket_shutdown(socket_handle_t socket,
-    enum socket_shutdown_direction direction)
+socket_shutdown(socket_handle_t socket, enum socket_shutdown_direction direction)
 {
 	int how;
 
@@ -157,8 +155,7 @@ socket_set_boolean_option(socket_handle_t socket, int option, bool enabled)
 {
 	int value = enabled ? 1 : 0;
 
-	if (setsockopt(socket, SOL_SOCKET, option, &value,
-	    (socklen_t)sizeof(value)) == 0)
+	if (setsockopt(socket, SOL_SOCKET, option, &value, (socklen_t)sizeof(value)) == 0)
 		return 0;
 	return socket_internal_map_error(errno);
 }
@@ -174,8 +171,7 @@ socket_set_no_delay(socket_handle_t socket, bool enabled)
 {
 	int value = enabled ? 1 : 0;
 
-	if (setsockopt(socket, IPPROTO_TCP, TCP_NODELAY, &value,
-	    (socklen_t)sizeof(value)) == 0)
+	if (setsockopt(socket, IPPROTO_TCP, TCP_NODELAY, &value, (socklen_t)sizeof(value)) == 0)
 		return 0;
 	return socket_internal_map_error(errno);
 }
@@ -188,8 +184,7 @@ socket_set_buffer_size(socket_handle_t socket, int option, size_t size)
 	if (size > INT_MAX)
 		return IO_ERROR_OUT_OF_RANGE;
 	value = (int)size;
-	if (setsockopt(socket, SOL_SOCKET, option, &value,
-	    (socklen_t)sizeof(value)) == 0)
+	if (setsockopt(socket, SOL_SOCKET, option, &value, (socklen_t)sizeof(value)) == 0)
 		return 0;
 	return socket_internal_map_error(errno);
 }
@@ -210,7 +205,7 @@ ssize_t
 socket_send(socket_handle_t socket, const void *buffer, size_t size)
 {
 	ssize_t result;
-	int flags = 0;
+	int     flags = 0;
 
 	if (buffer == NULL && size != 0)
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -226,14 +221,12 @@ socket_send(socket_handle_t socket, const void *buffer, size_t size)
 }
 
 ssize_t
-socket_receive(socket_handle_t socket, void *buffer, size_t size,
-    unsigned flags)
+socket_receive(socket_handle_t socket, void *buffer, size_t size, unsigned flags)
 {
-	int native_flags = 0;
+	int     native_flags = 0;
 	ssize_t result;
 
-	if ((buffer == NULL && size != 0) ||
-	    (flags & ~(SOCKET_RECEIVE_PEEK | SOCKET_RECEIVE_URGENT)) != 0)
+	if ((buffer == NULL && size != 0) || (flags & ~(SOCKET_RECEIVE_PEEK | SOCKET_RECEIVE_URGENT)) != 0)
 		return IO_ERROR_INVALID_ARGUMENT;
 	/* Native urgent peeks can consume the stream mark (Darwin). Do not
 	 * expose a supposedly non-consuming operation with that side effect. */
@@ -269,7 +262,7 @@ int
 socket_internal_now_ms(int64_t *result)
 {
 	uint64_t now;
-	int status;
+	int      status;
 
 	if (result == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -294,13 +287,12 @@ socket_peer_write_closed(socket_handle_t socket, bool *closed)
 	*closed = (item.revents & (POLLRDHUP | POLLHUP)) != 0;
 	return 0;
 #elif SYNCTERM_SOCKET_HAVE_KQUEUE
-	struct kevent change, event;
-	const struct timespec timeout = {0};
-	int descriptor = kqueue();
+	struct kevent         change, event;
+	const struct timespec timeout    = {0};
+	int                   descriptor = kqueue();
 	if (descriptor < 0)
 		return socket_internal_map_error(errno);
-	EV_SET(&change, (uintptr_t)socket, EVFILT_READ, EV_ADD | EV_ONESHOT,
-	    0, 0, NULL);
+	EV_SET(&change, (uintptr_t)socket, EVFILT_READ, EV_ADD | EV_ONESHOT, 0, 0, NULL);
 	int count = kevent(descriptor, &change, 1, &event, 1, &timeout);
 	int error = count < 0 ? socket_internal_map_error(errno) : 0;
 	(void)close(descriptor);
@@ -325,21 +317,18 @@ socket_internal_wait_capacity(void)
 static void
 socket_poll_events(struct socket_wait_item *item, short events)
 {
-	int socket_error = 0;
-	socklen_t error_size = (socklen_t)sizeof(socket_error);
-	char byte;
-	ssize_t received;
+	int       socket_error = 0;
+	socklen_t error_size   = (socklen_t)sizeof(socket_error);
+	char      byte;
+	ssize_t   received;
 
-	if ((events & POLLOUT) != 0 &&
-	    (item->interests & SOCKET_WAIT_WRITABLE) != 0)
+	if ((events & POLLOUT) != 0 && (item->interests & SOCKET_WAIT_WRITABLE) != 0)
 		item->events |= SOCKET_WAIT_WRITABLE;
-	if ((events & POLLPRI) != 0 &&
-	    (item->interests & SOCKET_WAIT_URGENT) != 0) {
+	if ((events & POLLPRI) != 0 && (item->interests & SOCKET_WAIT_URGENT) != 0) {
 		item->events |= SOCKET_WAIT_URGENT;
 		/* Even an ordinary MSG_PEEK can clear the urgent mark on BSD.
 		 * Let the caller consume OOB before classifying data versus EOF. */
-		if ((events & POLLIN) != 0 &&
-		    (item->interests & SOCKET_WAIT_READABLE) != 0)
+		if ((events & POLLIN) != 0 && (item->interests & SOCKET_WAIT_READABLE) != 0)
 			item->events |= SOCKET_WAIT_READABLE;
 	}
 	else if ((events & (POLLIN | POLLHUP)) != 0) {
@@ -358,8 +347,7 @@ socket_poll_events(struct socket_wait_item *item, short events)
 	/* recv() can consume SO_ERROR. Do not replace that specific error with
 	 * EIO after a second read of the now-cleared socket error. */
 	if ((events & (POLLERR | POLLNVAL)) != 0 && item->error == 0) {
-		if (getsockopt(item->socket, SOL_SOCKET, SO_ERROR, &socket_error,
-		    &error_size) != 0)
+		if (getsockopt(item->socket, SOL_SOCKET, SO_ERROR, &socket_error, &error_size) != 0)
 			socket_error = errno;
 		if (socket_error == 0)
 			socket_error = EIO;
@@ -369,16 +357,15 @@ socket_poll_events(struct socket_wait_item *item, short events)
 }
 
 static int
-socket_select_wait_many(struct socket_wait_item *items, size_t count,
-    int64_t timeout_ms)
+socket_select_wait_many(struct socket_wait_item *items, size_t count, int64_t timeout_ms)
 {
-	fd_set read_set;
-	fd_set write_set;
-	fd_set except_set;
-	struct timeval timeout;
+	fd_set          read_set;
+	fd_set          write_set;
+	fd_set          except_set;
+	struct timeval  timeout;
 	struct timeval *timeout_pointer = NULL;
-	int maximum = -1;
-	int result;
+	int             maximum         = -1;
+	int             result;
 
 	FD_ZERO(&read_set);
 	FD_ZERO(&write_set);
@@ -387,7 +374,7 @@ socket_select_wait_many(struct socket_wait_item *items, size_t count,
 		if (items[index].socket < 0 || items[index].socket >= FD_SETSIZE)
 			return IO_ERROR_OUT_OF_RANGE;
 		items[index].events = 0;
-		items[index].error = 0;
+		items[index].error  = 0;
 		if ((items[index].interests & SOCKET_WAIT_READABLE) != 0)
 			FD_SET(items[index].socket, &read_set);
 		if ((items[index].interests & SOCKET_WAIT_WRITABLE) != 0)
@@ -400,12 +387,11 @@ socket_select_wait_many(struct socket_wait_item *items, size_t count,
 	if (timeout_ms >= 0) {
 		if (timeout_ms > INT_MAX)
 			timeout_ms = INT_MAX;
-		timeout.tv_sec = (long)(timeout_ms / 1000);
+		timeout.tv_sec  = (long)(timeout_ms / 1000);
 		timeout.tv_usec = (long)((timeout_ms % 1000) * 1000);
 		timeout_pointer = &timeout;
 	}
-	result = select(maximum + 1, &read_set, &write_set, &except_set,
-	    timeout_pointer);
+	result = select(maximum + 1, &read_set, &write_set, &except_set, timeout_pointer);
 	if (result < 0)
 		return socket_internal_map_error(errno);
 	if (result == 0)
@@ -425,16 +411,14 @@ socket_select_wait_many(struct socket_wait_item *items, size_t count,
 }
 
 int
-socket_internal_wait_many(struct socket_wait_item *items, size_t count,
-    int64_t timeout_ms)
+socket_internal_wait_many(struct socket_wait_item *items, size_t count, int64_t timeout_ms)
 {
 	struct pollfd *poll_items;
-	nfds_t native_count = (nfds_t)count;
-	int timeout;
-	int result;
+	nfds_t         native_count = (nfds_t)count;
+	int            timeout;
+	int            result;
 
-	if ((items == NULL && count != 0) || timeout_ms < -1 ||
-	    (size_t)native_count != count)
+	if ((items == NULL && count != 0) || timeout_ms < -1 || (size_t)native_count != count)
 		return IO_ERROR_INVALID_ARGUMENT;
 	for (size_t index = 0; index < count; index++) {
 		if ((items[index].interests & SOCKET_WAIT_URGENT) != 0)
@@ -448,9 +432,9 @@ socket_internal_wait_many(struct socket_wait_item *items, size_t count,
 	if (count != 0 && poll_items == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
 	for (size_t index = 0; index < count; index++) {
-		items[index].events = 0;
-		items[index].error = 0;
-		poll_items[index].fd = items[index].socket;
+		items[index].events      = 0;
+		items[index].error       = 0;
+		poll_items[index].fd     = items[index].socket;
 		poll_items[index].events = 0;
 		if ((items[index].interests & SOCKET_WAIT_READABLE) != 0)
 			poll_items[index].events |= POLLIN;
@@ -476,16 +460,14 @@ socket_internal_wait_many(struct socket_wait_item *items, size_t count,
 }
 
 int
-socket_wait(socket_handle_t socket, unsigned interests,
-    int64_t timeout_ms, unsigned *events)
+socket_wait(socket_handle_t socket, unsigned interests, int64_t timeout_ms, unsigned *events)
 {
-	struct socket_wait_item item = {socket, interests, 0, 0};
-	int64_t deadline = INT64_MAX;
-	int error;
+	struct socket_wait_item item     = {socket, interests, 0, 0};
+	int64_t                 deadline = INT64_MAX;
+	int                     error;
 
-	if (events == NULL || interests == 0 ||
-	    (interests & ~(SOCKET_WAIT_READABLE | SOCKET_WAIT_WRITABLE |
-	    SOCKET_WAIT_URGENT)) != 0)
+	if (events == NULL || interests == 0
+	    || (interests & ~(SOCKET_WAIT_READABLE | SOCKET_WAIT_WRITABLE | SOCKET_WAIT_URGENT)) != 0)
 		return IO_ERROR_INVALID_ARGUMENT;
 	*events = 0;
 	if (timeout_ms >= 0) {
@@ -493,8 +475,7 @@ socket_wait(socket_handle_t socket, unsigned interests,
 		error = socket_internal_now_ms(&now);
 		if (error != 0)
 			return error;
-		deadline = now > INT64_MAX - timeout_ms ?
-		    INT64_MAX : now + timeout_ms;
+		deadline = now > INT64_MAX - timeout_ms ? INT64_MAX : now + timeout_ms;
 	}
 	for (;;) {
 		int64_t wait = timeout_ms;
@@ -516,15 +497,14 @@ socket_wait(socket_handle_t socket, unsigned interests,
 }
 
 int
-socket_internal_start_connect(const void *address, size_t address_length,
-    int family, socket_handle_t *result, bool *complete)
+socket_internal_start_connect(const void *address, size_t address_length, int family, socket_handle_t *result,
+    bool *complete)
 {
 	socket_handle_t descriptor;
-	socklen_t native_length = (socklen_t)address_length;
-	int error;
+	socklen_t       native_length = (socklen_t)address_length;
+	int             error;
 
-	if (address == NULL || result == NULL || complete == NULL ||
-	    (size_t)native_length != address_length)
+	if (address == NULL || result == NULL || complete == NULL || (size_t)native_length != address_length)
 		return IO_ERROR_INVALID_ARGUMENT;
 	descriptor = socket(family, SOCK_STREAM, IPPROTO_TCP);
 	if (!socket_handle_is_valid(descriptor))
@@ -532,8 +512,7 @@ socket_internal_start_connect(const void *address, size_t address_length,
 #if SYNCTERM_SOCKET_HAVE_SO_NOSIGPIPE
 	{
 		int enabled = 1;
-		if (setsockopt(descriptor, SOL_SOCKET, SO_NOSIGPIPE, &enabled,
-		    (socklen_t)sizeof(enabled)) != 0) {
+		if (setsockopt(descriptor, SOL_SOCKET, SO_NOSIGPIPE, &enabled, (socklen_t)sizeof(enabled)) != 0) {
 			error = socket_internal_map_error(errno);
 			(void)close(descriptor);
 			return error;
@@ -546,7 +525,7 @@ socket_internal_start_connect(const void *address, size_t address_length,
 		return error;
 	}
 	if (connect(descriptor, address, native_length) == 0) {
-		*result = descriptor;
+		*result   = descriptor;
 		*complete = true;
 		return 0;
 	}
@@ -555,7 +534,7 @@ socket_internal_start_connect(const void *address, size_t address_length,
 		(void)close(descriptor);
 		return error;
 	}
-	*result = descriptor;
+	*result   = descriptor;
 	*complete = false;
 	return 0;
 }
@@ -563,8 +542,8 @@ socket_internal_start_connect(const void *address, size_t address_length,
 int
 socket_internal_connect_result(socket_handle_t socket)
 {
-	int error = 0;
-	socklen_t size = (socklen_t)sizeof(error);
+	int       error = 0;
+	socklen_t size  = (socklen_t)sizeof(error);
 
 	if (getsockopt(socket, SOL_SOCKET, SO_ERROR, &error, &size) != 0)
 		return socket_internal_map_error(errno);

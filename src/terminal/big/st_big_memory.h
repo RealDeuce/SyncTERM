@@ -3,6 +3,7 @@
 #ifndef ST_BIG_MEMORY_H_
 #define ST_BIG_MEMORY_H_
 #include <stdint.h>
+
 struct st_big_memory_sink {
 	void *context;
 	/* Eight logical pens0..15, MSB first. WORD address wrap belongs to

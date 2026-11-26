@@ -10,14 +10,14 @@ struct sftp_extended_file_attribute {
 };
 
 struct sftp_file_attributes {
-	uint32_t flags;
-	uint64_t size;
-	uint32_t uid;
-	uint32_t gid;
-	uint32_t perm;
-	uint32_t atime;
-	uint32_t mtime;
-	uint32_t ext_count;
+	uint32_t                            flags;
+	uint64_t                            size;
+	uint32_t                            uid;
+	uint32_t                            gid;
+	uint32_t                            perm;
+	uint32_t                            atime;
+	uint32_t                            mtime;
+	uint32_t                            ext_count;
 	struct sftp_extended_file_attribute ext[];
 };
 
@@ -205,7 +205,7 @@ get_size(sftp_file_attr_t fattr)
 static bool
 appendfattr(sftp_tx_pkt_t *pktp, sftp_file_attr_t fattr)
 {
-	uint32_t sz = get_size(fattr);
+	uint32_t sz      = get_size(fattr);
 	uint32_t oldused = (*pktp)->used;
 	if (sz == 0)
 		return false;

@@ -3,15 +3,15 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "st_event.h"
-
 #include <stdlib.h>
 
+#include "st_event.h"
+
 struct st_event {
-	st_mutex_t mutex;
-	st_condition_t condition;
+	st_mutex_t               mutex;
+	st_condition_t           condition;
 	enum st_event_reset_mode mode;
-	bool set;
+	bool                     set;
 };
 
 static bool
@@ -21,11 +21,10 @@ valid_mode(enum st_event_reset_mode mode)
 }
 
 int
-st_event_create(st_event_t **result, enum st_event_reset_mode mode,
-    bool initially_set)
+st_event_create(st_event_t **result, enum st_event_reset_mode mode, bool initially_set)
 {
 	st_event_t *event;
-	int status;
+	int         status;
 
 	if (result == NULL || !valid_mode(mode))
 		return ST_THREAD_ERROR;
@@ -44,8 +43,8 @@ st_event_create(st_event_t **result, enum st_event_reset_mode mode,
 		return status;
 	}
 	event->mode = mode;
-	event->set = initially_set;
-	*result = event;
+	event->set  = initially_set;
+	*result     = event;
 	return ST_THREAD_SUCCESS;
 }
 
@@ -69,8 +68,7 @@ st_event_set(st_event_t *event)
 			notify_status = st_condition_signal(&event->condition);
 	}
 	unlock_status = st_mutex_unlock(&event->mutex);
-	return notify_status != ST_THREAD_SUCCESS
-	    ? notify_status : unlock_status;
+	return notify_status != ST_THREAD_SUCCESS ? notify_status : unlock_status;
 }
 
 int
@@ -84,7 +82,7 @@ st_event_reset(st_event_t *event)
 	status = st_mutex_lock(&event->mutex);
 	if (status != ST_THREAD_SUCCESS)
 		return status;
-	event->set = false;
+	event->set    = false;
 	unlock_status = st_mutex_unlock(&event->mutex);
 	return unlock_status;
 }
@@ -106,11 +104,9 @@ event_wait(st_event_t *event, const struct timespec *deadline, bool polling)
 			break;
 		}
 		if (deadline == NULL)
-			status = st_condition_wait(&event->condition,
-			    &event->mutex);
+			status = st_condition_wait(&event->condition, &event->mutex);
 		else
-			status = st_condition_timedwait(&event->condition,
-			    &event->mutex, deadline);
+			status = st_condition_timedwait(&event->condition, &event->mutex, deadline);
 		if (status != ST_THREAD_SUCCESS)
 			break;
 	}

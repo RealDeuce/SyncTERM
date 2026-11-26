@@ -22,7 +22,7 @@ struct st_language_preferences {
  * discovery. The caller owns the result and releases it with the function
  * below before reusing it. On error, the result is empty; returns IO_ERROR_*.
  */
-int st_language_discover(struct st_language_preferences *result);
+int  st_language_discover(struct st_language_preferences *result);
 void st_language_free(struct st_language_preferences *preferences);
 
 #endif

@@ -15,31 +15,25 @@ struct st_pixel_buffer;
 struct st_pixel_mask;
 
 /* Results are unchanged on failure. */
-int st_pixel_image_decode_ppm(struct st_pixel_buffer **result,
-	const void *data, size_t length);
-int st_pixel_image_decode_pbm(struct st_pixel_mask **result,
-	const void *data, size_t length);
+int st_pixel_image_decode_ppm(struct st_pixel_buffer **result, const void *data, size_t length);
+int st_pixel_image_decode_pbm(struct st_pixel_mask **result, const void *data, size_t length);
 /* CTerm APC's PNM framing: one raw-data separator byte, the original
  * four whitespace characters, and an 8-bit PPM maximum. PPM samples
  * still receive the corrected BT.709-to-sRGB conversion. */
-int st_pixel_image_decode_cterm_ppm(struct st_pixel_buffer **result,
-	const void *data, size_t length);
-int st_pixel_image_decode_cterm_pbm(struct st_pixel_mask **result,
-	const void *data, size_t length);
+int st_pixel_image_decode_cterm_ppm(struct st_pixel_buffer **result, const void *data, size_t length);
+int st_pixel_image_decode_cterm_pbm(struct st_pixel_mask **result, const void *data, size_t length);
 
 /* Build support, without loading libjxl or its CMS library. */
 bool st_pixel_image_jxl_compiled(void);
 /* Runtime availability, including all required decoder and CMS symbols. */
 bool st_pixel_image_jxl_supported(void);
-int st_pixel_image_decode_jxl(struct st_pixel_buffer **result,
-	const void *data, size_t length);
+int  st_pixel_image_decode_jxl(struct st_pixel_buffer **result, const void *data, size_t length);
 
 /* Sequential and progressive 8-bit grayscale/YCbCr JPEG, with 1x1, 2x1, or 2x2 sampling.
  * Damaged/truncated files are rejected; successful pixels are tagged RGB.
  * Build support does not imply runtime library availability. */
 bool st_pixel_image_jpeg_compiled(void);
 bool st_pixel_image_jpeg_supported(void);
-int st_pixel_image_decode_jpeg(struct st_pixel_buffer **result,
-	const void *data, size_t length);
+int  st_pixel_image_decode_jpeg(struct st_pixel_buffer **result, const void *data, size_t length);
 
 #endif

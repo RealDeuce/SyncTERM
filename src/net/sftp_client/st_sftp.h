@@ -31,33 +31,33 @@ struct st_sftp_request {
 	 * Unused fields must be zero/NULL. Paths are counted by their NUL;
 	 * write data and read counts use size. Handles are provider-owned IDs. */
 	enum st_sftp_operation operation;
-	const char *path;
-	const char *second_path;
-	uint64_t handle;
-	uint64_t offset;
-	uint64_t modified_time;
-	uint32_t flags;
-	const void *data;
-	size_t size;
+	const char            *path;
+	const char            *second_path;
+	uint64_t               handle;
+	uint64_t               offset;
+	uint64_t               modified_time;
+	uint32_t               flags;
+	const void            *data;
+	size_t                 size;
 };
 
 struct st_sftp_stat {
 	uint64_t size;
-	int64_t modified_time;
-	int64_t accessed_time;
+	int64_t  modified_time;
+	int64_t  accessed_time;
 	uint32_t mode;
 	uint32_t uid;
 	uint32_t gid;
 };
 
 struct st_sftp_entry {
-	const char *name;
-	const char *long_name;
+	const char         *name;
+	const char         *long_name;
 	struct st_sftp_stat stat;
-	bool directory;
-	bool has_long_description;
-	const void *hash;
-	size_t hash_size;
+	bool                directory;
+	bool                has_long_description;
+	const void         *hash;
+	size_t              hash_size;
 };
 
 enum st_sftp_result_kind {
@@ -74,32 +74,30 @@ enum st_sftp_result_kind {
 
 /* Response pointers are borrowed until the next poll() or provider teardown. */
 struct st_sftp_response {
-	uint64_t request_id;
-	enum st_sftp_result_kind kind;
-	const void *data;
-	size_t size;
-	uint64_t handle;
-	struct st_sftp_stat stat;
+	uint64_t                    request_id;
+	enum st_sftp_result_kind    kind;
+	const void                 *data;
+	size_t                      size;
+	uint64_t                    handle;
+	struct st_sftp_stat         stat;
 	const struct st_sftp_entry *entries;
-	size_t entry_count;
-	int error_code;
-	uint32_t server_status;
-	const char *message;
-	bool transient;
+	size_t                      entry_count;
+	int                         error_code;
+	uint32_t                    server_status;
+	const char                 *message;
+	bool                        transient;
 };
 
 struct st_sftp_provider {
-	void *context;
-	bool (*available)(void *context);
+	void       *context;
+	bool        (*available)(void *context);
 	const char *(*public_directory)(void *context);
-	bool (*long_name_extension)(void *context);
+	bool        (*long_name_extension)(void *context);
 	/* submit() must copy every borrowed request pointer before returning and
 	 * return an ID unique among requests that have not yet been polled. */
-	int (*submit)(void *context, const struct st_sftp_request *request,
-		uint64_t *request_id);
+	int (*submit)(void *context, const struct st_sftp_request *request, uint64_t *request_id);
 	/* Returns one for a response, zero when none is ready, or an error. */
-	int (*poll)(void *context, struct st_sftp_response *response,
-		uint32_t timeout_ms);
+	int  (*poll)(void *context, struct st_sftp_response *response, uint32_t timeout_ms);
 	void (*cancel_all)(void *context);
 };
 

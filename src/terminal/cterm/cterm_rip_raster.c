@@ -5,83 +5,292 @@
  * RIP/BGI raster arithmetic retained from the legacy renderer.
  */
 
-#include "cterm_rip_raster.h"
-#include "cterm_rip_args.h"
-#include "st_bgi_data.h"
-#include "st_bgi_bitmap.h"
-#include "st_bgi_chr.h"
-#include "st_bgi_line.h"
-#include "st_bgi_trig.h"
-#include "st_bgi_pixel.h"
-#include "cterm_rip_asset.h"
-#include "cterm_rip_fonts.h"
-#include "cterm_rip_icon_file.h"
-#include "cterm_rip_icons.h"
-
-#include "filesystem.h"
-#include "io_error.h"
-#include "string_compat.h"
-#include "st_pixels.h"
-#include "st_utf8.h"
-
-#include "string_util.h"
 #include <assert.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-static const uint8_t       default_mapped[256][3] = {
-	{0, 0, 0}, {0, 0, 42}, {0, 42, 0}, {0, 42, 42}, {42, 0, 0}, {42, 0, 42},
-	{42, 21, 0}, {42, 42, 42}, {21, 21, 21}, {21, 21, 63}, {21, 63, 21}, {21, 63, 63},
-	{63, 21, 21}, {63, 21, 63}, {63, 63, 21}, {63, 63, 63}, {0, 0, 0}, {4, 4, 4},
-	{8, 8, 8}, {13, 13, 13}, {17, 17, 17}, {21, 21, 21}, {25, 25, 25}, {29, 29, 29},
-	{34, 34, 34}, {38, 38, 38}, {42, 42, 42}, {46, 46, 46}, {50, 50, 50}, {55, 55, 55},
-	{59, 59, 59}, {63, 63, 63}, {0, 0, 0}, {0, 0, 21}, {0, 0, 42}, {0, 0, 63},
-	{0, 9, 0}, {0, 9, 21}, {0, 9, 42}, {0, 9, 63}, {0, 18, 0}, {0, 18, 21},
-	{0, 18, 42}, {0, 18, 63}, {0, 27, 0}, {0, 27, 21}, {0, 27, 42}, {0, 27, 63},
-	{0, 36, 0}, {0, 36, 21}, {0, 36, 42}, {0, 36, 63}, {0, 45, 0}, {0, 45, 21},
-	{0, 45, 42}, {0, 45, 63}, {0, 54, 0}, {0, 54, 21}, {0, 54, 42}, {0, 54, 63},
-	{0, 63, 0}, {0, 63, 21}, {0, 63, 42}, {0, 63, 63}, {10, 0, 0}, {10, 0, 21},
-	{10, 0, 42}, {10, 0, 63}, {10, 9, 0}, {10, 9, 21}, {10, 9, 42}, {10, 9, 63},
-	{10, 18, 0}, {10, 18, 21}, {10, 18, 42}, {10, 18, 63}, {10, 27, 0}, {10, 27, 21},
-	{10, 27, 42}, {10, 27, 63}, {10, 36, 0}, {10, 36, 21}, {10, 36, 42}, {10, 36, 63},
-	{10, 45, 0}, {10, 45, 21}, {10, 45, 42}, {10, 45, 63}, {10, 54, 0}, {10, 54, 21},
-	{10, 54, 42}, {10, 54, 63}, {10, 63, 0}, {10, 63, 21}, {10, 63, 42}, {10, 63, 63},
-	{21, 0, 0}, {21, 0, 21}, {21, 0, 42}, {21, 0, 63}, {21, 9, 0}, {21, 9, 21},
-	{21, 9, 42}, {21, 9, 63}, {21, 18, 0}, {21, 18, 21}, {21, 18, 42}, {21, 18, 63},
-	{21, 27, 0}, {21, 27, 21}, {21, 27, 42}, {21, 27, 63}, {21, 36, 0}, {21, 36, 21},
-	{21, 36, 42}, {21, 36, 63}, {21, 45, 0}, {21, 45, 21}, {21, 45, 42}, {21, 45, 63},
-	{21, 54, 0}, {21, 54, 21}, {21, 54, 42}, {21, 54, 63}, {21, 63, 0}, {21, 63, 21},
-	{21, 63, 42}, {21, 63, 63}, {31, 0, 0}, {31, 0, 21}, {31, 0, 42}, {31, 0, 63},
-	{31, 9, 0}, {31, 9, 21}, {31, 9, 42}, {31, 9, 63}, {31, 18, 0}, {31, 18, 21},
-	{31, 18, 42}, {31, 18, 63}, {31, 27, 0}, {31, 27, 21}, {31, 27, 42}, {31, 27, 63},
-	{31, 36, 0}, {31, 36, 21}, {31, 36, 42}, {31, 36, 63}, {31, 45, 0}, {31, 45, 21},
-	{31, 45, 42}, {31, 45, 63}, {31, 54, 0}, {31, 54, 21}, {31, 54, 42}, {31, 54, 63},
-	{31, 63, 0}, {31, 63, 21}, {31, 63, 42}, {31, 63, 63}, {42, 0, 0}, {42, 0, 21},
-	{42, 0, 42}, {42, 0, 63}, {42, 9, 0}, {42, 9, 21}, {42, 9, 42}, {42, 9, 63},
-	{42, 18, 0}, {42, 18, 21}, {42, 18, 42}, {42, 18, 63}, {42, 27, 0}, {42, 27, 21},
-	{42, 27, 42}, {42, 27, 63}, {42, 36, 0}, {42, 36, 21}, {42, 36, 42}, {42, 36, 63},
-	{42, 45, 0}, {42, 45, 21}, {42, 45, 42}, {42, 45, 63}, {42, 54, 0}, {42, 54, 21},
-	{42, 54, 42}, {42, 54, 63}, {42, 63, 0}, {42, 63, 21}, {42, 63, 42}, {42, 63, 63},
-	{52, 0, 0}, {52, 0, 21}, {52, 0, 42}, {52, 0, 63}, {52, 9, 0}, {52, 9, 21},
-	{52, 9, 42}, {52, 9, 63}, {52, 18, 0}, {52, 18, 21}, {52, 18, 42}, {52, 18, 63},
-	{52, 27, 0}, {52, 27, 21}, {52, 27, 42}, {52, 27, 63}, {52, 36, 0}, {52, 36, 21},
-	{52, 36, 42}, {52, 36, 63}, {52, 45, 0}, {52, 45, 21}, {52, 45, 42}, {52, 45, 63},
-	{52, 54, 0}, {52, 54, 21}, {52, 54, 42}, {52, 54, 63}, {52, 63, 0}, {52, 63, 21},
-	{52, 63, 42}, {52, 63, 63}, {63, 0, 0}, {63, 0, 21}, {63, 0, 42}, {63, 0, 63},
-	{63, 9, 0}, {63, 9, 21}, {63, 9, 42}, {63, 9, 63}, {63, 18, 0}, {63, 18, 21},
-	{63, 18, 42}, {63, 18, 63}, {63, 27, 0}, {63, 27, 21}, {63, 27, 42}, {63, 27, 63},
-	{63, 36, 0}, {63, 36, 21}, {63, 36, 42}, {63, 36, 63}, {63, 45, 0}, {63, 45, 21},
-	{63, 45, 42}, {63, 45, 63}, {63, 54, 0}, {63, 54, 21}, {63, 54, 42}, {63, 54, 63},
-	{63, 63, 0}, {63, 63, 21}, {63, 63, 42}, {63, 63, 63}
+#include "cterm_rip_args.h"
+#include "cterm_rip_asset.h"
+#include "cterm_rip_fonts.h"
+#include "cterm_rip_icon_file.h"
+#include "cterm_rip_icons.h"
+#include "cterm_rip_raster.h"
+#include "filesystem.h"
+#include "io_error.h"
+#include "st_bgi_bitmap.h"
+#include "st_bgi_chr.h"
+#include "st_bgi_data.h"
+#include "st_bgi_line.h"
+#include "st_bgi_pixel.h"
+#include "st_bgi_trig.h"
+#include "st_pixels.h"
+#include "st_utf8.h"
+#include "string_compat.h"
+#include "string_util.h"
+
+static const uint8_t default_mapped[256][3] = {
+    {0,  0,  0 },
+    {0,  0,  42},
+    {0,  42, 0 },
+    {0,  42, 42},
+    {42, 0,  0 },
+    {42, 0,  42},
+    {42, 21, 0 },
+    {42, 42, 42},
+    {21, 21, 21},
+    {21, 21, 63},
+    {21, 63, 21},
+    {21, 63, 63},
+    {63, 21, 21},
+    {63, 21, 63},
+    {63, 63, 21},
+    {63, 63, 63},
+    {0,  0,  0 },
+    {4,  4,  4 },
+    {8,  8,  8 },
+    {13, 13, 13},
+    {17, 17, 17},
+    {21, 21, 21},
+    {25, 25, 25},
+    {29, 29, 29},
+    {34, 34, 34},
+    {38, 38, 38},
+    {42, 42, 42},
+    {46, 46, 46},
+    {50, 50, 50},
+    {55, 55, 55},
+    {59, 59, 59},
+    {63, 63, 63},
+    {0,  0,  0 },
+    {0,  0,  21},
+    {0,  0,  42},
+    {0,  0,  63},
+    {0,  9,  0 },
+    {0,  9,  21},
+    {0,  9,  42},
+    {0,  9,  63},
+    {0,  18, 0 },
+    {0,  18, 21},
+    {0,  18, 42},
+    {0,  18, 63},
+    {0,  27, 0 },
+    {0,  27, 21},
+    {0,  27, 42},
+    {0,  27, 63},
+    {0,  36, 0 },
+    {0,  36, 21},
+    {0,  36, 42},
+    {0,  36, 63},
+    {0,  45, 0 },
+    {0,  45, 21},
+    {0,  45, 42},
+    {0,  45, 63},
+    {0,  54, 0 },
+    {0,  54, 21},
+    {0,  54, 42},
+    {0,  54, 63},
+    {0,  63, 0 },
+    {0,  63, 21},
+    {0,  63, 42},
+    {0,  63, 63},
+    {10, 0,  0 },
+    {10, 0,  21},
+    {10, 0,  42},
+    {10, 0,  63},
+    {10, 9,  0 },
+    {10, 9,  21},
+    {10, 9,  42},
+    {10, 9,  63},
+    {10, 18, 0 },
+    {10, 18, 21},
+    {10, 18, 42},
+    {10, 18, 63},
+    {10, 27, 0 },
+    {10, 27, 21},
+    {10, 27, 42},
+    {10, 27, 63},
+    {10, 36, 0 },
+    {10, 36, 21},
+    {10, 36, 42},
+    {10, 36, 63},
+    {10, 45, 0 },
+    {10, 45, 21},
+    {10, 45, 42},
+    {10, 45, 63},
+    {10, 54, 0 },
+    {10, 54, 21},
+    {10, 54, 42},
+    {10, 54, 63},
+    {10, 63, 0 },
+    {10, 63, 21},
+    {10, 63, 42},
+    {10, 63, 63},
+    {21, 0,  0 },
+    {21, 0,  21},
+    {21, 0,  42},
+    {21, 0,  63},
+    {21, 9,  0 },
+    {21, 9,  21},
+    {21, 9,  42},
+    {21, 9,  63},
+    {21, 18, 0 },
+    {21, 18, 21},
+    {21, 18, 42},
+    {21, 18, 63},
+    {21, 27, 0 },
+    {21, 27, 21},
+    {21, 27, 42},
+    {21, 27, 63},
+    {21, 36, 0 },
+    {21, 36, 21},
+    {21, 36, 42},
+    {21, 36, 63},
+    {21, 45, 0 },
+    {21, 45, 21},
+    {21, 45, 42},
+    {21, 45, 63},
+    {21, 54, 0 },
+    {21, 54, 21},
+    {21, 54, 42},
+    {21, 54, 63},
+    {21, 63, 0 },
+    {21, 63, 21},
+    {21, 63, 42},
+    {21, 63, 63},
+    {31, 0,  0 },
+    {31, 0,  21},
+    {31, 0,  42},
+    {31, 0,  63},
+    {31, 9,  0 },
+    {31, 9,  21},
+    {31, 9,  42},
+    {31, 9,  63},
+    {31, 18, 0 },
+    {31, 18, 21},
+    {31, 18, 42},
+    {31, 18, 63},
+    {31, 27, 0 },
+    {31, 27, 21},
+    {31, 27, 42},
+    {31, 27, 63},
+    {31, 36, 0 },
+    {31, 36, 21},
+    {31, 36, 42},
+    {31, 36, 63},
+    {31, 45, 0 },
+    {31, 45, 21},
+    {31, 45, 42},
+    {31, 45, 63},
+    {31, 54, 0 },
+    {31, 54, 21},
+    {31, 54, 42},
+    {31, 54, 63},
+    {31, 63, 0 },
+    {31, 63, 21},
+    {31, 63, 42},
+    {31, 63, 63},
+    {42, 0,  0 },
+    {42, 0,  21},
+    {42, 0,  42},
+    {42, 0,  63},
+    {42, 9,  0 },
+    {42, 9,  21},
+    {42, 9,  42},
+    {42, 9,  63},
+    {42, 18, 0 },
+    {42, 18, 21},
+    {42, 18, 42},
+    {42, 18, 63},
+    {42, 27, 0 },
+    {42, 27, 21},
+    {42, 27, 42},
+    {42, 27, 63},
+    {42, 36, 0 },
+    {42, 36, 21},
+    {42, 36, 42},
+    {42, 36, 63},
+    {42, 45, 0 },
+    {42, 45, 21},
+    {42, 45, 42},
+    {42, 45, 63},
+    {42, 54, 0 },
+    {42, 54, 21},
+    {42, 54, 42},
+    {42, 54, 63},
+    {42, 63, 0 },
+    {42, 63, 21},
+    {42, 63, 42},
+    {42, 63, 63},
+    {52, 0,  0 },
+    {52, 0,  21},
+    {52, 0,  42},
+    {52, 0,  63},
+    {52, 9,  0 },
+    {52, 9,  21},
+    {52, 9,  42},
+    {52, 9,  63},
+    {52, 18, 0 },
+    {52, 18, 21},
+    {52, 18, 42},
+    {52, 18, 63},
+    {52, 27, 0 },
+    {52, 27, 21},
+    {52, 27, 42},
+    {52, 27, 63},
+    {52, 36, 0 },
+    {52, 36, 21},
+    {52, 36, 42},
+    {52, 36, 63},
+    {52, 45, 0 },
+    {52, 45, 21},
+    {52, 45, 42},
+    {52, 45, 63},
+    {52, 54, 0 },
+    {52, 54, 21},
+    {52, 54, 42},
+    {52, 54, 63},
+    {52, 63, 0 },
+    {52, 63, 21},
+    {52, 63, 42},
+    {52, 63, 63},
+    {63, 0,  0 },
+    {63, 0,  21},
+    {63, 0,  42},
+    {63, 0,  63},
+    {63, 9,  0 },
+    {63, 9,  21},
+    {63, 9,  42},
+    {63, 9,  63},
+    {63, 18, 0 },
+    {63, 18, 21},
+    {63, 18, 42},
+    {63, 18, 63},
+    {63, 27, 0 },
+    {63, 27, 21},
+    {63, 27, 42},
+    {63, 27, 63},
+    {63, 36, 0 },
+    {63, 36, 21},
+    {63, 36, 42},
+    {63, 36, 63},
+    {63, 45, 0 },
+    {63, 45, 21},
+    {63, 45, 42},
+    {63, 45, 63},
+    {63, 54, 0 },
+    {63, 54, 21},
+    {63, 54, 42},
+    {63, 54, 63},
+    {63, 63, 0 },
+    {63, 63, 21},
+    {63, 63, 42},
+    {63, 63, 63}
 };
 
-
-static const uint32_t initial_colour_indexes[16] = {
-	0x10, 0x14, 0x12, 0x16, 0x11, 0x15, 0x13, 0x17,
-	0x18, 0x1c, 0x1a, 0x1e, 0x19, 0x1d, 0x1b, 0x1f
-};
+static const uint32_t initial_colour_indexes[16] = {0x10, 0x14, 0x12, 0x16, 0x11, 0x15, 0x13, 0x17, 0x18, 0x1c,
+    0x1a, 0x1e, 0x19, 0x1d, 0x1b, 0x1f};
 
 static uint32_t
 map_colour(const struct cterm_rip_raster *rip, int colour)
@@ -91,12 +300,9 @@ map_colour(const struct cterm_rip_raster *rip, int colour)
 		return rip->palette[index];
 	if (index < 256)
 		return ST_PIXEL_COLOR_RGB_TAG
-		    | ((uint32_t)((default_mapped[index][0] << 2)
-		        | (default_mapped[index][0] & 3)) << 16)
-		    | ((uint32_t)((default_mapped[index][1] << 2)
-		        | (default_mapped[index][1] & 3)) << 8)
-		    | (uint32_t)((default_mapped[index][2] << 2)
-		        | (default_mapped[index][2] & 3));
+		       | ((uint32_t)((default_mapped[index][0] << 2) | (default_mapped[index][0] & 3)) << 16)
+		       | ((uint32_t)((default_mapped[index][1] << 2) | (default_mapped[index][1] & 3)) << 8)
+		       | (uint32_t)((default_mapped[index][2] << 2) | (default_mapped[index][2] & 3));
 	return 0;
 }
 
@@ -121,16 +327,15 @@ pixel_colour(const struct cterm_rip_raster *rip, uint32_t pixel)
 
 struct raster_edit {
 	struct cterm_rip_raster *rip;
-	void (*draw)(void *context);
-	void *context;
+	void                     (*draw)(void *context);
+	void                    *context;
 };
 
 static int
-edit_raster(void *context, const struct st_pixel_buffer *pixels,
-    struct st_console_rect *changed)
+edit_raster(void *context, const struct st_pixel_buffer *pixels, struct st_console_rect *changed)
 {
 	const struct raster_edit *edit = context;
-	struct cterm_rip_raster *rip = edit->rip;
+	struct cterm_rip_raster  *rip  = edit->rip;
 
 	rip->drawing_pixels = pixels;
 	rip->drawing_damage = changed;
@@ -155,19 +360,22 @@ draw_in_place(struct cterm_rip_raster *rip, void (*draw)(void *), void *context)
 }
 
 static void
-damage_pixels(struct cterm_rip_raster *rip, uint32_t x, uint32_t y,
-    uint32_t width, uint32_t height)
+damage_pixels(struct cterm_rip_raster *rip, uint32_t x, uint32_t y, uint32_t width, uint32_t height)
 {
 	struct st_console_rect *damage = rip->drawing_damage;
-	uint32_t right = x + width, bottom = y + height;
+	uint32_t                right = x + width, bottom = y + height;
 
 	if (damage->width != 0 && damage->height != 0) {
-		if (right < damage->x + damage->width) right = damage->x + damage->width;
-		if (bottom < damage->y + damage->height) bottom = damage->y + damage->height;
-		if (x > damage->x) x = damage->x;
-		if (y > damage->y) y = damage->y;
+		if (right < damage->x + damage->width)
+			right = damage->x + damage->width;
+		if (bottom < damage->y + damage->height)
+			bottom = damage->y + damage->height;
+		if (x > damage->x)
+			x = damage->x;
+		if (y > damage->y)
+			y = damage->y;
 	}
-	*damage = (struct st_console_rect){x, y, right - x, bottom - y};
+	*damage = (struct st_console_rect) {x, y, right - x, bottom - y};
 }
 
 static void
@@ -181,20 +389,21 @@ write_pixel(struct cterm_rip_raster *rip, uint32_t x, uint32_t y, uint32_t colou
 		return;
 	}
 	assert(rip->drawing_damage != NULL);
-	if (rip->error != 0) return;
+	if (rip->error != 0)
+		return;
 	if (x >= pixels->width || y >= pixels->height) {
 		rip->error = IO_ERROR_OUT_OF_RANGE;
 		return;
 	}
-	size_t at = (size_t)y * pixels->width + x;
+	size_t at           = (size_t)y * pixels->width + x;
 	pixels->primary[at] = pixels->alternate[at] = colour;
 	damage_pixels(rip, x, y, 1, 1);
 }
 
 struct primitive_draw {
 	struct cterm_rip_raster *rip;
-	void (*draw)(struct cterm_rip_raster *, int, int, int, int);
-	int x1, y1, x2, y2;
+	void                     (*draw)(struct cterm_rip_raster *, int, int, int, int);
+	int                      x1, y1, x2, y2;
 };
 
 static void
@@ -210,7 +419,7 @@ int
 cterm_rip_raster_init(struct cterm_rip_raster *rip, st_console_t *console)
 {
 	uint32_t width, height;
-	int status;
+	int      status;
 
 	if (rip == NULL || console == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -222,33 +431,32 @@ cterm_rip_raster_init(struct cterm_rip_raster *rip, st_console_t *console)
 	if (width < 640 || height < 350)
 		return IO_ERROR_NOT_SUPPORTED;
 	memset(rip, 0, sizeof(*rip));
-	rip->console = console;
+	rip->console       = console;
 	rip->text_codepage = ST_CODEPAGE_CP437;
-	rip->screen_width = width;
+	rip->screen_width  = width;
 	rip->screen_height = height;
-	rip->x_dim = 640;
-	rip->y_dim = 350;
-	rip->x_max = 640;
-	rip->y_max = 350;
-	rip->viewport.ex = 639;
-	rip->viewport.ey = 349;
-	rip->colour = 1;
-	rip->line_pattern = 0xffff;
-	rip->line_width = 1;
+	rip->x_dim         = 640;
+	rip->y_dim         = 350;
+	rip->x_max         = 640;
+	rip->y_max         = 350;
+	rip->viewport.ex   = 639;
+	rip->viewport.ey   = 349;
+	rip->colour        = 1;
+	rip->line_pattern  = 0xffff;
+	rip->line_width    = 1;
 	/* Legacy init leaves borders off; RIP_RESET_WINDOWS enables them. */
-	rip->borders = false;
-	rip->version = 1;
-	rip->font_size = 1;
+	rip->borders        = false;
+	rip->version        = 1;
+	rip->font_size      = 1;
 	rip->text_region.sx = -1;
 	rip->text_region.sy = -1;
 	rip->text_region.ex = -1;
 	rip->text_region.ey = -1;
-	rip->fill_colour = 7;
-	rip->fill_style = 1;
+	rip->fill_colour    = 7;
+	rip->fill_style     = 1;
 	memcpy(rip->fill_pattern, st_bgi_fill_patterns[1], 8);
 	memcpy(rip->palette, initial_colour_indexes, sizeof(rip->palette));
-	memcpy(rip->master_palette, st_bgi_ega_defaults,
-	    sizeof(rip->master_palette));
+	memcpy(rip->master_palette, st_bgi_ega_defaults, sizeof(rip->master_palette));
 	set_master_palette(rip);
 	return rip->error;
 }
@@ -262,8 +470,7 @@ cterm_rip_raster_destroy(struct cterm_rip_raster *rip)
 	rip->clipboard = NULL;
 	st_pixel_buffer_destroy(rip->saved_clipboard.pixels);
 	rip->saved_clipboard.pixels = NULL;
-	for (size_t i = 0; i < sizeof(rip->screen_saves)
-	    / sizeof(rip->screen_saves[0]); i++) {
+	for (size_t i = 0; i < sizeof(rip->screen_saves) / sizeof(rip->screen_saves[0]); i++) {
 		st_pixel_buffer_destroy(rip->screen_saves[i].pixels);
 		rip->screen_saves[i].pixels = NULL;
 	}
@@ -274,19 +481,20 @@ cterm_rip_raster_destroy(struct cterm_rip_raster *rip)
 int
 cterm_rip_raster_save_screen(struct cterm_rip_raster *rip, int slot)
 {
-	struct st_pixel_buffer *pixels = NULL;
+	struct st_pixel_buffer        *pixels = NULL;
 	struct cterm_rip_saved_screen *saved;
-	struct st_console_rect rect;
-	int status;
+	struct st_console_rect         rect;
+	int                            status;
 
 	if (rip == NULL || slot < 0 || slot >= 11)
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (rip->x_max <= 0 || rip->y_max <= 0)
 		return IO_ERROR_OUT_OF_RANGE;
-	rect = (struct st_console_rect){
-		.x = 0, .y = 0,
-		.width = (uint32_t)rip->x_max,
-		.height = (uint32_t)rip->y_max,
+	rect = (struct st_console_rect) {
+	    .x      = 0,
+	    .y      = 0,
+	    .width  = (uint32_t)rip->x_max,
+	    .height = (uint32_t)rip->y_max,
 	};
 	status = st_console_get_pixels(&pixels, rip->console, &rect, false);
 	if (status != 0)
@@ -294,34 +502,32 @@ cterm_rip_raster_save_screen(struct cterm_rip_raster *rip, int slot)
 	saved = &rip->screen_saves[slot];
 	st_pixel_buffer_destroy(saved->pixels);
 	saved->pixels = pixels;
-	saved->sx = rip->viewport.sx;
-	saved->sy = rip->viewport.sy;
-	saved->ex = rip->viewport.ex;
-	saved->ey = rip->viewport.ey;
+	saved->sx     = rip->viewport.sx;
+	saved->sy     = rip->viewport.sy;
+	saved->ex     = rip->viewport.ex;
+	saved->ey     = rip->viewport.ey;
 	return 0;
 }
 
 int
-cterm_rip_raster_restore_screen(struct cterm_rip_raster *rip,
-	int slot, bool clear_after)
+cterm_rip_raster_restore_screen(struct cterm_rip_raster *rip, int slot, bool clear_after)
 {
 	struct cterm_rip_saved_screen *saved;
-	struct st_pixel_blit blit;
-	int status;
+	struct st_pixel_blit           blit;
+	int                            status;
 
 	if (rip == NULL || slot < 0 || slot >= 11)
 		return IO_ERROR_INVALID_ARGUMENT;
 	saved = &rip->screen_saves[slot];
 	if (saved->pixels == NULL)
 		return 0;
-	blit = (struct st_pixel_blit){
-		.width = saved->pixels->width,
-		.height = saved->pixels->height,
-		.scale_x = 1,
-		.scale_y = 1,
+	blit = (struct st_pixel_blit) {
+	    .width   = saved->pixels->width,
+	    .height  = saved->pixels->height,
+	    .scale_x = 1,
+	    .scale_y = 1,
 	};
-	status = st_console_blit_pixels(rip->console, saved->pixels, NULL,
-	    &blit);
+	status = st_console_blit_pixels(rip->console, saved->pixels, NULL, &blit);
 	if (status != 0)
 		return status;
 	rip->viewport.sx = saved->sx;
@@ -339,7 +545,7 @@ int
 cterm_rip_raster_save_clipboard(struct cterm_rip_raster *rip)
 {
 	struct st_pixel_buffer *copy = NULL;
-	int status;
+	int                     status;
 
 	if (rip == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -350,8 +556,8 @@ cterm_rip_raster_save_clipboard(struct cterm_rip_raster *rip)
 	}
 	st_pixel_buffer_destroy(rip->saved_clipboard.pixels);
 	rip->saved_clipboard.pixels = copy;
-	rip->saved_clipboard.x = rip->clipx;
-	rip->saved_clipboard.y = rip->clipy;
+	rip->saved_clipboard.x      = rip->clipx;
+	rip->saved_clipboard.y      = rip->clipy;
 	return 0;
 }
 
@@ -359,20 +565,19 @@ int
 cterm_rip_raster_restore_clipboard(struct cterm_rip_raster *rip)
 {
 	struct st_pixel_buffer *copy = NULL;
-	int status;
+	int                     status;
 
 	if (rip == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (rip->saved_clipboard.pixels != NULL) {
-		status = st_pixel_buffer_clone(&copy,
-		    rip->saved_clipboard.pixels);
+		status = st_pixel_buffer_clone(&copy, rip->saved_clipboard.pixels);
 		if (status != 0)
 			return status;
 	}
 	st_pixel_buffer_destroy(rip->clipboard);
 	rip->clipboard = copy;
-	rip->clipx = rip->saved_clipboard.x;
-	rip->clipy = rip->saved_clipboard.y;
+	rip->clipx     = rip->saved_clipboard.x;
+	rip->clipy     = rip->saved_clipboard.y;
 	return 0;
 }
 
@@ -385,16 +590,15 @@ cterm_rip_raster_paste_clipboard(struct cterm_rip_raster *rip)
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (rip->clipboard == NULL)
 		return 0;
-	blit = (struct st_pixel_blit){
-		.width = rip->clipboard->width,
-		.height = rip->clipboard->height,
-		.destination_x = rip->clipx,
-		.destination_y = rip->clipy,
-		.scale_x = 1,
-		.scale_y = 1,
+	blit = (struct st_pixel_blit) {
+	    .width         = rip->clipboard->width,
+	    .height        = rip->clipboard->height,
+	    .destination_x = rip->clipx,
+	    .destination_y = rip->clipy,
+	    .scale_x       = 1,
+	    .scale_y       = 1,
 	};
-	return st_console_blit_pixels(rip->console, rip->clipboard, NULL,
-	    &blit);
+	return st_console_blit_pixels(rip->console, rip->clipboard, NULL, &blit);
 }
 
 static void
@@ -402,11 +606,12 @@ set_master_palette(struct cterm_rip_raster *rip)
 {
 	uint32_t colours[16];
 
-	if (rip->error != 0) return;
+	if (rip->error != 0)
+		return;
 	for (size_t i = 0; i < 16; i++) {
 		const uint16_t *rgb16 = st_bgi_ega_colors[rip->master_palette[i]];
-		colours[rip->palette[i] - 16] = ((uint32_t)(rgb16[0] >> 8) << 16)
-		    | ((uint32_t)(rgb16[1] >> 8) << 8) | (rgb16[2] >> 8);
+		colours[rip->palette[i] - 16] =
+		    ((uint32_t)(rgb16[0] >> 8) << 16) | ((uint32_t)(rgb16[1] >> 8) << 8) | (rgb16[2] >> 8);
 	}
 	rip->error = st_console_set_palette(rip->console, 16, colours, 16);
 }
@@ -415,12 +620,12 @@ static void
 refresh_screen_size(struct cterm_rip_raster *rip)
 {
 	uint32_t width, height;
-	int status = st_console_pixel_size(rip->console, &width, &height);
+	int      status = st_console_pixel_size(rip->console, &width, &height);
 
 	if (status != 0)
 		rip->error = status;
 	else {
-		rip->screen_width = width;
+		rip->screen_width  = width;
 		rip->screen_height = height;
 	}
 }
@@ -428,8 +633,7 @@ refresh_screen_size(struct cterm_rip_raster *rip)
 static bool
 no_viewport(const struct cterm_rip_raster *rip)
 {
-	return rip->viewport.sx == 0 && rip->viewport.sy == 0
-	    && rip->viewport.ex == 0 && rip->viewport.ey == 0;
+	return rip->viewport.sx == 0 && rip->viewport.sy == 0 && rip->viewport.ex == 0 && rip->viewport.ey == 0;
 }
 
 /* RIPterm rounds each virtual coordinate independently.  Cached in-range
@@ -438,7 +642,7 @@ static int
 map_axis(int value, int dimension, int maximum)
 {
 	int64_t numerator = (int64_t)value * maximum;
-	int result;
+	int     result;
 
 	if (numerator >= 0)
 		result = (int)((numerator + dimension / 2) / dimension);
@@ -505,21 +709,16 @@ set_pixel(struct cterm_rip_raster *rip, int x, int y, uint32_t colour)
 	int actual_y = rip->viewport.sy + y;
 	int mapped_x, mapped_y;
 
-	if (rip->error != 0 || x < 0 || y < 0
-	    || x > rip->viewport.ex - rip->viewport.sx
+	if (rip->error != 0 || x < 0 || y < 0 || x > rip->viewport.ex - rip->viewport.sx
 	    || y > rip->viewport.ey - rip->viewport.sy)
 		return;
 	mapped_x = map_x(rip, actual_x);
 	mapped_y = map_y(rip, actual_y);
-	if (mapped_x < 0 || mapped_y < 0
-	    || (uint32_t)mapped_x >= rip->screen_width
+	if (mapped_x < 0 || mapped_y < 0 || (uint32_t)mapped_x >= rip->screen_width
 	    || (uint32_t)mapped_y >= rip->screen_height)
 		return;
-	if (rip->poly_fill_marks != NULL && mapped_x < rip->x_max
-	    && mapped_y < rip->y_max)
-		rip->poly_fill_marks[(size_t)mapped_y * (size_t)rip->x_max
-		    + (size_t)mapped_x]
-		    |= 0x40;
+	if (rip->poly_fill_marks != NULL && mapped_x < rip->x_max && mapped_y < rip->y_max)
+		rip->poly_fill_marks[(size_t)mapped_y * (size_t)rip->x_max + (size_t)mapped_x] |= 0x40;
 	write_pixel(rip, (uint32_t)mapped_x, (uint32_t)mapped_y, colour);
 }
 
@@ -528,19 +727,18 @@ draw_pixel(struct cterm_rip_raster *rip, int x, int y)
 {
 	int colour = rip->colour;
 
-	if (rip->error != 0 || x < 0 || y < 0
-	    || x > rip->viewport.ex - rip->viewport.sx
+	if (rip->error != 0 || x < 0 || y < 0 || x > rip->viewport.ex - rip->viewport.sx
 	    || y > rip->viewport.ey - rip->viewport.sy)
 		return;
 	if (rip->xor_mode) {
 		/* The legacy XOR read is unscaled; rip_setpixel maps the write. */
 		const struct st_console_rect rect = {
-			.x = (uint32_t)(rip->viewport.sx + x),
-			.y = (uint32_t)(rip->viewport.sy + y),
-			.width = 1, .height = 1,
+		    .x      = (uint32_t)(rip->viewport.sx + x),
+		    .y      = (uint32_t)(rip->viewport.sy + y),
+		    .width  = 1,
+		    .height = 1,
 		};
-		if (rect.x >= rip->screen_width
-		    || rect.y >= rip->screen_height)
+		if (rect.x >= rip->screen_width || rect.y >= rip->screen_height)
 			return;
 
 		assert(rip->drawing_pixels != NULL);
@@ -548,21 +746,31 @@ draw_pixel(struct cterm_rip_raster *rip, int x, int y)
 			rip->error = IO_ERROR_OUT_OF_RANGE;
 			return;
 		}
-		colour ^= pixel_colour(rip, rip->drawing_pixels->primary[
-		    (size_t)rect.y * rip->drawing_pixels->width + rect.x]);
+		colour ^= pixel_colour(rip,
+		    rip->drawing_pixels->primary[(size_t)rect.y * rip->drawing_pixels->width + rect.x]);
 	}
 	set_pixel(rip, x, y, map_colour(rip, colour));
 }
 
-static void line_pixel(void *context, int x, int y) { draw_pixel(context,x,y); }
-struct solid_line_pixel { struct cterm_rip_raster *rip; uint32_t colour; };
-static void solid_line_pixel(void *context, int x, int y)
+static void
+line_pixel(void *context, int x, int y)
 {
-	struct solid_line_pixel *target=context; set_pixel(target->rip,x,y,target->colour);
+	draw_pixel(context, x, y);
 }
 
-static void draw_line_to(struct cterm_rip_raster *rip, int target_x,
-    int target_y, int *ppos);
+struct solid_line_pixel {
+	struct cterm_rip_raster *rip;
+	uint32_t                 colour;
+};
+
+static void
+solid_line_pixel(void *context, int x, int y)
+{
+	struct solid_line_pixel *target = context;
+	set_pixel(target->rip, x, y, target->colour);
+}
+
+static void draw_line_to(struct cterm_rip_raster *rip, int target_x, int target_y, int *ppos);
 
 static bool
 cs_clip_line(struct cterm_rip_raster *rip, int *x1p, int *y1p, int *x2p, int *y2p)
@@ -579,19 +787,29 @@ cs_clip_line(struct cterm_rip_raster *rip, int *x1p, int *y1p, int *x2p, int *y2
 
 	for (;;) {
 		int oc1 = 0, oc2 = 0;
-		if (x1 < sx) oc1 |= 1;
-		else if (x1 > ex) oc1 |= 2;
-		if (y1 < sy) oc1 |= 4;
-		else if (y1 > ey) oc1 |= 8;
-		if (x2 < sx) oc2 |= 1;
-		else if (x2 > ex) oc2 |= 2;
-		if (y2 < sy) oc2 |= 4;
-		else if (y2 > ey) oc2 |= 8;
+		if (x1 < sx)
+			oc1 |= 1;
+		else if (x1 > ex)
+			oc1 |= 2;
+		if (y1 < sy)
+			oc1 |= 4;
+		else if (y1 > ey)
+			oc1 |= 8;
+		if (x2 < sx)
+			oc2 |= 1;
+		else if (x2 > ex)
+			oc2 |= 2;
+		if (y2 < sy)
+			oc2 |= 4;
+		else if (y2 > ey)
+			oc2 |= 8;
 
 		if ((oc1 | oc2) == 0) {
 			// Both endpoints inside.
-			*x1p = x1; *y1p = y1;
-			*x2p = x2; *y2p = y2;
+			*x1p = x1;
+			*y1p = y1;
+			*x2p = x2;
+			*y2p = y2;
 			return true;
 		}
 		if (oc1 & oc2) {
@@ -604,9 +822,15 @@ cs_clip_line(struct cterm_rip_raster *rip, int *x1p, int *y1p, int *x2p, int *y2
 		bool swapped = false;
 		if (oc1 == 0) {
 			int t;
-			t = x1; x1 = x2; x2 = t;
-			t = y1; y1 = y2; y2 = t;
-			t = oc1; oc1 = oc2; oc2 = t;
+			t       = x1;
+			x1      = x2;
+			x2      = t;
+			t       = y1;
+			y1      = y2;
+			y2      = t;
+			t       = oc1;
+			oc1     = oc2;
+			oc2     = t;
 			swapped = true;
 		}
 
@@ -641,8 +865,12 @@ cs_clip_line(struct cterm_rip_raster *rip, int *x1p, int *y1p, int *x2p, int *y2
 
 		if (swapped) {
 			int t;
-			t = x1; x1 = x2; x2 = t;
-			t = y1; y1 = y2; y2 = t;
+			t  = x1;
+			x1 = x2;
+			x2 = t;
+			t  = y1;
+			y1 = y2;
+			y2 = t;
 		}
 	}
 }
@@ -650,7 +878,7 @@ cs_clip_line(struct cterm_rip_raster *rip, int *x1p, int *y1p, int *x2p, int *y2
 static void
 line_pixels(struct cterm_rip_raster *rip, int x1, int y1, int x2, int y2)
 {
-	int ppos = 0;
+	int ppos    = 0;
 	int saved_x = rip->x, saved_y = rip->y;
 
 	// For standalone lines, the first endpoint goes into the
@@ -675,12 +903,12 @@ draw_line_to(struct cterm_rip_raster *rip, int target_x, int target_y, int *ppos
 	// (lower y).  When y values are equal, no swap — drawing starts
 	// from x1,y1.  For lineto, that must be the target so that the
 	// pattern phase matches.
-	int  x1 = target_x, y1 = target_y;
-	int  x2 = rip->x, y2 = rip->y;
-	int  orig_x1 = x1, orig_y1 = y1;
-	int  orig_x2 = x2, orig_y2 = y2;
-	int  ldx = x2 - x1;
-	int  ldy = y2 - y1;
+	int x1 = target_x, y1 = target_y;
+	int x2 = rip->x, y2 = rip->y;
+	int orig_x1 = x1, orig_y1 = y1;
+	int orig_x2 = x2, orig_y2 = y2;
+	int ldx = x2 - x1;
+	int ldy = y2 - y1;
 
 	rip->x = target_x;
 	rip->y = target_y;
@@ -695,7 +923,7 @@ draw_line_to(struct cterm_rip_raster *rip, int target_x, int target_y, int *ppos
 	bool center_visible = cs_clip_line(rip, &x1, &y1, &x2, &y2);
 
 	if (center_visible)
-		st_bgi_thin_line(x1,y1,x2,y2,&rip->line_pattern,ppos,line_pixel,rip);
+		st_bgi_thin_line(x1, y1, x2, y2, &rip->line_pattern, ppos, line_pixel, rip);
 
 	if (rip->line_width == 3) {
 		rip->line_width = 1;
@@ -710,20 +938,24 @@ draw_line_to(struct cterm_rip_raster *rip, int target_x, int target_y, int *ppos
 		for (int side = -1; side <= 1; side += 2) {
 			int ox1, oy1, ox2, oy2;
 			if (orig_adx >= orig_ady) {
-				ox1 = orig_x1; oy1 = orig_y1 + side;
-				ox2 = orig_x2; oy2 = orig_y2 + side;
+				ox1 = orig_x1;
+				oy1 = orig_y1 + side;
+				ox2 = orig_x2;
+				oy2 = orig_y2 + side;
 			}
 			else {
-				ox1 = orig_x1 + side; oy1 = orig_y1;
-				ox2 = orig_x2 + side; oy2 = orig_y2;
+				ox1 = orig_x1 + side;
+				oy1 = orig_y1;
+				ox2 = orig_x2 + side;
+				oy2 = orig_y2;
 			}
 			int pp = 0;
 			rip->x = ox2;
 			rip->y = oy2;
 			draw_line_to(rip, ox1, oy1, &pp);
 		}
-		rip->x = save_x;
-		rip->y = save_y;
+		rip->x          = save_x;
+		rip->y          = save_y;
 		rip->line_width = 3;
 	}
 }
@@ -733,12 +965,13 @@ draw_line_to(struct cterm_rip_raster *rip, int target_x, int target_y, int *ppos
  * Companion to draw_line(rip, ) which uses rip->color/rip->line_pattern/rip->line_width.
  */
 static void
-set_line_pixels(struct cterm_rip_raster *rip, int x1, int y1, int x2, int y2, uint32_t color, uint16_t pat, int width)
+set_line_pixels(struct cterm_rip_raster *rip, int x1, int y1, int x2, int y2, uint32_t color, uint16_t pat,
+    int width)
 {
-	int  orig_x1 = x1, orig_y1 = y1;
-	int  orig_x2 = x2, orig_y2 = y2;
-	int  ldx = x2 - x1;
-	int  ldy = y2 - y1;
+	int orig_x1 = x1, orig_y1 = y1;
+	int orig_x2 = x2, orig_y2 = y2;
+	int ldx = x2 - x1;
+	int ldy = y2 - y1;
 
 	if (no_viewport(rip))
 		return;
@@ -749,9 +982,9 @@ set_line_pixels(struct cterm_rip_raster *rip, int x1, int y1, int x2, int y2, ui
 	bool center_visible = cs_clip_line(rip, &x1, &y1, &x2, &y2);
 
 	if (center_visible) {
-		int phase=0;
-		struct solid_line_pixel target={rip,color};
-		st_bgi_thin_line(x1,y1,x2,y2,&pat,&phase,solid_line_pixel,&target);
+		int                     phase  = 0;
+		struct solid_line_pixel target = {rip, color};
+		st_bgi_thin_line(x1, y1, x2, y2, &pat, &phase, solid_line_pixel, &target);
 	}
 
 	if (width == 3) {
@@ -765,22 +998,27 @@ set_line_pixels(struct cterm_rip_raster *rip, int x1, int y1, int x2, int y2, ui
 		for (int side = -1; side <= 1; side += 2) {
 			int ox1, oy1, ox2, oy2;
 			if (orig_adx >= orig_ady) {
-				ox1 = orig_x1; oy1 = orig_y1 + side;
-				ox2 = orig_x2; oy2 = orig_y2 + side;
+				ox1 = orig_x1;
+				oy1 = orig_y1 + side;
+				ox2 = orig_x2;
+				oy2 = orig_y2 + side;
 			}
 			else {
-				ox1 = orig_x1 + side; oy1 = orig_y1;
-				ox2 = orig_x2 + side; oy2 = orig_y2;
+				ox1 = orig_x1 + side;
+				oy1 = orig_y1;
+				ox2 = orig_x2 + side;
+				oy2 = orig_y2;
 			}
 			cterm_rip_raster_set_line(rip, ox1, oy1, ox2, oy2, color, pat, 1);
 		}
 	}
 }
+
 void
-cterm_rip_raster_line(struct cterm_rip_raster *rip, int x1, int y1,
-    int x2, int y2)
+cterm_rip_raster_line(struct cterm_rip_raster *rip, int x1, int y1, int x2, int y2)
 {
-	if (rip == NULL) return;
+	if (rip == NULL)
+		return;
 	if (rip->drawing_pixels == NULL) {
 		struct primitive_draw draw = {rip, cterm_rip_raster_line, x1, y1, x2, y2};
 		draw_in_place(rip, draw_primitive, &draw);
@@ -791,49 +1029,48 @@ cterm_rip_raster_line(struct cterm_rip_raster *rip, int x1, int y1,
 
 struct styled_line_draw {
 	struct cterm_rip_raster *rip;
-	int x1, y1, x2, y2;
-	uint32_t colour;
-	uint16_t pattern;
-	int width;
+	int                      x1, y1, x2, y2;
+	uint32_t                 colour;
+	uint16_t                 pattern;
+	int                      width;
 };
 
 static void
 draw_styled_line(void *context)
 {
 	const struct styled_line_draw *draw = context;
-	set_line_pixels(draw->rip, draw->x1, draw->y1, draw->x2, draw->y2,
-	    draw->colour, draw->pattern, draw->width);
+	set_line_pixels(draw->rip, draw->x1, draw->y1, draw->x2, draw->y2, draw->colour, draw->pattern,
+	    draw->width);
 }
 
 void
-cterm_rip_raster_set_line(struct cterm_rip_raster *rip, int x1, int y1,
-    int x2, int y2, uint32_t colour, uint16_t pattern, int width)
+cterm_rip_raster_set_line(struct cterm_rip_raster *rip, int x1, int y1, int x2, int y2, uint32_t colour,
+    uint16_t pattern, int width)
 {
-	if (rip == NULL) return;
+	if (rip == NULL)
+		return;
 	struct styled_line_draw draw = {rip, x1, y1, x2, y2, colour, pattern, width};
 	draw_in_place(rip, draw_styled_line, &draw);
 }
 
 void
-cterm_rip_raster_fill_style(struct cterm_rip_raster *rip, int pattern,
-    int colour)
+cterm_rip_raster_fill_style(struct cterm_rip_raster *rip, int pattern, int colour)
 {
-	if (rip == NULL || pattern < 0 || pattern >= 12
-	    || colour < 0 || colour > 255)
+	if (rip == NULL || pattern < 0 || pattern >= 12 || colour < 0 || colour > 255)
 		return;
 	rip->fill_colour = colour & 15;
-	rip->fill_style = pattern;
+	rip->fill_style  = pattern;
 	memcpy(rip->fill_pattern, st_bgi_fill_patterns[pattern], 8);
 }
 
 void
-cterm_rip_raster_bar(struct cterm_rip_raster *rip, int x1, int y1,
-    int x2, int y2)
+cterm_rip_raster_bar(struct cterm_rip_raster *rip, int x1, int y1, int x2, int y2)
 {
-	int left, top, right, bottom;
+	int  left, top, right, bottom;
 	bool scaled = rip != NULL && (rip->x_max != rip->x_dim || rip->y_max != rip->y_dim);
 
-	if (rip == NULL) return;
+	if (rip == NULL)
+		return;
 	if (rip->drawing_pixels == NULL) {
 		struct primitive_draw draw = {rip, cterm_rip_raster_bar, x1, y1, x2, y2};
 		draw_in_place(rip, draw_primitive, &draw);
@@ -841,36 +1078,38 @@ cterm_rip_raster_bar(struct cterm_rip_raster *rip, int x1, int y1,
 	}
 	if (x1 > x2) {
 		int temp = x1;
-		x1 = x2;
-		x2 = temp;
+		x1       = x2;
+		x2       = temp;
 	}
 	if (y1 > y2) {
 		int temp = y1;
-		y1 = y2;
-		y2 = temp;
+		y1       = y2;
+		y2       = temp;
 	}
-	left = x1 + rip->viewport.sx;
-	top = y1 + rip->viewport.sy;
-	right = x2 + rip->viewport.sx;
+	left   = x1 + rip->viewport.sx;
+	top    = y1 + rip->viewport.sy;
+	right  = x2 + rip->viewport.sx;
 	bottom = y2 + rip->viewport.sy;
-	if (left < 0) left = 0;
-	if (top < 0) top = 0;
-	if (right > rip->viewport.ex) right = rip->viewport.ex;
-	if (bottom > rip->viewport.ey) bottom = rip->viewport.ey;
+	if (left < 0)
+		left = 0;
+	if (top < 0)
+		top = 0;
+	if (right > rip->viewport.ex)
+		right = rip->viewport.ex;
+	if (bottom > rip->viewport.ey)
+		bottom = rip->viewport.ey;
 	if (left > right || top > bottom || rip->error != 0)
 		return;
 	for (int y = top; y <= bottom; y++) {
 		for (int x = left; x <= right; x++) {
 			int mapped_x = scaled ? map_x(rip, x) : x;
 			int mapped_y = scaled ? map_y(rip, y) : y;
-			if (mapped_x < 0 || mapped_y < 0
-			    || (uint32_t)mapped_x >= rip->screen_width
+			if (mapped_x < 0 || mapped_y < 0 || (uint32_t)mapped_x >= rip->screen_width
 			    || (uint32_t)mapped_y >= rip->screen_height)
 				continue;
-			int colour = (rip->fill_pattern[mapped_y & 7]
-			    & (0x80 >> (mapped_x & 7))) ? rip->fill_colour : 0;
-			write_pixel(rip, (uint32_t)mapped_x, (uint32_t)mapped_y,
-			    map_colour(rip, colour));
+			int colour =
+			    (rip->fill_pattern[mapped_y & 7] & (0x80 >> (mapped_x & 7))) ? rip->fill_colour : 0;
+			write_pixel(rip, (uint32_t)mapped_x, (uint32_t)mapped_y, map_colour(rip, colour));
 		}
 	}
 }
@@ -886,13 +1125,21 @@ copy_clamp(int coordinate, int dimension)
 static void
 copy_region(struct cterm_rip_raster *rip, const int fields[6])
 {
-	int left = fields[0], top = fields[1], right = fields[2], bottom = fields[3];
-	int destination = fields[5], width, height, original_dy;
-	const struct st_pixel_buffer *pixels = rip->drawing_pixels;
-	struct st_pixel_buffer *source = NULL;
+	int                           left = fields[0], top = fields[1], right = fields[2], bottom = fields[3];
+	int                           destination = fields[5], width, height, original_dy;
+	const struct st_pixel_buffer *pixels      = rip->drawing_pixels;
+	struct st_pixel_buffer       *source      = NULL;
 
-	if (left > right) { int swap = left; left = right; right = swap; }
-	if (top > bottom) { int swap = top; top = bottom; bottom = swap; }
+	if (left > right) {
+		int swap = left;
+		left     = right;
+		right    = swap;
+	}
+	if (top > bottom) {
+		int swap = top;
+		top      = bottom;
+		bottom   = swap;
+	}
 	original_dy = bottom - top;
 	if (rip->version == 1) {
 		if (original_dy == 0)
@@ -907,24 +1154,26 @@ copy_region(struct cterm_rip_raster *rip, const int fields[6])
 	}
 	if (rip->x_dim <= 0 || rip->y_dim <= 0 || rip->x_max <= 0 || rip->y_max <= 0)
 		return;
-	left = copy_clamp(left, rip->x_dim);
-	right = copy_clamp(right, rip->x_dim);
-	top = copy_clamp(top, rip->y_dim);
-	bottom = copy_clamp(bottom, rip->y_dim);
+	left        = copy_clamp(left, rip->x_dim);
+	right       = copy_clamp(right, rip->x_dim);
+	top         = copy_clamp(top, rip->y_dim);
+	bottom      = copy_clamp(bottom, rip->y_dim);
 	destination = copy_clamp(destination, rip->y_dim);
-	height = bottom - top + 1;
+	height      = bottom - top + 1;
 	if (rip->version == 1) {
 		/* The bottom check uses the Y difference saved BEFORE clamping.
 		 * The downward helper at 0c16:0293 re-sorts the adjusted X pair. */
 		if (destination + original_dy - 1 >= rip->y_dim)
 			return;
 		if (destination > top && left > right) {
-			int swap = left; left = right; right = swap;
+			int swap = left;
+			left     = right;
+			right    = swap;
 		}
 		if (left > right)
 			return;
 		width = (right - left + 1) / 8 * 8;
-		left = left / 8 * 8;
+		left  = left / 8 * 8;
 		/* RIPterm's loose check can reach non-display video memory.
 		 * Retain visible rows without addressing outside our raster. */
 		if (height > rip->y_dim - destination)
@@ -933,9 +1182,10 @@ copy_region(struct cterm_rip_raster *rip, const int fields[6])
 	else {
 		if (height > rip->y_dim - destination)
 			return;
-		left = left / 8 * 8;
+		left  = left / 8 * 8;
 		right = (right + 7) / 8 * 8;
-		if (right > rip->x_dim) right = rip->x_dim;
+		if (right > rip->x_dim)
+			right = rip->x_dim;
 		width = right - left;
 	}
 	if (width <= 0 || height <= 0 || destination == top)
@@ -943,18 +1193,17 @@ copy_region(struct cterm_rip_raster *rip, const int fields[6])
 	int sx = map_x(rip, left), ex = map_x(rip, left + width - 1);
 	int sy = map_y(rip, top), ey = map_y(rip, top + height - 1);
 	int dy = map_y(rip, destination), end_y = map_y(rip, destination + height - 1);
-	if (sx < 0 || sy < 0 || dy < 0 || ex < sx || ey < sy || end_y < dy
-	    || (uint32_t)ex >= pixels->width || (uint32_t)ey >= pixels->height
-	    || (uint32_t)end_y >= pixels->height)
+	if (sx < 0 || sy < 0 || dy < 0 || ex < sx || ey < sy || end_y < dy || (uint32_t)ex >= pixels->width
+	    || (uint32_t)ey >= pixels->height || (uint32_t)end_y >= pixels->height)
 		return;
-	rip->error = st_pixel_buffer_create(&source, (uint32_t)(ex - sx + 1),
-	    (uint32_t)(ey - sy + 1), pixels->alternate != NULL);
+	rip->error = st_pixel_buffer_create(&source, (uint32_t)(ex - sx + 1), (uint32_t)(ey - sy + 1),
+	    pixels->alternate != NULL);
 	if (rip->error != 0)
 		return;
 	size_t row_bytes = (size_t)source->width * sizeof(*source->primary);
 	for (uint32_t row = 0; row < source->height; ++row) {
 		size_t from = (size_t)((uint32_t)sy + row) * pixels->width + (uint32_t)sx;
-		size_t to = (size_t)row * source->width;
+		size_t to   = (size_t)row * source->width;
 		memcpy(source->primary + to, pixels->primary + from, row_bytes);
 		if (source->alternate != NULL)
 			memcpy(source->alternate + to, pixels->alternate + from, row_bytes);
@@ -964,7 +1213,7 @@ copy_region(struct cterm_rip_raster *rip, const int fields[6])
 	 * the last logical write to each physical destination row wins. */
 	for (int row = 0; row < height; ++row) {
 		size_t from = (size_t)(map_y(rip, top + row) - sy) * source->width;
-		size_t to = (size_t)map_y(rip, destination + row) * pixels->width + (uint32_t)sx;
+		size_t to   = (size_t)map_y(rip, destination + row) * pixels->width + (uint32_t)sx;
 		memcpy(pixels->primary + to, source->primary + from, row_bytes);
 		if (source->alternate != NULL)
 			memcpy(pixels->alternate + to, source->alternate + from, row_bytes);
@@ -974,101 +1223,96 @@ copy_region(struct cterm_rip_raster *rip, const int fields[6])
 }
 
 static void
-capture_image(struct cterm_rip_raster *rip, int x1, int y1,
-    int x2, int y2)
+capture_image(struct cterm_rip_raster *rip, int x1, int y1, int x2, int y2)
 {
 	struct st_pixel_buffer *captured = NULL;
-	struct st_console_rect rect;
-	int temp;
+	struct st_console_rect  rect;
+	int                     temp;
 
 	if (x1 > x2) {
 		temp = x1;
-		x1 = x2;
-		x2 = temp;
+		x1   = x2;
+		x2   = temp;
 	}
 	if (y1 > y2) {
 		temp = y1;
-		y1 = y2;
-		y2 = temp;
+		y1   = y2;
+		y2   = temp;
 	}
 	/* The BGI clipboard format has a 16-bit size limit. */
-	if ((((size_t)(x2 - x1 + 8) / 8) * 4
-	    * (size_t)(y2 - y1 + 1) + 6) > 65535) {
+	if ((((size_t)(x2 - x1 + 8) / 8) * 4 * (size_t)(y2 - y1 + 1) + 6) > 65535) {
 		rip->colour = 7;
 		cterm_rip_raster_fill_style(rip, 1, 8);
-		rip->line_width = 1;
-		rip->line_style = 0;
+		rip->line_width   = 1;
+		rip->line_style   = 0;
 		rip->line_pattern = 0xffff;
-		rip->xor_mode = false;
+		rip->xor_mode     = false;
 		return;
 	}
-	rect = (struct st_console_rect){
-		.x = (uint32_t)(x1 + rip->viewport.sx),
-		.y = (uint32_t)(y1 + rip->viewport.sy),
-		.width = (uint32_t)(x2 - x1 + 1),
-		.height = (uint32_t)(y2 - y1 + 1),
+	rect = (struct st_console_rect) {
+	    .x      = (uint32_t)(x1 + rip->viewport.sx),
+	    .y      = (uint32_t)(y1 + rip->viewport.sy),
+	    .width  = (uint32_t)(x2 - x1 + 1),
+	    .height = (uint32_t)(y2 - y1 + 1),
 	};
 	st_pixel_buffer_destroy(rip->clipboard);
 	rip->clipboard = NULL;
-	rip->clipx = x1 + rip->viewport.sx;
-	rip->clipy = y1 + rip->viewport.sy;
-	if (rect.x >= rip->screen_width || rect.y >= rip->screen_height
-	    || rect.width > rip->screen_width - rect.x
+	rip->clipx     = x1 + rip->viewport.sx;
+	rip->clipy     = y1 + rip->viewport.sy;
+	if (rect.x >= rip->screen_width || rect.y >= rip->screen_height || rect.width > rip->screen_width - rect.x
 	    || rect.height > rip->screen_height - rect.y)
 		return;
-	rip->error = st_console_get_pixels(&captured, rip->console,
-	    &rect, false);
+	rip->error = st_console_get_pixels(&captured, rip->console, &rect, false);
 	if (rip->error == 0)
 		rip->clipboard = captured;
 }
 
 static uint32_t
-combine_pixels(const struct cterm_rip_raster *rip, uint32_t source,
-    uint32_t destination, int mode)
+combine_pixels(const struct cterm_rip_raster *rip, uint32_t source, uint32_t destination, int mode)
 {
 	/* BGI's colour-bit permutation commutes with Boolean operations.
 	 * Keep native indexed pixels packed; RGB fallback retains the legacy
 	 * reverse lookup only for pixels which actually need it. */
 	if (source >= 16 && source < 32 && destination >= 16 && destination < 32) {
-		return 16u|st_bgi_combine_pixel((uint8_t)(source-16),
-		    (uint8_t)(destination-16),(uint8_t)mode);
+		return 16u
+		       | st_bgi_combine_pixel((uint8_t)(source - 16), (uint8_t)(destination - 16), (uint8_t)mode);
 	}
 	int image = pixel_colour(rip, source), combined;
 	if (mode == 4)
 		combined = image ^ 15;
 	else {
 		int screen = pixel_colour(rip, destination);
-		combined = mode == 1 ? screen ^ image : mode == 2 ? screen | image : screen & image;
+		combined   = mode == 1 ? screen ^ image : mode == 2 ? screen | image : screen & image;
 	}
 	return map_colour(rip, combined & 15);
 }
 
 struct paste_draw {
-	struct cterm_rip_raster *rip;
+	struct cterm_rip_raster      *rip;
 	const struct st_pixel_buffer *source;
-	struct st_console_rect area;
-	int mode;
+	struct st_console_rect        area;
+	int                           mode;
 };
 
 static void
 paste_pixels(void *context)
 {
-	const struct paste_draw *draw = context;
-	struct cterm_rip_raster *rip = draw->rip;
+	const struct paste_draw      *draw   = context;
+	struct cterm_rip_raster      *rip    = draw->rip;
 	const struct st_pixel_buffer *pixels = rip->drawing_pixels;
-	const struct st_console_rect *area = &draw->area;
+	const struct st_console_rect *area   = &draw->area;
 
-	if (area->x >= pixels->width || area->y >= pixels->height
-	    || area->width > pixels->width - area->x || area->height > pixels->height - area->y) {
+	if (area->x >= pixels->width || area->y >= pixels->height || area->width > pixels->width - area->x
+	    || area->height > pixels->height - area->y) {
 		rip->error = IO_ERROR_OUT_OF_RANGE;
 		return;
 	}
 	for (uint32_t y = 0; y < area->height; y++) {
 		for (uint32_t x = 0; x < area->width; x++) {
-			size_t from = (size_t)y * draw->source->width + x;
-			size_t to = (size_t)(y + area->y) * pixels->width + x + area->x;
-			uint32_t source = draw->source->primary[from];
-			pixels->primary[to] = combine_pixels(rip, source, pixels->primary[to], draw->mode);
+			size_t   from         = (size_t)y * draw->source->width + x;
+			size_t   to           = (size_t)(y + area->y) * pixels->width + x + area->x;
+			uint32_t source       = draw->source->primary[from];
+			pixels->primary[to]   = combine_pixels(rip, source, pixels->primary[to], draw->mode);
 			pixels->alternate[to] = combine_pixels(rip, source, pixels->alternate[to], draw->mode);
 		}
 	}
@@ -1076,45 +1320,45 @@ paste_pixels(void *context)
 }
 
 static void
-paste_buffer(struct cterm_rip_raster *rip,
-    struct st_pixel_buffer *source, int x, int y, int mode)
+paste_buffer(struct cterm_rip_raster *rip, struct st_pixel_buffer *source, int x, int y, int mode)
 {
 	struct st_pixel_blit blit;
-	uint32_t width, height;
-	int actual_x, actual_y;
+	uint32_t             width, height;
+	int                  actual_x, actual_y;
 
 	if (source == NULL || mode < 0 || mode > 4 || rip->error != 0)
 		return;
 	actual_x = x + rip->viewport.sx;
 	actual_y = y + rip->viewport.sy;
-	if (actual_x < 0 || actual_y < 0
-	    || actual_x + (int)source->width - 1 > rip->viewport.ex
+	if (actual_x < 0 || actual_y < 0 || actual_x + (int)source->width - 1 > rip->viewport.ex
 	    || actual_x >= rip->x_dim || actual_y >= rip->y_dim)
 		return;
-	width = source->width;
+	width  = source->width;
 	height = source->height;
 	if (width > (uint32_t)(rip->x_dim - actual_x))
 		width = (uint32_t)(rip->x_dim - actual_x);
 	if (height > (uint32_t)(rip->y_dim - actual_y))
 		height = (uint32_t)(rip->y_dim - actual_y);
 	/* The old bitmap backend ignores a blit extending off-screen. */
-	if ((uint32_t)actual_x >= rip->screen_width
-	    || (uint32_t)actual_y >= rip->screen_height
-	    || width > rip->screen_width - (uint32_t)actual_x
-	    || height > rip->screen_height - (uint32_t)actual_y)
+	if ((uint32_t)actual_x >= rip->screen_width || (uint32_t)actual_y >= rip->screen_height
+	    || width > rip->screen_width - (uint32_t)actual_x || height > rip->screen_height - (uint32_t)actual_y)
 		return;
-	blit = (struct st_pixel_blit){
-		.width = width, .height = height,
-		.destination_x = actual_x, .destination_y = actual_y,
-		.scale_x = 1, .scale_y = 1,
+	blit = (struct st_pixel_blit) {
+	    .width         = width,
+	    .height        = height,
+	    .destination_x = actual_x,
+	    .destination_y = actual_y,
+	    .scale_x       = 1,
+	    .scale_y       = 1,
 	};
 	if (mode == 0) {
-		rip->error = st_console_blit_pixels(rip->console, source,
-		    NULL, &blit);
+		rip->error = st_console_blit_pixels(rip->console, source, NULL, &blit);
 		return;
 	}
-	struct paste_draw draw = {rip, source,
-		{(uint32_t)actual_x, (uint32_t)actual_y, width, height}, mode};
+	struct paste_draw draw = {
+	    rip, source, {(uint32_t)actual_x, (uint32_t)actual_y, width, height},
+              mode
+        };
 	draw_in_place(rip, paste_pixels, &draw);
 }
 
@@ -1126,22 +1370,21 @@ paste_image(struct cterm_rip_raster *rip, int x, int y, int mode)
 
 struct invert_draw {
 	struct cterm_rip_raster *rip;
-	struct st_console_rect area;
+	struct st_console_rect   area;
 };
 
 static int
-invert_pixels(void *context, const struct st_pixel_buffer *pixels,
-    struct st_console_rect *changed)
+invert_pixels(void *context, const struct st_pixel_buffer *pixels, struct st_console_rect *changed)
 {
-	const struct invert_draw *draw = context;
+	const struct invert_draw     *draw = context;
 	const struct st_console_rect *area = &draw->area;
-	if (area->x >= pixels->width || area->y >= pixels->height
-	    || area->width > pixels->width - area->x || area->height > pixels->height - area->y)
+	if (area->x >= pixels->width || area->y >= pixels->height || area->width > pixels->width - area->x
+	    || area->height > pixels->height - area->y)
 		return IO_ERROR_OUT_OF_RANGE;
 
 	for (uint32_t y = area->y; y < area->y + area->height; y++) {
 		for (uint32_t x = area->x; x < area->x + area->width; x++) {
-			size_t at = (size_t)y * pixels->width + x;
+			size_t    at        = (size_t)y * pixels->width + x;
 			uint32_t *planes[2] = {&pixels->primary[at], &pixels->alternate[at]};
 			for (unsigned phase = 0; phase < 2; phase++) {
 				uint32_t colour = *planes[phase] & UINT32_C(0x80ffffff);
@@ -1163,14 +1406,14 @@ invert_pixels(void *context, const struct st_pixel_buffer *pixels,
 }
 
 int
-cterm_rip_raster_invert_rectangle(struct cterm_rip_raster *rip,
-    int x1, int y1, int x2, int y2)
+cterm_rip_raster_invert_rectangle(struct cterm_rip_raster *rip, int x1, int y1, int x2, int y2)
 {
-	if (rip == NULL || x1 < 0 || y1 < 0 || x2 < x1 || y2 < y1
-	    || (uint32_t)x2 >= rip->screen_width || (uint32_t)y2 >= rip->screen_height)
+	if (rip == NULL || x1 < 0 || y1 < 0 || x2 < x1 || y2 < y1 || (uint32_t)x2 >= rip->screen_width
+	    || (uint32_t)y2 >= rip->screen_height)
 		return IO_ERROR_INVALID_ARGUMENT;
-	struct invert_draw draw = {rip, {(uint32_t)x1, (uint32_t)y1,
-		(uint32_t)(x2 - x1 + 1), (uint32_t)(y2 - y1 + 1)}};
+	struct invert_draw draw = {
+	    rip, {(uint32_t)x1, (uint32_t)y1, (uint32_t)(x2 - x1 + 1), (uint32_t)(y2 - y1 + 1)}
+        };
 	return st_console_modify_pixels(rip->console, invert_pixels, &draw);
 }
 
@@ -1180,38 +1423,38 @@ icon_name_equal(const char *name, const char *builtin)
 	size_t index = 0;
 
 	while (name[index] != '\0' && builtin[index] != '\0') {
-		char left = name[index];
+		char left  = name[index];
 		char right = builtin[index];
 
-		if (left >= 'a' && left <= 'z') left -= 'a' - 'A';
-		if (right >= 'a' && right <= 'z') right -= 'a' - 'A';
+		if (left >= 'a' && left <= 'z')
+			left -= 'a' - 'A';
+		if (right >= 'a' && right <= 'z')
+			right -= 'a' - 'A';
 		if (left != right)
 			return false;
 		index++;
 	}
 	if (name[index] == '\0' && builtin[index] == '\0')
 		return true;
-	return name[index] == '\0' && strchr(name, '.') == NULL
-	    && strcmp(builtin + index, ".ICN") == 0;
+	return name[index] == '\0' && strchr(name, '.') == NULL && strcmp(builtin + index, ".ICN") == 0;
 }
 
-static int rip_text_width(struct cterm_rip_raster *rip, const char *text);
+static int  rip_text_width(struct cterm_rip_raster *rip, const char *text);
 static void draw_rip_text(struct cterm_rip_raster *rip, const char *text);
 
 static void
-draw_missing_icon(struct cterm_rip_raster *rip, int x, int y,
-    bool to_clipboard, const char *filename, int *out_width,
-    int *out_height)
+draw_missing_icon(struct cterm_rip_raster *rip, int x, int y, bool to_clipboard, const char *filename,
+    int *out_width, int *out_height)
 {
-	char label[280];
-	const char unavailable[] = "not available";
-	int saved_font = rip->font_number;
-	int saved_size = rip->font_size;
-	int saved_vertical = rip->font_vertical;
-	int saved_colour = rip->colour;
-	uint16_t saved_pattern = rip->line_pattern;
-	int label_width, unavailable_width, width;
-	int x2, y2;
+	char       label[280];
+	const char unavailable[]  = "not available";
+	int        saved_font     = rip->font_number;
+	int        saved_size     = rip->font_size;
+	int        saved_vertical = rip->font_vertical;
+	int        saved_colour   = rip->colour;
+	uint16_t   saved_pattern  = rip->line_pattern;
+	int        label_width, unavailable_width, width;
+	int        x2, y2;
 
 	if (strchr(filename, '.') == NULL)
 		(void)snprintf(label, sizeof(label), "Icon %s.ICN", filename);
@@ -1219,22 +1462,21 @@ draw_missing_icon(struct cterm_rip_raster *rip, int x, int y,
 		(void)snprintf(label, sizeof(label), "Icon %s", filename);
 	for (char *name = label + 5; *name != '\0'; name++)
 		*name = (char)ascii_to_upper((unsigned char)*name);
-	rip->font_number = 2;
-	rip->font_size = 4;
+	rip->font_number   = 2;
+	rip->font_size     = 4;
 	rip->font_vertical = 0;
-	rip->colour = 12;
-	label_width = rip_text_width(rip, label);
-	unavailable_width = rip_text_width(rip, unavailable);
-	width = label_width > unavailable_width
-	    ? label_width : unavailable_width;
-	x2 = x + width + 24;
-	y2 = y + 37;
+	rip->colour        = 12;
+	label_width        = rip_text_width(rip, label);
+	unavailable_width  = rip_text_width(rip, unavailable);
+	width              = label_width > unavailable_width ? label_width : unavailable_width;
+	x2                 = x + width + 24;
+	y2                 = y + 37;
 	if (out_width != NULL)
 		*out_width = x2 - x + 1;
 	if (out_height != NULL)
 		*out_height = y2 - y + 1;
 	rip->line_pattern = 0xcccc;
-	rip->line_width = 1;
+	rip->line_width   = 1;
 	cterm_rip_raster_set_line(rip, x, y, x2, y, map_colour(rip, 12), 0xcccc, 1);
 	cterm_rip_raster_set_line(rip, x2, y, x2, y2, map_colour(rip, 12), 0xcccc, 1);
 	cterm_rip_raster_set_line(rip, x2, y2, x, y2, map_colour(rip, 12), 0xcccc, 1);
@@ -1246,26 +1488,25 @@ draw_missing_icon(struct cterm_rip_raster *rip, int x, int y,
 	rip->y = y + 20;
 	draw_rip_text(rip, unavailable);
 	if (to_clipboard) {
-		int left = x + rip->viewport.sx;
-		int top = y + rip->viewport.sy;
-		int right = x2 + rip->viewport.sx;
+		int left   = x + rip->viewport.sx;
+		int top    = y + rip->viewport.sy;
+		int right  = x2 + rip->viewport.sx;
 		int bottom = y2 + rip->viewport.sy;
 
 		st_pixel_buffer_destroy(rip->clipboard);
 		rip->clipboard = NULL;
-		rip->clipx = left;
-		rip->clipy = top;
-		if (left >= 0 && top >= 0
-		    && (uint32_t)right < rip->screen_width
+		rip->clipx     = left;
+		rip->clipy     = top;
+		if (left >= 0 && top >= 0 && (uint32_t)right < rip->screen_width
 		    && (uint32_t)bottom < rip->screen_height) {
 			const struct st_console_rect rect = {
-				.x = (uint32_t)left, .y = (uint32_t)top,
-				.width = (uint32_t)(right - left + 1),
-				.height = (uint32_t)(bottom - top + 1),
+			    .x      = (uint32_t)left,
+			    .y      = (uint32_t)top,
+			    .width  = (uint32_t)(right - left + 1),
+			    .height = (uint32_t)(bottom - top + 1),
 			};
 			struct st_pixel_buffer *captured = NULL;
-			int status = st_console_get_pixels(&captured, rip->console,
-			    &rect, false);
+			int status = st_console_get_pixels(&captured, rip->console, &rect, false);
 
 			if (status == 0)
 				rip->clipboard = captured;
@@ -1273,34 +1514,33 @@ draw_missing_icon(struct cterm_rip_raster *rip, int x, int y,
 				rip->error = status;
 		}
 	}
-	rip->colour = saved_colour;
-	rip->font_number = saved_font;
-	rip->font_size = saved_size;
+	rip->colour        = saved_colour;
+	rip->font_number   = saved_font;
+	rip->font_size     = saved_size;
 	rip->font_vertical = saved_vertical;
-	rip->line_pattern = saved_pattern;
+	rip->line_pattern  = saved_pattern;
 }
 
 static struct st_pixel_buffer *
 load_file_icon(struct cterm_rip_raster *rip, const char *filename)
 {
 	struct st_pixel_buffer *pixels = NULL;
-	uint8_t header[4], *bytes = NULL, *colours = NULL;
-	uint32_t width, height;
-	size_t row_bytes, file_size;
-	FILE *stream = cterm_rip_asset_open_read(rip->rip_directory,
-	    filename, true);
+	uint8_t                 header[4], *bytes = NULL, *colours = NULL;
+	uint32_t                width, height;
+	size_t                  row_bytes, file_size;
+	FILE                   *stream = cterm_rip_asset_open_read(rip->rip_directory, filename, true);
 
 	if (stream == NULL)
 		return NULL;
 	if (fread(header, 1, sizeof(header), stream) != sizeof(header))
 		goto finished;
-	width = (uint32_t)header[0] + ((uint32_t)header[1] << 8) + 1U;
-	height = (uint32_t)header[2] + ((uint32_t)header[3] << 8) + 1U;
+	width     = (uint32_t)header[0] + ((uint32_t)header[1] << 8) + 1U;
+	height    = (uint32_t)header[2] + ((uint32_t)header[3] << 8) + 1U;
 	row_bytes = (width + 7U) / 8U;
 	if (height > (65535U - 6U) / (4U * row_bytes))
 		goto finished;
 	file_size = 4U + 4U * row_bytes * height;
-	bytes = malloc(file_size);
+	bytes     = malloc(file_size);
 	if (bytes == NULL) {
 		rip->error = IO_ERROR_OUT_OF_MEMORY;
 		goto finished;
@@ -1309,8 +1549,7 @@ load_file_icon(struct cterm_rip_raster *rip, const char *filename)
 	if (fread(bytes + 4, 1, file_size - 4, stream) != file_size - 4)
 		goto finished;
 	{
-		int status = cterm_rip_icon_decode(&colours, &width, &height,
-		    bytes, file_size);
+		int status = cterm_rip_icon_decode(&colours, &width, &height, bytes, file_size);
 
 		if (status == IO_ERROR_OUT_OF_MEMORY)
 			rip->error = status;
@@ -1334,10 +1573,10 @@ static void
 write_icon(struct cterm_rip_raster *rip, const char *filename)
 {
 	struct fs_info info;
-	uint8_t *colours = NULL, *bytes = NULL;
-	char *path = NULL;
-	size_t count, size;
-	int status;
+	uint8_t       *colours = NULL, *bytes = NULL;
+	char          *path = NULL;
+	size_t         count, size;
+	int            status;
 
 	if (rip->clipboard == NULL || rip->rip_directory == NULL)
 		return;
@@ -1353,20 +1592,17 @@ write_icon(struct cterm_rip_raster *rip, const char *filename)
 	if (status != 0 || info.kind != FS_ENTRY_DIRECTORY)
 		goto finished;
 	status = fs_get_link_info(&info, path);
-	if (status != IO_ERROR_NOT_FOUND
-	    && (status != 0 || info.kind != FS_ENTRY_FILE))
+	if (status != IO_ERROR_NOT_FOUND && (status != 0 || info.kind != FS_ENTRY_FILE))
 		goto finished;
-	count = (size_t)rip->clipboard->width * rip->clipboard->height;
+	count   = (size_t)rip->clipboard->width * rip->clipboard->height;
 	colours = malloc(count);
 	if (colours == NULL) {
 		rip->error = IO_ERROR_OUT_OF_MEMORY;
 		goto finished;
 	}
 	for (size_t i = 0; i < count; i++)
-		colours[i] = (uint8_t)pixel_colour(rip,
-		    rip->clipboard->primary[i]);
-	status = cterm_rip_icon_encode(&bytes, &size, colours,
-	    rip->clipboard->width, rip->clipboard->height);
+		colours[i] = (uint8_t)pixel_colour(rip, rip->clipboard->primary[i]);
+	status = cterm_rip_icon_encode(&bytes, &size, colours, rip->clipboard->width, rip->clipboard->height);
 	if (status == IO_ERROR_OUT_OF_MEMORY)
 		rip->error = status;
 	if (status == 0)
@@ -1378,21 +1614,18 @@ finished:
 }
 
 static bool
-load_icon(struct cterm_rip_raster *rip, int x, int y,
-    int mode, bool to_clipboard, const char *filename,
+load_icon(struct cterm_rip_raster *rip, int x, int y, int mode, bool to_clipboard, const char *filename,
     int *out_width, int *out_height)
 {
 	const struct builtin_icon *icon = NULL;
-	struct st_pixel_buffer *pixels;
+	struct st_pixel_buffer    *pixels;
 
 	if (out_width != NULL)
 		*out_width = 0;
 	if (out_height != NULL)
 		*out_height = 0;
-	if (mode < 0 || mode > 4 || filename[0] == '\0'
-	    || strstr(filename, "..") != NULL
-	    || strchr(filename, '/') != NULL
-	    || strchr(filename, '\\') != NULL)
+	if (mode < 0 || mode > 4 || filename[0] == '\0' || strstr(filename, "..") != NULL
+	    || strchr(filename, '/') != NULL || strchr(filename, '\\') != NULL)
 		return false;
 	pixels = load_file_icon(rip, filename);
 	if (rip->error != 0)
@@ -1406,28 +1639,24 @@ load_icon(struct cterm_rip_raster *rip, int x, int y,
 		}
 	}
 	if (icon == NULL) {
-		draw_missing_icon(rip, x, y, to_clipboard, filename,
-		    out_width, out_height);
+		draw_missing_icon(rip, x, y, to_clipboard, filename, out_width, out_height);
 		return false;
 	}
-	if (x + rip->viewport.sx + icon->width - 1
-	    > rip->viewport.ex || y + rip->viewport.sy + icon->height - 1
-	    > rip->viewport.ey)
+	if (x + rip->viewport.sx + icon->width - 1 > rip->viewport.ex
+	    || y + rip->viewport.sy + icon->height - 1 > rip->viewport.ey)
 		return false;
-	rip->error = st_pixel_buffer_create(&pixels,
-	    icon->width, icon->height, false);
+	rip->error = st_pixel_buffer_create(&pixels, icon->width, icon->height, false);
 	if (rip->error != 0)
 		return false;
 	for (size_t i = 0; i < (size_t)icon->width * icon->height; i++) {
-		uint8_t byte = icon->data[i / 2];
-		int colour = (i & 1) != 0 ? byte & 15 : byte >> 4;
+		uint8_t byte   = icon->data[i / 2];
+		int     colour = (i & 1) != 0 ? byte & 15 : byte >> 4;
 
 		pixels->primary[i] = map_colour(rip, colour);
 	}
 stamp:
-	if (x + rip->viewport.sx + (int)pixels->width - 1
-	    > rip->viewport.ex || y + rip->viewport.sy + (int)pixels->height - 1
-	    > rip->viewport.ey) {
+	if (x + rip->viewport.sx + (int)pixels->width - 1 > rip->viewport.ex
+	    || y + rip->viewport.sy + (int)pixels->height - 1 > rip->viewport.ey) {
 		st_pixel_buffer_destroy(pixels);
 		return false;
 	}
@@ -1439,8 +1668,8 @@ stamp:
 	if (to_clipboard) {
 		st_pixel_buffer_destroy(rip->clipboard);
 		rip->clipboard = pixels;
-		rip->clipx = x + rip->viewport.sx;
-		rip->clipy = y + rip->viewport.sy;
+		rip->clipx     = x + rip->viewport.sx;
+		rip->clipy     = y + rip->viewport.sy;
 	}
 	else
 		st_pixel_buffer_destroy(pixels);
@@ -1450,8 +1679,8 @@ stamp:
 static void
 erase_view_pixels(void *context)
 {
-	struct cterm_rip_raster *rip = context;
-	uint32_t colour = map_colour(rip, 0);
+	struct cterm_rip_raster *rip    = context;
+	uint32_t                 colour = map_colour(rip, 0);
 
 	for (int y = 0; y <= rip->viewport.ey - rip->viewport.sy; y++)
 		for (int x = 0; x <= rip->viewport.ex - rip->viewport.sx; x++)
@@ -1461,7 +1690,8 @@ erase_view_pixels(void *context)
 static void
 erase_view(struct cterm_rip_raster *rip)
 {
-	if (no_viewport(rip) || rip->error != 0) return;
+	if (no_viewport(rip) || rip->error != 0)
+		return;
 	draw_in_place(rip, erase_view_pixels, rip);
 }
 
@@ -1473,27 +1703,26 @@ cterm_rip_raster_reset_windows(struct cterm_rip_raster *rip)
 	refresh_screen_size(rip);
 	if (rip->error != 0)
 		return rip->error;
-	rip->x_dim = 640;
-	rip->y_dim = 350;
-	rip->x_max = rip->screen_width < 640 ? (int)rip->screen_width : 640;
-	rip->y_max = rip->screen_height < 350 ? (int)rip->screen_height : 350;
+	rip->x_dim       = 640;
+	rip->y_dim       = 350;
+	rip->x_max       = rip->screen_width < 640 ? (int)rip->screen_width : 640;
+	rip->y_max       = rip->screen_height < 350 ? (int)rip->screen_height : 350;
 	rip->viewport.sx = 0;
 	rip->viewport.sy = 0;
 	rip->viewport.ex = 639;
 	rip->viewport.ey = 349;
-	rip->borders = true;
-	memcpy(rip->master_palette, st_bgi_ega_defaults,
-	    sizeof(rip->master_palette));
+	rip->borders     = true;
+	memcpy(rip->master_palette, st_bgi_ega_defaults, sizeof(rip->master_palette));
 	set_master_palette(rip);
 	erase_view(rip);
 	return rip->error;
 }
 
 void
-cterm_rip_raster_rectangle(struct cterm_rip_raster *rip,
-    int x1, int y1, int x2, int y2)
+cterm_rip_raster_rectangle(struct cterm_rip_raster *rip, int x1, int y1, int x2, int y2)
 {
-	if (rip == NULL) return;
+	if (rip == NULL)
+		return;
 	if (rip->drawing_pixels == NULL) {
 		struct primitive_draw draw = {rip, cterm_rip_raster_rectangle, x1, y1, x2, y2};
 		draw_in_place(rip, draw_primitive, &draw);
@@ -1520,28 +1749,26 @@ poly_separator(struct rip_point point)
 
 /* Preserve BGI's degenerate-vertex and sub-polygon closing rules. */
 static size_t
-collect_vertices(const struct rip_point *raw, int count,
-    struct rip_point *vertices, bool close_poly)
+collect_vertices(const struct rip_point *raw, int count, struct rip_point *vertices, bool close_poly)
 {
-	size_t used = 0;
-	int vertex_count = 0;
-	int first = 0;
+	size_t used         = 0;
+	int    vertex_count = 0;
+	int    first        = 0;
 
 	for (int i = 0; i < count; i++) {
-		bool match = raw[i].x == raw[first].x
-		    && raw[i].y == raw[first].y;
+		bool match = raw[i].x == raw[first].x && raw[i].y == raw[first].y;
 
 		if (vertex_count == 0) {
 			vertices[used++] = raw[i];
-			vertex_count = 1;
-			first = i;
+			vertex_count     = 1;
+			first            = i;
 		}
 		else if (match && vertex_count == 1)
 			continue;
 		else if (match) {
 			vertices[used++] = raw[i];
-			vertices[used++] = (struct rip_point){RIP_POLY_SEPARATOR, 0};
-			vertex_count = 0;
+			vertices[used++] = (struct rip_point) {RIP_POLY_SEPARATOR, 0};
+			vertex_count     = 0;
 		}
 		else {
 			vertices[used++] = raw[i];
@@ -1550,20 +1777,17 @@ collect_vertices(const struct rip_point *raw, int count,
 	}
 	if (close_poly)
 		vertices[used++] = raw[0];
-	vertices[used++] = (struct rip_point){RIP_POLY_SEPARATOR, 0};
+	vertices[used++] = (struct rip_point) {RIP_POLY_SEPARATOR, 0};
 	return used;
 }
 
 static void
-draw_poly_outline(struct cterm_rip_raster *rip,
-    const struct rip_point *vertices, size_t count)
+draw_poly_outline(struct cterm_rip_raster *rip, const struct rip_point *vertices, size_t count)
 {
 	for (size_t i = 0; i + 1 < count && rip->error == 0; i++) {
-		if (poly_separator(vertices[i])
-		    || poly_separator(vertices[i + 1]))
+		if (poly_separator(vertices[i]) || poly_separator(vertices[i + 1]))
 			continue;
-		cterm_rip_raster_line(rip, vertices[i].x, vertices[i].y,
-		    vertices[i + 1].x, vertices[i + 1].y);
+		cterm_rip_raster_line(rip, vertices[i].x, vertices[i].y, vertices[i + 1].x, vertices[i + 1].y);
 	}
 }
 
@@ -1575,26 +1799,23 @@ fill_pixel(struct cterm_rip_raster *rip, int x, int y)
 	int mapped_x, mapped_y;
 	int colour;
 
-	if (x < 0 || y < 0 || actual_x < 0 || actual_y < 0
-	    || actual_x > rip->viewport.ex || actual_y > rip->viewport.ey)
+	if (x < 0 || y < 0 || actual_x < 0 || actual_y < 0 || actual_x > rip->viewport.ex
+	    || actual_y > rip->viewport.ey)
 		return;
 	mapped_x = map_x(rip, actual_x);
 	mapped_y = map_y(rip, actual_y);
-	if (mapped_x < 0 || mapped_y < 0
-	    || (uint32_t)mapped_x >= rip->drawing_pixels->width
+	if (mapped_x < 0 || mapped_y < 0 || (uint32_t)mapped_x >= rip->drawing_pixels->width
 	    || (uint32_t)mapped_y >= rip->drawing_pixels->height)
 		return;
-	colour = (rip->fill_pattern[mapped_y & 7]
-	    & (0x80 >> (mapped_x & 7))) ? rip->fill_colour : 0;
+	colour = (rip->fill_pattern[mapped_y & 7] & (0x80 >> (mapped_x & 7))) ? rip->fill_colour : 0;
 	write_pixel(rip, (uint32_t)mapped_x, (uint32_t)mapped_y, map_colour(rip, colour));
 }
 
 static void
-scanline_poly_fill(struct cterm_rip_raster *rip,
-    const struct rip_point *vertices, size_t count)
+scanline_poly_fill(struct cterm_rip_raster *rip, const struct rip_point *vertices, size_t count)
 {
-	int min_y = INT_MAX;
-	int max_y = INT_MIN;
+	int  min_y = INT_MAX;
+	int  max_y = INT_MIN;
 	int *intersections;
 
 	if (rip->fill_style == 0 || count < 2)
@@ -1602,8 +1823,10 @@ scanline_poly_fill(struct cterm_rip_raster *rip,
 	for (size_t i = 0; i < count; i++) {
 		if (poly_separator(vertices[i]))
 			continue;
-		if (vertices[i].y < min_y) min_y = vertices[i].y;
-		if (vertices[i].y > max_y) max_y = vertices[i].y;
+		if (vertices[i].y < min_y)
+			min_y = vertices[i].y;
+		if (vertices[i].y > max_y)
+			max_y = vertices[i].y;
 	}
 	if (min_y > max_y)
 		return;
@@ -1618,8 +1841,7 @@ scanline_poly_fill(struct cterm_rip_raster *rip,
 		for (size_t i = 0; i + 1 < count; i++) {
 			int x0, x1, y0, y1, ix, j;
 
-			if (poly_separator(vertices[i])
-			    || poly_separator(vertices[i + 1]))
+			if (poly_separator(vertices[i]) || poly_separator(vertices[i + 1]))
 				continue;
 			x0 = vertices[i].x;
 			y0 = vertices[i].y;
@@ -1627,16 +1849,16 @@ scanline_poly_fill(struct cterm_rip_raster *rip,
 			y1 = vertices[i + 1].y;
 			if (y1 < y0) {
 				int temp = y0;
-				y0 = y1;
-				y1 = temp;
-				temp = x0;
-				x0 = x1;
-				x1 = temp;
+				y0       = y1;
+				y1       = temp;
+				temp     = x0;
+				x0       = x1;
+				x1       = temp;
 			}
 			if (y0 == y1 || y < y0 || y >= y1)
 				continue;
 			ix = x0 + (long)(y - y0) * (x1 - x0) / (y1 - y0);
-			j = found;
+			j  = found;
 			while (j > 0 && intersections[j - 1] > ix) {
 				intersections[j] = intersections[j - 1];
 				j--;
@@ -1645,8 +1867,7 @@ scanline_poly_fill(struct cterm_rip_raster *rip,
 			found++;
 		}
 		for (int i = 0; i + 1 < found && rip->error == 0; i += 2) {
-			for (int x = intersections[i]; x <= intersections[i + 1]
-			    && rip->error == 0; x++)
+			for (int x = intersections[i]; x <= intersections[i + 1] && rip->error == 0; x++)
 				fill_pixel(rip, x, y);
 		}
 	}
@@ -1654,16 +1875,15 @@ scanline_poly_fill(struct cterm_rip_raster *rip,
 }
 
 static void
-draw_polygon(struct cterm_rip_raster *rip, const struct rip_point *points,
-    int count, bool fill)
+draw_polygon(struct cterm_rip_raster *rip, const struct rip_point *points, int count, bool fill)
 {
 	struct rip_point *raw;
 	struct rip_point *vertices;
-	size_t used;
+	size_t            used;
 
 	if (no_viewport(rip) || count < 2 || count > 512 || rip->error != 0)
 		return;
-	raw = malloc((size_t)(count + 1) * sizeof(*raw));
+	raw      = malloc((size_t)(count + 1) * sizeof(*raw));
 	vertices = malloc((size_t)(count * 2 + 6) * sizeof(*vertices));
 	if (raw == NULL || vertices == NULL) {
 		free(raw);
@@ -1673,7 +1893,7 @@ draw_polygon(struct cterm_rip_raster *rip, const struct rip_point *points,
 	}
 	memcpy(raw, points, (size_t)count * sizeof(*raw));
 	raw[count] = raw[0];
-	used = collect_vertices(raw, count + 1, vertices, fill);
+	used       = collect_vertices(raw, count + 1, vertices, fill);
 	if (fill) {
 		scanline_poly_fill(rip, vertices, used);
 		if (rip->colour != 0)
@@ -1710,8 +1930,8 @@ static int
 bgi_arc_limit(int a, int b, int angle_deg)
 {
 	int sx = st_bgi_trig_mul(bgi_cos32(angle_deg), (uint16_t)a);
-	int sy = cterm_rip_signed_word((uint16_t)(0u
-	    - (uint16_t)st_bgi_trig_mul(st_bgi_sin32(angle_deg), (uint16_t)b)));
+	int sy = cterm_rip_signed_word(
+	    (uint16_t)(0u - (uint16_t)st_bgi_trig_mul(st_bgi_sin32(angle_deg), (uint16_t)b)));
 
 	return bgi_metric(sx, sy);
 }
@@ -1726,15 +1946,15 @@ bgi_arc_in_range(int metric, int start_limit, int end_limit, bool inverse)
 
 struct arc_points {
 	struct rip_point *points;
-	size_t count;
-	size_t capacity;
+	size_t            count;
+	size_t            capacity;
 };
 
 static void
 arc_add(struct cterm_rip_raster *rip, struct arc_points *arc, int x, int y)
 {
 	struct rip_point *grown;
-	size_t capacity;
+	size_t            capacity;
 
 	if (arc == NULL || rip->error != 0)
 		return;
@@ -1749,27 +1969,26 @@ arc_add(struct cterm_rip_raster *rip, struct arc_points *arc, int x, int y)
 			rip->error = IO_ERROR_OUT_OF_MEMORY;
 			return;
 		}
-		arc->points = grown;
+		arc->points   = grown;
 		arc->capacity = capacity;
 	}
-	arc->points[arc->count++] = (struct rip_point){x, y};
+	arc->points[arc->count++] = (struct rip_point) {x, y};
 }
 
 static void
-ellipse_plot(struct cterm_rip_raster *rip, int xc, int yc, int x, int y,
-    int start_limit, int end_limit, bool fill, bool inverse,
-    uint32_t colour, int pass, struct arc_points *arc)
+ellipse_plot(struct cterm_rip_raster *rip, int xc, int yc, int x, int y, int start_limit, int end_limit, bool fill,
+    bool inverse, uint32_t colour, int pass, struct arc_points *arc)
 {
 	if (rip->error != 0)
 		return;
 	if (pass == 0) {
 		if (fill) {
 			int left = xc - x, right = xc + x;
-			if (left < 0) left = 0;
+			if (left < 0)
+				left = 0;
 			if (right > rip->viewport.ex - rip->viewport.sx)
 				right = rip->viewport.ex - rip->viewport.sx;
-			for (int fx = left; fx <= right && rip->error == 0;
-			    fx++) {
+			for (int fx = left; fx <= right && rip->error == 0; fx++) {
 				if (y == 0)
 					fill_pixel(rip, fx, yc);
 				else {
@@ -1803,55 +2022,54 @@ ellipse_plot(struct cterm_rip_raster *rip, int xc, int yc, int x, int y,
 }
 
 static void
-full_ellipse(struct cterm_rip_raster *rip, int xc, int yc,
-    int start_angle, int end_angle, int radius_x, int radius_y,
-    bool fill, uint32_t colour, struct arc_points *arc)
+full_ellipse(struct cterm_rip_raster *rip, int xc, int yc, int start_angle, int end_angle, int radius_x,
+    int radius_y, bool fill, uint32_t colour, struct arc_points *arc)
 {
 	/* BGI uses unsigned radius WORDs, including a decoded negative word.
 	 * Widen the products: long is only 32 bits on Windows. */
-	radius_x = (uint16_t)radius_x;
-	radius_y = (uint16_t)radius_y;
-	bool thick_sweep = rip->line_width == 3 && rip->borders && !fill;
-	int original_x = radius_x;
-	int original_y = radius_y;
-	int start_limit, end_limit, x, y;
-	bool inverse;
+	radius_x            = (uint16_t)radius_x;
+	radius_y            = (uint16_t)radius_y;
+	bool    thick_sweep = rip->line_width == 3 && rip->borders && !fill;
+	int     original_x  = radius_x;
+	int     original_y  = radius_y;
+	int     start_limit, end_limit, x, y;
+	bool    inverse;
 	int64_t bigger, square100, step, step_const, temp, error;
 	int64_t delta, increment, accumulated, threshold;
 
 	if (rip->error != 0 || no_viewport(rip))
 		return;
-	if (start_angle % 360 == end_angle % 360
-	    && !(start_angle == 0 && end_angle == 360) && !thick_sweep)
+	if (start_angle % 360 == end_angle % 360 && !(start_angle == 0 && end_angle == 360) && !thick_sweep)
 		return;
-	if (radius_x == 0) radius_x = 1;
-	if (radius_y == 0) radius_y = 1;
+	if (radius_x == 0)
+		radius_x = 1;
+	if (radius_y == 0)
+		radius_y = 1;
 	start_limit = bgi_arc_limit(radius_x, radius_y, start_angle);
-	end_limit = bgi_arc_limit(radius_x, radius_y, end_angle);
-	inverse = end_limit <= start_limit;
-	bigger = radius_x > radius_y ? radius_x : radius_y;
-	square100 = bigger * bigger * 100;
-	step = square100 / radius_x / radius_x;
-	step_const = square100 / radius_y / radius_y;
-	temp = step_const * radius_y;
+	end_limit   = bgi_arc_limit(radius_x, radius_y, end_angle);
+	inverse     = end_limit <= start_limit;
+	bigger      = radius_x > radius_y ? radius_x : radius_y;
+	square100   = bigger * bigger * 100;
+	step        = square100 / radius_x / radius_x;
+	step_const  = square100 / radius_y / radius_y;
+	temp        = step_const * radius_y;
 	for (int pass = 0; pass < 2 && rip->error == 0; pass++) {
 		if (pass == 0 && !fill)
 			continue;
 		if (pass == 1 && thick_sweep)
 			continue;
-		x = 0;
-		y = radius_y;
-		error = temp * radius_y - square100;
-		delta = 2 * temp;
-		increment = 0;
+		x           = 0;
+		y           = radius_y;
+		error       = temp * radius_y - square100;
+		delta       = 2 * temp;
+		increment   = 0;
 		accumulated = 0;
-		threshold = 0;
+		threshold   = 0;
 
 #define update_incr() (increment = accumulated + step, threshold = delta - step_const)
-#define do_inc_x() (x++, error += increment, accumulated = increment + step)
-#define do_dec_y() (y--, error -= threshold, delta = threshold - step_const)
-#define plot_4() ellipse_plot(rip, xc, yc, x, y, \
-	start_limit, end_limit, fill, inverse, colour, pass, arc)
+#define do_inc_x()    (x++, error += increment, accumulated = increment + step)
+#define do_dec_y()    (y--, error -= threshold, delta = threshold - step_const)
+#define plot_4()      ellipse_plot(rip, xc, yc, x, y, start_limit, end_limit, fill, inverse, colour, pass, arc)
 		plot_4();
 		update_incr();
 		if (2 * error + 2 * increment >= threshold)
@@ -1875,40 +2093,32 @@ full_ellipse(struct cterm_rip_raster *rip, int xc, int yc,
 #undef do_inc_x
 #undef do_dec_y
 #undef plot_4
-
 	}
 	if (rip->line_width == 3 && rip->borders && rip->error == 0) {
-		int sweep_end = end_angle;
+		int      sweep_end     = end_angle;
 		uint16_t saved_pattern = rip->line_pattern;
-		int previous_x, previous_y;
-		bool normal_drawn = false;
-		bool duplicate_drawn = false;
+		int      previous_x, previous_y;
+		bool     normal_drawn    = false;
+		bool     duplicate_drawn = false;
 
 		if (start_angle >= end_angle)
 			sweep_end = end_angle + 360;
 		rip->line_pattern = 0xffff;
-		previous_x = xc + st_bgi_trig_mul(bgi_cos32(start_angle),
-		    (uint16_t)original_x);
-		previous_y = yc - st_bgi_trig_mul(st_bgi_sin32(start_angle),
-		    (uint16_t)original_y);
-		for (int degree = start_angle + 1;
-		    degree <= sweep_end && rip->error == 0; degree++) {
-			int current_x = xc + st_bgi_trig_mul(bgi_cos32(degree),
-				(uint16_t)original_x);
-			int current_y = yc - st_bgi_trig_mul(st_bgi_sin32(degree),
-				(uint16_t)original_y);
+		previous_x        = xc + st_bgi_trig_mul(bgi_cos32(start_angle), (uint16_t)original_x);
+		previous_y        = yc - st_bgi_trig_mul(st_bgi_sin32(start_angle), (uint16_t)original_y);
+		for (int degree = start_angle + 1; degree <= sweep_end && rip->error == 0; degree++) {
+			int current_x = xc + st_bgi_trig_mul(bgi_cos32(degree), (uint16_t)original_x);
+			int current_y = yc - st_bgi_trig_mul(st_bgi_sin32(degree), (uint16_t)original_y);
 
 			if (current_x != previous_x || current_y != previous_y) {
-				cterm_rip_raster_line(rip, previous_x, previous_y,
-				    current_x, current_y);
-				previous_x = current_x;
-				previous_y = current_y;
-				normal_drawn = true;
+				cterm_rip_raster_line(rip, previous_x, previous_y, current_x, current_y);
+				previous_x      = current_x;
+				previous_y      = current_y;
+				normal_drawn    = true;
 				duplicate_drawn = false;
 			}
 			else if (normal_drawn && !duplicate_drawn) {
-				cterm_rip_raster_line(rip, current_x, current_y,
-				    current_x, current_y);
+				cterm_rip_raster_line(rip, current_x, current_y, current_x, current_y);
 				duplicate_drawn = true;
 			}
 		}
@@ -1919,68 +2129,54 @@ full_ellipse(struct cterm_rip_raster *rip, int xc, int yc,
 }
 
 static void
-draw_pie(struct cterm_rip_raster *rip, int xc, int yc,
-    int start_angle, int end_angle, int radius_x, int radius_y,
+draw_pie(struct cterm_rip_raster *rip, int xc, int yc, int start_angle, int end_angle, int radius_x, int radius_y,
     bool circular)
 {
-	struct arc_points arc = {0};
-	uint32_t colour = map_colour(rip, rip->colour);
+	struct arc_points arc    = {0};
+	uint32_t          colour = map_colour(rip, rip->colour);
 
-	if (no_viewport(rip)
-	    || (!circular && radius_x == 0 && radius_y == 0))
+	if (no_viewport(rip) || (!circular && radius_x == 0 && radius_y == 0))
 		return;
 	if (circular && start_angle > end_angle) {
-		int temp = start_angle;
+		int temp    = start_angle;
 		start_angle = end_angle;
-		end_angle = temp;
+		end_angle   = temp;
 	}
-	for (int sub_start = start_angle;
-	    sub_start < end_angle && rip->error == 0; ) {
+	for (int sub_start = start_angle; sub_start < end_angle && rip->error == 0;) {
 		int boundary = ((sub_start / 90) + 1) * 90;
-		int sub_end = boundary < end_angle ? boundary : end_angle;
+		int sub_end  = boundary < end_angle ? boundary : end_angle;
 
 		if (sub_end - sub_start >= 2) {
-			bool borders = rip->borders;
+			bool   borders = rip->borders;
 			size_t count;
 
-			arc.count = 0;
+			arc.count    = 0;
 			rip->borders = false;
-			full_ellipse(rip, xc, yc, sub_start, sub_end,
-			    radius_x, radius_y, false, colour, &arc);
+			full_ellipse(rip, xc, yc, sub_start, sub_end, radius_x, radius_y, false, colour, &arc);
 			rip->borders = borders;
-			count = arc.count;
+			count        = arc.count;
 			if (count != 0 && rip->error == 0) {
 				arc_add(rip, &arc, xc, yc);
-				arc_add(rip, &arc, arc.points[0].x,
-				    arc.points[0].y);
+				arc_add(rip, &arc, arc.points[0].x, arc.points[0].y);
 				if (rip->error == 0)
-					scanline_poly_fill(rip, arc.points,
-					    arc.count);
+					scanline_poly_fill(rip, arc.points, arc.count);
 				arc.count = count;
 				if (borders) {
-					for (size_t i = 1; i < count
-					    && rip->error == 0; i++)
-						cterm_rip_raster_line(rip,
-						    arc.points[i - 1].x,
-						    arc.points[i - 1].y,
-						    arc.points[i].x,
-						    arc.points[i].y);
+					for (size_t i = 1; i < count && rip->error == 0; i++)
+						cterm_rip_raster_line(rip, arc.points[i - 1].x,
+						    arc.points[i - 1].y, arc.points[i].x, arc.points[i].y);
 				}
 			}
 		}
 		sub_start = sub_end;
 	}
 	if (rip->borders && rip->error == 0) {
-		int ex = xc + st_bgi_trig_mul(bgi_cos32(start_angle),
-		    (uint16_t)radius_x);
-		int ey = yc - st_bgi_trig_mul(st_bgi_sin32(start_angle),
-		    (uint16_t)radius_y);
+		int ex = xc + st_bgi_trig_mul(bgi_cos32(start_angle), (uint16_t)radius_x);
+		int ey = yc - st_bgi_trig_mul(st_bgi_sin32(start_angle), (uint16_t)radius_y);
 
 		cterm_rip_raster_line(rip, xc, yc, ex, ey);
-		ex = xc + st_bgi_trig_mul(bgi_cos32(end_angle),
-		    (uint16_t)radius_x);
-		ey = yc - st_bgi_trig_mul(st_bgi_sin32(end_angle),
-		    (uint16_t)radius_y);
+		ex = xc + st_bgi_trig_mul(bgi_cos32(end_angle), (uint16_t)radius_x);
+		ey = yc - st_bgi_trig_mul(st_bgi_sin32(end_angle), (uint16_t)radius_y);
 		cterm_rip_raster_line(rip, xc, yc, ex, ey);
 	}
 	free(arc.points);
@@ -2002,7 +2198,7 @@ bezier_coordinate(const int *points, size_t axis, const double weights[4])
 
 	for (size_t i = 1; i < 4; ++i) {
 		double term = bgi_round_double(weights[i] * points[i * 2 + axis]);
-		result = bgi_round_double(result + term);
+		result      = bgi_round_double(result + term);
 	}
 	return (int)result;
 }
@@ -2010,23 +2206,23 @@ bezier_coordinate(const int *points, size_t axis, const double weights[4])
 static void
 draw_bezier(struct cterm_rip_raster *rip, const int *points, int segments)
 {
-	double step = bgi_round_double(1.0 / segments);
-	int pattern_position = 0;
+	double step             = bgi_round_double(1.0 / segments);
+	int    pattern_position = 0;
 
 	rip->x = points[0];
 	rip->y = points[1];
 	draw_line_to(rip, points[0], points[1], &pattern_position);
 	for (double t = step; t <= 1.0 && rip->error == 0; t = bgi_round_double(t + step)) {
-		double squared = bgi_round_double(t * t);
-		double cubed = bgi_round_double(t * squared);
-		double remainder = bgi_round_double(1.0 - t);
-		double remainder_squared = bgi_round_double(remainder * remainder);
-		double remainder_cubed = bgi_round_double(remainder_squared * remainder);
-		double second = bgi_round_double(bgi_round_double(3.0 * t) * remainder_squared);
-		double third = bgi_round_double(bgi_round_double(3.0 * squared) * remainder);
-		const double weights[4] = {remainder_cubed, second, third, cubed};
-		int x = bezier_coordinate(points, 0, weights);
-		int y = bezier_coordinate(points, 1, weights);
+		double       squared           = bgi_round_double(t * t);
+		double       cubed             = bgi_round_double(t * squared);
+		double       remainder         = bgi_round_double(1.0 - t);
+		double       remainder_squared = bgi_round_double(remainder * remainder);
+		double       remainder_cubed   = bgi_round_double(remainder_squared * remainder);
+		double       second            = bgi_round_double(bgi_round_double(3.0 * t) * remainder_squared);
+		double       third             = bgi_round_double(bgi_round_double(3.0 * squared) * remainder);
+		const double weights[4]        = {remainder_cubed, second, third, cubed};
+		int          x                 = bezier_coordinate(points, 0, weights);
+		int          y                 = bezier_coordinate(points, 1, weights);
 
 		pattern_position = 0;
 		draw_line_to(rip, x, y, &pattern_position);
@@ -2043,17 +2239,17 @@ struct flood_seed {
 
 struct flood_state {
 	struct cterm_rip_raster *rip;
-	struct st_pixel_buffer *pixels;
-	uint32_t stride;
-	uint32_t edge;
-	uint32_t foreground;
-	uint32_t background;
-	struct flood_seed seeds[492];
-	size_t seed_count;
-	bool found_adjacent;
-	int previous_y;
-	int previous_left;
-	int previous_right;
+	struct st_pixel_buffer  *pixels;
+	uint32_t                 stride;
+	uint32_t                 edge;
+	uint32_t                 foreground;
+	uint32_t                 background;
+	struct flood_seed        seeds[492];
+	size_t                   seed_count;
+	bool                     found_adjacent;
+	int                      previous_y;
+	int                      previous_left;
+	int                      previous_right;
 };
 
 static bool
@@ -2061,27 +2257,24 @@ flood_push(struct flood_state *state, int x, int y, int direction)
 {
 	if (state->seed_count == sizeof(state->seeds) / sizeof(state->seeds[0]))
 		return false;
-	state->seeds[state->seed_count++] = (struct flood_seed){x, y, direction};
+	state->seeds[state->seed_count++] = (struct flood_seed) {x, y, direction};
 	return direction != 0;
 }
 
 static bool
-flood_scan_adjacent(struct flood_state *state, int left_edge,
-    int right_edge, int y, int direction)
+flood_scan_adjacent(struct flood_state *state, int left_edge, int right_edge, int y, int direction)
 {
-	struct cterm_rip_raster *rip = state->rip;
-	struct st_pixel_buffer *pixels = state->pixels;
-	uint8_t pattern_row = rip->fill_pattern[(rip->viewport.sy + y) & 7];
-	bool in_span = false;
-	bool found_directional = false;
-	int scan_left = left_edge == 0 ? 1 : left_edge;
-	int scan_right = right_edge == (int)pixels->width - 1
-	    ? (int)pixels->width - 2 : right_edge;
-	int x = scan_left;
+	struct cterm_rip_raster *rip               = state->rip;
+	struct st_pixel_buffer  *pixels            = state->pixels;
+	uint8_t                  pattern_row       = rip->fill_pattern[(rip->viewport.sy + y) & 7];
+	bool                     in_span           = false;
+	bool                     found_directional = false;
+	int                      scan_left         = left_edge == 0 ? 1 : left_edge;
+	int scan_right = right_edge == (int)pixels->width - 1 ? (int)pixels->width - 2 : right_edge;
+	int x          = scan_left;
 
 	do {
-		uint32_t pixel = pixels->primary[(size_t)y * state->stride + x]
-		    & 0x80ffffff;
+		uint32_t pixel = pixels->primary[(size_t)y * state->stride + x] & 0x80ffffff;
 
 		if (pixel == state->edge) {
 			in_span = false;
@@ -2095,9 +2288,9 @@ flood_scan_adjacent(struct flood_state *state, int left_edge,
 				found_directional = true;
 			goto advance;
 		}
-		if (pixel == ((pattern_row & (0x80 >>
-		    ((rip->viewport.sx + x) & 7))) != 0
-		    ? state->foreground : state->background))
+		if (pixel
+		    == ((pattern_row & (0x80 >> ((rip->viewport.sx + x) & 7))) != 0 ? state->foreground
+		                                                                    : state->background))
 			goto advance;
 		in_span = true;
 		flood_push(state, x, y, 0);
@@ -2112,43 +2305,39 @@ advance:
 static void
 flood_process_seed(struct flood_state *state, struct flood_seed seed)
 {
-	struct cterm_rip_raster *rip = state->rip;
-	struct st_pixel_buffer *pixels = state->pixels;
-	int left_edge, right_edge;
-	int x, pattern_x, pattern_y;
-	bool push_up = true, push_down = true;
+	struct cterm_rip_raster *rip    = state->rip;
+	struct st_pixel_buffer  *pixels = state->pixels;
+	int                      left_edge, right_edge;
+	int                      x, pattern_x, pattern_y;
+	bool                     push_up = true, push_down = true;
 
-	if (seed.x < 0 || seed.y < 0 || seed.x >= (int)pixels->width
-	    || seed.y >= (int)pixels->height)
+	if (seed.x < 0 || seed.y < 0 || seed.x >= (int)pixels->width || seed.y >= (int)pixels->height)
 		return;
-	if ((pixels->primary[(size_t)seed.y * state->stride + seed.x]
-	    & 0x80ffffff) == state->edge)
+	if ((pixels->primary[(size_t)seed.y * state->stride + seed.x] & 0x80ffffff) == state->edge)
 		return;
 	pattern_y = (rip->viewport.sy + seed.y) & 7;
-	x = seed.x;
+	x         = seed.x;
 	pattern_x = (rip->viewport.sx + x) & 7;
 	while (x < (int)pixels->width) {
-		uint32_t *pixel = &pixels->primary[(size_t)seed.y
-		    * state->stride + x];
+		uint32_t *pixel = &pixels->primary[(size_t)seed.y * state->stride + x];
 
 		if ((*pixel & 0x80ffffff) == state->edge)
 			break;
-		*pixel = rip->fill_pattern[pattern_y] & (0x80 >> pattern_x)
-		    ? state->foreground : state->background;
+		*pixel =
+		    rip->fill_pattern[pattern_y] & (0x80 >> pattern_x) ? state->foreground : state->background;
 		x++;
 		pattern_x = (pattern_x + 1) & 7;
 	}
 	right_edge = x - 1;
-	x = seed.x - 1;
-	pattern_x = (rip->viewport.sx + x) & 7;
+	x          = seed.x - 1;
+	pattern_x  = (rip->viewport.sx + x) & 7;
 	while (x >= 0) {
-		uint32_t *pixel = &pixels->primary[(size_t)seed.y
-		    * state->stride + x];
+		uint32_t *pixel = &pixels->primary[(size_t)seed.y * state->stride + x];
 
 		if ((*pixel & 0x80ffffff) == state->edge)
 			break;
-		*pixel = rip->fill_pattern[pattern_y] & (0x80 >> pattern_x)
-		    ? state->foreground : state->background;
+		*pixel =
+		    rip->fill_pattern[pattern_y] & (0x80 >> pattern_x) ? state->foreground : state->background;
 		x--;
 		pattern_x = (pattern_x - 1) & 7;
 	}
@@ -2159,45 +2348,38 @@ flood_process_seed(struct flood_state *state, struct flood_seed seed)
 		else
 			push_down = false;
 	}
-	else if (!state->found_adjacent
-	    && left_edge >= state->previous_left
-	    && right_edge <= state->previous_right) {
+	else if (!state->found_adjacent && left_edge >= state->previous_left
+	         && right_edge <= state->previous_right) {
 		if (state->previous_y + 1 == seed.y)
 			push_up = false;
 		else if (state->previous_y - 1 == seed.y)
 			push_down = false;
 	}
-	if (push_up && seed.y > 0
-	    && flood_scan_adjacent(state, left_edge, right_edge,
-	        seed.y - 1, -1))
+	if (push_up && seed.y > 0 && flood_scan_adjacent(state, left_edge, right_edge, seed.y - 1, -1))
 		state->found_adjacent = true;
 	if (push_down && seed.y < (int)pixels->height - 1
-	    && flood_scan_adjacent(state, left_edge, right_edge,
-	        seed.y + 1, 1))
+	    && flood_scan_adjacent(state, left_edge, right_edge, seed.y + 1, 1))
 		state->found_adjacent = true;
-	state->previous_y = seed.y;
-	state->previous_left = left_edge;
+	state->previous_y     = seed.y;
+	state->previous_left  = left_edge;
 	state->previous_right = right_edge;
 }
 
 static void
 flood_fill(struct cterm_rip_raster *rip, int x, int y, int border)
 {
-	struct flood_state *state;
+	struct flood_state    *state;
 	struct st_pixel_buffer pixels;
-	int bottom;
+	int                    bottom;
 
-	if (rip->error != 0 || no_viewport(rip)
-	    || x > rip->viewport.ex - rip->viewport.sx
-	    || y > rip->viewport.ey - rip->viewport.sy
-	    || border > 255)
+	if (rip->error != 0 || no_viewport(rip) || x > rip->viewport.ex - rip->viewport.sx
+	    || y > rip->viewport.ey - rip->viewport.sy || border > 255)
 		return;
 	bottom = rip->viewport.ey;
 
 	if ((uint32_t)bottom >= rip->screen_height)
 		bottom = (int)rip->screen_height - 1;
-	if (rip->viewport.sx < 0 || rip->viewport.sy < 0
-	    || (uint32_t)rip->viewport.ex >= rip->screen_width
+	if (rip->viewport.sx < 0 || rip->viewport.sy < 0 || (uint32_t)rip->viewport.ex >= rip->screen_width
 	    || bottom < rip->viewport.sy)
 		return;
 	const struct st_pixel_buffer *raster = rip->drawing_pixels;
@@ -2206,26 +2388,26 @@ flood_fill(struct cterm_rip_raster *rip, int x, int y, int border)
 		return;
 	}
 	size_t offset = (size_t)rip->viewport.sy * raster->width + (unsigned)rip->viewport.sx;
-	pixels = (struct st_pixel_buffer){
-		.primary = raster->primary + offset,
-		.alternate = raster->alternate + offset,
-		.width = (uint32_t)(rip->viewport.ex - rip->viewport.sx + 1),
-		.height = (uint32_t)(bottom - rip->viewport.sy + 1),
+	pixels        = (struct st_pixel_buffer) {
+	    .primary   = raster->primary + offset,
+	    .alternate = raster->alternate + offset,
+	    .width     = (uint32_t)(rip->viewport.ex - rip->viewport.sx + 1),
+	    .height    = (uint32_t)(bottom - rip->viewport.sy + 1),
 	};
 	state = calloc(1, sizeof(*state));
 	if (state == NULL) {
 		rip->error = IO_ERROR_OUT_OF_MEMORY;
 		return;
 	}
-	state->rip = rip;
-	state->pixels = &pixels;
-	state->stride = raster->width;
-	state->edge = map_colour(rip, border);
-	state->foreground = map_colour(rip, rip->fill_colour);
-	state->background = map_colour(rip, 0);
-	state->previous_y = y;
+	state->rip            = rip;
+	state->pixels         = &pixels;
+	state->stride         = raster->width;
+	state->edge           = map_colour(rip, border);
+	state->foreground     = map_colour(rip, rip->fill_colour);
+	state->background     = map_colour(rip, 0);
+	state->previous_y     = y;
 	state->previous_right = (int)pixels.width - 1;
-	flood_process_seed(state, (struct flood_seed){x, y, 0});
+	flood_process_seed(state, (struct flood_seed) {x, y, 0});
 	while (state->seed_count != 0) {
 		struct flood_seed next = state->seeds[--state->seed_count];
 
@@ -2236,42 +2418,44 @@ flood_fill(struct cterm_rip_raster *rip, int x, int y, int border)
 	 * Synchronize the live planes without a captured framebuffer round trip. */
 	for (uint32_t row = 0; row < pixels.height; row++)
 		memcpy(pixels.alternate + (size_t)row * state->stride,
-		    pixels.primary + (size_t)row * state->stride,
-		    (size_t)pixels.width * sizeof(*pixels.primary));
-	damage_pixels(rip, (uint32_t)rip->viewport.sx, (uint32_t)rip->viewport.sy,
-	    pixels.width, pixels.height);
+		    pixels.primary + (size_t)row * state->stride, (size_t)pixels.width * sizeof(*pixels.primary));
+	damage_pixels(rip, (uint32_t)rip->viewport.sx, (uint32_t)rip->viewport.sy, pixels.width, pixels.height);
 	free(state);
 }
 
 static int
 stroke_char_width(struct cterm_rip_raster *rip, unsigned char ch)
 {
-	size_t size;
+	size_t         size;
 	const uint8_t *font = cterm_rip_font_data(rip->font_number, &size);
-	int first, count;
+	int            first, count;
 
 	if (font == NULL || size < 0x90)
 		return 0;
 	first = font[0x84];
 	count = font[0x81] | (font[0x82] << 8);
-	if (ch < first || ch - first >= count
-	    || (size_t)(0x90 + 2 * count + ch - first) >= size)
+	if (ch < first || ch - first >= count || (size_t)(0x90 + 2 * count + ch - first) >= size)
 		return 0;
 	return font[0x90 + 2 * count + ch - first];
 }
 
 static void draw_rip_char(struct cterm_rip_raster *rip, unsigned char ch);
 
-struct rip_bitmap_row { struct cterm_rip_raster *rip; int row,magnitude; };
+struct rip_bitmap_row {
+	struct cterm_rip_raster *rip;
+	int                      row, magnitude;
+};
+
 static int
 rip_bitmap_pixel(void *context, unsigned column, unsigned row)
 {
-	const struct rip_bitmap_row *draw=context;
-	struct cterm_rip_raster *rip=draw->rip;
+	const struct rip_bitmap_row *draw = context;
+	struct cterm_rip_raster     *rip  = draw->rip;
 	if (rip->font_vertical)
-		set_pixel(rip,rip->x+draw->row+(int)row-8*draw->magnitude,
-		    rip->y-(int)column-1,map_colour(rip,rip->colour));
-	else set_pixel(rip,rip->x+(int)column,rip->y+draw->row+(int)row,map_colour(rip,rip->colour));
+		set_pixel(rip, rip->x + draw->row + (int)row - 8 * draw->magnitude, rip->y - (int)column - 1,
+		    map_colour(rip, rip->colour));
+	else
+		set_pixel(rip, rip->x + (int)column, rip->y + draw->row + (int)row, map_colour(rip, rip->colour));
 	/* set_pixel's existing sticky error suppresses later writes. Keep
 	 * this adapter's returning loop/advance behavior unchanged. */
 	return 0;
@@ -2279,7 +2463,7 @@ rip_bitmap_pixel(void *context, unsigned column, unsigned row)
 
 struct character_draw {
 	struct cterm_rip_raster *rip;
-	unsigned char character;
+	unsigned char            character;
 };
 
 static void
@@ -2292,11 +2476,12 @@ draw_character(void *context)
 static void
 draw_rip_char(struct cterm_rip_raster *rip, unsigned char ch)
 {
-	size_t size;
+	size_t         size;
 	const uint8_t *font;
-	int y, start_x, start_y;
+	int            y, start_x, start_y;
 
-	if (rip->error != 0 || no_viewport(rip)) return;
+	if (rip->error != 0 || no_viewport(rip))
+		return;
 	if (rip->drawing_pixels == NULL) {
 		struct character_draw draw = {rip, ch};
 		draw_in_place(rip, draw_character, &draw);
@@ -2310,11 +2495,10 @@ draw_rip_char(struct cterm_rip_raster *rip, unsigned char ch)
 
 		if (!rip->font_vertical) {
 			int extent = 8 * magnitude - 2;
-			int width = rip->viewport.ex - rip->viewport.sx;
+			int width  = rip->viewport.ex - rip->viewport.sx;
 			int height = rip->viewport.ey - rip->viewport.sy;
 
-			if (rip->x < 0 || rip->x >= width - extent
-			    || rip->y < 0 || rip->y >= height - extent) {
+			if (rip->x < 0 || rip->x >= width - extent || rip->y < 0 || rip->y >= height - extent) {
 				rip->x += 8 * magnitude;
 				return;
 			}
@@ -2322,10 +2506,14 @@ draw_rip_char(struct cterm_rip_raster *rip, unsigned char ch)
 		for (y = 0; y < 8; y++) {
 			uint8_t bits = font[(size_t)ch * 8 + y];
 
-			if (magnitude>0) {
-				struct rip_bitmap_row draw={rip,y*magnitude,magnitude};
-				int status=st_bgi_bitmap_expand_row(bits,(unsigned)magnitude,(unsigned)magnitude,rip_bitmap_pixel,&draw);
-				if (status!=0) { rip->error=status; return; }
+			if (magnitude > 0) {
+				struct rip_bitmap_row draw   = {rip, y * magnitude, magnitude};
+				int                   status = st_bgi_bitmap_expand_row(bits, (unsigned)magnitude,
+				    (unsigned)magnitude, rip_bitmap_pixel, &draw);
+				if (status != 0) {
+					rip->error = status;
+					return;
+				}
 			}
 		}
 		if (rip->font_vertical)
@@ -2338,36 +2526,30 @@ draw_rip_char(struct cterm_rip_raster *rip, unsigned char ch)
 		return;
 	int first = font[0x84];
 	int count = font[0x81] | (font[0x82] << 8);
-	if (ch < first || ch - first >= count
-	    || (size_t)(0x90 + 2 * (ch - first) + 1) >= size)
+	if (ch < first || ch - first >= count || (size_t)(0x90 + 2 * (ch - first) + 1) >= size)
 		return;
-	int glyph_offset = 0x80 + font[0x85] + (font[0x86] << 8)
-	    + font[0x90 + 2 * (ch - first)]
-	    + (font[0x91 + 2 * (ch - first)] << 8);
-	int magnitude = rip->font_size;
-	int mult = st_bgi_stroke_mults[magnitude];
-	int div = st_bgi_stroke_divs[magnitude];
-	int height = ((int)(int8_t)font[0x88] - (int)(int8_t)font[0x8a])
-	    * mult / div;
-	int saved_width = rip->line_width;
+	int      glyph_offset  = 0x80 + font[0x85] + (font[0x86] << 8) + font[0x90 + 2 * (ch - first)]
+	                         + (font[0x91 + 2 * (ch - first)] << 8);
+	int      magnitude     = rip->font_size;
+	int      mult          = st_bgi_stroke_mults[magnitude];
+	int      div           = st_bgi_stroke_divs[magnitude];
+	int      height        = ((int)(int8_t)font[0x88] - (int)(int8_t)font[0x8a]) * mult / div;
+	int      saved_width   = rip->line_width;
 	uint16_t saved_pattern = rip->line_pattern;
 
-	start_x = rip->x;
-	start_y = rip->y;
-	rip->line_width = 1;
+	start_x           = rip->x;
+	start_y           = rip->y;
+	rip->line_width   = 1;
 	rip->line_pattern = 0xffff;
-	while (glyph_offset >= 0 && (size_t)glyph_offset + 1 < size
-	    && rip->error == 0) {
-		uint8_t raw_x = font[glyph_offset++];
-		uint8_t raw_y = font[glyph_offset++];
-		struct st_bgi_chr_record record=st_bgi_chr_decode(raw_x,raw_y);
-		int opcode=record.opcode;
-		int scaled_x=record.x*mult/div;
-		int scaled_y=record.y*mult/div;
-		int target_x = start_x + (rip->font_vertical
-		    ? height - scaled_y : scaled_x);
-		int target_y = start_y + (rip->font_vertical
-		    ? -scaled_x : height - scaled_y);
+	while (glyph_offset >= 0 && (size_t)glyph_offset + 1 < size && rip->error == 0) {
+		uint8_t                  raw_x    = font[glyph_offset++];
+		uint8_t                  raw_y    = font[glyph_offset++];
+		struct st_bgi_chr_record record   = st_bgi_chr_decode(raw_x, raw_y);
+		int                      opcode   = record.opcode;
+		int                      scaled_x = record.x * mult / div;
+		int                      scaled_y = record.y * mult / div;
+		int                      target_x = start_x + (rip->font_vertical ? height - scaled_y : scaled_x);
+		int                      target_y = start_y + (rip->font_vertical ? -scaled_x : height - scaled_y);
 
 		if (opcode == 0)
 			break;
@@ -2382,16 +2564,15 @@ draw_rip_char(struct cterm_rip_raster *rip, unsigned char ch)
 		rip->x = start_x + height;
 	else
 		rip->y = start_y;
-	rip->line_width = saved_width;
+	rip->line_width   = saved_width;
 	rip->line_pattern = saved_pattern;
 }
 
 static void
-font_text_bytes(struct cterm_rip_raster *rip, const char *text,
-    char **result)
+font_text_bytes(struct cterm_rip_raster *rip, const char *text, char **result)
 {
-	size_t size = strlen(text);
-	char *bytes = malloc(size + 1);
+	size_t size   = strlen(text);
+	char  *bytes  = malloc(size + 1);
 	size_t output = 0;
 
 	*result = NULL;
@@ -2401,22 +2582,20 @@ font_text_bytes(struct cterm_rip_raster *rip, const char *text,
 	}
 	for (size_t input = 0; input < size;) {
 		uint32_t scalar;
-		size_t consumed;
-		uint8_t glyph;
+		size_t   consumed;
+		uint8_t  glyph;
 
-		if (st_utf8_decode_one(&scalar, &consumed, text + input,
-		    size - input) != 0) {
-			scalar = '?';
+		if (st_utf8_decode_one(&scalar, &consumed, text + input, size - input) != 0) {
+			scalar   = '?';
 			consumed = 1;
 		}
-		if (!st_codepage_from_unicode(&glyph, rip->text_codepage,
-		    scalar))
+		if (!st_codepage_from_unicode(&glyph, rip->text_codepage, scalar))
 			glyph = '?';
 		bytes[output++] = (char)glyph;
 		input += consumed;
 	}
 	bytes[output] = '\0';
-	*result = bytes;
+	*result       = bytes;
 }
 
 static void
@@ -2433,18 +2612,16 @@ draw_rip_text(struct cterm_rip_raster *rip, const char *text)
 	if (rip->font_vertical) {
 		int start_x = rip->x;
 		int start_y = rip->y;
-		int width = 0;
+		int width   = 0;
 		int cursor_y;
 
 		for (const unsigned char *p = (const unsigned char *)text; *p; p++) {
 			if (*p == '\n')
 				continue;
-			width += rip->font_number == 0 ? 8 * rip->font_size
-			    : stroke_char_width(rip, *p);
+			width += rip->font_number == 0 ? 8 * rip->font_size : stroke_char_width(rip, *p);
 		}
 		if (rip->font_number != 0)
-			width = width * st_bgi_stroke_mults[rip->font_size]
-			    / st_bgi_stroke_divs[rip->font_size];
+			width = width * st_bgi_stroke_mults[rip->font_size] / st_bgi_stroke_divs[rip->font_size];
 		cursor_y = rip->y + width;
 		for (const unsigned char *p = (const unsigned char *)text; *p; p++) {
 			if (*p == '\n')
@@ -2452,10 +2629,10 @@ draw_rip_text(struct cterm_rip_raster *rip, const char *text)
 			rip->x = start_x;
 			rip->y = cursor_y;
 			draw_rip_char(rip, *p);
-			cursor_y -= rip->font_number == 0 ? 8 * rip->font_size
-			    : stroke_char_width(rip, *p)
-			    * st_bgi_stroke_mults[rip->font_size]
-			    / st_bgi_stroke_divs[rip->font_size];
+			cursor_y -= rip->font_number == 0
+					? 8 * rip->font_size
+					: stroke_char_width(rip, *p) * st_bgi_stroke_mults[rip->font_size]
+			                      / st_bgi_stroke_divs[rip->font_size];
 		}
 		rip->y = start_y;
 		rip->x = start_x + width;
@@ -2473,7 +2650,7 @@ static int
 rip_text_width(struct cterm_rip_raster *rip, const char *text)
 {
 	char *converted = NULL;
-	int width = 0;
+	int   width     = 0;
 
 	if (rip->unicode_text) {
 		font_text_bytes(rip, text, &converted);
@@ -2483,11 +2660,9 @@ rip_text_width(struct cterm_rip_raster *rip, const char *text)
 	}
 
 	for (const unsigned char *p = (const unsigned char *)text; *p; p++)
-		width += rip->font_number == 0 ? 8 * rip->font_size
-		    : stroke_char_width(rip, *p);
+		width += rip->font_number == 0 ? 8 * rip->font_size : stroke_char_width(rip, *p);
 	if (rip->font_number != 0)
-		width = width * st_bgi_stroke_mults[rip->font_size]
-		    / st_bgi_stroke_divs[rip->font_size];
+		width = width * st_bgi_stroke_mults[rip->font_size] / st_bgi_stroke_divs[rip->font_size];
 	free(converted);
 	return width;
 }
@@ -2495,7 +2670,7 @@ rip_text_width(struct cterm_rip_raster *rip, const char *text)
 static int
 rip_font_height(struct cterm_rip_raster *rip)
 {
-	size_t size;
+	size_t         size;
 	const uint8_t *font;
 
 	if (rip->font_number == 0)
@@ -2503,24 +2678,20 @@ rip_font_height(struct cterm_rip_raster *rip)
 	font = cterm_rip_font_data(rip->font_number, &size);
 	if (font == NULL || size <= 0x8a)
 		return 0;
-	return ((int)(int8_t)font[0x88] - (int)(int8_t)font[0x8a])
-	    * st_bgi_stroke_mults[rip->font_size]
-	    / st_bgi_stroke_divs[rip->font_size];
+	return ((int)(int8_t)font[0x88] - (int)(int8_t)font[0x8a]) * st_bgi_stroke_mults[rip->font_size]
+	       / st_bgi_stroke_divs[rip->font_size];
 }
 
 static void
-draw_region_text(struct cterm_rip_raster *rip, int justify,
-    const char *text)
+draw_region_text(struct cterm_rip_raster *rip, int justify, const char *text)
 {
-	int old_x = rip->x;
-	int old_y = rip->y;
-	int words = 0;
+	int  old_x   = rip->x;
+	int  old_y   = rip->y;
+	int  words   = 0;
 	bool in_word = false;
 
-	rip->x = rip->text_region.sx + rip->text_region.xpos
-	    - rip->viewport.sx;
-	rip->y = rip->text_region.sy + rip->text_region.ypos
-	    - rip->viewport.sy;
+	rip->x = rip->text_region.sx + rip->text_region.xpos - rip->viewport.sx;
+	rip->y = rip->text_region.sy + rip->text_region.ypos - rip->viewport.sy;
 	if (justify != 0) {
 		for (const char *p = text; *p; p++) {
 			if (*p == ' ')
@@ -2534,27 +2705,24 @@ draw_region_text(struct cterm_rip_raster *rip, int justify,
 	if (justify == 0 || words < 2)
 		draw_rip_text(rip, text);
 	else {
-		int region_width = rip->text_region.ex
-		    - rip->text_region.sx + 1;
-		int slack = region_width - rip_text_width(rip, text) + 1;
-		double step = words > 2 ? (double)slack / (words - 1)
-		    : (double)slack;
-		int accumulated = 0;
-		char *copy = strdup(text);
-		char *current;
-		char *boundary;
+		int    region_width = rip->text_region.ex - rip->text_region.sx + 1;
+		int    slack        = region_width - rip_text_width(rip, text) + 1;
+		double step         = words > 2 ? (double)slack / (words - 1) : (double)slack;
+		int    accumulated  = 0;
+		char  *copy         = strdup(text);
+		char  *current;
+		char  *boundary;
 
 		if (copy == NULL) {
 			rip->error = IO_ERROR_OUT_OF_MEMORY;
 			goto restore;
 		}
-		current = copy;
+		current  = copy;
 		boundary = strchr(current, ' ');
-		for (int word = 0; word < words - 1
-		    && rip->error == 0; word++) {
+		for (int word = 0; word < words - 1 && rip->error == 0; word++) {
 			int start_x = rip->x;
-			int gap = (int)step;
-			int ideal = (int)(step * (word + 1));
+			int gap     = (int)step;
+			int ideal   = (int)(step * (word + 1));
 
 			if (boundary != NULL)
 				*boundary = '\0';
@@ -2588,8 +2756,7 @@ restore:
 }
 
 static int
-parse_fields(const char *arguments, const uint8_t *widths, size_t count,
-    int *values)
+parse_fields(const char *arguments, const uint8_t *widths, size_t count, int *values)
 {
 	return (int)cterm_rip_read_fields(&arguments, widths, count, values);
 }
@@ -2599,11 +2766,11 @@ parse_fields(const char *arguments, const uint8_t *widths, size_t count,
 static void
 fill_poly_bezier(struct cterm_rip_raster *rip)
 {
-	uint8_t *marks = rip->poly_fill_marks;
-	int width = rip->x_max;
-	int height = rip->y_max;
-	bool in_line, fill;
-	size_t pixel;
+	uint8_t *marks  = rip->poly_fill_marks;
+	int      width  = rip->x_max;
+	int      height = rip->y_max;
+	bool     in_line, fill;
+	size_t   pixel;
 
 	for (int y = 0; y < height; y++) {
 		in_line = fill = false;
@@ -2611,7 +2778,7 @@ fill_poly_bezier(struct cterm_rip_raster *rip)
 			pixel = (size_t)y * (size_t)width + (size_t)x;
 			if (in_line) {
 				if (!(marks[pixel] & 0x40)) {
-					fill = !fill;
+					fill    = !fill;
 					in_line = false;
 				}
 			}
@@ -2627,7 +2794,7 @@ fill_poly_bezier(struct cterm_rip_raster *rip)
 			pixel = (size_t)y * (size_t)width + (size_t)x;
 			if (in_line) {
 				if (!(marks[pixel] & 0x40)) {
-					fill = !fill;
+					fill    = !fill;
 					in_line = false;
 				}
 			}
@@ -2643,7 +2810,7 @@ fill_poly_bezier(struct cterm_rip_raster *rip)
 			pixel = (size_t)y * (size_t)width + (size_t)x;
 			if (in_line) {
 				if (!(marks[pixel] & 0x40)) {
-					fill = !fill;
+					fill    = !fill;
 					in_line = false;
 				}
 			}
@@ -2659,7 +2826,7 @@ fill_poly_bezier(struct cterm_rip_raster *rip)
 			pixel = (size_t)y * (size_t)width + (size_t)x;
 			if (in_line) {
 				if (!(marks[pixel] & 0x40)) {
-					fill = !fill;
+					fill    = !fill;
 					in_line = false;
 				}
 			}
@@ -2672,29 +2839,25 @@ fill_poly_bezier(struct cterm_rip_raster *rip)
 	for (int y = 0; y < height; y++) {
 		for (int x = 1; x < width - 1; x++) {
 			pixel = (size_t)y * (size_t)width + (size_t)x;
-			if ((marks[pixel] & 0x3c) != 0
-			    && (marks[pixel] & 0x3c) != 0x3c
-			    && (marks[pixel - 1] == 0x3c
-			    || marks[pixel + 1] == 0x3c))
+			if ((marks[pixel] & 0x3c) != 0 && (marks[pixel] & 0x3c) != 0x3c
+			    && (marks[pixel - 1] == 0x3c || marks[pixel + 1] == 0x3c))
 				marks[pixel] |= 0x3c;
 		}
 	}
 	for (int x = 0; x < width; x++) {
 		for (int y = 1; y < height - 1; y++) {
 			pixel = (size_t)y * (size_t)width + (size_t)x;
-			if ((marks[pixel] & 0x3c) != 0
-			    && (marks[pixel] & 0x3c) != 0x3c
-			    && (marks[pixel - (size_t)width] == 0x3c
-			    || marks[pixel + (size_t)width] == 0x3c))
+			if ((marks[pixel] & 0x3c) != 0 && (marks[pixel] & 0x3c) != 0x3c
+			    && (marks[pixel - (size_t)width] == 0x3c || marks[pixel + (size_t)width] == 0x3c))
 				marks[pixel] |= 0x3c;
 		}
 	}
 	for (int y = 0; y < height; y++) {
 		for (int x = 0; x < width; x++) {
 			pixel = (size_t)y * (size_t)width + (size_t)x;
-			if (marks[pixel] != 0x3c) continue;
-			int colour = (rip->fill_pattern[y & 7] & (0x80 >> (x & 7)))
-			    ? rip->fill_colour : 0;
+			if (marks[pixel] != 0x3c)
+				continue;
+			int colour = (rip->fill_pattern[y & 7] & (0x80 >> (x & 7))) ? rip->fill_colour : 0;
 			if ((uint32_t)x < rip->screen_width && (uint32_t)y < rip->screen_height)
 				write_pixel(rip, (uint32_t)x, (uint32_t)y, map_colour(rip, colour));
 		}
@@ -2702,39 +2865,32 @@ fill_poly_bezier(struct cterm_rip_raster *rip)
 }
 
 static bool
-poly_number(const char *arguments, size_t length, size_t offset,
-    int width, int *value)
+poly_number(const char *arguments, size_t length, size_t offset, int width, int *value)
 {
 	if (offset > length || (size_t)width > length - offset)
 		return false;
 	const char *cursor = arguments + offset;
-	return cterm_rip_read_number(&cursor, (size_t)width, value)
-	    && cursor == arguments + offset + width;
+	return cterm_rip_read_number(&cursor, (size_t)width, value) && cursor == arguments + offset + width;
 }
 
 static void
-poly_bezier(struct cterm_rip_raster *rip, const char *arguments,
-    bool filled, bool closed)
+poly_bezier(struct cterm_rip_raster *rip, const char *arguments, bool filled, bool closed)
 {
 	const size_t length = strlen(arguments);
-	size_t offset = 4;
-	int number, segments, start_x, start_y, last_x, last_y;
-	bool last_was_bezier = false;
-	bool completed = false;
-	uint32_t colour = map_colour(rip, rip->colour);
+	size_t       offset = 4;
+	int          number, segments, start_x, start_y, last_x, last_y;
+	bool         last_was_bezier = false;
+	bool         completed       = false;
+	uint32_t     colour          = map_colour(rip, rip->colour);
 
-	if (!poly_number(arguments, length, 0, 2, &number)
-	    || number < 0
-	    || !poly_number(arguments, length, 2, 2, &segments)
-	    || segments <= 0
-	    || !poly_number(arguments, length, 5, 2, &start_x)
-	    || !poly_number(arguments, length, 7, 2, &start_y))
+	if (!poly_number(arguments, length, 0, 2, &number) || number < 0
+	    || !poly_number(arguments, length, 2, 2, &segments) || segments <= 0
+	    || !poly_number(arguments, length, 5, 2, &start_x) || !poly_number(arguments, length, 7, 2, &start_y))
 		return;
 	last_x = start_x;
 	last_y = start_y;
 	if (filled) {
-		rip->poly_fill_marks = calloc((size_t)rip->x_max
-		    * (size_t)rip->y_max, 1);
+		rip->poly_fill_marks = calloc((size_t)rip->x_max * (size_t)rip->y_max, 1);
 		if (rip->poly_fill_marks == NULL) {
 			rip->error = IO_ERROR_OUT_OF_MEMORY;
 			return;
@@ -2747,56 +2903,56 @@ poly_bezier(struct cterm_rip_raster *rip, const char *arguments,
 			goto done;
 		offset++;
 		switch (type) {
-		case 0:
-			if (!poly_number(arguments, length, offset, 2, &point[0])
-			    || !poly_number(arguments, length, offset + 2, 2,
-			    &point[1]))
-				goto done;
-			offset += 4;
-			if (!last_was_bezier)
-				cterm_rip_raster_set_line(rip, last_x, last_y, point[0], point[1],
-				    colour, rip->line_pattern, rip->line_width);
-			last_x = point[0];
-			last_y = point[1];
-			last_was_bezier = false;
-			break;
-		case 1: case 2: case 5: case 6: {
-			for (size_t i = 0; i < 6; i++) {
-				if (!poly_number(arguments, length, offset + i * 2,
-				    2, &point[i]))
+			case 0:
+				if (!poly_number(arguments, length, offset, 2, &point[0])
+				    || !poly_number(arguments, length, offset + 2, 2, &point[1]))
 					goto done;
-			}
-			offset += 12;
-			if (offset == length) {
-				point[6] = start_x;
-				point[7] = start_y;
-			}
-			else if (!poly_number(arguments, length, offset + 1, 2,
-			    &point[6])
-			    || !poly_number(arguments, length, offset + 3, 2,
-			    &point[7]))
-				goto done;
-			/* Legacy rip_bezier() ignores its tagged foreground
+				offset += 4;
+				if (!last_was_bezier)
+					cterm_rip_raster_set_line(rip, last_x, last_y, point[0], point[1], colour,
+					    rip->line_pattern, rip->line_width);
+				last_x          = point[0];
+				last_y          = point[1];
+				last_was_bezier = false;
+				break;
+			case 1:
+			case 2:
+			case 5:
+			case 6:
+			{
+				for (size_t i = 0; i < 6; i++) {
+					if (!poly_number(arguments, length, offset + i * 2, 2, &point[i]))
+						goto done;
+				}
+				offset += 12;
+				if (offset == length) {
+					point[6] = start_x;
+					point[7] = start_y;
+				}
+				else if (!poly_number(arguments, length, offset + 1, 2, &point[6])
+				         || !poly_number(arguments, length, offset + 3, 2, &point[7]))
+					goto done;
+				/* Legacy rip_bezier() ignores its tagged foreground
 			 * argument.  Curved pixels therefore do not become fill
 			 * boundaries in RIPterm's four-pass fill. */
-			uint8_t *marks = rip->poly_fill_marks;
+				uint8_t *marks = rip->poly_fill_marks;
 
-			rip->poly_fill_marks = NULL;
-			draw_bezier(rip, point, segments);
-			rip->poly_fill_marks = marks;
-			last_x = point[6];
-			last_y = point[7];
-			last_was_bezier = true;
-			break;
-		}
-		default:
-			goto done;
+				rip->poly_fill_marks = NULL;
+				draw_bezier(rip, point, segments);
+				rip->poly_fill_marks = marks;
+				last_x               = point[6];
+				last_y               = point[7];
+				last_was_bezier      = true;
+				break;
+			}
+			default:
+				goto done;
 		}
 	}
 	completed = rip->error == 0;
 	if (completed && closed && (last_x != start_x || last_y != start_y))
-		cterm_rip_raster_set_line(rip, last_x, last_y, start_x, start_y,
-		    colour, rip->line_pattern, rip->line_width);
+		cterm_rip_raster_set_line(rip, last_x, last_y, start_x, start_y, colour, rip->line_pattern,
+		    rip->line_width);
 done:
 	if (completed && filled && rip->error == 0)
 		fill_poly_bezier(rip);
@@ -2810,9 +2966,15 @@ button_chisel_inset(int height, int *xinset, int *yinset)
 	static const struct {
 		int limit, x, y;
 	} insets[] = {
-		{12, 1, 1}, {25, 3, 2}, {40, 4, 3},
-		{75, 6, 5}, {150, 7, 5}, {200, 8, 6},
-		{250, 10, 7}, {300, 11, 8}, {INT_MAX, 13, 9},
+	    {12,      1,  1},
+	    {25,      3,  2},
+	    {40,      4,  3},
+	    {75,      6,  5},
+	    {150,     7,  5},
+	    {200,     8,  6},
+	    {250,     10, 7},
+	    {300,     11, 8},
+	    {INT_MAX, 13, 9},
 	};
 
 	for (size_t i = 0; i < sizeof(insets) / sizeof(insets[0]); i++) {
@@ -2827,30 +2989,28 @@ button_chisel_inset(int height, int *xinset, int *yinset)
 }
 
 static void
-button_line(struct cterm_rip_raster *rip, int x1, int y1,
-    int x2, int y2, uint32_t colour)
+button_line(struct cterm_rip_raster *rip, int x1, int y1, int x2, int y2, uint32_t colour)
 {
 	cterm_rip_raster_set_line(rip, x1, y1, x2, y2, colour, 0xffff, 1);
 }
 
 static void
-draw_plain_button(struct cterm_rip_raster *rip, int x1, int y1,
-    int x2, int y2, bool inverted, const char *icon,
+draw_plain_button(struct cterm_rip_raster *rip, int x1, int y1, int x2, int y2, bool inverted, const char *icon,
     int *actual_x2, int *actual_y2)
 {
 	const struct cterm_rip_button_style *style = &rip->button_style;
-	int bx1 = x1 + rip->viewport.sx;
-	int by1 = y1 + rip->viewport.sy;
-	int bx2 = x2 + rip->viewport.sx;
-	int by2 = y2 + rip->viewport.sy;
-	int original_x1, original_y1, original_x2, original_y2;
-	int bevel_size = style->bevel_size;
-	int bevel_start = 1;
-	int xinset, yinset;
-	uint32_t ch, cs, cc;
-	int saved_fill_colour = rip->fill_colour;
-	int saved_fill_style = rip->fill_style;
-	uint8_t saved_fill_pattern[8];
+	int                                  bx1   = x1 + rip->viewport.sx;
+	int                                  by1   = y1 + rip->viewport.sy;
+	int                                  bx2   = x2 + rip->viewport.sx;
+	int                                  by2   = y2 + rip->viewport.sy;
+	int                                  original_x1, original_y1, original_x2, original_y2;
+	int                                  bevel_size  = style->bevel_size;
+	int                                  bevel_start = 1;
+	int                                  xinset, yinset;
+	uint32_t                             ch, cs, cc;
+	int                                  saved_fill_colour = rip->fill_colour;
+	int                                  saved_fill_style  = rip->fill_style;
+	uint8_t                              saved_fill_pattern[8];
 
 	if (style->type == 2 && style->width > 0 && style->height > 0) {
 		bx2 = bx1 + style->width;
@@ -2869,96 +3029,77 @@ draw_plain_button(struct cterm_rip_raster *rip, int x1, int y1,
 		by2++;
 	}
 	if ((style->flags & 512) != 0 && bevel_size == 0) {
-		bevel_size = 1;
+		bevel_size  = 1;
 		bevel_start = 0;
 	}
 	if (style->type == 0) {
-		int icon_width = 0, icon_height = 0;
+		int  icon_width = 0, icon_height = 0;
 		bool loaded = false;
 
 		if (icon != NULL) {
 			if (inverted && (style->flags & 4096) != 0) {
-				char hot_name[256];
+				char        hot_name[256];
 				const char *dot = strrchr(icon, '.');
 
 				if (dot != NULL)
-					(void)snprintf(hot_name, sizeof(hot_name),
-					    "%.*s.HIC", (int)(dot - icon), icon);
+					(void)snprintf(hot_name, sizeof(hot_name), "%.*s.HIC", (int)(dot - icon),
+					    icon);
 				else
-					(void)snprintf(hot_name, sizeof(hot_name),
-					    "%s.HIC", icon);
-				loaded = load_icon(rip, x1, y1, 0, false,
-				    hot_name, &icon_width, &icon_height);
+					(void)snprintf(hot_name, sizeof(hot_name), "%s.HIC", icon);
+				loaded = load_icon(rip, x1, y1, 0, false, hot_name, &icon_width, &icon_height);
 			}
 			if (!loaded)
-				(void)load_icon(rip, x1, y1,
-				    inverted ? 4 : 0, false, icon,
-				    &icon_width, &icon_height);
+				(void)load_icon(rip, x1, y1, inverted ? 4 : 0, false, icon, &icon_width,
+				    &icon_height);
 		}
-		bx1 = original_x1;
-		by1 = original_y1;
-		bx2 = bx1 + icon_width;
-		by2 = by1 + icon_height;
+		bx1         = original_x1;
+		by1         = original_y1;
+		bx2         = bx1 + icon_width;
+		by2         = by1 + icon_height;
 		original_x2 = bx2;
 		original_y2 = by2;
 	}
 	else if (style->type == 1 && rip->clipboard != NULL) {
-		bx1 = original_x1;
-		by1 = original_y1;
-		bx2 = bx1 + (int)rip->clipboard->width;
-		by2 = by1 + (int)rip->clipboard->height;
+		bx1         = original_x1;
+		by1         = original_y1;
+		bx2         = bx1 + (int)rip->clipboard->width;
+		by2         = by1 + (int)rip->clipboard->height;
 		original_x2 = bx2;
 		original_y2 = by2;
-		paste_buffer(rip, rip->clipboard, bx1, by1,
-		    inverted ? 4 : 0);
+		paste_buffer(rip, rip->clipboard, bx1, by1, inverted ? 4 : 0);
 	}
 	if (actual_x2 != NULL)
 		*actual_x2 = original_x2;
 	if (actual_y2 != NULL)
 		*actual_y2 = original_y2;
-	ch = map_colour(rip, inverted ? 15 ^ style->highlight
-	    : style->highlight);
-	cs = map_colour(rip, inverted ? 15 ^ style->shadow
-	    : style->shadow);
-	cc = map_colour(rip, inverted ? 15 ^ style->corner
-	    : style->corner);
+	ch = map_colour(rip, inverted ? 15 ^ style->highlight : style->highlight);
+	cs = map_colour(rip, inverted ? 15 ^ style->shadow : style->shadow);
+	cc = map_colour(rip, inverted ? 15 ^ style->corner : style->corner);
 	if (style->type == 2) {
-		memcpy(saved_fill_pattern, rip->fill_pattern,
-		    sizeof(saved_fill_pattern));
-		rip->fill_colour = inverted ? 15 ^ style->surface
-		    : style->surface;
-		rip->fill_style = 1;
+		memcpy(saved_fill_pattern, rip->fill_pattern, sizeof(saved_fill_pattern));
+		rip->fill_colour = inverted ? 15 ^ style->surface : style->surface;
+		rip->fill_style  = 1;
 		memset(rip->fill_pattern, 0xff, sizeof(rip->fill_pattern));
 		if (bx2 > bx1 && by2 > by1)
-			cterm_rip_raster_bar(rip, bx1, by1,
-			    bx2 - 1, by2 - 1);
+			cterm_rip_raster_bar(rip, bx1, by1, bx2 - 1, by2 - 1);
 		rip->fill_colour = saved_fill_colour;
-		rip->fill_style = saved_fill_style;
-		memcpy(rip->fill_pattern, saved_fill_pattern,
-		    sizeof(rip->fill_pattern));
+		rip->fill_style  = saved_fill_style;
+		memcpy(rip->fill_pattern, saved_fill_pattern, sizeof(rip->fill_pattern));
 	}
 	if ((style->flags & 8) != 0) {
 		button_chisel_inset(by2 - by1, &xinset, &yinset);
-		button_line(rip, bx1 + xinset + 1, by1 + yinset + 1,
-		    bx2 - xinset - 1, by1 + yinset + 1, ch);
-		button_line(rip, bx2 - xinset - 1, by1 + yinset + 1,
-		    bx2 - xinset - 1, by2 - yinset - 1, ch);
-		button_line(rip, bx2 - xinset - 1, by2 - yinset - 1,
-		    bx1 + xinset + 1, by2 - yinset - 1, ch);
-		button_line(rip, bx1 + xinset + 1, by2 - yinset - 1,
-		    bx1 + xinset + 1, by1 + yinset + 1, ch);
-		button_line(rip, bx1 + xinset, by1 + yinset,
-		    bx2 - xinset - 1, by1 + yinset, cs);
-		button_line(rip, bx1 + xinset, by1 + yinset,
-		    bx1 + xinset, by2 - yinset - 1, cs);
+		button_line(rip, bx1 + xinset + 1, by1 + yinset + 1, bx2 - xinset - 1, by1 + yinset + 1, ch);
+		button_line(rip, bx2 - xinset - 1, by1 + yinset + 1, bx2 - xinset - 1, by2 - yinset - 1, ch);
+		button_line(rip, bx2 - xinset - 1, by2 - yinset - 1, bx1 + xinset + 1, by2 - yinset - 1, ch);
+		button_line(rip, bx1 + xinset + 1, by2 - yinset - 1, bx1 + xinset + 1, by1 + yinset + 1, ch);
+		button_line(rip, bx1 + xinset, by1 + yinset, bx2 - xinset - 1, by1 + yinset, cs);
+		button_line(rip, bx1 + xinset, by1 + yinset, bx1 + xinset, by2 - yinset - 1, cs);
 		int iiy = by2 - 2 - yinset;
 		int iix = bx2 - xinset - 2;
 
 		if (iiy > by1 + yinset + 1 && iiy < by2 - yinset - 1) {
-			button_line(rip, bx1 + xinset + 2, iiy,
-			    bx2 - xinset - 2, iiy, cs);
-			button_line(rip, iix, iiy, iix,
-			    by1 + yinset + 2, cs);
+			button_line(rip, bx1 + xinset + 2, iiy, bx2 - xinset - 2, iiy, cs);
+			button_line(rip, iix, iiy, iix, by1 + yinset + 2, cs);
 		}
 		else if (iiy <= by1) {
 			button_line(rip, iix, iiy, bx1 + xinset, iiy, cs);
@@ -2969,16 +3110,11 @@ draw_plain_button(struct cterm_rip_raster *rip, int x1, int y1,
 		int sx = original_x2 - original_x1 < 2 ? 1 : 0;
 		int sy = original_y2 - original_y1 < 2 ? 1 : 0;
 
-		button_line(rip, original_x1 + sx, original_y1,
-		    original_x2 - 1 - sx, original_y1, cs);
-		button_line(rip, original_x1, original_y1 + sy,
-		    original_x1, original_y2 - 1 - sy, cs);
-		button_line(rip, original_x2 - 1, original_y2 - 1 - sy,
-		    original_x2 - 1, original_y1 + sy, ch);
-		button_line(rip, original_x2 - 1 - sx, original_y2 - 1,
-		    original_x1 + sx, original_y2 - 1, ch);
-		if (original_x2 - original_x1 >= 3
-		    && original_y2 - original_y1 >= 3) {
+		button_line(rip, original_x1 + sx, original_y1, original_x2 - 1 - sx, original_y1, cs);
+		button_line(rip, original_x1, original_y1 + sy, original_x1, original_y2 - 1 - sy, cs);
+		button_line(rip, original_x2 - 1, original_y2 - 1 - sy, original_x2 - 1, original_y1 + sy, ch);
+		button_line(rip, original_x2 - 1 - sx, original_y2 - 1, original_x1 + sx, original_y2 - 1, ch);
+		if (original_x2 - original_x1 >= 3 && original_y2 - original_y1 >= 3) {
 			set_pixel(rip, original_x1, original_y1, cc);
 			set_pixel(rip, original_x2 - 1, original_y1, cc);
 			set_pixel(rip, original_x2 - 1, original_y2 - 1, cc);
@@ -2987,19 +3123,18 @@ draw_plain_button(struct cterm_rip_raster *rip, int x1, int y1,
 	}
 	if ((style->flags & 512) != 0) {
 		for (int i = bevel_start; i <= bevel_size; i++) {
-			button_line(rip, original_x1 - i, original_y1 - i,
-			    original_x2 - 1 + i, original_y1 - i, ch);
-			button_line(rip, original_x1 - i, original_y1 - i,
-			    original_x1 - i, original_y2 - 1 + i, ch);
-			button_line(rip, original_x2 - 1 + i, original_y2 - 1 + i,
-			    original_x2 - 1 + i, original_y1 - i, cs);
-			button_line(rip, original_x2 - 1 + i, original_y2 - 1 + i,
-			    original_x1 - i, original_y2 - 1 + i, cs);
+			button_line(rip, original_x1 - i, original_y1 - i, original_x2 - 1 + i, original_y1 - i,
+			    ch);
+			button_line(rip, original_x1 - i, original_y1 - i, original_x1 - i, original_y2 - 1 + i,
+			    ch);
+			button_line(rip, original_x2 - 1 + i, original_y2 - 1 + i, original_x2 - 1 + i,
+			    original_y1 - i, cs);
+			button_line(rip, original_x2 - 1 + i, original_y2 - 1 + i, original_x1 - i,
+			    original_y2 - 1 + i, cs);
 			set_pixel(rip, original_x1 - i, original_y1 - i, cc);
 			set_pixel(rip, original_x2 - 1 + i, original_y1 - i, cc);
 			set_pixel(rip, original_x1 - i, original_y2 - 1 + i, cc);
-			set_pixel(rip, original_x2 - 1 + i,
-			    original_y2 - 1 + i, cc);
+			set_pixel(rip, original_x2 - 1 + i, original_y2 - 1 + i, cc);
 		}
 	}
 	if ((style->flags & 16) != 0) {
@@ -3007,9 +3142,9 @@ draw_plain_button(struct cterm_rip_raster *rip, int x1, int y1,
 		uint32_t r_ch = map_colour(rip, style->highlight);
 		uint32_t r_cc = map_colour(rip, style->corner);
 		uint32_t r_bg = map_colour(rip, 0);
-		int rx = original_x1, ry = original_y1;
-		int rw = original_x2 - original_x1;
-		int rh = original_y2 - original_y1;
+		int      rx = original_x1, ry = original_y1;
+		int      rw = original_x2 - original_x1;
+		int      rh = original_y2 - original_y1;
 
 		if ((style->flags & 512) != 0) {
 			rw += 2 * bevel_size;
@@ -3017,38 +3152,35 @@ draw_plain_button(struct cterm_rip_raster *rip, int x1, int y1,
 			rx -= bevel_size;
 			ry -= bevel_size;
 		}
-		rw += 4; rh += 4; rx -= 2; ry -= 2;
+		rw += 4;
+		rh += 4;
+		rx -= 2;
+		ry -= 2;
 		button_line(rip, rx, ry, rx + rw - 1, ry, r_cs);
 		button_line(rip, rx, ry, rx, ry + rh - 1, r_cs);
-		button_line(rip, rx + rw - 1, ry,
-		    rx + rw - 1, ry + rh - 1, r_ch);
-		button_line(rip, rx, ry + rh - 1,
-		    rx + rw - 1, ry + rh - 1, r_ch);
+		button_line(rip, rx + rw - 1, ry, rx + rw - 1, ry + rh - 1, r_ch);
+		button_line(rip, rx, ry + rh - 1, rx + rw - 1, ry + rh - 1, r_ch);
 		set_pixel(rip, rx, ry, r_cc);
 		set_pixel(rip, rx + rw - 1, ry, r_cc);
 		set_pixel(rip, rx, ry + rh - 1, r_cc);
 		set_pixel(rip, rx + rw - 1, ry + rh - 1, r_cc);
 		button_line(rip, rx + 1, ry + 1, rx + rw - 2, ry + 1, r_bg);
 		button_line(rip, rx + 1, ry + 1, rx + 1, ry + rh - 2, r_bg);
-		button_line(rip, rx + rw - 2, ry + 1,
-		    rx + rw - 2, ry + rh - 2, r_bg);
-		button_line(rip, rx + 1, ry + rh - 2,
-		    rx + rw - 2, ry + rh - 2, r_bg);
+		button_line(rip, rx + rw - 2, ry + 1, rx + rw - 2, ry + rh - 2, r_bg);
+		button_line(rip, rx + 1, ry + rh - 2, rx + rw - 2, ry + rh - 2, r_bg);
 	}
 }
 
 static int
-button_hcenter_x(const struct cterm_rip_button_style *style,
-    int raw_x, int raw_width, int ext_x, int ext_width, int text_width,
-    int x2)
+button_hcenter_x(const struct cterm_rip_button_style *style, int raw_x, int raw_width, int ext_x, int ext_width,
+    int text_width, int x2)
 {
 	int difference = raw_width - text_width;
 
 	if ((style->flags2 & 8) != 0 && (style->flags & 512) != 0)
 		return ext_x + ((style->flags & 8) != 0 ? 20 : 10);
 	if ((style->flags2 & 16) != 0 && (style->flags & 512) != 0)
-		return ext_x + ext_width
-		    - ((style->flags & 8) != 0 ? 20 : 10) - text_width;
+		return ext_x + ext_width - ((style->flags & 8) != 0 ? 20 : 10) - text_width;
 	if ((style->flags2 & 8) != 0)
 		return raw_x;
 	if ((style->flags2 & 16) != 0)
@@ -3057,17 +3189,15 @@ button_hcenter_x(const struct cterm_rip_button_style *style,
 }
 
 static void
-capture_button_stamp(struct cterm_rip_raster *rip,
-    const struct cterm_rip_button_draw *button)
+capture_button_stamp(struct cterm_rip_raster *rip, const struct cterm_rip_button_draw *button)
 {
-	int bx1 = button->x1, by1 = button->y1;
-	int bx2 = button->x2, by2 = button->y2;
-	int bevel_size = button->style.bevel_size;
-	struct st_console_rect rect;
+	int                     bx1 = button->x1, by1 = button->y1;
+	int                     bx2 = button->x2, by2 = button->y2;
+	int                     bevel_size = button->style.bevel_size;
+	struct st_console_rect  rect;
 	struct st_pixel_buffer *captured = NULL;
 
-	if (button->style.type == 2
-	    && button->style.width > 0 && button->style.height > 0) {
+	if (button->style.type == 2 && button->style.width > 0 && button->style.height > 0) {
 		bx2 = bx1 + button->style.width;
 		by2 = by1 + button->style.height;
 	}
@@ -3089,48 +3219,43 @@ capture_button_stamp(struct cterm_rip_raster *rip,
 	}
 	st_pixel_buffer_destroy(rip->clipboard);
 	rip->clipboard = NULL;
-	rip->clipx = bx1;
-	rip->clipy = by1;
+	rip->clipx     = bx1;
+	rip->clipy     = by1;
 	bx1 -= bevel_size;
 	by1 -= bevel_size;
 	bx2 += bevel_size;
 	by2 += bevel_size;
-	if (bx1 < 0 || by1 < 0
-	    || (uint32_t)bx2 >= rip->screen_width
-	    || (uint32_t)by2 >= rip->screen_height)
+	if (bx1 < 0 || by1 < 0 || (uint32_t)bx2 >= rip->screen_width || (uint32_t)by2 >= rip->screen_height)
 		return;
-	rect = (struct st_console_rect){
-		.x = (uint32_t)bx1,
-		.y = (uint32_t)by1,
-		.width = (uint32_t)(bx2 - bx1 + 1),
-		.height = (uint32_t)(by2 - by1 + 1),
+	rect = (struct st_console_rect) {
+	    .x      = (uint32_t)bx1,
+	    .y      = (uint32_t)by1,
+	    .width  = (uint32_t)(bx2 - bx1 + 1),
+	    .height = (uint32_t)(by2 - by1 + 1),
 	};
-	rip->error = st_console_get_pixels(&captured, rip->console,
-	    &rect, false);
+	rip->error = st_console_get_pixels(&captured, rip->console, &rect, false);
 	if (rip->error == 0)
 		rip->clipboard = captured;
 }
 
 static void
-draw_button_label(struct cterm_rip_raster *rip,
-    int x1, int y1, int x2, int y2, int hotkey,
-    bool inverted, const char *label)
+draw_button_label(struct cterm_rip_raster *rip, int x1, int y1, int x2, int y2, int hotkey, bool inverted,
+    const char *label)
 {
 	const struct cterm_rip_button_style *style = &rip->button_style;
-	const struct cterm_rip_font_metric *metric =
+	const struct cterm_rip_font_metric  *metric =
 	    cterm_rip_font_button_metric(rip->font_number, rip->font_size);
-	int bx1 = x1 + rip->viewport.sx;
-	int by1 = y1 + rip->viewport.sy;
-	int bx2 = x2 + rip->viewport.sx;
-	int by2 = y2 + rip->viewport.sy;
-	int bevel = (style->flags & 512) != 0
-	    ? (style->bevel_size == 0 ? 1 : style->bevel_size) : 0;
-	int recess = (style->flags & 16) != 0 ? 2 : 0;
-	int extension = bevel + recess;
-	int width, height, descender, text_x, si, text_y;
-	int old_x = rip->x, old_y = rip->y, old_colour = rip->colour;
-	int hotkey_position = -1;
-	bool has_descender = false;
+	int  bx1       = x1 + rip->viewport.sx;
+	int  by1       = y1 + rip->viewport.sy;
+	int  bx2       = x2 + rip->viewport.sx;
+	int  by2       = y2 + rip->viewport.sy;
+	int  bevel     = (style->flags & 512) != 0 ? (style->bevel_size == 0 ? 1 : style->bevel_size) : 0;
+	int  recess    = (style->flags & 16) != 0 ? 2 : 0;
+	int  extension = bevel + recess;
+	int  width, height, descender, text_x, si, text_y;
+	int  old_x = rip->x, old_y = rip->y, old_colour = rip->colour;
+	int  hotkey_position = -1;
+	bool has_descender   = false;
 
 	if (metric == NULL || label == NULL || label[0] == '\0')
 		return;
@@ -3142,8 +3267,8 @@ draw_button_label(struct cterm_rip_raster *rip,
 		bx2 = bx1 + (int)rip->clipboard->width;
 		by2 = by1 + (int)rip->clipboard->height;
 	}
-	width = rip_text_width(rip, label);
-	height = metric->base - metric->top + 1;
+	width     = rip_text_width(rip, label);
+	height    = metric->base - metric->top + 1;
 	descender = metric->drop - metric->base;
 	for (const unsigned char *p = (const unsigned char *)label; *p; p++) {
 		if (cterm_rip_button_char_descends(*p))
@@ -3151,51 +3276,45 @@ draw_button_label(struct cterm_rip_raster *rip,
 	}
 	if (has_descender && (style->flags & 8192) != 0)
 		height += descender;
-	int ext_x = bx1 - extension;
-	int ext_y = by1 - extension;
-	int ext_x2 = bx2 - 1 + extension;
-	int ext_y2 = by2 - 1 + extension;
-	int ext_width = bx2 - bx1 + 2 * bevel;
-	int ext_height = by2 - by1 + 2 * bevel;
+	int ext_x        = bx1 - extension;
+	int ext_y        = by1 - extension;
+	int ext_x2       = bx2 - 1 + extension;
+	int ext_y2       = by2 - 1 + extension;
+	int ext_width    = bx2 - bx1 + 2 * bevel;
+	int ext_height   = by2 - by1 + 2 * bevel;
 	int y_difference = ext_height - height;
 
 	switch (style->orientation) {
-	case 0:
-		text_x = button_hcenter_x(style, bx1, bx2 - bx1,
-		    ext_x, ext_width, width, bx2);
-		si = ext_y - 5 - height;
-		if (has_descender && (style->flags & 8192) != 0)
-			si -= descender;
-		break;
-	case 1:
-		text_x = ext_x - width - 8;
-		si = ext_y + ((y_difference
-		    - (y_difference < 0 ? -1 : 0)) >> 1) + 2;
-		if ((style->flags & 2048) != 0)
-			si--;
-		if (has_descender)
-			si += (descender - (descender < 0 ? -1 : 0)) >> 1;
-		break;
-	case 2:
-		text_x = button_hcenter_x(style, bx1, bx2 - bx1,
-		    ext_x, ext_width, width, bx2);
-		si = ext_y + ((y_difference
-		    - (y_difference < 0 ? -1 : 0)) >> 1) + 1;
-		break;
-	case 3:
-		text_x = ext_x2 + 8;
-		si = ext_y + ((y_difference
-		    - (y_difference < 0 ? -1 : 0)) >> 1) + 2;
-		if ((style->flags & 2048) != 0)
-			si--;
-		if (has_descender)
-			si += (descender - (descender < 0 ? -1 : 0)) >> 1;
-		break;
-	default:
-		text_x = button_hcenter_x(style, bx1, bx2 - bx1,
-		    ext_x, ext_width, width, bx2);
-		si = ext_y2 + 3;
-		break;
+		case 0:
+			text_x = button_hcenter_x(style, bx1, bx2 - bx1, ext_x, ext_width, width, bx2);
+			si     = ext_y - 5 - height;
+			if (has_descender && (style->flags & 8192) != 0)
+				si -= descender;
+			break;
+		case 1:
+			text_x = ext_x - width - 8;
+			si     = ext_y + ((y_difference - (y_difference < 0 ? -1 : 0)) >> 1) + 2;
+			if ((style->flags & 2048) != 0)
+				si--;
+			if (has_descender)
+				si += (descender - (descender < 0 ? -1 : 0)) >> 1;
+			break;
+		case 2:
+			text_x = button_hcenter_x(style, bx1, bx2 - bx1, ext_x, ext_width, width, bx2);
+			si     = ext_y + ((y_difference - (y_difference < 0 ? -1 : 0)) >> 1) + 1;
+			break;
+		case 3:
+			text_x = ext_x2 + 8;
+			si     = ext_y + ((y_difference - (y_difference < 0 ? -1 : 0)) >> 1) + 2;
+			if ((style->flags & 2048) != 0)
+				si--;
+			if (has_descender)
+				si += (descender - (descender < 0 ? -1 : 0)) >> 1;
+			break;
+		default:
+			text_x = button_hcenter_x(style, bx1, bx2 - bx1, ext_x, ext_width, width, bx2);
+			si     = ext_y2 + 3;
+			break;
 	}
 	if ((style->flags & 16) != 0)
 		si += 2;
@@ -3203,27 +3322,24 @@ draw_button_label(struct cterm_rip_raster *rip,
 		si--;
 	text_y = si - metric->top;
 	if ((style->flags & 32) != 0) {
-		rip->x = text_x + 1 - rip->viewport.sx;
-		rip->y = text_y + 1 - rip->viewport.sy;
-		rip->colour = inverted ? 15 ^ style->shadow_label
-		    : style->shadow_label;
+		rip->x      = text_x + 1 - rip->viewport.sx;
+		rip->y      = text_y + 1 - rip->viewport.sy;
+		rip->colour = inverted ? 15 ^ style->shadow_label : style->shadow_label;
 		/* v1.10a draws the shadow one glyph at a time, without the
 		 * vertical text layout performed for the foreground label. */
-		for (const unsigned char *p = (const unsigned char *)label;
-		    *p != '\0'; p++)
+		for (const unsigned char *p = (const unsigned char *)label; *p != '\0'; p++)
 			draw_rip_char(rip, *p);
 	}
 	if (hotkey > 0 && ((style->flags & 2048) != 0 || (style->flags2 & 2) != 0)) {
 		for (int i = 0; label[i] != '\0'; i++) {
-			if (ascii_to_upper((unsigned char)label[i])
-			    == ascii_to_upper((unsigned char)hotkey)) {
+			if (ascii_to_upper((unsigned char)label[i]) == ascii_to_upper((unsigned char)hotkey)) {
 				hotkey_position = i;
 				break;
 			}
 		}
 	}
-	rip->x = text_x - rip->viewport.sx;
-	rip->y = text_y - rip->viewport.sy;
+	rip->x      = text_x - rip->viewport.sx;
+	rip->y      = text_y - rip->viewport.sy;
 	rip->colour = inverted ? 15 ^ style->foreground : style->foreground;
 	if (hotkey_position >= 0 && (style->flags2 & 2) != 0) {
 		char *copy = strdup(label);
@@ -3233,23 +3349,19 @@ draw_button_label(struct cterm_rip_raster *rip,
 			goto restore;
 		}
 		copy[hotkey_position] = '\0';
-		int prefix_width = rip_text_width(rip, copy);
-		char hotkey_text[2] = {label[hotkey_position], '\0'};
-		int hotkey_width = rip_text_width(rip, hotkey_text);
+		int  prefix_width     = rip_text_width(rip, copy);
+		char hotkey_text[2]   = {label[hotkey_position], '\0'};
+		int  hotkey_width     = rip_text_width(rip, hotkey_text);
 
 		for (int i = 0; i < hotkey_position; i++)
 			draw_rip_char(rip, (unsigned char)label[i]);
-		rip->x = text_x + prefix_width - rip->viewport.sx;
-		rip->colour = inverted ? 15 ^ style->underline
-		    : style->underline;
+		rip->x      = text_x + prefix_width - rip->viewport.sx;
+		rip->colour = inverted ? 15 ^ style->underline : style->underline;
 		draw_rip_char(rip, (unsigned char)label[hotkey_position]);
-		rip->x = text_x + prefix_width + hotkey_width
-		    - rip->viewport.sx;
-		rip->y = text_y - rip->viewport.sy;
-		rip->colour = inverted ? 15 ^ style->foreground
-		    : style->foreground;
-		for (const unsigned char *p = (const unsigned char *)label
-		    + hotkey_position + 1; *p != '\0'; p++)
+		rip->x      = text_x + prefix_width + hotkey_width - rip->viewport.sx;
+		rip->y      = text_y - rip->viewport.sy;
+		rip->colour = inverted ? 15 ^ style->foreground : style->foreground;
+		for (const unsigned char *p = (const unsigned char *)label + hotkey_position + 1; *p != '\0'; p++)
 			draw_rip_char(rip, *p);
 		free(copy);
 	}
@@ -3263,43 +3375,38 @@ draw_button_label(struct cterm_rip_raster *rip,
 			goto restore;
 		}
 		copy[hotkey_position] = '\0';
-		char hotkey_text[2] = {label[hotkey_position], '\0'};
-		int prefix_width = rip_text_width(rip, copy);
-		int hotkey_width = rip_text_width(rip, hotkey_text);
-		int bottom = cterm_rip_button_char_descends(
-		    (uint8_t)label[hotkey_position]) ? metric->drop : metric->base;
-		int underline_y = text_y + bottom + 3
-		    + ((style->flags & 32) != 0);
+		char hotkey_text[2]   = {label[hotkey_position], '\0'};
+		int  prefix_width     = rip_text_width(rip, copy);
+		int  hotkey_width     = rip_text_width(rip, hotkey_text);
+		int  bottom =
+		    cterm_rip_button_char_descends((uint8_t)label[hotkey_position]) ? metric->drop : metric->base;
+		int underline_y = text_y + bottom + 3 + ((style->flags & 32) != 0);
 
-		button_line(rip, text_x + prefix_width, underline_y,
-		    text_x + prefix_width + hotkey_width - 2,
-		    underline_y,
-		    map_colour(rip, inverted ? 15 ^ style->underline
-		    : style->underline));
+		button_line(rip, text_x + prefix_width, underline_y, text_x + prefix_width + hotkey_width - 2,
+		    underline_y, map_colour(rip, inverted ? 15 ^ style->underline : style->underline));
 		free(copy);
 	}
 restore:
-	rip->x = old_x;
-	rip->y = old_y;
+	rip->x      = old_x;
+	rip->y      = old_y;
 	rip->colour = old_colour;
 }
 
 int
-cterm_rip_raster_draw_button(struct cterm_rip_raster *rip,
-    struct cterm_rip_button_draw *button, bool inverted)
+cterm_rip_raster_draw_button(struct cterm_rip_raster *rip, struct cterm_rip_button_draw *button, bool inverted)
 {
 	struct cterm_rip_button_style old_style;
-	char *converted_label = NULL;
-	const char *label;
-	bool unicode_text;
-	int old_font_number, old_font_size, old_font_vertical;
-	int x1, y1, x2, y2;
+	char                         *converted_label = NULL;
+	const char                   *label;
+	bool                          unicode_text;
+	int                           old_font_number, old_font_size, old_font_vertical;
+	int                           x1, y1, x2, y2;
 
 	if (rip == NULL || button == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (button->style.type < 0 || button->style.type > 2)
 		return IO_ERROR_NOT_SUPPORTED;
-	label = button->label;
+	label        = button->label;
 	unicode_text = rip->unicode_text;
 	if (unicode_text && label != NULL) {
 		font_text_bytes(rip, label, &converted_label);
@@ -3307,31 +3414,29 @@ cterm_rip_raster_draw_button(struct cterm_rip_raster *rip,
 			return rip->error;
 		label = converted_label;
 	}
-	old_style = rip->button_style;
-	old_font_number = rip->font_number;
-	old_font_size = rip->font_size;
-	old_font_vertical = rip->font_vertical;
-	rip->button_style = button->style;
-	rip->font_number = button->font_number;
-	rip->font_size = button->font_size;
+	old_style          = rip->button_style;
+	old_font_number    = rip->font_number;
+	old_font_size      = rip->font_size;
+	old_font_vertical  = rip->font_vertical;
+	rip->button_style  = button->style;
+	rip->font_number   = button->font_number;
+	rip->font_size     = button->font_size;
 	rip->font_vertical = button->font_vertical;
-	x1 = button->x1 - rip->viewport.sx;
-	y1 = button->y1 - rip->viewport.sy;
-	x2 = button->x2 - rip->viewport.sx;
-	y2 = button->y2 - rip->viewport.sy;
-	draw_plain_button(rip, x1, y1, x2, y2, inverted,
-	    button->icon, &button->x2, &button->y2);
+	x1                 = button->x1 - rip->viewport.sx;
+	y1                 = button->y1 - rip->viewport.sy;
+	x2                 = button->x2 - rip->viewport.sx;
+	y2                 = button->y2 - rip->viewport.sy;
+	draw_plain_button(rip, x1, y1, x2, y2, inverted, button->icon, &button->x2, &button->y2);
 	if ((button->style.flags & 64) != 0 && rip->error == 0)
 		capture_button_stamp(rip, button);
-	x2 = button->x2 - rip->viewport.sx;
-	y2 = button->y2 - rip->viewport.sy;
+	x2                = button->x2 - rip->viewport.sx;
+	y2                = button->y2 - rip->viewport.sy;
 	rip->unicode_text = false;
-	draw_button_label(rip, x1, y1, x2, y2, button->hotkey,
-	    inverted, label);
-	rip->unicode_text = unicode_text;
-	rip->button_style = old_style;
-	rip->font_number = old_font_number;
-	rip->font_size = old_font_size;
+	draw_button_label(rip, x1, y1, x2, y2, button->hotkey, inverted, label);
+	rip->unicode_text  = unicode_text;
+	rip->button_style  = old_style;
+	rip->font_number   = old_font_number;
+	rip->font_size     = old_font_size;
 	rip->font_vertical = old_font_vertical;
 	free(converted_label);
 	return rip->error;
@@ -3339,76 +3444,64 @@ cterm_rip_raster_draw_button(struct cterm_rip_raster *rip,
 
 struct command_draw {
 	struct cterm_rip_raster *rip;
-	int level, sublevel;
-	uint8_t code;
-	const char *arguments;
-	bool *handled;
+	int                      level, sublevel;
+	uint8_t                  code;
+	const char              *arguments;
+	bool                    *handled;
 };
 
 static void
 draw_command(void *context)
 {
 	const struct command_draw *draw = context;
-	draw->rip->error = cterm_rip_raster_command(draw->rip, draw->level,
-	    draw->sublevel, draw->code, draw->arguments, draw->handled);
+	draw->rip->error = cterm_rip_raster_command(draw->rip, draw->level, draw->sublevel, draw->code,
+	    draw->arguments, draw->handled);
 }
 
 int
-cterm_rip_raster_command(struct cterm_rip_raster *rip,
-    int level, int sublevel, uint8_t code, const char *arguments,
-    bool *handled)
+cterm_rip_raster_command(struct cterm_rip_raster *rip, int level, int sublevel, uint8_t code,
+    const char *arguments, bool *handled)
 {
-	static const uint8_t four_coords[4] = {2, 2, 2, 2};
-	static const uint8_t copy_fields[6] = {2, 2, 2, 2, 2, 2};
-	static const uint8_t style_fields[3] = {2, 4, 2};
-	static const uint8_t fill_fields[2] = {2, 2};
-	static const uint8_t colour_field[1] = {2};
-	static const uint8_t write_mode_field[1] = {1};
-	static const uint8_t border_field[1] = {2};
-	static const uint8_t point_fields[2] = {2, 2};
-	static const uint8_t custom_fill_fields[9] = {
-		2, 2, 2, 2, 2, 2, 2, 2, 2
-	};
-	static const uint8_t circle_fields[3] = {2, 2, 2};
-	static const uint8_t oval_fields[6] = {2, 2, 2, 2, 2, 2};
-	static const uint8_t arc_fields[5] = {2, 2, 2, 2, 2};
-	static const uint8_t flood_fields[3] = {2, 2, 2};
-	static const uint8_t capture_fields[5] = {2, 2, 2, 2, 1};
-	static const uint8_t paste_fields[4] = {2, 2, 2, 1};
-	static const uint8_t icon_fields[6] = {2, 2, 2, 1, 1, 1};
-	static const uint8_t region_fields[6] = {2, 2, 2, 2, 1, 1};
-	static const uint8_t font_fields[5] = {2, 2, 2, 1, 1};
-	static const uint8_t palette_fields[16] = {
-		2, 2, 2, 2, 2, 2, 2, 2,
-		2, 2, 2, 2, 2, 2, 2, 2
-	};
-	static const uint8_t bezier_fields[9] = {
-		2, 2, 2, 2, 2, 2, 2, 2, 2
-	};
-	static const uint8_t button_style_fields[17] = {
-		2, 2, 2, 4, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2
-	};
-	static const uint8_t button_fields[7] = {
-		2, 2, 2, 2, 2, 1, 1
-	};
-	int fields[6];
-	int button_style[17];
-	int button[7];
-	int custom_fill[9];
-	int bezier[9];
-	int palette_values[16];
-	int count;
-	const char *suffix = arguments;
+	static const uint8_t four_coords[4]          = {2, 2, 2, 2};
+	static const uint8_t copy_fields[6]          = {2, 2, 2, 2, 2, 2};
+	static const uint8_t style_fields[3]         = {2, 4, 2};
+	static const uint8_t fill_fields[2]          = {2, 2};
+	static const uint8_t colour_field[1]         = {2};
+	static const uint8_t write_mode_field[1]     = {1};
+	static const uint8_t border_field[1]         = {2};
+	static const uint8_t point_fields[2]         = {2, 2};
+	static const uint8_t custom_fill_fields[9]   = {2, 2, 2, 2, 2, 2, 2, 2, 2};
+	static const uint8_t circle_fields[3]        = {2, 2, 2};
+	static const uint8_t oval_fields[6]          = {2, 2, 2, 2, 2, 2};
+	static const uint8_t arc_fields[5]           = {2, 2, 2, 2, 2};
+	static const uint8_t flood_fields[3]         = {2, 2, 2};
+	static const uint8_t capture_fields[5]       = {2, 2, 2, 2, 1};
+	static const uint8_t paste_fields[4]         = {2, 2, 2, 1};
+	static const uint8_t icon_fields[6]          = {2, 2, 2, 1, 1, 1};
+	static const uint8_t region_fields[6]        = {2, 2, 2, 2, 1, 1};
+	static const uint8_t font_fields[5]          = {2, 2, 2, 1, 1};
+	static const uint8_t palette_fields[16]      = {2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2};
+	static const uint8_t bezier_fields[9]        = {2, 2, 2, 2, 2, 2, 2, 2, 2};
+	static const uint8_t button_style_fields[17] = {2, 2, 2, 4, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2};
+	static const uint8_t button_fields[7]        = {2, 2, 2, 2, 2, 1, 1};
+	int                  fields[6];
+	int                  button_style[17];
+	int                  button[7];
+	int                  custom_fill[9];
+	int                  bezier[9];
+	int                  palette_values[16];
+	int                  count;
+	const char          *suffix = arguments;
 
 	if (rip == NULL || arguments == NULL || handled == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	/* Only raster commands run under the console lock. Palette changes,
 	 * file I/O, clipboard captures and retained-state saves stay outside. */
-	if (rip->drawing_pixels == NULL && sublevel == 0 &&
-	    ((level == 0 && code != 0 && strchr("ECOVoAIiZF@TXjBKLRPpltzx", code) != NULL)
-	    || (level == 1 && (code == 't' || code == 'G')))) {
+	if (rip->drawing_pixels == NULL && sublevel == 0
+	    && ((level == 0 && code != 0 && strchr("ECOVoAIiZF@TXjBKLRPpltzx", code) != NULL)
+	        || (level == 1 && (code == 't' || code == 'G')))) {
 		struct command_draw draw = {rip, level, sublevel, code, arguments, handled};
-		*handled = true;
+		*handled                 = true;
 		draw_in_place(rip, draw_command, &draw);
 		return rip->error;
 	}
@@ -3420,7 +3513,7 @@ cterm_rip_raster_command(struct cterm_rip_raster *rip,
 	}
 	if (level == 1 && sublevel == 0 && code == 'W') {
 		static const uint8_t widths[1] = {1};
-		*handled = true;
+		*handled                       = true;
 		if (cterm_rip_read_fields(&suffix, widths, 1, fields) == 1 && *suffix != '\0')
 			write_icon(rip, suffix);
 		return rip->error;
@@ -3429,47 +3522,47 @@ cterm_rip_raster_command(struct cterm_rip_raster *rip,
 		int type_bits;
 
 		*handled = true;
-		count = parse_fields(arguments, button_style_fields, 17,
-		    button_style);
+		count    = parse_fields(arguments, button_style_fields, 17, button_style);
 		if (count != 17 || (unsigned)button_style[2] > 4 || button_style[4] < 0)
 			return rip->error;
 		type_bits = (uint16_t)button_style[3] & (1 | 128 | 256);
 		if ((type_bits & (type_bits - 1)) != 0)
 			return rip->error;
 		for (size_t i = 5; i <= 13; ++i) {
-			if (i == 10 || i == 11) continue;
+			if (i == 10 || i == 11)
+				continue;
 			button_style[i] = (uint8_t)button_style[i];
-			if (rip->version == 1) button_style[i] &= 15;
+			if (rip->version == 1)
+				button_style[i] &= 15;
 		}
 		struct cterm_rip_button_style *style = &rip->button_style;
 
-		style->width = button_style[0];
-		style->height = button_style[1];
-		style->orientation = button_style[2];
-		style->flags = (uint16_t)button_style[3];
-		style->bevel_size = button_style[4];
-		style->foreground = button_style[5];
+		style->width        = button_style[0];
+		style->height       = button_style[1];
+		style->orientation  = button_style[2];
+		style->flags        = (uint16_t)button_style[3];
+		style->bevel_size   = button_style[4];
+		style->foreground   = button_style[5];
 		style->shadow_label = button_style[6];
-		style->highlight = button_style[7];
-		style->shadow = button_style[8];
-		style->surface = button_style[9];
-		style->group = (uint16_t)button_style[10];
-		style->flags2 = (uint16_t)button_style[11];
-		style->underline = button_style[12];
-		style->corner = button_style[13];
+		style->highlight    = button_style[7];
+		style->shadow       = button_style[8];
+		style->surface      = button_style[9];
+		style->group        = (uint16_t)button_style[10];
+		style->flags2       = (uint16_t)button_style[11];
+		style->underline    = button_style[12];
+		style->corner       = button_style[13];
 		if (type_bits != 0)
-			style->type = type_bits == 1 ? 1
-			    : type_bits == 128 ? 0 : 2;
+			style->type = type_bits == 1 ? 1 : type_bits == 128 ? 0 : 2;
 		return rip->error;
 	}
 	if (level == 1 && sublevel == 0 && code == 'U') {
-		const char *text;
-		const char *label_start;
-		const char *command_start = NULL;
-		char *icon = NULL;
-		char *label = NULL;
-		bool selected_command = false;
-		const struct cterm_rip_button_style *style = &rip->button_style;
+		const char                          *text;
+		const char                          *label_start;
+		const char                          *command_start    = NULL;
+		char                                *icon             = NULL;
+		char                                *label            = NULL;
+		bool                                 selected_command = false;
+		const struct cterm_rip_button_style *style            = &rip->button_style;
 
 		*handled = false;
 		if (style->type < 0 || style->type > 2)
@@ -3479,7 +3572,7 @@ cterm_rip_raster_command(struct cterm_rip_raster *rip,
 			*handled = true;
 			return rip->error;
 		}
-		text = suffix;
+		text        = suffix;
 		label_start = strstr(text, "<>");
 		if (label_start != NULL && label_start != text) {
 			icon = strndup(text, (size_t)(label_start - text));
@@ -3494,9 +3587,8 @@ cterm_rip_raster_command(struct cterm_rip_raster *rip,
 		if (label_start != NULL) {
 			label_start += 2;
 			command_start = strstr(label_start, "<>");
-			selected_command = command_start != NULL
-			    && (button[5] & 1) != 0
-			    && command_start[2] != '\0';
+			selected_command =
+			    command_start != NULL && (button[5] & 1) != 0 && command_start[2] != '\0';
 			if (command_start == NULL)
 				command_start = label_start + strlen(label_start);
 			if (command_start != label_start) {
@@ -3511,24 +3603,22 @@ cterm_rip_raster_command(struct cterm_rip_raster *rip,
 				label[size] = '\0';
 			}
 		}
-		*handled = (style->flags & 1024) == 0
-		    && !selected_command;
-		rip->last_button_style = *style;
+		*handled                             = (style->flags & 1024) == 0 && !selected_command;
+		rip->last_button_style               = *style;
 		struct cterm_rip_button_draw drawing = {
-			.style = *style,
-			.x1 = button[0] + rip->viewport.sx,
-			.y1 = button[1] + rip->viewport.sy,
-			.x2 = button[2] + rip->viewport.sx,
-			.y2 = button[3] + rip->viewport.sy,
-			.hotkey = button[4],
-			.font_number = rip->font_number,
-			.font_size = rip->font_size,
-			.font_vertical = rip->font_vertical,
-			.icon = icon,
-			.label = label,
+		    .style         = *style,
+		    .x1            = button[0] + rip->viewport.sx,
+		    .y1            = button[1] + rip->viewport.sy,
+		    .x2            = button[2] + rip->viewport.sx,
+		    .y2            = button[3] + rip->viewport.sy,
+		    .hotkey        = button[4],
+		    .font_number   = rip->font_number,
+		    .font_size     = rip->font_size,
+		    .font_vertical = rip->font_vertical,
+		    .icon          = icon,
+		    .label         = label,
 		};
-		cterm_rip_raster_draw_button(rip, &drawing,
-		    (button[5] & 1) != 0);
+		cterm_rip_raster_draw_button(rip, &drawing, (button[5] & 1) != 0);
 		rip->last_button_x2 = drawing.x2;
 		rip->last_button_y2 = drawing.y2;
 		if ((drawing.style.flags & 64) != 0) {
@@ -3541,40 +3631,33 @@ cterm_rip_raster_command(struct cterm_rip_raster *rip,
 		return rip->error;
 	}
 	if (level == 1 && sublevel == 0
-	    && (code == 'C' || code == 'P' || code == 'I'
-	        || code == 'T' || code == 't' || code == 'E')) {
+	    && (code == 'C' || code == 'P' || code == 'I' || code == 'T' || code == 't' || code == 'E')) {
 		*handled = true;
 		if (code == 'C') {
-			count = parse_fields(arguments, capture_fields, 5,
-			    fields);
+			count = parse_fields(arguments, capture_fields, 5, fields);
 			if (count == 5)
-				capture_image(rip, fields[0], fields[1],
-				    fields[2], fields[3]);
+				capture_image(rip, fields[0], fields[1], fields[2], fields[3]);
 		}
 		else if (code == 'P') {
-			count = parse_fields(arguments, paste_fields, 4,
-			    fields);
+			count = parse_fields(arguments, paste_fields, 4, fields);
 			if (count == 4)
-				paste_image(rip, fields[0], fields[1],
-				    (uint8_t)fields[2]);
+				paste_image(rip, fields[0], fields[1], (uint8_t)fields[2]);
 		}
 		else if (code == 'I') {
 			count = (int)cterm_rip_read_fields(&suffix, icon_fields, 6, fields);
 			if (count == 6 && *suffix != '\0' && (uint8_t)fields[2] <= 4)
-				(void)load_icon(rip, fields[0], fields[1],
-				    (uint8_t)fields[2], fields[3] != 0,
+				(void)load_icon(rip, fields[0], fields[1], (uint8_t)fields[2], fields[3] != 0,
 				    suffix, NULL, NULL);
 		}
 		else if (code == 'T') {
-			count = parse_fields(arguments, region_fields, 6,
-			    fields);
+			count = parse_fields(arguments, region_fields, 6, fields);
 			if (count == 6) {
-				rip->text_region.sx = fields[0];
-				rip->text_region.sy = fields[1];
-				rip->text_region.ex = fields[2];
-				rip->text_region.ey = fields[3];
-				rip->text_region.xpos = 0;
-				rip->text_region.ypos = 0;
+				rip->text_region.sx          = fields[0];
+				rip->text_region.sy          = fields[1];
+				rip->text_region.ex          = fields[2];
+				rip->text_region.ey          = fields[3];
+				rip->text_region.xpos        = 0;
+				rip->text_region.ypos        = 0;
 				rip->text_region.line_height = rip_font_height(rip);
 			}
 		}
@@ -3585,314 +3668,292 @@ cterm_rip_raster_command(struct cterm_rip_raster *rip,
 				draw_region_text(rip, justify, suffix);
 		}
 		else {
-			rip->text_region.sx = -1;
-			rip->text_region.sy = -1;
-			rip->text_region.ex = -1;
-			rip->text_region.ey = -1;
+			rip->text_region.sx   = -1;
+			rip->text_region.sy   = -1;
+			rip->text_region.ex   = -1;
+			rip->text_region.ey   = -1;
 			rip->text_region.xpos = 0;
 			rip->text_region.ypos = 0;
 		}
 		return rip->error;
 	}
 	*handled = level == 0 && sublevel == 0
-	    && (code == 'S' || code == 'B' || code == 'c'
-	        || code == 'f'
-	        || code == '=' || code == 'L' || code == 'R'
-	        || code == 'W' || code == 'X'
-	        || code == 'P' || code == 'p' || code == 'l'
-	        || code == 'm' || code == 's' || code == 'v'
-	        || code == 'E' || code == 'C' || code == 'O'
-	        || code == 'V' || code == 'o' || code == 'A'
-	        || code == 'I' || code == 'i'
-	        || code == 'N' || code == 'Z' || code == 'F'
-	        || code == 'Q' || code == 'a' || code == 'Y'
-	        || code == '@' || code == 'T' || code == 'K'
-	        || code == 'j' || code == 't' || code == 'z'
-	        || code == 'x');
+	           && (code == 'S' || code == 'B' || code == 'c' || code == 'f' || code == '=' || code == 'L'
+	               || code == 'R' || code == 'W' || code == 'X' || code == 'P' || code == 'p' || code == 'l'
+	               || code == 'm' || code == 's' || code == 'v' || code == 'E' || code == 'C' || code == 'O'
+	               || code == 'V' || code == 'o' || code == 'A' || code == 'I' || code == 'i' || code == 'N'
+	               || code == 'Z' || code == 'F' || code == 'Q' || code == 'a' || code == 'Y' || code == '@'
+	               || code == 'T' || code == 'K' || code == 'j' || code == 't' || code == 'z' || code == 'x');
 	if (!*handled)
 		return 0;
 	switch (code) {
-	case 'f':
-		count = parse_fields(arguments, point_fields, 2, fields);
-		if (count == 2 && fields[0] > 0 && fields[1] > 0) {
-			refresh_screen_size(rip);
-			if (rip->error != 0)
-				break;
-			rip->x_dim = fields[0];
-			rip->y_dim = fields[1];
-			rip->x_max = rip->screen_width < (uint32_t)fields[0]
-			    ? (int)rip->screen_width : fields[0];
-			rip->y_max = rip->screen_height < (uint32_t)fields[1]
-			    ? (int)rip->screen_height : fields[1];
-			rip->viewport.sx = 0;
-			rip->viewport.sy = 0;
-			rip->viewport.ex = fields[0] - 1;
-			rip->viewport.ey = fields[1] - 1;
-		}
-		break;
-	case 't':
-	case 'z':
-	case 'x':
-		poly_bezier(rip, arguments, code == 'x', code != 't');
-		break;
-	case 'E':
-		erase_view(rip);
-		break;
-	case 'N':
-		count = parse_fields(arguments, border_field, 1, fields);
-		if (count == 1)
-			rip->borders = fields[0] != 0;
-		break;
-	case 'C':
-		count = parse_fields(arguments, circle_fields, 3, fields);
-		if (count == 3)
-			full_ellipse(rip, fields[0], fields[1], 0, 360,
-			    fields[2], fields[2] * 7750 / 10000, false,
-			    map_colour(rip, rip->colour), NULL);
-		break;
-	case 'O':
-	case 'V':
-		count = parse_fields(arguments, oval_fields, 6, fields);
-		if (count == 6)
-			full_ellipse(rip, fields[0], fields[1], fields[2],
-			    fields[3], fields[4], fields[5], false,
-			    map_colour(rip, rip->colour), NULL);
-		break;
-	case 'o':
-		count = parse_fields(arguments, four_coords, 4, fields);
-		if (count == 4)
-			full_ellipse(rip, fields[0], fields[1], 0, 360,
-			    fields[2], fields[3], true,
-			    map_colour(rip, rip->colour), NULL);
-		break;
-	case 'A':
-		count = parse_fields(arguments, arc_fields, 5, fields);
-		if (count == 5)
-			full_ellipse(rip, fields[0], fields[1], fields[2],
-			    fields[3], fields[4], fields[4] * 7750 / 10000,
-			    false, map_colour(rip, rip->colour), NULL);
-		break;
-	case 'I':
-		count = parse_fields(arguments, arc_fields, 5, fields);
-		if (count == 5)
-			draw_pie(rip, fields[0], fields[1], fields[2],
-			    fields[3], fields[4],
-			    fields[4] * 7750 / 10000, true);
-		break;
-	case 'i':
-		count = parse_fields(arguments, oval_fields, 6, fields);
-		if (count == 6)
-			draw_pie(rip, fields[0], fields[1], fields[2],
-			    fields[3], fields[4], fields[5], false);
-		break;
-	case 'Z':
-		count = parse_fields(arguments, bezier_fields, 9, bezier);
-		if (count == 9) {
-			if (bezier[8] <= 0)
-				bezier[8] = 200; /* 0CA1:00AD loads the explicit 0.005 step. */
-			draw_bezier(rip, bezier, bezier[8]);
-		}
-		break;
-	case 'F':
-		count = parse_fields(arguments, flood_fields, 3, fields);
-		if (count == 3)
-			flood_fill(rip, fields[0], fields[1], (uint8_t)fields[2] & 15);
-		break;
-	case 'Q':
-		count = parse_fields(arguments, palette_fields, 16,
-		    palette_values);
-		if (count == 16) {
-			for (int i = 0; i < 16; i++) {
-				/* Attribute palette registers have six colour bits. */
-				rip->master_palette[i] = (uint8_t)palette_values[i] & 63;
-			}
-			set_master_palette(rip);
-		}
-		break;
-	case 'a':
-		count = parse_fields(arguments, point_fields, 2, fields);
-		if (count == 2 && (unsigned)fields[0] < 16) {
-			rip->master_palette[fields[0]] = (uint8_t)fields[1] & 63;
-			set_master_palette(rip);
-		}
-		break;
-	case 'Y':
-		count = parse_fields(arguments, font_fields, 5, fields);
-		if (count == 5) {
-			if ((unsigned)fields[0] <= 10)
-				rip->font_number = fields[0];
-			rip->font_vertical = (uint8_t)fields[1];
-			/* The stroke scale tables only define the supported 1..10 sizes. */
-			if ((uint8_t)fields[2] > 0 && (uint8_t)fields[2] <= 10)
-				rip->font_size = (uint8_t)fields[2];
-		}
-		break;
-	case '@':
-		count = (int)cterm_rip_read_fields(&suffix, point_fields, 2, fields);
-		if (count == 2) {
-			rip->x = fields[0];
-			rip->y = fields[1];
-			draw_rip_text(rip, *suffix == '\0' ? " " : suffix);
-		}
-		break;
-	case 'T':
-		draw_rip_text(rip, arguments[0] == '\0' ? " " : arguments);
-		break;
-	case 'S':
-		count = parse_fields(arguments, fill_fields, 2, fields);
-		if (count == 2 && (unsigned)fields[0] <= 11)
-			cterm_rip_raster_fill_style(rip, fields[0], (uint8_t)fields[1]);
-		break;
-	case 'c':
-		count = parse_fields(arguments, colour_field, 1, fields);
-		if (count == 1)
-			rip->colour = (uint8_t)fields[0] & 15;
-		break;
-	case 'W':
-		count = parse_fields(arguments, write_mode_field, 1, fields);
-		if (count == 1 && (unsigned)fields[0] <= 1)
-			rip->xor_mode = fields[0] == 1;
-		break;
-	case 'm':
-		count = parse_fields(arguments, point_fields, 2, fields);
-		if (count == 2
-		    && fields[0] <= rip->viewport.ex - rip->viewport.sx + 1
-		    && fields[1] <= rip->viewport.ey - rip->viewport.sy + 1) {
-			rip->x = fields[0];
-			rip->y = fields[1];
-		}
-		break;
-	case 's':
-		count = parse_fields(arguments, custom_fill_fields, 9,
-		    custom_fill);
-		if (count == 9 && (unsigned)custom_fill[8] <= 15) {
-			for (int i = 0; i < 8; i++)
-				rip->fill_pattern[i] = (uint8_t)custom_fill[i];
-			rip->fill_colour = custom_fill[8];
-			rip->fill_style = -1;
-		}
-		break;
-	case 'v':
-		count = parse_fields(arguments, four_coords, 4, fields);
-		if (count == 4) {
-			bool disabled = fields[0] == 0 && fields[1] == 0
-			    && fields[2] == 0 && fields[3] == 0;
-
-			if (!disabled) {
-				if (fields[0] < 0 || fields[1] < 0 || fields[2] < 0 || fields[3] < 0)
+		case 'f':
+			count = parse_fields(arguments, point_fields, 2, fields);
+			if (count == 2 && fields[0] > 0 && fields[1] > 0) {
+				refresh_screen_size(rip);
+				if (rip->error != 0)
 					break;
-				if (fields[2] >= rip->x_dim)
-					fields[2] = rip->x_dim - 1;
-				if (fields[3] >= rip->y_dim)
-					fields[3] = rip->y_dim - 1;
-				if (fields[0] >= fields[2]
-				    || fields[1] >= fields[3])
-					break;
+				rip->x_dim = fields[0];
+				rip->y_dim = fields[1];
+				rip->x_max =
+				    rip->screen_width < (uint32_t)fields[0] ? (int)rip->screen_width : fields[0];
+				rip->y_max =
+				    rip->screen_height < (uint32_t)fields[1] ? (int)rip->screen_height : fields[1];
+				rip->viewport.sx = 0;
+				rip->viewport.sy = 0;
+				rip->viewport.ex = fields[0] - 1;
+				rip->viewport.ey = fields[1] - 1;
 			}
-			rip->viewport.sx = fields[0];
-			rip->viewport.sy = fields[1];
-			rip->viewport.ex = fields[2];
-			rip->viewport.ey = fields[3];
-		}
-		break;
-	case 'X':
-		count = parse_fields(arguments, point_fields, 2, fields);
-		if (count == 2 && !no_viewport(rip))
-			set_pixel(rip, fields[0], fields[1],
-			    map_colour(rip, rip->colour));
-		break;
-	case 'j':
-		count = parse_fields(arguments, point_fields, 2, fields);
-		if (count == 2 && !no_viewport(rip))
-			cterm_rip_raster_line(rip, fields[0], fields[1], fields[0], fields[1]);
-		break;
-	case '=':
-		count = parse_fields(arguments, style_fields, 3, fields);
-		if (count == 3 && (unsigned)fields[0] <= 4 && (unsigned)fields[2] <= 3) {
-			rip->line_pattern = fields[0] < 4
-			    ? st_bgi_line_patterns[fields[0]] : (uint16_t)fields[1];
-			rip->line_width = fields[2];
-			rip->line_style = fields[0];
-		}
-		break;
-	case 'B':
-	case 'K':
-	case 'L':
-	case 'R':
-		count = parse_fields(arguments, four_coords, 4, fields);
-		if (count == 4) {
-			if (code == 'B')
-				cterm_rip_raster_bar(rip, fields[0], fields[1],
-				    fields[2], fields[3]);
-			else if (code == 'K' && !no_viewport(rip)) {
-				if (fields[0] > fields[2]) {
-					int temp = fields[0];
-					fields[0] = fields[2];
-					fields[2] = temp;
-				}
-				if (fields[1] > fields[3]) {
-					int temp = fields[1];
-					fields[1] = fields[3];
-					fields[3] = temp;
-				}
-				cterm_rip_raster_bar(rip, fields[0], fields[1],
-				    fields[2], fields[3]);
-				if (rip->borders)
-					cterm_rip_raster_rectangle(rip, fields[0],
-					    fields[1], fields[2], fields[3]);
-			}
-			else if (code == 'L')
-				cterm_rip_raster_line(rip, fields[0], fields[1],
-				    fields[2], fields[3]);
-			else
-				cterm_rip_raster_rectangle(rip, fields[0], fields[1],
-				    fields[2], fields[3]);
-		}
-		break;
-	case 'P':
-	case 'p':
-	case 'l': {
-		struct rip_point points[512];
-		const char *cursor = arguments;
-		int vertices;
-		bool valid = true;
-
-		if (!cterm_rip_read_number(&cursor, 2, &vertices) || vertices < 2 || vertices > 512)
 			break;
-		for (int i = 0; i < vertices; i++) {
-			if (!cterm_rip_read_number(&cursor, 2, &points[i].x)
-			    || !cterm_rip_read_number(&cursor, 2, &points[i].y)) {
-				valid = false;
-				break;
+		case 't':
+		case 'z':
+		case 'x':
+			poly_bezier(rip, arguments, code == 'x', code != 't');
+			break;
+		case 'E':
+			erase_view(rip);
+			break;
+		case 'N':
+			count = parse_fields(arguments, border_field, 1, fields);
+			if (count == 1)
+				rip->borders = fields[0] != 0;
+			break;
+		case 'C':
+			count = parse_fields(arguments, circle_fields, 3, fields);
+			if (count == 3)
+				full_ellipse(rip, fields[0], fields[1], 0, 360, fields[2],
+				    fields[2] * 7750 / 10000, false, map_colour(rip, rip->colour), NULL);
+			break;
+		case 'O':
+		case 'V':
+			count = parse_fields(arguments, oval_fields, 6, fields);
+			if (count == 6)
+				full_ellipse(rip, fields[0], fields[1], fields[2], fields[3], fields[4], fields[5],
+				    false, map_colour(rip, rip->colour), NULL);
+			break;
+		case 'o':
+			count = parse_fields(arguments, four_coords, 4, fields);
+			if (count == 4)
+				full_ellipse(rip, fields[0], fields[1], 0, 360, fields[2], fields[3], true,
+				    map_colour(rip, rip->colour), NULL);
+			break;
+		case 'A':
+			count = parse_fields(arguments, arc_fields, 5, fields);
+			if (count == 5)
+				full_ellipse(rip, fields[0], fields[1], fields[2], fields[3], fields[4],
+				    fields[4] * 7750 / 10000, false, map_colour(rip, rip->colour), NULL);
+			break;
+		case 'I':
+			count = parse_fields(arguments, arc_fields, 5, fields);
+			if (count == 5)
+				draw_pie(rip, fields[0], fields[1], fields[2], fields[3], fields[4],
+				    fields[4] * 7750 / 10000, true);
+			break;
+		case 'i':
+			count = parse_fields(arguments, oval_fields, 6, fields);
+			if (count == 6)
+				draw_pie(rip, fields[0], fields[1], fields[2], fields[3], fields[4], fields[5],
+				    false);
+			break;
+		case 'Z':
+			count = parse_fields(arguments, bezier_fields, 9, bezier);
+			if (count == 9) {
+				if (bezier[8] <= 0)
+					bezier[8] = 200; /* 0CA1:00AD loads the explicit 0.005 step. */
+				draw_bezier(rip, bezier, bezier[8]);
 			}
-		}
-		/* The legacy descriptor parses every remaining base-36 field,
+			break;
+		case 'F':
+			count = parse_fields(arguments, flood_fields, 3, fields);
+			if (count == 3)
+				flood_fill(rip, fields[0], fields[1], (uint8_t)fields[2] & 15);
+			break;
+		case 'Q':
+			count = parse_fields(arguments, palette_fields, 16, palette_values);
+			if (count == 16) {
+				for (int i = 0; i < 16; i++) {
+					/* Attribute palette registers have six colour bits. */
+					rip->master_palette[i] = (uint8_t)palette_values[i] & 63;
+				}
+				set_master_palette(rip);
+			}
+			break;
+		case 'a':
+			count = parse_fields(arguments, point_fields, 2, fields);
+			if (count == 2 && (unsigned)fields[0] < 16) {
+				rip->master_palette[fields[0]] = (uint8_t)fields[1] & 63;
+				set_master_palette(rip);
+			}
+			break;
+		case 'Y':
+			count = parse_fields(arguments, font_fields, 5, fields);
+			if (count == 5) {
+				if ((unsigned)fields[0] <= 10)
+					rip->font_number = fields[0];
+				rip->font_vertical = (uint8_t)fields[1];
+				/* The stroke scale tables only define the supported 1..10 sizes. */
+				if ((uint8_t)fields[2] > 0 && (uint8_t)fields[2] <= 10)
+					rip->font_size = (uint8_t)fields[2];
+			}
+			break;
+		case '@':
+			count = (int)cterm_rip_read_fields(&suffix, point_fields, 2, fields);
+			if (count == 2) {
+				rip->x = fields[0];
+				rip->y = fields[1];
+				draw_rip_text(rip, *suffix == '\0' ? " " : suffix);
+			}
+			break;
+		case 'T':
+			draw_rip_text(rip, arguments[0] == '\0' ? " " : arguments);
+			break;
+		case 'S':
+			count = parse_fields(arguments, fill_fields, 2, fields);
+			if (count == 2 && (unsigned)fields[0] <= 11)
+				cterm_rip_raster_fill_style(rip, fields[0], (uint8_t)fields[1]);
+			break;
+		case 'c':
+			count = parse_fields(arguments, colour_field, 1, fields);
+			if (count == 1)
+				rip->colour = (uint8_t)fields[0] & 15;
+			break;
+		case 'W':
+			count = parse_fields(arguments, write_mode_field, 1, fields);
+			if (count == 1 && (unsigned)fields[0] <= 1)
+				rip->xor_mode = fields[0] == 1;
+			break;
+		case 'm':
+			count = parse_fields(arguments, point_fields, 2, fields);
+			if (count == 2 && fields[0] <= rip->viewport.ex - rip->viewport.sx + 1
+			    && fields[1] <= rip->viewport.ey - rip->viewport.sy + 1) {
+				rip->x = fields[0];
+				rip->y = fields[1];
+			}
+			break;
+		case 's':
+			count = parse_fields(arguments, custom_fill_fields, 9, custom_fill);
+			if (count == 9 && (unsigned)custom_fill[8] <= 15) {
+				for (int i = 0; i < 8; i++)
+					rip->fill_pattern[i] = (uint8_t)custom_fill[i];
+				rip->fill_colour = custom_fill[8];
+				rip->fill_style  = -1;
+			}
+			break;
+		case 'v':
+			count = parse_fields(arguments, four_coords, 4, fields);
+			if (count == 4) {
+				bool disabled =
+				    fields[0] == 0 && fields[1] == 0 && fields[2] == 0 && fields[3] == 0;
+
+				if (!disabled) {
+					if (fields[0] < 0 || fields[1] < 0 || fields[2] < 0 || fields[3] < 0)
+						break;
+					if (fields[2] >= rip->x_dim)
+						fields[2] = rip->x_dim - 1;
+					if (fields[3] >= rip->y_dim)
+						fields[3] = rip->y_dim - 1;
+					if (fields[0] >= fields[2] || fields[1] >= fields[3])
+						break;
+				}
+				rip->viewport.sx = fields[0];
+				rip->viewport.sy = fields[1];
+				rip->viewport.ex = fields[2];
+				rip->viewport.ey = fields[3];
+			}
+			break;
+		case 'X':
+			count = parse_fields(arguments, point_fields, 2, fields);
+			if (count == 2 && !no_viewport(rip))
+				set_pixel(rip, fields[0], fields[1], map_colour(rip, rip->colour));
+			break;
+		case 'j':
+			count = parse_fields(arguments, point_fields, 2, fields);
+			if (count == 2 && !no_viewport(rip))
+				cterm_rip_raster_line(rip, fields[0], fields[1], fields[0], fields[1]);
+			break;
+		case '=':
+			count = parse_fields(arguments, style_fields, 3, fields);
+			if (count == 3 && (unsigned)fields[0] <= 4 && (unsigned)fields[2] <= 3) {
+				rip->line_pattern =
+				    fields[0] < 4 ? st_bgi_line_patterns[fields[0]] : (uint16_t)fields[1];
+				rip->line_width = fields[2];
+				rip->line_style = fields[0];
+			}
+			break;
+		case 'B':
+		case 'K':
+		case 'L':
+		case 'R':
+			count = parse_fields(arguments, four_coords, 4, fields);
+			if (count == 4) {
+				if (code == 'B')
+					cterm_rip_raster_bar(rip, fields[0], fields[1], fields[2], fields[3]);
+				else if (code == 'K' && !no_viewport(rip)) {
+					if (fields[0] > fields[2]) {
+						int temp  = fields[0];
+						fields[0] = fields[2];
+						fields[2] = temp;
+					}
+					if (fields[1] > fields[3]) {
+						int temp  = fields[1];
+						fields[1] = fields[3];
+						fields[3] = temp;
+					}
+					cterm_rip_raster_bar(rip, fields[0], fields[1], fields[2], fields[3]);
+					if (rip->borders)
+						cterm_rip_raster_rectangle(rip, fields[0], fields[1], fields[2],
+						    fields[3]);
+				}
+				else if (code == 'L')
+					cterm_rip_raster_line(rip, fields[0], fields[1], fields[2], fields[3]);
+				else
+					cterm_rip_raster_rectangle(rip, fields[0], fields[1], fields[2],
+					    fields[3]);
+			}
+			break;
+		case 'P':
+		case 'p':
+		case 'l':
+		{
+			struct rip_point points[512];
+			const char      *cursor = arguments;
+			int              vertices;
+			bool             valid = true;
+
+			if (!cterm_rip_read_number(&cursor, 2, &vertices) || vertices < 2 || vertices > 512)
+				break;
+			for (int i = 0; i < vertices; i++) {
+				if (!cterm_rip_read_number(&cursor, 2, &points[i].x)
+				    || !cterm_rip_read_number(&cursor, 2, &points[i].y)) {
+					valid = false;
+					break;
+				}
+			}
+			/* The legacy descriptor parses every remaining base-36 field,
 		 * but the drawing command uses only the declared vertices. */
-		size_t extra_fields = 0;
-		while (valid && *cursor != '\0') {
-			int ignored;
-			if (extra_fields >= 1025U - (1U + 2U * (size_t)vertices)
-			    || !cterm_rip_read_number(&cursor, 2, &ignored)) {
-				valid = false;
-				break;
+			size_t extra_fields = 0;
+			while (valid && *cursor != '\0') {
+				int ignored;
+				if (extra_fields >= 1025U - (1U + 2U * (size_t)vertices)
+				    || !cterm_rip_read_number(&cursor, 2, &ignored)) {
+					valid = false;
+					break;
+				}
+				++extra_fields;
 			}
-			++extra_fields;
-		}
-		if (valid && (extra_fields & 1U) == 0) {
-			if (code == 'l') {
-				for (int i = 1; i < vertices; i++)
-					cterm_rip_raster_line(rip, points[i - 1].x,
-					    points[i - 1].y, points[i].x,
-					    points[i].y);
+			if (valid && (extra_fields & 1U) == 0) {
+				if (code == 'l') {
+					for (int i = 1; i < vertices; i++)
+						cterm_rip_raster_line(rip, points[i - 1].x, points[i - 1].y,
+						    points[i].x, points[i].y);
+				}
+				else
+					draw_polygon(rip, points, vertices, code == 'p');
 			}
-			else
-				draw_polygon(rip, points, vertices,
-				    code == 'p');
+			break;
 		}
-		break;
-	}
-	default:
-		break;
+		default:
+			break;
 	}
 	return rip->error;
 }

@@ -1,5 +1,6 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_wren_screen_test_calls.h"
+
 static int
 test_screen_mode(struct st_wren_host *host, enum st_screen_mode mode)
 {
@@ -21,6 +22,7 @@ test_hyperlink_copy(st_hyperlink_registry_t *registry, uint16_t identifier, stru
 	}
 	return st_hyperlink_registry_copy(registry, identifier, result);
 }
+
 static int
 test_hyperlink_contains(st_hyperlink_registry_t *registry, uint16_t identifier, bool *result)
 {
@@ -31,7 +33,8 @@ test_hyperlink_contains(st_hyperlink_registry_t *registry, uint16_t identifier, 
 	}
 	return st_hyperlink_registry_contains(registry, identifier, result);
 }
-#define st_hyperlink_registry_copy test_hyperlink_copy
+
+#define st_hyperlink_registry_copy     test_hyperlink_copy
 #define st_hyperlink_registry_contains test_hyperlink_contains
-#define st_wren_host_set_screen_mode test_screen_mode
+#define st_wren_host_set_screen_mode   test_screen_mode
 #include "../wren_bind_menu.c"

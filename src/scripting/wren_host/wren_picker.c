@@ -5,7 +5,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "wren_host_internal.h"
+#include <limits.h>
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "filesystem.h"
 #include "io_error.h"
@@ -15,29 +19,24 @@
 #include "st_unicode_compare.h"
 #include "string_compat.h"
 #include "value_convert.h"
-
-#include <math.h>
-#include <limits.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include "wren_host_internal.h"
 
 struct foreign_request {
 	uint64_t generation;
 };
 
 struct binding {
-	const char *module;
-	const char *class_name;
-	bool is_static;
-	const char *signature;
+	const char         *module;
+	const char         *class_name;
+	bool                is_static;
+	const char         *signature;
 	WrenForeignMethodFn method;
 };
 
 static struct st_wren_picker_call *
 request_call(WrenVM *vm)
 {
-	struct st_wren_host *host = st_wren_host_from_vm(vm);
+	struct st_wren_host    *host = st_wren_host_from_vm(vm);
 	struct foreign_request *request;
 
 	if (!st_wren_foreign_is(vm, 0, "syncterm_picker", "PickerRequest")) {
@@ -45,8 +44,7 @@ request_call(WrenVM *vm)
 		return NULL;
 	}
 	request = wrenGetSlotForeign(vm, 0);
-	if (request == NULL || host->picker_call == NULL
-	    || !host->picker_call->active
+	if (request == NULL || host->picker_call == NULL || !host->picker_call->active
 	    || request->generation != host->picker_call->generation) {
 		st_wren_abort(vm, "PickerRequest: picker call has ended");
 		return NULL;
@@ -55,24 +53,21 @@ request_call(WrenVM *vm)
 }
 
 static bool
-slot_string(WrenVM *vm, int slot, const char **result, size_t *length,
-	const char *operation)
+slot_string(WrenVM *vm, int slot, const char **result, size_t *length, const char *operation)
 {
-	int count;
+	int         count;
 	const char *value;
-	char message[128];
+	char        message[128];
 
 	if (wrenGetSlotType(vm, slot) != WREN_TYPE_STRING) {
-		(void)snprintf(message, sizeof(message),
-		    "%s: expected a String", operation);
+		(void)snprintf(message, sizeof(message), "%s: expected a String", operation);
 		st_wren_abort(vm, message);
 		return false;
 	}
 	if (!st_wren_text_slot(vm, slot, &value, &count))
 		return false;
 	if (count < 0 || memchr(value, '\0', (size_t)count) != NULL) {
-		(void)snprintf(message, sizeof(message),
-		    "%s: String contains NUL", operation);
+		(void)snprintf(message, sizeof(message), "%s: String contains NUL", operation);
 		st_wren_abort(vm, message);
 		return false;
 	}
@@ -85,8 +80,8 @@ static char *
 copy_slot_string(WrenVM *vm, int slot, const char *operation)
 {
 	const char *value;
-	size_t length;
-	char *copy;
+	size_t      length;
+	char       *copy;
 
 	if (!slot_string(vm, slot, &value, &length, operation))
 		return NULL;
@@ -101,11 +96,10 @@ copy_slot_string(WrenVM *vm, int slot, const char *operation)
 }
 
 static char *
-path_output_alloc(ptrdiff_t (*operation)(char *, size_t, const char *),
-	const char *source)
+path_output_alloc(ptrdiff_t (*operation)(char *, size_t, const char *), const char *source)
 {
 	ptrdiff_t required = operation(NULL, 0, source);
-	char *result;
+	char     *result;
 
 	if (required < 0 || (uintmax_t)required > SIZE_MAX - 1)
 		return NULL;
@@ -128,8 +122,7 @@ absolute_path(const char *path)
 static char *
 directory_path(const char *path)
 {
-	char *absolute = absolute_path(path == NULL || path[0] == '\0' ? "." :
-	    path);
+	char *absolute = absolute_path(path == NULL || path[0] == '\0' ? "." : path);
 	char *directory;
 
 	if (absolute == NULL)
@@ -143,7 +136,7 @@ static char *
 parent_path(const char *path)
 {
 	ptrdiff_t required = path_parent(NULL, 0, path);
-	char *parent;
+	char     *parent;
 
 	if (required < 0 || (uintmax_t)required > SIZE_MAX - 1)
 		return NULL;
@@ -162,7 +155,7 @@ directory_root(const char *directory)
 {
 	char *parent = parent_path(directory);
 	char *normalized;
-	bool root;
+	bool  root;
 
 	if (parent == NULL)
 		return false;
@@ -177,11 +170,11 @@ directory_root(const char *directory)
 
 static int
 prepare_sort_keys(struct st_wren_directory_entries *entries, size_t first,
-	enum st_unicode_collation_strength strength)
+    enum st_unicode_collation_strength strength)
 {
 	for (size_t i = first; i < entries->count; ++i) {
-		int status = st_unicode_sort_key_create(&entries->items[i].sort_key,
-		    entries->items[i].name, strlen(entries->items[i].name), strength);
+		int status = st_unicode_sort_key_create(&entries->items[i].sort_key, entries->items[i].name,
+		    strlen(entries->items[i].name), strength);
 
 		if (status != 0) {
 			for (size_t done = first; done < i; ++done)
@@ -218,27 +211,23 @@ compare_entries_folded(const void *left, const void *right)
 }
 
 static int
-move_entry(struct st_wren_directory_entries *destination,
-	struct st_wren_directory_entry *entry)
+move_entry(struct st_wren_directory_entries *destination, struct st_wren_directory_entry *entry)
 {
 	struct st_wren_directory_entry *items;
-	size_t capacity;
+	size_t                          capacity;
 
 	if (destination->count == destination->capacity) {
-		capacity = destination->capacity == 0 ? 16 :
-		    destination->capacity * 2;
-		if (capacity < destination->capacity
-		    || capacity > SIZE_MAX / sizeof(destination->items[0]))
+		capacity = destination->capacity == 0 ? 16 : destination->capacity * 2;
+		if (capacity < destination->capacity || capacity > SIZE_MAX / sizeof(destination->items[0]))
 			return IO_ERROR_OUT_OF_MEMORY;
-		items = realloc(destination->items,
-		    capacity * sizeof(destination->items[0]));
+		items = realloc(destination->items, capacity * sizeof(destination->items[0]));
 		if (items == NULL)
 			return IO_ERROR_OUT_OF_MEMORY;
-		destination->items = items;
+		destination->items    = items;
 		destination->capacity = capacity;
 	}
 	destination->items[destination->count++] = *entry;
-	entry->name = NULL;
+	entry->name                              = NULL;
 	return 0;
 }
 
@@ -254,12 +243,10 @@ format_timestamp(char result[24], int64_t modified)
 }
 
 static bool
-push_entry_list(WrenVM *vm, int slot,
-	const struct st_wren_directory_entries *entries)
+push_entry_list(WrenVM *vm, int slot, const struct st_wren_directory_entries *entries)
 {
 	for (size_t i = 0; i < entries->count; ++i) {
-		if (!st_wren_u64_exact(entries->items[i].size)
-		    || !st_wren_i64_exact(entries->items[i].modified)) {
+		if (!st_wren_u64_exact(entries->items[i].size) || !st_wren_i64_exact(entries->items[i].modified)) {
 			st_wren_abort(vm, "Directory metadata exceeds Wren's exact Number range");
 			return false;
 		}
@@ -268,7 +255,7 @@ push_entry_list(WrenVM *vm, int slot,
 	wrenSetSlotNewList(vm, slot);
 	for (size_t i = 0; i < entries->count; ++i) {
 		const struct st_wren_directory_entry *entry = &entries->items[i];
-		char timestamp[24];
+		char                                  timestamp[24];
 
 		format_timestamp(timestamp, entry->modified);
 		wrenSetSlotNewList(vm, slot + 1);
@@ -290,8 +277,7 @@ push_entry_list(WrenVM *vm, int slot,
 static void
 request_allocate(WrenVM *vm)
 {
-	struct foreign_request *request = wrenSetSlotNewForeign(vm, 0, 0,
-	    sizeof(*request));
+	struct foreign_request *request = wrenSetSlotNewForeign(vm, 0, 0, sizeof(*request));
 
 	request->generation = 0;
 }
@@ -305,19 +291,16 @@ request_finalize(void *data)
 }
 
 static bool
-push_request(struct st_wren_host *host, int slot,
-	struct st_wren_picker_call *call)
+push_request(struct st_wren_host *host, int slot, struct st_wren_picker_call *call)
 {
 	struct foreign_request *request;
 
 	host->picker_call = call;
-	call->generation = ++host->picker_generation;
-	call->active = true;
+	call->generation  = ++host->picker_generation;
+	call->active      = true;
 	wrenEnsureSlots(host->picker_vm, slot + 2);
-	wrenGetVariable(host->picker_vm, "syncterm_picker", "PickerRequest",
-	    slot + 1);
-	request = wrenSetSlotNewForeign(host->picker_vm, slot, slot + 1,
-	    sizeof(*request));
+	wrenGetVariable(host->picker_vm, "syncterm_picker", "PickerRequest", slot + 1);
+	request = wrenSetSlotNewForeign(host->picker_vm, slot, slot + 1, sizeof(*request));
 	if (request == NULL)
 		return false;
 	request->generation = call->generation;
@@ -327,23 +310,34 @@ push_request(struct st_wren_host *host, int slot,
 static void
 fn_request_amiga_replacement(WrenVM *vm)
 {
-	struct st_wren_picker_call *call=request_call(vm);
-	if (call != NULL) wrenSetSlotBool(vm,0,call->amiga_replacement);
+	struct st_wren_picker_call *call = request_call(vm);
+	if (call != NULL)
+		wrenSetSlotBool(vm, 0, call->amiga_replacement);
 }
+
 static void
 fn_request_accept_amiga_replacement(WrenVM *vm)
 {
-	struct st_wren_picker_call *call=request_call(vm);
-	if (call == NULL) return;
-	if (!call->amiga_replacement) { st_wren_abort(vm,"No Amiga replacement confirmation is active"); return; }
-	call->confirmed=true; call->completed=true;
-	wrenSetSlotNull(vm,0);
+	struct st_wren_picker_call *call = request_call(vm);
+	if (call == NULL)
+		return;
+	if (!call->amiga_replacement) {
+		st_wren_abort(vm, "No Amiga replacement confirmation is active");
+		return;
+	}
+	call->confirmed = true;
+	call->completed = true;
+	wrenSetSlotNull(vm, 0);
 }
+
 static void
 fn_request_mode(WrenVM *vm)
 {
 	static const char *const names[] = {
-		"file", "directory", "multiple", "save",
+	    "file",
+	    "directory",
+	    "multiple",
+	    "save",
 	};
 	struct st_wren_picker_call *call = request_call(vm);
 
@@ -351,13 +345,12 @@ fn_request_mode(WrenVM *vm)
 		wrenSetSlotString(vm, 0, names[call->mode]);
 }
 
-#define REQUEST_STRING_GETTER(name, field) \
-	static void fn_request_##name(WrenVM *vm) \
-	{ \
-		struct st_wren_picker_call *call = request_call(vm); \
-		if (call != NULL) \
-			wrenSetSlotString(vm, 0, call->field == NULL ? "" : \
-			    call->field); \
+#define REQUEST_STRING_GETTER(name, field)                                                \
+	static void fn_request_##name(WrenVM *vm)                                         \
+	{                                                                                 \
+		struct st_wren_picker_call *call = request_call(vm);                      \
+		if (call != NULL)                                                         \
+			wrenSetSlotString(vm, 0, call->field == NULL ? "" : call->field); \
 	}
 
 REQUEST_STRING_GETTER(title, title)
@@ -377,28 +370,27 @@ static void
 fn_request_initial(WrenVM *vm)
 {
 	struct st_wren_picker_call *call = request_call(vm);
-	const char *initial;
-	char *absolute;
-	char *directory;
-	char *selected = NULL;
-	struct fs_info info;
+	const char                 *initial;
+	char                       *absolute;
+	char                       *directory;
+	char                       *selected = NULL;
+	struct fs_info              info;
 
 	if (call == NULL)
 		return;
-	initial = call->initial_path == NULL || call->initial_path[0] == '\0' ?
-	    "." : call->initial_path;
+	initial  = call->initial_path == NULL || call->initial_path[0] == '\0' ? "." : call->initial_path;
 	absolute = absolute_path(initial);
 	if (absolute == NULL) {
 		wrenSetSlotNull(vm, 0);
 		return;
 	}
 	if (fs_get_info(&info, absolute) == 0 && info.kind == FS_ENTRY_FILE) {
-		selected = strdup(path_basename(absolute));
+		selected  = strdup(path_basename(absolute));
 		directory = parent_path(absolute);
 	}
 	else {
 		directory = strdup(absolute);
-		selected = strdup("");
+		selected  = strdup("");
 	}
 	free(absolute);
 	if (directory == NULL || selected == NULL) {
@@ -427,15 +419,15 @@ fn_request_initial(WrenVM *vm)
 static void
 fn_request_list(WrenVM *vm)
 {
-	struct st_wren_picker_call *call = request_call(vm);
-	char *input;
-	char *mask;
-	char *directory;
-	struct st_wren_directory_entries raw = {0};
+	struct st_wren_picker_call      *call = request_call(vm);
+	char                            *input;
+	char                            *mask;
+	char                            *directory;
+	struct st_wren_directory_entries raw         = {0};
 	struct st_wren_directory_entries directories = {0};
-	struct st_wren_directory_entries files = {0};
-	bool root;
-	int status;
+	struct st_wren_directory_entries files       = {0};
+	bool                             root;
+	int                              status;
 
 	if (call == NULL)
 		return;
@@ -463,11 +455,12 @@ fn_request_list(WrenVM *vm)
 		wrenSetSlotNull(vm, 0);
 		return;
 	}
-	root = directory_root(directory);
+	root   = directory_root(directory);
 	status = st_wren_directory_enumerate(directory, &raw);
 	if (status == 0 && !root) {
 		struct st_wren_directory_entry parent = {
-			.name = strdup(".."), .directory = true,
+		    .name      = strdup(".."),
+		    .directory = true,
 		};
 
 		if (parent.name == NULL)
@@ -477,8 +470,8 @@ fn_request_list(WrenVM *vm)
 		free(parent.name);
 	}
 	for (size_t i = 0; status == 0 && i < raw.count; ++i) {
-		struct st_wren_directory_entry *entry = &raw.items[i];
-		bool hidden = entry->name[0] == '.';
+		struct st_wren_directory_entry *entry  = &raw.items[i];
+		bool                            hidden = entry->name[0] == '.';
 
 		if (hidden && !(call->options & ST_WREN_PICKER_SHOW_HIDDEN))
 			continue;
@@ -487,9 +480,8 @@ fn_request_list(WrenVM *vm)
 		else {
 			bool matched;
 
-			status = st_unicode_wildcard_match(&matched, mask, strlen(mask),
-			    entry->name, strlen(entry->name),
-			    (call->options & ST_WREN_PICKER_MASK_CASE) != 0);
+			status = st_unicode_wildcard_match(&matched, mask, strlen(mask), entry->name,
+			    strlen(entry->name), (call->options & ST_WREN_PICKER_MASK_CASE) != 0);
 			if (status == 0 && matched)
 				status = move_entry(&files, entry);
 		}
@@ -503,11 +495,10 @@ fn_request_list(WrenVM *vm)
 		wrenSetSlotNull(vm, 0);
 		return;
 	}
-	enum st_unicode_collation_strength strength
-	    = (call->options & ST_WREN_PICKER_CASE_SORT) != 0
-	    ? ST_UNICODE_COLLATION_CASE_SENSITIVE
-	    : ST_UNICODE_COLLATION_CASE_INSENSITIVE;
-	size_t directory_first = root ? 0 : 1;
+	enum st_unicode_collation_strength strength        = (call->options & ST_WREN_PICKER_CASE_SORT) != 0
+	                                                         ? ST_UNICODE_COLLATION_CASE_SENSITIVE
+	                                                         : ST_UNICODE_COLLATION_CASE_INSENSITIVE;
+	size_t                             directory_first = root ? 0 : 1;
 	status = prepare_sort_keys(&directories, directory_first, strength);
 	if (status == 0)
 		status = prepare_sort_keys(&files, 0, strength);
@@ -521,15 +512,14 @@ fn_request_list(WrenVM *vm)
 		return;
 	}
 	if (directories.count > (root ? 1U : 2U))
-		qsort(directories.items + directory_first,
-		    directories.count - directory_first,
+		qsort(directories.items + directory_first, directories.count - directory_first,
 		    sizeof(directories.items[0]),
-		    (call->options & ST_WREN_PICKER_CASE_SORT) != 0 ?
-		    compare_entries_case : compare_entries_folded);
+		    (call->options & ST_WREN_PICKER_CASE_SORT) != 0 ? compare_entries_case
+		                                                    : compare_entries_folded);
 	if (files.count > 1)
 		qsort(files.items, files.count, sizeof(files.items[0]),
-		    (call->options & ST_WREN_PICKER_CASE_SORT) != 0 ?
-		    compare_entries_case : compare_entries_folded);
+		    (call->options & ST_WREN_PICKER_CASE_SORT) != 0 ? compare_entries_case
+		                                                    : compare_entries_folded);
 	clear_sort_keys(&directories);
 	clear_sort_keys(&files);
 	wrenEnsureSlots(vm, 4);
@@ -585,17 +575,17 @@ fn_request_join(WrenVM *vm)
 static void
 fn_request_resolve(WrenVM *vm)
 {
-	char *base;
-	char *text;
-	char *joined = NULL;
-	char *absolute;
-	char *parent;
-	char *directory;
-	const char *name;
+	char          *base;
+	char          *text;
+	char          *joined = NULL;
+	char          *absolute;
+	char          *parent;
+	char          *directory;
+	const char    *name;
 	struct fs_info info;
-	bool exists;
-	bool is_directory;
-	bool wildcards;
+	bool           exists;
+	bool           is_directory;
+	bool           wildcards;
 
 	if (request_call(vm) == NULL)
 		return;
@@ -621,12 +611,12 @@ fn_request_resolve(WrenVM *vm)
 		wrenSetSlotNull(vm, 0);
 		return;
 	}
-	exists = fs_get_info(&info, absolute) == 0;
+	exists       = fs_get_info(&info, absolute) == 0;
 	is_directory = exists && info.kind == FS_ENTRY_DIRECTORY;
-	name = path_basename(absolute);
-	wildcards = strchr(name, '*') != NULL || strchr(name, '?') != NULL;
-	parent = parent_path(absolute);
-	directory = parent == NULL ? NULL : directory_path(parent);
+	name         = path_basename(absolute);
+	wildcards    = strchr(name, '*') != NULL || strchr(name, '?') != NULL;
+	parent       = parent_path(absolute);
+	directory    = parent == NULL ? NULL : directory_path(parent);
 	free(parent);
 	if (directory == NULL) {
 		free(absolute);
@@ -635,10 +625,11 @@ fn_request_resolve(WrenVM *vm)
 	}
 	wrenEnsureSlots(vm, 2);
 	wrenSetSlotNewList(vm, 0);
-#define INSERT_VALUE(statement) do { \
-	statement; \
-	wrenInsertInList(vm, 0, -1, 1); \
-} while (0)
+#define INSERT_VALUE(statement)                 \
+	do {                                    \
+		statement;                      \
+		wrenInsertInList(vm, 0, -1, 1); \
+	} while (0)
 	INSERT_VALUE(wrenSetSlotString(vm, 1, absolute));
 	INSERT_VALUE(wrenSetSlotString(vm, 1, directory));
 	INSERT_VALUE(wrenSetSlotString(vm, 1, name));
@@ -651,8 +642,7 @@ fn_request_resolve(WrenVM *vm)
 }
 
 static bool
-store_paths(WrenVM *vm, struct st_wren_picker_call *call, int slot,
-	bool multiple)
+store_paths(WrenVM *vm, struct st_wren_picker_call *call, int slot, bool multiple)
 {
 	size_t count = 1;
 	char **paths;
@@ -663,14 +653,12 @@ store_paths(WrenVM *vm, struct st_wren_picker_call *call, int slot,
 	}
 	if (multiple) {
 		if (wrenGetSlotType(vm, slot) != WREN_TYPE_LIST) {
-			st_wren_abort(vm,
-			    "PickerRequest.acceptAll: expected a List");
+			st_wren_abort(vm, "PickerRequest.acceptAll: expected a List");
 			return false;
 		}
 		count = (size_t)wrenGetListCount(vm, slot);
 		if (count == 0) {
-			st_wren_abort(vm,
-			    "PickerRequest.acceptAll: list is empty");
+			st_wren_abort(vm, "PickerRequest.acceptAll: list is empty");
 			return false;
 		}
 	}
@@ -681,7 +669,7 @@ store_paths(WrenVM *vm, struct st_wren_picker_call *call, int slot,
 	}
 	wrenEnsureSlots(vm, slot + 2);
 	for (size_t i = 0; i < count; ++i) {
-		int source = slot;
+		int   source = slot;
 		char *input;
 
 		if (multiple) {
@@ -697,14 +685,13 @@ store_paths(WrenVM *vm, struct st_wren_picker_call *call, int slot,
 				free(paths[j]);
 			free(paths);
 			if (input != NULL)
-				st_wren_abort(vm,
-				    "PickerRequest: invalid absolute path");
+				st_wren_abort(vm, "PickerRequest: invalid absolute path");
 			return false;
 		}
 	}
-	call->paths = paths;
+	call->paths      = paths;
 	call->path_count = count;
-	call->completed = true;
+	call->completed  = true;
 	return true;
 }
 
@@ -715,10 +702,9 @@ fn_request_accept(WrenVM *vm)
 
 	if (call == NULL)
 		return;
-	if (call->amiga_replacement || (call->mode != ST_WREN_PICKER_FILE
-	    && call->mode != ST_WREN_PICKER_DIRECTORY)) {
-		st_wren_abort(vm,
-		    "PickerRequest.accept: picker is not single-select");
+	if (call->amiga_replacement
+	    || (call->mode != ST_WREN_PICKER_FILE && call->mode != ST_WREN_PICKER_DIRECTORY)) {
+		st_wren_abort(vm, "PickerRequest.accept: picker is not single-select");
 		return;
 	}
 	if (store_paths(vm, call, 1, false))
@@ -734,8 +720,7 @@ fn_request_accept_all(WrenVM *vm)
 	if (call == NULL)
 		return;
 	if (call->mode != ST_WREN_PICKER_MULTIPLE) {
-		st_wren_abort(vm,
-		    "PickerRequest.acceptAll: picker is not multi-select");
+		st_wren_abort(vm, "PickerRequest.acceptAll: picker is not multi-select");
 		return;
 	}
 	if (store_paths(vm, call, 1, true))
@@ -751,8 +736,7 @@ accept_save(WrenVM *vm, enum st_wren_picker_disposition disposition)
 	if (call == NULL)
 		return;
 	if (call->mode != ST_WREN_PICKER_SAVE) {
-		st_wren_abort(vm,
-		    "PickerRequest: completion does not match picker mode");
+		st_wren_abort(vm, "PickerRequest: completion does not match picker mode");
 		return;
 	}
 	if (store_paths(vm, call, 1, false))
@@ -760,17 +744,20 @@ accept_save(WrenVM *vm, enum st_wren_picker_disposition disposition)
 	wrenSetSlotNull(vm, 0);
 }
 
-static void fn_request_accept_create(WrenVM *vm)
+static void
+fn_request_accept_create(WrenVM *vm)
 {
 	accept_save(vm, ST_WREN_PICKER_DISPOSITION_CREATE);
 }
 
-static void fn_request_accept_overwrite(WrenVM *vm)
+static void
+fn_request_accept_overwrite(WrenVM *vm)
 {
 	accept_save(vm, ST_WREN_PICKER_DISPOSITION_OVERWRITE);
 }
 
-static void fn_request_accept_append(WrenVM *vm)
+static void
+fn_request_accept_append(WrenVM *vm)
 {
 	accept_save(vm, ST_WREN_PICKER_DISPOSITION_APPEND);
 }
@@ -792,17 +779,15 @@ fn_request_quit(WrenVM *vm)
 
 	if (call != NULL) {
 		call->quit_application = true;
-		call->completed = true;
+		call->completed        = true;
 	}
 	wrenSetSlotNull(vm, 0);
 }
 
 static bool
-push_file(WrenVM *vm, int slot, const char *path,
-	enum st_wren_picker_disposition disposition)
+push_file(WrenVM *vm, int slot, const char *path, enum st_wren_picker_disposition disposition)
 {
-	return st_wren_file_push(vm, slot, path, disposition,
-	    disposition == ST_WREN_PICKER_DISPOSITION_READ);
+	return st_wren_file_push(vm, slot, path, disposition, disposition == ST_WREN_PICKER_DISPOSITION_READ);
 }
 
 static bool
@@ -813,8 +798,7 @@ slot_integer(WrenVM *vm, int slot, int *result)
 	if (wrenGetSlotType(vm, slot) != WREN_TYPE_NUM)
 		return false;
 	value = wrenGetSlotDouble(vm, slot);
-	if (!isfinite(value) || trunc(value) != value || value < 0
-	    || value > INT_MAX)
+	if (!isfinite(value) || trunc(value) != value || value < 0 || value > INT_MAX)
 		return false;
 	*result = (int)value;
 	return true;
@@ -824,12 +808,11 @@ static const char *
 picker_initial(WrenVM *vm, int slot)
 {
 	struct st_wren_host *host = st_wren_host_from_vm(vm);
-	const char *value;
-	size_t length;
+	const char          *value;
+	size_t               length;
 
 	if (wrenGetSlotType(vm, slot) == WREN_TYPE_STRING) {
-		if (!slot_string(vm, slot, &value, &length,
-		    "Host picker initial path"))
+		if (!slot_string(vm, slot, &value, &length, "Host picker initial path"))
 			return NULL;
 		return value;
 	}
@@ -845,10 +828,10 @@ picker_initial(WrenVM *vm, int slot)
 static void
 host_pick_file(WrenVM *vm, const char *title)
 {
-	struct st_wren_host *host = st_wren_host_from_vm(vm);
-	const char *initial = picker_initial(vm, 1);
-	const char *mask;
-	int options;
+	struct st_wren_host       *host    = st_wren_host_from_vm(vm);
+	const char                *initial = picker_initial(vm, 1);
+	const char                *mask;
+	int                        options;
 	struct st_wren_picker_call call;
 
 	if (initial == NULL)
@@ -858,8 +841,7 @@ host_pick_file(WrenVM *vm, const char *title)
 	else if (wrenGetSlotType(vm, 2) == WREN_TYPE_STRING) {
 		size_t mask_length;
 
-		if (!slot_string(vm, 2, &mask, &mask_length,
-		    "Host.pickFile mask"))
+		if (!slot_string(vm, 2, &mask, &mask_length, "Host.pickFile mask"))
 			return;
 	}
 	else {
@@ -870,27 +852,27 @@ host_pick_file(WrenVM *vm, const char *title)
 		st_wren_abort(vm, "Host.pickFile: options must be an integer");
 		return;
 	}
-	call = (struct st_wren_picker_call){
-		.mode = (options & ST_WREN_PICKER_SELECT_DIRECTORY) != 0 ?
-		    ST_WREN_PICKER_DIRECTORY : ST_WREN_PICKER_FILE,
-		.title = title,
-		.initial_path = initial,
-		.mask = mask,
-		.options = options,
+	call = (struct st_wren_picker_call) {
+	    .mode =
+		(options & ST_WREN_PICKER_SELECT_DIRECTORY) != 0 ? ST_WREN_PICKER_DIRECTORY : ST_WREN_PICKER_FILE,
+	    .title        = title,
+	    .initial_path = initial,
+	    .mask         = mask,
+	    .options      = options,
 	};
 	if (!st_wren_picker_host_run(host, &call)) {
-		st_wren_abort(vm, host->last_error[0] == '\0'
-		    ? "The file picker is unavailable." : host->last_error);
+		st_wren_abort(vm,
+		    host->last_error[0] == '\0' ? "The file picker is unavailable." : host->last_error);
 		st_wren_picker_call_dispose(&call);
 		return;
 	}
-	if (call.path_count == 0
-	    || !push_file(vm, 0, call.paths[0], call.disposition))
+	if (call.path_count == 0 || !push_file(vm, 0, call.paths[0], call.disposition))
 		wrenSetSlotNull(vm, 0);
 	st_wren_picker_call_dispose(&call);
 }
 
-static void fn_host_pick_file(WrenVM *vm)
+static void
+fn_host_pick_file(WrenVM *vm)
 {
 	host_pick_file(vm, "Pick a file");
 }
@@ -899,10 +881,9 @@ static void
 fn_host_pick_file_title(WrenVM *vm)
 {
 	const char *title;
-	size_t title_length;
+	size_t      title_length;
 
-	if (!slot_string(vm, 4, &title, &title_length,
-	    "Host.pickFile title"))
+	if (!slot_string(vm, 4, &title, &title_length, "Host.pickFile title"))
 		return;
 	host_pick_file(vm, title);
 }
@@ -910,10 +891,10 @@ fn_host_pick_file_title(WrenVM *vm)
 static void
 fn_host_pick_files(WrenVM *vm)
 {
-	struct st_wren_host *host = st_wren_host_from_vm(vm);
-	const char *initial = picker_initial(vm, 1);
-	const char *mask;
-	int options;
+	struct st_wren_host       *host    = st_wren_host_from_vm(vm);
+	const char                *initial = picker_initial(vm, 1);
+	const char                *mask;
+	int                        options;
 	struct st_wren_picker_call call;
 
 	if (initial == NULL)
@@ -922,32 +903,30 @@ fn_host_pick_files(WrenVM *vm)
 	if (wrenGetSlotType(vm, 2) == WREN_TYPE_STRING) {
 		size_t mask_length;
 
-		if (!slot_string(vm, 2, &mask, &mask_length,
-		    "Host.pickFiles mask"))
+		if (!slot_string(vm, 2, &mask, &mask_length, "Host.pickFiles mask"))
 			return;
 	}
-	if ((wrenGetSlotType(vm, 2) != WREN_TYPE_STRING
-	    && wrenGetSlotType(vm, 2) != WREN_TYPE_NULL)
+	if ((wrenGetSlotType(vm, 2) != WREN_TYPE_STRING && wrenGetSlotType(vm, 2) != WREN_TYPE_NULL)
 	    || !slot_integer(vm, 3, &options)) {
 		st_wren_abort(vm, "Host.pickFiles: invalid arguments");
 		return;
 	}
-	if (options & (ST_WREN_PICKER_ALLOW_ENTRY
-	    | ST_WREN_PICKER_CONFIRM_OVERWRITE
-	    | ST_WREN_PICKER_CONFIRM_CREATE | ST_WREN_PICKER_ALLOW_APPEND)) {
+	if (options
+	    & (ST_WREN_PICKER_ALLOW_ENTRY | ST_WREN_PICKER_CONFIRM_OVERWRITE | ST_WREN_PICKER_CONFIRM_CREATE
+	        | ST_WREN_PICKER_ALLOW_APPEND)) {
 		wrenSetSlotNull(vm, 0);
 		return;
 	}
-	call = (struct st_wren_picker_call){
-		.mode = ST_WREN_PICKER_MULTIPLE,
-		.title = "Tag files to upload",
-		.initial_path = initial,
-		.mask = mask,
-		.options = options,
+	call = (struct st_wren_picker_call) {
+	    .mode         = ST_WREN_PICKER_MULTIPLE,
+	    .title        = "Tag files to upload",
+	    .initial_path = initial,
+	    .mask         = mask,
+	    .options      = options,
 	};
 	if (!st_wren_picker_host_run(host, &call)) {
-		st_wren_abort(vm, host->last_error[0] == '\0'
-		    ? "The file picker is unavailable." : host->last_error);
+		st_wren_abort(vm,
+		    host->last_error[0] == '\0' ? "The file picker is unavailable." : host->last_error);
 		st_wren_picker_call_dispose(&call);
 		return;
 	}
@@ -968,9 +947,9 @@ fn_host_pick_files(WrenVM *vm)
 static void
 host_pick_save(WrenVM *vm, int options)
 {
-	struct st_wren_host *host = st_wren_host_from_vm(vm);
-	const char *initial = picker_initial(vm, 1);
-	const char *mask;
+	struct st_wren_host       *host    = st_wren_host_from_vm(vm);
+	const char                *initial = picker_initial(vm, 1);
+	const char                *mask;
 	struct st_wren_picker_call call;
 
 	if (initial == NULL)
@@ -979,36 +958,33 @@ host_pick_save(WrenVM *vm, int options)
 	if (wrenGetSlotType(vm, 2) == WREN_TYPE_STRING) {
 		size_t mask_length;
 
-		if (!slot_string(vm, 2, &mask, &mask_length,
-		    "Host.pickSavePath mask"))
+		if (!slot_string(vm, 2, &mask, &mask_length, "Host.pickSavePath mask"))
 			return;
 	}
-	if (wrenGetSlotType(vm, 2) != WREN_TYPE_STRING
-	    && wrenGetSlotType(vm, 2) != WREN_TYPE_NULL) {
+	if (wrenGetSlotType(vm, 2) != WREN_TYPE_STRING && wrenGetSlotType(vm, 2) != WREN_TYPE_NULL) {
 		st_wren_abort(vm, "Host.pickSavePath: invalid mask");
 		return;
 	}
-	call = (struct st_wren_picker_call){
-		.mode = ST_WREN_PICKER_SAVE,
-		.title = "Save as",
-		.initial_path = initial,
-		.mask = mask,
-		.options = ST_WREN_PICKER_ALLOW_ENTRY
-		    | ST_WREN_PICKER_CONFIRM_OVERWRITE | options,
+	call = (struct st_wren_picker_call) {
+	    .mode         = ST_WREN_PICKER_SAVE,
+	    .title        = "Save as",
+	    .initial_path = initial,
+	    .mask         = mask,
+	    .options      = ST_WREN_PICKER_ALLOW_ENTRY | ST_WREN_PICKER_CONFIRM_OVERWRITE | options,
 	};
 	if (!st_wren_picker_host_run(host, &call)) {
-		st_wren_abort(vm, host->last_error[0] == '\0'
-		    ? "The file picker is unavailable." : host->last_error);
+		st_wren_abort(vm,
+		    host->last_error[0] == '\0' ? "The file picker is unavailable." : host->last_error);
 		st_wren_picker_call_dispose(&call);
 		return;
 	}
-	if (call.path_count == 0
-	    || !push_file(vm, 0, call.paths[0], call.disposition))
+	if (call.path_count == 0 || !push_file(vm, 0, call.paths[0], call.disposition))
 		wrenSetSlotNull(vm, 0);
 	st_wren_picker_call_dispose(&call);
 }
 
-static void fn_host_pick_save(WrenVM *vm)
+static void
+fn_host_pick_save(WrenVM *vm)
 {
 	host_pick_save(vm, 0);
 }
@@ -1019,46 +995,43 @@ fn_host_pick_save_options(WrenVM *vm)
 	int options;
 
 	if (!slot_integer(vm, 3, &options)) {
-		st_wren_abort(vm,
-		    "Host.pickSavePath: options must be an integer");
+		st_wren_abort(vm, "Host.pickSavePath: options must be an integer");
 		return;
 	}
 	host_pick_save(vm, options & ST_WREN_PICKER_ALLOW_APPEND);
 }
 
 static const struct binding bindings[] = {
-	{"syncterm_picker", "PickerRequest", false, "mode", fn_request_mode},
-	{"syncterm_picker", "PickerRequest", false, "amigaReplacement_", fn_request_amiga_replacement},
-	{"syncterm_picker", "PickerRequest", false, "acceptAmigaReplacement_()", fn_request_accept_amiga_replacement},
-	{"syncterm_picker", "PickerRequest", false, "title", fn_request_title},
-	{"syncterm_picker", "PickerRequest", false, "initialPath", fn_request_initial_path},
-	{"syncterm_picker", "PickerRequest", false, "mask", fn_request_mask},
-	{"syncterm_picker", "PickerRequest", false, "options", fn_request_options},
-	{"syncterm_picker", "PickerRequest", false, "initial_()", fn_request_initial},
-	{"syncterm_picker", "PickerRequest", false, "list_(_,_)", fn_request_list},
-	{"syncterm_picker", "PickerRequest", false, "join_(_,_)", fn_request_join},
-	{"syncterm_picker", "PickerRequest", false, "resolve_(_,_)", fn_request_resolve},
-	{"syncterm_picker", "PickerRequest", false, "accept(_)", fn_request_accept},
-	{"syncterm_picker", "PickerRequest", false, "acceptAll(_)", fn_request_accept_all},
-	{"syncterm_picker", "PickerRequest", false, "acceptCreate(_)", fn_request_accept_create},
-	{"syncterm_picker", "PickerRequest", false, "acceptOverwrite(_)", fn_request_accept_overwrite},
-	{"syncterm_picker", "PickerRequest", false, "acceptAppend(_)", fn_request_accept_append},
-	{"syncterm_picker", "PickerRequest", false, "cancel()", fn_request_cancel},
-	{"syncterm_picker", "PickerRequest", false, "quitApplication()", fn_request_quit},
-	{"syncterm", "Host", true, "pickFile(_,_,_)", fn_host_pick_file},
-	{"syncterm", "Host", true, "pickFile(_,_,_,_)", fn_host_pick_file_title},
-	{"syncterm", "Host", true, "pickFiles(_,_,_)", fn_host_pick_files},
-	{"syncterm", "Host", true, "pickSavePath(_,_)", fn_host_pick_save},
-	{"syncterm", "Host", true, "pickSavePath(_,_,_)", fn_host_pick_save_options},
+    {"syncterm_picker", "PickerRequest", false, "mode",                      fn_request_mode                    },
+    {"syncterm_picker", "PickerRequest", false, "amigaReplacement_",         fn_request_amiga_replacement       },
+    {"syncterm_picker", "PickerRequest", false, "acceptAmigaReplacement_()", fn_request_accept_amiga_replacement},
+    {"syncterm_picker", "PickerRequest", false, "title",                     fn_request_title                   },
+    {"syncterm_picker", "PickerRequest", false, "initialPath",               fn_request_initial_path            },
+    {"syncterm_picker", "PickerRequest", false, "mask",                      fn_request_mask                    },
+    {"syncterm_picker", "PickerRequest", false, "options",                   fn_request_options                 },
+    {"syncterm_picker", "PickerRequest", false, "initial_()",                fn_request_initial                 },
+    {"syncterm_picker", "PickerRequest", false, "list_(_,_)",                fn_request_list                    },
+    {"syncterm_picker", "PickerRequest", false, "join_(_,_)",                fn_request_join                    },
+    {"syncterm_picker", "PickerRequest", false, "resolve_(_,_)",             fn_request_resolve                 },
+    {"syncterm_picker", "PickerRequest", false, "accept(_)",                 fn_request_accept                  },
+    {"syncterm_picker", "PickerRequest", false, "acceptAll(_)",              fn_request_accept_all              },
+    {"syncterm_picker", "PickerRequest", false, "acceptCreate(_)",           fn_request_accept_create           },
+    {"syncterm_picker", "PickerRequest", false, "acceptOverwrite(_)",        fn_request_accept_overwrite        },
+    {"syncterm_picker", "PickerRequest", false, "acceptAppend(_)",           fn_request_accept_append           },
+    {"syncterm_picker", "PickerRequest", false, "cancel()",                  fn_request_cancel                  },
+    {"syncterm_picker", "PickerRequest", false, "quitApplication()",         fn_request_quit                    },
+    {"syncterm",        "Host",          true,  "pickFile(_,_,_)",           fn_host_pick_file                  },
+    {"syncterm",        "Host",          true,  "pickFile(_,_,_,_)",         fn_host_pick_file_title            },
+    {"syncterm",        "Host",          true,  "pickFiles(_,_,_)",          fn_host_pick_files                 },
+    {"syncterm",        "Host",          true,  "pickSavePath(_,_)",         fn_host_pick_save                  },
+    {"syncterm",        "Host",          true,  "pickSavePath(_,_,_)",       fn_host_pick_save_options          },
 };
 
 WrenForeignMethodFn
-st_wren_picker_bind_method(const char *module, const char *class_name,
-	bool is_static, const char *signature)
+st_wren_picker_bind_method(const char *module, const char *class_name, bool is_static, const char *signature)
 {
 	for (size_t i = 0; i < sizeof(bindings) / sizeof(bindings[0]); ++i) {
-		if (bindings[i].is_static == is_static
-		    && strcmp(bindings[i].module, module) == 0
+		if (bindings[i].is_static == is_static && strcmp(bindings[i].module, module) == 0
 		    && strcmp(bindings[i].class_name, class_name) == 0
 		    && strcmp(bindings[i].signature, signature) == 0)
 			return bindings[i].method;
@@ -1071,8 +1044,7 @@ st_wren_picker_bind_class(const char *module, const char *class_name)
 {
 	WrenForeignClassMethods methods = {NULL, NULL};
 
-	if (strcmp(module, "syncterm_picker") == 0
-	    && strcmp(class_name, "PickerRequest") == 0) {
+	if (strcmp(module, "syncterm_picker") == 0 && strcmp(class_name, "PickerRequest") == 0) {
 		methods.allocate = request_allocate;
 		methods.finalize = request_finalize;
 	}
@@ -1088,35 +1060,31 @@ st_wren_picker_call_dispose(struct st_wren_picker_call *call)
 	for (size_t i = 0; i < call->path_count; ++i)
 		free(call->paths[i]);
 	free(call->paths);
-	call->paths = NULL;
+	call->paths      = NULL;
 	call->path_count = 0;
 }
 
 bool
-st_wren_picker_host_run(struct st_wren_host *host,
-	struct st_wren_picker_call *call)
+st_wren_picker_host_run(struct st_wren_host *host, struct st_wren_picker_call *call)
 {
 	st_console_snapshot_t *snapshot = NULL;
-	st_console_t *previous_console;
-	bool switched = false;
-	int restore_status;
-	WrenInterpretResult result;
+	st_console_t          *previous_console;
+	bool                   switched = false;
+	int                    restore_status;
+	WrenInterpretResult    result;
 
-	if (host == NULL || call == NULL || host->picker_vm == NULL
-	    || host->picker_bootstrap == NULL || host->picker_run == NULL
-	    || host->picker_recover == NULL)
+	if (host == NULL || call == NULL || host->picker_vm == NULL || host->picker_bootstrap == NULL
+	    || host->picker_run == NULL || host->picker_recover == NULL)
 		return false;
 	host->last_error[0] = '\0';
-	previous_console = host->menu.console;
+	previous_console    = host->menu.console;
 	if (host->config.display != NULL && host->config.picker_console != NULL
 	    && host->config.picker_console != previous_console) {
-		if (st_console_display_activate(host->config.display,
-		    host->config.picker_console) != 0)
+		if (st_console_display_activate(host->config.display, host->config.picker_console) != 0)
 			return false;
 		switched = true;
 	}
-	else if (st_console_snapshot_create(&snapshot,
-	    host->config.console) != 0)
+	else if (st_console_snapshot_create(&snapshot, host->config.console) != 0)
 		return false;
 	if (host->picker_class == NULL)
 		result = WREN_RESULT_RUNTIME_ERROR;
@@ -1136,28 +1104,25 @@ st_wren_picker_host_run(struct st_wren_host *host,
 			result = WREN_RESULT_RUNTIME_ERROR;
 		else {
 			wrenSetSlotString(host->picker_vm, 2,
-			    host->last_error[0] == '\0' ?
-			    "The file picker is unavailable." : host->last_error);
+			    host->last_error[0] == '\0' ? "The file picker is unavailable." : host->last_error);
 			result = wrenCall(host->picker_vm, host->picker_recover);
 		}
 	}
-	call->active = false;
+	call->active      = false;
 	host->picker_call = NULL;
 	if (!call->completed)
 		call->completed = true;
 	if (call->quit_application)
 		host->exit_requested = true;
 	if (switched) {
-		restore_status = st_console_display_activate(host->config.display,
-		    previous_console);
+		restore_status = st_console_display_activate(host->config.display, previous_console);
 	}
 	else
 		restore_status = st_console_snapshot_restore(host->config.console, snapshot, NULL);
 	st_console_snapshot_destroy(snapshot);
 	if (restore_status != 0) {
 		(void)snprintf(host->last_error, sizeof(host->last_error),
-		    "Cannot restore the menu console after the file picker (%d)",
-		    restore_status);
+		    "Cannot restore the menu console after the file picker (%d)", restore_status);
 		return false;
 	}
 	return result == WREN_RESULT_SUCCESS;

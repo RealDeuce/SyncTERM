@@ -4,14 +4,24 @@
 #define ST_BIG_FONT_H_
 #include <stddef.h>
 #include <stdint.h>
-enum { ST_BIG_FONT_SLOTS=20 };
-struct st_big_font_binding { uint8_t name[4]; const uint8_t *body; size_t size; };
+
+enum {
+	ST_BIG_FONT_SLOTS = 20
+};
+
+struct st_big_font_binding {
+	uint8_t        name[4];
+	const uint8_t *body;
+	size_t         size;
+};
+
 struct st_big_fonts {
 	struct st_big_font_binding slots[ST_BIG_FONT_SLOTS];
-	uint16_t count, loaded;
-	const uint8_t *active;
-	size_t active_size;
+	uint16_t                   count, loaded;
+	const uint8_t             *active;
+	size_t                     active_size;
 };
+
 /* Shared current files, including headers/notices;1..4 only, bitmap0 is a
  * separate source. Unknown IDs returnNULL/size0; no runtime file access. */
 const uint8_t *st_big_font_data(unsigned number, size_t *size);

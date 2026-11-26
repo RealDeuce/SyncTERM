@@ -5,21 +5,33 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+
 struct st_bgi_chr {
 	const uint8_t *body;
-	size_t size;
-	uint16_t count, strokes;
-	uint8_t first;
+	size_t         size;
+	uint16_t       count, strokes;
+	uint8_t        first;
 };
+
 struct st_bgi_chr_glyph {
 	const uint8_t *body;
-	size_t size, records;
-	uint16_t offset;
-	uint8_t width;
-	bool present, finished;
+	size_t         size, records;
+	uint16_t       offset;
+	uint8_t        width;
+	bool           present, finished;
 };
-enum st_bgi_chr_opcode { ST_BGI_CHR_END, ST_BGI_CHR_IGNORE, ST_BGI_CHR_MOVE, ST_BGI_CHR_DRAW };
-struct st_bgi_chr_record { enum st_bgi_chr_opcode opcode; int x,y; };
+
+enum st_bgi_chr_opcode {
+	ST_BGI_CHR_END,
+	ST_BGI_CHR_IGNORE,
+	ST_BGI_CHR_MOVE,
+	ST_BGI_CHR_DRAW
+};
+
+struct st_bgi_chr_record {
+	enum st_bgi_chr_opcode opcode;
+	int                    x, y;
+};
 /* Shared format decoding, independent of font version/layout/advances. */
 struct st_bgi_chr_record st_bgi_chr_decode(uint8_t x, uint8_t y);
 /* No allocation/copy. Views borrow their byte storage for their lifetime.

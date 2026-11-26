@@ -3,51 +3,50 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "audio_internal.h"
-#include "audio_config.h"
-
-#include "dynamic_library.h"
-#include "io_error.h"
-
-#include <pulse/error.h>
-#include <pulse/simple.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
-typedef pa_simple *(*pulse_simple_new_fn)(const char *, const char *,
-	pa_stream_direction_t, const char *, const char *, const pa_sample_spec *,
-	const pa_channel_map *, const pa_buffer_attr *, int *);
-typedef void (*pulse_simple_free_fn)(pa_simple *);
-typedef int (*pulse_simple_write_fn)(pa_simple *, const void *, size_t, int *);
-typedef pa_usec_t (*pulse_simple_get_latency_fn)(pa_simple *, int *);
+#include <pulse/error.h>
+#include <pulse/simple.h>
+
+#include "audio_config.h"
+#include "audio_internal.h"
+#include "dynamic_library.h"
+#include "io_error.h"
+
+typedef pa_simple *(*pulse_simple_new_fn)(const char *, const char *, pa_stream_direction_t, const char *,
+    const char *, const pa_sample_spec *, const pa_channel_map *, const pa_buffer_attr *, int *);
+typedef void       (*pulse_simple_free_fn)(pa_simple *);
+typedef int        (*pulse_simple_write_fn)(pa_simple *, const void *, size_t, int *);
+typedef pa_usec_t  (*pulse_simple_get_latency_fn)(pa_simple *, int *);
 
 struct pulse_api {
-	pa_simple *(*simple_new)(const char *, const char *, pa_stream_direction_t,
-	    const char *, const char *, const pa_sample_spec *,
-	    const pa_channel_map *, const pa_buffer_attr *, int *);
-	void (*simple_free)(pa_simple *);
-	int (*simple_write)(pa_simple *, const void *, size_t, int *);
-	pa_usec_t (*simple_get_latency)(pa_simple *, int *);
+	pa_simple *(*simple_new)(const char *, const char *, pa_stream_direction_t, const char *, const char *,
+	    const pa_sample_spec *, const pa_channel_map *, const pa_buffer_attr *, int *);
+	void       (*simple_free)(pa_simple *);
+	int        (*simple_write)(pa_simple *, const void *, size_t, int *);
+	pa_usec_t  (*simple_get_latency)(pa_simple *, int *);
 };
 
 struct pulse_state {
 	dynamic_library_t *library;
-	struct pulse_api api;
-	pa_simple *stream;
+	struct pulse_api   api;
+	pa_simple         *stream;
 };
 
 #if ST_DEP_PULSEAUDIO_LINKED
-#define LOAD_PULSE(api, library, member, name) ((api)->member = (name))
+ #define LOAD_PULSE(api, library, member, name) ((api)->member = (name))
 #else
-#define LOAD_PULSE(api, library, member, name) do { \
-	void *st_audio_symbol = dynamic_library_symbol((library), #name); \
-	if (st_audio_symbol == NULL) { \
-		(void)dynamic_library_close((library)); \
-		return IO_ERROR_NOT_SUPPORTED; \
-	} \
-	(api)->member = (pulse_ ## member ## _fn)st_audio_symbol; \
-} while (0)
+ #define LOAD_PULSE(api, library, member, name)                                    \
+	 do {                                                                      \
+		 void *st_audio_symbol = dynamic_library_symbol((library), #name); \
+		 if (st_audio_symbol == NULL) {                                    \
+			 (void)dynamic_library_close((library));                   \
+			 return IO_ERROR_NOT_SUPPORTED;                            \
+		 }                                                                 \
+		 (api)->member = (pulse_##member##_fn)st_audio_symbol;             \
+	 } while (0)
 #endif
 
 static int
@@ -55,11 +54,8 @@ load_pulse(dynamic_library_t **result, struct pulse_api *api)
 {
 	dynamic_library_t *library = NULL;
 #if !ST_DEP_PULSEAUDIO_LINKED
-	static const char *const names[] = {
-		"pulse-simple", "libpulse-simple-0", "libpulse-simple"
-	};
-	int status = dynamic_library_open(&library, names, 3, 0,
-	    DYNAMIC_LIBRARY_LOCAL);
+	static const char *const names[] = {"pulse-simple", "libpulse-simple-0", "libpulse-simple"};
+	int                      status  = dynamic_library_open(&library, names, 3, 0, DYNAMIC_LIBRARY_LOCAL);
 
 	if (status != 0)
 		return status;
@@ -75,9 +71,9 @@ load_pulse(dynamic_library_t **result, struct pulse_api *api)
 static bool
 pulse_available(void)
 {
-	struct pulse_api api;
+	struct pulse_api   api;
 	dynamic_library_t *library = NULL;
-	bool result = load_pulse(&library, &api) == 0;
+	bool               result  = load_pulse(&library, &api) == 0;
 
 	return result;
 }
@@ -85,21 +81,18 @@ pulse_available(void)
 static int
 pulse_open(void **result, const struct audio_backend_callbacks *callbacks)
 {
-	struct pulse_state *state = calloc(1, sizeof(*state));
-	const pa_sample_spec specification = {
-		PA_SAMPLE_S16NE, AUDIO_SAMPLE_RATE, AUDIO_CHANNELS
-	};
-	int error;
-	int status;
+	struct pulse_state  *state         = calloc(1, sizeof(*state));
+	const pa_sample_spec specification = {PA_SAMPLE_S16NE, AUDIO_SAMPLE_RATE, AUDIO_CHANNELS};
+	int                  error;
+	int                  status;
 
 	(void)callbacks;
 	if (state == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
 	status = load_pulse(&state->library, &state->api);
 	if (status == 0)
-		state->stream = state->api.simple_new(NULL, "SyncTERM",
-		    PA_STREAM_PLAYBACK, NULL, "audio", &specification, NULL,
-		    NULL, &error);
+		state->stream = state->api.simple_new(NULL, "SyncTERM", PA_STREAM_PLAYBACK, NULL, "audio",
+		    &specification, NULL, NULL, &error);
 	if (status != 0 || state->stream == NULL) {
 		free(state);
 		return status != 0 ? status : IO_ERROR_IO;
@@ -123,27 +116,28 @@ static int
 pulse_write(void *opaque, const int16_t *frames, size_t frame_count)
 {
 	struct pulse_state *state = opaque;
-	int error;
+	int                 error;
 
-	return state->api.simple_write(state->stream, frames,
-	    frame_count * AUDIO_FRAME_SIZE, &error) < 0 ? IO_ERROR_IO : 0;
+	return state->api.simple_write(state->stream, frames, frame_count * AUDIO_FRAME_SIZE, &error) < 0
+		   ? IO_ERROR_IO
+		   : 0;
 }
 
 static uint32_t
 pulse_latency_ms(void *opaque)
 {
 	struct pulse_state *state = opaque;
-	int error;
-	pa_usec_t latency = state->api.simple_get_latency(state->stream, &error);
+	int                 error;
+	pa_usec_t           latency = state->api.simple_get_latency(state->stream, &error);
 
 	return latency == (pa_usec_t)-1 ? 0 : (uint32_t)(latency / 1000);
 }
 
 const struct audio_backend_descriptor audio_backend_pulse_audio = {
-	AUDIO_BACKEND_PULSE_AUDIO,
-	pulse_available,
-	pulse_open,
-	pulse_close,
-	pulse_write,
-	pulse_latency_ms,
+    AUDIO_BACKEND_PULSE_AUDIO,
+    pulse_available,
+    pulse_open,
+    pulse_close,
+    pulse_write,
+    pulse_latency_ms,
 };

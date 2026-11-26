@@ -3,6 +3,7 @@
 #include <stdlib.h>
 
 bool st_rip3_image_commands_test_fail_allocate;
+
 static void *
 test_malloc(size_t size)
 {
@@ -12,5 +13,6 @@ test_malloc(size_t size)
 	}
 	return malloc(size);
 }
+
 #define malloc test_malloc
 #include "../st_rip3_image_commands.c"

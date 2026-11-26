@@ -35,7 +35,7 @@ enum st_rip3_feature {
 struct st_rip3_features {
 	uint32_t bits; /* Initialize the whole object to zero. */
 	/* Optional live probe takes precedence over the registered WAV bit. */
-	bool (*wav_available)(void *context);
+	bool  (*wav_available)(void *context);
 	void *context;
 };
 
@@ -43,8 +43,7 @@ struct st_rip3_features {
  * client registers only services available to this session, including runtime
  * JPEG/audio/transfer availability. EXTAPPS is always unsupported by policy;
  * enabling it returns NOT_SUPPORTED and changes nothing. One session owner. */
-int st_rip3_features_set(struct st_rip3_features *features,
-	enum st_rip3_feature feature, bool supported);
+int st_rip3_features_set(struct st_rip3_features *features, enum st_rip3_feature feature, bool supported);
 /* IFS value kernel, after argument parsing/expansion. Keyword is required;
  * category is optional and permitted only with LIST. Keywords are ASCII
  * case-insensitive. Unknown feature/category queries return 0; unknown LIST
@@ -53,7 +52,7 @@ int st_rip3_features_set(struct st_rip3_features *features,
  * Output is NUL terminated without CR or trailing delimiter. Invalid arguments
  * and insufficient capacity leave the output buffer unchanged. WAV is probed
  * only when the answer depends on its availability. */
-int st_rip3_features_query(const struct st_rip3_features *features,
-	const char *keyword, const char *category, char *result, size_t capacity);
+int st_rip3_features_query(const struct st_rip3_features *features, const char *keyword, const char *category,
+    char *result, size_t capacity);
 
 #endif

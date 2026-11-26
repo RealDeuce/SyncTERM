@@ -3,51 +3,69 @@
 #ifndef ST_RIP3_MOUSE_H_
 #define ST_RIP3_MOUSE_H_
 
-#include "st_rip3_surface.h"
-#include "st_rip3_templates.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
+#include "st_rip3_surface.h"
+#include "st_rip3_templates.h"
+
 struct st_rip3_mouse;
 struct st_rip3_backup;
-enum st_rip3_mouse_kind { ST_RIP3_MOUSE_SIMPLE, ST_RIP3_MOUSE_BUTTON };
-enum st_rip3_mouse_reset { ST_RIP3_MOUSE_RESET_NONE, ST_RIP3_MOUSE_RESET_BEFORE, ST_RIP3_MOUSE_RESET_AFTER };
-struct st_rip3_mouse_binding {
-	uint8_t hotkey;
-	bool default_enter, default_escape;
-	unsigned group;
-	enum st_rip3_group_kind group_kind;
-	bool selected;
+
+enum st_rip3_mouse_kind {
+	ST_RIP3_MOUSE_SIMPLE,
+	ST_RIP3_MOUSE_BUTTON
 };
+
+enum st_rip3_mouse_reset {
+	ST_RIP3_MOUSE_RESET_NONE,
+	ST_RIP3_MOUSE_RESET_BEFORE,
+	ST_RIP3_MOUSE_RESET_AFTER
+};
+
+struct st_rip3_mouse_binding {
+	uint8_t                 hotkey;
+	bool                    default_enter, default_escape;
+	unsigned                group;
+	enum st_rip3_group_kind group_kind;
+	bool                    selected;
+};
+
 struct st_rip3_mouse_visual {
 	void *context;
 	/* May schedule owned asynchronous redraw, reported by sink.busy.
 	 * Must not mutate/reenter the mouse owner. */
-	int (*select)(void *context, bool selected);
+	int  (*select)(void *context, bool selected);
 	void (*destroy)(void *context);
 	/* Optional provider-free removal of temporary feedback on forced abort. */
 	void (*abort)(void *context);
 	/* Undo temporary feedback from prepared values, without providers/files. */
-	int (*restore)(void *context,bool selected);
+	int (*restore)(void *context, bool selected);
 	/* Logical state has already committed; this notification cannot undo it. */
-	void (*committed)(void *context,bool selected);
+	void (*committed)(void *context, bool selected);
 	/* Copy owned definitions without drawing, providers or feedback caches.
 	 * owner==NULL creates a detached snapshot; otherwise a fresh live field.
 	 * Failure preserves result. Copied contexts use destroy for release. */
-	int (*copy)(const void *context,void **result,struct st_rip3_mouse *owner);
+	int (*copy)(const void *context, void **result, struct st_rip3_mouse *owner);
 };
+
 /* Scoped callback value; an inactive context has no numeric fallback. */
-struct st_rip3_field_context {bool active;int identity;};
+struct st_rip3_field_context {
+	bool active;
+	int  identity;
+};
+
 /* Parse one definition-time prefix. Failure leaves both payload views intact
  * and returns -1, which differs from valid identity zero. */
 int st_rip3_mouse_identity(const uint8_t **program, size_t *length);
+
 struct st_rip3_mouse_sink {
 	void *context;
-	void (*invert)(void *context, const struct st_rip3_rect *area);
+	void  (*invert)(void *context, const struct st_rip3_rect *area);
 	/* The program is an independent copy: this callback may delete fields. */
-	void (*activate)(void *context, const uint8_t *program, size_t length, enum st_rip3_mouse_reset reset, int identity,
-	    bool pointer, int32_t x, int32_t y);
+	void (*activate)(void *context, const uint8_t *program, size_t length, enum st_rip3_mouse_reset reset,
+	    int identity, bool pointer, int32_t x, int32_t y);
 	void (*resource_failure)(void *context);
 	void (*render_failure)(void *context);
 	void (*changed)(void *context);
@@ -56,13 +74,14 @@ struct st_rip3_mouse_sink {
 	/* Temporary keyboard focus. NULL clears the outline. */
 	void (*tab_focus)(void *context, const struct st_rip3_rect *area);
 };
-int st_rip3_mouse_create(struct st_rip3_mouse **result, const struct st_rip3_mouse_sink *sink);
+
+int  st_rip3_mouse_create(struct st_rip3_mouse **result, const struct st_rip3_mouse_sink *sink);
 void st_rip3_mouse_destroy(struct st_rip3_mouse *mouse);
 /* Use the sink's temporary screen effect for a button visual. Only the
  * captured visual can preview selection, and only its owner can remove it.
  * Returns false when the caller must render into the drawing surface. */
 bool st_rip3_mouse_button_inversion(struct st_rip3_mouse *mouse, const void *owner,
-	const struct st_rip3_rect *area, bool enabled);
+    const struct st_rip3_rect *area, bool enabled);
 /* Definition-only snapshots include shared entry/exit handlers. Saving does
  * not change capture/membership; applying restores cancels them, even on later
  * allocation failure. No pixels, providers or input gestures are restored.
@@ -71,8 +90,8 @@ bool st_rip3_mouse_button_inversion(struct st_rip3_mouse *mouse, const void *own
  * ordinary templates/publications are reconciled across fresh field tokens. */
 int st_rip3_mouse_backup_create(struct st_rip3_backup **);
 /* Bind before definitions; template state outlives every live mouse field. */
-void st_rip3_mouse_bind_templates(struct st_rip3_mouse *,struct st_rip3_templates *);
-int st_rip3_mouse_group_check(const struct st_rip3_mouse *,unsigned,enum st_rip3_group_kind);
+void st_rip3_mouse_bind_templates(struct st_rip3_mouse *, struct st_rip3_templates *);
+int  st_rip3_mouse_group_check(const struct st_rip3_mouse *, unsigned, enum st_rip3_group_kind);
 /* Stable owner of a committed grouped activation, including redraw/prompt
  * suspension; zero for hover and ungrouped actions. */
 uint64_t st_rip3_mouse_callback_owner(const struct st_rip3_mouse *);
@@ -80,9 +99,9 @@ uint64_t st_rip3_mouse_callback_owner(const struct st_rip3_mouse *);
  * records share this owner's 128 entries. Reset runs after a simple field's
  * successful action or before a button's action. */
 int st_rip3_mouse_define(struct st_rip3_mouse *mouse, enum st_rip3_mouse_kind kind,
-	const struct st_rip3_mouse_binding *binding, const struct st_rip3_rect *area,
-	bool invert, bool reset, int identity, const uint8_t *program, size_t length,
-	const struct st_rip3_mouse_visual *visual);
+    const struct st_rip3_mouse_binding *binding, const struct st_rip3_rect *area, bool invert, bool reset,
+    int identity, const uint8_t *program, size_t length, const struct st_rip3_mouse_visual *visual);
+
 /* A supplied visual transfers ownership only on successful definition.
  * Its destructor runs after capture cancellation, on deletion/reset/shutdown. */
 struct st_rip3_mouse_paint {
@@ -92,20 +111,22 @@ struct st_rip3_mouse_paint {
 	 * The callback must not reenter the mouse owner. */
 	int (*apply)(void *context, const struct st_rip3_rect *area, bool pattern);
 };
+
 /* Bits 1/2/4 union disjoint contained/crossing/outside classes; 8/16 exclude
  * simple/button fields. Preserve surviving capture across compaction. Delete
  * the whole selection before optional newest-first paint (64 wins 32);
  * 128 paints the selector once, regardless of matches/type exclusions.
  * No region bits or an empty selector is a complete no-op. Unsupported bits
  * fail before mutation. Paint bindings must already be snapshotted. */
-int st_rip3_mouse_remove(struct st_rip3_mouse *mouse,
-	const struct st_rip3_rect *area, unsigned flags, const struct st_rip3_mouse_paint *paint);
+int st_rip3_mouse_remove(struct st_rip3_mouse *mouse, const struct st_rip3_rect *area, unsigned flags,
+    const struct st_rip3_mouse_paint *paint);
 /* Global mode-5 entry / mode-6 exit expressions. Copy unexpanded source;
  * case-insensitive exact C-prefix $OFF$ removes it. Empty source and sources
  * over 1023 protocol bytes reject without replacing the previous definition.
  * These definitions survive field deletion; they own no pixel buffers. */
-int st_rip3_mouse_query(struct st_rip3_mouse *mouse,bool entry,const uint8_t *bytes,size_t length);
-int st_rip3_mouse_query_encoded(struct st_rip3_mouse *mouse,bool entry,const uint8_t *bytes,size_t length,bool converted_codepage);
+int st_rip3_mouse_query(struct st_rip3_mouse *mouse, bool entry, const uint8_t *bytes, size_t length);
+int st_rip3_mouse_query_encoded(struct st_rip3_mouse *mouse, bool entry, const uint8_t *bytes, size_t length,
+    bool converted_codepage);
 /* Full drawing reset clears the handlers separately from deleting fields.
  * Removing them does not change membership or an already committed callback. */
 void st_rip3_mouse_clear_queries(struct st_rip3_mouse *mouse);
@@ -116,11 +137,11 @@ void st_rip3_mouse_boundary(struct st_rip3_mouse *mouse);
 /* One movement at a time, serialized by pending(). Snapshot field tokens;
  * exits precede entries, newest first. A callback may delete/redefine fields.
  * Hover never acquires, releases or transfers click capture. */
-void st_rip3_mouse_move(struct st_rip3_mouse *mouse,int32_t x,int32_t y);
+void   st_rip3_mouse_move(struct st_rip3_mouse *mouse, int32_t x, int32_t y);
 size_t st_rip3_mouse_count(const struct st_rip3_mouse *mouse);
-bool st_rip3_mouse_full(const struct st_rip3_mouse *mouse);
-void st_rip3_mouse_kill(struct st_rip3_mouse *mouse);
-void st_rip3_mouse_cancel(struct st_rip3_mouse *mouse);
+bool   st_rip3_mouse_full(const struct st_rip3_mouse *mouse);
+void   st_rip3_mouse_kill(struct st_rip3_mouse *mouse);
+void   st_rip3_mouse_cancel(struct st_rip3_mouse *mouse);
 /* Forced shutdown/cancel: discard committed continuations, restore synchronous
  * feedback only, and start no new asynchronous provider/prompt operation. */
 void st_rip3_mouse_abort(struct st_rip3_mouse *mouse);
@@ -128,11 +149,11 @@ void st_rip3_mouse_abort(struct st_rip3_mouse *mouse);
 void st_rip3_mouse_cancel_silent(struct st_rip3_mouse *mouse);
 /* Unique physical gesture token, zero outside a captured left-button press. */
 uint64_t st_rip3_mouse_press_token(const struct st_rip3_mouse *mouse);
-bool st_rip3_mouse_pending(const struct st_rip3_mouse *mouse);
-void st_rip3_mouse_resume(struct st_rip3_mouse *mouse);
+bool     st_rip3_mouse_pending(const struct st_rip3_mouse *mouse);
+void     st_rip3_mouse_resume(struct st_rip3_mouse *mouse);
 /* Scene replacement token, independent of appends and individual deletion. */
 uint64_t st_rip3_mouse_scene(const struct st_rip3_mouse *mouse);
-bool st_rip3_mouse_active(const struct st_rip3_mouse *mouse);
+bool     st_rip3_mouse_active(const struct st_rip3_mouse *mouse);
 /* Capture on left press, invert while inside, commit on release inside and
  * cancel release outside. Captured instances cannot be stolen by appends. */
 bool st_rip3_mouse_event(struct st_rip3_mouse *mouse, int32_t x, int32_t y, bool left);

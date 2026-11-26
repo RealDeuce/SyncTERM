@@ -3,36 +3,35 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "st_pixel_image.h"
-#include "io_error.h"
-#include "st_pixels.h"
-
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#define CHECK(expression) do { \
-	if (!(expression)) { \
-		fprintf(stderr, "check failed at line %d: %s\n", __LINE__, \
-		    #expression); \
-		return 1; \
-	} \
-} while (0)
+#include "io_error.h"
+#include "st_pixel_image.h"
+#include "st_pixels.h"
 
-static struct st_pixel_buffer *const sentinel =
-    (struct st_pixel_buffer *)(uintptr_t)1;
+#define CHECK(expression)                                                                        \
+	do {                                                                                     \
+		if (!(expression)) {                                                             \
+			fprintf(stderr, "check failed at line %d: %s\n", __LINE__, #expression); \
+			return 1;                                                                \
+		}                                                                                \
+	} while (0)
+
+static struct st_pixel_buffer *const sentinel = (struct st_pixel_buffer *)(uintptr_t)1;
 
 static int
 fixture(const char *directory, const char *name)
 {
-	unsigned char bytes[1024];
-	char path[4096];
-	FILE *file;
-	size_t length;
-	struct st_pixel_buffer *pixels = sentinel;
-	bool grayscale = strncmp(name, "gray", 4) == 0;
+	unsigned char           bytes[1024];
+	char                    path[4096];
+	FILE                   *file;
+	size_t                  length;
+	struct st_pixel_buffer *pixels    = sentinel;
+	bool                    grayscale = strncmp(name, "gray", 4) == 0;
 
 	CHECK(snprintf(path, sizeof(path), "%s/%s.jpg", directory, name) > 0);
 	file = fopen(path, "rb");
@@ -44,8 +43,7 @@ fixture(const char *directory, const char *name)
 	CHECK(st_pixel_image_jpeg_compiled() == (ST_TEST_JPEG != 0));
 	if (!ST_TEST_JPEG) {
 		CHECK(!st_pixel_image_jpeg_supported());
-		CHECK(st_pixel_image_decode_jpeg(&pixels, bytes, length)
-		    == IO_ERROR_NOT_SUPPORTED);
+		CHECK(st_pixel_image_decode_jpeg(&pixels, bytes, length) == IO_ERROR_NOT_SUPPORTED);
 		CHECK(pixels == sentinel);
 		return 0;
 	}
@@ -53,8 +51,7 @@ fixture(const char *directory, const char *name)
 	 * provide positive coverage. The disabled target checks absence. */
 	CHECK(st_pixel_image_jpeg_supported());
 	if (strcmp(name, "cmyk") == 0) {
-		CHECK(st_pixel_image_decode_jpeg(&pixels, bytes, length)
-		    == IO_ERROR_NOT_SUPPORTED);
+		CHECK(st_pixel_image_decode_jpeg(&pixels, bytes, length) == IO_ERROR_NOT_SUPPORTED);
 		CHECK(pixels == sentinel);
 		return 0;
 	}
@@ -68,8 +65,7 @@ fixture(const char *directory, const char *name)
 			if (grayscale) {
 				unsigned value = y < 8 ? 64 : 192;
 
-				CHECK(pixel == ST_PIXEL_COLOR_RGB_VALUE(value, value,
-				    value));
+				CHECK(pixel == ST_PIXEL_COLOR_RGB_VALUE(value, value, value));
 			}
 			else {
 				CHECK(pixel == ST_PIXEL_COLOR_RGB_VALUE(170, 45, 23));
@@ -97,21 +93,20 @@ fixture(const char *directory, const char *name)
 			if (frame == 0xc0) {
 				/* A sequential scan is invalid under a progressive frame header. */
 				bytes[i + 1] = 0xc2;
-				CHECK(st_pixel_image_decode_jpeg(&pixels, bytes, length)
-				    == IO_ERROR_INVALID_FORMAT);
+				CHECK(
+				    st_pixel_image_decode_jpeg(&pixels, bytes, length) == IO_ERROR_INVALID_FORMAT);
 				CHECK(pixels == sentinel);
 			}
 			bytes[i + 1] = frame == 0xc0 ? 0xc9 : 0xca;
-			CHECK(st_pixel_image_decode_jpeg(&pixels, bytes, length)
-			    == IO_ERROR_NOT_SUPPORTED);
+			CHECK(st_pixel_image_decode_jpeg(&pixels, bytes, length) == IO_ERROR_NOT_SUPPORTED);
 			CHECK(pixels == sentinel);
 			bytes[i + 1] = frame;
 			if (!grayscale) {
 				unsigned char sampling = bytes[i + 11];
 
 				bytes[i + 11] = 0x31;
-				CHECK(st_pixel_image_decode_jpeg(&pixels, bytes, length)
-				    == IO_ERROR_NOT_SUPPORTED);
+				CHECK(
+				    st_pixel_image_decode_jpeg(&pixels, bytes, length) == IO_ERROR_NOT_SUPPORTED);
 				CHECK(pixels == sentinel);
 				bytes[i + 11] = sampling;
 			}
@@ -128,16 +123,12 @@ int
 main(int argc, char **argv)
 {
 	struct st_pixel_buffer *pixels = sentinel;
-	const char *names[] = {"gray", "444", "422", "420", "cmyk",
-	    "gray-progressive", "420-progressive"};
+	const char *names[] = {"gray", "444", "422", "420", "cmyk", "gray-progressive", "420-progressive"};
 
 	CHECK(argc == 2);
-	CHECK(st_pixel_image_decode_jpeg(NULL, "", 1)
-	    == IO_ERROR_INVALID_ARGUMENT);
-	CHECK(st_pixel_image_decode_jpeg(&pixels, NULL, 1)
-	    == IO_ERROR_INVALID_ARGUMENT);
-	CHECK(st_pixel_image_decode_jpeg(&pixels, "", 0)
-	    == IO_ERROR_INVALID_FORMAT);
+	CHECK(st_pixel_image_decode_jpeg(NULL, "", 1) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_pixel_image_decode_jpeg(&pixels, NULL, 1) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_pixel_image_decode_jpeg(&pixels, "", 0) == IO_ERROR_INVALID_FORMAT);
 	CHECK(st_pixel_image_decode_jpeg(&pixels, "garbage", 7) != 0);
 	CHECK(pixels == sentinel);
 	for (size_t i = 0; i < sizeof(names) / sizeof(names[0]); i++)

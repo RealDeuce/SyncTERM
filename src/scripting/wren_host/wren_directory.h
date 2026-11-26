@@ -15,22 +15,20 @@
 typedef struct st_unicode_sort_key st_unicode_sort_key_t;
 
 struct st_wren_directory_entry {
-	char *name;
-	bool directory;
-	uint64_t size;
-	int64_t modified;
+	char                  *name;
+	bool                   directory;
+	uint64_t               size;
+	int64_t                modified;
 	st_unicode_sort_key_t *sort_key;
 };
 
 struct st_wren_directory_entries {
 	struct st_wren_directory_entry *items;
-	size_t count;
-	size_t capacity;
+	size_t                          count;
+	size_t                          capacity;
 };
 
-int st_wren_directory_enumerate(const char *directory,
-	struct st_wren_directory_entries *entries);
-void st_wren_directory_entries_dispose(
-	struct st_wren_directory_entries *entries);
+int  st_wren_directory_enumerate(const char *directory, struct st_wren_directory_entries *entries);
+void st_wren_directory_entries_dispose(struct st_wren_directory_entries *entries);
 
 #endif

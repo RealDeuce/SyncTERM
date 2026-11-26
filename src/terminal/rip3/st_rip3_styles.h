@@ -2,12 +2,12 @@
 #ifndef ST_RIP3_STYLES_H_
 #define ST_RIP3_STYLES_H_
 
-#include "st_rip3_classic_text.h"
-#include "st_rip3_fill.h"
-
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+
+#include "st_rip3_classic_text.h"
+#include "st_rip3_fill.h"
 
 struct st_rip3_styles;
 struct st_rip3_backup;
@@ -24,7 +24,10 @@ struct st_rip3_backup;
  * outline parameters are owned values; realization is separate. Cursor/image
  * state belongs to PORT and mouse/color mode to ENV.
  * The border setting belongs here and follows record protection/backup rules. */
-enum st_rip3_font_mode { ST_RIP3_FONT_CLASSIC, ST_RIP3_FONT_OUTLINE };
+enum st_rip3_font_mode {
+	ST_RIP3_FONT_CLASSIC,
+	ST_RIP3_FONT_OUTLINE
+};
 
 struct st_rip3_outline_style {
 	unsigned compatibility_s, compatibility_f;
@@ -33,13 +36,16 @@ struct st_rip3_outline_style {
 	/* Nonnegative device magnitude, converted once when y requests world Y
 	 * units. Flags retain the sign and conversion bits for later consumers. */
 	uint32_t baseline;
-	char name[40]; /* Owned, NUL terminated, at most 39 protocol bytes. */
+	char     name[40]; /* Owned, NUL terminated, at most 39 protocol bytes. */
 };
 
-enum { ST_RIP3_FILL_CUSTOM = -1, ST_RIP3_FILL_SOLID = 1 };
+enum {
+	ST_RIP3_FILL_CUSTOM = -1,
+	ST_RIP3_FILL_SOLID  = 1
+};
 
 struct st_rip3_style {
-	uint32_t drawing_color, background_color, fill_color;
+	uint32_t           drawing_color, background_color, fill_color;
 	struct st_rip3_pen pen;
 	/* Original logical type 0..4, distinct from the resolved/custom mask.
 	 * K maps this to SOLID/DOT/DASHDOT/DASH/DASHDOTDOT. */
@@ -47,14 +53,14 @@ struct st_rip3_style {
 	uint16_t user_line_mask;
 	/* Normal defaults use zero row data with the solid brush selected.
 	 * fill and pen carry the effective masks used by drawing kernels. */
-	int fill_type; /* Wire preset 0..11 or ST_RIP3_FILL_CUSTOM. */
-	uint8_t fill_rows[8];
-	struct st_rip3_fill fill;
+	int                               fill_type; /* Wire preset 0..11 or ST_RIP3_FILL_CUSTOM. */
+	uint8_t                           fill_rows[8];
+	struct st_rip3_fill               fill;
 	struct st_rip3_classic_text_style font;
-	enum st_rip3_write_mode write_mode;
-	bool borders;
-	enum st_rip3_font_mode font_mode;
-	struct st_rip3_outline_style outline;
+	enum st_rip3_write_mode           write_mode;
+	bool                              borders;
+	enum st_rip3_font_mode            font_mode;
+	struct st_rip3_outline_style      outline;
 };
 
 struct st_rip3_style_info {
@@ -66,24 +72,19 @@ struct st_rip3_style_info {
  * defined and unprotectable. Supply its attributes explicitly, using
  * style_defaults for normal protocol defaults or a deliberate prepared scene. */
 /* Normal startup/reset/unused-entry defaults for the fields represented here. */
-int st_rip3_style_defaults(struct st_rip3_style *result);
-int st_rip3_styles_create(struct st_rip3_styles **result,
-	const struct st_rip3_style *initial);
+int  st_rip3_style_defaults(struct st_rip3_style *result);
+int  st_rip3_styles_create(struct st_rip3_styles **result, const struct st_rip3_style *initial);
 void st_rip3_styles_destroy(struct st_rip3_styles *styles);
-int st_rip3_styles_current(const struct st_rip3_styles *styles, unsigned *result);
-int st_rip3_styles_info(const struct st_rip3_styles *styles,
-	unsigned number, struct st_rip3_style_info *result);
+int  st_rip3_styles_current(const struct st_rip3_styles *styles, unsigned *result);
+int  st_rip3_styles_info(const struct st_rip3_styles *styles, unsigned number, struct st_rip3_style_info *result);
 /* The selected record stays usable by drawing consumers after its numeric
  * reset clears definition. Use info() for definition/protection queries. */
-int st_rip3_styles_get(const struct st_rip3_styles *styles,
-	unsigned number, struct st_rip3_style *result);
+int st_rip3_styles_get(const struct st_rip3_styles *styles, unsigned number, struct st_rip3_style *result);
 /* Validate the complete supplied value before creating/replacing an entry.
  * Definition does not select it. Protected entries reject edits. Set changes
  * a defined or selected record and leaves its definition unchanged. */
-int st_rip3_styles_define(struct st_rip3_styles *styles,
-	unsigned number, const struct st_rip3_style *value);
-int st_rip3_styles_set(struct st_rip3_styles *styles,
-	unsigned number, const struct st_rip3_style *value);
+int st_rip3_styles_define(struct st_rip3_styles *styles, unsigned number, const struct st_rip3_style *value);
+int st_rip3_styles_set(struct st_rip3_styles *styles, unsigned number, const struct st_rip3_style *value);
 /* First use defines an unprotected record with fixed normal defaults.
  * Existing entries retain their values/protection. Selection changes no
  * PORT/ENV/cursor/image state. Extended-font activation remains separate. */
@@ -92,8 +93,8 @@ int st_rip3_styles_protect(struct st_rip3_styles *styles, unsigned number, bool 
 /* Preflight every destination before copying a defined source. Protection
  * follows the source except at zero; selection and other tables stay live.
  * Duplicate destinations are allowed; self-copy and protected targets fail. */
-int st_rip3_styles_copy_entries(struct st_rip3_styles *styles, unsigned source,
-	const unsigned *destinations, size_t count);
+int st_rip3_styles_copy_entries(struct st_rip3_styles *styles, unsigned source, const unsigned *destinations,
+    size_t count);
 /* A CUR reset defines the selected record; an explicit number clears its
  * definition except at zero. Selection and backup state stay unchanged. */
 int st_rip3_styles_reset_entry(struct st_rip3_styles *styles, unsigned number, bool current_form);
@@ -110,6 +111,6 @@ int st_rip3_styles_soft_reset(struct st_rip3_styles *styles);
 /* Header table deletion skips zero, the retained slot and protected entries. */
 void st_rip3_styles_header_prune(struct st_rip3_styles *, unsigned keep);
 void st_rip3_styles_header_defaults(struct st_rip3_styles *, bool all);
-int st_rip3_styles_backup_create(struct st_rip3_backup **result);
+int  st_rip3_styles_backup_create(struct st_rip3_backup **result);
 
 #endif

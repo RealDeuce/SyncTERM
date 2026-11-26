@@ -5,14 +5,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "cterm_rip_asset_lookup.h"
-
-#include "path.h"
-
-#include <stdbool.h>
 #include <dirent.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <unistd.h>
+
+#include "cterm_rip_asset_lookup.h"
+#include "path.h"
 
 static bool
 ascii_equal_folded(const char *left, const char *right)
@@ -21,8 +20,10 @@ ascii_equal_folded(const char *left, const char *right)
 		unsigned char a = (unsigned char)*left;
 		unsigned char b = (unsigned char)*right;
 
-		if (a >= 'A' && a <= 'Z') a += 'a' - 'A';
-		if (b >= 'A' && b <= 'Z') b += 'a' - 'A';
+		if (a >= 'A' && a <= 'Z')
+			a += 'a' - 'A';
+		if (b >= 'A' && b <= 'Z')
+			b += 'a' - 'A';
 		if (a != b)
 			return false;
 	}
@@ -32,9 +33,9 @@ ascii_equal_folded(const char *left, const char *right)
 char *
 cterm_rip_asset_case_path(const char *directory, const char *name)
 {
-	DIR *stream;
+	DIR           *stream;
 	struct dirent *entry;
-	char *result = NULL;
+	char          *result = NULL;
 
 	if (directory == NULL || name == NULL)
 		return NULL;

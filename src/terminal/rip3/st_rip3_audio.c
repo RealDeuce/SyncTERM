@@ -1,10 +1,4 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
-#include "st_rip3_audio.h"
-#include "st_audio_file.h"
-#include "filesystem.h"
-#include "st_threads.h"
-#include "io_error.h"
-
 #include <math.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -13,18 +7,24 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "filesystem.h"
+#include "io_error.h"
+#include "st_audio_file.h"
+#include "st_rip3_audio.h"
+#include "st_threads.h"
+
 struct st_rip3_audio {
 	st_audio_runtime_t *runtime;
-	audio_stream_t *stream;
-	audio_stream_t *tone_stream;
+	audio_stream_t     *stream;
+	audio_stream_t     *tone_stream;
 	/* Shared only with this player's existing mixer consumer callbacks. */
-	st_mutex_t mutex;
-	int16_t *frames;
-	size_t count, position;
-	bool repeat;
+	st_mutex_t           mutex;
+	int16_t             *frames;
+	size_t               count, position;
+	bool                 repeat;
 	struct st_rip3_tones tones;
-	uint32_t tone_frames, phase, millisecond_remainder;
-	uint16_t frequency;
+	uint32_t             tone_frames, phase, millisecond_remainder;
+	uint16_t             frequency;
 };
 
 static unsigned
@@ -36,8 +36,7 @@ le16(const uint8_t *p)
 static uint32_t
 le32(const uint8_t *p)
 {
-	return (uint32_t)p[0] | (uint32_t)p[1] << 8
-	    | (uint32_t)p[2] << 16 | (uint32_t)p[3] << 24;
+	return (uint32_t)p[0] | (uint32_t)p[1] << 8 | (uint32_t)p[2] << 16 | (uint32_t)p[3] << 24;
 }
 
 static int
@@ -54,12 +53,12 @@ read_at(FILE *file, uint64_t offset, void *bytes, size_t size)
 static int
 validate_wave(FILE *file)
 {
-	uint8_t header[16];
-	int64_t size = fs_stream_size(file);
+	uint8_t  header[16];
+	int64_t  size = fs_stream_size(file);
 	uint64_t end, offset;
 	unsigned alignment = 0;
-	bool format = false, data = false;
-	int status;
+	bool     format = false, data = false;
+	int      status;
 
 	if (size < 0)
 		return IO_ERROR_IO;
@@ -82,9 +81,9 @@ validate_wave(FILE *file)
 		status = read_at(file, offset, header, 8);
 		if (status != 0)
 			return status;
-		length = le32(header + 4);
+		length  = le32(header + 4);
 		payload = offset + 8;
-		next = payload + length + (length & 1);
+		next    = payload + length + (length & 1);
 		if (next > end)
 			return IO_ERROR_INVALID_FORMAT;
 		if (memcmp(header, "fmt ", 4) == 0) {
@@ -98,9 +97,11 @@ validate_wave(FILE *file)
 				return status;
 			if (le16(header) != 1)
 				return IO_ERROR_NOT_SUPPORTED;
-			channels = le16(header + 2); rate = le32(header + 4);
-			average = le32(header + 8); alignment = le16(header + 12);
-			bits = le16(header + 14);
+			channels  = le16(header + 2);
+			rate      = le32(header + 4);
+			average   = le32(header + 8);
+			alignment = le16(header + 12);
+			bits      = le16(header + 14);
 			if (bits != 8 && bits != 16 && bits != 24 && bits != 32)
 				return IO_ERROR_NOT_SUPPORTED;
 			if (channels == 0 || rate == 0 || alignment == 0
@@ -122,8 +123,8 @@ validate_wave(FILE *file)
 static size_t
 source(void *context, int16_t *output, size_t requested)
 {
-	struct st_rip3_audio *player = context;
-	size_t produced = 0;
+	struct st_rip3_audio *player   = context;
+	size_t                produced = 0;
 
 	if (st_mutex_lock(&player->mutex) != ST_THREAD_SUCCESS)
 		return 0;
@@ -157,7 +158,7 @@ st_rip3_audio_create(struct st_rip3_audio **result, st_audio_runtime_t *runtime)
 		return IO_ERROR_IO;
 	}
 	player->runtime = runtime;
-	*result = player;
+	*result         = player;
 	return 0;
 }
 
@@ -167,7 +168,7 @@ prepare_stream(struct st_rip3_audio *player, audio_stream_t **stream, float gain
 {
 	audio_engine_t *engine;
 	audio_stream_t *created = NULL;
-	int status;
+	int             status;
 
 	if (*stream != NULL)
 		return 0;
@@ -188,7 +189,7 @@ bool
 st_rip3_audio_wav_available(struct st_rip3_audio *player)
 {
 	return player != NULL && st_audio_file_available()
-	    && prepare_stream(player, &player->stream, 0, source) == 0;
+	       && prepare_stream(player, &player->stream, 0, source) == 0;
 }
 
 void
@@ -219,20 +220,21 @@ st_rip3_audio_stop(struct st_rip3_audio *player)
 	if (st_mutex_lock(&player->mutex) != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
 	free(player->frames);
-	player->frames = NULL; player->count = player->position = 0;
-	player->repeat = false;
+	player->frames = NULL;
+	player->count = player->position = 0;
+	player->repeat                   = false;
 	(void)st_mutex_unlock(&player->mutex);
 	return status;
 }
 
 int
-st_rip3_audio_play(struct st_rip3_audio *player,
-    const struct st_rip3_resource_paths *paths, const char *filename, bool repeat)
+st_rip3_audio_play(struct st_rip3_audio *player, const struct st_rip3_resource_paths *paths, const char *filename,
+    bool repeat)
 {
 	struct st_rip3_resource resource = {0};
-	int16_t *frames = NULL;
-	size_t count;
-	int status;
+	int16_t                *frames   = NULL;
+	size_t                  count;
+	int                     status;
 
 	if (player == NULL || filename == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -259,8 +261,10 @@ st_rip3_audio_play(struct st_rip3_audio *player,
 		return IO_ERROR_IO;
 	}
 	free(player->frames);
-	player->frames = frames; player->count = count; player->position = 0;
-	player->repeat = repeat;
+	player->frames   = frames;
+	player->count    = count;
+	player->position = 0;
+	player->repeat   = repeat;
 	(void)st_mutex_unlock(&player->mutex);
 	return audio_stream_source_active(player->stream, true);
 }
@@ -278,22 +282,23 @@ tone_source(void *context, int16_t *output, size_t requested)
 			if (!st_rip3_tones_next(&player->tones, &note))
 				break;
 			/* Carry subframe remainders across notes, with no inter-note gap. */
-			uint32_t scaled = (uint32_t)note.milliseconds * AUDIO_SAMPLE_RATE + player->millisecond_remainder;
-			player->tone_frames = scaled / 1000;
+			uint32_t scaled =
+			    (uint32_t)note.milliseconds * AUDIO_SAMPLE_RATE + player->millisecond_remainder;
+			player->tone_frames           = scaled / 1000;
 			player->millisecond_remainder = scaled % 1000;
-			player->frequency = note.frequency;
-			player->phase = 0;
+			player->frequency             = note.frequency;
+			player->phase                 = 0;
 			continue;
 		}
 		size_t frames = requested - count;
 		if (frames > player->tone_frames)
 			frames = player->tone_frames;
 		for (size_t i = 0; i < frames; i++) {
-			double radians = (0x1.921fb54442d18p+2 / AUDIO_SAMPLE_RATE) * player->phase;
-			int16_t sample = (int16_t)(sin(radians) * INT16_MAX);
-			*output++ = sample;
-			*output++ = sample;
-			player->phase = (player->phase + player->frequency) % AUDIO_SAMPLE_RATE;
+			double  radians = (0x1.921fb54442d18p+2 / AUDIO_SAMPLE_RATE) * player->phase;
+			int16_t sample  = (int16_t)(sin(radians) * INT16_MAX);
+			*output++       = sample;
+			*output++       = sample;
+			player->phase   = (player->phase + player->frequency) % AUDIO_SAMPLE_RATE;
 		}
 		player->tone_frames -= (uint32_t)frames;
 		count += frames;
@@ -311,8 +316,8 @@ st_rip3_audio_play_tones(struct st_rip3_audio *player, const struct st_rip3_tone
 		return false;
 	if (st_rip3_audio_tones_pending(player) || st_mutex_lock(&player->mutex) != ST_THREAD_SUCCESS)
 		return false;
-	player->tones = *tones;
-	player->tone_frames = 0;
+	player->tones                 = *tones;
+	player->tone_frames           = 0;
 	player->millisecond_remainder = 0;
 	(void)st_mutex_unlock(&player->mutex);
 	return audio_stream_source_active(player->tone_stream, true) == 0;

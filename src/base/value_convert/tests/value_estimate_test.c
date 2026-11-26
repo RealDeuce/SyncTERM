@@ -1,7 +1,5 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 
-#include "value_convert.h"
-
 #include <locale.h>
 #include <math.h>
 #include <stdint.h>
@@ -9,16 +7,22 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define CHECK(c) do { if (!(c)) { fprintf(stderr, "failed: %s:%d: %s\n", \
-    __FILE__, __LINE__, #c); return EXIT_FAILURE; } } while (0)
+#include "value_convert.h"
+
+#define CHECK(c)                                                                        \
+	do {                                                                            \
+		if (!(c)) {                                                             \
+			fprintf(stderr, "failed: %s:%d: %s\n", __FILE__, __LINE__, #c); \
+			return EXIT_FAILURE;                                            \
+		}                                                                       \
+	} while (0)
 
 static bool
 bytes_equal(uint64_t value, const char *expected)
 {
 	char buffer[64];
 
-	return value_format_byte_estimate(buffer, sizeof(buffer), value)
-	    && strcmp(buffer, expected) == 0;
+	return value_format_byte_estimate(buffer, sizeof(buffer), value) && strcmp(buffer, expected) == 0;
 }
 
 static bool
@@ -26,17 +30,14 @@ duration_equal(double value, const char *expected)
 {
 	char buffer[64];
 
-	return value_format_duration_estimate(buffer, sizeof(buffer), value)
-	    && strcmp(buffer, expected) == 0;
+	return value_format_duration_estimate(buffer, sizeof(buffer), value) && strcmp(buffer, expected) == 0;
 }
 
 int
 main(void)
 {
-	char buffer[64];
-	static const char *const locales[] = {
-		"de_DE.UTF-8", "fr_FR.UTF-8", "de_DE.utf8", "fr_FR.utf8"
-	};
+	char                     buffer[64];
+	static const char *const locales[] = {"de_DE.UTF-8", "fr_FR.UTF-8", "de_DE.utf8", "fr_FR.utf8"};
 
 	CHECK(bytes_equal(0, "0"));
 	CHECK(bytes_equal(42, "42"));

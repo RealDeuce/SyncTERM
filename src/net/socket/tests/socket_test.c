@@ -3,62 +3,60 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "socket.h"
-
-#include "io_error.h"
-#include "st_threads.h"
-
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
 
+#include "io_error.h"
+#include "socket.h"
+#include "st_threads.h"
+
 #if SYNCTERM_PLATFORM_WINDOWS
-	#include <ws2tcpip.h>
-	typedef int test_socklen_t;
+ #include <ws2tcpip.h>
+typedef int test_socklen_t;
 #else
-	#include <arpa/inet.h>
-	#include <netinet/in.h>
-	#include <sys/socket.h>
-	typedef socklen_t test_socklen_t;
+ #include <arpa/inet.h>
+ #include <netinet/in.h>
+ #include <sys/socket.h>
+typedef socklen_t test_socklen_t;
 #endif
 
-#define CHECK(expression) do { \
-	if (!(expression)) { \
-		fprintf(stderr, "check failed at %s:%d: %s\n", __FILE__, \
-		    __LINE__, #expression); \
-		return 1; \
-	} \
-} while (0)
+#define CHECK(expression)                                                                                \
+	do {                                                                                             \
+		if (!(expression)) {                                                                     \
+			fprintf(stderr, "check failed at %s:%d: %s\n", __FILE__, __LINE__, #expression); \
+			return 1;                                                                        \
+		}                                                                                        \
+	} while (0)
 
 static void
 diagnose_urgent_mark(socket_handle_t socket, const char *stage, bool at_mark)
 {
 #if SYNCTERM_PLATFORM_WINDOWS
-	u_long mark = 0;
-	u_long available = 0;
-	int inline_oob = -1;
-	int inline_size = sizeof(inline_oob);
-	int mark_status = ioctlsocket(socket, SIOCATMARK, &mark);
-	int mark_error = mark_status == 0 ? 0 : WSAGetLastError();
-	int available_status = ioctlsocket(socket, FIONREAD, &available);
-	int available_error = available_status == 0 ? 0 : WSAGetLastError();
-	int inline_status = getsockopt(socket, SOL_SOCKET, SO_OOBINLINE,
-	    (char *)&inline_oob, &inline_size);
-	int inline_error = inline_status == 0 ? 0 : WSAGetLastError();
-	DWORD tcp_mark = 0;
-	int tcp_mark_size = sizeof(tcp_mark);
-	int tcp_mark_status = getsockopt(socket, IPPROTO_TCP, TCP_ATMARK,
-	    (char *)&tcp_mark, &tcp_mark_size);
-	int tcp_mark_error = tcp_mark_status == 0 ? 0 : WSAGetLastError();
+	u_long mark             = 0;
+	u_long available        = 0;
+	int    inline_oob       = -1;
+	int    inline_size      = sizeof(inline_oob);
+	int    mark_status      = ioctlsocket(socket, SIOCATMARK, &mark);
+	int    mark_error       = mark_status == 0 ? 0 : WSAGetLastError();
+	int    available_status = ioctlsocket(socket, FIONREAD, &available);
+	int    available_error  = available_status == 0 ? 0 : WSAGetLastError();
+	int    inline_status    = getsockopt(socket, SOL_SOCKET, SO_OOBINLINE, (char *)&inline_oob, &inline_size);
+	int    inline_error     = inline_status == 0 ? 0 : WSAGetLastError();
+	DWORD  tcp_mark         = 0;
+	int    tcp_mark_size    = sizeof(tcp_mark);
+	int    tcp_mark_status  = getsockopt(socket, IPPROTO_TCP, TCP_ATMARK, (char *)&tcp_mark, &tcp_mark_size);
+	int    tcp_mark_error   = tcp_mark_status == 0 ? 0 : WSAGetLastError();
 
-	fprintf(stderr, "urgent stage=%s portable-mark=%d SIOCATMARK=%lu"
+	fprintf(stderr,
+	    "urgent stage=%s portable-mark=%d SIOCATMARK=%lu"
 	    " status=%d error=%d FIONREAD=%lu status=%d error=%d"
 	    " SO_OOBINLINE=%d status=%d error=%d\n",
-	    stage, at_mark, mark, mark_status, mark_error, available,
-	    available_status, available_error, inline_oob, inline_status, inline_error);
-	fprintf(stderr, "urgent TCP_ATMARK stage=%s value=%lu size=%d status=%d error=%d\n",
-	    stage, tcp_mark, tcp_mark_size, tcp_mark_status, tcp_mark_error);
+	    stage, at_mark, mark, mark_status, mark_error, available, available_status, available_error,
+	    inline_oob, inline_status, inline_error);
+	fprintf(stderr, "urgent TCP_ATMARK stage=%s value=%lu size=%d status=%d error=%d\n", stage, tcp_mark,
+	    tcp_mark_size, tcp_mark_status, tcp_mark_error);
 #else
 	(void)socket;
 	fprintf(stderr, "urgent stage=%s portable-mark=%d\n", stage, at_mark);
@@ -68,9 +66,9 @@ diagnose_urgent_mark(socket_handle_t socket, const char *stage, bool at_mark)
 static ssize_t
 receive_urgent(socket_handle_t socket, void *data, unsigned flags)
 {
-	bool before = false, after = false;
-	int before_status = socket_at_urgent_mark(socket, &before);
-	ssize_t result = socket_receive(socket, data, 1, flags);
+	bool    before = false, after = false;
+	int     before_status = socket_at_urgent_mark(socket, &before);
+	ssize_t result        = socket_receive(socket, data, 1, flags);
 #if SYNCTERM_PLATFORM_WINDOWS
 	int native_error = result < 0 ? WSAGetLastError() : 0;
 #else
@@ -78,7 +76,8 @@ receive_urgent(socket_handle_t socket, void *data, unsigned flags)
 #endif
 	int after_status = socket_at_urgent_mark(socket, &after);
 
-	fprintf(stderr, "urgent receive flags=%u result=%zd native-error=%d"
+	fprintf(stderr,
+	    "urgent receive flags=%u result=%zd native-error=%d"
 	    " before-mark=%d status=%d after-mark=%d status=%d\n",
 	    flags, result, native_error, before, before_status, after, after_status);
 	return result;
@@ -88,43 +87,41 @@ receive_urgent(socket_handle_t socket, void *data, unsigned flags)
 static void
 report_tcp_mark(socket_handle_t socket, const char *stage)
 {
-	u_long mark = 0;
-	DWORD option = 0;
-	int size = sizeof(option);
-	int mark_status = ioctlsocket(socket, SIOCATMARK, &mark);
-	int mark_error = mark_status == 0 ? 0 : WSAGetLastError();
-	int option_status = getsockopt(socket, IPPROTO_TCP, TCP_ATMARK,
-	    (char *)&option, &size);
-	int option_error = option_status == 0 ? 0 : WSAGetLastError();
-	fprintf(stderr, "urgent unpeeked TCP_ATMARK stage=%s option=%lu size=%d status=%d error=%d"
-	    " SIOCATMARK=%lu status=%d error=%d\n", stage, option, size,
-	    option_status, option_error, mark, mark_status, mark_error);
+	u_long mark          = 0;
+	DWORD  option        = 0;
+	int    size          = sizeof(option);
+	int    mark_status   = ioctlsocket(socket, SIOCATMARK, &mark);
+	int    mark_error    = mark_status == 0 ? 0 : WSAGetLastError();
+	int    option_status = getsockopt(socket, IPPROTO_TCP, TCP_ATMARK, (char *)&option, &size);
+	int    option_error  = option_status == 0 ? 0 : WSAGetLastError();
+	fprintf(stderr,
+	    "urgent unpeeked TCP_ATMARK stage=%s option=%lu size=%d status=%d error=%d"
+	    " SIOCATMARK=%lu status=%d error=%d\n",
+	    stage, option, size, option_status, option_error, mark, mark_status, mark_error);
 }
 
 static ssize_t
-diagnostic_receive(socket_handle_t socket, char *bytes, DWORD size,
-	DWORD flags, const char *stage)
+diagnostic_receive(socket_handle_t socket, char *bytes, DWORD size, DWORD flags, const char *stage)
 {
-	WSABUF buffer = {.len = size, .buf = bytes};
-	const struct timespec pause = {0, 1000000L};
-	DWORD requested_flags = flags;
-	DWORD count = 0;
-	int status = SOCKET_ERROR, error = 0;
+	WSABUF                buffer          = {.len = size, .buf = bytes};
+	const struct timespec pause           = {0, 1000000L};
+	DWORD                 requested_flags = flags;
+	DWORD                 count           = 0;
+	int                   status = SOCKET_ERROR, error = 0;
 
 	/* The pointer can precede its byte, or the preceding urgent indication
 	 * can remain set briefly. This fixture has just sent a fresh OOB byte. */
 	for (unsigned attempt = 0; attempt < 1000; ++attempt) {
-		flags = requested_flags;
+		flags  = requested_flags;
 		status = WSARecv(socket, &buffer, 1, &count, &flags, NULL, NULL);
-		error = status == 0 ? 0 : WSAGetLastError();
-		if (status == 0 || (error != WSAEWOULDBLOCK
-		    && (requested_flags != MSG_OOB || error != WSAEINVAL)))
+		error  = status == 0 ? 0 : WSAGetLastError();
+		if (status == 0 || (error != WSAEWOULDBLOCK && (requested_flags != MSG_OOB || error != WSAEINVAL)))
 			break;
 		(void)st_thread_sleep(&pause, NULL);
 	}
 
-	fprintf(stderr, "urgent unpeeked WSARecv stage=%s count=%lu flags=0x%lx status=%d error=%d data=",
-	    stage, count, flags, status, error);
+	fprintf(stderr, "urgent unpeeked WSARecv stage=%s count=%lu flags=0x%lx status=%d error=%d data=", stage,
+	    count, flags, status, error);
 	if (status == 0) {
 		for (DWORD i = 0; i < count; ++i)
 			fprintf(stderr, "%02x ", (unsigned char)bytes[i]);
@@ -140,7 +137,7 @@ static int
 probe_unpeeked_tcp_atmark(socket_handle_t client, socket_handle_t sender)
 {
 	unsigned events;
-	char bytes[4];
+	char     bytes[4];
 
 	CHECK(socket_send(sender, "pre", 3) == 3);
 	CHECK(send(sender, "!", 1, MSG_OOB) == 1);
@@ -169,10 +166,10 @@ wait_unpeeked_readable(socket_handle_t socket)
 	/* socket_wait() classifies EOF with MSG_PEEK. At an inline urgent byte
 	 * that would interfere with the mark-only measurement below. */
 	int status = WSAPoll(&item, 1, 1000);
-	int error = status == SOCKET_ERROR ? WSAGetLastError() : 0;
+	int error  = status == SOCKET_ERROR ? WSAGetLastError() : 0;
 	if (status != 1 || (item.revents & POLLRDNORM) == 0) {
-		fprintf(stderr, "urgent unpeeked wait status=%d revents=0x%x error=%d\n",
-		    status, (unsigned)item.revents, error);
+		fprintf(stderr, "urgent unpeeked wait status=%d revents=0x%x error=%d\n", status,
+		    (unsigned)item.revents, error);
 		return 1;
 	}
 	return 0;
@@ -181,11 +178,10 @@ wait_unpeeked_readable(socket_handle_t socket)
 static int
 probe_inline_urgent(socket_handle_t client, socket_handle_t sender)
 {
-	int enabled = 1;
+	int  enabled = 1;
 	char bytes[4];
 
-	CHECK(setsockopt(client, SOL_SOCKET, SO_OOBINLINE,
-	    (const char *)&enabled, sizeof(enabled)) == 0);
+	CHECK(setsockopt(client, SOL_SOCKET, SO_OOBINLINE, (const char *)&enabled, sizeof(enabled)) == 0);
 	CHECK(socket_send(sender, "pre", 3) == 3);
 	CHECK(send(sender, "!", 1, MSG_OOB) == 1);
 	CHECK(socket_send(sender, "post", 4) == 4);
@@ -202,8 +198,7 @@ probe_inline_urgent(socket_handle_t client, socket_handle_t sender)
 	CHECK(diagnostic_receive(client, bytes, 4, 0, "inline post") == 4);
 	CHECK(memcmp(bytes, "post", 4) == 0);
 	enabled = 0;
-	CHECK(setsockopt(client, SOL_SOCKET, SO_OOBINLINE,
-	    (const char *)&enabled, sizeof(enabled)) == 0);
+	CHECK(setsockopt(client, SOL_SOCKET, SO_OOBINLINE, (const char *)&enabled, sizeof(enabled)) == 0);
 	return 0;
 }
 #endif
@@ -212,8 +207,8 @@ static int
 test_half_close(socket_handle_t client, socket_handle_t sender)
 {
 	const struct timespec pause = {0, 1000000L};
-	char bytes[4];
-	bool closed = true;
+	char                  bytes[4];
+	bool                  closed = true;
 	CHECK(socket_peer_write_closed(client, NULL) == IO_ERROR_INVALID_ARGUMENT);
 	CHECK(socket_peer_write_closed(SOCKET_HANDLE_INVALID, &closed) == IO_ERROR_INVALID_ARGUMENT);
 	CHECK(closed);
@@ -242,16 +237,16 @@ test_half_close(socket_handle_t client, socket_handle_t sender)
 int
 main(int argc, char **argv)
 {
-	socket_handle_t listener;
-	socket_handle_t client;
-	socket_handle_t accepted;
-	struct sockaddr_in address = {0};
-	test_socklen_t address_size = (test_socklen_t)sizeof(address);
-	unsigned events = 99;
-	char received[5] = {0};
-	bool at_mark = true;
-	int mark_status;
-	bool half_close = argc == 2 && strcmp(argv[1], "--half-close") == 0;
+	socket_handle_t    listener;
+	socket_handle_t    client;
+	socket_handle_t    accepted;
+	struct sockaddr_in address      = {0};
+	test_socklen_t     address_size = (test_socklen_t)sizeof(address);
+	unsigned           events       = 99;
+	char               received[5]  = {0};
+	bool               at_mark      = true;
+	int                mark_status;
+	bool               half_close = argc == 2 && strcmp(argv[1], "--half-close") == 0;
 
 	CHECK(argc == 1 || half_close);
 
@@ -259,18 +254,15 @@ main(int argc, char **argv)
 	CHECK(!socket_handle_is_valid(SOCKET_HANDLE_INVALID));
 	listener = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	CHECK(socket_handle_is_valid(listener));
-	address.sin_family = AF_INET;
+	address.sin_family      = AF_INET;
 	address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-	address.sin_port = 0;
-	CHECK(bind(listener, (const struct sockaddr *)&address,
-	    (test_socklen_t)sizeof(address)) == 0);
+	address.sin_port        = 0;
+	CHECK(bind(listener, (const struct sockaddr *)&address, (test_socklen_t)sizeof(address)) == 0);
 	CHECK(listen(listener, 1) == 0);
-	CHECK(getsockname(listener, (struct sockaddr *)&address,
-	    &address_size) == 0);
+	CHECK(getsockname(listener, (struct sockaddr *)&address, &address_size) == 0);
 	client = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	CHECK(socket_handle_is_valid(client));
-	CHECK(connect(client, (const struct sockaddr *)&address,
-	    (test_socklen_t)sizeof(address)) == 0);
+	CHECK(connect(client, (const struct sockaddr *)&address, (test_socklen_t)sizeof(address)) == 0);
 	accepted = accept(listener, NULL, NULL);
 	CHECK(socket_handle_is_valid(accepted));
 
@@ -279,8 +271,7 @@ main(int argc, char **argv)
 	CHECK(socket_set_no_delay(client, true) == 0);
 	CHECK(socket_set_send_buffer_size(client, 4096) == 0);
 	CHECK(socket_set_receive_buffer_size(client, 4096) == 0);
-	CHECK(socket_wait(client, SOCKET_WAIT_READABLE, 0, &events) ==
-	    IO_ERROR_TIMED_OUT);
+	CHECK(socket_wait(client, SOCKET_WAIT_READABLE, 0, &events) == IO_ERROR_TIMED_OUT);
 	CHECK(events == 0);
 	CHECK(socket_send(accepted, "abc", 3) == 3);
 	CHECK(socket_wait(client, SOCKET_WAIT_READABLE, 1000, &events) == 0);
@@ -314,8 +305,8 @@ main(int argc, char **argv)
 	diagnose_urgent_mark(client, "before pre", at_mark);
 	if (mark_status == 0)
 		CHECK(!at_mark);
-	CHECK(socket_receive(client, received, 1,
-	    SOCKET_RECEIVE_PEEK | SOCKET_RECEIVE_URGENT) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(socket_receive(client, received, 1, SOCKET_RECEIVE_PEEK | SOCKET_RECEIVE_URGENT)
+	      == IO_ERROR_INVALID_ARGUMENT);
 	CHECK(received[0] == 0x02);
 	CHECK(socket_receive(client, received, 3, SOCKET_RECEIVE_NONE) == 3);
 	CHECK(memcmp(received, "pre", 3) == 0);
@@ -325,8 +316,7 @@ main(int argc, char **argv)
 		CHECK(at_mark);
 	/* Waiting at the boundary must not skip the unread urgent byte while
 	 * probing ordinary readability of the post-mark data. */
-	CHECK(socket_wait(client, SOCKET_WAIT_READABLE | SOCKET_WAIT_URGENT,
-	    1000, &events) == 0);
+	CHECK(socket_wait(client, SOCKET_WAIT_READABLE | SOCKET_WAIT_URGENT, 1000, &events) == 0);
 	CHECK((events & SOCKET_WAIT_URGENT) != 0);
 	CHECK(receive_urgent(client, received, SOCKET_RECEIVE_URGENT) == 1);
 	CHECK(received[0] == 0x02);
@@ -335,16 +325,15 @@ main(int argc, char **argv)
 	CHECK(send(accepted, "?", 1, MSG_OOB) == 1);
 	CHECK(socket_wait(client, SOCKET_WAIT_URGENT, 1000, &events) == 0);
 	CHECK((events & SOCKET_WAIT_URGENT) != 0);
-	CHECK(socket_receive(client, received, 1,
-	    SOCKET_RECEIVE_PEEK | SOCKET_RECEIVE_URGENT) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(socket_receive(client, received, 1, SOCKET_RECEIVE_PEEK | SOCKET_RECEIVE_URGENT)
+	      == IO_ERROR_INVALID_ARGUMENT);
 	CHECK(memcmp(received, "post", 4) == 0);
 	CHECK(receive_urgent(client, received, SOCKET_RECEIVE_URGENT) == 1);
 	CHECK(received[0] == '?');
 	CHECK(socket_shutdown(accepted, SOCKET_SHUTDOWN_WRITE) == 0);
 	CHECK(socket_wait(client, SOCKET_WAIT_READABLE, 1000, &events) == 0);
 	CHECK((events & SOCKET_WAIT_CLOSED) != 0);
-	CHECK(socket_receive(client, received, sizeof(received),
-	    SOCKET_RECEIVE_NONE) == 0);
+	CHECK(socket_receive(client, received, sizeof(received), SOCKET_RECEIVE_NONE) == 0);
 
 finished:
 	CHECK(socket_close(accepted) == 0);

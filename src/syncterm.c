@@ -5,6 +5,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include "filesystem.h"
+#include "io_error.h"
+#include "path.h"
 #include "st_app_paths.h"
 #include "st_app_state.h"
 #include "st_application.h"
@@ -12,73 +15,88 @@
 #include "st_bbs_list.h"
 #include "st_builtin_fonts.h"
 #include "st_command_line.h"
+#include "st_connection.h"
 #include "st_console.h"
 #include "st_console_startup.h"
-#include "st_connection.h"
-#include "filesystem.h"
 #include "st_font_catalog.h"
 #include "st_hyperlink.h"
-#include "io_error.h"
-#include "path.h"
 #include "st_presentation_font.h"
 #include "st_unicode_fonts.h"
 #ifdef ST_HAVE_UNIFONT
-#include "st_unifont.h"
+ #include "st_unifont.h"
 #endif
+#include "st_amiga_fonts.h"
+#include "st_console_test.h"
 #include "st_profile.h"
 #include "st_screen_mode.h"
-#include "st_amiga_fonts.h"
 #include "st_session_history.h"
 #include "st_settings.h"
 #include "st_syncterm_icon.h"
-#include "st_terminfo.h"
 #include "st_term.h"
-#include "st_time.h"
+#include "st_terminfo.h"
 #include "st_threads.h"
+#include "st_time.h"
 #include "st_wren_host.h"
 #include "value_convert_time.h"
-
-#include "st_console_test.h"
 #if ST_CONSOLE_TEST
-#include "cterm.h"
-#include "cterm_igs.h"
-#include "cterm_big.h"
-#include "cterm_skypix.h"
+ #include "cterm.h"
+ #include "cterm_big.h"
+ #include "cterm_igs.h"
+ #include "cterm_skypix.h"
 #endif
 
 #include <locale.h>
+#include <stdatomic.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdatomic.h>
 
 static atomic_bool application_running;
 
 #if ST_CONSOLE_TEST
 struct application_inspection {
 	st_term_session_t *session;
-	st_connection_t *connection;
+	st_connection_t   *connection;
 };
 
-static void inspect_application(void *context, struct st_console_test_application *app)
+static void
+inspect_application(void *context, struct st_console_test_application *app)
 {
 	struct application_inspection *owner = context;
-	struct st_cterm_state state;
+	struct st_cterm_state          state;
 	st_console_test_number(app, "session_active", owner->session != NULL);
-	st_console_test_number(app, "connected", owner->connection != NULL && !st_term_session_remote_closed(owner->session));
-	if (owner->session == NULL || st_cterm_state(st_term_session_cterm(owner->session), &state) != 0) return;
-#define FIELD(name) st_console_test_number(app, "cterm." #name, state.name)
-	FIELD(x); FIELD(y); FIELD(top_margin); FIELD(bottom_margin); FIELD(left_margin); FIELD(right_margin);
-	FIELD(attr); FIELD(fg_color); FIELD(bg_color); FIELD(font_slot);
-	FIELD(rip3_g0); FIELD(rip3_g1);
-	FIELD(scrollback_lines); FIELD(scrollback_width); FIELD(scrollback_pos); FIELD(scrollback_start);
-	FIELD(emulation); FIELD(started); FIELD(skypix); FIELD(graphics_mode);
+	st_console_test_number(app, "connected",
+	    owner->connection != NULL && !st_term_session_remote_closed(owner->session));
+	if (owner->session == NULL || st_cterm_state(st_term_session_cterm(owner->session), &state) != 0)
+		return;
+ #define FIELD(name) st_console_test_number(app, "cterm." #name, state.name)
+	FIELD(x);
+	FIELD(y);
+	FIELD(top_margin);
+	FIELD(bottom_margin);
+	FIELD(left_margin);
+	FIELD(right_margin);
+	FIELD(attr);
+	FIELD(fg_color);
+	FIELD(bg_color);
+	FIELD(font_slot);
+	FIELD(rip3_g0);
+	FIELD(rip3_g1);
+	FIELD(scrollback_lines);
+	FIELD(scrollback_width);
+	FIELD(scrollback_pos);
+	FIELD(scrollback_start);
+	FIELD(emulation);
+	FIELD(started);
+	FIELD(skypix);
+	FIELD(graphics_mode);
 	if (state.emulation == ST_CTERM_PRESTEL || state.emulation == ST_CTERM_BBC)
 		st_console_test_number(app, "cterm.prestel_reveal",
 		    st_term_session_cterm(owner->session)->screen.prestel_reveal);
-	st_console_test_number(app,"cterm.musicomm",st_cterm_musicomm_state(st_term_session_cterm(owner->session)));
+	st_console_test_number(app, "cterm.musicomm",
+	    st_cterm_musicomm_state(st_term_session_cterm(owner->session)));
 	/* Read-only test-control observations, captured with the scene/state. */
 	const struct cterm_skypix *sky = st_term_session_cterm(owner->session)->skypix_engine;
 	if (sky != NULL) {
@@ -86,12 +104,12 @@ static void inspect_application(void *context, struct st_console_test_applicatio
 		st_console_test_number(app, "cterm.skypix_sample_period", sky->audio.period);
 		st_console_test_number(app, "cterm.skypix_playing", sky->audio.playing);
 	}
-	cterm_big_inspect(st_term_session_cterm(owner->session)->big_engine,app);
+	cterm_big_inspect(st_term_session_cterm(owner->session)->big_engine, app);
 	const struct cterm_igs *igs = st_term_session_cterm(owner->session)->igs_engine;
 	if (igs != NULL) {
-		cterm_igs_audio_inspect(igs,app);
-		cterm_igs_music_inspect(igs,app);
-		cterm_igs_input_inspect(igs,app);
+		cterm_igs_audio_inspect(igs, app);
+		cterm_igs_music_inspect(igs, app);
+		cterm_igs_input_inspect(igs, app);
 		st_console_test_number(app, "cterm.igs_flow_mode", igs->flow_mode);
 		st_console_test_number(app, "cterm.igs_flow_on", igs->flow_on);
 		st_console_test_number(app, "cterm.igs_flow_off", igs->flow_off);
@@ -103,7 +121,9 @@ static void inspect_application(void *context, struct st_console_test_applicatio
 		st_console_test_number(app, "cterm.igs_console_reverse", igs->terminal->negative);
 		st_console_test_number(app, "cterm.igs_console_escape", igs->terminal->sequence != 0);
 		st_console_test_number(app, "cterm.igs_console_parameters",
-		    igs->terminal->accumulator != NULL && !igs->terminal->sequence ? igs->terminal->seq_trailing_remain : 0);
+		    igs->terminal->accumulator != NULL && !igs->terminal->sequence
+			? igs->terminal->seq_trailing_remain
+			: 0);
 		st_console_test_number(app, "cterm.igs_scaling_mode", igs->scaling_mode);
 		st_console_test_number(app, "cterm.igs_scaling_resolution", igs->scaling_resolution);
 		st_console_test_number(app, "cterm.igs_writing_mode", igs->attributes.writing_mode);
@@ -137,45 +157,49 @@ static void inspect_application(void *context, struct st_console_test_applicatio
 			st_console_test_number(app, name, igs->attributes.user_fill[i]);
 		}
 		for (unsigned bank = 0; bank < 2; ++bank) {
-			char name[64];
-			static const char *const coordinates[] = {"x1","y1","x2","y2"};
+			char                     name[64];
+			static const char *const coordinates[] = {"x1", "y1", "x2", "y2"};
 			for (unsigned i = 0; i < 4; ++i) {
-				(void)snprintf(name,sizeof(name),"cterm.igs_memory%u_%s",bank,coordinates[i]);
-				st_console_test_number(app,name,igs->memory_rect[bank][i]);
+				(void)snprintf(name, sizeof(name), "cterm.igs_memory%u_%s", bank, coordinates[i]);
+				st_console_test_number(app, name, igs->memory_rect[bank][i]);
 			}
-			(void)snprintf(name,sizeof(name),"cterm.igs_memory%u_word_width",bank);
-			st_console_test_number(app,name,igs->memory_view[bank].word_width);
-			(void)snprintf(name,sizeof(name),"cterm.igs_memory%u_screen",bank);
-			st_console_test_number(app,name,igs->memory_view[bank].screen);
-			(void)snprintf(name,sizeof(name),"cterm.igs_memory%u_planes",bank);
-			st_console_test_number(app,name,igs->memory_view[bank].planes);
+			(void)snprintf(name, sizeof(name), "cterm.igs_memory%u_word_width", bank);
+			st_console_test_number(app, name, igs->memory_view[bank].word_width);
+			(void)snprintf(name, sizeof(name), "cterm.igs_memory%u_screen", bank);
+			st_console_test_number(app, name, igs->memory_view[bank].screen);
+			(void)snprintf(name, sizeof(name), "cterm.igs_memory%u_planes", bank);
+			st_console_test_number(app, name, igs->memory_view[bank].planes);
 		}
-		st_console_test_number(app,"cterm.igs_copy_pending",igs->copy_pending);
-		st_console_test_number(app,"cterm.igs_memory_route",igs->memory_route);
-		st_console_test_number(app,"cterm.igs_palette_rotation_active",igs->palette_rotation.active);
-		st_console_test_number(app,"cterm.igs_palette_rotation_raw",igs->palette_rotation.raw);
-		st_console_test_number(app,"cterm.igs_palette_rotation_restore_raw",igs->palette_rotation.restore_raw);
-		st_console_test_number(app,"cterm.igs_palette_rotation_delaying",igs->palette_rotation.delaying);
-		st_console_test_number(app,"cterm.igs_palette_rotation_remaining",igs->palette_rotation.remaining);
-		st_console_test_number(app,"cterm.igs_sweep_active",igs->sweep.active);
-		st_console_test_number(app,"cterm.igs_sweep_wait",igs->sweep.wait);
-		char raw_colors[65], requested_colors[600] = {0};
+		st_console_test_number(app, "cterm.igs_copy_pending", igs->copy_pending);
+		st_console_test_number(app, "cterm.igs_memory_route", igs->memory_route);
+		st_console_test_number(app, "cterm.igs_palette_rotation_active", igs->palette_rotation.active);
+		st_console_test_number(app, "cterm.igs_palette_rotation_raw", igs->palette_rotation.raw);
+		st_console_test_number(app, "cterm.igs_palette_rotation_restore_raw",
+		    igs->palette_rotation.restore_raw);
+		st_console_test_number(app, "cterm.igs_palette_rotation_delaying", igs->palette_rotation.delaying);
+		st_console_test_number(app, "cterm.igs_palette_rotation_remaining",
+		    igs->palette_rotation.remaining);
+		st_console_test_number(app, "cterm.igs_sweep_active", igs->sweep.active);
+		st_console_test_number(app, "cterm.igs_sweep_wait", igs->sweep.wait);
+		char   raw_colors[65], requested_colors[600] = {0};
 		size_t offset = 0;
 		for (unsigned i = 0; i < 16; ++i) {
-			(void)snprintf(raw_colors+4*i,sizeof(raw_colors)-4*i,"%04x",igs->raw_palette[i]);
-			int count = snprintf(requested_colors+offset,sizeof(requested_colors)-offset,
-			    "%s%d,%d,%d",i == 0 ? "" : ",",igs->requested_palette[i][0],
-			    igs->requested_palette[i][1],igs->requested_palette[i][2]);
-			if (count < 0 || (size_t)count >= sizeof(requested_colors)-offset) break;
+			(void)snprintf(raw_colors + 4 * i, sizeof(raw_colors) - 4 * i, "%04x",
+			    igs->raw_palette[i]);
+			int count = snprintf(requested_colors + offset, sizeof(requested_colors) - offset,
+			    "%s%d,%d,%d", i == 0 ? "" : ",", igs->requested_palette[i][0],
+			    igs->requested_palette[i][1], igs->requested_palette[i][2]);
+			if (count < 0 || (size_t)count >= sizeof(requested_colors) - offset)
+				break;
 			offset += (size_t)count;
 		}
-		st_console_test_text(app,"cterm.igs_raw_palette",raw_colors);
-		st_console_test_text(app,"cterm.igs_requested_palette",requested_colors);
-		st_console_test_number(app,"cterm.igs_bitmap_loading",igs->bitmap_loading);
-		st_console_test_number(app,"cterm.igs_bitmap_received",(int64_t)igs->bitmap_received);
-		st_console_test_number(app,"cterm.igs_bitmap_size",(int64_t)igs->bitmap_size);
-		st_console_test_number(app,"cterm.igs_bitmap_errors",igs->bitmap_errors);
-		st_console_test_number(app,"cterm.igs_bitmap_deadline",(int64_t)igs->bitmap_deadline);
+		st_console_test_text(app, "cterm.igs_raw_palette", raw_colors);
+		st_console_test_text(app, "cterm.igs_requested_palette", requested_colors);
+		st_console_test_number(app, "cterm.igs_bitmap_loading", igs->bitmap_loading);
+		st_console_test_number(app, "cterm.igs_bitmap_received", (int64_t)igs->bitmap_received);
+		st_console_test_number(app, "cterm.igs_bitmap_size", (int64_t)igs->bitmap_size);
+		st_console_test_number(app, "cterm.igs_bitmap_errors", igs->bitmap_errors);
+		st_console_test_number(app, "cterm.igs_bitmap_deadline", (int64_t)igs->bitmap_deadline);
 		st_console_test_number(app, "cterm.igs_shared_text_size", (int64_t)igs->shared_text_size);
 		st_console_test_number(app, "cterm.igs_text_counter", (int64_t)igs->text_counter);
 		st_console_test_number(app, "cterm.igs_text_deadline", (int64_t)igs->text_deadline);
@@ -195,27 +219,42 @@ static void inspect_application(void *context, struct st_console_test_applicatio
 		st_console_test_number(app, "cterm.igs_marker_cycle", igs->marker_cycle);
 		st_console_test_number(app, "cterm.igs_marker_cycle_restart", igs->marker_cycle_restart);
 	}
-	FIELD(ext_attr.auto_wrap); FIELD(ext_attr.origin_mode); FIELD(ext_attr.sx_scroll); FIELD(ext_attr.dec_lrmm);
-	FIELD(ext_attr.bracket_paste); FIELD(ext_attr.dec_bkm); FIELD(ext_attr.alternate_keypad);
-	FIELD(ext_attr.prestel_mosaic); FIELD(ext_attr.prestel_double_height); FIELD(ext_attr.prestel_conceal);
-	FIELD(ext_attr.prestel_separated); FIELD(ext_attr.prestel_hold);
-	FIELD(last_column_flag.set); FIELD(last_column_flag.enabled); FIELD(last_column_flag.forced);
-#undef FIELD
+	FIELD(ext_attr.auto_wrap);
+	FIELD(ext_attr.origin_mode);
+	FIELD(ext_attr.sx_scroll);
+	FIELD(ext_attr.dec_lrmm);
+	FIELD(ext_attr.bracket_paste);
+	FIELD(ext_attr.dec_bkm);
+	FIELD(ext_attr.alternate_keypad);
+	FIELD(ext_attr.prestel_mosaic);
+	FIELD(ext_attr.prestel_double_height);
+	FIELD(ext_attr.prestel_conceal);
+	FIELD(ext_attr.prestel_separated);
+	FIELD(ext_attr.prestel_hold);
+	FIELD(last_column_flag.set);
+	FIELD(last_column_flag.enabled);
+	FIELD(last_column_flag.forced);
+ #undef FIELD
 	st_console_test_number(app, "cterm.encoding", st_cterm_encoding(st_term_session_cterm(owner->session)));
 	st_console_test_number(app, "cterm.codepage", st_cterm_codepage(st_term_session_cterm(owner->session)));
-	st_console_test_number(app, "cterm.status_display", st_cterm_status_display(st_term_session_cterm(owner->session)));
+	st_console_test_number(app, "cterm.status_display",
+	    st_cterm_status_display(st_term_session_cterm(owner->session)));
 	struct st_transfer_inspection transfer;
-	bool reserved;
+	bool                          reserved;
 	bool active = st_term_session_inspect_transfer(owner->session, &transfer, &reserved);
 	st_console_test_number(app, "transfer.active", active);
 	st_console_test_number(app, "transfer.reserved", reserved);
 	if (active) {
-#define TRANSFER(name, value) st_console_test_number(app, "transfer." name, value)
-		TRANSFER("protocol", transfer.protocol); TRANSFER("upload", transfer.upload);
-		TRANSFER("done", transfer.done); TRANSFER("aborted", transfer.aborted);
-		TRANSFER("result", transfer.result); TRANSFER("dialog", transfer.dialog);
-		TRANSFER("bytes_current", transfer.progress.bytes_current); TRANSFER("bytes_total", transfer.progress.bytes_total);
-#undef TRANSFER
+ #define TRANSFER(name, value) st_console_test_number(app, "transfer." name, value)
+		TRANSFER("protocol", transfer.protocol);
+		TRANSFER("upload", transfer.upload);
+		TRANSFER("done", transfer.done);
+		TRANSFER("aborted", transfer.aborted);
+		TRANSFER("result", transfer.result);
+		TRANSFER("dialog", transfer.dialog);
+		TRANSFER("bytes_current", transfer.progress.bytes_current);
+		TRANSFER("bytes_total", transfer.progress.bytes_total);
+ #undef TRANSFER
 		st_console_test_text(app, "transfer.line1", transfer.progress.line1);
 		st_console_test_text(app, "transfer.line2", transfer.progress.line2);
 		st_console_test_text(app, "transfer.line3", transfer.progress.line3);
@@ -226,61 +265,72 @@ static void inspect_application(void *context, struct st_console_test_applicatio
 
 static int
 application_paths(struct st_app_paths *paths, const struct st_command_line *command,
-	const struct st_application_host *frontend)
+    const struct st_application_host *frontend)
 {
 	struct st_app_path_overrides overrides = {0};
-	char *files[9] = {0};
-	int status = 0;
-	const char *directory = frontend == NULL ? NULL : frontend->directory;
+	char                        *files[9]  = {0};
+	int                          status    = 0;
+	const char                  *directory = frontend == NULL ? NULL : frontend->directory;
 #if ST_CONSOLE_TEST
-	if (command->test_directory != NULL) directory = command->test_directory;
+	if (command->test_directory != NULL)
+		directory = command->test_directory;
 #endif
 	if (directory != NULL) {
-		const char *names[] = {"syncterm.ini", "syncterm.lst", "shared.lst",
-		    "cache", "downloads", "keys.ini", "scripts", "themes", "RIP"};
-		for (size_t i = 0; i < sizeof(names)/sizeof(*names) && status == 0; ++i)
+		const char *names[] = {"syncterm.ini", "syncterm.lst", "shared.lst", "cache", "downloads",
+		    "keys.ini", "scripts", "themes", "RIP"};
+		for (size_t i = 0; i < sizeof(names) / sizeof(*names) && status == 0; ++i)
 			status = path_join_alloc(&files[i], directory, names[i]);
-		overrides = (struct st_app_path_overrides){
-			.settings_file = files[0], .personal_list = files[1],
-			.shared_list = files[2], .cache_directory = files[3],
-			.download_directory = files[4], .keys_file = files[5],
-			.scripts_directory = files[6], .themes_directory = files[7],
-			.rip_data_directory = files[8],
+		overrides = (struct st_app_path_overrides) {
+		    .settings_file      = files[0],
+		    .personal_list      = files[1],
+		    .shared_list        = files[2],
+		    .cache_directory    = files[3],
+		    .download_directory = files[4],
+		    .keys_file          = files[5],
+		    .scripts_directory  = files[6],
+		    .themes_directory   = files[7],
+		    .rip_data_directory = files[8],
 		};
 	}
-	if (command->settings_path != NULL) overrides.settings_file = command->settings_path;
-	if (command->list_path != NULL) overrides.personal_list = command->list_path;
-	if (status == 0) status = st_app_paths_init(paths, &overrides);
-	for (size_t i = 0; i < sizeof(files)/sizeof(*files); ++i) free(files[i]);
+	if (command->settings_path != NULL)
+		overrides.settings_file = command->settings_path;
+	if (command->list_path != NULL)
+		overrides.personal_list = command->list_path;
+	if (status == 0)
+		status = st_app_paths_init(paths, &overrides);
+	for (size_t i = 0; i < sizeof(files) / sizeof(*files); ++i)
+		free(files[i]);
 	return status;
 }
 
-static const char application_title[] = u8"SyncTERM 2.0\u03b1"
+static const char application_title[] =
+    u8"SyncTERM 2.0\u03b1"
 #ifdef ST_DEBUG_BUILD
-	" Debug (" __DATE__ ")"
+    " Debug (" __DATE__ ")"
 #endif
-	;
+    ;
 
 static void
 usage(FILE *stream, const char *program)
 {
 	static const struct {
-		uint32_t feature;
+		uint32_t    feature;
 		const char *mode;
 		const char *description;
 	} modes[] = {
-		{ST_CONSOLE_BUILD_ANSI, "A or AU", "ANSI terminal output using UTF-8"},
-		{ST_CONSOLE_BUILD_ANSI, "AC", "ANSI terminal output using CP437 bytes"},
-		{ST_CONSOLE_BUILD_NCURSES, "C", "ncurses terminal output using Unicode"},
-		{ST_CONSOLE_BUILD_NCURSES, "F", "ncurses terminal output using CP437 bytes"},
-		{ST_CONSOLE_BUILD_NCURSES, "I", "ncurses terminal output using ASCII"},
-		{ST_CONSOLE_BUILD_GDI, "G[W|F]", "Windows GDI graphics"},
-		{ST_CONSOLE_BUILD_QUARTZ, "Q[W|F]", "macOS Quartz graphics"},
-		{ST_CONSOLE_BUILD_SDL, "S[W|F]", "SDL graphics"},
-		{ST_CONSOLE_BUILD_WIN32, "W", "Windows text console"},
-		{ST_CONSOLE_BUILD_X11, "X[W|F]", "X11 graphics"},
-		{ST_CONSOLE_BUILD_WAYLAND, "Y[W|F]", "Wayland graphics"},
+	    {ST_CONSOLE_BUILD_ANSI,    "A or AU", "ANSI terminal output using UTF-8"         },
+	    {ST_CONSOLE_BUILD_ANSI,    "AC",      "ANSI terminal output using CP437 bytes"   },
+	    {ST_CONSOLE_BUILD_NCURSES, "C",       "ncurses terminal output using Unicode"    },
+	    {ST_CONSOLE_BUILD_NCURSES, "F",       "ncurses terminal output using CP437 bytes"},
+	    {ST_CONSOLE_BUILD_NCURSES, "I",       "ncurses terminal output using ASCII"      },
+	    {ST_CONSOLE_BUILD_GDI,     "G[W|F]",  "Windows GDI graphics"                     },
+	    {ST_CONSOLE_BUILD_QUARTZ,  "Q[W|F]",  "macOS Quartz graphics"                    },
+	    {ST_CONSOLE_BUILD_SDL,     "S[W|F]",  "SDL graphics"                             },
+	    {ST_CONSOLE_BUILD_WIN32,   "W",       "Windows text console"                     },
+	    {ST_CONSOLE_BUILD_X11,     "X[W|F]",  "X11 graphics"                             },
+	    {ST_CONSOLE_BUILD_WAYLAND, "Y[W|F]",  "Wayland graphics"                         },
 	};
+
 	uint32_t features = st_console_build_features();
 
 	fprintf(stream,
@@ -292,21 +342,26 @@ usage(FILE *stream, const char *program)
 	    "  -c            hide the status line\n"
 	    "  -h            use SSH when URL has no scheme\n"
 	    "  -iX           select output mode X (default: configured or automatic)\n"
-	    "                Modes compiled into this build:\n", program);
+	    "                Modes compiled into this build:\n",
+	    program);
 	for (size_t i = 0; i < sizeof(modes) / sizeof(modes[0]); ++i) {
 		if ((features & modes[i].feature) != 0)
-			fprintf(stream, "                  %-8s %s\n",
-			    modes[i].mode, modes[i].description);
+			fprintf(stream, "                  %-8s %s\n", modes[i].mode, modes[i].description);
 	}
-	if ((features & (ST_CONSOLE_BUILD_GDI | ST_CONSOLE_BUILD_QUARTZ
-	    | ST_CONSOLE_BUILD_SDL | ST_CONSOLE_BUILD_X11
-	    | ST_CONSOLE_BUILD_WAYLAND)) != 0)
-		fputs("                Graphics modes accept W for windowed or F for fullscreen;\n"
-		    "                the suffix is optional.\n", stream);
+	if ((features
+	        & (ST_CONSOLE_BUILD_GDI | ST_CONSOLE_BUILD_QUARTZ | ST_CONSOLE_BUILD_SDL | ST_CONSOLE_BUILD_X11
+	            | ST_CONSOLE_BUILD_WAYLAND))
+	    != 0)
+		fputs(
+		    "                Graphics modes accept W for windowed or F for fullscreen;\n"
+		    "                the suffix is optional.\n",
+		    stream);
 #if ST_CONSOLE_TEST
 	if ((features & ST_CONSOLE_BUILD_TEST) != 0)
-		fputs("  --test-control  use the testing bitmap driver with pipe input/output\n"
-		    "  --test-directory path  use private application paths with --test-control\n", stream);
+		fputs(
+		    "  --test-control  use the testing bitmap driver with pipe input/output\n"
+		    "  --test-directory path  use private application paths with --test-control\n",
+		    stream);
 #endif
 	fputs(
 	    "  -l#           use 14, 21, 25, 28, 30, 43, 50, or 60 rows\n"
@@ -344,8 +399,7 @@ usage(FILE *stream, const char *program)
 }
 
 static void
-apply_profile_overrides(struct st_profile *profile,
-	const struct st_command_line *command)
+apply_profile_overrides(struct st_profile *profile, const struct st_command_line *command)
 {
 	if (command->address_family != ST_ADDRESS_FAMILY_UNSPECIFIED)
 		profile->address_family = command->address_family;
@@ -356,31 +410,27 @@ apply_profile_overrides(struct st_profile *profile,
 }
 
 static void
-persist_window_scaling(st_wren_host_t *host, st_console_display_t *display,
-	bool normal_exit, bool safe_mode)
+persist_window_scaling(st_wren_host_t *host, st_console_display_t *display, bool normal_exit, bool safe_mode)
 {
 	enum st_screen_mode current_mode;
-	double scaling;
-	int status;
+	double              scaling;
+	int                 status;
 
-	if (host == NULL || display == NULL
-	    || st_wren_host_get_screen_mode(host, &current_mode) != 0
+	if (host == NULL || display == NULL || st_wren_host_get_screen_mode(host, &current_mode) != 0
 	    || !st_app_should_persist_scaling(normal_exit, safe_mode,
-	    (enum st_screen_mode)st_settings.startup_mode, current_mode))
+		(enum st_screen_mode)st_settings.startup_mode, current_mode))
 		return;
 	status = st_console_display_get_scaling(display, &scaling);
 	if (status == IO_ERROR_NOT_SUPPORTED)
 		return;
 	if (status != 0) {
-		fprintf(stderr, "SyncTERM: cannot read window scaling (%d)\n",
-		    status);
+		fprintf(stderr, "SyncTERM: cannot read window scaling (%d)\n", status);
 		return;
 	}
 	if (scaling != st_settings.scaling_factor) {
 		status = st_settings_persist_scaling_factor(scaling);
 		if (status != 0)
-			fprintf(stderr,
-			    "SyncTERM: cannot save window scaling (%d)\n", status);
+			fprintf(stderr, "SyncTERM: cannot save window scaling (%d)\n", status);
 	}
 }
 
@@ -401,34 +451,31 @@ font_path_slot(uint32_t width, uint32_t height, bool *valid)
 }
 
 static int
-prepare_session_fonts(st_font_catalog_t **result, st_console_t *console,
-	const struct st_profile *profile, uint8_t fallback, uint8_t *selected)
+prepare_session_fonts(st_font_catalog_t **result, st_console_t *console, const struct st_profile *profile,
+    uint8_t fallback, uint8_t *selected)
 {
-	st_font_catalog_t *catalog = NULL;
-	uint32_t width;
-	uint32_t height;
-	bool valid;
+	st_font_catalog_t         *catalog = NULL;
+	uint32_t                   width;
+	uint32_t                   height;
+	bool                       valid;
 	enum st_settings_font_path slot;
-	int status = st_font_catalog_create(&catalog, console);
+	int                        status = st_font_catalog_create(&catalog, console);
 
 	if (status != 0)
 		return status;
 	if (st_console_cell_pixel_size(console, &width, &height) == 0) {
 		slot = font_path_slot(width, height, &valid);
 		if (valid) {
-			for (size_t i = 0; i < st_settings_font_count()
-			    && i + ST_FONT_CATALOG_FIRST_CUSTOM <= UINT8_MAX; ++i) {
-				const struct st_settings_font *font
-				    = st_settings_font_at(i);
+			for (size_t i = 0;
+			    i < st_settings_font_count() && i + ST_FONT_CATALOG_FIRST_CUSTOM <= UINT8_MAX; ++i) {
+				const struct st_settings_font *font = st_settings_font_at(i);
 
 				if (font->path[slot] != NULL)
 					(void)st_font_catalog_load_custom_codepage(catalog,
-					    (uint8_t)(i
-					    + ST_FONT_CATALOG_FIRST_CUSTOM),
-					    font->path[slot],
+					    (uint8_t)(i + ST_FONT_CATALOG_FIRST_CUSTOM), font->path[slot],
 					    profile->encoding == ST_PROFILE_ENCODING_UTF8
-					    ? ST_CODEPAGE_CP437
-					    : (enum st_codepage)profile->encoding);
+						? ST_CODEPAGE_CP437
+						: (enum st_codepage)profile->encoding);
 			}
 		}
 	}
@@ -440,14 +487,12 @@ prepare_session_fonts(st_font_catalog_t **result, st_console_t *console,
 				break;
 			}
 		}
-		for (size_t i = 0; i < st_settings_font_count()
-		    && i + ST_FONT_CATALOG_FIRST_CUSTOM <= UINT8_MAX; ++i) {
+		for (size_t i = 0; i < st_settings_font_count() && i + ST_FONT_CATALOG_FIRST_CUSTOM <= UINT8_MAX;
+		    ++i) {
 			const struct st_settings_font *font = st_settings_font_at(i);
 
-			if (font->name != NULL
-			    && strcmp(profile->font, font->name) == 0) {
-				*selected = (uint8_t)(i
-				    + ST_FONT_CATALOG_FIRST_CUSTOM);
+			if (font->name != NULL && strcmp(profile->font, font->name) == 0) {
+				*selected = (uint8_t)(i + ST_FONT_CATALOG_FIRST_CUSTOM);
 				break;
 			}
 		}
@@ -463,49 +508,45 @@ prepare_session_fonts(st_font_catalog_t **result, st_console_t *console,
 }
 
 static int
-run_rip_prompt(void *context, const char *question, const char *initial,
-	size_t field_width, bool reject_blank, char **result)
+run_rip_prompt(void *context, const char *question, const char *initial, size_t field_width, bool reject_blank,
+    char **result)
 {
 	(void)reject_blank;
-	return st_wren_host_prompt(context, "RIP Input", question, initial,
-	    field_width, result);
+	return st_wren_host_prompt(context, "RIP Input", question, initial, field_width, result);
 }
 
 static int
-run_rip_variable_prompt(void *context, const char *question, const char *initial,
-	size_t max_length, const char *input_mode, bool masked, bool required,
-	const int32_t position[2], char **result)
+run_rip_variable_prompt(void *context, const char *question, const char *initial, size_t max_length,
+    const char *input_mode, bool masked, bool required, const int32_t position[2], char **result)
 {
-	return st_wren_host_rip_prompt(context, "RIP Input", question, initial,
-	    max_length, input_mode, masked, required, position, result);
+	return st_wren_host_rip_prompt(context, "RIP Input", question, initial, max_length, input_mode, masked,
+	    required, position, result);
 }
 
 static int
-run_rip_definition(void *context, const char *question, const char *initial,
-	size_t max_length, bool count_bytes, bool reject_blank, bool *require_confirmation, char **result)
+run_rip_definition(void *context, const char *question, const char *initial, size_t max_length, bool count_bytes,
+    bool reject_blank, bool *require_confirmation, char **result)
 {
-	return st_wren_host_rip_define(context, "RIP Input", question, initial, max_length,
-	    count_bytes, reject_blank, require_confirmation, result);
+	return st_wren_host_rip_define(context, "RIP Input", question, initial, max_length, count_bytes,
+	    reject_blank, require_confirmation, result);
 }
 
 static int
-run_rip_choice(void *context, const char *question,
-	const struct st_cterm_rip_choice *choices, size_t count,
-	bool required, int *selected)
+run_rip_choice(void *context, const char *question, const struct st_cterm_rip_choice *choices, size_t count,
+    bool required, int *selected)
 {
 	const char *labels[20];
-	uint32_t hotkeys[20];
-	int result;
+	uint32_t    hotkeys[20];
+	int         result;
 
 	if (count == 0 || count > 20)
 		return IO_ERROR_INVALID_ARGUMENT;
 	for (size_t i = 0; i < count; i++) {
-		labels[i] = choices[i].label;
+		labels[i]  = choices[i].label;
 		hotkeys[i] = choices[i].hotkey;
 	}
 	*selected = -1;
-	result = st_wren_host_rip_choice(context, "RIP Selection", question,
-	    labels, hotkeys, count, required);
+	result    = st_wren_host_rip_choice(context, "RIP Selection", question, labels, hotkeys, count, required);
 	if (result == IO_ERROR_CANCELLED && !required)
 		return 0;
 	if (result < 0)
@@ -515,31 +556,29 @@ run_rip_choice(void *context, const char *question,
 }
 
 struct connection_ui {
-	st_wren_host_t *host;
-	st_console_t *console;
-	struct st_profile *profile;
-	bool closed;
+	st_wren_host_t                *host;
+	st_console_t                  *console;
+	struct st_profile             *profile;
+	bool                           closed;
 	enum st_connection_setup_phase phase;
-	st_mutex_t log_mutex;
-	char *log;
-	size_t log_size;
-	size_t log_capacity;
-	FILE *log_file; /* Protected by log_mutex, like the viewer buffer. */
+	st_mutex_t                     log_mutex;
+	char                          *log;
+	size_t                         log_size;
+	size_t                         log_capacity;
+	FILE                          *log_file; /* Protected by log_mutex, like the viewer buffer. */
 };
 
 static bool
 connection_log_stamp(FILE *file, const char *message)
 {
-	static const char *const months[] = {
-		"Jan", "Feb", "Mar", "Apr", "May", "Jun",
-		"Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-	};
-	struct tm parts;
-	if (!value_convert_localtime(time(NULL), &parts)
-	    || parts.tm_mon < 0 || parts.tm_mon > 11)
+	static const char *const months[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct",
+	    "Nov", "Dec"};
+	struct tm                parts;
+	if (!value_convert_localtime(time(NULL), &parts) || parts.tm_mon < 0 || parts.tm_mon > 11)
 		return false;
-	return fprintf(file, "%s %2d %02d:%02d:%02d %s\n", months[parts.tm_mon],
-	    parts.tm_mday, parts.tm_hour, parts.tm_min, parts.tm_sec, message) >= 0;
+	return fprintf(file, "%s %2d %02d:%02d:%02d %s\n", months[parts.tm_mon], parts.tm_mday, parts.tm_hour,
+		   parts.tm_min, parts.tm_sec, message)
+	       >= 0;
 }
 
 static void
@@ -548,8 +587,7 @@ connection_log_open(struct connection_ui *ui)
 	if (ui->log_file != NULL || st_wren_host_safe_mode(ui->host) || ui->profile->log_path == NULL
 	    || ui->profile->log_path[0] == '\0')
 		return;
-	if (fs_open(&ui->log_file, ui->profile->log_path,
-	    ui->profile->append_log ? "a" : "w") != 0)
+	if (fs_open(&ui->log_file, ui->profile->log_path, ui->profile->append_log ? "a" : "w") != 0)
 		fprintf(stderr, "SyncTERM: unable to open connection log\n");
 	else if (!connection_log_stamp(ui->log_file, "Log opened"))
 		fprintf(stderr, "SyncTERM: unable to write connection log\n");
@@ -577,25 +615,30 @@ static void
 connection_log_append(struct connection_ui *ui, char *line, size_t length)
 {
 	const size_t limit = 1024U * 1024U;
-	size_t drop = 0;
+	size_t       drop  = 0;
 	/* The caller holds log_mutex. Keep whole recent lines so a busy
 	 * debug session does not freeze the viewer at its first megabyte. */
 	for (size_t i = 0; i < length; ++i)
-		if ((unsigned char)line[i] < 32 && line[i] != '\n' && line[i] != '\t') line[i] = '?';
-	if (length > limit) return;
+		if ((unsigned char)line[i] < 32 && line[i] != '\n' && line[i] != '\t')
+			line[i] = '?';
+	if (length > limit)
+		return;
 	if (ui->log_size > limit - length) {
-		drop = ui->log_size - (limit - length);
+		drop            = ui->log_size - (limit - length);
 		const char *end = memchr(ui->log + drop, '\n', ui->log_size - drop);
-		drop = end == NULL ? ui->log_size : (size_t)(end - ui->log) + 1;
+		drop            = end == NULL ? ui->log_size : (size_t)(end - ui->log) + 1;
 	}
 	size_t needed = ui->log_size - drop + length + 1;
 	if (needed > ui->log_capacity) {
 		size_t capacity = ui->log_capacity == 0 ? 4096 : ui->log_capacity;
-		while (capacity < needed) capacity *= 2;
-		if (capacity > limit + 1) capacity = limit + 1;
+		while (capacity < needed)
+			capacity *= 2;
+		if (capacity > limit + 1)
+			capacity = limit + 1;
 		char *next = realloc(ui->log, capacity);
-		if (next == NULL) return;
-		ui->log = next;
+		if (next == NULL)
+			return;
+		ui->log          = next;
 		ui->log_capacity = capacity;
 	}
 	if (drop != 0) {
@@ -614,7 +657,8 @@ connection_log_snapshot(void *context, char **text)
 	(void)st_mutex_lock(&ui->log_mutex);
 	char *copy = strdup(ui->log == NULL ? "" : ui->log);
 	(void)st_mutex_unlock(&ui->log_mutex);
-	if (copy == NULL) return IO_ERROR_OUT_OF_MEMORY;
+	if (copy == NULL)
+		return IO_ERROR_OUT_OF_MEMORY;
 	*text = copy;
 	return 0;
 }
@@ -622,9 +666,16 @@ connection_log_snapshot(void *context, char **text)
 static void
 connection_transfer_log(void *context, int level, const char *message)
 {
-	struct connection_ui *ui = context;
+	struct connection_ui    *ui      = context;
 	static const char *const names[] = {
-		"Emergency", "Alert", "Critical", "Error", "Warning", "Notice", "Info", "Debug",
+	    "Emergency",
+	    "Alert",
+	    "Critical",
+	    "Error",
+	    "Warning",
+	    "Notice",
+	    "Info",
+	    "Debug",
 	};
 	char line[2048];
 	/* The connected VM applies the live transfer threshold. */
@@ -648,17 +699,18 @@ connection_status(void *context, const char *message)
 }
 
 static void
-connection_log_message(struct connection_ui *ui, const char *source,
-	const char *severity, const char *message)
+connection_log_message(struct connection_ui *ui, const char *source, const char *severity, const char *message)
 {
 	char line[2048];
-	int count = snprintf(line, sizeof(line), "%s %s: %s\n", source == NULL ? "Protocol" : source,
-	    severity, message == NULL ? "" : message);
-	if (count < 0) return;
+	int  count = snprintf(line, sizeof(line), "%s %s: %s\n", source == NULL ? "Protocol" : source, severity,
+	    message == NULL ? "" : message);
+	if (count < 0)
+		return;
 	size_t length = (size_t)count < sizeof(line) ? (size_t)count : sizeof(line) - 1;
 	/* Never render terminal escapes or embedded controls from a remote log. */
 	for (size_t i = 0; i < length; ++i)
-		if ((unsigned char)line[i] < 32 && line[i] != '\n' && line[i] != '\t') line[i] = '?';
+		if ((unsigned char)line[i] < 32 && line[i] != '\n' && line[i] != '\t')
+			line[i] = '?';
 	(void)st_mutex_lock(&ui->log_mutex);
 	if (ui->log_file != NULL && fwrite(line, 1, length, ui->log_file) != length)
 		fprintf(stderr, "SyncTERM: unable to write session log\n");
@@ -667,27 +719,33 @@ connection_log_message(struct connection_ui *ui, const char *source,
 }
 
 static void
-connection_log(void *context, enum st_connection_log_level level,
-	const char *source, const char *message)
+connection_log(void *context, enum st_connection_log_level level, const char *source, const char *message)
 {
-	struct connection_ui *ui = context;
-	const int priorities[] = {3, 4, 6, 7};
+	struct connection_ui *ui           = context;
+	const int             priorities[] = {3, 4, 6, 7};
 	if ((unsigned)level >= sizeof(priorities) / sizeof(priorities[0])
-	    || priorities[level] > ui->profile->protocol_log_level) return;
+	    || priorities[level] > ui->profile->protocol_log_level)
+		return;
 	connection_log_message(ui, source,
-	    level == ST_CONNECTION_LOG_ERROR ? "Error" : level == ST_CONNECTION_LOG_WARNING
-	    ? "Warning" : level == ST_CONNECTION_LOG_INFO ? "Info" : "Debug", message);
+	    level == ST_CONNECTION_LOG_ERROR     ? "Error"
+	    : level == ST_CONNECTION_LOG_WARNING ? "Warning"
+	    : level == ST_CONNECTION_LOG_INFO    ? "Info"
+	                                         : "Debug",
+	    message);
 }
 
 static void
-connection_cterm_log(void *context, enum st_cterm_log_level level,
-	const char *message)
+connection_cterm_log(void *context, enum st_cterm_log_level level, const char *message)
 {
 	struct connection_ui *ui = context;
-	if ((int)level > ui->profile->cterm_log_level) return;
-	connection_log_message(ui, "CTerm", level == ST_CTERM_LOG_ERROR ? "Error"
+	if ((int)level > ui->profile->cterm_log_level)
+		return;
+	connection_log_message(ui, "CTerm",
+	    level == ST_CTERM_LOG_ERROR     ? "Error"
 	    : level == ST_CTERM_LOG_WARNING ? "Warning"
-	    : level == ST_CTERM_LOG_INFO ? "Info" : "Debug", message);
+	    : level == ST_CTERM_LOG_INFO    ? "Info"
+	                                    : "Debug",
+	    message);
 }
 
 static void
@@ -695,12 +753,12 @@ connection_alert(void *context, const char *title, const char *message)
 {
 	struct connection_ui *ui = context;
 	connection_status(ui, NULL);
-	if (!ui->profile->hide_popups) (void)st_wren_host_alert(ui->host, title, message);
+	if (!ui->profile->hide_popups)
+		(void)st_wren_host_alert(ui->host, title, message);
 }
 
 static char *
-connection_help_escape(char *output, const char *text, size_t length,
-	bool hard_breaks)
+connection_help_escape(char *output, const char *text, size_t length, bool hard_breaks)
 {
 	for (size_t i = 0; i < length; ++i) {
 		char c = text[i];
@@ -721,17 +779,16 @@ static char *
 connection_help_body(struct connection_ui *ui, const char *details)
 {
 	static const char details_heading[] = "# Connection Details\n\n";
-	static const char log_heading[] = "# Session Log\n\n";
-	const size_t overhead = sizeof(details_heading) + sizeof(log_heading) + 4;
-	size_t details_size = details == NULL ? 0 : strlen(details);
-	char *body = NULL;
+	static const char log_heading[]     = "# Session Log\n\n";
+	const size_t      overhead          = sizeof(details_heading) + sizeof(log_heading) + 4;
+	size_t            details_size      = details == NULL ? 0 : strlen(details);
+	char             *body              = NULL;
 
 	(void)st_mutex_lock(&ui->log_mutex);
 	/* Escaping expands a byte to at most three bytes (a hard break,
 	 * or a log newline plus the next bullet).  Reserve the headings,
 	 * section separator, final bullet prefix and terminator as well. */
-	if (details_size > SIZE_MAX - ui->log_size
-	    || details_size + ui->log_size > (SIZE_MAX - overhead) / 3)
+	if (details_size > SIZE_MAX - ui->log_size || details_size + ui->log_size > (SIZE_MAX - overhead) / 3)
 		goto done;
 	if (details_size == 0 && ui->log_size == 0)
 		goto done;
@@ -753,12 +810,12 @@ connection_help_body(struct connection_ui *ui, const char *details)
 		output += sizeof(log_heading) - 1;
 		const char *line = ui->log;
 		while (*line != '\0') {
-			const char *end = strchr(line, '\n');
-			size_t length = end == NULL ? strlen(line) : (size_t)(end - line);
-			*output++ = '-';
-			*output++ = ' ';
-			output = connection_help_escape(output, line, length, false);
-			*output++ = '\n';
+			const char *end    = strchr(line, '\n');
+			size_t      length = end == NULL ? strlen(line) : (size_t)(end - line);
+			*output++          = '-';
+			*output++          = ' ';
+			output             = connection_help_escape(output, line, length, false);
+			*output++          = '\n';
 			if (end == NULL)
 				break;
 			line = end + 1;
@@ -774,7 +831,8 @@ static void
 connection_help(void *context, const char *title, const char *details)
 {
 	struct connection_ui *ui = context;
-	if (ui->profile->hide_popups) return;
+	if (ui->profile->hide_popups)
+		return;
 	connection_status(ui, NULL);
 	char *body = connection_help_body(ui, details);
 	if (body != NULL) {
@@ -786,8 +844,8 @@ connection_help(void *context, const char *title, const char *details)
 static int
 remember_tls_version(void *context, int version)
 {
-	struct connection_ui *ui = context;
-	int status = st_wren_host_remember_tls_version(ui->host, ui->profile, version);
+	struct connection_ui *ui       = context;
+	int                   status   = st_wren_host_remember_tls_version(ui->host, ui->profile, version);
 	ui->profile->tls_version_floor = version;
 	return status;
 }
@@ -802,38 +860,39 @@ trust_tls_certificate(void *context, const char *pem, char **filename)
 static enum st_connection_setup_action
 connection_setup(void *context, enum st_connection_setup_phase phase)
 {
-	struct connection_ui *ui = context;
+	struct connection_ui   *ui = context;
 	struct st_console_event event, resize = {0};
-	bool resized = false, cancel = ui->closed;
+	bool                    resized = false, cancel = ui->closed;
 	if (phase != ui->phase) {
-		const char *messages[] = {NULL, "Looking up host", "Connecting...",
-		    "Opening device", "Initializing...", "Dialing...", "Starting shell",
-		    "Activating Session", "Authenticating", "Discovering nodes"};
-		ui->phase = phase;
+		const char *messages[] = {NULL, "Looking up host", "Connecting...", "Opening device",
+		    "Initializing...", "Dialing...", "Starting shell", "Activating Session", "Authenticating",
+		    "Discovering nodes"};
+		ui->phase              = phase;
 		if ((unsigned)phase < sizeof(messages) / sizeof(messages[0]))
 			connection_status(ui, messages[phase]);
 	}
 	while (!ui->closed && st_console_event_try(ui->console, &event) == 0) {
 		if (event.type == ST_CONSOLE_EVENT_CLOSE) {
 			ui->closed = true;
-			cancel = true;
+			cancel     = true;
 			(void)st_console_post_event(ui->console, &event);
-		} else if (event.type == ST_CONSOLE_EVENT_RESIZE) {
-			resize = event;
+		}
+		else if (event.type == ST_CONSOLE_EVENT_RESIZE) {
+			resize  = event;
 			resized = true;
-		} else if ((event.type == ST_CONSOLE_EVENT_KEY_CODE
-		    && event.data.key.code == 27)
-		    || (event.type == ST_CONSOLE_EVENT_TEXT
-		    && event.data.text.codepoint == 27))
+		}
+		else if ((event.type == ST_CONSOLE_EVENT_KEY_CODE && event.data.key.code == 27)
+		         || (event.type == ST_CONSOLE_EVENT_TEXT && event.data.text.codepoint == 27))
 			cancel = true;
 	}
-	if (resized) (void)st_console_post_event(ui->console, &resize);
+	if (resized)
+		(void)st_console_post_event(ui->console, &resize);
 	return cancel ? ST_CONNECTION_SETUP_CANCEL : ST_CONNECTION_SETUP_CONTINUE;
 }
 
 static int
-connection_prompt(void *context, const char *title, const char *message,
-	const char *initial, size_t max_length, bool masked, char **result)
+connection_prompt(void *context, const char *title, const char *message, const char *initial, size_t max_length,
+    bool masked, char **result)
 {
 	struct connection_ui *ui = context;
 	connection_status(ui, NULL);
@@ -841,17 +900,16 @@ connection_prompt(void *context, const char *title, const char *message,
 		*result = NULL;
 		return IO_ERROR_PASSWORD_REQUIRED;
 	}
-	return st_wren_host_prompt_masked(ui->host, title, message, initial,
-	    max_length, masked, result);
+	return st_wren_host_prompt_masked(ui->host, title, message, initial, max_length, masked, result);
 }
 
 static int
-connection_choice(void *context, const char *title, const char *message,
-	const char *const *choices, size_t count)
+connection_choice(void *context, const char *title, const char *message, const char *const *choices, size_t count)
 {
 	struct connection_ui *ui = context;
 	connection_status(ui, NULL);
-	if (ui->profile->hide_popups) return IO_ERROR_PERMISSION_DENIED;
+	if (ui->profile->hide_popups)
+		return IO_ERROR_PERMISSION_DENIED;
 	return st_wren_host_choice(ui->host, title, message, choices, count);
 }
 
@@ -864,8 +922,7 @@ remember_hostkey(void *context, const uint8_t fingerprint[32], bool explicit_upd
 }
 
 static int
-run_wren_event_hook(void *context, const struct st_console_event *event,
-	bool *consumed)
+run_wren_event_hook(void *context, const struct st_console_event *event, bool *consumed)
 {
 	st_wren_connected_t *connected = *(st_wren_connected_t **)context;
 
@@ -877,10 +934,11 @@ run_wren_event_hook(void *context, const struct st_console_event *event,
 }
 
 static int
-run_wren_skypix_transfer(void *context, unsigned mode, unsigned width, unsigned height,
-	const uint8_t *name, size_t size)
+run_wren_skypix_transfer(void *context, unsigned mode, unsigned width, unsigned height, const uint8_t *name,
+    size_t size)
 {
-	return st_wren_connected_skypix_transfer(*(st_wren_connected_t **)context,mode,width,height,name,size);
+	return st_wren_connected_skypix_transfer(*(st_wren_connected_t **)context, mode, width, height, name,
+	    size);
 }
 
 static int
@@ -892,97 +950,92 @@ run_wren_rip_transfer(void *context, const struct st_cterm_rip_transfer_request 
 static bool
 wren_wire_filter_active(void *context)
 {
-	return st_wren_connected_has_wire_hooks(
-	    *(st_wren_connected_t **)context);
+	return st_wren_connected_has_wire_hooks(*(st_wren_connected_t **)context);
 }
 
 static int
-run_wren_wire_filter(void *context, uint8_t byte, bool *consumed,
-	uint8_t *replacement, size_t capacity, size_t *replacement_size)
+run_wren_wire_filter(void *context, uint8_t byte, bool *consumed, uint8_t *replacement, size_t capacity,
+    size_t *replacement_size)
 {
-	return st_wren_connected_filter_wire_byte(
-	    *(st_wren_connected_t **)context, byte, consumed, replacement,
+	return st_wren_connected_filter_wire_byte(*(st_wren_connected_t **)context, byte, consumed, replacement,
 	    capacity, replacement_size);
 }
 
 static bool
 wren_input_filter_active(void *context)
 {
-	return st_wren_connected_has_input_hooks(
-	    *(st_wren_connected_t **)context);
+	return st_wren_connected_has_input_hooks(*(st_wren_connected_t **)context);
 }
 
 static int
-run_wren_input_filter(void *context, uint32_t scalar, bool *consumed,
-	char *replacement, size_t capacity, size_t *replacement_size)
+run_wren_input_filter(void *context, uint32_t scalar, bool *consumed, char *replacement, size_t capacity,
+    size_t *replacement_size)
 {
-	return st_wren_connected_filter_input_scalar(
-	    *(st_wren_connected_t **)context, scalar, consumed, replacement,
-	    capacity, replacement_size);
+	return st_wren_connected_filter_input_scalar(*(st_wren_connected_t **)context, scalar, consumed,
+	    replacement, capacity, replacement_size);
 }
 
 static bool
 wren_capture_active(void *context)
 {
-	return st_wren_connected_capture_active(
-	    *(st_wren_connected_t **)context);
+	return st_wren_connected_capture_active(*(st_wren_connected_t **)context);
 }
 
 static int
 run_wren_capture_wire(void *context, const uint8_t *bytes, size_t size)
 {
-	return st_wren_connected_capture_wire(
-	    *(st_wren_connected_t **)context, bytes, size);
+	return st_wren_connected_capture_wire(*(st_wren_connected_t **)context, bytes, size);
 }
 
 static int
-run_wren_capture_input(void *context, const char *bytes, size_t size,
-	bool protocol)
+run_wren_capture_input(void *context, const char *bytes, size_t size, bool protocol)
 {
-	return st_wren_connected_capture_input(
-	    *(st_wren_connected_t **)context, bytes, size, protocol);
+	return st_wren_connected_capture_input(*(st_wren_connected_t **)context, bytes, size, protocol);
 }
 
 static int
-run_session(st_wren_host_t *host, st_console_display_t *display,
-	st_console_t *console, struct st_profile *profile,
-	const struct st_app_paths *paths,
-	st_audio_runtime_t *audio, st_hyperlink_registry_t *hyperlinks,
-	st_session_history_t *history, enum st_term_disposition *disposition,
-	const st_amiga_font_t *amiga_font)
+run_session(st_wren_host_t *host, st_console_display_t *display, st_console_t *console, struct st_profile *profile,
+    const struct st_app_paths *paths, st_audio_runtime_t *audio, st_hyperlink_registry_t *hyperlinks,
+    st_session_history_t *history, enum st_term_disposition *disposition, const st_amiga_font_t *amiga_font)
 {
 	const struct st_screen_mode_descriptor *mode;
-	enum st_screen_mode session_mode
-	    = st_term_profile_screen_mode(profile);
-	st_font_catalog_t *fonts = NULL;
-	st_connection_t *connection = NULL;
-	st_term_session_t *session = NULL;
-	st_wren_connected_t *connected = NULL;
+	enum st_screen_mode                     session_mode = st_term_profile_screen_mode(profile);
+	st_font_catalog_t                      *fonts        = NULL;
+	st_connection_t                        *connection   = NULL;
+	st_term_session_t                      *session      = NULL;
+	st_wren_connected_t                    *connected    = NULL;
 #if ST_CONSOLE_TEST
 	struct application_inspection inspection = {0};
 #endif
-	char *cache_directory = NULL;
-	char *rip_directory = NULL;
-	char *amiga_font_directory = NULL;
-	char *disconnect_details = NULL;
-	bool notify_disconnect;
-	struct st_connection_error error = {0};
-	struct connection_ui connection_ui = {
-		.host = host, .console = console, .profile = profile,
+	char                      *cache_directory      = NULL;
+	char                      *rip_directory        = NULL;
+	char                      *amiga_font_directory = NULL;
+	char                      *disconnect_details   = NULL;
+	bool                       notify_disconnect;
+	struct st_connection_error error         = {0};
+	struct connection_ui       connection_ui = {
+	    .host    = host,
+	    .console = console,
+	    .profile = profile,
 	};
 	struct st_connection_hooks connection_hooks = {
-		.setup = connection_setup, .setup_context = &connection_ui,
-		.prompt = connection_prompt, .choice = connection_choice,
-		.ui_context = &connection_ui, .ssh_key_file = paths->keys_file,
-		.remember_hostkey = profile->name[0] != '\0' ? remember_hostkey : NULL,
-		.alert = connection_alert, .help = connection_help, .status = connection_status,
-		.log = connection_log, .log_context = &connection_ui,
-		.remember_tls_version = remember_tls_version,
-		.trust_tls_certificate = st_wren_host_can_trust_tls(host, profile)
-		    ? trust_tls_certificate : NULL,
+	    .setup                 = connection_setup,
+	    .setup_context         = &connection_ui,
+	    .prompt                = connection_prompt,
+	    .choice                = connection_choice,
+	    .ui_context            = &connection_ui,
+	    .ssh_key_file          = paths->keys_file,
+	    .remember_hostkey      = profile->name[0] != '\0' ? remember_hostkey : NULL,
+	    .alert                 = connection_alert,
+	    .help                  = connection_help,
+	    .status                = connection_status,
+	    .log                   = connection_log,
+	    .log_context           = &connection_ui,
+	    .remember_tls_version  = remember_tls_version,
+	    .trust_tls_certificate = st_wren_host_can_trust_tls(host, profile) ? trust_tls_certificate : NULL,
 	};
 	uint8_t selector = 0;
-	int status;
+	int     status;
 
 	if (session_mode == ST_SCREEN_MODE_CURRENT) {
 		status = st_wren_host_get_screen_mode(host, &session_mode);
@@ -1002,21 +1055,21 @@ run_session(st_wren_host_t *host, st_console_display_t *display,
 	if (profile->graphics_mode == ST_GRAPHICS_SKYPIX_13 || profile->graphics_mode == ST_GRAPHICS_SKYPIX_31
 	    || profile->graphics_mode == ST_GRAPHICS_BIG_103) {
 		selector = 0;
-		status = st_font_catalog_create(&fonts, console);
+		status   = st_font_catalog_create(&fonts, console);
 	}
-	else status = prepare_session_fonts(&fonts, console, profile, selector, &selector);
+	else
+		status = prepare_session_fonts(&fonts, console, profile, selector, &selector);
 	if (status != 0)
 		goto finished;
-	status = st_term_connect_profile(&connection, profile, console, &connection_hooks,
-	    &error);
+	status = st_term_connect_profile(&connection, profile, console, &connection_hooks, &error);
 	connection_status(&connection_ui, NULL);
 	if (status != 0) {
 		fprintf(stderr, "SyncTERM: connection failed (%d)%s%s\n", status,
-		    error.detail[0] == '\0' ? "" : ": ",
-		    error.detail[0] == '\0' ? "" : error.detail);
+		    error.detail[0] == '\0' ? "" : ": ", error.detail[0] == '\0' ? "" : error.detail);
 		if (status != IO_ERROR_CANCELLED && !profile->hide_popups && !error.presented) {
 			const char *choices[] = {"OK", "View Protocol Log"};
-			const char *detail = error.detail[0] == '\0' ? "Unable to establish the connection." : error.detail;
+			const char *detail =
+			    error.detail[0] == '\0' ? "Unable to establish the connection." : error.detail;
 			while (connection_choice(&connection_ui, "Connection failed", detail, choices, 2) == 1)
 				connection_help(&connection_ui, "Connection failed", detail);
 		}
@@ -1025,12 +1078,10 @@ run_session(st_wren_host_t *host, st_console_display_t *display,
 	{
 		int stats_status = st_wren_host_record_connection(host, profile);
 		if (stats_status != 0)
-			fprintf(stderr, "SyncTERM: unable to save connection statistics (%d)\n",
-			    stats_status);
+			fprintf(stderr, "SyncTERM: unable to save connection statistics (%d)\n", stats_status);
 	}
 	if (st_bbs_name_valid(profile->name)) {
-		status = st_bbs_cache_path_for_name(&cache_directory,
-		    paths->cache_directory, profile->name);
+		status = st_bbs_cache_path_for_name(&cache_directory, paths->cache_directory, profile->name);
 		if (status == 0)
 			status = path_join_alloc(&rip_directory, cache_directory, "RIP");
 		if (status != 0)
@@ -1038,99 +1089,100 @@ run_session(st_wren_host_t *host, st_console_display_t *display,
 	}
 	if (profile->graphics_mode == ST_GRAPHICS_SKYPIX_13 || profile->graphics_mode == ST_GRAPHICS_SKYPIX_31) {
 		status = st_amiga_fonts_directory(&amiga_font_directory, paths->settings_file);
-		if (status != 0) goto finished;
+		if (status != 0)
+			goto finished;
 	}
 	const struct st_term_config config = {
-		.console = console,
-		.connection = connection,
-		.fonts = fonts,
-		.audio = audio,
-		.hyperlinks = hyperlinks,
-		.history = history,
-		.screen_mode = session_mode,
-		.encoding = st_term_profile_encoding(profile),
-		.graphics_mode = st_term_profile_graphics_mode(profile),
-		.rip_directory = rip_directory,
-		.rip3_nondestructive_backspace = profile->rip3_nondestructive_backspace,
-		.rip3_backspace_sends_del = profile->rip3_backspace_sends_del,
-		.rip3_half_duplex = profile->rip3_half_duplex,
-		.rip3_data_directory = paths->rip_data_directory,
-		.rip3_alert = connection_alert,
-		.rip3_alert_context = &connection_ui,
-		.amiga_font_directory = amiga_font_directory,
-		.amiga_font = amiga_font,
-		.skypix_transfer = run_wren_skypix_transfer,
-		.skypix_transfer_context = &connected,
-		.rip_transfer = run_wren_rip_transfer,
-		.rip_transfer_context = &connected,
-		.apc_directory = cache_directory,
-		.application_version = application_title,
-		.codepage = profile->graphics_mode == ST_GRAPHICS_BIG_103 ? ST_CODEPAGE_CP437
-		    : profile->encoding == ST_PROFILE_ENCODING_UTF8
-		    ? st_font_catalog_codepage(fonts, selector)
-		    : (enum st_codepage)profile->encoding,
-		.font_selector = selector,
-		.hide_status = profile->hide_status,
-		.expand_lf = profile->expand_lf,
-		.force_lcf = profile->force_lcf,
-		.yellow_is_yellow = profile->yellow_is_yellow,
-		.palette = profile->palette,
-		.palette_size = profile->palette_size,
-		.suppress_responses = profile->connection_type == ST_CONNECTION_MQTT,
-		.throttle_supported = profile->connection_type != ST_CONNECTION_SERIAL
-		    && profile->connection_type != ST_CONNECTION_SERIAL_3WIRE,
-		.initial_throttle_bps = profile->bps_rate,
-		.rip_prompt = run_rip_prompt,
-		.rip_prompt_context = host,
-		.rip_variable_prompt = run_rip_variable_prompt,
-		.rip_define = run_rip_definition,
-		.rip_choice = run_rip_choice,
-		.rip_choice_context = host,
-		.event_hook = run_wren_event_hook,
-		.event_hook_context = &connected,
-		.wire_filter = run_wren_wire_filter,
-		.wire_filter_active = wren_wire_filter_active,
-		.wire_filter_context = &connected,
-		.input_filter = run_wren_input_filter,
-		.input_filter_active = wren_input_filter_active,
-		.input_filter_context = &connected,
-		.wire_capture = run_wren_capture_wire,
-		.capture = run_wren_capture_input,
-		.capture_active = wren_capture_active,
-		.capture_context = &connected,
-		.cterm_log_level = profile->cterm_log_level,
-		.cterm_diagnostic = connection_cterm_log,
-		.cterm_diagnostic_context = &connection_ui,
+	    .console                       = console,
+	    .connection                    = connection,
+	    .fonts                         = fonts,
+	    .audio                         = audio,
+	    .hyperlinks                    = hyperlinks,
+	    .history                       = history,
+	    .screen_mode                   = session_mode,
+	    .encoding                      = st_term_profile_encoding(profile),
+	    .graphics_mode                 = st_term_profile_graphics_mode(profile),
+	    .rip_directory                 = rip_directory,
+	    .rip3_nondestructive_backspace = profile->rip3_nondestructive_backspace,
+	    .rip3_backspace_sends_del      = profile->rip3_backspace_sends_del,
+	    .rip3_half_duplex              = profile->rip3_half_duplex,
+	    .rip3_data_directory           = paths->rip_data_directory,
+	    .rip3_alert                    = connection_alert,
+	    .rip3_alert_context            = &connection_ui,
+	    .amiga_font_directory          = amiga_font_directory,
+	    .amiga_font                    = amiga_font,
+	    .skypix_transfer               = run_wren_skypix_transfer,
+	    .skypix_transfer_context       = &connected,
+	    .rip_transfer                  = run_wren_rip_transfer,
+	    .rip_transfer_context          = &connected,
+	    .apc_directory                 = cache_directory,
+	    .application_version           = application_title,
+	    .codepage = profile->graphics_mode == ST_GRAPHICS_BIG_103   ? ST_CODEPAGE_CP437
+	                : profile->encoding == ST_PROFILE_ENCODING_UTF8 ? st_font_catalog_codepage(fonts, selector)
+	                                                                : (enum st_codepage)profile->encoding,
+	    .font_selector            = selector,
+	    .hide_status              = profile->hide_status,
+	    .expand_lf                = profile->expand_lf,
+	    .force_lcf                = profile->force_lcf,
+	    .yellow_is_yellow         = profile->yellow_is_yellow,
+	    .palette                  = profile->palette,
+	    .palette_size             = profile->palette_size,
+	    .suppress_responses       = profile->connection_type == ST_CONNECTION_MQTT,
+	    .throttle_supported       = profile->connection_type != ST_CONNECTION_SERIAL
+	                                && profile->connection_type != ST_CONNECTION_SERIAL_3WIRE,
+	    .initial_throttle_bps     = profile->bps_rate,
+	    .rip_prompt               = run_rip_prompt,
+	    .rip_prompt_context       = host,
+	    .rip_variable_prompt      = run_rip_variable_prompt,
+	    .rip_define               = run_rip_definition,
+	    .rip_choice               = run_rip_choice,
+	    .rip_choice_context       = host,
+	    .event_hook               = run_wren_event_hook,
+	    .event_hook_context       = &connected,
+	    .wire_filter              = run_wren_wire_filter,
+	    .wire_filter_active       = wren_wire_filter_active,
+	    .wire_filter_context      = &connected,
+	    .input_filter             = run_wren_input_filter,
+	    .input_filter_active      = wren_input_filter_active,
+	    .input_filter_context     = &connected,
+	    .wire_capture             = run_wren_capture_wire,
+	    .capture                  = run_wren_capture_input,
+	    .capture_active           = wren_capture_active,
+	    .capture_context          = &connected,
+	    .cterm_log_level          = profile->cterm_log_level,
+	    .cterm_diagnostic         = connection_cterm_log,
+	    .cterm_diagnostic_context = &connection_ui,
 	};
 	status = st_term_session_create(&session, &config);
 	if (status == 0) {
 #if ST_CONSOLE_TEST
-		inspection.session = session; inspection.connection = connection;
+		inspection.session    = session;
+		inspection.connection = connection;
 		st_console_test_set_application_reader(display, inspect_application, &inspection);
 #endif
 		st_cterm_set_music_mode(st_term_session_cterm(session), profile->music);
-		st_cterm_set_atari_st_key_clicks(st_term_session_cterm(session),
-		    st_settings.atari_st_key_clicks);
+		st_cterm_set_atari_st_key_clicks(st_term_session_cterm(session), st_settings.atari_st_key_clicks);
 		const struct st_wren_connected_config wren_config = {
-			.host = host,
-			.console = console,
-			.profile = profile,
-			.sftp = st_connection_sftp(connection),
-			.cterm = st_term_session_cterm(session),
-			.connection = connection,
-			.session = session,
-			.status_enabled = st_term_session_status_visible(session),
-			.transfer_log = connection_transfer_log,
-			.transfer_log_context = &connection_ui,
-			.session_log = connection_log_snapshot,
-			.session_log_context = &connection_ui,
+		    .host                 = host,
+		    .console              = console,
+		    .profile              = profile,
+		    .sftp                 = st_connection_sftp(connection),
+		    .cterm                = st_term_session_cterm(session),
+		    .connection           = connection,
+		    .session              = session,
+		    .status_enabled       = st_term_session_status_visible(session),
+		    .transfer_log         = connection_transfer_log,
+		    .transfer_log_context = &connection_ui,
+		    .session_log          = connection_log_snapshot,
+		    .session_log_context  = &connection_ui,
 		};
 
 		status = st_wren_connected_create(&connected, &wren_config);
 		if (status != 0) {
 			fprintf(stderr,
 			    "SyncTERM: connected Wren initialization failed (%d); "
-			    "continuing without scripts\n", status);
+			    "continuing without scripts\n",
+			    status);
 			status = st_term_session_run(session, disposition);
 			goto finished;
 		}
@@ -1139,23 +1191,23 @@ run_session(st_wren_host_t *host, st_console_display_t *display,
 			    st_wren_host_rip_transfer_protocols(host, profile));
 	}
 	if (status == 0) {
-		bool finished = false;
-		bool shell_close_notified = false;
-		uint64_t last_status_ms = 0;
+		bool     finished             = false;
+		bool     shell_close_notified = false;
+		uint64_t last_status_ms       = 0;
 
 		while (!finished && status == 0) {
 			uint64_t now;
-			bool show_status;
+			bool     show_status;
 
 			st_term_session_set_auxiliary_active(session,
 			    st_connection_auxiliary_alive(connection)
-			    && st_wren_connected_auxiliary_active(connected));
+			        && st_wren_connected_auxiliary_active(connected));
 			status = st_term_session_service(session, disposition, &finished);
 			if (!shell_close_notified
 			    && (profile->connection_type == ST_CONNECTION_SHELL
-			    || ((profile->connection_type == ST_CONNECTION_SSH
-			    || profile->connection_type == ST_CONNECTION_SSH_NO_AUTH)
-			    && st_connection_auxiliary_alive(connection)))
+			        || ((profile->connection_type == ST_CONNECTION_SSH
+			                || profile->connection_type == ST_CONNECTION_SSH_NO_AUTH)
+			            && st_connection_auxiliary_alive(connection)))
 			    && !st_connection_is_connected(connection)) {
 				int hook_status = st_wren_connected_shell_closed(connected);
 
@@ -1168,11 +1220,12 @@ run_session(st_wren_host_t *host, st_console_display_t *display,
 			if (status != 0 || finished)
 				break;
 			status = st_time_monotonic_ms(&now);
-			if (status != 0) break;
+			if (status != 0)
+				break;
 			if (last_status_ms == 0 || now - last_status_ms >= 100) {
 				last_status_ms = now;
-				show_status = st_term_session_status_visible(session);
-				status = st_wren_connected_render_status(connected, show_status);
+				show_status    = st_term_session_status_visible(session);
+				status         = st_wren_connected_render_status(connected, show_status);
 				continue;
 			}
 			uint32_t remaining = 100 - (uint32_t)(now - last_status_ms);
@@ -1182,11 +1235,11 @@ run_session(st_wren_host_t *host, st_console_display_t *display,
 finished:
 	if (session != NULL) {
 		int finish_status = st_cterm_finish(st_term_session_cterm(session));
-		if (status == 0) status = finish_status;
+		if (status == 0)
+			status = finish_status;
 	}
-	notify_disconnect = st_term_session_remote_closed(session)
-	    && !profile->hide_popups && *disposition != ST_TERM_EXIT_APPLICATION
-	    && !st_wren_host_exit_requested(host);
+	notify_disconnect = st_term_session_remote_closed(session) && !profile->hide_popups
+	                    && *disposition != ST_TERM_EXIT_APPLICATION && !st_wren_host_exit_requested(host);
 	if (notify_disconnect)
 		disconnect_details = st_wren_connected_status_details(connected);
 	st_wren_connected_destroy(connected);
@@ -1202,26 +1255,30 @@ finished:
 		if (status == 0)
 			status = close_status;
 	}
-	if (session != NULL) (void)st_wren_host_capture_history_mode(host);
+	if (session != NULL)
+		(void)st_wren_host_capture_history_mode(host);
 	/* Close first: the log viewer must include final transport diagnostics.
 	 * Save offline history before displaying the notice, retaining CTerm
 	 * until the notice is dismissed. */
 	if (notify_disconnect && st_term_session_prepare_disconnect(session) == 0) {
 		const char *reason = "Remote host dropped connection";
 		size_t size = strlen(reason) + (disconnect_details == NULL ? 0 : strlen(disconnect_details)) + 4;
-		char *message = malloc(size);
-		char *body = NULL;
+		char  *message = malloc(size);
+		char  *body    = NULL;
 		if (message != NULL) {
-			(void)snprintf(message, size, "%s%s%s", reason,
-			    disconnect_details == NULL ? "" : "\n\n",
+			(void)snprintf(message, size, "%s%s%s", reason, disconnect_details == NULL ? "" : "\n\n",
 			    disconnect_details == NULL ? "" : disconnect_details);
 			body = connection_help_body(&connection_ui, message);
 		}
-		int notice_status = st_wren_host_disconnected(host, body != NULL ? body
-		    : message != NULL ? message : reason);
-		if (status == 0) status = notice_status;
-		if (st_wren_host_exit_requested(host)) *disposition = ST_TERM_EXIT_APPLICATION;
-		free(body); free(message);
+		int notice_status = st_wren_host_disconnected(host, body != NULL      ? body
+		                                                    : message != NULL ? message
+		                                                                      : reason);
+		if (status == 0)
+			status = notice_status;
+		if (st_wren_host_exit_requested(host))
+			*disposition = ST_TERM_EXIT_APPLICATION;
+		free(body);
+		free(message);
 	}
 	connection_log_close(&connection_ui);
 	free(disconnect_details);
@@ -1240,26 +1297,26 @@ finished:
 	return status;
 }
 
-static int run_selected(st_wren_host_t *host, st_console_display_t *display, st_console_t *console,
-						struct st_profile *profile, const struct st_app_paths *paths,
-						st_audio_runtime_t *audio, st_hyperlink_registry_t *hyperlinks,
-						st_session_history_t *history, enum st_term_disposition *disposition)
+static int
+run_selected(st_wren_host_t *host, st_console_display_t *display, st_console_t *console,
+    struct st_profile *profile, const struct st_app_paths *paths, st_audio_runtime_t *audio,
+    st_hyperlink_registry_t *hyperlinks, st_session_history_t *history, enum st_term_disposition *disposition)
 {
 	const st_amiga_font_t *font = NULL;
-	int status;
+	int                    status;
 	if (profile->graphics_mode == ST_GRAPHICS_SKYPIX_13 || profile->graphics_mode == ST_GRAPHICS_SKYPIX_31) {
 		char *directory = NULL;
-		status = st_amiga_fonts_directory(&directory, paths->settings_file);
+		status          = st_amiga_fonts_directory(&directory, paths->settings_file);
 		if (status == 0)
-			status = st_amiga_fonts_lookup(&font, profile->graphics_mode == ST_GRAPHICS_SKYPIX_13 ?
-					ST_AMIGA_FONT_SET_13 : ST_AMIGA_FONT_SET_2PLUS, directory, profile->amiga_font,
-										   profile->amiga_font_size);
+			status = st_amiga_fonts_lookup(&font,
+			    profile->graphics_mode == ST_GRAPHICS_SKYPIX_13 ? ST_AMIGA_FONT_SET_13
+			                                                    : ST_AMIGA_FONT_SET_2PLUS,
+			    directory, profile->amiga_font, profile->amiga_font_size);
 		free(directory);
 		if (font == NULL)
 			font = st_amiga_font_builtin(ST_AMIGA_FONT_SET_2PLUS, "pearl.font", 8);
 		if (status != 0)
-			fprintf(stderr, "SyncTERM: Amiga default font unavailable (%d); using fallback\n",
-					status);
+			fprintf(stderr, "SyncTERM: Amiga default font unavailable (%d); using fallback\n", status);
 	}
 	if (profile->graphics_mode == ST_GRAPHICS_RIP_3
 	    && !st_wren_host_mode_has_square_pixels(host, profile->screen_mode))
@@ -1269,7 +1326,7 @@ static int run_selected(st_wren_host_t *host, st_console_display_t *display, st_
 
 	if (status == 0)
 		status = run_session(host, display, console, profile, paths, audio, hyperlinks, history,
-							 disposition, font);
+		    disposition, font);
 	/* Restore after disconnect notices and CTerm destruction, even when
 	 * connection setup failed or the session requested application exit. */
 	restore_status = st_wren_host_end_session_mode(host);
@@ -1282,37 +1339,36 @@ static int run_selected(st_wren_host_t *host, st_console_display_t *display, st_
 static int
 run_application(int argc, char **argv, const struct st_application_host *frontend)
 {
-	struct st_command_line command;
-	struct st_app_paths paths = {0};
-	struct st_console_startup startup;
+	struct st_command_line           command;
+	struct st_app_paths              paths = {0};
+	struct st_console_startup        startup;
 	struct st_console_display_config display_config;
-	struct st_console_config picker_config;
-	struct st_wren_host_config host_config;
-	struct st_profile selected;
-	st_console_t *console = NULL;
-	st_console_t *picker_console = NULL;
-	st_console_display_t *display = NULL;
-	st_session_history_t *session_history = NULL;
-	st_hyperlink_registry_t *hyperlinks = NULL;
-	st_audio_runtime_t *audio_runtime = NULL;
-	uint16_t default_font;
-	struct st_console_font native_font;
-	const struct st_console_font *application_font;
-	struct st_presentation_font presentation_font = {0};
-	st_wren_host_t *host = NULL;
-	const char *invalid = NULL;
-	bool has_selection = false;
-	bool profile_initialized = false;
-	bool settings_loaded = false;
-	bool published = false;
-	int status;
-	int result = 1;
+	struct st_console_config         picker_config;
+	struct st_wren_host_config       host_config;
+	struct st_profile                selected;
+	st_console_t                    *console         = NULL;
+	st_console_t                    *picker_console  = NULL;
+	st_console_display_t            *display         = NULL;
+	st_session_history_t            *session_history = NULL;
+	st_hyperlink_registry_t         *hyperlinks      = NULL;
+	st_audio_runtime_t              *audio_runtime   = NULL;
+	uint16_t                         default_font;
+	struct st_console_font           native_font;
+	const struct st_console_font    *application_font;
+	struct st_presentation_font      presentation_font   = {0};
+	st_wren_host_t                  *host                = NULL;
+	const char                      *invalid             = NULL;
+	bool                             has_selection       = false;
+	bool                             profile_initialized = false;
+	bool                             settings_loaded     = false;
+	bool                             published           = false;
+	int                              status;
+	int                              result = 1;
 
 	(void)setlocale(LC_CTYPE, "");
 	status = st_command_line_parse(&command, argc, argv, &invalid);
 	if (status != 0) {
-		fprintf(stderr, "%s: invalid option or argument: %s\n", argv[0],
-		    invalid == NULL ? "" : invalid);
+		fprintf(stderr, "%s: invalid option or argument: %s\n", argv[0], invalid == NULL ? "" : invalid);
 		usage(stderr, argv[0]);
 		return 2;
 	}
@@ -1329,8 +1385,7 @@ run_application(int argc, char **argv, const struct st_application_host *fronten
 
 	status = application_paths(&paths, &command, frontend);
 	if (status != 0) {
-		fprintf(stderr, "SyncTERM: cannot select application paths (%d)\n",
-		    status);
+		fprintf(stderr, "SyncTERM: cannot select application paths (%d)\n", status);
 		goto finished;
 	}
 	status = st_settings_load(&paths);
@@ -1339,17 +1394,15 @@ run_application(int argc, char **argv, const struct st_application_host *fronten
 		goto finished;
 	}
 	settings_loaded = true;
-	status = st_hyperlink_registry_create(&hyperlinks);
+	status          = st_hyperlink_registry_create(&hyperlinks);
 	if (status == 0)
-		status = st_session_history_create(&session_history,
-	    (size_t)st_settings.scrollback_lines);
+		status = st_session_history_create(&session_history, (size_t)st_settings.scrollback_lines);
 	if (status == 0)
 		status = frontend != NULL && frontend->libretro
-		    ? st_audio_runtime_create_pull(&audio_runtime)
-		    : st_audio_runtime_create(&audio_runtime, st_settings.audio_output_modes);
+		             ? st_audio_runtime_create_pull(&audio_runtime)
+		             : st_audio_runtime_create(&audio_runtime, st_settings.audio_output_modes);
 	if (status != 0) {
-		fprintf(stderr, "SyncTERM: cannot initialize runtime state (%d)\n",
-		    status);
+		fprintf(stderr, "SyncTERM: cannot initialize runtime state (%d)\n", status);
 		goto finished;
 	}
 	st_audio_runtime_set_midi_allowed(audio_runtime, st_settings.midi_output_modes);
@@ -1361,51 +1414,42 @@ run_application(int argc, char **argv, const struct st_application_host *fronten
 	display_config = startup.display_config;
 	if (frontend != NULL && frontend->libretro) {
 		display_config.backend = ST_CONSOLE_BACKEND_LIBRETRO;
-		startup.fullscreen = false;
-	} else if (frontend != NULL && frontend->console_mode
-	    && display_config.backend == ST_CONSOLE_BACKEND_AUTO)
+		startup.fullscreen     = false;
+	}
+	else if (frontend != NULL && frontend->console_mode && display_config.backend == ST_CONSOLE_BACKEND_AUTO)
 		display_config.backend = ST_CONSOLE_BACKEND_WIN32;
 	display_config.icon = &st_syncterm_icon;
-	status = st_console_display_create(&display, &display_config);
+	status              = st_console_display_create(&display, &display_config);
 	if (status == 0)
-		status = st_console_create_on_display(&console, display,
-		    &startup.config);
+		status = st_console_create_on_display(&console, display, &startup.config);
 	if (status != 0) {
-		fprintf(stderr, "SyncTERM: cannot initialize the console (%d)\n",
-		    status);
+		fprintf(stderr, "SyncTERM: cannot initialize the console (%d)\n", status);
 		goto finished;
 	}
-	const struct st_screen_mode_descriptor *startup_mode = st_screen_mode_get(
-	    (enum st_screen_mode)st_settings.startup_mode);
+	const struct st_screen_mode_descriptor *startup_mode =
+	    st_screen_mode_get((enum st_screen_mode)st_settings.startup_mode);
 	uint8_t selector = startup_mode == NULL ? 0 : startup_mode->font_selector;
-	if ((startup.config.cell_height == 14
-	    || startup.config.cell_height == 20)
-	    && st_builtin_font_get(selector, startup.config.cell_width,
-	    startup.config.cell_height, &native_font))
+	if ((startup.config.cell_height == 14 || startup.config.cell_height == 20)
+	    && st_builtin_font_get(selector, startup.config.cell_width, startup.config.cell_height, &native_font))
 		application_font = &native_font;
 	else
 		application_font = startup.config.cell_height == 8 ? &st_unscii_8_font
 #ifdef ST_HAVE_UNIFONT
-		    : &st_unifont_font;
+		                                                   : &st_unifont_font;
 #else
-		    : &st_unscii_16_font;
+		                                                   : &st_unscii_16_font;
 #endif
-	status = st_presentation_font_create_fallback(&presentation_font,
-	    application_font);
+	status = st_presentation_font_create_fallback(&presentation_font, application_font);
 	if (status != 0) {
-		fprintf(stderr,
-		    "SyncTERM: cannot create the presentation font (%d)\n",
-		    status);
+		fprintf(stderr, "SyncTERM: cannot create the presentation font (%d)\n", status);
 		goto finished;
 	}
 	application_font = &presentation_font.font;
-	status = st_console_register_static_font(console, application_font,
-	    &default_font);
+	status           = st_console_register_static_font(console, application_font, &default_font);
 	if (status == 0)
 		status = st_console_set_fallback_font(console, default_font);
 	if (status != 0) {
-		fprintf(stderr, "SyncTERM: cannot install the default font (%d)\n",
-		    status);
+		fprintf(stderr, "SyncTERM: cannot install the default font (%d)\n", status);
 		goto finished;
 	}
 	if (default_font != 0) {
@@ -1417,22 +1461,18 @@ run_application(int argc, char **argv, const struct st_application_host *fronten
 	/* Text backends can adopt the host terminal's grid and discard the
 	 * pixel surface. Copy the initialized geometry rather than mixing that
 	 * grid with the configured startup pixel dimensions. */
-	status = st_console_size(console, &picker_config.columns,
-	    &picker_config.rows);
+	status = st_console_size(console, &picker_config.columns, &picker_config.rows);
 	if (status == 0)
-		status = st_console_cell_pixel_size(console,
-		    &picker_config.cell_width, &picker_config.cell_height);
-	picker_config.pixel_width = 0;
+		status =
+		    st_console_cell_pixel_size(console, &picker_config.cell_width, &picker_config.cell_height);
+	picker_config.pixel_width  = 0;
 	picker_config.pixel_height = 0;
 	if (status == 0 && picker_config.cell_width != 0)
-		status = st_console_pixel_size(console, &picker_config.pixel_width,
-		    &picker_config.pixel_height);
+		status = st_console_pixel_size(console, &picker_config.pixel_width, &picker_config.pixel_height);
 	if (status == 0)
-		status = st_console_create_on_display(&picker_console, display,
-		    &picker_config);
+		status = st_console_create_on_display(&picker_console, display, &picker_config);
 	if (status == 0)
-		status = st_console_register_static_font(picker_console,
-		    application_font, &default_font);
+		status = st_console_register_static_font(picker_console, application_font, &default_font);
 	if (status != 0 || default_font != 0) {
 		fprintf(stderr, "SyncTERM: cannot initialize the picker console (%d)\n",
 		    status == 0 ? IO_ERROR_CONFLICT : status);
@@ -1443,28 +1483,28 @@ run_application(int argc, char **argv, const struct st_application_host *fronten
 	if (startup.fullscreen) {
 		status = st_console_set_fullscreen(console, true);
 		if (status != 0) {
-			fprintf(stderr, "SyncTERM: cannot enter fullscreen mode (%d)\n",
-			    status);
+			fprintf(stderr, "SyncTERM: cannot enter fullscreen mode (%d)\n", status);
 			goto finished;
 		}
 	}
-	host_config = (struct st_wren_host_config){
-		.display = display,
-		.console = console,
-		.picker_console = picker_console,
-		.paths = &paths,
-		.application_title = application_title,
-		.launch_script = command.wren_script,
-		.session_history = session_history,
-		.audio_runtime = audio_runtime,
-		.hyperlinks = hyperlinks,
-		.safe_mode = command.safe_mode,
+	host_config = (struct st_wren_host_config) {
+	    .display           = display,
+	    .console           = console,
+	    .picker_console    = picker_console,
+	    .paths             = &paths,
+	    .application_title = application_title,
+	    .launch_script     = command.wren_script,
+	    .session_history   = session_history,
+	    .audio_runtime     = audio_runtime,
+	    .hyperlinks        = hyperlinks,
+	    .safe_mode         = command.safe_mode,
 	};
 #if ST_CONSOLE_TEST
 	if (command.test_control) {
 		status = st_console_test_start_control(display);
 		if (status != 0) {
-			fprintf(stderr, "SyncTERM: test control requires redirected pipe input/output (%d)\n", status);
+			fprintf(stderr, "SyncTERM: test control requires redirected pipe input/output (%d)\n",
+			    status);
 			goto finished;
 		}
 	}
@@ -1477,12 +1517,10 @@ run_application(int argc, char **argv, const struct st_application_host *fronten
 	}
 	status = st_wren_host_create(&host, &host_config);
 	if (status != 0) {
-		fprintf(stderr, "SyncTERM: cannot initialize the menu (%d)\n",
-		    status);
+		fprintf(stderr, "SyncTERM: cannot initialize the menu (%d)\n", status);
 		goto finished;
 	}
-	if (frontend != NULL && frontend->stopping != NULL
-	    && frontend->stopping(frontend->context)) {
+	if (frontend != NULL && frontend->stopping != NULL && frontend->stopping(frontend->context)) {
 		result = 0;
 		goto finished;
 	}
@@ -1491,17 +1529,16 @@ run_application(int argc, char **argv, const struct st_application_host *fronten
 	profile_initialized = true;
 	for (;;) {
 		enum st_term_disposition disposition = ST_TERM_RETURN_TO_PICKER;
-		if (frontend != NULL && frontend->stopping != NULL
-		    && frontend->stopping(frontend->context)) {
+		if (frontend != NULL && frontend->stopping != NULL && frontend->stopping(frontend->context)) {
 			result = 0;
 			break;
 		}
 
 		has_selection = false;
 		if (command.url != NULL) {
-			status = st_wren_host_select_url(host, command.url,
-			    command.connection_type_set ? command.connection_type
-			    : ST_CONNECTION_UNKNOWN, &selected);
+			status        = st_wren_host_select_url(host, command.url,
+			    command.connection_type_set ? command.connection_type : ST_CONNECTION_UNKNOWN,
+			    &selected);
 			has_selection = status == 0;
 		}
 		else
@@ -1509,8 +1546,7 @@ run_application(int argc, char **argv, const struct st_application_host *fronten
 		if (status != 0) {
 			const char *detail = st_wren_host_last_error(host);
 
-			fprintf(stderr, "SyncTERM: menu failed (%d)%s%s\n", status,
-			    detail == NULL ? "" : ": ",
+			fprintf(stderr, "SyncTERM: menu failed (%d)%s%s\n", status, detail == NULL ? "" : ": ",
 			    detail == NULL ? "" : detail);
 			break;
 		}
@@ -1520,14 +1556,13 @@ run_application(int argc, char **argv, const struct st_application_host *fronten
 			break;
 		}
 		apply_profile_overrides(&selected, &command);
-		status = run_selected(host, display, console, &selected, &paths,
-		    audio_runtime, hyperlinks, session_history, &disposition);
+		status = run_selected(host, display, console, &selected, &paths, audio_runtime, hyperlinks,
+		    session_history, &disposition);
 		if (status != 0)
 			fprintf(stderr, "SyncTERM: session failed (%d)\n", status);
 		{
 			bool saved;
-			int save_status = st_wren_host_offer_save_profile(host,
-			    &selected, &saved);
+			int  save_status = st_wren_host_offer_save_profile(host, &selected, &saved);
 
 			if (save_status != 0)
 				fprintf(stderr, "SyncTERM: cannot offer to save the connection entry (%d)\n",
@@ -1541,8 +1576,7 @@ run_application(int argc, char **argv, const struct st_application_host *fronten
 		st_profile_init(&selected);
 		status = st_console_display_activate(display, console);
 		if (status != 0) {
-			fprintf(stderr, "SyncTERM: cannot return to the menu (%d)\n",
-			    status);
+			fprintf(stderr, "SyncTERM: cannot return to the menu (%d)\n", status);
 			break;
 		}
 	}
@@ -1574,9 +1608,9 @@ int
 st_application_run(int argc, char **argv, const struct st_application_host *frontend)
 {
 	bool expected = false;
-	int result;
-	if (!atomic_compare_exchange_strong_explicit(&application_running, &expected,
-	    true, memory_order_acq_rel, memory_order_acquire))
+	int  result;
+	if (!atomic_compare_exchange_strong_explicit(&application_running, &expected, true, memory_order_acq_rel,
+		memory_order_acquire))
 		return 1;
 	result = run_application(argc, argv, frontend);
 	atomic_store_explicit(&application_running, false, memory_order_release);

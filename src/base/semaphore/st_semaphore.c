@@ -3,27 +3,25 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "st_semaphore.h"
-
 #include <stdbool.h>
 #include <stdlib.h>
 
+#include "st_semaphore.h"
+
 struct st_semaphore {
-	st_mutex_t mutex;
+	st_mutex_t     mutex;
 	st_condition_t condition;
-	size_t count;
-	size_t maximum_count;
+	size_t         count;
+	size_t         maximum_count;
 };
 
 int
-st_semaphore_create(st_semaphore_t **result, size_t initial_count,
-    size_t maximum_count)
+st_semaphore_create(st_semaphore_t **result, size_t initial_count, size_t maximum_count)
 {
 	st_semaphore_t *semaphore;
-	int status;
+	int             status;
 
-	if (result == NULL || maximum_count == 0
-	    || initial_count > maximum_count)
+	if (result == NULL || maximum_count == 0 || initial_count > maximum_count)
 		return ST_THREAD_ERROR;
 	semaphore = malloc(sizeof(*semaphore));
 	if (semaphore == NULL)
@@ -39,9 +37,9 @@ st_semaphore_create(st_semaphore_t **result, size_t initial_count,
 		free(semaphore);
 		return status;
 	}
-	semaphore->count = initial_count;
+	semaphore->count         = initial_count;
 	semaphore->maximum_count = maximum_count;
-	*result = semaphore;
+	*result                  = semaphore;
 	return ST_THREAD_SUCCESS;
 }
 
@@ -71,8 +69,7 @@ st_semaphore_post(st_semaphore_t *semaphore)
 }
 
 static int
-semaphore_wait(st_semaphore_t *semaphore, const struct timespec *deadline,
-    bool polling)
+semaphore_wait(st_semaphore_t *semaphore, const struct timespec *deadline, bool polling)
 {
 	int status;
 	int unlock_status;
@@ -88,11 +85,9 @@ semaphore_wait(st_semaphore_t *semaphore, const struct timespec *deadline,
 			break;
 		}
 		if (deadline == NULL)
-			status = st_condition_wait(&semaphore->condition,
-			    &semaphore->mutex);
+			status = st_condition_wait(&semaphore->condition, &semaphore->mutex);
 		else
-			status = st_condition_timedwait(&semaphore->condition,
-			    &semaphore->mutex, deadline);
+			status = st_condition_timedwait(&semaphore->condition, &semaphore->mutex, deadline);
 		if (status != ST_THREAD_SUCCESS)
 			break;
 	}
@@ -115,8 +110,7 @@ st_semaphore_trywait(st_semaphore_t *semaphore)
 }
 
 int
-st_semaphore_timedwait(st_semaphore_t *semaphore,
-    const struct timespec *deadline)
+st_semaphore_timedwait(st_semaphore_t *semaphore, const struct timespec *deadline)
 {
 	if (deadline == NULL)
 		return ST_THREAD_ERROR;

@@ -1,53 +1,64 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
-#include "music_internal.h"
 #include <math.h>
 #include <stdlib.h>
 
+#include "music_internal.h"
 #include "st_audio_weighting.h"
-struct weighting { struct st_audio_weighting channel[AUDIO_CHANNELS]; };
-static double weighted(struct weighting *filter, size_t channel, double sample)
+
+struct weighting {
+	struct st_audio_weighting channel[AUDIO_CHANNELS];
+};
+
+static double
+weighted(struct weighting *filter, size_t channel, double sample)
 {
-	return st_audio_weight_sample(&filter->channel[channel],sample);
+	return st_audio_weight_sample(&filter->channel[channel], sample);
 }
 
 /* Match the weighted level of the ANSI synth voice, A440, velocity/CC7 100,
  * to the existing beep/ANSI waveform. Discard attack and release. This is one
  * fixed source gain for the renderer, never normalization of playing music.
  * Probe samples are discarded here and never enter an output stream. */
-int st_midi_sink_calibrate(struct st_midi_sink *sink)
+int
+st_midi_sink_calibrate(struct st_midi_sink *sink)
 {
-	if (sink->render == NULL) return 0;
+	if (sink->render == NULL)
+		return 0;
 	const size_t duration = 2U * AUDIO_SAMPLE_RATE;
-	int16_t *tone = malloc(duration * AUDIO_FRAME_SIZE);
-	if (tone == NULL) return IO_ERROR_OUT_OF_MEMORY;
-	int status = audio_generate_tone(tone, duration, 440,
-	    AUDIO_WAVE_SINE_SAW_HARM, true);
-	double reference = 0, signal = 0, signal_ac = 0;
-	double signal_sum[AUDIO_CHANNELS] = {0};
+	int16_t     *tone     = malloc(duration * AUDIO_FRAME_SIZE);
+	if (tone == NULL)
+		return IO_ERROR_OUT_OF_MEMORY;
+	int              status    = audio_generate_tone(tone, duration, 440, AUDIO_WAVE_SINE_SAW_HARM, true);
+	double           reference = 0, signal = 0, signal_ac = 0;
+	double           signal_sum[AUDIO_CHANNELS] = {0};
 	struct weighting reference_filter = {0}, signal_filter = {0};
-	size_t first = AUDIO_SAMPLE_RATE / 2, last = first + AUDIO_SAMPLE_RATE;
+	size_t           first = AUDIO_SAMPLE_RATE / 2, last = first + AUDIO_SAMPLE_RATE;
 	if (status == 0) {
 		/* Warm the filters before the measurement window. The high-pass
 		 * rejects the classic waveform's large DC offset. */
 		for (size_t i = 0; i < last * AUDIO_CHANNELS; ++i) {
 			double value = weighted(&reference_filter, i % AUDIO_CHANNELS, tone[i]);
-			if (i >= first * AUDIO_CHANNELS) reference += value * value;
+			if (i >= first * AUDIO_CHANNELS)
+				reference += value * value;
 		}
 		status = st_midi_sink_start(sink);
 	}
 	free(tone);
-	if (status == 0) status = st_midi_sink_ansi(sink);
+	if (status == 0)
+		status = st_midi_sink_ansi(sink);
 	const uint8_t note[] = {0x90, 69, 100};
-	if (status == 0) status = st_midi_sink_send(sink, note, sizeof(note));
+	if (status == 0)
+		status = st_midi_sink_send(sink, note, sizeof(note));
 	int16_t frames[1024 * AUDIO_CHANNELS];
 	for (size_t at = 0; status == 0 && at < duration;) {
 		size_t count = duration - at < 1024 ? duration - at : 1024;
-		status = sink->render(sink->state, frames, count);
-		if (status != 0) break;
+		status       = sink->render(sink->state, frames, count);
+		if (status != 0)
+			break;
 		for (size_t i = 0; i < count; ++i) {
 			for (size_t ch = 0; ch < AUDIO_CHANNELS; ++ch) {
 				double sample = frames[i * AUDIO_CHANNELS + ch];
-				double value = weighted(&signal_filter, ch, sample);
+				double value  = weighted(&signal_filter, ch, sample);
 				if (at + i >= first && at + i < last) {
 					signal += value * value;
 					signal_ac += sample * sample;
@@ -62,16 +73,21 @@ int st_midi_sink_calibrate(struct st_midi_sink *sink)
 	 * leak into the first capture. A quarter-second below two PCM LSBs is
 	 * quiet; the same eight-second bound applies to every internal renderer. */
 	size_t quiet = 0;
-	for (size_t at = 0; status == 0 && at < 8U * AUDIO_SAMPLE_RATE && quiet < AUDIO_SAMPLE_RATE / 4; at += 1024) {
+	for (size_t at = 0; status == 0 && at < 8U * AUDIO_SAMPLE_RATE && quiet < AUDIO_SAMPLE_RATE / 4;
+	    at += 1024) {
 		status = sink->render(sink->state, frames, 1024);
-		if (status != 0) break;
+		if (status != 0)
+			break;
 		bool silent = true;
 		for (size_t i = 0; i < 1024 * AUDIO_CHANNELS; ++i)
-			if (frames[i] < -2 || frames[i] > 2) silent = false;
+			if (frames[i] < -2 || frames[i] > 2)
+				silent = false;
 		quiet = silent ? quiet + 1024 : 0;
 	}
-	if (status == 0) status = st_midi_sink_start(sink);
-	if (status == 0) status = st_midi_sink_ansi(sink);
+	if (status == 0)
+		status = st_midi_sink_start(sink);
+	if (status == 0)
+		status = st_midi_sink_ansi(sink);
 	/* Keep the silence/noise floor in unweighted, DC-free PCM units. */
 	for (size_t ch = 0; ch < AUDIO_CHANNELS; ++ch)
 		signal_ac -= signal_sum[ch] * signal_sum[ch] / (last - first);
@@ -79,8 +95,10 @@ int st_midi_sink_calibrate(struct st_midi_sink *sink)
 	 * or reject partial banks. The upper bound also limits noise gain. */
 	if (status == 0 && signal > 0 && signal_ac > (double)AUDIO_SAMPLE_RATE * AUDIO_CHANNELS * 16) {
 		double gain = 10.0 * log10(reference / signal);
-		if (gain > 48) gain = 48;
-		if (gain < -48) gain = -48;
+		if (gain > 48)
+			gain = 48;
+		if (gain < -48)
+			gain = -48;
 		sink->pcm_gain_db = (float)gain;
 	}
 	return status;

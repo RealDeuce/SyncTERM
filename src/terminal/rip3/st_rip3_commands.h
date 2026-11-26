@@ -2,12 +2,12 @@
 #ifndef ST_RIP3_COMMANDS_H_
 #define ST_RIP3_COMMANDS_H_
 
-#include "st_rip3_clipboard.h"
-#include "st_rip3_diagnostic.h"
-
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+
+#include "st_rip3_clipboard.h"
+#include "st_rip3_diagnostic.h"
 
 struct st_rip3_environments;
 struct st_rip3_audio;
@@ -34,7 +34,8 @@ struct st_rip3_text_window_host {
 	int (*deactivate)(void *context);
 	/* Stored floating/numbered TW expressions (modes 2/4). Definition only;
 	 * no provider work or click dispatch. Numeric/reserved framing is consumed. */
-	int (*resident_query)(void *context,bool floating,unsigned number,const uint8_t *bytes,size_t length,bool converted);
+	int (*resident_query)(void *context, bool floating, unsigned number, const uint8_t *bytes, size_t length,
+	    bool converted);
 	/* Zero-based full-window g/H position, independent of ANSI origin/margins.
 	 * The owner gates deactivated windows. */
 	int (*position)(void *context, uint32_t column, uint32_t row);
@@ -50,8 +51,8 @@ struct st_rip3_text_window_host {
  * This callback must not reenter command processing or mutate its bindings. */
 struct st_rip3_bitmap_error_sink {
 	void *context;
-	void (*show)(void *context, const char *name, unsigned port,
-		const struct st_rip3_bitmap_destination *area, bool natural_size);
+	void (*show)(void *context, const char *name, unsigned port, const struct st_rip3_bitmap_destination *area,
+	    bool natural_size);
 };
 
 /* Borrowed session-owned bindings. Missing services are unsupported. One
@@ -60,33 +61,33 @@ struct st_rip3_bitmap_error_sink {
 struct st_rip3_refresh;
 
 struct st_rip3_command_host {
-	struct st_rip3_refresh *refresh;
-	void *reset_context;
-	int (*soft_reset)(void *context);
-	struct st_rip3_environments *environments;
-	struct st_rip3_audio *audio;
+	struct st_rip3_refresh              *refresh;
+	void                                *reset_context;
+	int                                  (*soft_reset)(void *context);
+	struct st_rip3_environments         *environments;
+	struct st_rip3_audio                *audio;
 	const struct st_rip3_resource_paths *resources;
-	struct st_rip3_temporary_resource **temporary_resources;
-	struct st_rip3_palettes *palettes;
-	struct st_rip3_ports *ports;
-	struct st_rip3_styles *styles;
-	struct st_rip3_button_styles *button_styles;
-	struct st_rip3_mouse *mouse;
+	struct st_rip3_temporary_resource  **temporary_resources;
+	struct st_rip3_palettes             *palettes;
+	struct st_rip3_ports                *ports;
+	struct st_rip3_styles               *styles;
+	struct st_rip3_button_styles        *button_styles;
+	struct st_rip3_mouse                *mouse;
 	/* Borrowed input gate. The owning source retains bytes during 3D delays. */
 	struct st_rip3_input *input;
 	/* Session-owned immediate-query evaluator, resumed by the input source's prepare
 	 * callback before further bytes. Uses this source's same input gate. */
 	struct st_rip3_query *query;
 	/* Optional session-owned staged creation/redraw service. */
-	struct st_rip3_button_renderer *buttons;
+	struct st_rip3_button_renderer     *buttons;
 	struct st_rip3_clipboard_selection *clipboard;
 	/* Explicit client policy for captures/definitions, in offscreen device pixels. */
-	const uint64_t *offscreen_pixel_budget;
+	const uint64_t                         *offscreen_pixel_budget;
 	const struct st_rip3_bitmap_error_sink *bitmap_errors;
-	struct st_rip3_text_context *text;
+	struct st_rip3_text_context            *text;
 	/* Current text-window output gate. The session owns slot selection,
 	 * definition/activation/protection and represented SOFT reset; backups remain pending. */
-	bool *text_active;
+	bool                                  *text_active;
 	const struct st_rip3_text_window_host *text_window;
 	bool codepage_converted; /* Incoming codepage bytes normalized to UTF-8. */
 };
@@ -424,7 +425,7 @@ struct st_rip3_command_sink {
  * run. Internal service errors never become connection errors. Callbacks must
  * not reenter or mutate bindings during processing. The connected session owns
  * transport and complete stream framing. */
-void st_rip3_commands_process(const struct st_rip3_command_host *host,
-	const struct st_rip3_command_sink *sink, const uint8_t *command, size_t length);
+void st_rip3_commands_process(const struct st_rip3_command_host *host, const struct st_rip3_command_sink *sink,
+    const uint8_t *command, size_t length);
 
 #endif

@@ -1,31 +1,32 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
-#include "st_rip3_host_internal.h"
-#include "st_rip3_table_host.h"
-#include "st_rip3_backup.h"
-#include "st_rip3_palettes.h"
-#include "st_rip3_ports.h"
-#include "st_rip3_styles.h"
-#include "io_error.h"
-
 #include <stdio.h>
 #include <string.h>
 
-#define CHECK(expression) do { \
-	if (!(expression)) { \
-		fprintf(stderr, "check failed at line %d: %s\n", __LINE__, #expression); \
-		return 1; \
-	} \
-} while (0)
+#include "io_error.h"
+#include "st_rip3_backup.h"
+#include "st_rip3_host_internal.h"
+#include "st_rip3_palettes.h"
+#include "st_rip3_ports.h"
+#include "st_rip3_styles.h"
+#include "st_rip3_table_host.h"
+
+#define CHECK(expression)                                                                        \
+	do {                                                                                     \
+		if (!(expression)) {                                                             \
+			fprintf(stderr, "check failed at line %d: %s\n", __LINE__, #expression); \
+			return 1;                                                                \
+		}                                                                                \
+	} while (0)
 
 static int
-run(const struct st_rip3_table_host *host, const char *text, int expected,
-    const char *reply)
+run(const struct st_rip3_table_host *host, const char *text, int expected, const char *reply)
 {
 	struct st_rip3_builtin_reference reference;
-	char output[100], before[100];
-	int status;
+	char                             output[100], before[100];
+	int                              status;
 
-	memset(output, 'Q', sizeof(output)); memcpy(before, output, sizeof(output));
+	memset(output, 'Q', sizeof(output));
+	memcpy(before, output, sizeof(output));
 	CHECK(st_rip3_builtin_reference_parse(&reference, (const uint8_t *)text, strlen(text)) == 0);
 	status = st_rip3_table_host_execute(host, &reference, output, sizeof(output));
 	if (status != expected)
@@ -41,17 +42,17 @@ run(const struct st_rip3_table_host *host, const char *text, int expected,
 static int
 palette_objects(void)
 {
-	struct st_rip3_table_host host = {0};
-	struct st_rip3_palettes *palettes = NULL;
-	struct st_rip3_backup *backup = NULL;
+	struct st_rip3_table_host        host     = {0};
+	struct st_rip3_palettes         *palettes = NULL;
+	struct st_rip3_backup           *backup   = NULL;
 	struct st_rip3_builtin_reference reference;
-	struct st_rip3_palette_info info;
-	struct st_rip3_palette palette;
-	char command[80], output[10];
+	struct st_rip3_palette_info      info;
+	struct st_rip3_palette           palette;
+	char                             command[80], output[10];
 
 	CHECK(st_rip3_palettes_create(&palettes) == 0);
 	CHECK(st_rip3_palettes_backup_create(&backup) == 0);
-	host.tables[ST_RIP3_TABLE_PAL] = (struct st_rip3_table_binding){palettes,backup};
+	host.tables[ST_RIP3_TABLE_PAL] = (struct st_rip3_table_binding) {palettes, backup};
 	CHECK(run(&host, "$CUR(PAL)$", 0, "0") == 0);
 	CHECK(run(&host, "$ISPROT(PAL,CUR)$", 0, "0") == 0);
 	CHECK(run(&host, "$INUSE(PAL,ANY)$", 0, "0") == 0);
@@ -65,7 +66,8 @@ palette_objects(void)
 		CHECK(st_rip3_builtin_reference_parse(&reference, (const uint8_t *)query, strlen(query)) == 0);
 		memset(output, 'Q', sizeof(output));
 		CHECK(st_rip3_table_host_execute(&host, &reference, output, 2) == IO_ERROR_OUT_OF_RANGE);
-		for (size_t i = 0; i < sizeof(output); i++) CHECK(output[i] == 'Q');
+		for (size_t i = 0; i < sizeof(output); i++)
+			CHECK(output[i] == 'Q');
 		CHECK(st_rip3_palettes_info(palettes, 4, &info) == 0 && !info.defined);
 	}
 	CHECK(run(&host, "$PROT(PAL,4,ALL,ALLSLOTS,CUR)$", 0, "") == 0);
@@ -110,7 +112,7 @@ palette_objects(void)
 	CHECK(run(&host, "$PROT(PAL,4,S0)$", IO_ERROR_NOT_SUPPORTED, NULL) == 0);
 	CHECK(st_rip3_palettes_info(palettes, 4, &info) == 0 && !info.protected);
 	host.tables[ST_RIP3_TABLE_PAL].backup = backup;
-	host.tables[ST_RIP3_TABLE_PAL].live = NULL;
+	host.tables[ST_RIP3_TABLE_PAL].live   = NULL;
 	CHECK(run(&host, "$PROT(PAL,S0,4)$", IO_ERROR_NOT_SUPPORTED, NULL) == 0);
 	CHECK(run(&host, "$ISPROT(PAL,S0)$", 0, "0") == 0);
 	host.tables[ST_RIP3_TABLE_PAL].live = palettes;
@@ -169,19 +171,17 @@ reset_failure(void *context, int status)
 static int
 style_reset(void)
 {
-	unsigned failures = 0;
-	struct st_rip3_table_host host = {
-		.operation_context = &failures, .operation_failed = reset_failure
-	};
-	struct st_rip3_styles *styles = NULL;
-	struct st_rip3_backup *backup = NULL;
-	struct st_rip3_style style, current;
+	unsigned                  failures = 0;
+	struct st_rip3_table_host host     = {.operation_context = &failures, .operation_failed = reset_failure};
+	struct st_rip3_styles    *styles   = NULL;
+	struct st_rip3_backup    *backup   = NULL;
+	struct st_rip3_style      style, current;
 	struct st_rip3_style_info info;
 
 	CHECK(st_rip3_style_defaults(&style) == 0 && st_rip3_styles_create(&styles, &style) == 0);
 	CHECK(st_rip3_styles_backup_create(&backup) == 0);
-	host.tables[ST_RIP3_TABLE_STYLE] = (struct st_rip3_table_binding){styles, backup};
-	style.drawing_color = 4;
+	host.tables[ST_RIP3_TABLE_STYLE] = (struct st_rip3_table_binding) {styles, backup};
+	style.drawing_color              = 4;
 	CHECK(st_rip3_styles_define(styles, 5, &style) == 0);
 	style.drawing_color = 2;
 	CHECK(st_rip3_styles_define(styles, 7, &style) == 0);
@@ -236,9 +236,9 @@ style_reset(void)
 static int
 port_objects(enum st_rip3_canvas canvas, int32_t width, int32_t height)
 {
-	struct st_rip3_table_host host = {0};
-	struct st_rip3_ports *ports = NULL;
-	struct st_rip3_port_info info;
+	struct st_rip3_table_host host  = {0};
+	struct st_rip3_ports     *ports = NULL;
+	struct st_rip3_port_info  info;
 
 	CHECK(st_rip3_ports_create(&ports, canvas) == 0);
 	host.tables[ST_RIP3_TABLE_PORT].live = ports;
@@ -247,7 +247,8 @@ port_objects(enum st_rip3_canvas canvas, int32_t width, int32_t height)
 	CHECK(run(&host, "$CUR(PORT,35)$", 0, "") == 0);
 	CHECK(run(&host, "$CUR(PORT)$", 0, "35") == 0);
 	CHECK(st_rip3_ports_info(ports, 35, &info) == 0 && info.defined && !info.offscreen);
-	CHECK(info.bounds.x0 == 0 && info.bounds.y0 == 0 && info.bounds.x1 == width - 1 && info.bounds.y1 == height - 1);
+	CHECK(info.bounds.x0 == 0 && info.bounds.y0 == 0 && info.bounds.x1 == width - 1
+	      && info.bounds.y1 == height - 1);
 	CHECK(info.viewport_active && info.viewport.x1 == width - 1 && info.viewport.y1 == height - 1);
 	CHECK(run(&host, "$INUSE(PORT,35)$", 0, "1") == 0);
 	CHECK(run(&host, "$PROT(PORT,CUR)$", 0, "") == 0);

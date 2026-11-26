@@ -8,8 +8,8 @@
 #ifndef ST_UNICODE_WIDTH_H_
 #define ST_UNICODE_WIDTH_H_
 
-#include <stdint.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 enum st_unicode_east_asian_width {
 	ST_UNICODE_EAW_NEUTRAL,
@@ -21,9 +21,8 @@ enum st_unicode_east_asian_width {
 	ST_UNICODE_EAW_INVALID,
 };
 
-enum st_unicode_east_asian_width st_unicode_east_asian_width(
-	uint32_t codepoint);
-bool st_unicode_emoji_presentation(uint32_t codepoint);
+enum st_unicode_east_asian_width st_unicode_east_asian_width(uint32_t codepoint);
+bool                             st_unicode_emoji_presentation(uint32_t codepoint);
 /* UCD properties; false for non-scalars. Nonspacing marks are Mn or Me. */
 bool st_unicode_default_ignorable(uint32_t codepoint);
 bool st_unicode_nonspacing_mark(uint32_t codepoint);

@@ -6,7 +6,7 @@ static void
 expect_cell(struct fixture *f, unsigned x, unsigned y, uint32_t glyph)
 {
 	const struct st_console_rect area = {x, y, 1, 1};
-	struct st_console_cell cell;
+	struct st_console_cell       cell;
 	CHECK(st_console_read_cells(f->console, &area, &cell, 1) == 0);
 	CHECK(cell.glyph == glyph);
 }
@@ -14,7 +14,7 @@ expect_cell(struct fixture *f, unsigned x, unsigned y, uint32_t glyph)
 static void
 expect_cursor(struct fixture *f, bool visible)
 {
-	bool actual;
+	bool                         actual;
 	enum st_console_cursor_shape shape;
 	CHECK(st_console_get_cursor(f->console, &actual, &shape) == 0);
 	CHECK(actual == visible);
@@ -110,8 +110,8 @@ visibility(struct fixture *f)
 static void
 partitions(void)
 {
-	const char wire[] = "ABG#k 2:\bG#k>0:k 1:";
-	const size_t size = sizeof(wire) - 1;
+	const char     wire[] = "ABG#k 2:\bG#k>0:k 1:";
+	const size_t   size   = sizeof(wire) - 1;
 	struct fixture f;
 	create(&f, 0, false);
 	for (size_t split = 0; split <= size + 1; ++split) {
@@ -120,9 +120,11 @@ partitions(void)
 		if (split > size) {
 			for (size_t i = 0; i < size; ++i)
 				CHECK(st_cterm_write(f.terminal, wire + i, 1, &used) == 0 && used == 1);
-		} else {
+		}
+		else {
 			CHECK(st_cterm_write(f.terminal, wire, split, &used) == 0 && used == split);
-			CHECK(st_cterm_write(f.terminal, wire + split, size - split, &used) == 0 && used == size - split);
+			CHECK(st_cterm_write(f.terminal, wire + split, size - split, &used) == 0
+			      && used == size - split);
 		}
 		expect_cell(&f, 0, 0, 'A');
 		expect_cell(&f, 1, 0, ' ');
@@ -142,11 +144,11 @@ recovery(void)
 	feed(&f, "G#k 2");
 	local_ms += 5001;
 	CHECK(st_cterm_poll(t) == 0 && !t->igs_engine->destructive_backspace);
-	size_t used;
+	size_t     used;
 	const char invalid[] = "G#k 10000:";
 	CHECK(st_cterm_write(t, invalid, sizeof(invalid) - 1, &used) == 0);
 	expect_cursor(&f, false);
-	t->screen.error = IO_ERROR_IO;
+	t->screen.error     = IO_ERROR_IO;
 	const char enable[] = "G#k 1:";
 	CHECK(st_cterm_write(t, enable, sizeof(enable) - 1, &used) == 0);
 	CHECK(t->accumulator != NULL && t->vt52_cursor_hide_depth == 1);

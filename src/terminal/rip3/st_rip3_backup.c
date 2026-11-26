@@ -1,25 +1,24 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
-#include "st_rip3_backup.h"
-
-#include "io_error.h"
-
-#include <stdio.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "io_error.h"
+#include "st_rip3_backup.h"
+
 struct saved_object {
-	void *value;
+	void  *value;
 	size_t references;
 };
 
 struct st_rip3_backup {
 	struct st_rip3_backup_ops ops;
-	struct saved_object *base;
-	struct saved_object *slots[10];
-	bool protected[10];
-	struct saved_object *stack[10];
-	unsigned depth;
+	struct saved_object      *base;
+	struct saved_object      *slots[10];
+	bool                      protected[10];
+	struct saved_object      *stack[10];
+	unsigned                  depth;
 };
 
 static int
@@ -53,19 +52,17 @@ slots_used(const struct st_rip3_backup *backup)
 }
 
 int
-st_rip3_backup_create(struct st_rip3_backup **result,
-    const struct st_rip3_backup_ops *ops)
+st_rip3_backup_create(struct st_rip3_backup **result, const struct st_rip3_backup_ops *ops)
 {
 	struct st_rip3_backup *backup;
 
-	if (result == NULL || ops == NULL || ops->clone == NULL
-	    || ops->restore == NULL || ops->destroy == NULL)
+	if (result == NULL || ops == NULL || ops->clone == NULL || ops->restore == NULL || ops->destroy == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	backup = calloc(1, sizeof(*backup));
 	if (backup == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
 	backup->ops = *ops;
-	*result = backup;
+	*result     = backup;
 	return 0;
 }
 
@@ -79,12 +76,12 @@ st_rip3_backup_destroy(struct st_rip3_backup *backup)
 }
 
 int
-st_rip3_backup_save(struct st_rip3_backup *backup,
-    enum st_rip3_backup_place place, unsigned index, const void *object)
+st_rip3_backup_save(struct st_rip3_backup *backup, enum st_rip3_backup_place place, unsigned index,
+    const void *object)
 {
-	struct saved_object *snapshot;
+	struct saved_object  *snapshot;
 	struct saved_object **destination;
-	int status;
+	int                   status;
 
 	if (backup == NULL || object == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -93,8 +90,7 @@ st_rip3_backup_save(struct st_rip3_backup *backup,
 		return status;
 	if (place == ST_RIP3_BACKUP_SLOT && backup->protected[index])
 		return IO_ERROR_PERMISSION_DENIED;
-	if ((place == ST_RIP3_BACKUP_STACK
-	    || (place == ST_RIP3_BACKUP_SLOT && backup->slots[index] == NULL))
+	if ((place == ST_RIP3_BACKUP_STACK || (place == ST_RIP3_BACKUP_SLOT && backup->slots[index] == NULL))
 	    && backup->depth + slots_used(backup) == 10)
 		return IO_ERROR_NO_SPACE;
 	snapshot = calloc(1, sizeof(*snapshot));
@@ -106,9 +102,9 @@ st_rip3_backup_save(struct st_rip3_backup *backup,
 		return status != 0 ? status : IO_ERROR_INVALID_FORMAT;
 	}
 	snapshot->references = 1;
-	destination = place == ST_RIP3_BACKUP_BASE ? &backup->base
-	    : place == ST_RIP3_BACKUP_SLOT ? &backup->slots[index]
-	    : &backup->stack[backup->depth];
+	destination          = place == ST_RIP3_BACKUP_BASE   ? &backup->base
+	                       : place == ST_RIP3_BACKUP_SLOT ? &backup->slots[index]
+	                                                      : &backup->stack[backup->depth];
 	discard(backup, destination);
 	*destination = snapshot;
 	if (place == ST_RIP3_BACKUP_STACK)
@@ -117,11 +113,11 @@ st_rip3_backup_save(struct st_rip3_backup *backup,
 }
 
 int
-st_rip3_backup_restore(struct st_rip3_backup *backup,
-    enum st_rip3_backup_place place, unsigned index, void *object)
+st_rip3_backup_restore(struct st_rip3_backup *backup, enum st_rip3_backup_place place, unsigned index,
+    void *object)
 {
 	struct saved_object **source;
-	int status;
+	int                   status;
 
 	if (backup == NULL || object == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -130,9 +126,9 @@ st_rip3_backup_restore(struct st_rip3_backup *backup,
 		return status;
 	if (place == ST_RIP3_BACKUP_STACK && backup->depth == 0)
 		return IO_ERROR_NOT_FOUND;
-	source = place == ST_RIP3_BACKUP_BASE ? &backup->base
-	    : place == ST_RIP3_BACKUP_SLOT ? &backup->slots[index]
-	    : &backup->stack[backup->depth - 1];
+	source = place == ST_RIP3_BACKUP_BASE   ? &backup->base
+	         : place == ST_RIP3_BACKUP_SLOT ? &backup->slots[index]
+	                                        : &backup->stack[backup->depth - 1];
 	if (*source == NULL)
 		return IO_ERROR_NOT_FOUND;
 	status = backup->ops.restore(object, (*source)->value);
@@ -148,31 +144,32 @@ st_rip3_backup_restore(struct st_rip3_backup *backup,
 }
 
 int
-st_rip3_backup_restore_slot_retained(struct st_rip3_backup *backup,unsigned index,void *object)
+st_rip3_backup_restore_slot_retained(struct st_rip3_backup *backup, unsigned index, void *object)
 {
-	if (backup==NULL || object==NULL) return IO_ERROR_INVALID_ARGUMENT;
-	if (index>=10) return IO_ERROR_OUT_OF_RANGE;
-	if (backup->slots[index]==NULL) return IO_ERROR_NOT_FOUND;
-	return backup->ops.restore(object,backup->slots[index]->value);
+	if (backup == NULL || object == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (index >= 10)
+		return IO_ERROR_OUT_OF_RANGE;
+	if (backup->slots[index] == NULL)
+		return IO_ERROR_NOT_FOUND;
+	return backup->ops.restore(object, backup->slots[index]->value);
 }
 
 int
-st_rip3_backup_copy(struct st_rip3_backup *backup,
-    struct st_rip3_backup_location source,
+st_rip3_backup_copy(struct st_rip3_backup *backup, struct st_rip3_backup_location source,
     const struct st_rip3_backup_location *destinations, size_t count, void *object)
 {
 	struct saved_object *snapshot = NULL;
-	bool occupied[10];
-	bool table_destination = false, consume;
-	size_t copies = 0;
-	unsigned additional = 0, pushes = 0;
-	int status;
+	bool                 occupied[10];
+	bool                 table_destination = false, consume;
+	size_t               copies            = 0;
+	unsigned             additional = 0, pushes = 0;
+	int                  status;
 
 	if (backup == NULL || destinations == NULL || count == 0)
 		return IO_ERROR_INVALID_ARGUMENT;
-	status = source.place == ST_RIP3_BACKUP_TABLE
-	    ? (source.index == 0 ? 0 : IO_ERROR_OUT_OF_RANGE)
-	    : place_valid(source.place, source.index);
+	status = source.place == ST_RIP3_BACKUP_TABLE ? (source.index == 0 ? 0 : IO_ERROR_OUT_OF_RANGE)
+	                                              : place_valid(source.place, source.index);
 	if (status != 0)
 		return status;
 	if (source.place == ST_RIP3_BACKUP_STACK && backup->depth == 0)
@@ -182,9 +179,9 @@ st_rip3_backup_copy(struct st_rip3_backup *backup,
 			return IO_ERROR_INVALID_ARGUMENT;
 	}
 	else {
-		snapshot = source.place == ST_RIP3_BACKUP_BASE ? backup->base
-		    : source.place == ST_RIP3_BACKUP_SLOT ? backup->slots[source.index]
-		    : backup->stack[backup->depth - 1];
+		snapshot = source.place == ST_RIP3_BACKUP_BASE   ? backup->base
+		           : source.place == ST_RIP3_BACKUP_SLOT ? backup->slots[source.index]
+		                                                 : backup->stack[backup->depth - 1];
 		if (snapshot == NULL)
 			return IO_ERROR_NOT_FOUND;
 	}
@@ -193,9 +190,8 @@ st_rip3_backup_copy(struct st_rip3_backup *backup,
 	for (size_t i = 0; i < count; i++) {
 		struct st_rip3_backup_location dest = destinations[i];
 
-		status = dest.place == ST_RIP3_BACKUP_TABLE
-		    ? (dest.index == 0 ? 0 : IO_ERROR_OUT_OF_RANGE)
-		    : place_valid(dest.place, dest.index);
+		status = dest.place == ST_RIP3_BACKUP_TABLE ? (dest.index == 0 ? 0 : IO_ERROR_OUT_OF_RANGE)
+		                                            : place_valid(dest.place, dest.index);
 		if (status != 0)
 			return status;
 		if (dest.place == source.place && dest.index == source.index)
@@ -220,11 +216,10 @@ st_rip3_backup_copy(struct st_rip3_backup *backup,
 				return IO_ERROR_NO_SPACE;
 		}
 	}
-	consume = source.place == ST_RIP3_BACKUP_STACK
-	    || (source.place == ST_RIP3_BACKUP_SLOT && table_destination
-	    && !backup->protected[source.index]);
-	if (backup->depth + slots_used(backup) + additional + pushes
-	    - (consume ? 1u : 0u) > 10)
+	consume =
+	    source.place == ST_RIP3_BACKUP_STACK
+	    || (source.place == ST_RIP3_BACKUP_SLOT && table_destination && !backup->protected[source.index]);
+	if (backup->depth + slots_used(backup) + additional + pushes - (consume ? 1u : 0u) > 10)
 		return IO_ERROR_NO_SPACE;
 	if (copies > SIZE_MAX - (snapshot == NULL ? 1 : snapshot->references))
 		return IO_ERROR_OUT_OF_RANGE;
@@ -253,8 +248,9 @@ st_rip3_backup_copy(struct st_rip3_backup *backup,
 		if (dest.place == ST_RIP3_BACKUP_TABLE)
 			continue;
 		struct saved_object **target = dest.place == ST_RIP3_BACKUP_BASE ? &backup->base
-		    : dest.place == ST_RIP3_BACKUP_SLOT ? &backup->slots[dest.index]
-		    : &backup->stack[backup->depth++];
+		                               : dest.place == ST_RIP3_BACKUP_SLOT
+		                                   ? &backup->slots[dest.index]
+		                                   : &backup->stack[backup->depth++];
 
 		discard(backup, target);
 		*target = snapshot;
@@ -281,8 +277,7 @@ st_rip3_backup_protect(struct st_rip3_backup *backup, unsigned index, bool prote
 }
 
 int
-st_rip3_backup_clear(struct st_rip3_backup *backup,
-    enum st_rip3_backup_place place, unsigned index)
+st_rip3_backup_clear(struct st_rip3_backup *backup, enum st_rip3_backup_place place, unsigned index)
 {
 	int status;
 
@@ -323,19 +318,18 @@ st_rip3_backup_clear_all(struct st_rip3_backup *backup, bool force)
 }
 
 int
-st_rip3_backup_info(const struct st_rip3_backup *backup,
-    struct st_rip3_backup_info *result)
+st_rip3_backup_info(const struct st_rip3_backup *backup, struct st_rip3_backup_info *result)
 {
 	struct st_rip3_backup_info info = {0};
 
 	if (backup == NULL || result == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	info.base = backup->base != NULL;
+	info.base  = backup->base != NULL;
 	info.stack = backup->depth;
 	info.slots = slots_used(backup);
-	info.free = 10 - info.stack - info.slots;
+	info.free  = 10 - info.stack - info.slots;
 	for (size_t i = 0; i < 10; i++) {
-		info.slot_used[i] = backup->slots[i] != NULL;
+		info.slot_used[i]      = backup->slots[i] != NULL;
 		info.slot_protected[i] = backup->protected[i];
 	}
 	*result = info;
@@ -343,12 +337,11 @@ st_rip3_backup_info(const struct st_rip3_backup *backup,
 }
 
 int
-st_rip3_backup_status(const struct st_rip3_backup *backup,
-    bool protection, char *result, size_t capacity)
+st_rip3_backup_status(const struct st_rip3_backup *backup, bool protection, char *result, size_t capacity)
 {
 	struct st_rip3_backup_info info;
-	char output[80];
-	int length, status;
+	char                       output[80];
+	int                        length, status;
 
 	if (result == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -365,12 +358,10 @@ st_rip3_backup_status(const struct st_rip3_backup *backup,
 	}
 	else {
 		length = snprintf(output, sizeof(output), "%u:%u:%u:%u:%u:%u:%u:%u:%u:%u:%u:%u:%u:%u",
-		    (unsigned)info.base, info.stack, info.slots, info.free,
-		    (unsigned)info.slot_used[0], (unsigned)info.slot_used[1],
-		    (unsigned)info.slot_used[2], (unsigned)info.slot_used[3],
-		    (unsigned)info.slot_used[4], (unsigned)info.slot_used[5],
-		    (unsigned)info.slot_used[6], (unsigned)info.slot_used[7],
-		    (unsigned)info.slot_used[8], (unsigned)info.slot_used[9]);
+		    (unsigned)info.base, info.stack, info.slots, info.free, (unsigned)info.slot_used[0],
+		    (unsigned)info.slot_used[1], (unsigned)info.slot_used[2], (unsigned)info.slot_used[3],
+		    (unsigned)info.slot_used[4], (unsigned)info.slot_used[5], (unsigned)info.slot_used[6],
+		    (unsigned)info.slot_used[7], (unsigned)info.slot_used[8], (unsigned)info.slot_used[9]);
 	}
 	if (length < 0 || (size_t)length >= sizeof(output))
 		return IO_ERROR_IO;

@@ -15,9 +15,10 @@ sftp_heap_release(struct sftp_string *s)
 sftp_str_t
 sftp_alloc_str(uint32_t len)
 {
-	size_t hdr = sizeof(struct sftp_string);
+	size_t hdr   = sizeof(struct sftp_string);
 	size_t bytes = (size_t)len + 1;
-	if (bytes == 0 || bytes > SIZE_MAX - hdr) return NULL;
+	if (bytes == 0 || bytes > SIZE_MAX - hdr)
+		return NULL;
 	sftp_str_t ret = (sftp_str_t)malloc(hdr + bytes);
 	if (ret == NULL)
 		return NULL;

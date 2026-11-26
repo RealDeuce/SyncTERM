@@ -6,8 +6,7 @@
 int
 st_rip3_switch_test_stale(struct st_rip3_ports *ports, unsigned number, bool protect)
 {
-	if (ports == NULL || number == 0 || number >= 36
-	    || ports->entries[number].info.defined)
+	if (ports == NULL || number == 0 || number >= 36 || ports->entries[number].info.defined)
 		return IO_ERROR_INVALID_ARGUMENT;
 	ports->entries[number].info.protected = protect;
 	return 0;

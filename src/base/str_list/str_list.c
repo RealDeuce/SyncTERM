@@ -15,16 +15,16 @@
 #include <string.h>
 
 #include "array_list.h"
-#include "string_compat.h"
 #include "str_list.h"
+#include "string_compat.h"
 
 #if defined(STR_LIST_TEST_ALLOCATOR)
-	#include "str_list_test_allocator.h"
-	#define STR_LIST_MALLOC(size) str_list_test_malloc(size)
-	#define STR_LIST_FREE(pointer) str_list_test_free(pointer)
+ #include "str_list_test_allocator.h"
+ #define STR_LIST_MALLOC(size)  str_list_test_malloc(size)
+ #define STR_LIST_FREE(pointer) str_list_test_free(pointer)
 #else
-	#define STR_LIST_MALLOC(size) malloc(size)
-	#define STR_LIST_FREE(pointer) free(pointer)
+ #define STR_LIST_MALLOC(size)  malloc(size)
+ #define STR_LIST_FREE(pointer) free(pointer)
 #endif
 
 static char *
@@ -112,7 +112,7 @@ str_list_append_list(str_list_t *list, str_list_t source)
 	if (source_count > SIZE_MAX / sizeof(*copies))
 		return false;
 	copy_size = source_count * sizeof(*copies);
-	copies = STR_LIST_MALLOC(copy_size);
+	copies    = STR_LIST_MALLOC(copy_size);
 	if (copies == NULL)
 		return false;
 	for (i = 0; i < source_count; i++) {
@@ -127,8 +127,7 @@ str_list_append_list(str_list_t *list, str_list_t source)
 		return false;
 	}
 	if (source_count > SIZE_MAX - destination_count
-	    || !array_list_reserve((array_list_t *)list,
-	    destination_count + source_count)) {
+	    || !array_list_reserve((array_list_t *)list, destination_count + source_count)) {
 		for (i = 0; i < source_count; i++)
 			STR_LIST_FREE(copies[i]);
 		STR_LIST_FREE(copies);
@@ -194,24 +193,23 @@ str_list_take_last(str_list_t list)
 }
 
 bool
-str_list_split(str_list_t *result, const char *string,
-    const char *delimiters)
+str_list_split(str_list_t *result, const char *string, const char *delimiters)
 {
 	const char *cursor;
-	str_list_t list = NULL;
+	str_list_t  list = NULL;
 
 	if (result == NULL || string == NULL || delimiters == NULL)
 		return false;
 	cursor = string;
 	while (*cursor != '\0') {
 		size_t length;
-		char *item;
+		char  *item;
 
 		cursor += strspn(cursor, delimiters);
 		if (*cursor == '\0')
 			break;
 		length = strcspn(cursor, delimiters);
-		item = str_list_duplicate_n(cursor, length);
+		item   = str_list_duplicate_n(cursor, length);
 		if (item == NULL || !str_list_append_owned(&list, item)) {
 			STR_LIST_FREE(item);
 			str_list_free(&list);
@@ -230,8 +228,8 @@ str_list_join(str_list_t list, const char *separator)
 	size_t count;
 	size_t separator_length;
 	size_t length = 0;
-	char *joined;
-	char *cursor;
+	char  *joined;
+	char  *cursor;
 
 	if (separator == NULL)
 		return NULL;

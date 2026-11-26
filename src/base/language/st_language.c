@@ -3,14 +3,14 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "st_language_internal.h"
-#include "io_error.h"
-#include "string_compat.h"
-
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "io_error.h"
+#include "st_language_internal.h"
+#include "string_compat.h"
 
 /* Reject overlong environment values rather than truncate a language tag. */
 #define LANGUAGE_TAG_SIZE 256
@@ -42,10 +42,8 @@ ascii_upper(char c)
 static bool
 neutral_locale(const char *text, size_t size)
 {
-	return (size >= 1 && text[0] == 'C'
-	        && (size == 1 || text[1] == '.' || text[1] == '@'))
-	    || (size >= 5 && memcmp(text, "POSIX", 5) == 0
-	        && (size == 5 || text[5] == '.' || text[5] == '@'));
+	return (size >= 1 && text[0] == 'C' && (size == 1 || text[1] == '.' || text[1] == '@'))
+	       || (size >= 5 && memcmp(text, "POSIX", 5) == 0 && (size == 5 || text[5] == '.' || text[5] == '@'));
 }
 
 /*
@@ -57,14 +55,14 @@ neutral_locale(const char *text, size_t size)
 static bool
 language_tag(char tag[LANGUAGE_TAG_SIZE], const char *locale, size_t size)
 {
-	size_t end = 0;
-	size_t modifier = size;
-	size_t language_size = 0;
-	size_t script_offset = 0;
-	bool extensions = false;
-	bool private_use = false;
-	const char *script = NULL;
-	const char *variant = NULL;
+	size_t      end           = 0;
+	size_t      modifier      = size;
+	size_t      language_size = 0;
+	size_t      script_offset = 0;
+	bool        extensions    = false;
+	bool        private_use   = false;
+	const char *script        = NULL;
+	const char *variant       = NULL;
 
 	if (neutral_locale(locale, size)) {
 		memcpy(tag, "en", 3);
@@ -81,12 +79,12 @@ language_tag(char tag[LANGUAGE_TAG_SIZE], const char *locale, size_t size)
 	if (end == 0 || end >= LANGUAGE_TAG_SIZE)
 		return false;
 	for (size_t start = 0; start < end;) {
-		size_t stop = start;
-		bool alpha = true;
-		bool digits = true;
+		size_t stop   = start;
+		bool   alpha  = true;
+		bool   digits = true;
 
 		while (stop < end && locale[stop] != '-' && locale[stop] != '_') {
-			alpha = alpha && ascii_alpha(locale[stop]);
+			alpha  = alpha && ascii_alpha(locale[stop]);
 			digits = digits && ascii_digit(locale[stop]);
 			if (!ascii_alpha(locale[stop]) && !ascii_digit(locale[stop]))
 				return false;
@@ -100,17 +98,19 @@ language_tag(char tag[LANGUAGE_TAG_SIZE], const char *locale, size_t size)
 			if (!alpha || length < 2)
 				return false;
 			language_size = length;
-		} else if (length == 1 && !private_use) {
+		}
+		else if (length == 1 && !private_use) {
 			/* Extensions/private-use subtags must retain lowercase. */
-			extensions = true;
+			extensions  = true;
 			private_use = tag[start] == 'x';
 			if (stop == end)
 				return false;
-		} else if (!extensions && alpha && length == 4) {
-			tag[start] = ascii_upper(tag[start]);
+		}
+		else if (!extensions && alpha && length == 4) {
+			tag[start]    = ascii_upper(tag[start]);
 			script_offset = start;
-		} else if (!extensions && ((alpha && length == 2)
-		    || (digits && length == 3))) {
+		}
+		else if (!extensions && ((alpha && length == 2) || (digits && length == 3))) {
 			for (size_t i = start; i < stop; i++)
 				tag[i] = ascii_upper(tag[i]);
 		}
@@ -123,8 +123,8 @@ language_tag(char tag[LANGUAGE_TAG_SIZE], const char *locale, size_t size)
 	}
 	tag[end] = 0;
 	if (modifier < size) {
-		const char *name = locale + modifier;
-		size_t length = size - modifier;
+		const char *name   = locale + modifier;
+		size_t      length = size - modifier;
 
 		if (length == 5 && memcmp(name, "latin", 5) == 0)
 			script = "Latn";
@@ -136,8 +136,7 @@ language_tag(char tag[LANGUAGE_TAG_SIZE], const char *locale, size_t size)
 	if (script != NULL && script_offset == 0 && !extensions) {
 		if (end + 5 >= LANGUAGE_TAG_SIZE)
 			return false;
-		memmove(tag + language_size + 5, tag + language_size,
-		    end - language_size + 1);
+		memmove(tag + language_size + 5, tag + language_size, end - language_size + 1);
 		tag[language_size] = '-';
 		memcpy(tag + language_size + 1, script, 4);
 		end += 5;
@@ -152,11 +151,10 @@ language_tag(char tag[LANGUAGE_TAG_SIZE], const char *locale, size_t size)
 }
 
 int
-st_language_add(struct st_language_preferences *result,
-	const char *locale, size_t size)
+st_language_add(struct st_language_preferences *result, const char *locale, size_t size)
 {
-	char tag[LANGUAGE_TAG_SIZE];
-	char *copy;
+	char   tag[LANGUAGE_TAG_SIZE];
+	char  *copy;
 	char **tags;
 
 	if (!language_tag(tag, locale, size))
@@ -175,18 +173,17 @@ st_language_add(struct st_language_preferences *result,
 		free(copy);
 		return IO_ERROR_OUT_OF_MEMORY;
 	}
-	result->tags = tags;
+	result->tags                  = tags;
 	result->tags[result->count++] = copy;
 	return 0;
 }
 
 int
-st_language_environment(struct st_language_preferences *result,
-	const char *language, const char *all, const char *messages,
-	const char *lang)
+st_language_environment(struct st_language_preferences *result, const char *language, const char *all,
+    const char *messages, const char *lang)
 {
 	const char *locale = all;
-	int status;
+	int         status;
 
 	if (locale == NULL || locale[0] == 0)
 		locale = messages;
@@ -199,9 +196,8 @@ st_language_environment(struct st_language_preferences *result,
 		const char *start = language;
 
 		while (*start != 0) {
-			const char *stop = strchr(start, ':');
-			size_t length = stop == NULL ? strlen(start)
-			    : (size_t)(stop - start);
+			const char *stop   = strchr(start, ':');
+			size_t      length = stop == NULL ? strlen(start) : (size_t)(stop - start);
 
 			status = st_language_add(result, start, length);
 			if (status != 0)
@@ -224,7 +220,7 @@ st_language_free(struct st_language_preferences *preferences)
 	for (size_t i = 0; i < preferences->count; i++)
 		free(preferences->tags[i]);
 	free(preferences->tags);
-	preferences->tags = NULL;
+	preferences->tags  = NULL;
 	preferences->count = 0;
 }
 
@@ -235,9 +231,9 @@ st_language_discover(struct st_language_preferences *result)
 
 	if (result == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	result->tags = NULL;
+	result->tags  = NULL;
 	result->count = 0;
-	status = st_language_platform(result);
+	status        = st_language_platform(result);
 	if (status == 0 && result->count == 0)
 		status = st_language_add(result, "en", 2);
 	if (status != 0)

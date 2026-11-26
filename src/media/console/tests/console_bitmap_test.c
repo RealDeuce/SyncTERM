@@ -3,32 +3,31 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "console_internal.h"
-#include "io_error.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 
-#define CHECK(expression) do { \
-	if (!(expression)) { \
-		fprintf(stderr, "check failed at %s:%d: %s\n", \
-		    __FILE__, __LINE__, #expression); \
-		exit(EXIT_FAILURE); \
-	} \
-} while (false)
+#include "console_internal.h"
+#include "io_error.h"
+
+#define CHECK(expression)                                                                                \
+	do {                                                                                             \
+		if (!(expression)) {                                                                     \
+			fprintf(stderr, "check failed at %s:%d: %s\n", __FILE__, __LINE__, #expression); \
+			exit(EXIT_FAILURE);                                                              \
+		}                                                                                        \
+	} while (false)
 
 struct upload_log {
 	struct st_console_rect rectangle;
-	const void *image_identity;
-	uint64_t generation;
-	unsigned int calls;
-	unsigned int failures;
+	const void            *image_identity;
+	uint64_t               generation;
+	unsigned int           calls;
+	unsigned int           failures;
 };
 
 static int
-record_upload(void *context, const struct st_rgb_buffer *pixels,
-	const struct st_console_rect *rectangle, const void *image_identity,
-	uint64_t generation)
+record_upload(void *context, const struct st_rgb_buffer *pixels, const struct st_console_rect *rectangle,
+    const void *image_identity, uint64_t generation)
 {
 	struct upload_log *log = context;
 
@@ -36,9 +35,9 @@ record_upload(void *context, const struct st_rgb_buffer *pixels,
 	CHECK(rectangle != NULL);
 	CHECK(image_identity != NULL);
 	CHECK(generation != 0);
-	log->rectangle = *rectangle;
+	log->rectangle      = *rectangle;
 	log->image_identity = image_identity;
-	log->generation = generation;
+	log->generation     = generation;
 	++log->calls;
 	if (log->failures != 0) {
 		--log->failures;
@@ -49,58 +48,82 @@ record_upload(void *context, const struct st_rgb_buffer *pixels,
 
 struct pixel_edit_test {
 	st_console_t *console;
-	uint32_t primary, alternate;
-	bool write;
-	int status;
+	uint32_t      primary, alternate;
+	bool          write;
+	int           status;
 };
 
 static void
 test_font_raster_variants(void)
 {
-	static const char family = 0;
-	static const uint8_t original_bitmap[] = {0x80, 0x80, 0x18, 0x24, 0x7e, 0x66, 1, 1};
-	static const uint8_t current_bitmap[] = {0x3c, 0x42, 0x81, 0x66};
-	static const struct st_console_font_mapping original_mapping[] = {{'Z', 1}};
-	static const struct st_console_font_mapping current_mapping[] = {{'Z', 2}};
+	static const char                           family            = 0;
+	static const uint8_t                        original_bitmap[] = {0x80, 0x80, 0x18, 0x24, 0x7e, 0x66, 1, 1};
+	static const uint8_t                        current_bitmap[]  = {0x3c, 0x42, 0x81, 0x66};
+	static const struct st_console_font_mapping original_mapping[] = {
+	    {'Z', 1}
+        };
+	static const struct st_console_font_mapping current_mapping[] = {
+	    {'Z', 2}
+        };
 	static const struct st_console_font_cluster_mapping original_cluster[] = {
-		{.text = "Z\xef\xb8\x8f", .text_size = 4, .glyph = 2},
+	    {.text = "Z\xef\xb8\x8f", .text_size = 4, .glyph = 2},
 	};
 	static const struct st_console_font_cluster_mapping current_cluster[] = {
-		{.text = "Z\xef\xb8\x8f", .text_size = 4, .glyph = 1},
+	    {.text = "Z\xef\xb8\x8f", .text_size = 4, .glyph = 1},
 	};
 	struct st_console_font original = {
-		.bitmap = original_bitmap, .bitmap_size = sizeof(original_bitmap),
-		.width = 8, .height = 2, .glyph_count = 4, .row_stride = 1, .glyph_stride = 2,
-		.mapping = original_mapping, .mapping_count = 1, .raster_family = &family,
-		.cluster_mapping = original_cluster, .cluster_mapping_count = 1, .decode_error_glyph = 3,
+	    .bitmap                = original_bitmap,
+	    .bitmap_size           = sizeof(original_bitmap),
+	    .width                 = 8,
+	    .height                = 2,
+	    .glyph_count           = 4,
+	    .row_stride            = 1,
+	    .glyph_stride          = 2,
+	    .mapping               = original_mapping,
+	    .mapping_count         = 1,
+	    .raster_family         = &family,
+	    .cluster_mapping       = original_cluster,
+	    .cluster_mapping_count = 1,
+	    .decode_error_glyph    = 3,
 	};
 	const struct st_console_font current = {
-		.bitmap = current_bitmap, .bitmap_size = sizeof(current_bitmap),
-		.width = 8, .height = 1, .glyph_count = 4, .row_stride = 1, .glyph_stride = 1,
-		.mapping = current_mapping, .mapping_count = 1, .raster_family = &family,
-		.cluster_mapping = current_cluster, .cluster_mapping_count = 1, .decode_error_glyph = 3,
+	    .bitmap                = current_bitmap,
+	    .bitmap_size           = sizeof(current_bitmap),
+	    .width                 = 8,
+	    .height                = 1,
+	    .glyph_count           = 4,
+	    .row_stride            = 1,
+	    .glyph_stride          = 1,
+	    .mapping               = current_mapping,
+	    .mapping_count         = 1,
+	    .raster_family         = &family,
+	    .cluster_mapping       = current_cluster,
+	    .cluster_mapping_count = 1,
+	    .decode_error_glyph    = 3,
 	};
 	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
-	const struct st_console_config config = {.columns = 6, .rows = 1,
-		.cell_width = 8, .cell_height = 1};
-	const struct st_console_rect row = {0, 0, 6, 1};
-	const struct st_console_rect area = {0, 0, 48, 1};
-	struct st_console_cell cells[6];
-	st_console_t *console = NULL;
-	struct st_pixel_buffer *pixels = NULL;
-	uint16_t identifier, frozen, variant;
+	const struct st_console_config config = {.columns = 6, .rows = 1, .cell_width = 8, .cell_height = 1};
+	const struct st_console_rect   row    = {0, 0, 6, 1};
+	const struct st_console_rect   area   = {0, 0, 48, 1};
+	struct st_console_cell         cells[6];
+	st_console_t                  *console = NULL;
+	struct st_pixel_buffer        *pixels  = NULL;
+	uint16_t                       identifier, frozen, variant;
 
 	CHECK(st_console_create(&console, &display, &config) == 0);
 	CHECK(st_console_register_static_font(console, &original, &identifier) == 0);
 	original.raster_family = NULL;
 	CHECK(st_console_register_static_font(console, &original, &frozen) == 0);
 	for (size_t i = 0; i < 6; ++i)
-		cells[i] = (struct st_console_cell){.font = identifier, .glyph_font = identifier,
-			.glyph = 1, .foreground = 7, .background = 1};
+		cells[i] = (struct st_console_cell) {.font = identifier,
+		    .glyph_font                            = identifier,
+		    .glyph                                 = 1,
+		    .foreground                            = 7,
+		    .background                            = 1};
 	cells[1].glyph = 2;
 	cells[2].font = cells[2].glyph_font = frozen;
-	cells[3].glyph = 0;
-	cells[4].glyph = 3;
+	cells[3].glyph                      = 0;
+	cells[4].glyph                      = 3;
 	CHECK(st_console_write_complete_cells(console, &row, cells, 6) == 0);
 	CHECK(st_console_set_pixel(console, 40, 0, 4) == 0);
 	CHECK(st_console_present(console) == 0);
@@ -122,8 +145,7 @@ test_font_raster_variants(void)
 }
 
 static int
-edit_test_pixel(void *context, const struct st_pixel_buffer *pixels,
-	struct st_console_rect *changed)
+edit_test_pixel(void *context, const struct st_pixel_buffer *pixels, struct st_console_rect *changed)
 {
 	struct pixel_edit_test *test = context;
 	/* The callback borrows the actual normalized raster, not a copy. */
@@ -132,9 +154,9 @@ edit_test_pixel(void *context, const struct st_pixel_buffer *pixels,
 	CHECK(changed->width == 0 && changed->height == 0);
 	CHECK(pixels->primary[0] == test->primary && pixels->alternate[0] == test->alternate);
 	if (test->write) {
-		pixels->primary[9] = 512;
+		pixels->primary[9]   = 512;
 		pixels->alternate[9] = ST_PIXEL_COLOR_RGB_VALUE(1, 2, 3);
-		*changed = (struct st_console_rect){1, 1, 1, 1};
+		*changed             = (struct st_console_rect) {1, 1, 1, 1};
 	}
 	return test->status;
 }
@@ -142,41 +164,49 @@ edit_test_pixel(void *context, const struct st_pixel_buffer *pixels,
 static void
 test_invert_pixels(bool full)
 {
-	const struct st_console_display_config display={.backend=ST_CONSOLE_BACKEND_HEADLESS};
-	const struct st_console_config config={.columns=4,.rows=3,.cell_width=2,.cell_height=2,
-	    .pixel_width=10,.pixel_height=8};
-	st_console_t *console=NULL;
-	CHECK(st_console_create(&console,&display,&config)==0);
-	CHECK(st_console_set_full_surface_scroll(console,full)==0);
-	CHECK(st_console_set_cursor(console,false,ST_CONSOLE_CURSOR_BLOCK)==0);
-	CHECK(st_console_present(console)==0);
-	console->pixel_top=2;console->palette[512]=UINT32_C(0x123456);
-	for (size_t i=0;i<80;i++) {
-		console->pixels->primary[i]=512;
-		console->pixels->alternate[i]=ST_PIXEL_COLOR_RGB_VALUE(0x98,0x76,0x54);
+	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_config         config =
+	    {.columns = 4, .rows = 3, .cell_width = 2, .cell_height = 2, .pixel_width = 10, .pixel_height = 8};
+	st_console_t *console = NULL;
+	CHECK(st_console_create(&console, &display, &config) == 0);
+	CHECK(st_console_set_full_surface_scroll(console, full) == 0);
+	CHECK(st_console_set_cursor(console, false, ST_CONSOLE_CURSOR_BLOCK) == 0);
+	CHECK(st_console_present(console) == 0);
+	console->pixel_top    = 2;
+	console->palette[512] = UINT32_C(0x123456);
+	for (size_t i = 0; i < 80; i++) {
+		console->pixels->primary[i]   = 512;
+		console->pixels->alternate[i] = ST_PIXEL_COLOR_RGB_VALUE(0x98, 0x76, 0x54);
 	}
-	for (size_t i=0;i<12;i++) st_console_cell_at(console,i)->flags&=~(ST_CONSOLE_CELL_DIRTY|ST_CONSOLE_CELL_PIXEL_GRAPHICS);
-	const struct st_console_rect area={6,4,UINT32_MAX,UINT32_MAX};
-	const struct st_console_rect capture_area={6,4,4,4};
-	struct st_pixel_buffer *saved=NULL;
-	CHECK(st_console_get_pixels(&saved,console,&capture_area,false)==0);
-	CHECK(st_console_invert_pixels(NULL,&area)==IO_ERROR_INVALID_ARGUMENT);
-	CHECK(st_console_invert_pixels(console,NULL)==IO_ERROR_INVALID_ARGUMENT);
-	CHECK(st_console_invert_pixels(console,&area)==0);
-	CHECK(console->pixel_top==2);
-	for (uint32_t y=0;y<8;y++) for (uint32_t x=0;x<10;x++) {
-		size_t at=st_console_pixel_position_locked(console,x,y);
-		bool hit=x>=6 && y>=4;
-		CHECK(console->pixels->primary[at]==(hit ? ST_PIXEL_COLOR_RGB_VALUE(0xed,0xcb,0xa9) : 512));
-		CHECK(console->pixels->alternate[at]==(hit ? ST_PIXEL_COLOR_RGB_VALUE(0x67,0x89,0xab) : ST_PIXEL_COLOR_RGB_VALUE(0x98,0x76,0x54)));
-	}
-	for (size_t i=0;i<12;i++) CHECK(((st_console_cell_at(console,i)->flags&ST_CONSOLE_CELL_PIXEL_GRAPHICS)!=0)==(i==11));
-	CHECK(st_console_restore_pixel_region(console,console->pixels,0,0)==IO_ERROR_INVALID_ARGUMENT);
-	CHECK(st_console_restore_pixel_region(console,saved,6,4)==0);
-	CHECK(console->pixel_top==2);
-	for (size_t i=0;i<80;i++) {
-		CHECK(console->pixels->primary[i]==512);
-		CHECK(console->pixels->alternate[i]==ST_PIXEL_COLOR_RGB_VALUE(0x98,0x76,0x54));
+	for (size_t i = 0; i < 12; i++)
+		st_console_cell_at(console, i)->flags &= ~(ST_CONSOLE_CELL_DIRTY | ST_CONSOLE_CELL_PIXEL_GRAPHICS);
+	const struct st_console_rect area         = {6, 4, UINT32_MAX, UINT32_MAX};
+	const struct st_console_rect capture_area = {6, 4, 4, 4};
+	struct st_pixel_buffer      *saved        = NULL;
+	CHECK(st_console_get_pixels(&saved, console, &capture_area, false) == 0);
+	CHECK(st_console_invert_pixels(NULL, &area) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_console_invert_pixels(console, NULL) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_console_invert_pixels(console, &area) == 0);
+	CHECK(console->pixel_top == 2);
+	for (uint32_t y = 0; y < 8; y++)
+		for (uint32_t x = 0; x < 10; x++) {
+			size_t at  = st_console_pixel_position_locked(console, x, y);
+			bool   hit = x >= 6 && y >= 4;
+			CHECK(console->pixels->primary[at]
+			      == (hit ? ST_PIXEL_COLOR_RGB_VALUE(0xed, 0xcb, 0xa9) : 512));
+			CHECK(console->pixels->alternate[at]
+			      == (hit ? ST_PIXEL_COLOR_RGB_VALUE(0x67, 0x89, 0xab)
+			              : ST_PIXEL_COLOR_RGB_VALUE(0x98, 0x76, 0x54)));
+		}
+	for (size_t i = 0; i < 12; i++)
+		CHECK(
+		    ((st_console_cell_at(console, i)->flags & ST_CONSOLE_CELL_PIXEL_GRAPHICS) != 0) == (i == 11));
+	CHECK(st_console_restore_pixel_region(console, console->pixels, 0, 0) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_console_restore_pixel_region(console, saved, 6, 4) == 0);
+	CHECK(console->pixel_top == 2);
+	for (size_t i = 0; i < 80; i++) {
+		CHECK(console->pixels->primary[i] == 512);
+		CHECK(console->pixels->alternate[i] == ST_PIXEL_COLOR_RGB_VALUE(0x98, 0x76, 0x54));
 	}
 	st_pixel_buffer_destroy(saved);
 	st_console_destroy(console);
@@ -186,9 +216,8 @@ static void
 test_modify_pixels(void)
 {
 	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
-	const struct st_console_config config = {.columns = 4, .rows = 3,
-		.cell_width = 2, .cell_height = 2};
-	st_console_t *console = NULL;
+	const struct st_console_config config  = {.columns = 4, .rows = 3, .cell_width = 2, .cell_height = 2};
+	st_console_t                  *console = NULL;
 	CHECK(st_console_create(&console, &display, &config) == 0);
 	CHECK(st_console_set_cursor(console, false, ST_CONSOLE_CURSOR_BLOCK) == 0);
 	/* Exercise the real circular-row mapping with distinct physical rows. */
@@ -197,7 +226,7 @@ test_modify_pixels(void)
 	CHECK(st_console_rasterize_locked(console, false) == 0);
 	console->pixel_top = 2;
 	for (size_t i = 0; i < 48; ++i) {
-		console->pixels->primary[i] = 3 + (uint32_t)(i / 8);
+		console->pixels->primary[i]   = 3 + (uint32_t)(i / 8);
 		console->pixels->alternate[i] = 7 + (uint32_t)(i / 8);
 	}
 	for (size_t i = 0; i < 12; ++i)
@@ -209,14 +238,14 @@ test_modify_pixels(void)
 	for (size_t i = 0; i < 12; ++i)
 		CHECK((st_console_cell_at(console, i)->flags & ST_CONSOLE_CELL_PIXEL_GRAPHICS) == 0);
 	/* Even a failed callback must publish the writes it reported. */
-	test.write = true;
+	test.write  = true;
 	test.status = IO_ERROR_OUT_OF_MEMORY;
 	CHECK(st_console_begin_update(console) == 0);
 	CHECK(st_console_modify_pixels(console, edit_test_pixel, &test) == IO_ERROR_OUT_OF_MEMORY);
 	for (size_t i = 0; i < 12; ++i)
 		CHECK(((st_console_cell_at(console, i)->flags & ST_CONSOLE_CELL_PIXEL_GRAPHICS) != 0) == (i == 0));
 	CHECK(st_console_end_update(console) == 0);
-	struct st_pixel_buffer *image = NULL;
+	struct st_pixel_buffer      *image = NULL;
 	const struct st_console_rect whole = {0, 0, 8, 6};
 	CHECK(st_console_get_pixels(&image, console, &whole, false) == 0);
 	for (size_t i = 0; i < 48; ++i) {
@@ -226,17 +255,24 @@ test_modify_pixels(void)
 	}
 	st_pixel_buffer_destroy(image);
 	/* A clear must be rasterized before a callback sees the native pixels. */
-	static const uint8_t bitmap[256 * 2] = {0};
-	const struct st_console_font font = {.bitmap = bitmap, .bitmap_size = sizeof(bitmap),
-		.glyph_count = 256, .width = 2, .height = 2, .row_stride = 1, .glyph_stride = 2};
-	uint16_t identifier;
+	static const uint8_t         bitmap[256 * 2] = {0};
+	const struct st_console_font font            = {.bitmap = bitmap,
+	    .bitmap_size                             = sizeof(bitmap),
+	    .glyph_count                             = 256,
+	    .width                                   = 2,
+	    .height                                  = 2,
+	    .row_stride                              = 1,
+	    .glyph_stride                            = 2};
+	uint16_t                     identifier;
 	CHECK(st_console_register_static_font(console, &font, &identifier) == 0);
-	const struct st_console_cell blank = {.glyph = ' ', .background = 11,
-		.font = identifier, .glyph_font = identifier};
+	const struct st_console_cell blank = {.glyph = ' ',
+	    .background                              = 11,
+	    .font                                    = identifier,
+	    .glyph_font                              = identifier};
 	const struct st_console_rect cells = {0, 0, 4, 3};
 	CHECK(st_console_fill(console, &cells, &blank) == 0);
-	test.write = false;
-	test.status = 0;
+	test.write   = false;
+	test.status  = 0;
 	test.primary = test.alternate = 11;
 	CHECK(st_console_modify_pixels(console, edit_test_pixel, &test) == 0);
 	st_console_destroy(console);
@@ -245,27 +281,34 @@ test_modify_pixels(void)
 static void
 test_pixel_cursor_overlay(void)
 {
-	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
-	const struct st_console_config config = {.columns = 4, .rows = 2,
-		.cell_width = 8, .cell_height = 8, .scaling_mode = ST_CONSOLE_SCALING_EXTERNAL};
-	st_console_t *console = NULL;
-	struct st_console_bitmap_presenter *presenter = NULL;
-	struct st_console_bitmap_frame frame;
-	struct st_pixel_buffer *base = NULL, *copy = NULL;
+	const struct st_console_display_config display   = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_config         config    = {.columns = 4,
+	    .rows                                                 = 2,
+	    .cell_width                                           = 8,
+	    .cell_height                                          = 8,
+	    .scaling_mode                                         = ST_CONSOLE_SCALING_EXTERNAL};
+	st_console_t                          *console   = NULL;
+	struct st_console_bitmap_presenter    *presenter = NULL;
+	struct st_console_bitmap_frame         frame;
+	struct st_pixel_buffer                *base = NULL, *copy = NULL;
 	CHECK(st_console_create(&console, &display, &config) == 0);
-	static const uint8_t blank_font[256 * 8] = {0};
-	const struct st_console_font font = {.bitmap = blank_font,
-		.bitmap_size = sizeof(blank_font), .glyph_count = 256,
-		.width = 8, .height = 8, .row_stride = 1, .glyph_stride = 8};
-	uint16_t identifier;
+	static const uint8_t         blank_font[256 * 8] = {0};
+	const struct st_console_font font                = {.bitmap = blank_font,
+	    .bitmap_size                             = sizeof(blank_font),
+	    .glyph_count                             = 256,
+	    .width                                   = 8,
+	    .height                                  = 8,
+	    .row_stride                              = 1,
+	    .glyph_stride                            = 8};
+	uint16_t                     identifier;
 	CHECK(st_console_register_static_font(console, &font, &identifier) == 0);
 	const struct st_console_style style = {.font = identifier,
-		.foreground = ST_CONSOLE_COLOR_RGB_VALUE(255, 255, 255),
-		.background = ST_CONSOLE_COLOR_RGB_TAG};
+	    .foreground                              = ST_CONSOLE_COLOR_RGB_VALUE(255, 255, 255),
+	    .background                              = ST_CONSOLE_COLOR_RGB_TAG};
 	CHECK(st_console_set_style(console, &style) == 0);
 	CHECK(st_pixel_buffer_create(&base, 32, 16, true) == 0);
-	CHECK(st_pixel_buffer_fill(base, ST_PIXEL_COLOR_RGB_VALUE(1, 2, 3),
-		ST_PIXEL_COLOR_RGB_VALUE(4, 5, 6)) == 0);
+	CHECK(
+	    st_pixel_buffer_fill(base, ST_PIXEL_COLOR_RGB_VALUE(1, 2, 3), ST_PIXEL_COLOR_RGB_VALUE(4, 5, 6)) == 0);
 	const struct st_pixel_blit blit = {.width = 32, .height = 16, .scale_x = 1, .scale_y = 1};
 	CHECK(st_console_clear_window(console, ' ') == 0);
 	CHECK(st_console_present(console) == 0);
@@ -277,7 +320,7 @@ test_pixel_cursor_overlay(void)
 	CHECK(st_console_blit_pixels(console, base, NULL, &blit) == 0);
 	struct st_console_cell status = *st_console_cell_at(console, 4);
 	status.flags &= ~ST_CONSOLE_CELL_PIXEL_GRAPHICS;
-	status.background = ST_CONSOLE_COLOR_RGB_VALUE(8, 9, 10);
+	status.background                = ST_CONSOLE_COLOR_RGB_VALUE(8, 9, 10);
 	const struct st_console_rect row = {0, 1, 1, 1};
 	CHECK(st_console_write_cells(console, &row, &status, 1) == 0);
 	CHECK(st_console_end_update(console) == 0);
@@ -288,8 +331,12 @@ test_pixel_cursor_overlay(void)
 	st_pixel_buffer_destroy(copy);
 	copy = NULL;
 	CHECK(st_console_blit_pixels(console, base, NULL, &blit) == 0);
-	struct st_console_pixel_cursor cursor = {.rectangle = {2, 7, 16, 1},
-		.colour = ST_CONSOLE_COLOR_RGB_VALUE(250, 20, 30), .enabled = true, .visible = true};
+	struct st_console_pixel_cursor cursor = {
+	    .rectangle = {2, 7, 16, 1},
+	    .colour    = ST_CONSOLE_COLOR_RGB_VALUE(250, 20, 30),
+	    .enabled   = true,
+	    .visible   = true
+        };
 	CHECK(st_console_set_pixel_cursor(NULL, &cursor) == IO_ERROR_INVALID_ARGUMENT);
 	CHECK(st_console_set_pixel_cursor(console, NULL) == IO_ERROR_INVALID_ARGUMENT);
 	CHECK(st_console_set_pixel_cursor(console, &cursor) == 0);
@@ -297,8 +344,8 @@ test_pixel_cursor_overlay(void)
 	CHECK(st_console_bitmap_presenter_frame(presenter, console, 32, 16, 0, NULL, NULL, &frame) == 0);
 	for (uint32_t y = 0; y < 16; ++y)
 		for (uint32_t x = 0; x < 32; ++x)
-			CHECK(frame.pixels->pixels[y * 32 + x] ==
-				(y == 7 && x >= 2 && x < 18 ? UINT32_C(0xfa141e) : UINT32_C(0x010203)));
+			CHECK(frame.pixels->pixels[y * 32 + x]
+			      == (y == 7 && x >= 2 && x < 18 ? UINT32_C(0xfa141e) : UINT32_C(0x010203)));
 	const struct st_console_rect whole = {0, 0, 32, 16};
 	CHECK(st_console_get_pixels(&copy, console, &whole, false) == 0);
 	CHECK(copy->primary[7 * 32 + 2] == ST_PIXEL_COLOR_RGB_VALUE(1, 2, 3));
@@ -330,59 +377,64 @@ static void
 test_unscaled_frame(void)
 {
 	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
-	const struct st_console_config config = {
-		.columns = 4, .rows = 2, .cell_width = 1, .cell_height = 1,
-		.scaling_mode = ST_CONSOLE_SCALING_EXTERNAL,
+	const struct st_console_config         config  = {
+	    .columns      = 4,
+	    .rows         = 2,
+	    .cell_width   = 1,
+	    .cell_height  = 1,
+	    .scaling_mode = ST_CONSOLE_SCALING_EXTERNAL,
 	};
-	st_console_t *console = NULL;
+	st_console_t                       *console   = NULL;
 	struct st_console_bitmap_presenter *presenter = NULL;
-	struct st_console_bitmap_frame frame;
-	struct upload_log log = {0};
+	struct st_console_bitmap_frame      frame;
+	struct upload_log                   log = {0};
 
 	CHECK(st_console_create(&console, &display, &config) == 0);
 	console->cursor_visible = false;
 	CHECK(st_console_bitmap_presenter_create(&presenter, console) == 0);
-	CHECK(st_console_bitmap_presenter_frame(presenter, console, 4, 6, 0,
-	    record_upload, &log, &frame) == 0);
+	CHECK(st_console_bitmap_presenter_frame(presenter, console, 4, 6, 0, record_upload, &log, &frame) == 0);
 	const struct st_rgb_buffer *native = frame.pixels;
-	console->scaling_mode = ST_CONSOLE_SCALING_INTERNAL;
+	console->scaling_mode              = ST_CONSOLE_SCALING_INTERNAL;
 	for (int blocky = 0; blocky <= 1; ++blocky) {
 		console->blocky_scaling = blocky != 0;
-		CHECK(st_console_bitmap_presenter_frame(presenter, console, 4, 6, 0,
-		    record_upload, &log, &frame) == 0);
+		CHECK(st_console_bitmap_presenter_frame(presenter, console, 4, 6, 0, record_upload, &log, &frame)
+		      == 0);
 		CHECK(frame.pixels == native && frame.destination.y == 2);
 		for (int pass = 0; pass < 2; ++pass) {
 			log.calls = 0;
-			CHECK(st_console_bitmap_presenter_frame(presenter, NULL, 8, 4, 0,
-			    record_upload, &log, &frame) == 0);
+			CHECK(st_console_bitmap_presenter_frame(presenter, NULL, 8, 4, 0, record_upload, &log,
+				  &frame)
+			      == 0);
 			CHECK(frame.pixels != native && log.calls == 1);
 			CHECK(log.rectangle.width == 8 && log.rectangle.height == 4);
-			CHECK(st_console_bitmap_presenter_frame(presenter, NULL, 4, 2, 0,
-			    record_upload, &log, &frame) == 0);
+			CHECK(st_console_bitmap_presenter_frame(presenter, NULL, 4, 2, 0, record_upload, &log,
+				  &frame)
+			      == 0);
 			CHECK(frame.pixels == native && log.calls == 2);
 			CHECK(log.rectangle.width == 4 && log.rectangle.height == 2);
-			CHECK(st_console_bitmap_presenter_frame(presenter, NULL, 4, 6, 0,
-			    record_upload, &log, &frame) == 0);
+			CHECK(st_console_bitmap_presenter_frame(presenter, NULL, 4, 6, 0, record_upload, &log,
+				  &frame)
+			      == 0);
 			CHECK(frame.pixels == native && frame.destination.y == 2 && log.calls == 2);
 		}
 	}
 	/* The source can change mode after handoff. Resize the host while that
 	 * old frame is in flight, then publish the replacement source. */
 	CHECK(st_pixel_buffer_fill(console->pixels, ST_PIXEL_COLOR_RGB_VALUE(1, 2, 3),
-	    ST_PIXEL_COLOR_RGB_VALUE(1, 2, 3)) == 0);
+		  ST_PIXEL_COLOR_RGB_VALUE(1, 2, 3))
+	      == 0);
 	console->pixel_surface_dirty = true;
 	CHECK(st_console_bitmap_prepare_frame(presenter, console, 0) == 0);
 	CHECK(st_console_resize(console, 3, 3) == 0);
 	CHECK(st_pixel_buffer_fill(console->pixels, ST_PIXEL_COLOR_RGB_VALUE(4, 5, 6),
-	    ST_PIXEL_COLOR_RGB_VALUE(4, 5, 6)) == 0);
-	CHECK(st_console_bitmap_presenter_frame(presenter, NULL, 12, 6, 0,
-	    record_upload, &log, &frame) == 0);
+		  ST_PIXEL_COLOR_RGB_VALUE(4, 5, 6))
+	      == 0);
+	CHECK(st_console_bitmap_presenter_frame(presenter, NULL, 12, 6, 0, record_upload, &log, &frame) == 0);
 	CHECK(frame.source_width == 4 && frame.source_height == 2);
 	CHECK(frame.pixels->width == 12 && frame.pixels->height == 6);
 	CHECK(frame.pixels->pixels[71] == UINT32_C(0x010203));
 	CHECK(st_console_bitmap_prepare_frame(presenter, console, 0) == 0);
-	CHECK(st_console_bitmap_presenter_frame(presenter, NULL, 12, 6, 0,
-	    record_upload, &log, &frame) == 0);
+	CHECK(st_console_bitmap_presenter_frame(presenter, NULL, 12, 6, 0, record_upload, &log, &frame) == 0);
 	CHECK(frame.source_width == 3 && frame.source_height == 3);
 	CHECK(frame.destination.x == 3 && frame.pixels->width == 6 && frame.pixels->height == 6);
 	CHECK(frame.pixels->pixels[35] == UINT32_C(0x040506));
@@ -394,38 +446,39 @@ static void
 test_upload_retry(void)
 {
 	const struct st_console_display_config display = {
-		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	    .backend = ST_CONSOLE_BACKEND_HEADLESS,
 	};
 	const struct st_console_config config = {
-		.columns = 1, .rows = 1, .cell_width = 1, .cell_height = 1,
-		.scaling_mode = ST_CONSOLE_SCALING_EXTERNAL,
+	    .columns      = 1,
+	    .rows         = 1,
+	    .cell_width   = 1,
+	    .cell_height  = 1,
+	    .scaling_mode = ST_CONSOLE_SCALING_EXTERNAL,
 	};
 	struct st_console_bitmap_presenter *presenter = NULL;
-	struct st_console_bitmap_frame frame;
-	struct upload_log log = {.failures = 1};
-	st_console_t *console = NULL;
-	uint64_t generation;
-	const void *identity;
+	struct st_console_bitmap_frame      frame;
+	struct upload_log                   log     = {.failures = 1};
+	st_console_t                       *console = NULL;
+	uint64_t                            generation;
+	const void                         *identity;
 
 	CHECK(st_console_create(&console, &display, &config) == 0);
 	console->cursor_visible = false;
 	CHECK(st_console_bitmap_presenter_create(&presenter, console) == 0);
-	CHECK(st_console_bitmap_presenter_frame(presenter, console, 1, 1, 0,
-	    record_upload, &log, &frame) == IO_ERROR_IO);
+	CHECK(st_console_bitmap_presenter_frame(presenter, console, 1, 1, 0, record_upload, &log, &frame)
+	      == IO_ERROR_IO);
 	generation = frame.generation;
-	identity = frame.image_identity;
+	identity   = frame.image_identity;
 	CHECK(log.calls == 1);
-	CHECK(st_console_bitmap_presenter_frame(presenter, console, 1, 1, 1,
-	    record_upload, &log, &frame) == 0);
+	CHECK(st_console_bitmap_presenter_frame(presenter, console, 1, 1, 1, record_upload, &log, &frame) == 0);
 	CHECK(log.calls == 2);
-	CHECK(log.rectangle.x == 0 && log.rectangle.y == 0
-	    && log.rectangle.width == 1 && log.rectangle.height == 1);
+	CHECK(
+	    log.rectangle.x == 0 && log.rectangle.y == 0 && log.rectangle.width == 1 && log.rectangle.height == 1);
 	CHECK(frame.generation == generation);
 	CHECK(frame.image_identity == identity);
 	console->pixel_surface_dirty = true;
-	log.calls = 0;
-	CHECK(st_console_bitmap_presenter_frame(presenter, console, 1, 1, 2,
-	    record_upload, &log, &frame) == 0);
+	log.calls                    = 0;
+	CHECK(st_console_bitmap_presenter_frame(presenter, console, 1, 1, 2, record_upload, &log, &frame) == 0);
 	CHECK(log.calls == 1 && frame.changed);
 	CHECK(frame.generation == generation);
 	st_console_bitmap_presenter_destroy(presenter);
@@ -436,38 +489,35 @@ static void
 test_vga_ninth_column(void)
 {
 	static const uint8_t bitmap[256] = {
-		[UINT8_C(0xb0)] = UINT8_C(0x01),
-		[UINT8_C(0xc0)] = UINT8_C(0x01),
+	    [UINT8_C(0xb0)] = UINT8_C(0x01),
+	    [UINT8_C(0xc0)] = UINT8_C(0x01),
 	};
 	const struct st_console_font font = {
-		.bitmap = bitmap,
-		.bitmap_size = sizeof(bitmap),
-		.width = 8,
-		.height = 1,
-		.glyph_count = 256,
-		.row_stride = 1,
-		.glyph_stride = 1,
+	    .bitmap       = bitmap,
+	    .bitmap_size  = sizeof(bitmap),
+	    .width        = 8,
+	    .height       = 1,
+	    .glyph_count  = 256,
+	    .row_stride   = 1,
+	    .glyph_stride = 1,
 	};
 	const struct st_console_display_config display = {
-		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	    .backend = ST_CONSOLE_BACKEND_HEADLESS,
 	};
 	const struct st_console_config config = {
-		.columns = 2,
-		.rows = 1,
-		.cell_width = 9,
-		.cell_height = 1,
-		.video_flags = ST_CONSOLE_VIDEO_EXPAND
-		    | ST_CONSOLE_VIDEO_LINE_GRAPHICS_EXPAND,
+	    .columns     = 2,
+	    .rows        = 1,
+	    .cell_width  = 9,
+	    .cell_height = 1,
+	    .video_flags = ST_CONSOLE_VIDEO_EXPAND | ST_CONSOLE_VIDEO_LINE_GRAPHICS_EXPAND,
 	};
 	const struct st_console_rect rectangle = {0, 0, 2, 1};
-	const struct st_console_cell cells[2] = {
-		{.glyph = UINT32_C(0xc0),
-		    .foreground = 1},
-		{.glyph = UINT32_C(0xb0),
-		    .foreground = 1, .flags = ST_CONSOLE_CELL_BOLD},
+	const struct st_console_cell cells[2]  = {
+	    {.glyph = UINT32_C(0xc0), .foreground = 1},
+	    {.glyph = UINT32_C(0xb0), .foreground = 1, .flags = ST_CONSOLE_CELL_BOLD},
 	};
 	st_console_t *console = NULL;
-	uint16_t identifier;
+	uint16_t      identifier;
 
 	CHECK(st_console_create(&console, &display, &config) == 0);
 	console->cursor_visible = false;
@@ -479,8 +529,7 @@ test_vga_ninth_column(void)
 	CHECK(console->pixels->primary[8] == 1);
 	CHECK(console->pixels->primary[16] == 1);
 	CHECK(console->pixels->primary[17] == 0);
-	CHECK(st_console_set_video_flags(console,
-	    ST_CONSOLE_VIDEO_EXPAND) == 0);
+	CHECK(st_console_set_video_flags(console, ST_CONSOLE_VIDEO_EXPAND) == 0);
 	CHECK(st_console_present(console) == 0);
 	CHECK(console->pixels->primary[7] == 1);
 	CHECK(console->pixels->primary[8] == 0);
@@ -493,7 +542,7 @@ fill_planes(st_console_t *console, uint32_t primary, uint32_t alternate)
 	size_t count = (size_t)console->pixels->width * console->pixels->height;
 
 	for (size_t i = 0; i < count; ++i) {
-		console->pixels->primary[i] = ST_PIXEL_COLOR_RGB_TAG | primary;
+		console->pixels->primary[i]   = ST_PIXEL_COLOR_RGB_TAG | primary;
 		console->pixels->alternate[i] = ST_PIXEL_COLOR_RGB_TAG | alternate;
 	}
 }
@@ -502,44 +551,39 @@ static void
 test_circular_text_raster(void)
 {
 	struct st_console_display_config config_display = {
-		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	    .backend = ST_CONSOLE_BACKEND_HEADLESS,
 	};
 	struct st_console_config config = {
-		.columns = 1,
-		.rows = 2,
-		.cell_width = 1,
-		.cell_height = 1,
-		.pixel_width = 1,
-		.pixel_height = 3,
-		.scaling_mode = ST_CONSOLE_SCALING_EXTERNAL,
+	    .columns      = 1,
+	    .rows         = 2,
+	    .cell_width   = 1,
+	    .cell_height  = 1,
+	    .pixel_width  = 1,
+	    .pixel_height = 3,
+	    .scaling_mode = ST_CONSOLE_SCALING_EXTERNAL,
 	};
 	struct st_console_bitmap_presenter *presenter = NULL;
-	struct st_console_bitmap_frame frame;
-	struct upload_log log = {0};
-	st_console_t *console = NULL;
-	const uint32_t red = UINT32_C(0xff0000);
-	const uint32_t blue = UINT32_C(0x0000ff);
-	const uint32_t green = UINT32_C(0x00ff00);
-	const uint32_t yellow = UINT32_C(0xffff00);
+	struct st_console_bitmap_frame      frame;
+	struct upload_log                   log     = {0};
+	st_console_t                       *console = NULL;
+	const uint32_t                      red     = UINT32_C(0xff0000);
+	const uint32_t                      blue    = UINT32_C(0x0000ff);
+	const uint32_t                      green   = UINT32_C(0x00ff00);
+	const uint32_t                      yellow  = UINT32_C(0xffff00);
 
 	CHECK(st_console_create(&console, &config_display, &config) == 0);
-	CHECK(st_console_set_pixel(console, 0, 0,
-	    ST_PIXEL_COLOR_RGB_TAG | red) == 0);
-	CHECK(st_console_set_pixel(console, 0, 1,
-	    ST_PIXEL_COLOR_RGB_TAG | blue) == 0);
-	CHECK(st_console_set_pixel(console, 0, 2,
-	    ST_PIXEL_COLOR_RGB_TAG | green) == 0);
+	CHECK(st_console_set_pixel(console, 0, 0, ST_PIXEL_COLOR_RGB_TAG | red) == 0);
+	CHECK(st_console_set_pixel(console, 0, 1, ST_PIXEL_COLOR_RGB_TAG | blue) == 0);
+	CHECK(st_console_set_pixel(console, 0, 2, ST_PIXEL_COLOR_RGB_TAG | green) == 0);
 	console->cursor_visible = false;
 	CHECK(st_console_bitmap_presenter_create(&presenter, console) == 0);
-	CHECK(st_console_bitmap_presenter_frame(presenter, console, 1, 3,
-	    1000, record_upload, &log, &frame) == 0);
+	CHECK(st_console_bitmap_presenter_frame(presenter, console, 1, 3, 1000, record_upload, &log, &frame) == 0);
 
 	CHECK(st_console_begin_update(console) == 0);
 	CHECK(st_console_scroll(console, 1, ' ') == 0);
 	CHECK(st_console_rasterize_locked(console, false) == 0);
 	log.calls = 0;
-	CHECK(st_console_bitmap_presenter_frame(presenter, console, 1, 3,
-	    1000, record_upload, &log, &frame) == 0);
+	CHECK(st_console_bitmap_presenter_frame(presenter, console, 1, 3, 1000, record_upload, &log, &frame) == 0);
 	CHECK(log.calls == 1);
 	CHECK(frame.pixels->pixels[0] == blue);
 	CHECK(frame.pixels->pixels[1] == 0);
@@ -547,11 +591,9 @@ test_circular_text_raster(void)
 	CHECK(st_console_end_update(console) == 0);
 
 	CHECK(st_console_begin_update(console) == 0);
-	CHECK(st_console_set_pixel(console, 0, 2,
-	    ST_PIXEL_COLOR_RGB_TAG | yellow) == 0);
+	CHECK(st_console_set_pixel(console, 0, 2, ST_PIXEL_COLOR_RGB_TAG | yellow) == 0);
 	log.calls = 0;
-	CHECK(st_console_bitmap_presenter_frame(presenter, console, 1, 3,
-	    1000, record_upload, &log, &frame) == 0);
+	CHECK(st_console_bitmap_presenter_frame(presenter, console, 1, 3, 1000, record_upload, &log, &frame) == 0);
 	CHECK(log.calls == 1);
 	CHECK(log.rectangle.width == 1 && log.rectangle.height == 3);
 	CHECK(frame.pixels->pixels[2] == yellow);
@@ -565,25 +607,25 @@ static void
 test_full_surface_scroll_gap(void)
 {
 	const struct st_console_display_config display = {
-		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	    .backend = ST_CONSOLE_BACKEND_HEADLESS,
 	};
 	const struct st_console_config config = {
-		.columns = 1, .rows = 2,
-		.cell_width = 1, .cell_height = 1,
-		.pixel_width = 1, .pixel_height = 3,
-		.scaling_mode = ST_CONSOLE_SCALING_EXTERNAL,
+	    .columns      = 1,
+	    .rows         = 2,
+	    .cell_width   = 1,
+	    .cell_height  = 1,
+	    .pixel_width  = 1,
+	    .pixel_height = 3,
+	    .scaling_mode = ST_CONSOLE_SCALING_EXTERNAL,
 	};
-	const struct st_console_rect rect = {0, 0, 1, 3};
-	struct st_pixel_buffer *pixels = NULL;
-	st_console_t *console = NULL;
+	const struct st_console_rect rect    = {0, 0, 1, 3};
+	struct st_pixel_buffer      *pixels  = NULL;
+	st_console_t                *console = NULL;
 
 	CHECK(st_console_create(&console, &display, &config) == 0);
-	CHECK(st_console_set_pixel(console, 0, 0,
-	    ST_PIXEL_COLOR_RGB_TAG | UINT32_C(0xff0000)) == 0);
-	CHECK(st_console_set_pixel(console, 0, 1,
-	    ST_PIXEL_COLOR_RGB_TAG | UINT32_C(0x0000ff)) == 0);
-	CHECK(st_console_set_pixel(console, 0, 2,
-	    ST_PIXEL_COLOR_RGB_TAG | UINT32_C(0x00ff00)) == 0);
+	CHECK(st_console_set_pixel(console, 0, 0, ST_PIXEL_COLOR_RGB_TAG | UINT32_C(0xff0000)) == 0);
+	CHECK(st_console_set_pixel(console, 0, 1, ST_PIXEL_COLOR_RGB_TAG | UINT32_C(0x0000ff)) == 0);
+	CHECK(st_console_set_pixel(console, 0, 2, ST_PIXEL_COLOR_RGB_TAG | UINT32_C(0x00ff00)) == 0);
 	CHECK(st_console_set_full_surface_scroll(console, true) == 0);
 	CHECK(st_console_scroll(console, 1, ' ') == 0);
 	CHECK(st_console_get_pixels(&pixels, console, &rect, false) == 0);
@@ -599,14 +641,11 @@ test_full_surface_scroll_gap(void)
 	st_pixel_buffer_destroy(pixels);
 	{
 		const struct st_console_rect source = {0, 1, 1, 1};
-		const struct st_console_cell blank = (*st_console_cell_at(console, 1));
+		const struct st_console_cell blank  = (*st_console_cell_at(console, 1));
 
-		CHECK(st_console_set_pixel(console, 0, 0,
-		    ST_PIXEL_COLOR_RGB_TAG | UINT32_C(0xff0000)) == 0);
-		CHECK(st_console_move_cells_clear(console, &source, 0, 0,
-		    &blank) == 0);
-		CHECK(st_console_move_cells_clear(console, &source, 0, 0,
-		    &blank) == 0);
+		CHECK(st_console_set_pixel(console, 0, 0, ST_PIXEL_COLOR_RGB_TAG | UINT32_C(0xff0000)) == 0);
+		CHECK(st_console_move_cells_clear(console, &source, 0, 0, &blank) == 0);
+		CHECK(st_console_move_cells_clear(console, &source, 0, 0, &blank) == 0);
 		CHECK(st_console_get_pixels(&pixels, console, &rect, false) == 0);
 		CHECK(pixels->primary[1] == 0);
 		st_pixel_buffer_destroy(pixels);
@@ -622,27 +661,28 @@ static void
 test_full_surface_scroll_right_strip(void)
 {
 	const struct st_console_display_config display = {
-		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	    .backend = ST_CONSOLE_BACKEND_HEADLESS,
 	};
 	const struct st_console_config config = {
-		.columns = 1, .rows = 2,
-		.cell_width = 1, .cell_height = 1,
-		.pixel_width = 2, .pixel_height = 2,
-		.scaling_mode = ST_CONSOLE_SCALING_EXTERNAL,
+	    .columns      = 1,
+	    .rows         = 2,
+	    .cell_width   = 1,
+	    .cell_height  = 1,
+	    .pixel_width  = 2,
+	    .pixel_height = 2,
+	    .scaling_mode = ST_CONSOLE_SCALING_EXTERNAL,
 	};
-	const struct st_console_rect source = {0, 1, 1, 1};
+	const struct st_console_rect source      = {0, 1, 1, 1};
 	const struct st_console_rect pixels_rect = {0, 0, 2, 2};
-	struct st_pixel_buffer *pixels = NULL;
-	st_console_t *console = NULL;
-	struct st_console_cell blank;
+	struct st_pixel_buffer      *pixels      = NULL;
+	st_console_t                *console     = NULL;
+	struct st_console_cell       blank;
 
 	CHECK(st_console_create(&console, &display, &config) == 0);
 	CHECK(st_console_set_full_surface_scroll(console, true) == 0);
-	CHECK(st_console_set_pixel(console, 1, 0,
-	    ST_PIXEL_COLOR_RGB_TAG | UINT32_C(0xff0000)) == 0);
+	CHECK(st_console_set_pixel(console, 1, 0, ST_PIXEL_COLOR_RGB_TAG | UINT32_C(0xff0000)) == 0);
 	blank = (*st_console_cell_at(console, 1));
-	CHECK(st_console_move_cells_clear(console, &source, 0, 0,
-	    &blank) == 0);
+	CHECK(st_console_move_cells_clear(console, &source, 0, 0, &blank) == 0);
 	CHECK(st_console_get_pixels(&pixels, console, &pixels_rect, false) == 0);
 	CHECK(pixels->primary[3] == 0);
 	st_pixel_buffer_destroy(pixels);
@@ -653,19 +693,21 @@ static void
 test_indexed_pixel_palette_change(void)
 {
 	const struct st_console_display_config display = {
-		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	    .backend = ST_CONSOLE_BACKEND_HEADLESS,
 	};
 	const struct st_console_config config = {
-		.columns = 1, .rows = 1,
-		.cell_width = 1, .cell_height = 1,
-		.scaling_mode = ST_CONSOLE_SCALING_EXTERNAL,
+	    .columns      = 1,
+	    .rows         = 1,
+	    .cell_width   = 1,
+	    .cell_height  = 1,
+	    .scaling_mode = ST_CONSOLE_SCALING_EXTERNAL,
 	};
-	const uint32_t red = UINT32_C(0x123456);
-	const uint32_t blue = UINT32_C(0x654321);
+	const uint32_t                      red       = UINT32_C(0x123456);
+	const uint32_t                      blue      = UINT32_C(0x654321);
 	struct st_console_bitmap_presenter *presenter = NULL;
-	struct st_console_bitmap_frame frame;
-	struct upload_log log = {0};
-	st_console_t *console = NULL;
+	struct st_console_bitmap_frame      frame;
+	struct upload_log                   log     = {0};
+	st_console_t                       *console = NULL;
 
 	CHECK(st_console_create(&console, &display, &config) == 0);
 	CHECK(st_console_begin_update(console) == 0);
@@ -673,36 +715,31 @@ test_indexed_pixel_palette_change(void)
 	CHECK(st_console_set_palette(console, 500, &red, 1) == 0);
 	CHECK(st_console_set_pixel(console, 0, 0, 500) == 0);
 	CHECK(st_console_bitmap_presenter_create(&presenter, console) == 0);
-	CHECK(st_console_bitmap_presenter_frame(presenter, console, 1, 1, 0,
-	    record_upload, &log, &frame) == 0);
+	CHECK(st_console_bitmap_presenter_frame(presenter, console, 1, 1, 0, record_upload, &log, &frame) == 0);
 	CHECK(frame.pixels->pixels[0] == red);
 	CHECK(st_console_end_update(console) == 0);
 
 	CHECK(st_console_begin_update(console) == 0);
 	log.calls = 0;
 	CHECK(st_console_set_palette(console, 500, &blue, 1) == 0);
-	CHECK(st_console_bitmap_presenter_frame(presenter, console, 1, 1, 0,
-	    record_upload, &log, &frame) == 0);
-	CHECK(log.calls == 1 && log.rectangle.x == 0 && log.rectangle.y == 0
-	    && log.rectangle.width == 1 && log.rectangle.height == 1);
+	CHECK(st_console_bitmap_presenter_frame(presenter, console, 1, 1, 0, record_upload, &log, &frame) == 0);
+	CHECK(log.calls == 1 && log.rectangle.x == 0 && log.rectangle.y == 0 && log.rectangle.width == 1
+	      && log.rectangle.height == 1);
 	CHECK(frame.pixels->pixels[0] == blue);
 	CHECK(st_console_end_update(console) == 0);
 
 	/* Palette cycling also updates an indexed cursor over direct pixels. */
 	CHECK(st_console_begin_update(console) == 0);
-	CHECK(st_console_set_pixel(console, 0, 0,
-	    ST_PIXEL_COLOR_RGB_VALUE(0, 0, 0)) == 0);
+	CHECK(st_console_set_pixel(console, 0, 0, ST_PIXEL_COLOR_RGB_VALUE(0, 0, 0)) == 0);
 	CHECK(st_console_set_palette(console, 501, &red, 1) == 0);
 	console->style.foreground = 501;
 	CHECK(st_console_set_cursor(console, true, ST_CONSOLE_CURSOR_BLOCK) == 0);
-	CHECK(st_console_bitmap_presenter_frame(presenter, console, 1, 1, 0,
-	    record_upload, &log, &frame) == 0);
+	CHECK(st_console_bitmap_presenter_frame(presenter, console, 1, 1, 0, record_upload, &log, &frame) == 0);
 	CHECK(frame.pixels->pixels[0] == red);
 	CHECK(st_console_end_update(console) == 0);
 	CHECK(st_console_begin_update(console) == 0);
 	CHECK(st_console_set_palette(console, 501, &blue, 1) == 0);
-	CHECK(st_console_bitmap_presenter_frame(presenter, console, 1, 1, 0,
-	    record_upload, &log, &frame) == 0);
+	CHECK(st_console_bitmap_presenter_frame(presenter, console, 1, 1, 0, record_upload, &log, &frame) == 0);
 	CHECK(frame.pixels->pixels[0] == blue);
 	CHECK(st_console_end_update(console) == 0);
 
@@ -713,30 +750,29 @@ test_indexed_pixel_palette_change(void)
 static void
 test_initial_window_geometry(void)
 {
-	const struct st_console_bitmap_geometry geometry = {640, 400, 4, 3, false};
-	struct st_console_display_config config_display = {
-		.backend = ST_CONSOLE_BACKEND_HEADLESS,
-		.initial_scaling = 2.0,
+	const struct st_console_bitmap_geometry geometry       = {640, 400, 4, 3, false};
+	struct st_console_display_config        config_display = {
+	    .backend         = ST_CONSOLE_BACKEND_HEADLESS,
+	    .initial_scaling = 2.0,
 	};
 	struct st_console_config config = {
-		.columns = 80,
-		.rows = 25,
-		.cell_width = 8,
-		.cell_height = 16,
-		.aspect_width = 4,
-		.aspect_height = 3,
+	    .columns       = 80,
+	    .rows          = 25,
+	    .cell_width    = 8,
+	    .cell_height   = 16,
+	    .aspect_width  = 4,
+	    .aspect_height = 3,
 	};
 	st_console_t *console = NULL;
-	uint32_t width;
-	uint32_t height;
+	uint32_t      width;
+	uint32_t      height;
 
 	{
 		struct st_console_display_config invalid = config_display;
-		st_console_display_t *display = NULL;
+		st_console_display_t            *display = NULL;
 
 		invalid.initial_window_width = 700;
-		CHECK(st_console_display_create(&display, &invalid)
-		    == IO_ERROR_INVALID_ARGUMENT);
+		CHECK(st_console_display_create(&display, &invalid) == IO_ERROR_INVALID_ARGUMENT);
 		CHECK(display == NULL);
 	}
 
@@ -744,64 +780,56 @@ test_initial_window_geometry(void)
 	CHECK(console->display->initial_window_width == 1280);
 	CHECK(console->display->initial_window_height == 960);
 	{
-		st_console_t *peer = NULL;
+		st_console_t            *peer    = NULL;
 		struct st_console_config smaller = config;
 
 		smaller.columns /= 2;
 		smaller.rows /= 2;
-		CHECK(st_console_create_on_display(&peer, console->display,
-		    &smaller) == 0);
+		CHECK(st_console_create_on_display(&peer, console->display, &smaller) == 0);
 		CHECK(console->display->initial_window_width == 1280);
 		CHECK(console->display->initial_window_height == 960);
 		st_console_destroy(peer);
 	}
-	CHECK(st_console_snap_geometry_size(&geometry, 1280, 960, false, 0, 0,
-	    &width, &height) == 0);
+	CHECK(st_console_snap_geometry_size(&geometry, 1280, 960, false, 0, 0, &width, &height) == 0);
 	CHECK(width == 640 && height == 480);
-	CHECK(st_console_snap_geometry_size(&geometry, 700, 525, false, 0, 0,
-	    &width, &height) == 0);
+	CHECK(st_console_snap_geometry_size(&geometry, 700, 525, false, 0, 0, &width, &height) == 0);
 	CHECK(width == 640 && height == 480);
-	CHECK(st_console_snap_geometry_size(&geometry, 700, 525, true, 0, 0,
-	    &width, &height) == 0);
+	CHECK(st_console_snap_geometry_size(&geometry, 700, 525, true, 0, 0, &width, &height) == 0);
 	CHECK(width == 1280 && height == 960);
-	CHECK(st_console_snap_geometry_size(&geometry, 1280, 960, true, 1500, 1000,
-	    &width, &height) == 0);
+	CHECK(st_console_snap_geometry_size(&geometry, 1280, 960, true, 1500, 1000, &width, &height) == 0);
 	CHECK(width == 1280 && height == 960);
 	{
 		const struct st_console_bitmap_geometry c64 = {320, 200, 6, 5, false};
-		double scaling;
-		CHECK(st_console_scaled_window_size(320, 200, 6, 5, 1,
-		    &width, &height) == 0 && width == 320 && height == 267);
-		CHECK(st_console_scaled_window_size(320, 200, 6, 5, 2,
-		    &width, &height) == 0 && width == 640 && height == 533);
-		CHECK(st_console_snap_geometry_size(&c64, 640, 533, true,
-		    1920, 1080, &width, &height) == 0);
+		double                                  scaling;
+		CHECK(st_console_scaled_window_size(320, 200, 6, 5, 1, &width, &height) == 0 && width == 320
+		      && height == 267);
+		CHECK(st_console_scaled_window_size(320, 200, 6, 5, 2, &width, &height) == 0 && width == 640
+		      && height == 533);
+		CHECK(st_console_snap_geometry_size(&c64, 640, 533, true, 1920, 1080, &width, &height) == 0);
 		if (width != 960 || height != 800)
 			fprintf(stderr, "C64 2x -> 3x: expected 960x800, got %ux%u\n", width, height);
 		CHECK(width == 960 && height == 800);
-		CHECK(st_console_snap_geometry_size(&c64, 960, 800, true,
-		    1920, 1080, &width, &height) == 0 && width == 1280 && height == 1067);
-		CHECK(st_console_snap_geometry_size(&c64, 1280, 1067, false,
-		    1920, 1080, &width, &height) == 0 && width == 960 && height == 800);
-		CHECK(st_console_snap_geometry_size(&c64, 960, 800, true,
-		    1920, 1040, &width, &height) == 0 && width == 960 && height == 800);
-		CHECK(st_console_snap_geometry_size(&c64, 800, 667, false,
-		    1920, 1080, &width, &height) == 0 && width == 640 && height == 533);
-		CHECK(st_console_bitmap_geometry_scaling(&c64, 640, 533, &scaling) == 0
-		    && scaling == 2.0);
-		CHECK(st_console_bitmap_geometry_scaling(&c64, 960, 800, &scaling) == 0
-		    && scaling == 3.0);
+		CHECK(st_console_snap_geometry_size(&c64, 960, 800, true, 1920, 1080, &width, &height) == 0
+		      && width == 1280 && height == 1067);
+		CHECK(st_console_snap_geometry_size(&c64, 1280, 1067, false, 1920, 1080, &width, &height) == 0
+		      && width == 960 && height == 800);
+		CHECK(st_console_snap_geometry_size(&c64, 960, 800, true, 1920, 1040, &width, &height) == 0
+		      && width == 960 && height == 800);
+		CHECK(st_console_snap_geometry_size(&c64, 800, 667, false, 1920, 1080, &width, &height) == 0
+		      && width == 640 && height == 533);
+		CHECK(st_console_bitmap_geometry_scaling(&c64, 640, 533, &scaling) == 0 && scaling == 2.0);
+		CHECK(st_console_bitmap_geometry_scaling(&c64, 960, 800, &scaling) == 0 && scaling == 3.0);
 	}
 	{
 		const struct st_console_bitmap_geometry portrait = {200, 320, 5, 6, false};
-		CHECK(st_console_snap_geometry_size(&portrait, 533, 640, true,
-		    1080, 1920, &width, &height) == 0 && width == 800 && height == 960);
-		CHECK(st_console_snap_geometry_size(&portrait, 800, 960, false,
-		    1080, 1920, &width, &height) == 0 && width == 533 && height == 640);
+		CHECK(st_console_snap_geometry_size(&portrait, 533, 640, true, 1080, 1920, &width, &height) == 0
+		      && width == 800 && height == 960);
+		CHECK(st_console_snap_geometry_size(&portrait, 800, 960, false, 1080, 1920, &width, &height) == 0
+		      && width == 533 && height == 640);
 	}
 	st_console_destroy(console);
-	config_display.initial_scaling = 0;
-	config_display.initial_window_width = 700;
+	config_display.initial_scaling       = 0;
+	config_display.initial_window_width  = 700;
 	config_display.initial_window_height = 450;
 	CHECK(st_console_create(&console, &config_display, &config) == 0);
 	CHECK(console->display->initial_window_width == 700);
@@ -812,44 +840,45 @@ test_initial_window_geometry(void)
 static void
 test_mode_change_geometry(void)
 {
-	const struct st_console_bitmap_geometry pc = {640, 400, 4, 3, false};
-	const struct st_console_bitmap_geometry c64 = {320, 200, 6, 5, false};
+	const struct st_console_bitmap_geometry pc      = {640, 400, 4, 3, false};
+	const struct st_console_bitmap_geometry c64     = {320, 200, 6, 5, false};
 	const struct st_console_bitmap_geometry prestel = {480, 500, 3077, 2400, false};
-	const struct st_console_bitmap_geometry lcd = {640, 400, 8, 5, false};
+	const struct st_console_bitmap_geometry lcd     = {640, 400, 8, 5, false};
+
 	const struct {
 		const struct st_console_bitmap_geometry *previous, *next;
 		uint32_t current_width, current_height, maximum_width, maximum_height;
 		uint32_t width, height;
 	} cases[] = {
-		{&pc, &c64, 640, 480, 1920, 1080, 640, 533},
-		{&pc, &c64, 1280, 960, 1920, 1200, 1280, 1067},
-		{&pc, &c64, 1280, 960, 1920, 1040, 960, 800},
-		{&c64, &pc, 640, 533, 1920, 1080, 640, 480},
-		{&pc, &prestel, 640, 480, 1024, 768, 641, 500},
-		{&pc, &lcd, 640, 480, 1024, 768, 640, 400},
-		{&pc, &prestel, 800, 600, 1024, 768, 788, 615},
-		{&prestel, &pc, 788, 615, 1024, 768, 800, 600},
-		{&pc, &lcd, 800, 600, 1024, 768, 848, 530},
-		{&lcd, &pc, 848, 530, 1024, 768, 800, 600},
-		{&pc, &c64, 800, 600, 1024, 768, 768, 640},
-		{&c64, &pc, 768, 640, 1024, 768, 800, 600},
-		{&pc, &c64, 640, 480, 0, 0, 640, 533},
-		{&pc, &c64, 640, 480, 100, 100, 320, 267},
+	    {&pc,      &c64,     640,  480, 1920, 1080, 640,  533 },
+	    {&pc,      &c64,     1280, 960, 1920, 1200, 1280, 1067},
+	    {&pc,      &c64,     1280, 960, 1920, 1040, 960,  800 },
+	    {&c64,     &pc,      640,  533, 1920, 1080, 640,  480 },
+	    {&pc,      &prestel, 640,  480, 1024, 768,  641,  500 },
+	    {&pc,      &lcd,     640,  480, 1024, 768,  640,  400 },
+	    {&pc,      &prestel, 800,  600, 1024, 768,  788,  615 },
+	    {&prestel, &pc,      788,  615, 1024, 768,  800,  600 },
+	    {&pc,      &lcd,     800,  600, 1024, 768,  848,  530 },
+	    {&lcd,     &pc,      848,  530, 1024, 768,  800,  600 },
+	    {&pc,      &c64,     800,  600, 1024, 768,  768,  640 },
+	    {&c64,     &pc,      768,  640, 1024, 768,  800,  600 },
+	    {&pc,      &c64,     640,  480, 0,    0,    640,  533 },
+	    {&pc,      &c64,     640,  480, 100,  100,  320,  267 },
 	};
 
 	for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); ++i) {
 		uint32_t width, height, minimum_width, minimum_height;
-		CHECK(st_console_mode_change_size(cases[i].previous, cases[i].next,
-		    cases[i].current_width, cases[i].current_height,
-		    cases[i].maximum_width, cases[i].maximum_height, &width, &height,
-		    &minimum_width, &minimum_height) == 0);
+		CHECK(st_console_mode_change_size(cases[i].previous, cases[i].next, cases[i].current_width,
+			  cases[i].current_height, cases[i].maximum_width, cases[i].maximum_height, &width,
+			  &height, &minimum_width, &minimum_height)
+		      == 0);
 		if (width != cases[i].width || height != cases[i].height)
-			fprintf(stderr, "mode case %zu: expected %ux%u, got %ux%u\n", i,
-			    cases[i].width, cases[i].height, width, height);
+			fprintf(stderr, "mode case %zu: expected %ux%u, got %ux%u\n", i, cases[i].width,
+			    cases[i].height, width, height);
 		CHECK(width == cases[i].width && height == cases[i].height);
-		CHECK(st_console_aspect_correct_size(cases[i].next->width,
-		    cases[i].next->height, cases[i].next->aspect_width,
-		    cases[i].next->aspect_height, &width, &height) == 0);
+		CHECK(st_console_aspect_correct_size(cases[i].next->width, cases[i].next->height,
+			  cases[i].next->aspect_width, cases[i].next->aspect_height, &width, &height)
+		      == 0);
 		CHECK(width == minimum_width && height == minimum_height);
 	}
 }
@@ -857,12 +886,16 @@ test_mode_change_geometry(void)
 static void
 test_preserved_window(void)
 {
-	const struct st_console_bitmap_geometry low = {320,200,4,3,true}, medium = {640,200,4,3,true};
-	const uint32_t sizes[][2] = {{320,240},{960,720},{801,601}};
-	for (size_t i = 0; i < sizeof(sizes)/sizeof(*sizes); ++i) {
+	const struct st_console_bitmap_geometry low = {320, 200, 4, 3, true}, medium = {640, 200, 4, 3, true};
+	const uint32_t                          sizes[][2] = {
+	    {320, 240},
+            {960, 720},
+            {801, 601}
+        };
+	for (size_t i = 0; i < sizeof(sizes) / sizeof(*sizes); ++i) {
 		uint32_t w, h, mw, mh;
-		CHECK(st_console_mode_change_size(&low, &medium, sizes[i][0], sizes[i][1], 0, 0,
-		    &w, &h, &mw, &mh) == 0);
+		CHECK(st_console_mode_change_size(&low, &medium, sizes[i][0], sizes[i][1], 0, 0, &w, &h, &mw, &mh)
+		      == 0);
 		CHECK(w == sizes[i][0] && h == sizes[i][1] && mw == 1 && mh == 1);
 		CHECK(st_console_mode_change_size(&medium, &low, w, h, 0, 0, &w, &h, &mw, &mh) == 0);
 		CHECK(w == sizes[i][0] && h == sizes[i][1]);
@@ -875,21 +908,27 @@ test_preserved_window(void)
 	CHECK(st_console_snap_geometry_size(&medium, 320, 240, false, 0, 0, &w, &h) == 0 && w == 320 && h == 240);
 	CHECK(st_console_snap_geometry_size(&medium, 320, 240, true, 0, 0, &w, &h) == 0 && w == 640 && h == 480);
 	for (unsigned policy = 0; policy < 2; ++policy) {
-		st_console_t *console = NULL;
-		struct st_console_bitmap_presenter *presenter = NULL;
-		struct st_console_bitmap_frame frame;
+		st_console_t                          *console   = NULL;
+		struct st_console_bitmap_presenter    *presenter = NULL;
+		struct st_console_bitmap_frame         frame;
 		const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
-		const struct st_console_config config = {.columns = 80, .rows = 25,
-		    .cell_width = 8, .cell_height = 8, .aspect_width = 4, .aspect_height = 3,
-		    .preserve_window_size = true, .scaling_policy = (enum st_pixel_scaling_policy)policy};
+		const struct st_console_config         config  = {.columns = 80,
+		    .rows                                                 = 25,
+		    .cell_width                                           = 8,
+		    .cell_height                                          = 8,
+		    .aspect_width                                         = 4,
+		    .aspect_height                                        = 3,
+		    .preserve_window_size                                 = true,
+		    .scaling_policy                                       = (enum st_pixel_scaling_policy)policy};
 		CHECK(st_console_create(&console, &display, &config) == 0);
 		CHECK(st_console_set_cursor(console, false, ST_CONSOLE_CURSOR_BLOCK) == 0);
 		struct st_pixel_buffer *pixels = NULL;
 		CHECK(st_pixel_buffer_create(&pixels, 640, 200, false) == 0);
-		const uint32_t colours[] = {0xff0000,0x00ff00,0x0000ff,0xffffff};
+		const uint32_t colours[] = {0xff0000, 0x00ff00, 0x0000ff, 0xffffff};
 		for (uint32_t y = 0; y < 200; ++y)
 			for (uint32_t x = 0; x < 640; ++x)
-				pixels->primary[y * 640 + x] = ST_PIXEL_COLOR_RGB_TAG | colours[(y >= 100 ? 2 : 0) + (x >= 320)];
+				pixels->primary[y * 640 + x] =
+				    ST_PIXEL_COLOR_RGB_TAG | colours[(y >= 100 ? 2 : 0) + (x >= 320)];
 		const struct st_pixel_blit blit = {.width = 640, .height = 200, .scale_x = 1, .scale_y = 1};
 		CHECK(st_console_blit_pixels(console, pixels, NULL, &blit) == 0);
 		CHECK(st_console_bitmap_presenter_create(&presenter, console) == 0);
@@ -910,11 +949,11 @@ static void
 test_mouse_coordinates(void)
 {
 	const struct st_console_bitmap_frame frame = {
-		.destination = {10, 20, 160, 96},
-		.source_width = 80,
-		.source_height = 48,
-		.cell_width = 8,
-		.cell_height = 16,
+	    .destination   = {10, 20, 160, 96},
+	    .source_width  = 80,
+	    .source_height = 48,
+	    .cell_width    = 8,
+	    .cell_height   = 16,
 	};
 	struct st_console_event event = {.type = ST_CONSOLE_EVENT_MOUSE};
 
@@ -934,29 +973,32 @@ static void
 test_default_cursor_scanlines(void)
 {
 	struct st_console_display_config config_display = {
-		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	    .backend = ST_CONSOLE_BACKEND_HEADLESS,
 	};
 	struct st_console_config config = {
-		.columns = 1,
-		.rows = 1,
-		.cell_width = 8,
-		.cell_height = 14,
-		.scaling_mode = ST_CONSOLE_SCALING_EXTERNAL,
-		.default_cursor = {
-			.start = 12, .end = 13, .range = 14,
-			.visible = true, .blink = false,
-		},
+	    .columns      = 1,
+	    .rows         = 1,
+	    .cell_width   = 8,
+	    .cell_height  = 14,
+	    .scaling_mode = ST_CONSOLE_SCALING_EXTERNAL,
+	    .default_cursor =
+		{
+				 .start   = 12,
+				 .end     = 13,
+				 .range   = 14,
+				 .visible = true,
+				 .blink   = false,
+				 },
 	};
 	struct st_console_bitmap_presenter *presenter = NULL;
-	struct st_console_bitmap_frame frame;
-	struct upload_log log = {0};
-	st_console_t *console = NULL;
-	const uint32_t cursor_colour = UINT32_C(0xa8a8a8);
+	struct st_console_bitmap_frame      frame;
+	struct upload_log                   log           = {0};
+	st_console_t                       *console       = NULL;
+	const uint32_t                      cursor_colour = UINT32_C(0xa8a8a8);
 
 	CHECK(st_console_create(&console, &config_display, &config) == 0);
 	CHECK(st_console_bitmap_presenter_create(&presenter, console) == 0);
-	CHECK(st_console_bitmap_presenter_frame(presenter, console, 8, 14,
-	    0, record_upload, &log, &frame) == 0);
+	CHECK(st_console_bitmap_presenter_frame(presenter, console, 8, 14, 0, record_upload, &log, &frame) == 0);
 	CHECK(frame.pixels->pixels[11 * 8] != cursor_colour);
 	CHECK(frame.pixels->pixels[12 * 8] == cursor_colour);
 	CHECK(frame.pixels->pixels[13 * 8] == cursor_colour);
@@ -968,36 +1010,33 @@ static void
 test_legacy_bright_cursor_colour(void)
 {
 	const struct st_console_display_config display = {
-		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	    .backend = ST_CONSOLE_BACKEND_HEADLESS,
 	};
 	const struct st_console_config config = {
-		.columns = 1, .rows = 1,
-		.cell_width = 1, .cell_height = 1,
-		.scaling_mode = ST_CONSOLE_SCALING_EXTERNAL,
+	    .columns      = 1,
+	    .rows         = 1,
+	    .cell_width   = 1,
+	    .cell_height  = 1,
+	    .scaling_mode = ST_CONSOLE_SCALING_EXTERNAL,
 	};
 	const struct st_console_style style = {
-		.foreground = 3,
-		.background = 1,
-		.flags = ST_CONSOLE_CELL_LEGACY_FOREGROUND
-		    | ST_CONSOLE_CELL_BRIGHT,
+	    .foreground = 3,
+	    .background = 1,
+	    .flags      = ST_CONSOLE_CELL_LEGACY_FOREGROUND | ST_CONSOLE_CELL_BRIGHT,
 	};
 	struct st_console_bitmap_presenter *presenter = NULL;
-	struct st_console_bitmap_frame frame;
-	struct upload_log log = {0};
-	st_console_t *console = NULL;
+	struct st_console_bitmap_frame      frame;
+	struct upload_log                   log     = {0};
+	st_console_t                       *console = NULL;
 
 	CHECK(st_console_create(&console, &display, &config) == 0);
 	CHECK(st_console_set_style(console, &style) == 0);
-	CHECK(st_console_set_cursor(console, true,
-	    ST_CONSOLE_CURSOR_BLOCK) == 0);
+	CHECK(st_console_set_cursor(console, true, ST_CONSOLE_CURSOR_BLOCK) == 0);
 	CHECK(st_console_bitmap_presenter_create(&presenter, console) == 0);
-	CHECK(st_console_bitmap_presenter_frame(presenter, console, 1, 1, 0,
-	    record_upload, &log, &frame) == 0);
+	CHECK(st_console_bitmap_presenter_frame(presenter, console, 1, 1, 0, record_upload, &log, &frame) == 0);
 	CHECK(frame.pixels->pixels[0] == UINT32_C(0xffff54));
-	CHECK(st_console_set_video_flags(console,
-	    ST_CONSOLE_VIDEO_NO_BRIGHT) == 0);
-	CHECK(st_console_bitmap_presenter_frame(presenter, console, 1, 1, 0,
-	    record_upload, &log, &frame) == 0);
+	CHECK(st_console_set_video_flags(console, ST_CONSOLE_VIDEO_NO_BRIGHT) == 0);
+	CHECK(st_console_bitmap_presenter_frame(presenter, console, 1, 1, 0, record_upload, &log, &frame) == 0);
 	CHECK(frame.pixels->pixels[0] == UINT32_C(0xa85400));
 	st_console_bitmap_presenter_destroy(presenter);
 	st_console_destroy(console);
@@ -1006,49 +1045,53 @@ test_legacy_bright_cursor_colour(void)
 static void
 test_wide_glyph_cursor(void)
 {
-	static const uint8_t bitmap[4] = {0};
-	static const uint8_t wide_bitmap[4] = {0};
-	static const struct st_console_font_mapping mapping[] = {
-		{UINT32_C(0x4e00), 1},
+	static const uint8_t                        bitmap[4]      = {0};
+	static const uint8_t                        wide_bitmap[4] = {0};
+	static const struct st_console_font_mapping mapping[]      = {
+	    {UINT32_C(0x4e00), 1},
 	};
 	static const struct st_console_font font = {
-		.bitmap = bitmap,
-		.bitmap_size = sizeof(bitmap),
-		.width = 2,
-		.height = 4,
-		.glyph_count = 1,
-		.row_stride = 1,
-		.glyph_stride = 4,
-		.wide_bitmap = wide_bitmap,
-		.wide_bitmap_size = sizeof(wide_bitmap),
-		.wide_glyph_count = 1,
-		.wide_row_stride = 1,
-		.wide_glyph_stride = 4,
-		.mapping = mapping,
-		.mapping_count = sizeof(mapping) / sizeof(mapping[0]),
-		.fallback_glyph = 0,
-		.wide_fallback_glyph = 1,
+	    .bitmap              = bitmap,
+	    .bitmap_size         = sizeof(bitmap),
+	    .width               = 2,
+	    .height              = 4,
+	    .glyph_count         = 1,
+	    .row_stride          = 1,
+	    .glyph_stride        = 4,
+	    .wide_bitmap         = wide_bitmap,
+	    .wide_bitmap_size    = sizeof(wide_bitmap),
+	    .wide_glyph_count    = 1,
+	    .wide_row_stride     = 1,
+	    .wide_glyph_stride   = 4,
+	    .mapping             = mapping,
+	    .mapping_count       = sizeof(mapping) / sizeof(mapping[0]),
+	    .fallback_glyph      = 0,
+	    .wide_fallback_glyph = 1,
 	};
 	const struct st_console_display_config display_config = {
-		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	    .backend = ST_CONSOLE_BACKEND_HEADLESS,
 	};
 	const struct st_console_config config = {
-		.columns = 3,
-		.rows = 1,
-		.cell_width = 2,
-		.cell_height = 4,
-		.scaling_mode = ST_CONSOLE_SCALING_EXTERNAL,
-		.default_cursor = {
-			.start = 3, .end = 3, .range = 4,
-			.visible = true, .blink = false,
-		},
+	    .columns      = 3,
+	    .rows         = 1,
+	    .cell_width   = 2,
+	    .cell_height  = 4,
+	    .scaling_mode = ST_CONSOLE_SCALING_EXTERNAL,
+	    .default_cursor =
+		{
+				 .start   = 3,
+				 .end     = 3,
+				 .range   = 4,
+				 .visible = true,
+				 .blink   = false,
+				 },
 	};
 	struct st_console_bitmap_presenter *presenter = NULL;
-	struct st_console_bitmap_frame frame;
-	struct upload_log log = {0};
-	st_console_t *console = NULL;
-	uint16_t identifier;
-	const uint32_t colour = UINT32_C(0x010203);
+	struct st_console_bitmap_frame      frame;
+	struct upload_log                   log     = {0};
+	st_console_t                       *console = NULL;
+	uint16_t                            identifier;
+	const uint32_t                      colour = UINT32_C(0x010203);
 
 	CHECK(st_console_create(&console, &display_config, &config) == 0);
 	CHECK(st_console_register_static_font(console, &font, &identifier) == 0);
@@ -1057,16 +1100,14 @@ test_wide_glyph_cursor(void)
 	CHECK(st_console_put_codepoint(console, UINT32_C(0x4e00)) == 0);
 	CHECK(st_console_set_position(console, 0, 0) == 0);
 	CHECK(st_console_bitmap_presenter_create(&presenter, console) == 0);
-	CHECK(st_console_bitmap_presenter_frame(presenter, console, 6, 4,
-	    0, record_upload, &log, &frame) == 0);
+	CHECK(st_console_bitmap_presenter_frame(presenter, console, 6, 4, 0, record_upload, &log, &frame) == 0);
 	for (size_t x = 0; x < 4; ++x)
 		CHECK(frame.pixels->pixels[3 * 6 + x] == colour);
 	CHECK(frame.pixels->pixels[3 * 6 + 4] != colour);
 
 	/* A cursor placed on the continuation still covers the whole glyph. */
 	CHECK(st_console_set_position(console, 1, 0) == 0);
-	CHECK(st_console_bitmap_presenter_frame(presenter, console, 6, 4,
-	    0, record_upload, &log, &frame) == 0);
+	CHECK(st_console_bitmap_presenter_frame(presenter, console, 6, 4, 0, record_upload, &log, &frame) == 0);
 	for (size_t x = 0; x < 4; ++x)
 		CHECK(frame.pixels->pixels[3 * 6 + x] == colour);
 	CHECK(frame.pixels->pixels[3 * 6 + 4] != colour);
@@ -1075,8 +1116,7 @@ test_wide_glyph_cursor(void)
 	CHECK(st_console_set_position(console, 0, 0) == 0);
 	CHECK(st_console_put_codepoint(console, 'A') == 0);
 	CHECK(st_console_set_position(console, 0, 0) == 0);
-	CHECK(st_console_bitmap_presenter_frame(presenter, console, 6, 4,
-	    0, record_upload, &log, &frame) == 0);
+	CHECK(st_console_bitmap_presenter_frame(presenter, console, 6, 4, 0, record_upload, &log, &frame) == 0);
 	CHECK(frame.pixels->pixels[3 * 6] == colour);
 	CHECK(frame.pixels->pixels[3 * 6 + 1] == colour);
 	CHECK(frame.pixels->pixels[3 * 6 + 2] != colour);
@@ -1088,32 +1128,36 @@ test_wide_glyph_cursor(void)
 static void
 test_pixel_raster_cache(void)
 {
-	static const uint8_t bitmap[256] = {0};
-	const struct st_console_font font = {
-		.bitmap = bitmap,
-		.bitmap_size = sizeof(bitmap),
-		.width = 1,
-		.height = 1,
-		.glyph_count = 256,
-		.row_stride = 1,
-		.glyph_stride = 1,
+	static const uint8_t         bitmap[256] = {0};
+	const struct st_console_font font        = {
+	    .bitmap       = bitmap,
+	    .bitmap_size  = sizeof(bitmap),
+	    .width        = 1,
+	    .height       = 1,
+	    .glyph_count  = 256,
+	    .row_stride   = 1,
+	    .glyph_stride = 1,
 	};
 	const struct st_console_display_config display = {
-		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	    .backend = ST_CONSOLE_BACKEND_HEADLESS,
 	};
 	const struct st_console_config config = {
-		.columns = 2, .rows = 1,
-		.cell_width = 1, .cell_height = 1,
-		.pixel_width = 2, .pixel_height = 1,
+	    .columns      = 2,
+	    .rows         = 1,
+	    .cell_width   = 1,
+	    .cell_height  = 1,
+	    .pixel_width  = 2,
+	    .pixel_height = 1,
 	};
-	const struct st_console_rect cell_rect = {1, 0, 1, 1};
+	const struct st_console_rect cell_rect  = {1, 0, 1, 1};
 	const struct st_console_rect pixel_rect = {0, 0, 2, 1};
-	const struct st_console_cell cell = {
-		.glyph = ' ', .background = 4,
+	const struct st_console_cell cell       = {
+	    .glyph      = ' ',
+	    .background = 4,
 	};
-	struct st_pixel_buffer *pixels = NULL;
-	st_console_t *console = NULL;
-	uint16_t identifier;
+	struct st_pixel_buffer *pixels  = NULL;
+	st_console_t           *console = NULL;
+	uint16_t                identifier;
 
 	CHECK(st_console_create(&console, &display, &config) == 0);
 	CHECK(st_console_begin_update(console) == 0);
@@ -1124,8 +1168,7 @@ test_pixel_raster_cache(void)
 	CHECK(console->raster_current);
 	CHECK(st_console_set_pixel(console, 0, 0, 6) == 0);
 	CHECK(console->raster_current);
-	CHECK(st_console_write_complete_cells(console, &cell_rect,
-	    &cell, 1) == 0);
+	CHECK(st_console_write_complete_cells(console, &cell_rect, &cell, 1) == 0);
 	CHECK(!console->raster_current);
 	CHECK(st_console_set_pixel(console, 0, 0, 7) == 0);
 	CHECK(console->raster_current);
@@ -1140,31 +1183,51 @@ test_pixel_raster_cache(void)
 static void
 test_font_definition_snapshot(void)
 {
-	const struct st_console_display_config display={.backend=ST_CONSOLE_BACKEND_HEADLESS};
-	const struct st_console_config geometry={.columns=2,.rows=1,.cell_width=2,.cell_height=4};
-	st_console_t *source=NULL,*target=NULL;
-	CHECK(st_console_create(&source,&display,&geometry)==0 && st_console_create(&target,&display,&geometry)==0);
-	uint8_t pixels[8]={0,0,0,0,0x80,0x40,0x80,0x40};
-	const struct st_console_font_mapping map[]={{'Z',1}};
-	const struct st_console_font font={.bitmap=pixels,.bitmap_size=sizeof(pixels),.width=2,.height=4,
-	    .glyph_count=2,.row_stride=1,.glyph_stride=4,.mapping=map,.mapping_count=1,.fallback_glyph=0};
-	uint16_t id;CHECK(st_console_register_font_copy(source,&font,&id)==0);
-	struct st_console_font_snapshot *snapshot=NULL,*old=NULL;
-	CHECK(st_console_font_snapshot_create(&snapshot,source,id)==0);old=snapshot;
-	CHECK(st_console_font_snapshot_create(&snapshot,source,UINT16_MAX)==IO_ERROR_NOT_FOUND && snapshot==old);
-	uint16_t unchanged=123;
-	CHECK(st_console_font_snapshot_register(NULL,snapshot,&unchanged)==IO_ERROR_INVALID_ARGUMENT && unchanged==123);
-	st_console_destroy(source);for (size_t i=0;i<sizeof(pixels);i++) pixels[i]=0;
-	for (unsigned attempt=0;attempt<2;attempt++) {
-		uint16_t copy,glyph_font;uint32_t glyph;uint8_t columns;
-		CHECK(st_console_font_snapshot_register(target,snapshot,&copy)==0);
-		CHECK(st_console_font_lookup(target,copy,'Z',&glyph_font,&glyph,&columns)==0 && glyph==1);
-		CHECK(st_rwlock_read_lock(st_console_state_lock(target))==ST_THREAD_SUCCESS);
-		const struct st_console_font *restored=st_console_font_locked(target,copy);
-		CHECK(restored!=NULL && restored->bitmap[4]==0x80 && restored->bitmap[5]==0x40);
-		CHECK(st_rwlock_unlock(st_console_state_lock(target))==ST_THREAD_SUCCESS);
+	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_config geometry = {.columns = 2, .rows = 1, .cell_width = 2, .cell_height = 4};
+	st_console_t                  *source = NULL, *target = NULL;
+	CHECK(st_console_create(&source, &display, &geometry) == 0
+	      && st_console_create(&target, &display, &geometry) == 0);
+	uint8_t                              pixels[8] = {0, 0, 0, 0, 0x80, 0x40, 0x80, 0x40};
+	const struct st_console_font_mapping map[]     = {
+	    {'Z', 1}
+        };
+	const struct st_console_font font = {.bitmap = pixels,
+	    .bitmap_size                             = sizeof(pixels),
+	    .width                                   = 2,
+	    .height                                  = 4,
+	    .glyph_count                             = 2,
+	    .row_stride                              = 1,
+	    .glyph_stride                            = 4,
+	    .mapping                                 = map,
+	    .mapping_count                           = 1,
+	    .fallback_glyph                          = 0};
+	uint16_t                     id;
+	CHECK(st_console_register_font_copy(source, &font, &id) == 0);
+	struct st_console_font_snapshot *snapshot = NULL, *old = NULL;
+	CHECK(st_console_font_snapshot_create(&snapshot, source, id) == 0);
+	old = snapshot;
+	CHECK(st_console_font_snapshot_create(&snapshot, source, UINT16_MAX) == IO_ERROR_NOT_FOUND
+	      && snapshot == old);
+	uint16_t unchanged = 123;
+	CHECK(st_console_font_snapshot_register(NULL, snapshot, &unchanged) == IO_ERROR_INVALID_ARGUMENT
+	      && unchanged == 123);
+	st_console_destroy(source);
+	for (size_t i = 0; i < sizeof(pixels); i++)
+		pixels[i] = 0;
+	for (unsigned attempt = 0; attempt < 2; attempt++) {
+		uint16_t copy, glyph_font;
+		uint32_t glyph;
+		uint8_t  columns;
+		CHECK(st_console_font_snapshot_register(target, snapshot, &copy) == 0);
+		CHECK(st_console_font_lookup(target, copy, 'Z', &glyph_font, &glyph, &columns) == 0 && glyph == 1);
+		CHECK(st_rwlock_read_lock(st_console_state_lock(target)) == ST_THREAD_SUCCESS);
+		const struct st_console_font *restored = st_console_font_locked(target, copy);
+		CHECK(restored != NULL && restored->bitmap[4] == 0x80 && restored->bitmap[5] == 0x40);
+		CHECK(st_rwlock_unlock(st_console_state_lock(target)) == ST_THREAD_SUCCESS);
 	}
-	st_console_font_snapshot_destroy(snapshot);st_console_destroy(target);
+	st_console_font_snapshot_destroy(snapshot);
+	st_console_destroy(target);
 }
 
 int
@@ -1172,103 +1235,90 @@ main(void)
 {
 	test_font_definition_snapshot();
 	struct st_console_display_config config_display = {
-		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	    .backend = ST_CONSOLE_BACKEND_HEADLESS,
 	};
 	struct st_console_config config = {
-		.columns = 2,
-		.rows = 1,
-		.cell_width = 2,
-		.cell_height = 4,
-		.blink_mode = ST_CONSOLE_BLINK_PC,
-		.scaling_mode = ST_CONSOLE_SCALING_EXTERNAL,
-		.aspect_width = 4,
-		.aspect_height = 3,
+	    .columns       = 2,
+	    .rows          = 1,
+	    .cell_width    = 2,
+	    .cell_height   = 4,
+	    .blink_mode    = ST_CONSOLE_BLINK_PC,
+	    .scaling_mode  = ST_CONSOLE_SCALING_EXTERNAL,
+	    .aspect_width  = 4,
+	    .aspect_height = 3,
 	};
 	struct st_console_bitmap_presenter *presenter = NULL;
-	struct st_console_bitmap_frame frame;
-	struct upload_log log = {0};
-	struct st_console_custom_cursor cursor = {
-		.start = 1,
-		.end = 2,
-		.range = 4,
-		.visible = true,
-		.blink = false,
+	struct st_console_bitmap_frame      frame;
+	struct upload_log                   log    = {0};
+	struct st_console_custom_cursor     cursor = {
+	    .start   = 1,
+	    .end     = 2,
+	    .range   = 4,
+	    .visible = true,
+	    .blink   = false,
 	};
 	st_console_t *console = NULL;
-	uint32_t red = UINT32_C(0xff0000);
-	uint32_t blue = UINT32_C(0x0000ff);
-	uint32_t width;
-	uint32_t height;
-	double scaling;
-	uint64_t initial_generation;
-	const void *initial_identity;
+	uint32_t      red     = UINT32_C(0xff0000);
+	uint32_t      blue    = UINT32_C(0x0000ff);
+	uint32_t      width;
+	uint32_t      height;
+	double        scaling;
+	uint64_t      initial_generation;
+	const void   *initial_identity;
 
-	CHECK(st_console_aspect_correct_size(640, 400, 4, 3,
-	    &width, &height) == 0);
+	CHECK(st_console_aspect_correct_size(640, 400, 4, 3, &width, &height) == 0);
 	CHECK(width == 640 && height == 480);
-	CHECK(st_console_aspect_correct_size(640, 480, 4, 3,
-	    &width, &height) == 0);
+	CHECK(st_console_aspect_correct_size(640, 480, 4, 3, &width, &height) == 0);
 	CHECK(width == 640 && height == 480);
-	CHECK(st_console_aspect_correct_size(480, 500, 3077, 2400,
-	    &width, &height) == 0);
+	CHECK(st_console_aspect_correct_size(480, 500, 3077, 2400, &width, &height) == 0);
 	CHECK(width == 641 && height == 500);
-	CHECK(st_console_scaled_window_size(640, 400, 4, 3, 2.0,
-	    &width, &height) == 0);
+	CHECK(st_console_scaled_window_size(640, 400, 4, 3, 2.0, &width, &height) == 0);
 	CHECK(width == 1280 && height == 960);
-	CHECK(st_console_scaled_window_size(640, 400, 4, 3, 0.25,
-	    &width, &height) == 0);
+	CHECK(st_console_scaled_window_size(640, 400, 4, 3, 0.25, &width, &height) == 0);
 	CHECK(width == 640 && height == 480);
 
 	{
 		const struct st_console_bitmap_geometry geometry = {640, 400, 4, 3, false};
-		const struct st_console_bitmap_geometry prestel = {
-			480, 500, 3077, 2400, false};
+		const struct st_console_bitmap_geometry prestel  = {480, 500, 3077, 2400, false};
 
-		CHECK(st_console_bitmap_geometry_scaling(&geometry, 1280, 960,
-		    &scaling) == 0);
+		CHECK(st_console_bitmap_geometry_scaling(&geometry, 1280, 960, &scaling) == 0);
 		CHECK(scaling == 2.0);
-		CHECK(st_console_bitmap_geometry_scaling(&geometry, 1400, 960,
-		    &scaling) == 0);
+		CHECK(st_console_bitmap_geometry_scaling(&geometry, 1400, 960, &scaling) == 0);
 		CHECK(scaling == 2.0);
-		CHECK(st_console_bitmap_geometry_scaling(&geometry, 1280, 1000,
-		    &scaling) == 0);
+		CHECK(st_console_bitmap_geometry_scaling(&geometry, 1280, 1000, &scaling) == 0);
 		CHECK(scaling == 2.0);
-		CHECK(st_console_bitmap_geometry_scaling(&geometry, 800, 600,
-		    &scaling) == 0);
+		CHECK(st_console_bitmap_geometry_scaling(&geometry, 800, 600, &scaling) == 0);
 		CHECK(scaling == 1.25);
-		CHECK(st_console_bitmap_geometry_scaling(&prestel, 641, 500,
-		    &scaling) == 0);
+		CHECK(st_console_bitmap_geometry_scaling(&prestel, 641, 500, &scaling) == 0);
 		CHECK(scaling == 1.0);
-		CHECK(st_console_bitmap_geometry_scaling(&prestel, 801, 625,
-		    &scaling) == 0);
+		CHECK(st_console_bitmap_geometry_scaling(&prestel, 801, 625, &scaling) == 0);
 		CHECK(scaling == 1.25);
 		scaling = 17.0;
-		CHECK(st_console_bitmap_geometry_scaling(&geometry, 639, 480,
-		    &scaling) == IO_ERROR_OUT_OF_RANGE);
+		CHECK(st_console_bitmap_geometry_scaling(&geometry, 639, 480, &scaling) == IO_ERROR_OUT_OF_RANGE);
 		CHECK(scaling == 17.0);
 	}
 
 	{
 		struct st_console_bitmap_geometry previous = {640, 400, 4, 3, false};
-		struct st_console_bitmap_geometry next = {320, 200, 4, 3, false};
-		uint32_t minimum_width, minimum_height;
+		struct st_console_bitmap_geometry next     = {320, 200, 4, 3, false};
+		uint32_t                          minimum_width, minimum_height;
 
-		CHECK(st_console_preserve_geometry_scale(&previous, &next,
-		    1280, 960, &width, &height, &minimum_width,
-		    &minimum_height) == 0);
+		CHECK(st_console_preserve_geometry_scale(&previous, &next, 1280, 960, &width, &height,
+			  &minimum_width, &minimum_height)
+		      == 0);
 		CHECK(width == 640 && height == 480);
 		CHECK(minimum_width == 320 && minimum_height == 240);
 		/* The old aspect establishes scale; the new aspect shapes output. */
-		next.aspect_width = 0;
+		next.aspect_width  = 0;
 		next.aspect_height = 0;
-		CHECK(st_console_preserve_geometry_scale(&previous, &next,
-		    1280, 960, &width, &height, &minimum_width,
-		    &minimum_height) == 0);
+		CHECK(st_console_preserve_geometry_scale(&previous, &next, 1280, 960, &width, &height,
+			  &minimum_width, &minimum_height)
+		      == 0);
 		CHECK(width == 640 && height == 400);
 		CHECK(minimum_width == 320 && minimum_height == 200);
-		CHECK(st_console_preserve_geometry_scale(&next, &previous,
-		    width, height, &width, &height, &minimum_width,
-		    &minimum_height) == 0);
+		CHECK(st_console_preserve_geometry_scale(&next, &previous, width, height, &width, &height,
+			  &minimum_width, &minimum_height)
+		      == 0);
 		CHECK(width == 1280 && height == 960);
 	}
 
@@ -1277,14 +1327,14 @@ main(void)
 		uint32_t minimum_width;
 		uint32_t minimum_height;
 
-		const struct st_console_bitmap_geometry previous = {
-			console->pixels->width, console->pixels->height,
-			console->aspect_width, console->aspect_height, false};
-		const struct st_console_bitmap_geometry next = {
-			8, 8, console->aspect_width, console->aspect_height, false};
+		const struct st_console_bitmap_geometry previous = {console->pixels->width,
+		    console->pixels->height, console->aspect_width, console->aspect_height, false};
+		const struct st_console_bitmap_geometry next     = {8, 8, console->aspect_width,
+		    console->aspect_height, false};
 
-		CHECK(st_console_preserve_geometry_scale(&previous, &next, 10, 8,
-		    &width, &height, &minimum_width, &minimum_height) == 0);
+		CHECK(st_console_preserve_geometry_scale(&previous, &next, 10, 8, &width, &height, &minimum_width,
+			  &minimum_height)
+		      == 0);
 		CHECK(minimum_width == 11 && minimum_height == 8);
 		CHECK(width == 21 && height == 16);
 	}
@@ -1292,25 +1342,24 @@ main(void)
 	st_console_cell_at(console, 0)->flags |= ST_CONSOLE_CELL_BLINK;
 	console->cursor_visible = false;
 	CHECK(st_console_bitmap_presenter_create(&presenter, console) == 0);
-	CHECK(st_console_bitmap_presenter_frame(presenter, console, 100, 100,
-	    1000, record_upload, &log, &frame) == 0);
+	CHECK(st_console_bitmap_presenter_frame(presenter, console, 100, 100, 1000, record_upload, &log, &frame)
+	      == 0);
 	CHECK(log.calls == 1);
 	CHECK(log.rectangle.width == 4 && log.rectangle.height == 4);
 	CHECK(frame.destination.x == 0 && frame.destination.y == 12);
 	CHECK(frame.destination.width == 100 && frame.destination.height == 75);
 	CHECK(frame.pixels->pixels[0] == red);
 	initial_generation = frame.generation;
-	initial_identity = frame.image_identity;
+	initial_identity   = frame.image_identity;
 
 	/* An undersized host clips; it never scales below the source raster. */
-	CHECK(st_console_bitmap_presenter_frame(presenter, console, 4, 4,
-	    1000, record_upload, &log, &frame) == 0);
+	CHECK(st_console_bitmap_presenter_frame(presenter, console, 4, 4, 1000, record_upload, &log, &frame) == 0);
 	CHECK(frame.destination.x == 0 && frame.destination.y == 0);
 	CHECK(frame.destination.width == 5 && frame.destination.height == 4);
 
 	log.calls = 0;
-	CHECK(st_console_bitmap_presenter_frame(presenter, NULL, 100, 100,
-	    1266, record_upload, &log, &frame) == 0);
+	CHECK(
+	    st_console_bitmap_presenter_frame(presenter, NULL, 100, 100, 1266, record_upload, &log, &frame) == 0);
 	CHECK(log.calls == 1 && frame.changed);
 	CHECK(frame.pixels->pixels[0] == blue);
 	CHECK(frame.generation == initial_generation);
@@ -1321,21 +1370,21 @@ main(void)
 	st_console_cell_at(console, 0)->flags &= ~ST_CONSOLE_CELL_DIRTY;
 	st_console_cell_at(console, 1)->flags |= ST_CONSOLE_CELL_DIRTY;
 	log.calls = 0;
-	CHECK(st_console_bitmap_presenter_frame(presenter, console, 100, 100,
-	    1266, record_upload, &log, &frame) == 0);
+	CHECK(st_console_bitmap_presenter_frame(presenter, console, 100, 100, 1266, record_upload, &log, &frame)
+	      == 0);
 	CHECK(log.calls == 1);
 	CHECK(log.rectangle.x == 2 && log.rectangle.y == 0);
 	CHECK(log.rectangle.width == 2 && log.rectangle.height == 4);
 
 	/* Custom cursor scan lines are composed into the native frame. */
 	st_console_cell_at(console, 1)->flags &= ~ST_CONSOLE_CELL_DIRTY;
-	console->cursor_x = 1;
-	console->cursor_y = 0;
-	console->cursor_custom = true;
-	console->custom_cursor = cursor;
+	console->cursor_x         = 1;
+	console->cursor_y         = 0;
+	console->cursor_custom    = true;
+	console->custom_cursor    = cursor;
 	console->style.foreground = ST_CONSOLE_COLOR_RGB_VALUE(1, 2, 3);
-	CHECK(st_console_bitmap_presenter_frame(presenter, console, 100, 100,
-	    1266, record_upload, &log, &frame) == 0);
+	CHECK(st_console_bitmap_presenter_frame(presenter, console, 100, 100, 1266, record_upload, &log, &frame)
+	      == 0);
 	CHECK(frame.pixels->pixels[2] != UINT32_C(0x010203));
 	CHECK(frame.pixels->pixels[6] == UINT32_C(0x010203));
 	CHECK(frame.pixels->pixels[10] == UINT32_C(0x010203));
@@ -1343,21 +1392,20 @@ main(void)
 
 	/* Software scaling produces the aspect-fitted final texture. */
 	console->scaling_mode = ST_CONSOLE_SCALING_INTERNAL;
-	log.calls = 0;
-	CHECK(st_console_bitmap_presenter_frame(presenter, console, 10, 10,
-	    1266, record_upload, &log, &frame) == 0);
+	log.calls             = 0;
+	CHECK(
+	    st_console_bitmap_presenter_frame(presenter, console, 10, 10, 1266, record_upload, &log, &frame) == 0);
 	CHECK(log.calls == 1);
 	CHECK(frame.pixels->width == 10 && frame.pixels->height == 8);
 	CHECK(frame.destination.x == 0 && frame.destination.y == 1);
 	CHECK(frame.destination.width == 10 && frame.destination.height == 8);
 
 	/* Internal blocky scaling preserves a dirty cell as scaled damage. */
-	console->pixels->alternate[0] = ST_PIXEL_COLOR_RGB_VALUE(0x12, 0x34,
-	    0x56);
+	console->pixels->alternate[0] = ST_PIXEL_COLOR_RGB_VALUE(0x12, 0x34, 0x56);
 	st_console_cell_at(console, 0)->flags |= ST_CONSOLE_CELL_DIRTY;
 	log.calls = 0;
-	CHECK(st_console_bitmap_presenter_frame(presenter, console, 10, 10,
-	    1266, record_upload, &log, &frame) == 0);
+	CHECK(
+	    st_console_bitmap_presenter_frame(presenter, console, 10, 10, 1266, record_upload, &log, &frame) == 0);
 	CHECK(log.calls == 1);
 	CHECK(log.rectangle.width < frame.pixels->width);
 	CHECK(log.rectangle.height == frame.pixels->height);
@@ -1366,14 +1414,13 @@ main(void)
 	console->scaling_mode = ST_CONSOLE_SCALING_EXTERNAL;
 	CHECK(st_console_bitmap_presenter_create(&presenter, console) == 0);
 	st_console_bitmap_presenter_set_external_scaling_available(presenter, false);
-	CHECK(st_console_bitmap_presenter_frame(presenter, console, 10, 10,
-	    1266, record_upload, &log, &frame) == 0);
+	CHECK(
+	    st_console_bitmap_presenter_frame(presenter, console, 10, 10, 1266, record_upload, &log, &frame) == 0);
 	CHECK(frame.scaling_mode == ST_CONSOLE_SCALING_INTERNAL);
 	CHECK(frame.pixels->width == 10 && frame.pixels->height == 8);
 	CHECK(console->scaling_mode == ST_CONSOLE_SCALING_EXTERNAL);
 	/* Timer-only frames retain the effective mode, not the unavailable request. */
-	CHECK(st_console_bitmap_presenter_frame(presenter, NULL, 10, 10,
-	    1266, record_upload, &log, &frame) == 0);
+	CHECK(st_console_bitmap_presenter_frame(presenter, NULL, 10, 10, 1266, record_upload, &log, &frame) == 0);
 	CHECK(!frame.changed);
 	st_console_bitmap_presenter_destroy(presenter);
 	st_console_destroy(console);

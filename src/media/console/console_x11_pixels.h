@@ -4,21 +4,20 @@
 #ifndef ST_CONSOLE_X11_PIXELS_H_
 #define ST_CONSOLE_X11_PIXELS_H_
 
+#include <X11/Xlib.h>
+
 #include "st_console.h"
 #include "st_pixels.h"
-#include <X11/Xlib.h>
 
 struct st_x11_pixel_writer {
 	unsigned long red[256], green[256], blue[256];
-	int bytes;
-	bool little;
-	bool copy;
+	int           bytes;
+	bool          little;
+	bool          copy;
 };
 
-void st_x11_pixel_writer_init(struct st_x11_pixel_writer *writer,
-	const XImage *image);
-void st_x11_pixel_writer_upload(const struct st_x11_pixel_writer *writer,
-	XImage *image, const struct st_rgb_buffer *pixels,
-	const struct st_console_rect *rectangle);
+void st_x11_pixel_writer_init(struct st_x11_pixel_writer *writer, const XImage *image);
+void st_x11_pixel_writer_upload(const struct st_x11_pixel_writer *writer, XImage *image,
+    const struct st_rgb_buffer *pixels, const struct st_console_rect *rectangle);
 
 #endif

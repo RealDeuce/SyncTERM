@@ -2,23 +2,22 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "st_session_history.h"
-
-#include "io_error.h"
-#include "st_threads.h"
-
 #include <stdlib.h>
 #include <string.h>
 
+#include "io_error.h"
+#include "st_session_history.h"
+#include "st_threads.h"
+
 struct st_session_history {
-	struct st_console_cell *cells;
+	struct st_console_cell  *cells;
 	struct st_pixel_buffer **pixels;
-	size_t capacity;
-	size_t lines;
-	uint32_t width;
-	enum st_screen_mode mode;
-	bool has_status;
-	st_mutex_t mutex;
+	size_t                   capacity;
+	size_t                   lines;
+	uint32_t                 width;
+	enum st_screen_mode      mode;
+	bool                     has_status;
+	st_mutex_t               mutex;
 };
 
 void
@@ -33,8 +32,7 @@ st_history_free_pixels(struct st_pixel_buffer **pixels, size_t lines)
 
 int
 st_history_capture_pixels(struct st_pixel_buffer **result, st_console_t *console,
-	const struct st_console_cell *cells, uint32_t columns,
-	const struct st_console_rect *pixels)
+    const struct st_console_cell *cells, uint32_t columns, const struct st_console_rect *pixels)
 {
 	if (result == NULL || console == NULL || cells == NULL || columns == 0 || pixels == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -45,13 +43,13 @@ st_history_capture_pixels(struct st_pixel_buffer **result, st_console_t *console
 		*result = NULL;
 		return 0;
 	}
-	struct st_pixel_buffer *copy = NULL;
-	int status = st_console_get_pixels(&copy, console, pixels, false);
+	struct st_pixel_buffer *copy   = NULL;
+	int                     status = st_console_get_pixels(&copy, console, pixels, false);
 	if (status != 0)
 		return status;
-	size_t count = (size_t)copy->width * copy->height;
+	size_t   count   = (size_t)copy->width * copy->height;
 	uint32_t maximum = 0;
-	bool indexed = false;
+	bool     indexed = false;
 	for (size_t i = 0; i < count; ++i) {
 		uint32_t colours[2] = {copy->primary[i], copy->alternate[i]};
 		for (unsigned plane = 0; plane < 2; ++plane) {
@@ -68,8 +66,9 @@ st_history_capture_pixels(struct st_pixel_buffer **result, st_console_t *console
 			status = IO_ERROR_INVALID_ARGUMENT;
 		else {
 			palette = malloc(((size_t)maximum + 1) * sizeof(*palette));
-			status = palette == NULL ? IO_ERROR_OUT_OF_MEMORY
-				: st_console_get_palette(console, 0, palette, (size_t)maximum + 1);
+			status  = palette == NULL
+			              ? IO_ERROR_OUT_OF_MEMORY
+			              : st_console_get_palette(console, 0, palette, (size_t)maximum + 1);
 		}
 	}
 	if (status == 0) {
@@ -92,27 +91,25 @@ st_history_capture_pixels(struct st_pixel_buffer **result, st_console_t *console
 }
 
 int
-st_history_resize_pixels(struct st_pixel_buffer **result,
-	const struct st_pixel_buffer *source, uint32_t source_columns,
-	uint32_t columns, uint32_t cell_width, uint32_t cell_height)
+st_history_resize_pixels(struct st_pixel_buffer **result, const struct st_pixel_buffer *source,
+    uint32_t source_columns, uint32_t columns, uint32_t cell_width, uint32_t cell_height)
 {
-	if (result == NULL || source == NULL || source_columns == 0 || columns == 0 ||
-		cell_width == 0 || cell_height == 0 || source->width % source_columns != 0 ||
-		source->width / source_columns == 0 || columns > UINT32_MAX / cell_width)
+	if (result == NULL || source == NULL || source_columns == 0 || columns == 0 || cell_width == 0
+	    || cell_height == 0 || source->width % source_columns != 0 || source->width / source_columns == 0
+	    || columns > UINT32_MAX / cell_width)
 		return IO_ERROR_INVALID_ARGUMENT;
 	struct st_pixel_buffer *copy = NULL;
-	int status = st_pixel_buffer_create(&copy, columns * cell_width, cell_height,
-		source->alternate != NULL);
+	int status = st_pixel_buffer_create(&copy, columns * cell_width, cell_height, source->alternate != NULL);
 	if (status != 0)
 		return status;
 	st_pixel_buffer_fill(copy, ST_PIXEL_COLOR_RGB_TAG, ST_PIXEL_COLOR_RGB_TAG);
 	uint32_t old_width = source->width / source_columns;
-	uint32_t retained = columns < source_columns ? columns : source_columns;
+	uint32_t retained  = columns < source_columns ? columns : source_columns;
 	for (uint32_t y = 0; y < cell_height; ++y) {
 		size_t sy = (size_t)((uint64_t)y * source->height / cell_height) * source->width;
 		for (uint32_t x = 0; x < retained * cell_width; ++x) {
-			size_t from = sy + (size_t)((uint64_t)x * old_width / cell_width);
-			size_t to = (size_t)y * copy->width + x;
+			size_t from       = sy + (size_t)((uint64_t)x * old_width / cell_width);
+			size_t to         = (size_t)y * copy->width + x;
 			copy->primary[to] = source->primary[from];
 			if (copy->alternate != NULL)
 				copy->alternate[to] = source->alternate[from];
@@ -146,7 +143,7 @@ st_session_history_create(st_session_history_t **result, size_t line_capacity)
 		return IO_ERROR_IO;
 	}
 	history->capacity = line_capacity;
-	*result = history;
+	*result           = history;
 	return 0;
 }
 
@@ -162,8 +159,7 @@ st_session_history_destroy(st_session_history_t *history)
 }
 
 int
-st_session_history_set_capacity(st_session_history_t *history,
-	size_t line_capacity)
+st_session_history_set_capacity(st_session_history_t *history, size_t line_capacity)
 {
 	size_t retained;
 	size_t count;
@@ -178,14 +174,13 @@ st_session_history_set_capacity(st_session_history_t *history,
 		return IO_ERROR_OUT_OF_RANGE;
 	}
 	if (count != 0 && retained != history->lines)
-		memmove(history->cells,
-		    history->cells + (history->lines - retained) * history->width,
+		memmove(history->cells, history->cells + (history->lines - retained) * history->width,
 		    count * sizeof(*history->cells));
 	if (history->pixels != NULL) {
 		for (size_t row = 0; row < history->lines - retained; ++row)
 			st_pixel_buffer_destroy(history->pixels[row]);
 		memmove(history->pixels, history->pixels + history->lines - retained,
-			retained * sizeof(*history->pixels));
+		    retained * sizeof(*history->pixels));
 		if (retained == 0) {
 			free(history->pixels);
 			history->pixels = NULL;
@@ -196,7 +191,7 @@ st_session_history_set_capacity(st_session_history_t *history,
 		history->cells = NULL;
 	}
 	history->capacity = line_capacity;
-	history->lines = retained;
+	history->lines    = retained;
 	if (retained == 0)
 		history->width = 0;
 	(void)st_mutex_unlock(&history->mutex);
@@ -216,13 +211,12 @@ st_session_history_capacity(st_session_history_t *history)
 }
 
 int
-st_session_history_publish(st_session_history_t *history,
-	const struct st_console_cell *cells, uint32_t width, size_t lines,
-	enum st_screen_mode mode, bool has_status, struct st_pixel_buffer **pixels)
+st_session_history_publish(st_session_history_t *history, const struct st_console_cell *cells, uint32_t width,
+    size_t lines, enum st_screen_mode mode, bool has_status, struct st_pixel_buffer **pixels)
 {
 	struct st_console_cell *copy = NULL;
-	size_t retained;
-	size_t count;
+	size_t                  retained;
+	size_t                  count;
 
 	if (history == NULL || width == 0 || (lines != 0 && cells == NULL))
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -239,8 +233,7 @@ st_session_history_publish(st_session_history_t *history,
 			(void)st_mutex_unlock(&history->mutex);
 			return IO_ERROR_OUT_OF_MEMORY;
 		}
-		memcpy(copy, cells + (lines - retained) * width,
-		    count * sizeof(*copy));
+		memcpy(copy, cells + (lines - retained) * width, count * sizeof(*copy));
 	}
 	free(history->cells);
 	st_history_free_pixels(history->pixels, history->lines);
@@ -253,11 +246,11 @@ st_session_history_publish(st_session_history_t *history,
 			pixels = NULL;
 		}
 	}
-	history->cells = copy;
-	history->pixels = pixels;
-	history->width = retained == 0 ? 0 : width;
-	history->lines = retained;
-	history->mode = mode;
+	history->cells      = copy;
+	history->pixels     = pixels;
+	history->width      = retained == 0 ? 0 : width;
+	history->lines      = retained;
+	history->mode       = mode;
 	history->has_status = has_status;
 	(void)st_mutex_unlock(&history->mutex);
 	return 0;
@@ -271,22 +264,21 @@ st_session_history_clear(st_session_history_t *history)
 	free(history->cells);
 	st_history_free_pixels(history->pixels, history->lines);
 	history->pixels = NULL;
-	history->cells = NULL;
-	history->width = 0;
-	history->lines = 0;
+	history->cells  = NULL;
+	history->width  = 0;
+	history->lines  = 0;
 	(void)st_mutex_unlock(&history->mutex);
 }
 
 int
-st_session_history_copy(st_session_history_t *history,
-	struct st_console_cell **cells, uint32_t *width, size_t *lines,
-	enum st_screen_mode *mode, bool *has_status)
+st_session_history_copy(st_session_history_t *history, struct st_console_cell **cells, uint32_t *width,
+    size_t *lines, enum st_screen_mode *mode, bool *has_status)
 {
 	struct st_console_cell *copy;
-	size_t count;
+	size_t                  count;
 
-	if (history == NULL || cells == NULL || width == NULL || lines == NULL
-	    || mode == NULL || has_status == NULL)
+	if (history == NULL || cells == NULL || width == NULL || lines == NULL || mode == NULL
+	    || has_status == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (st_mutex_lock(&history->mutex) != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
@@ -304,18 +296,17 @@ st_session_history_copy(st_session_history_t *history,
 		return IO_ERROR_OUT_OF_MEMORY;
 	}
 	memcpy(copy, history->cells, count * sizeof(*copy));
-	*cells = copy;
-	*width = history->width;
-	*lines = history->lines;
-	*mode = history->mode;
+	*cells      = copy;
+	*width      = history->width;
+	*lines      = history->lines;
+	*mode       = history->mode;
 	*has_status = history->has_status;
 	(void)st_mutex_unlock(&history->mutex);
 	return 0;
 }
 
 int
-st_session_history_copy_pixels(st_session_history_t *history, size_t row,
-	struct st_pixel_buffer **result)
+st_session_history_copy_pixels(st_session_history_t *history, size_t row, struct st_pixel_buffer **result)
 {
 	if (history == NULL || result == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -333,11 +324,10 @@ st_session_history_copy_pixels(st_session_history_t *history, size_t row,
 }
 
 int
-st_session_history_info(st_session_history_t *history, uint32_t *width,
-	size_t *lines, enum st_screen_mode *mode, bool *has_status)
+st_session_history_info(st_session_history_t *history, uint32_t *width, size_t *lines, enum st_screen_mode *mode,
+    bool *has_status)
 {
-	if (history == NULL || width == NULL || lines == NULL || mode == NULL
-	    || has_status == NULL)
+	if (history == NULL || width == NULL || lines == NULL || mode == NULL || has_status == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (st_mutex_lock(&history->mutex) != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
@@ -345,9 +335,9 @@ st_session_history_info(st_session_history_t *history, uint32_t *width,
 		(void)st_mutex_unlock(&history->mutex);
 		return IO_ERROR_NOT_FOUND;
 	}
-	*width = history->width;
-	*lines = history->lines;
-	*mode = history->mode;
+	*width      = history->width;
+	*lines      = history->lines;
+	*mode       = history->mode;
 	*has_status = history->has_status;
 	(void)st_mutex_unlock(&history->mutex);
 	return 0;

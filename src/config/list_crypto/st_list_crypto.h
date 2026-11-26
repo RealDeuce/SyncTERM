@@ -8,12 +8,12 @@
 #ifndef ST_LIST_CRYPTO_H_
 #define ST_LIST_CRYPTO_H_
 
-#include "ini.h"
-
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
+
+#include "ini.h"
 
 enum st_list_crypto_format {
 	ST_LIST_CRYPTO_PLAIN,
@@ -40,26 +40,25 @@ enum st_list_kdf {
 
 struct st_list_crypto_info {
 	enum st_list_crypto_format format;
-	enum st_list_cipher cipher;
-	enum st_list_kdf kdf;
-	uint32_t key_bits;
-	uint64_t iterations;
-	uint8_t cost_log2;
-	uint32_t block_size;
-	uint32_t parallelism;
-	bool rewrite_recommended;
+	enum st_list_cipher        cipher;
+	enum st_list_kdf           kdf;
+	uint32_t                   key_bits;
+	uint64_t                   iterations;
+	uint8_t                    cost_log2;
+	uint32_t                   block_size;
+	uint32_t                   parallelism;
+	bool                       rewrite_recommended;
 };
 
 struct st_list_crypto_options {
 	enum st_list_cipher cipher;
-	uint32_t key_bits;
-	uint8_t cost_log2;
-	uint32_t block_size;
-	uint32_t parallelism;
+	uint32_t            key_bits;
+	uint8_t             cost_log2;
+	uint32_t            block_size;
+	uint32_t            parallelism;
 };
 
-#define ST_LIST_CRYPTO_OPTIONS_AES256 \
-	{ ST_LIST_CIPHER_AES, 256, 15, 8, 1 }
+#define ST_LIST_CRYPTO_OPTIONS_AES256 {ST_LIST_CIPHER_AES, 256, 15, 8, 1}
 
 /* True when the selected crypto provider can write encrypted lists. */
 bool st_list_crypto_encryption_available(void);
@@ -78,9 +77,8 @@ int st_list_crypto_inspect(FILE *stream, struct st_list_crypto_info *info);
  * report IO_ERROR_DECRYPTION_FAILED. The legacy format is not authenticated;
  * the marker detects ordinary wrong-password and corruption cases only.
  */
-int st_list_crypto_read(ini_document_t **result, FILE *stream,
-	const void *password, size_t password_size, uint64_t v1_iterations,
-	struct st_list_crypto_info *info);
+int st_list_crypto_read(ini_document_t **result, FILE *stream, const void *password, size_t password_size,
+    uint64_t v1_iterations, struct st_list_crypto_info *info);
 
 /*
  * ST_LIST_CIPHER_NONE writes ordinary INI and ignores password/KDF fields.
@@ -90,7 +88,6 @@ int st_list_crypto_read(ini_document_t **result, FILE *stream,
  * replacement.
  */
 int st_list_crypto_write(FILE *stream, const ini_document_t *document,
-	const struct st_list_crypto_options *options,
-	const void *password, size_t password_size);
+    const struct st_list_crypto_options *options, const void *password, size_t password_size);
 
 #endif

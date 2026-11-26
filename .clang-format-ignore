@@ -1,0 +1,14 @@
+# Generated tables and embedded asset data.
+src/media/fonts/generated/**
+src/media/fonts/st_builtin_font_data.c
+src/media/unifont/generated/**
+src/scripting/wren_vm/**/*.wren.inc
+src/st_syncterm_icon.c
+src/terminal/cterm/cterm_igs_fonts.c
+src/terminal/cterm/tests/data/**
+src/terminal/igs/tests/gist_vectors.h
+src/terminal/ooii/ooii_sounds.c
+src/text/*/generated/**
+
+# CMake templates contain @variable@ substitutions.
+**/*.h.in

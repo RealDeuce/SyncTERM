@@ -2,11 +2,12 @@
 #ifndef ST_RIP3_HOST_VARIABLES_H_
 #define ST_RIP3_HOST_VARIABLES_H_
 
-#include "st_codepage.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <time.h>
+
+#include "st_codepage.h"
 
 struct st_rip3_features;
 struct st_rip3_frame;
@@ -24,7 +25,7 @@ struct st_rip3_builtin_reference;
 struct st_rip3_tones;
 
 enum {
-	ST_RIP3_HOST_DIRECTORY_LIMIT = 12,
+	ST_RIP3_HOST_DIRECTORY_LIMIT    = 12,
 	ST_RIP3_HOST_DIRECTORY_CAPACITY = 4 * ST_RIP3_HOST_DIRECTORY_LIMIT + 1,
 };
 
@@ -32,10 +33,10 @@ enum {
  * (empty when unset). select receives a validated name that lives only for the
  * call. An empty name clears selection. create still applies to the root. */
 struct st_rip3_host_directory {
-	void *context;
+	void       *context;
 	const char *(*current)(void *context);
-	int (*select)(void *context, const char *name, bool create);
-	int (*file_exists)(void *context, const char *name, bool *present);
+	int         (*select)(void *context, const char *name, bool create);
+	int         (*file_exists)(void *context, const char *name, bool *present);
 	/* FILEDEL attempts each parsed filename without reporting a result. */
 	void (*remove_file)(void *context, const char *name);
 };
@@ -61,12 +62,12 @@ struct st_rip3_random {
  * are explicitly unsupported, never assumed to exist. No lifetime ownership
  * or terminal/application integration is implied by assembling these bindings. */
 struct st_rip3_host_variables {
-	const struct st_rip3_features *features;
+	const struct st_rip3_features          *features;
 	const struct st_rip3_terminal_identity *identity;
 	/* For port geometry queries the bound current ENV's live world frame takes
 	 * precedence. This snapshot is a fallback when no ENV service is bound;
 	 * its device canvas must match the queried PORT table. */
-	const struct st_rip3_frame *frame;
+	const struct st_rip3_frame      *frame;
 	const struct st_rip3_table_host *tables;
 	/* Borrowed live pixel limit, shared with bitmap allocation. */
 	const uint64_t *offscreen_pixel_budget;
@@ -74,8 +75,8 @@ struct st_rip3_host_variables {
 	 * Live sessions supply local_clock instead. Each valid clock reference
 	 * reads it once, including references reached after a delay. */
 	const struct tm *local_time;
-	void *clock_context;
-	bool (*local_clock)(void *context, struct tm *local);
+	void            *clock_context;
+	bool             (*local_clock)(void *context, struct tm *local);
 	/* Explicit zone override, with an empty string for an unknown zone.
 	 * When NULL, a live client uses the zone associated with local_clock. */
 	const char *time_zone;
@@ -85,7 +86,7 @@ struct st_rip3_host_variables {
 	/* The audio owner copies valid requests before returning. No service
 	 * means successful tone actions are silent. */
 	void *tones_context;
-	void (*tones)(void *context, const struct st_rip3_tones *);
+	void  (*tones)(void *context, const struct st_rip3_tones *);
 	/* RAND advances only this state, after validation and reply preparation. */
 	struct st_rip3_random *random;
 	/* Optional borrowed user-variable processor for the enclosing immediate
@@ -100,29 +101,27 @@ struct st_rip3_host_variables {
 	 * Missing values are unsupported, never invented from palette size or a
 	 * default keyboard/mouse state. The client owns their platform mechanism. */
 	const struct st_rip3_local_queries *local;
-	struct st_rip3_backspace *backspace;
+	struct st_rip3_backspace           *backspace;
 	/* Session setting, independent of screen saves and renderer availability. */
-	bool *status_bar;
-	void *status_bar_context;
-	void (*status_bar_changed)(void *context, bool enabled);
+	bool                                *status_bar;
+	void                                *status_bar_context;
+	void                                 (*status_bar_changed)(void *context, bool enabled);
 	const struct st_rip3_host_directory *directory;
-	void *transfer_context;
-	int (*transfer)(void *context, bool upload, unsigned protocol, unsigned type,
-		const char *filenames);
+	void                                *transfer_context;
+	int (*transfer)(void *context, bool upload, unsigned protocol, unsigned type, const char *filenames);
 	/* The session normalized one wire codepage byte per UTF-8 scalar. */
-	bool codepage_converted;
+	bool             codepage_converted;
 	enum st_codepage wire_codepage;
 	/* The text-window owner supplies activation with its protection/undefined
 	 * policy. Parameter lists are validated completely before any callback. */
 	const struct st_rip3_text_window_operations *text_windows;
-	struct st_rip3_mouse *mouse;
+	struct st_rip3_mouse                        *mouse;
 	/* Callback-scoped numeric snapshot. Logical field programs retain their
 	 * identity across interpreter yields; unrelated work never inherits it. */
 	const struct st_rip3_field_context *field_context;
-	struct st_rip3_refresh *refresh;
-	void *overflow_context;
-	int (*overflow)(void *context, const struct st_rip3_builtin_reference *,
-	    char *result, size_t capacity);
+	struct st_rip3_refresh             *refresh;
+	void                               *overflow_context;
+	int (*overflow)(void *context, const struct st_rip3_builtin_reference *, char *result, size_t capacity);
 };
 
 enum st_rip3_host_diagnostic {
@@ -195,6 +194,6 @@ struct st_rip3_host_sink {
  * belong to the future enclosing RIP parser. The sink may be NULL; callbacks
  * must not reenter or change the bound state during processing. */
 void st_rip3_host_variables_process(const struct st_rip3_host_variables *host,
-	const struct st_rip3_host_sink *sink, const uint8_t *text, size_t length);
+    const struct st_rip3_host_sink *sink, const uint8_t *text, size_t length);
 
 #endif

@@ -15,9 +15,10 @@
 #ifndef _CTERM_H_
 #define _CTERM_H_
 
-#include <stdio.h>	/* FILE* */
-#include <stdint.h>
 #include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h> /* FILE* */
+
 #include "cterm_render.h"
 #include "st_cterm.h"
 #include "st_music.h"
@@ -30,34 +31,34 @@
  * definition lives in cterm_internal.h; declared fully here because
  * struct cterminal embeds it as a field (needs sizeof). */
 enum seq_phase {
-	SEQ_PHASE_IDLE,		/* Not in a sequence */
-	SEQ_PHASE_C1,		/* After ESC: expecting Fe/Fs/Fp/intermediate */
-	SEQ_PHASE_PARAMS,	/* CSI: accumulating parameter bytes 0x30-0x3F */
-	SEQ_PHASE_INTERM,	/* CSI: accumulating intermediate bytes 0x20-0x2F */
-	SEQ_PHASE_COMPLETE	/* Final byte received -- ready for dispatch */
+	SEQ_PHASE_IDLE,    /* Not in a sequence */
+	SEQ_PHASE_C1,      /* After ESC: expecting Fe/Fs/Fp/intermediate */
+	SEQ_PHASE_PARAMS,  /* CSI: accumulating parameter bytes 0x30-0x3F */
+	SEQ_PHASE_INTERM,  /* CSI: accumulating intermediate bytes 0x20-0x2F */
+	SEQ_PHASE_COMPLETE /* Final byte received -- ready for dispatch */
 };
 
-struct seq_dispatch;	/* defined in cterm_internal.h */
+struct seq_dispatch; /* defined in cterm_internal.h */
 
 typedef enum {
-	 CTERM_MUSIC_NORMAL
-	,CTERM_MUSIC_LEGATO
-	,CTERM_MUSIC_STACATTO
+	CTERM_MUSIC_NORMAL,
+	CTERM_MUSIC_LEGATO,
+	CTERM_MUSIC_STACATTO
 } cterm_noteshape_t;
 
 typedef enum {
-	 CTERM_LOG_NONE
-	,CTERM_LOG_ASCII
-	,CTERM_LOG_RAW
+	CTERM_LOG_NONE,
+	CTERM_LOG_ASCII,
+	CTERM_LOG_RAW
 } cterm_log_t;
 
 typedef enum {
-	 CTERM_EMULATION_ANSI_BBS
-	,CTERM_EMULATION_PETASCII
-	,CTERM_EMULATION_ATASCII
-	,CTERM_EMULATION_PRESTEL
-	,CTERM_EMULATION_BEEB
-	,CTERM_EMULATION_ATARIST_VT52
+	CTERM_EMULATION_ANSI_BBS,
+	CTERM_EMULATION_PETASCII,
+	CTERM_EMULATION_ATASCII,
+	CTERM_EMULATION_PRESTEL,
+	CTERM_EMULATION_BEEB,
+	CTERM_EMULATION_ATARIST_VT52
 } cterm_emulation_t;
 
 typedef enum {
@@ -66,15 +67,15 @@ typedef enum {
 	CTERM_MUSIC_ENABLED
 } cterm_music_t;
 
-#define CTERM_LOG_MASK	0x7f
-#define CTERM_LOG_PAUSED	0x80
+#define CTERM_LOG_MASK   0x7f
+#define CTERM_LOG_PAUSED 0x80
 
-#define CTERM_NO_SETFONT_REQUESTED	99
-#define CTERM_PK_MAX_EVDEV	1024
+#define CTERM_NO_SETFONT_REQUESTED 99
+#define CTERM_PK_MAX_EVDEV         1024
 
 enum cterm_key_result {
 	CTERM_KEY_UNHANDLED = 0,
-	CTERM_KEY_HANDLED = 1
+	CTERM_KEY_HANDLED   = 1
 };
 
 enum prestel_prog_states {
@@ -86,7 +87,7 @@ enum prestel_prog_states {
 	PRESTEL_PROG_PROGRAM_BLOCK,
 };
 
-#define PRESTEL_MEM_SLOTS 7
+#define PRESTEL_MEM_SLOTS     7
 #define PRESTEL_MEM_SLOT_SIZE 16
 
 struct cterm_rip_engine;
@@ -98,273 +99,274 @@ struct cterm_apc_state;
 struct cterminal {
 	/* Rendering state */
 	struct cterm_render_state screen;
-	struct cterm_rip_engine *rip_engine;
-	struct cterm_skypix *skypix_engine;
-	struct cterm_igs *igs_engine;
-	struct cterm_big *big_engine;
+	struct cterm_rip_engine  *rip_engine;
+	struct cterm_skypix      *skypix_engine;
+	struct cterm_igs         *igs_engine;
+	struct cterm_big         *big_engine;
 	/* Explicit cursor placement can matter even within the same text cell. */
 	/* Explicit terminal positioning, excluding renderer cursor restoration. */
-	uint64_t cursor_position_changes;
+	uint64_t                    cursor_position_changes;
 	enum st_cterm_graphics_mode graphics_mode;
-	bool rip3_session_owner;
-	bool rip3_destructive_backspace;
-	void (*rip3_autosense)(void *context, uint16_t selector);
-	void *rip3_autosense_context;
-	int rip3_visible_cursor;
+	bool                        rip3_session_owner;
+	bool                        rip3_destructive_backspace;
+	void                        (*rip3_autosense)(void *context, uint16_t selector);
+	void                       *rip3_autosense_context;
+	int                         rip3_visible_cursor;
 	/* RIP3 ANSI records designations, but always displays the CP437 bank.
 	 * SI/SO do not invoke G1 in this profile. Values are ESC final bytes. */
-	uint8_t rip3_g0,rip3_g1;
-	enum st_cterm_rip3_window_action rip3_window_action;
+	uint8_t                             rip3_g0, rip3_g1;
+	enum st_cterm_rip3_window_action    rip3_window_action;
 	st_cterm_skypix_transfer_callback_t skypix_transfer;
-	void *skypix_transfer_context;
-	struct cterm_apc_state *apc;
-	const char *rip_directory;
-	st_cterm_rip_prompt_callback_t rip_prompt;
-	void *rip_prompt_context;
-	st_cterm_rip_choice_callback_t rip_choice;
-	void *rip_choice_context;
-	st_cterm_rip_transfer_callback_t rip_transfer;
-	void *rip_transfer_context;
-	bool rip_text_disabled;
-	int rip_text_font_style;
+	void                               *skypix_transfer_context;
+	struct cterm_apc_state             *apc;
+	const char                         *rip_directory;
+	st_cterm_rip_prompt_callback_t      rip_prompt;
+	void                               *rip_prompt_context;
+	st_cterm_rip_choice_callback_t      rip_choice;
+	void                               *rip_choice_context;
+	st_cterm_rip_transfer_callback_t    rip_transfer;
+	void                               *rip_transfer_context;
+	bool                                rip_text_disabled;
+	int                                 rip_text_font_style;
+
 	struct {
-		int x;
-		int y;
-		int left;
-		int top;
-		int right;
-		int bottom;
-		int font_style;
-		bool wrap;
-		bool disabled;
-		bool cursor_visible;
+		int                          x;
+		int                          y;
+		int                          left;
+		int                          top;
+		int                          right;
+		int                          bottom;
+		int                          font_style;
+		bool                         wrap;
+		bool                         disabled;
+		bool                         cursor_visible;
 		enum st_console_cursor_shape cursor_shape;
-		uint8_t attr;
-		uint32_t foreground;
-		uint32_t background;
+		uint8_t                      attr;
+		uint32_t                     foreground;
+		uint32_t                     background;
 	} rip_saved_text;
-	uint16_t rip_text_font_identifiers[6];
-	bool rip_text_font_registered[6];
-	enum st_cterm_encoding wire_encoding;
-	st_cterm_input_filter_t api_input_filter;
-	bool (*api_input_filter_active)(void *context);
-	void *api_input_filter_context;
-	bool api_input_filter_suppressed;
-	st_cterm_capture_t api_capture;
-	bool (*api_capture_active)(void *context);
-	void *api_capture_context;
-	int api_log_level;
-	st_cterm_log_callback_t api_diagnostic;
-	void *api_diagnostic_context;
+
+	uint16_t                   rip_text_font_identifiers[6];
+	bool                       rip_text_font_registered[6];
+	enum st_cterm_encoding     wire_encoding;
+	st_cterm_input_filter_t    api_input_filter;
+	bool                       (*api_input_filter_active)(void *context);
+	void                      *api_input_filter_context;
+	bool                       api_input_filter_suppressed;
+	st_cterm_capture_t         api_capture;
+	bool                       (*api_capture_active)(void *context);
+	void                      *api_capture_context;
+	int                        api_log_level;
+	st_cterm_log_callback_t    api_diagnostic;
+	void                      *api_diagnostic_context;
 	st_cterm_output_callback_t api_output;
-	void *api_output_context;
-	st_cterm_apc_callback_t api_apc;
-	void *api_apc_context;
-	st_cterm_size_callback_t api_size_changed;
-	void *api_size_context;
-	bool (*igs_loop_service_pending)(void *context);
-	void *igs_loop_service_context;
-	uint32_t (*api_speed_query)(void *context);
-	void (*api_speed_changed)(void *context, uint32_t bps);
-	void *api_speed_context;
-	uint16_t api_mouse_modes;
-	uint32_t api_mouse_buttons;
-	bool api_status_destroy_pending;
-	unsigned int input_depth;
-	struct cterminal *retired_status;
-	struct cterminal *retired_status_next;
-	uint32_t api_reserved_rows;
-	int	x;		// X position of the left side on the screen
-	int	y;		// Y position of the top pn the screen
-	int setfont_result;
-	int altfont[4];	// The font slots successfully assigned to the 4 alt-font styles/attributes
+	void                      *api_output_context;
+	st_cterm_apc_callback_t    api_apc;
+	void                      *api_apc_context;
+	st_cterm_size_callback_t   api_size_changed;
+	void                      *api_size_context;
+	bool                       (*igs_loop_service_pending)(void *context);
+	void                      *igs_loop_service_context;
+	uint32_t                   (*api_speed_query)(void *context);
+	void                       (*api_speed_changed)(void *context, uint32_t bps);
+	void                      *api_speed_context;
+	uint16_t                   api_mouse_modes;
+	uint32_t                   api_mouse_buttons;
+	bool                       api_status_destroy_pending;
+	unsigned int               input_depth;
+	struct cterminal          *retired_status;
+	struct cterminal          *retired_status_next;
+	uint32_t                   api_reserved_rows;
+	int                        x;   // X position of the left side on the screen
+	int                        y;   // Y position of the top pn the screen
+	int                        setfont_result;
+	int altfont[4];                 // The font slots successfully assigned to the 4 alt-font styles/attributes
 
 	/* emulation mode */
-	cterm_emulation_t	emulation;
-	int					height;			// Height of the terminal buffer
-	int					width;			// Width of the terminal buffer
-	int					top_margin;
-	int					bottom_margin;
-	int					left_margin;
-	int					right_margin;
-	int					quiet;			// No sounds are made
-	bool atari_st_key_clicks;
-	struct st_console_cell	*scrollback;
-	struct cterminal *history_display;
-	struct st_pixel_buffer **backpixels; /* Optional, owned pixel strip per ring slot. */
-	struct st_pixel_buffer *backpartial; /* RGB pixels not yet filling one history row. */
-	uint32_t backpartial_rows;
-	struct st_console_cell backpartial_cell;
-	int					backfilled;		// Number of lines copied into scrollback
-	int					backlines;		// Number of lines in scrollback
-	int					backwidth;		// Number of columns in scrollback
-	char				DA[1024];		// Device Attributes
-#define	CTERM_SAVEMODE_AUTOWRAP			0x001
-#define CTERM_SAVEMODE_CURSOR			0x002
-#define	CTERM_SAVEMODE_ALTCHARS			0x004
-#define CTERM_SAVEMODE_NOBRIGHT			0x008
-#define CTERM_SAVEMODE_BGBRIGHT			0x010
-#define CTERM_SAVEMODE_SIXEL_SCROLL		0x020
-#define CTERM_SAVEMODE_ORIGIN			0x040
-#define	CTERM_SAVEMODE_BLINKALTCHARS		0x080
-#define CTERM_SAVEMODE_NOBLINK			0x100
-#define CTERM_SAVEMODE_MOUSE_X10		0x200
-#define CTERM_SAVEMODE_MOUSE_NORMAL		0x400
-#define CTERM_SAVEMODE_MOUSE_HIGHLIGHT		0x500
-#define CTERM_SAVEMODE_MOUSE_BUTTONTRACK	0x1000
-#define CTERM_SAVEMODE_MOUSE_ANY		0x2000
-#define CTERM_SAVEMODE_MOUSE_FOCUS		0x4000
-#define CTERM_SAVEMODE_MOUSE_UTF8		0x8000
-#define CTERM_SAVEMODE_MOUSE_SGR		0x10000
-#define CTERM_SAVEMODE_MOUSE_ALTSCROLL		0x20000
-#define CTERM_SAVEMODE_MOUSE_URXVT		0x40000
-#define CTERM_SAVEMODE_MOUSE_SGR_PIXELS		0x200000
-#define CTERM_SAVEMODE_DECLRMM			0x80000
-#define CTERM_SAVEMODE_DECBKM                   0x100000
-	int32_t				saved_mode;
-	int32_t				saved_mode_mask;
+	cterm_emulation_t        emulation;
+	int                      height;   // Height of the terminal buffer
+	int                      width;    // Width of the terminal buffer
+	int                      top_margin;
+	int                      bottom_margin;
+	int                      left_margin;
+	int                      right_margin;
+	int                      quiet;   // No sounds are made
+	bool                     atari_st_key_clicks;
+	struct st_console_cell  *scrollback;
+	struct cterminal        *history_display;
+	struct st_pixel_buffer **backpixels;  /* Optional, owned pixel strip per ring slot. */
+	struct st_pixel_buffer  *backpartial; /* RGB pixels not yet filling one history row. */
+	uint32_t                 backpartial_rows;
+	struct st_console_cell   backpartial_cell;
+	int                      backfilled;   // Number of lines copied into scrollback
+	int                      backlines;    // Number of lines in scrollback
+	int                      backwidth;    // Number of columns in scrollback
+	char                     DA[1024];     // Device Attributes
+#define CTERM_SAVEMODE_AUTOWRAP          0x001
+#define CTERM_SAVEMODE_CURSOR            0x002
+#define CTERM_SAVEMODE_ALTCHARS          0x004
+#define CTERM_SAVEMODE_NOBRIGHT          0x008
+#define CTERM_SAVEMODE_BGBRIGHT          0x010
+#define CTERM_SAVEMODE_SIXEL_SCROLL      0x020
+#define CTERM_SAVEMODE_ORIGIN            0x040
+#define CTERM_SAVEMODE_BLINKALTCHARS     0x080
+#define CTERM_SAVEMODE_NOBLINK           0x100
+#define CTERM_SAVEMODE_MOUSE_X10         0x200
+#define CTERM_SAVEMODE_MOUSE_NORMAL      0x400
+#define CTERM_SAVEMODE_MOUSE_HIGHLIGHT   0x500
+#define CTERM_SAVEMODE_MOUSE_BUTTONTRACK 0x1000
+#define CTERM_SAVEMODE_MOUSE_ANY         0x2000
+#define CTERM_SAVEMODE_MOUSE_FOCUS       0x4000
+#define CTERM_SAVEMODE_MOUSE_UTF8        0x8000
+#define CTERM_SAVEMODE_MOUSE_SGR         0x10000
+#define CTERM_SAVEMODE_MOUSE_ALTSCROLL   0x20000
+#define CTERM_SAVEMODE_MOUSE_URXVT       0x40000
+#define CTERM_SAVEMODE_MOUSE_SGR_PIXELS  0x200000
+#define CTERM_SAVEMODE_DECLRMM           0x80000
+#define CTERM_SAVEMODE_DECBKM            0x100000
+	int32_t saved_mode;
+	int32_t saved_mode_mask;
 
 	/* emulation state */
-	int					started;		// Indicates that terminal output has started
-	bool					c64reversemode;	// Commodore 64 reverse mode state
-	bool negative;
-	bool lf_expand;
-	unsigned char		attr;			// Current attribute
+	int           started;          // Indicates that terminal output has started
+	bool          c64reversemode;   // Commodore 64 reverse mode state
+	bool          negative;
+	bool          lf_expand;
+	unsigned char attr;   // Current attribute
 	/* Native Atari console words; effective display colors remain indexed. */
-	uint16_t			vt52_foreground, vt52_background;
-	uint32_t			fg_color;
-	uint32_t			bg_color;
-	uint32_t			cell_flags;
-	uint32_t			default_fg_palette;
-	uint32_t			default_bg_palette;
-	unsigned int		extattr;		// Extended attributes
-#define CTERM_EXTATTR_AUTOWRAP		0x0001
-#define CTERM_EXTATTR_ORIGINMODE	0x0002
-#define CTERM_EXTATTR_SXSCROLL		0x0004
-#define CTERM_EXTATTR_DECLRMM		0x0008
-#define CTERM_EXTATTR_BRACKETPASTE      0x0010
-#define CTERM_EXTATTR_DECBKM            0x0020
-#define CTERM_EXTATTR_PRESTEL_MOSAIC	0x0040
+	uint16_t     vt52_foreground, vt52_background;
+	uint32_t     fg_color;
+	uint32_t     bg_color;
+	uint32_t     cell_flags;
+	uint32_t     default_fg_palette;
+	uint32_t     default_bg_palette;
+	unsigned int extattr;   // Extended attributes
+#define CTERM_EXTATTR_AUTOWRAP              0x0001
+#define CTERM_EXTATTR_ORIGINMODE            0x0002
+#define CTERM_EXTATTR_SXSCROLL              0x0004
+#define CTERM_EXTATTR_DECLRMM               0x0008
+#define CTERM_EXTATTR_BRACKETPASTE          0x0010
+#define CTERM_EXTATTR_DECBKM                0x0020
+#define CTERM_EXTATTR_PRESTEL_MOSAIC        0x0040
 #define CTERM_EXTATTR_PRESTEL_DOUBLE_HEIGHT 0x0080
-#define CTERM_EXTATTR_PRESTEL_CONCEAL	0x0100
-#define CTERM_EXTATTR_PRESTEL_SEPARATED	0x0200
-#define CTERM_EXTATTR_PRESTEL_HOLD	0x0400
-#define CTERM_EXTATTR_ALTERNATE_KEYPAD	0x0800
-#define CTERM_EXTATTR_KAM		0x1000
-	int					save_xpos;		// Saved position (for later restore)
-	int					save_ypos;
-	bool				vt52_cursor_saved;	// Atari IGS one-shot restore flag
-	uint16_t			vt52_cursor_hide_depth;
-	int					sequence;		// An escape sequence is being parsed
-	int					string;
-#define CTERM_STRING_APC	1
-#define CTERM_STRING_DCS	2
-#define CTERM_STRING_OSC	3
-#define CTERM_STRING_PM		4
-#define CTERM_STRING_SOS	5
-	char				*strbuf;
-	size_t				strbuflen;
-	size_t				strbufsize;
-	size_t				escbufsz;
-	char				escbuf[1024];
-	cterm_music_t		music_enable;	// The remotely/locally controled music state
-	char				musicbuf[1024];
-	int					music;			// ANSI music is being parsed
-	int					tempo;
-	int					octave;
-	int					notelen;
-	cterm_noteshape_t	noteshape;
-	int					musicfore;
-	audio_stream_t		*music_stream;
-	st_music_t		*music_player;
+#define CTERM_EXTATTR_PRESTEL_CONCEAL       0x0100
+#define CTERM_EXTATTR_PRESTEL_SEPARATED     0x0200
+#define CTERM_EXTATTR_PRESTEL_HOLD          0x0400
+#define CTERM_EXTATTR_ALTERNATE_KEYPAD      0x0800
+#define CTERM_EXTATTR_KAM                   0x1000
+	int      save_xpos;           // Saved position (for later restore)
+	int      save_ypos;
+	bool     vt52_cursor_saved;   // Atari IGS one-shot restore flag
+	uint16_t vt52_cursor_hide_depth;
+	int      sequence;            // An escape sequence is being parsed
+	int      string;
+#define CTERM_STRING_APC 1
+#define CTERM_STRING_DCS 2
+#define CTERM_STRING_OSC 3
+#define CTERM_STRING_PM  4
+#define CTERM_STRING_SOS 5
+	char                  *strbuf;
+	size_t                 strbuflen;
+	size_t                 strbufsize;
+	size_t                 escbufsz;
+	char                   escbuf[1024];
+	cterm_music_t          music_enable;   // The remotely/locally controled music state
+	char                   musicbuf[1024];
+	int                    music;          // ANSI music is being parsed
+	int                    tempo;
+	int                    octave;
+	int                    notelen;
+	cterm_noteshape_t      noteshape;
+	int                    musicfore;
+	audio_stream_t        *music_stream;
+	st_music_t            *music_player;
 	struct cterm_musicomm *musicomm;
-	audio_stream_t		*fx_stream;
-	int					backpos; // Position where new lines will be added
-	int					backstart; // First line of scrollback
-	int					xpos;
-	int					ypos;
-	cterm_log_t			log;
-	FILE*				logfile;
-	char				fontbuf[4097];	// Remote font
-	int					font_read;		// Current position in fontbuf
-	int					font_slot;
-	int					font_size;		// Bytes
-	int					doorway_mode;
-	int					doorway_char;	// Indicates next char is a "doorway" mode char
-	bool				pk_mode;
-	bool				suppress_translated_keys;
-	uint8_t				pk_reported[CTERM_PK_MAX_EVDEV / 8];
-	int					cursor;			// Current cursor mode (Normal or None)
-	int					cursor_style;	/* DECSCUSR 1..4, or 0 for the configured default. */
-	char				*fg_tc_str;
-	char				*bg_tc_str;
-	int					*tabs;
-	int					tab_count;
-	int tab_width;	/* Widest initialized tab range; retained across shrink. */
-	bool default_tabs;	/* Extend defaults on growth until TBC clears all. */
-	int					*vtabs;
-	int					vtab_count;
-	uint8_t decsace;	/* DECSACE: 0/2=rectangle, 1=stream */
-	int					decscs_speed;	/* Last DECSCS speed value (bps, 0=default) */
-	char               *last_text;
-	size_t              last_text_size;
-	uint32_t last_column_flag;
-#define CTERM_LCF_SET 1
+	audio_stream_t        *fx_stream;
+	int                    backpos;     // Position where new lines will be added
+	int                    backstart;   // First line of scrollback
+	int                    xpos;
+	int                    ypos;
+	cterm_log_t            log;
+	FILE                  *logfile;
+	char                   fontbuf[4097];   // Remote font
+	int                    font_read;       // Current position in fontbuf
+	int                    font_slot;
+	int                    font_size;       // Bytes
+	int                    doorway_mode;
+	int                    doorway_char;    // Indicates next char is a "doorway" mode char
+	bool                   pk_mode;
+	bool                   suppress_translated_keys;
+	uint8_t                pk_reported[CTERM_PK_MAX_EVDEV / 8];
+	int                    cursor;       // Current cursor mode (Normal or None)
+	int                    cursor_style; /* DECSCUSR 1..4, or 0 for the configured default. */
+	char                  *fg_tc_str;
+	char                  *bg_tc_str;
+	int                   *tabs;
+	int                    tab_count;
+	int                    tab_width;    /* Widest initialized tab range; retained across shrink. */
+	bool                   default_tabs; /* Extend defaults on growth until TBC clears all. */
+	int                   *vtabs;
+	int                    vtab_count;
+	uint8_t                decsace;      /* DECSACE: 0/2=rectangle, 1=stream */
+	int                    decscs_speed; /* Last DECSCS speed value (bps, 0=default) */
+	char                  *last_text;
+	size_t                 last_text_size;
+	uint32_t               last_column_flag;
+#define CTERM_LCF_SET     1
 #define CTERM_LCF_ENABLED 2
-#define CTERM_LCF_FORCED 4
+#define CTERM_LCF_FORCED  4
 
 	/* Sixel state */
-	int					sixel;			// Sixel status
-#define SIXEL_INACTIVE	0
-#define SIXEL_POSSIBLE	1
-#define SIXEL_STARTED	2
-	int					sx_iv;			// Vertical size
-	int					sx_ih;			// Horizontal size
-	int					sx_trans;		// "Transparent" background
-	int					sx_repeat;		// Repeat count
-	int					sx_left;		// Left margin (0-based pixel offset)
-	int					sx_x, sx_y;		// Current position
-	uint32_t			sx_fg, sx_bg;	// Current colour set
-	int					sx_pixels_sent;	/* If any pixels have been sent...
+	int sixel;   // Sixel status
+#define SIXEL_INACTIVE 0
+#define SIXEL_POSSIBLE 1
+#define SIXEL_STARTED  2
+	int                     sx_iv;            // Vertical size
+	int                     sx_ih;            // Horizontal size
+	int                     sx_trans;         // "Transparent" background
+	int                     sx_repeat;        // Repeat count
+	int                     sx_left;          // Left margin (0-based pixel offset)
+	int                     sx_x, sx_y;       // Current position
+	uint32_t                sx_fg, sx_bg;     // Current colour set
+	int                     sx_pixels_sent;   /* If any pixels have been sent...
 										   Raster Attributes are ignore if this is true. */
-	int					sx_first_pass;	// First pass through a line
-	int					sx_hold_update;	// hold_update value to restore on completion
-	int					sx_start_x;		// Starting X position
-	int					sx_start_y;		// Starting Y position
-	int					sx_row_max_x;	// Max right size of this sixel line
+	int                     sx_first_pass;    // First pass through a line
+	int                     sx_hold_update;   // hold_update value to restore on completion
+	int                     sx_start_x;       // Starting X position
+	int                     sx_start_y;       // Starting Y position
+	int                     sx_row_max_x;     // Max right size of this sixel line
 	struct st_pixel_buffer *sx_pixels;
-	int					sx_width;		// Width from raster attributes
-	int					sx_height;		// REMAINING height from raster attributes
-	struct st_pixel_mask	*sx_mask;
-	int					sx_orig_cursor;	// Original value of cterm->cursor
-
+	int                     sx_width;         // Width from raster attributes
+	int                     sx_height;        // REMAINING height from raster attributes
+	struct st_pixel_mask   *sx_mask;
+	int                     sx_orig_cursor;   // Original value of cterm->cursor
 
 	/* Mouse state change callback */
-	void (*mouse_state_change)(int parameter, int enable, void *cbdata);
+	void  (*mouse_state_change)(int parameter, int enable, void *cbdata);
 	void *mouse_state_change_cbdata;
-	void (*key_event_mode_change)(int enable, void *cbdata);
+	void  (*key_event_mode_change)(int enable, void *cbdata);
 	void *key_event_mode_change_cbdata;
-	int (*mouse_state_query)(int parameter, void *cbdata);
+	int   (*mouse_state_query)(int parameter, void *cbdata);
 	void *mouse_state_query_cbdata;
 
 	/* Macros */
-	char *macros[64];
-	size_t macro_lens[64];
+	char    *macros[64];
+	size_t   macro_lens[64];
 	uint64_t in_macro;
-	int macro;
-#define MACRO_INACTIVE	0
-#define MACRO_POSSIBLE	1
-#define MACRO_STARTED	2
+	int      macro;
+#define MACRO_INACTIVE 0
+#define MACRO_POSSIBLE 1
+#define MACRO_STARTED  2
 	int macro_num;
 	int macro_del;
-#define MACRO_DELETE_OLD	0
-#define MACRO_DELETE_ALL	1
+#define MACRO_DELETE_OLD 0
+#define MACRO_DELETE_ALL 1
 	int macro_encoding;
-#define MACRO_ENCODING_ASCII	0
-#define MACRO_ENCODING_HEX	1
+#define MACRO_ENCODING_ASCII 0
+#define MACRO_ENCODING_HEX   1
 
 	/* Alternate font renderer */
-	int skypix;
+	int     skypix;
 	uint8_t prestel_last_mosaic;
 
 	/* ATASCII inverse-video input mode, toggled by the backtick key.
@@ -372,14 +374,14 @@ struct cterminal {
 	bool atascii_inverse;
 
 	/* Per-entry palette override (survives cterm_reset) */
-	bool				has_palette_override;
-	bool yellow_is_yellow;
-	uint32_t			palette_override[16];	// 0x00RRGGBB
+	bool     has_palette_override;
+	bool     yellow_is_yellow;
+	uint32_t palette_override[16];   // 0x00RRGGBB
 
 	/* Prestel data */
-	char prestel_data[PRESTEL_MEM_SLOTS][PRESTEL_MEM_SLOT_SIZE];
+	char                     prestel_data[PRESTEL_MEM_SLOTS][PRESTEL_MEM_SLOT_SIZE];
 	enum prestel_prog_states prestel_prog_state;
-	uint8_t prestel_mem;
+	uint8_t                  prestel_mem;
 
 	/* Response callback — sends terminal AUTO-responses (DSR, DECRQM,
 	 * STS, etc., emitted by the parser in response to host queries)
@@ -393,9 +395,9 @@ struct cterminal {
 	 * delivering keystrokes the local user types into the spy.  If
 	 * NULL, encoded keystrokes are discarded.  When the same channel
 	 * carries both, set both fields to the same callback. */
-	void (*response_cb)(const char *buf, size_t len, void *cbdata);
+	void  (*response_cb)(const char *buf, size_t len, void *cbdata);
 	void *response_cbdata;
-	void (*keystroke_cb)(const char *buf, size_t len, void *cbdata);
+	void  (*keystroke_cb)(const char *buf, size_t len, void *cbdata);
 	void *keystroke_cbdata;
 
 	/* Status display (DECSSDT/DECSASD) state.  On the main cterm,
@@ -406,57 +408,53 @@ struct cterminal {
 	 * the main cterm and points at the owner on the sub.  Handlers for
 	 * status-display and terminal-global sequences bubble to the parent
 	 * so state lives on one instance. */
-	int                 status_display_type;
-	int                 status_display_active;
-	struct cterminal   *status_sub;
-	struct cterminal   *parent;
-	void              (*status_display_cb)(struct cterminal *cterm,
-	                                       int old_type, int new_type,
-	                                       void *cbdata);
-	void               *status_display_cbdata;
+	int               status_display_type;
+	int               status_display_active;
+	struct cterminal *status_sub;
+	struct cterminal *parent;
+	void              (*status_display_cb)(struct cterminal *cterm, int old_type, int new_type, void *cbdata);
+	void             *status_display_cbdata;
 
 	/* Fires when the terminal's visible dimensions change post-init
 	 * (e.g. DECSSDT toggling the status row).  text_cols/text_rows
 	 * are the new cell count; pixel_cols/pixel_rows are the pixel
 	 * dimensions read from vstat, or -1 when pixel support is
 	 * unavailable for the current mode. */
-	void              (*size_change_cb)(struct cterminal *cterm,
-	                                    int text_cols, int text_rows,
-	                                    int pixel_cols, int pixel_rows,
-	                                    void *cbdata);
-	void               *size_change_cbdata;
+	void  (*size_change_cb)(struct cterminal *cterm, int text_cols, int text_rows, int pixel_cols,
+	    int pixel_rows, void *cbdata);
+	void *size_change_cbdata;
 
 	/* ECMA-48 selected area (SSA/ESA) for screen readback */
-	int					ssa_row;	// SSA position (1-based, screen coords), 0 = not set
-	int					ssa_col;
-	int					esa_row;	// ESA position (1-based, screen coords), 0 = not set
-	int					esa_col;
+	int ssa_row;   // SSA position (1-based, screen coords), 0 = not set
+	int ssa_col;
+	int esa_row;   // ESA position (1-based, screen coords), 0 = not set
+	int esa_col;
 
 	/* ECMA-48 transmission modes */
-	int					fetm;		// Format Effector Transfer Mode: 0=INSERT (default), 1=EXCLUDE
-	int					ttm;		// Transfer Termination Mode: 0=CURSOR (default), 1=ALL
+	int fetm;   // Format Effector Transfer Mode: 0=INSERT (default), 1=EXCLUDE
+	int ttm;    // Transfer Termination Mode: 0=CURSOR (default), 1=ALL
 
 	/* -------- Unified dispatch pipeline (see cterm_internal.h) --------
 	 * These fields are populated by the seq_feed() parser or by the
 	 * bridge from parse_sequence() during the do_ansi() migration.
 	 * When migration is complete, they fully replace escbuf / sequence
 	 * / string / music / font_size / doorway_char state tracking. */
-	uint32_t			seq_key;		/* packed (introducer|priv|interm|final) */
-	enum seq_phase		seq_phase;
-	char				seq_params[256];	/* raw parameter bytes (incl. private, ';', ':') */
-	int					seq_param_len;		/* bytes written to seq_params */
-	uint64_t			seq_param_int[MAX_SEQ_PARAMS];
-	int					seq_param_count;	/* parsed ints in seq_param_int */
+	uint32_t       seq_key;         /* packed (introducer|priv|interm|final) */
+	enum seq_phase seq_phase;
+	char           seq_params[256]; /* raw parameter bytes (incl. private, ';', ':') */
+	int            seq_param_len;   /* bytes written to seq_params */
+	uint64_t       seq_param_int[MAX_SEQ_PARAMS];
+	int            seq_param_count; /* parsed ints in seq_param_int */
 	/* Per-parameter raw strings.  Populated by cterm_build_param_strs
 	 * at SEQ_COMPLETE; pointers alias into seq_params with ';' bytes
 	 * overwritten by NUL so each pointer dereferences as an independent
 	 * null-terminated string.  Used by SGR's extended-colour parsing
 	 * (CSI 38/48 with colon sub-params and DECRQSS readback). */
-	const char			*seq_param_strs[MAX_SEQ_PARAMS];
-	uint64_t			seq_cur_value;		/* accumulator for current param */
-	bool				seq_cur_has_digits;
-	bool				seq_cur_has_sub;	/* ':' seen in current param */
-	bool				seq_overflow;		/* buffer limit hit -> discard */
+	const char *seq_param_strs[MAX_SEQ_PARAMS];
+	uint64_t    seq_cur_value;   /* accumulator for current param */
+	bool        seq_cur_has_digits;
+	bool        seq_cur_has_sub; /* ':' seen in current param */
+	bool        seq_overflow;    /* buffer limit hit -> discard */
 
 	/* Cascade consumption tracking: handlers in a cascade chain mark the
 	 * parameters they claim here.  Downstream handlers in the chain skip
@@ -464,19 +462,19 @@ struct cterminal {
 	 * fires only when seq_param_count == 0 AND seq_consumed_any is false,
 	 * so an upstream consumer cannot accidentally trigger the default by
 	 * emptying the list. */
-	bool				seq_consumed[MAX_SEQ_PARAMS];
-	bool				seq_consumed_any;
+	bool seq_consumed[MAX_SEQ_PARAMS];
+	bool seq_consumed_any;
 
 	/* Byte-handler emissions and literal sequence fallbacks are converted
 	 * to UTF-8 by cterm_uctputs before the next input byte is dispatched.
 	 * Struct storage lets dispatchers and accumulators share that scratch
 	 * buffer without adding buffer arguments to their common signature. */
-	unsigned char		print_buf[2048];
-	unsigned char		*print_pos;
+	unsigned char  print_buf[2048];
+	unsigned char *print_pos;
 
 	/* Trailing raw-byte accumulator (BEEB VDU 23/28, VT52 ESC Y/b/c) */
-	void				(*seq_trailing_handler)(struct cterminal *, int *);
-	uint8_t				seq_trailing_remain;
+	void    (*seq_trailing_handler)(struct cterminal *, int *);
+	uint8_t seq_trailing_remain;
 
 	/* Per-emulation dispatch installed at init / mode change.
 	 * The byte loop consults cterm->accumulator first; if NULL, the
@@ -487,43 +485,38 @@ struct cterminal {
 	 * save/restore slot so an ESC mid-string can temporarily install
 	 * the sequence accumulator and fall back to the string accumulator
 	 * afterwards. */
-	void				(*dispatch)(struct cterminal *, unsigned char, int *);
-	bool				(*accumulator)(struct cterminal *, unsigned char, int *);
-	bool				(*saved_accumulator)(struct cterminal *, unsigned char, int *);
+	void                       (*dispatch)(struct cterminal *, unsigned char, int *);
+	bool                       (*accumulator)(struct cterminal *, unsigned char, int *);
+	bool                       (*saved_accumulator)(struct cterminal *, unsigned char, int *);
 	const struct seq_dispatch *dispatch_table;
-	size_t				dispatch_table_len;
+	size_t                     dispatch_table_len;
 
 	/* PETSCII / ATASCII byte-table dispatch */
-	const uint8_t		*ctrl_bitmap;		/* 256-bit table, 32 bytes */
-	void				(*const *byte_handlers)(struct cterminal *);
+	const uint8_t *ctrl_bitmap; /* 256-bit table, 32 bytes */
+	void           (*const *byte_handlers)(struct cterminal *);
 };
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-struct cterminal *cterm_init(int height, int width, int xpos, int ypos,
-	int backlines, int backcols, struct st_console_cell *scrollback,
-	int emulation,
-	const struct cterm_render_state *screen,
-	const struct st_cterm_config *initial);
+struct cterminal *cterm_init(int height, int width, int xpos, int ypos, int backlines, int backcols,
+    struct st_console_cell *scrollback, int emulation, const struct cterm_render_state *screen,
+    const struct st_cterm_config *initial);
 /* False returns an unconsumed byte to the input decoder after a string abort. */
-bool cterm_parse_byte(struct cterminal *cterm, unsigned char byte, int *speed);
-int cterm_openlog(struct cterminal *cterm, char *logfile, int logtype);
-void cterm_closelog(struct cterminal *cterm);
-bool cterm_music_ensure(struct cterminal *cterm);
-void cterm_end(struct cterminal *cterm, int free_fonts);
-void cterm_clearscreen(struct cterminal *cterm, char attr);
-void cterm_start(struct cterminal *cterm);
-int cterm_crpos(struct cterminal *cterm);
-int cterm_encode_key(struct cterminal *cterm, int key);
+bool                  cterm_parse_byte(struct cterminal *cterm, unsigned char byte, int *speed);
+int                   cterm_openlog(struct cterminal *cterm, char *logfile, int logtype);
+void                  cterm_closelog(struct cterminal *cterm);
+bool                  cterm_music_ensure(struct cterminal *cterm);
+void                  cterm_end(struct cterminal *cterm, int free_fonts);
+void                  cterm_clearscreen(struct cterminal *cterm, char attr);
+void                  cterm_start(struct cterminal *cterm);
+int                   cterm_crpos(struct cterminal *cterm);
+int                   cterm_encode_key(struct cterminal *cterm, int key);
 enum cterm_key_result cterm_handle_key(struct cterminal *cterm, int key);
-bool cterm_pk_events(struct cterminal *cterm,
-	const struct st_console_event *events, size_t count);
-bool cterm_pk_synthesize(struct cterminal *cterm, uint16_t evdev,
-	bool pressed);
-bool cterm_pk_resync(struct cterminal *cterm, const uint16_t *held_keys,
-	size_t count);
+bool cterm_pk_events(struct cterminal *cterm, const struct st_console_event *events, size_t count);
+bool cterm_pk_synthesize(struct cterminal *cterm, uint16_t evdev, bool pressed);
+bool cterm_pk_resync(struct cterminal *cterm, const uint16_t *held_keys, size_t count);
 bool cterm_pk_enabled(const struct cterminal *cterm);
 bool cterm_atascii_inverse(const struct cterminal *cterm);
 /* Emit a response back to the connected host via cterm's registered
@@ -546,16 +539,13 @@ void cterm_respond(struct cterminal *cterm, const char *data, size_t len);
  * can't be acquired. Writes are non-blocking append; the stream drains in
  * the background.
  * ================================================================ */
-bool cterm_play_fx(struct cterminal *cterm, const int16_t *frames,
-	size_t nframes);
+bool cterm_play_fx(struct cterminal *cterm, const int16_t *frames, size_t nframes);
 /* Borrow the lazily opened logical channel 1 stream, or NULL. */
 audio_stream_t *cterm_fx_stream(struct cterminal *cterm);
-bool cterm_play_fx_tone(struct cterminal *cterm, double freq,
-	uint32_t duration_ms, uint32_t shape);
-bool cterm_play_fx_u8(struct cterminal *cterm,
-	const unsigned char *samp, size_t size);
-void cterm_scrollup(struct cterminal *cterm);
-void cterm_resize_rows(struct cterminal *cterm, int new_rows);
+bool            cterm_play_fx_tone(struct cterminal *cterm, double freq, uint32_t duration_ms, uint32_t shape);
+bool            cterm_play_fx_u8(struct cterminal *cterm, const unsigned char *samp, size_t size);
+void            cterm_scrollup(struct cterminal *cterm);
+void            cterm_resize_rows(struct cterminal *cterm, int new_rows);
 
 #ifdef __cplusplus
 }

@@ -7,9 +7,9 @@
 #include <stdint.h>
 
 struct st_rip3_font_asset {
-	const char *filename;
+	const char    *filename;
 	const uint8_t *data;
-	size_t size;
+	size_t         size;
 };
 
 size_t st_rip3_font_asset_count(void);

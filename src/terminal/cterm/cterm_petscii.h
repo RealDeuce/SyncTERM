@@ -18,12 +18,13 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+
 #include "cterm.h"
 
 extern const uint8_t cterm_petscii_ctrl_bitmap[32];
-extern void (*const cterm_petscii_handlers[256])(struct cterminal *);
+extern void          (*const cterm_petscii_handlers[256])(struct cterminal *);
 
-void cterm_c64_set_reverse(struct cterminal *cterm, bool on);
+void    cterm_c64_set_reverse(struct cterminal *cterm, bool on);
 uint8_t cterm_c64_get_attr(struct cterminal *cterm);
 
 #endif /* _CTERM_PETSCII_H_ */

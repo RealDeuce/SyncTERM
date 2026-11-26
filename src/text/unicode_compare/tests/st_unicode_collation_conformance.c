@@ -2,33 +2,30 @@
 
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 
-#include "st_unicode_compare.h"
-#include "st_unicode_compare_internal.h"
-
-#include "st_utf8.h"
-
 #include <errno.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "st_unicode_compare.h"
+#include "st_unicode_compare_internal.h"
+#include "st_utf8.h"
+
 static int
 parse_line(char *line, char *output, size_t *output_size)
 {
-	char *cursor = line;
-	size_t used = 0;
+	char  *cursor = line;
+	size_t used   = 0;
 
-	while (*cursor != '\0' && *cursor != '\n' && *cursor != '#'
-	    && *cursor != ';') {
-		char *end;
+	while (*cursor != '\0' && *cursor != '\n' && *cursor != '#' && *cursor != ';') {
+		char         *end;
 		unsigned long value;
-		ptrdiff_t encoded;
+		ptrdiff_t     encoded;
 
 		while (*cursor == ' ' || *cursor == '\t')
 			++cursor;
-		if (*cursor == '\0' || *cursor == '\n' || *cursor == '#'
-		    || *cursor == ';')
+		if (*cursor == '\0' || *cursor == '\n' || *cursor == '#' || *cursor == ';')
 			break;
 		errno = 0;
 		value = strtoul(cursor, &end, 16);
@@ -50,16 +47,15 @@ parse_line(char *line, char *output, size_t *output_size)
 int
 main(int argc, char **argv)
 {
-	char line[4096];
-	char current[1024];
-	size_t current_size;
-	st_unicode_sort_key_t *prior = NULL;
-	size_t line_number = 0;
-	FILE *input;
+	char                   line[4096];
+	char                   current[1024];
+	size_t                 current_size;
+	st_unicode_sort_key_t *prior       = NULL;
+	size_t                 line_number = 0;
+	FILE                  *input;
 
 	if (argc != 2) {
-		fprintf(stderr, "usage: %s CollationTest_NON_IGNORABLE.txt\n",
-		    argv[0]);
+		fprintf(stderr, "usage: %s CollationTest_NON_IGNORABLE.txt\n", argv[0]);
 		return EXIT_FAILURE;
 	}
 	input = fopen(argv[1], "rb");
@@ -69,31 +65,27 @@ main(int argc, char **argv)
 	}
 	while (fgets(line, sizeof(line), input) != NULL) {
 		st_unicode_sort_key_t *key = NULL;
-		int parsed;
+		int                    parsed;
 
 		++line_number;
 		if (strchr(line, '\n') == NULL && !feof(input)) {
-			fprintf(stderr, "%s:%zu: line is too long\n", argv[1],
-			    line_number);
+			fprintf(stderr, "%s:%zu: line is too long\n", argv[1], line_number);
 			goto failed;
 		}
 		parsed = parse_line(line, current, &current_size);
 		if (parsed < 0) {
-			fprintf(stderr, "%s:%zu: malformed input\n", argv[1],
-			    line_number);
+			fprintf(stderr, "%s:%zu: malformed input\n", argv[1], line_number);
 			goto failed;
 		}
 		if (parsed == 0 || parsed == 2)
 			continue;
-		if (st_unicode_sort_key_create(&key, current, current_size,
-		    ST_UNICODE_COLLATION_CASE_SENSITIVE) != 0) {
-			fprintf(stderr, "%s:%zu: unable to create sort key\n", argv[1],
-			    line_number);
+		if (st_unicode_sort_key_create(&key, current, current_size, ST_UNICODE_COLLATION_CASE_SENSITIVE)
+		    != 0) {
+			fprintf(stderr, "%s:%zu: unable to create sort key\n", argv[1], line_number);
 			goto failed;
 		}
 		if (prior != NULL && st_unicode_sort_key_compare_uca(prior, key) > 0) {
-			fprintf(stderr, "%s:%zu: collation order violation\n", argv[1],
-			    line_number);
+			fprintf(stderr, "%s:%zu: collation order violation\n", argv[1], line_number);
 			st_unicode_sort_key_destroy(&key);
 			goto failed;
 		}

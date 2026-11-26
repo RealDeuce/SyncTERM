@@ -1,22 +1,22 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
-#include "st_rip3_features.h"
-#include "io_error.h"
-
 #include <stdio.h>
 #include <string.h>
 
-#define CHECK(expression) do { \
-	if (!(expression)) { \
-		fprintf(stderr, "check failed at line %d: %s\n", __LINE__, #expression); \
-		return 1; \
-	} \
-} while (0)
+#include "io_error.h"
+#include "st_rip3_features.h"
+
+#define CHECK(expression)                                                                        \
+	do {                                                                                     \
+		if (!(expression)) {                                                             \
+			fprintf(stderr, "check failed at line %d: %s\n", __LINE__, #expression); \
+			return 1;                                                                \
+		}                                                                                \
+	} while (0)
 
 static int
-expect(const struct st_rip3_features *features, const char *keyword,
-    const char *category, const char *expected)
+expect(const struct st_rip3_features *features, const char *keyword, const char *category, const char *expected)
 {
-	char result[512], before[512];
+	char   result[512], before[512];
 	size_t length = strlen(expected);
 
 	memset(result, 0xa5, sizeof(result));
@@ -40,11 +40,12 @@ probe_wave(void *context)
 int
 main(void)
 {
-	struct st_rip3_features features = {0};
-	const struct st_rip3_features empty = {0};
-	char result[16], before[16];
-	uint32_t old_bits;
-	const char all[] = "ANSI,BMP,CISQUICKB,DOORWAY,ENG,JPEG,KERMIT,RIPSCRIP,SUPERKERMIT,VT102,WAV,XMODEM,XMODEM1K,XMODEM1KG,XMODEMCRC,YMODEM,YMODEMG,ZMODEM,ZMODEMCR";
+	struct st_rip3_features       features = {0};
+	const struct st_rip3_features empty    = {0};
+	char                          result[16], before[16];
+	uint32_t                      old_bits;
+	const char                    all[] =
+	    "ANSI,BMP,CISQUICKB,DOORWAY,ENG,JPEG,KERMIT,RIPSCRIP,SUPERKERMIT,VT102,WAV,XMODEM,XMODEM1K,XMODEM1KG,XMODEMCRC,YMODEM,YMODEMG,ZMODEM,ZMODEMCR";
 
 	CHECK(expect(&features, "JPEG", NULL, "0") == 0);
 	CHECK(expect(&features, "RIPSCRIP", NULL, "0") == 0);
@@ -78,7 +79,10 @@ main(void)
 	}
 	CHECK(expect(&features, "LIST", "ALL", all) == 0);
 	CHECK(expect(&features, "LIST", NULL, "_AUDIO,_EMULATIONS,_IMAGE,_LANGUAGES,_PROTOCOLS") == 0);
-	CHECK(expect(&features, "LIST", "_PROTOCOLS", "CISQUICKB,KERMIT,SUPERKERMIT,XMODEM,XMODEM1K,XMODEM1KG,XMODEMCRC,YMODEM,YMODEMG,ZMODEM,ZMODEMCR") == 0);
+	CHECK(
+	    expect(&features, "LIST", "_PROTOCOLS",
+		"CISQUICKB,KERMIT,SUPERKERMIT,XMODEM,XMODEM1K,XMODEM1KG,XMODEMCRC,YMODEM,YMODEMG,ZMODEM,ZMODEMCR")
+	    == 0);
 	CHECK(expect(&features, "LIST", "_AUDIO", "WAV") == 0);
 	CHECK(expect(&features, "LIST", "_LANGUAGES", "ENG") == 0);
 	CHECK(expect(&features, "LIST", "_IMAGE", "BMP,JPEG") == 0);
@@ -96,19 +100,20 @@ main(void)
 	CHECK(expect(&features, "LIST", "ALL", all) == 0);
 	CHECK(st_rip3_features_set(&features, ST_RIP3_FEATURE_EXTAPPS, false) == 0);
 	old_bits = features.bits;
-	CHECK(st_rip3_features_set(&features, (enum st_rip3_feature)-1, true) == IO_ERROR_OUT_OF_RANGE);
+	CHECK(st_rip3_features_set(&features, (enum st_rip3_feature) - 1, true) == IO_ERROR_OUT_OF_RANGE);
 	CHECK(st_rip3_features_set(&features, ST_RIP3_FEATURE_COUNT, true) == IO_ERROR_OUT_OF_RANGE);
 	CHECK(st_rip3_features_set(&features, ST_RIP3_FEATURE_EXTAPPS, true) == IO_ERROR_NOT_SUPPORTED);
 	CHECK(features.bits == old_bits);
 	CHECK(st_rip3_features_set(NULL, ST_RIP3_FEATURE_JPEG, true) == IO_ERROR_INVALID_ARGUMENT);
-	memset(result, 0xa5, sizeof(result)); memcpy(before, result, sizeof(result));
+	memset(result, 0xa5, sizeof(result));
+	memcpy(before, result, sizeof(result));
 	CHECK(st_rip3_features_query(NULL, "JPEG", NULL, result, sizeof(result)) == IO_ERROR_INVALID_ARGUMENT);
 	CHECK(st_rip3_features_query(&features, NULL, NULL, result, sizeof(result)) == IO_ERROR_INVALID_ARGUMENT);
 	CHECK(st_rip3_features_query(&features, "", NULL, result, sizeof(result)) == IO_ERROR_INVALID_FORMAT);
 	CHECK(st_rip3_features_query(&features, "JPEG", "ALL", result, sizeof(result)) == IO_ERROR_INVALID_FORMAT);
 	CHECK(st_rip3_features_query(&features, "LIST", NULL, NULL, sizeof(result)) == IO_ERROR_INVALID_ARGUMENT);
 	CHECK(memcmp(result, before, sizeof(result)) == 0);
-	unsigned probes = 0;
+	unsigned                probes   = 0;
 	struct st_rip3_features deferred = {.wav_available = probe_wave, .context = &probes};
 	CHECK(expect(&deferred, "JPEG", NULL, "0") == 0);
 	CHECK(expect(&deferred, "_IMAGE", NULL, "0") == 0);

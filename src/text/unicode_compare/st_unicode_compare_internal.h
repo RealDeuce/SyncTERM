@@ -7,7 +7,6 @@
 
 #include "st_unicode_compare.h"
 
-int st_unicode_sort_key_compare_uca(const st_unicode_sort_key_t *left,
-	const st_unicode_sort_key_t *right);
+int st_unicode_sort_key_compare_uca(const st_unicode_sort_key_t *left, const st_unicode_sort_key_t *right);
 
 #endif

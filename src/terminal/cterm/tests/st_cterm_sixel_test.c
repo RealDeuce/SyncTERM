@@ -2,30 +2,36 @@
 /* Copyright (c) 2026 Stephen Hurd
  * SPDX-License-Identifier: BSD-2-Clause
  */
-#include "cterm.h"
-
 #include <limits.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#define CHECK(e) do { if (!(e)) { fprintf(stderr, "%s:%d: %s\n", __FILE__, __LINE__, #e); exit(1); } } while (0)
-#define WIDTH 160
-#define HEIGHT 160
+#include "cterm.h"
+
+#define CHECK(e)                                                                \
+	do {                                                                    \
+		if (!(e)) {                                                     \
+			fprintf(stderr, "%s:%d: %s\n", __FILE__, __LINE__, #e); \
+			exit(1);                                                \
+		}                                                               \
+	} while (0)
+#define WIDTH    160
+#define HEIGHT   160
 #define SENTINEL ST_PIXEL_COLOR_RGB_VALUE(18, 52, 86)
 
 struct fixture {
-	st_console_t *console;
+	st_console_t      *console;
 	st_font_catalog_t *fonts;
-	st_cterm_t *terminal;
+	st_cterm_t        *terminal;
 };
 
 static void
 feed(struct fixture *f, const char *bytes, size_t size)
 {
 	size_t consumed;
-	int status = st_cterm_write(f->terminal, bytes, size, &consumed);
+	int    status = st_cterm_write(f->terminal, bytes, size, &consumed);
 	if (status != 0 || consumed != size) {
 		fprintf(stderr, "write status %d, consumed %zu/%zu:", status, consumed, size);
 		for (size_t i = 0; i < size; ++i)
@@ -44,7 +50,7 @@ text(struct fixture *f, const char *bytes)
 static void
 reset(struct fixture *f)
 {
-	struct st_pixel_buffer *background;
+	struct st_pixel_buffer    *background;
 	const struct st_pixel_blit blit = {.width = WIDTH, .height = HEIGHT, .scale_x = 1, .scale_y = 1};
 	CHECK(st_cterm_reset_terminal(f->terminal) == 0);
 	text(f, "\x1b[?80h\x1b[?25l\x1b[0;40m");
@@ -55,24 +61,26 @@ reset(struct fixture *f)
 }
 
 static void
-pixels(struct fixture *f, unsigned red_width, unsigned red_height,
-	unsigned background_width, unsigned background_height)
+pixels(struct fixture *f, unsigned red_width, unsigned red_height, unsigned background_width,
+    unsigned background_height)
 {
 	const struct st_console_rect area = {0, 0, WIDTH, HEIGHT};
-	struct st_pixel_buffer *frame;
-	uint32_t palette[UINT16_MAX + 1U];
+	struct st_pixel_buffer      *frame;
+	uint32_t                     palette[UINT16_MAX + 1U];
 	CHECK(st_console_get_palette(f->console, 0, palette, UINT16_MAX + 1U) == 0);
 	CHECK(st_console_get_pixels(&frame, f->console, &area, false) == 0);
 	for (unsigned y = 0; y < HEIGHT; ++y) {
 		for (unsigned x = 0; x < WIDTH; ++x) {
-			uint32_t expected = x < red_width && y < red_height ? 0xff0000
-			    : x < background_width && y < background_height ? 0 : 0x123456;
-			size_t pos = (size_t)y * WIDTH + x;
-			uint32_t value = frame->primary[pos];
+			uint32_t expected = x < red_width && y < red_height                 ? 0xff0000
+			                    : x < background_width && y < background_height ? 0
+			                                                                    : 0x123456;
+			size_t   pos      = (size_t)y * WIDTH + x;
+			uint32_t value    = frame->primary[pos];
 			CHECK(ST_PIXEL_COLOR_IS_RGB(value) || value <= UINT16_MAX);
 			value = ST_PIXEL_COLOR_IS_RGB(value) ? value & 0xffffff : palette[value];
 			if (value != expected) {
-				fprintf(stderr, "pixel %u,%u: %06x != %06x\n", x, y, (unsigned)value, (unsigned)expected);
+				fprintf(stderr, "pixel %u,%u: %06x != %06x\n", x, y, (unsigned)value,
+				    (unsigned)expected);
 				exit(1);
 			}
 			if (frame->alternate != NULL) {
@@ -131,9 +139,10 @@ numeric_bounds(struct fixture *f)
 	/* The last native palette entry is usable; one past it is ignored. */
 	reset(f);
 	unsigned base = 282 + ((f->terminal->screen.capabilities & ST_CONSOLE_CAP_EXTENDED_PALETTE) ? 16 : 0);
-	char sequence[128];
-	CHECK(snprintf(sequence, sizeof(sequence), "\x1bP7;1q#%u;2;100;0;0#%u;2;0;0;100@\x1b\\",
-	    UINT16_MAX - base, UINT16_MAX - base + 1) > 0);
+	char     sequence[128];
+	CHECK(snprintf(sequence, sizeof(sequence), "\x1bP7;1q#%u;2;100;0;0#%u;2;0;0;100@\x1b\\", UINT16_MAX - base,
+		  UINT16_MAX - base + 1)
+	      > 0);
 	text(f, sequence);
 	pixels(f, 1, 1, 0, 0);
 
@@ -223,14 +232,17 @@ st_cterm_sixel_test_main(void)
 {
 	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
 	const struct st_console_config geometry = {.columns = 20, .rows = 10, .cell_width = 8, .cell_height = 16};
-	struct fixture f = {0};
+	struct fixture                 f        = {0};
 	CHECK(st_console_create(&f.console, &display, &geometry) == 0);
 	CHECK(st_font_catalog_create(&f.fonts, f.console) == 0);
 	for (unsigned utf8 = 0; utf8 < 2; ++utf8) {
 		const struct st_cterm_config config = {
-			.console = f.console, .fonts = f.fonts, .emulation = ST_CTERM_ANSI_BBS,
-			.encoding = utf8 ? ST_CTERM_ENCODING_UTF8 : ST_CTERM_ENCODING_CODEPAGE,
-			.codepage = ST_CODEPAGE_CP437, .quiet = true,
+		    .console   = f.console,
+		    .fonts     = f.fonts,
+		    .emulation = ST_CTERM_ANSI_BBS,
+		    .encoding  = utf8 ? ST_CTERM_ENCODING_UTF8 : ST_CTERM_ENCODING_CODEPAGE,
+		    .codepage  = ST_CODEPAGE_CP437,
+		    .quiet     = true,
 		};
 		CHECK(st_cterm_create(&f.terminal, &config) == 0);
 		numeric_bounds(&f);

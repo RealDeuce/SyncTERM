@@ -3,16 +3,15 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "dynamic_library.h"
-
-#include "io_error.h"
-
 #include <dlfcn.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "dynamic_library.h"
+#include "io_error.h"
 
 static bool
 dynamic_library_name_valid(const char *name)
@@ -29,8 +28,8 @@ dynamic_library_name_valid(const char *name)
 }
 
 static void *
-dynamic_library_try_so(char *filename, size_t size, const char *name,
-    unsigned major, bool versioned, bool prefixed, int flags)
+dynamic_library_try_so(char *filename, size_t size, const char *name, unsigned major, bool versioned,
+    bool prefixed, int flags)
 {
 	if (versioned)
 		(void)snprintf(filename, size, "lib%s.so.%u", name, major);
@@ -43,8 +42,7 @@ dynamic_library_try_so(char *filename, size_t size, const char *name,
 
 #if defined(SYNCTERM_DYNAMIC_LIBRARY_DYLIB_NAMES)
 static void *
-dynamic_library_try_dylib(char *filename, size_t size, const char *name,
-    unsigned major, bool versioned, int flags)
+dynamic_library_try_dylib(char *filename, size_t size, const char *name, unsigned major, bool versioned, int flags)
 {
 	if (versioned)
 		(void)snprintf(filename, size, "lib%s.%u.dylib", name, major);
@@ -55,20 +53,18 @@ dynamic_library_try_dylib(char *filename, size_t size, const char *name,
 #endif
 
 int
-dynamic_library_open(dynamic_library_t **result, const char *const names[],
-    size_t name_count, unsigned preferred_major,
-    enum dynamic_library_visibility visibility)
+dynamic_library_open(dynamic_library_t **result, const char *const names[], size_t name_count,
+    unsigned preferred_major, enum dynamic_library_visibility visibility)
 {
-	size_t maximum_name = 0;
-	size_t i;
+	size_t   maximum_name = 0;
+	size_t   i;
 	unsigned version;
-	char *filename;
-	void *handle = NULL;
-	int flags;
+	char    *filename;
+	void    *handle = NULL;
+	int      flags;
 
-	if (result == NULL || names == NULL || name_count == 0 ||
-	    (visibility != DYNAMIC_LIBRARY_LOCAL &&
-	    visibility != DYNAMIC_LIBRARY_GLOBAL))
+	if (result == NULL || names == NULL || name_count == 0
+	    || (visibility != DYNAMIC_LIBRARY_LOCAL && visibility != DYNAMIC_LIBRARY_GLOBAL))
 		return IO_ERROR_INVALID_ARGUMENT;
 	for (i = 0; i < name_count; i++) {
 		size_t length;
@@ -87,30 +83,29 @@ dynamic_library_open(dynamic_library_t **result, const char *const names[],
 	flags = RTLD_NOW;
 	flags |= visibility == DYNAMIC_LIBRARY_GLOBAL ? RTLD_GLOBAL : RTLD_LOCAL;
 	for (i = 0; i < name_count && handle == NULL; i++) {
-		handle = dynamic_library_try_so(filename, maximum_name + 64,
-		    names[i], preferred_major, true, true, flags);
+		handle = dynamic_library_try_so(filename, maximum_name + 64, names[i], preferred_major, true, true,
+		    flags);
 		if (handle == NULL)
-			handle = dynamic_library_try_so(filename, maximum_name + 64,
-			    names[i], 0, false, true, flags);
+			handle =
+			    dynamic_library_try_so(filename, maximum_name + 64, names[i], 0, false, true, flags);
 		if (handle == NULL)
-			handle = dynamic_library_try_so(filename, maximum_name + 64,
-			    names[i], 0, false, false, flags);
-		for (version = preferred_major; handle == NULL && version > 0; ) {
+			handle =
+			    dynamic_library_try_so(filename, maximum_name + 64, names[i], 0, false, false, flags);
+		for (version = preferred_major; handle == NULL && version > 0;) {
 			version--;
-			handle = dynamic_library_try_so(filename,
-			    maximum_name + 64, names[i], version, true, true, flags);
+			handle = dynamic_library_try_so(filename, maximum_name + 64, names[i], version, true, true,
+			    flags);
 		}
 #if defined(SYNCTERM_DYNAMIC_LIBRARY_DYLIB_NAMES)
 		if (handle == NULL)
-			handle = dynamic_library_try_dylib(filename,
-			    maximum_name + 64, names[i], preferred_major, true, flags);
+			handle = dynamic_library_try_dylib(filename, maximum_name + 64, names[i], preferred_major,
+			    true, flags);
 		if (handle == NULL)
-			handle = dynamic_library_try_dylib(filename,
-			    maximum_name + 64, names[i], 0, false, flags);
-		for (version = preferred_major; handle == NULL && version > 0; ) {
+			handle = dynamic_library_try_dylib(filename, maximum_name + 64, names[i], 0, false, flags);
+		for (version = preferred_major; handle == NULL && version > 0;) {
 			version--;
-			handle = dynamic_library_try_dylib(filename,
-			    maximum_name + 64, names[i], version, true, flags);
+			handle =
+			    dynamic_library_try_dylib(filename, maximum_name + 64, names[i], version, true, flags);
 		}
 #endif
 	}

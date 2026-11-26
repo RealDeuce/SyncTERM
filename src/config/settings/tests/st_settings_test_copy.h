@@ -8,14 +8,13 @@
 #ifndef ST_SETTINGS_TEST_COPY_H_
 #define ST_SETTINGS_TEST_COPY_H_
 
-#include "st_settings.h"
-
 #include <stdbool.h>
 #include <stddef.h>
 
+#include "st_settings.h"
+
 void st_settings_test_fail_copy_after(size_t copy);
 void st_settings_test_disable_copy_failure(void);
-bool st_settings_test_copy(struct st_settings *result,
-	const struct st_settings *source);
+bool st_settings_test_copy(struct st_settings *result, const struct st_settings *source);
 
 #endif

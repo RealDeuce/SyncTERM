@@ -2,31 +2,30 @@
 #ifndef ST_RIP3_BITMAP_TEXT_H_
 #define ST_RIP3_BITMAP_TEXT_H_
 
-#include "st_rip3_geometry.h"
-#include "st_rip3_maf.h"
-#include "st_rip3_surface.h"
-
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+
+#include "st_rip3_geometry.h"
+#include "st_rip3_maf.h"
+#include "st_rip3_surface.h"
 
 struct st_rip3_ports;
 
 struct st_rip3_bitmap_text_style {
 	unsigned magnification; /* 1..10, actual integral bitmap enlargement. */
-	bool vertical; /* Rotate counterclockwise: read bottom to top. */
-	bool opaque; /* Terminal cells include their background; graphics need not. */
-	bool shadow; /* One device pixel down/right, using background color. */
+	bool     vertical;      /* Rotate counterclockwise: read bottom to top. */
+	bool     opaque;        /* Terminal cells include their background; graphics need not. */
+	bool     shadow;        /* One device pixel down/right, using background color. */
 };
 
 struct st_rip3_bitmap_text_metrics {
-	uint32_t width, height;
+	uint32_t             width, height;
 	struct st_rip3_point advance;
 };
 
-int st_rip3_bitmap_text_measure(const struct st_rip3_maf_font *font,
-	const struct st_rip3_bitmap_text_style *style, size_t length,
-	struct st_rip3_bitmap_text_metrics *result);
+int st_rip3_bitmap_text_measure(const struct st_rip3_maf_font *font, const struct st_rip3_bitmap_text_style *style,
+    size_t length, struct st_rip3_bitmap_text_metrics *result);
 /* Explicit CP437 byte span (including blank character zero), immutable MAF
  * view and device-pixel origin relative to the active viewport. Horizontal
  * origin is the top-left address, rounded once to nearest with half ties
@@ -38,10 +37,9 @@ int st_rip3_bitmap_text_measure(const struct st_rip3_maf_font *font,
  * entire text primitive. Visible work is bounded by the viewport, even for a
  * long/offscreen string. Errors precede all drawing. Cursor, justification,
  * font selection, terminal control/UTF-8 transport and wire policy are callers. */
-int st_rip3_draw_bitmap_text(struct st_rip3_ports *ports,
-	const struct st_rip3_maf_font *font,
-	const struct st_rip3_bitmap_text_style *style,
-	const uint8_t *text, size_t length, const struct st_rip3_text_position *origin,
-	uint32_t foreground, uint32_t background, enum st_rip3_write_mode mode);
+int st_rip3_draw_bitmap_text(struct st_rip3_ports *ports, const struct st_rip3_maf_font *font,
+    const struct st_rip3_bitmap_text_style *style, const uint8_t *text, size_t length,
+    const struct st_rip3_text_position *origin, uint32_t foreground, uint32_t background,
+    enum st_rip3_write_mode mode);
 
 #endif

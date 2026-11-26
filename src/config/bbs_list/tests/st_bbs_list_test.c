@@ -1,31 +1,33 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 
-#include "st_bbs_list_internal.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "filesystem.h"
 #include "io_error.h"
 #include "path.h"
 #include "st_app_paths.h"
+#include "st_bbs_list_internal.h"
 #include "string_compat.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
 #ifndef ST_BBS_TEST_DIRECTORY
-#error "ST_BBS_TEST_DIRECTORY is required"
+ #error "ST_BBS_TEST_DIRECTORY is required"
 #endif
 
-#define CHECK(e) do { if (!(e)) { \
-	fprintf(stderr, "failed: %s:%d: %s\n", __FILE__, __LINE__, #e); \
-	return 1; \
-} } while (0)
+#define CHECK(e)                                                                        \
+	do {                                                                            \
+		if (!(e)) {                                                             \
+			fprintf(stderr, "failed: %s:%d: %s\n", __FILE__, __LINE__, #e); \
+			return 1;                                                       \
+		}                                                                       \
+	} while (0)
 
 static int
 write_text(const char *path, const char *text)
 {
 	FILE *stream;
-	int status = fs_open(&stream, path, "wb");
+	int   status = fs_open(&stream, path, "wb");
 	if (status < 0)
 		return status;
 	if (fwrite(text, 1, strlen(text), stream) != strlen(text))
@@ -38,22 +40,21 @@ write_text(const char *path, const char *text)
 static bool
 file_contains(const char *path, const char *text)
 {
-	char buffer[8192];
-	FILE *stream;
+	char   buffer[8192];
+	FILE  *stream;
 	size_t size;
-	bool okay;
+	bool   okay;
 
 	if (fs_open(&stream, path, "rb") != 0)
 		return false;
-	size = fread(buffer, 1, sizeof(buffer) - 1, stream);
-	okay = !ferror(stream) && fclose(stream) == 0;
+	size         = fread(buffer, 1, sizeof(buffer) - 1, stream);
+	okay         = !ferror(stream) && fclose(stream) == 0;
 	buffer[size] = '\0';
 	return okay && strstr(buffer, text) != NULL;
 }
 
 static int
-copy_named(struct st_profile *result, const st_bbs_list_t *list,
-    const char *name)
+copy_named(struct st_profile *result, const st_bbs_list_t *list, const char *name)
 {
 	const struct st_bbs_entry *entry = st_bbs_list_find(list, name);
 	return entry != NULL && st_profile_copy(result, entry->profile) ? 0 : -1;
@@ -63,85 +64,141 @@ static int
 check_complete_profile_roundtrip(void)
 {
 	for (unsigned nondefault = 0; nondefault < 2; ++nondefault) {
-		ini_document_t *document = NULL;
+		ini_document_t   *document = NULL;
 		struct st_profile source, result;
 		st_profile_init(&source);
 		strcpy(source.name, "Roundtrip");
 		if (nondefault) {
 #define PROFILE_TEXT(member, value) strcpy(source.member, value)
-			PROFILE_TEXT(address, "bbs.example"); PROFILE_TEXT(username, "guest");
-			PROFILE_TEXT(password, "secret"); PROFILE_TEXT(system_password, "system");
+			PROFILE_TEXT(address, "bbs.example");
+			PROFILE_TEXT(username, "guest");
+			PROFILE_TEXT(password, "secret");
+			PROFILE_TEXT(system_password, "system");
 			PROFILE_TEXT(font, "Codepage 850 Multilingual Latin I");
-			PROFILE_TEXT(comment, "field coverage"); PROFILE_TEXT(wren_scripts, "one,two");
-			PROFILE_TEXT(tls_psk_identity, "identity"); PROFILE_TEXT(tls_psk, "0123");
+			PROFILE_TEXT(comment, "field coverage");
+			PROFILE_TEXT(wren_scripts, "one,two");
+			PROFILE_TEXT(tls_psk_identity, "identity");
+			PROFILE_TEXT(tls_psk, "0123");
 			PROFILE_TEXT(terminal_name, "ansi");
 #undef PROFILE_TEXT
-			source.download_directory = strdup("downloads");
-			source.upload_directory = strdup("uploads");
-			source.log_path = strdup("session.log");
+			source.download_directory      = strdup("downloads");
+			source.upload_directory        = strdup("uploads");
+			source.log_path                = strdup("session.log");
 			source.tls_trusted_certificate = strdup("trusted.pem");
-			source.tls_client_certificate = strdup("client.pem");
-			source.tls_client_key = strdup("client.key");
+			source.tls_client_certificate  = strdup("client.pem");
+			source.tls_client_key          = strdup("client.key");
 			CHECK(source.download_directory && source.upload_directory && source.log_path
-			    && source.tls_trusted_certificate && source.tls_client_certificate && source.tls_client_key);
-			source.added = 1700000000; source.connected = 1700000001;
-			source.calls = UINT32_MAX; source.bps_rate = UINT32_MAX;
-			source.sort_order = -123;
-			source.connection_type = ST_CONNECTION_TELNET_TLS;
-			source.screen_mode = ST_SCREEN_MODE_PRESTEL;
-			source.encoding = ST_PROFILE_ENCODING_UTF8;
+			      && source.tls_trusted_certificate && source.tls_client_certificate
+			      && source.tls_client_key);
+			source.added              = 1700000000;
+			source.connected          = 1700000001;
+			source.calls              = UINT32_MAX;
+			source.bps_rate           = UINT32_MAX;
+			source.sort_order         = -123;
+			source.connection_type    = ST_CONNECTION_TELNET_TLS;
+			source.screen_mode        = ST_SCREEN_MODE_PRESTEL;
+			source.encoding           = ST_PROFILE_ENCODING_UTF8;
 			source.transfer_log_level = ST_PROFILE_LOG_DEBUG;
 			source.protocol_log_level = ST_PROFILE_LOG_INFO;
-			source.cterm_log_level = ST_PROFILE_LOG_DEBUG;
-			source.music = ST_PROFILE_MUSIC_ALL;
-			source.address_family = ST_ADDRESS_FAMILY_HAPPY_EYEBALLS;
-			source.graphics_mode = ST_GRAPHICS_RIP_3;
-			source.amiga_font_size = 12;
+			source.cterm_log_level    = ST_PROFILE_LOG_DEBUG;
+			source.music              = ST_PROFILE_MUSIC_ALL;
+			source.address_family     = ST_ADDRESS_FAMILY_HAPPY_EYEBALLS;
+			source.graphics_mode      = ST_GRAPHICS_RIP_3;
+			source.amiga_font_size    = 12;
 			(void)strcpy(source.amiga_font, "Ruby.font");
-			source.flow_control = ST_PROFILE_FLOW_NONE;
-			source.tls_psk_version = ST_TLS_VERSION_1_2;
-			source.tls_version_floor = ST_TLS_VERSION_1_2;
-			source.parity = ST_PROFILE_PARITY_ODD;
-			source.port = 992; source.stop_bits = 2; source.data_bits = 7;
-			source.palette_size = 2; source.palette[0] = 0x123456; source.palette[1] = 0xabcdef;
+			source.flow_control         = ST_PROFILE_FLOW_NONE;
+			source.tls_psk_version      = ST_TLS_VERSION_1_2;
+			source.tls_version_floor    = ST_TLS_VERSION_1_2;
+			source.parity               = ST_PROFILE_PARITY_ODD;
+			source.port                 = 992;
+			source.stop_bits            = 2;
+			source.data_bits            = 7;
+			source.palette_size         = 2;
+			source.palette[0]           = 0x123456;
+			source.palette[1]           = 0xabcdef;
 			source.ssh_fingerprint_size = 32;
 			memset(source.ssh_fingerprint, 0xa5, 32);
 			source.hide_status = source.hide_popups = source.force_lcf = true;
 			source.yellow_is_yellow = source.sftp_public_key = true;
 			source.ssh_allow_aes128_cbc = source.ssh_accept_early_data = true;
 			source.telnet_no_binary = source.defer_telnet_negotiation = true;
-			source.expand_lf = true;
+			source.expand_lf                                          = true;
 			source.rip3_nondestructive_backspace = source.rip3_backspace_sends_del = true;
-			source.rip3_half_duplex = true;
+			source.rip3_half_duplex                                                = true;
 			source.append_log = source.tls_trust_web_pki = false;
 		}
 		CHECK(ini_document_create(&document) == 0);
 		CHECK(st_bbs_encode_profile(ini_document_root(document), &source, false) == 0);
 		CHECK(st_bbs_decode_profile(&result, ini_document_root(document), source.name, false, NULL) == 0);
 #define NUMBER(member) CHECK(result.member == source.member)
-		NUMBER(added); NUMBER(connected); NUMBER(calls); NUMBER(bps_rate);
-		NUMBER(sort_order); NUMBER(connection_type); NUMBER(source); NUMBER(identifier);
-		NUMBER(screen_mode); NUMBER(encoding); NUMBER(transfer_log_level); NUMBER(protocol_log_level); NUMBER(cterm_log_level);
-		NUMBER(amiga_font_size); NUMBER(music); NUMBER(address_family); NUMBER(graphics_mode); NUMBER(flow_control);
-		NUMBER(tls_psk_version); NUMBER(tls_version_floor); NUMBER(parity);
-		NUMBER(palette_size); NUMBER(port); NUMBER(stop_bits); NUMBER(data_bits);
-		NUMBER(ssh_fingerprint_size); NUMBER(hide_status); NUMBER(append_log); NUMBER(hide_popups);
-		NUMBER(force_lcf); NUMBER(yellow_is_yellow); NUMBER(sftp_public_key); NUMBER(ssh_allow_aes128_cbc);
-		NUMBER(ssh_accept_early_data); NUMBER(telnet_no_binary); NUMBER(defer_telnet_negotiation);
-		NUMBER(tls_trust_web_pki); NUMBER(expand_lf);
-		NUMBER(rip3_nondestructive_backspace); NUMBER(rip3_backspace_sends_del); NUMBER(rip3_half_duplex);
+		NUMBER(added);
+		NUMBER(connected);
+		NUMBER(calls);
+		NUMBER(bps_rate);
+		NUMBER(sort_order);
+		NUMBER(connection_type);
+		NUMBER(source);
+		NUMBER(identifier);
+		NUMBER(screen_mode);
+		NUMBER(encoding);
+		NUMBER(transfer_log_level);
+		NUMBER(protocol_log_level);
+		NUMBER(cterm_log_level);
+		NUMBER(amiga_font_size);
+		NUMBER(music);
+		NUMBER(address_family);
+		NUMBER(graphics_mode);
+		NUMBER(flow_control);
+		NUMBER(tls_psk_version);
+		NUMBER(tls_version_floor);
+		NUMBER(parity);
+		NUMBER(palette_size);
+		NUMBER(port);
+		NUMBER(stop_bits);
+		NUMBER(data_bits);
+		NUMBER(ssh_fingerprint_size);
+		NUMBER(hide_status);
+		NUMBER(append_log);
+		NUMBER(hide_popups);
+		NUMBER(force_lcf);
+		NUMBER(yellow_is_yellow);
+		NUMBER(sftp_public_key);
+		NUMBER(ssh_allow_aes128_cbc);
+		NUMBER(ssh_accept_early_data);
+		NUMBER(telnet_no_binary);
+		NUMBER(defer_telnet_negotiation);
+		NUMBER(tls_trust_web_pki);
+		NUMBER(expand_lf);
+		NUMBER(rip3_nondestructive_backspace);
+		NUMBER(rip3_backspace_sends_del);
+		NUMBER(rip3_half_duplex);
 #undef NUMBER
 #define STRING(member) CHECK(strcmp(result.member, source.member) == 0)
-		STRING(name); STRING(address); STRING(username); STRING(password); STRING(system_password);
-		STRING(font); STRING(amiga_font); STRING(ghost_program); STRING(comment); STRING(wren_scripts);
-		STRING(tls_psk_identity); STRING(tls_psk); STRING(terminal_name);
+		STRING(name);
+		STRING(address);
+		STRING(username);
+		STRING(password);
+		STRING(system_password);
+		STRING(font);
+		STRING(amiga_font);
+		STRING(ghost_program);
+		STRING(comment);
+		STRING(wren_scripts);
+		STRING(tls_psk_identity);
+		STRING(tls_psk);
+		STRING(terminal_name);
 #undef STRING
-#define PATH(member) CHECK(strcmp(result.member == NULL ? "" : result.member, \
-		    source.member == NULL ? "" : source.member) == 0)
-		PATH(download_directory); PATH(upload_directory); PATH(log_path);
-		PATH(tls_trusted_certificate); PATH(tls_client_certificate); PATH(tls_client_key);
+#define PATH(member) \
+	CHECK(strcmp(result.member == NULL ? "" : result.member, source.member == NULL ? "" : source.member) == 0)
+		PATH(download_directory);
+		PATH(upload_directory);
+		PATH(log_path);
+		PATH(tls_trusted_certificate);
+		PATH(tls_client_certificate);
+		PATH(tls_client_key);
 #undef PATH
-		CHECK(memcmp(source.palette, result.palette, source.palette_size * sizeof(source.palette[0])) == 0);
+		CHECK(
+		    memcmp(source.palette, result.palette, source.palette_size * sizeof(source.palette[0])) == 0);
 		CHECK(memcmp(source.ssh_fingerprint, result.ssh_fingerprint, source.ssh_fingerprint_size) == 0);
 		st_profile_dispose(&source);
 		st_profile_dispose(&result);
@@ -153,23 +210,28 @@ check_complete_profile_roundtrip(void)
 static int
 check_graphics_codec(void)
 {
-	static const char *const names[]={"Off","RIPv1","RIPv3","SkyPix (Kick 1.3)","SkyPix (Kick 3.1)","IGS (2.21)","BIG (1.03)"};
-	for (int mode=0;mode<=ST_GRAPHICS_BIG_103;++mode) {
-		ini_document_t *document=NULL;
+	static const char *const names[] = {"Off", "RIPv1", "RIPv3", "SkyPix (Kick 1.3)", "SkyPix (Kick 3.1)",
+	    "IGS (2.21)", "BIG (1.03)"};
+	for (int mode = 0; mode <= ST_GRAPHICS_BIG_103; ++mode) {
+		ini_document_t   *document = NULL;
 		struct st_profile profile, decoded;
-		st_profile_init(&profile); profile.graphics_mode=mode;
-		CHECK(ini_document_create(&document)==0);
-		ini_section_t *section=ini_document_root(document);
-		CHECK(ini_section_set_string(section,"RIP","RIPv1",&ini_default_style)==0);
-		CHECK(st_bbs_decode_profile(&decoded,section,"Graphics",false,NULL)==0);
-		CHECK(decoded.graphics_mode==ST_GRAPHICS_RIP_1); st_profile_dispose(&decoded);
-		CHECK(ini_section_set_string(section,"Graphics",names[mode],&ini_default_style)==0);
-		CHECK(st_bbs_decode_profile(&decoded,section,"Graphics",false,NULL)==0);
-		CHECK(decoded.graphics_mode==mode); st_profile_dispose(&decoded);
-		CHECK(st_bbs_encode_profile(section,&profile,false)==0);
-		CHECK(!ini_section_has_key(section,"RIP"));
-		CHECK(strcmp(ini_section_get_string(section,"Graphics",""),names[mode])==0);
-		st_profile_dispose(&profile); ini_document_free(&document);
+		st_profile_init(&profile);
+		profile.graphics_mode = mode;
+		CHECK(ini_document_create(&document) == 0);
+		ini_section_t *section = ini_document_root(document);
+		CHECK(ini_section_set_string(section, "RIP", "RIPv1", &ini_default_style) == 0);
+		CHECK(st_bbs_decode_profile(&decoded, section, "Graphics", false, NULL) == 0);
+		CHECK(decoded.graphics_mode == ST_GRAPHICS_RIP_1);
+		st_profile_dispose(&decoded);
+		CHECK(ini_section_set_string(section, "Graphics", names[mode], &ini_default_style) == 0);
+		CHECK(st_bbs_decode_profile(&decoded, section, "Graphics", false, NULL) == 0);
+		CHECK(decoded.graphics_mode == mode);
+		st_profile_dispose(&decoded);
+		CHECK(st_bbs_encode_profile(section, &profile, false) == 0);
+		CHECK(!ini_section_has_key(section, "RIP"));
+		CHECK(strcmp(ini_section_get_string(section, "Graphics", ""), names[mode]) == 0);
+		st_profile_dispose(&profile);
+		ini_document_free(&document);
 	}
 	return 0;
 }
@@ -177,10 +239,10 @@ check_graphics_codec(void)
 static int
 check_graphics_transactions(const struct st_app_paths *base)
 {
-	const char *path = ST_BBS_TEST_DIRECTORY "/graphics.lst";
+	const char         *path  = ST_BBS_TEST_DIRECTORY "/graphics.lst";
 	struct st_app_paths paths = *base;
-	paths.personal_list = (char *)path;
-	st_bbs_list_t *first = NULL, *second = NULL;
+	paths.personal_list       = (char *)path;
+	st_bbs_list_t    *first = NULL, *second = NULL;
 	struct st_profile local, stale;
 	st_profile_init(&local);
 	st_profile_init(&stale);
@@ -224,18 +286,16 @@ check_graphics_transactions(const struct st_app_paths *base)
 static int
 check_script_codec(void)
 {
-	static const char *const lists[] = {
-		"one, two ,one", "good,bad-name", "syncterm_menu", ""
-	};
+	static const char *const lists[]    = {"one, two ,one", "good,bad-name", "syncterm_menu", ""};
 	static const char *const expected[] = {"one,two", "", "", ""};
 	for (size_t i = 0; i < sizeof(lists) / sizeof(lists[0]); ++i) {
-		ini_document_t *document = NULL;
+		ini_document_t   *document = NULL;
 		struct st_profile profile;
 		CHECK(ini_document_create(&document) == 0);
-		CHECK(ini_section_set_string(ini_document_root(document),
-		    "WrenScripts", lists[i], &ini_default_style) == 0);
-		CHECK(st_bbs_decode_profile(&profile, ini_document_root(document),
-		    "Example", false, NULL) == 0);
+		CHECK(ini_section_set_string(ini_document_root(document), "WrenScripts", lists[i],
+			  &ini_default_style)
+		      == 0);
+		CHECK(st_bbs_decode_profile(&profile, ini_document_root(document), "Example", false, NULL) == 0);
 		CHECK(strcmp(profile.wren_scripts, expected[i]) == 0);
 		st_profile_dispose(&profile);
 		ini_document_free(&document);
@@ -248,58 +308,53 @@ check_profile_default_ports(void)
 {
 	static const struct {
 		const char *name;
-		int type;
+		int         type;
 	} cases[] = {
-		{"Unknown", ST_CONNECTION_UNKNOWN},
-		{"RLogin", ST_CONNECTION_RLOGIN},
-		{"RLoginReversed", ST_CONNECTION_RLOGIN_REVERSED},
-		{"Telnet", ST_CONNECTION_TELNET},
-		{"Raw", ST_CONNECTION_RAW},
-		{"SSH", ST_CONNECTION_SSH},
-		{"SSHNA", ST_CONNECTION_SSH_NO_AUTH},
-		{"Modem", ST_CONNECTION_MODEM},
-		{"Serial", ST_CONNECTION_SERIAL},
-		{"NoRTS", ST_CONNECTION_SERIAL_3WIRE},
-		{"Shell", ST_CONNECTION_SHELL},
-		{"MBBSGhost", ST_CONNECTION_MBBS_GHOST},
-		{"TelnetS", ST_CONNECTION_TELNET_TLS},
-		{"MQTT", ST_CONNECTION_MQTT},
+	    {"Unknown",        ST_CONNECTION_UNKNOWN        },
+	    {"RLogin",         ST_CONNECTION_RLOGIN         },
+	    {"RLoginReversed", ST_CONNECTION_RLOGIN_REVERSED},
+	    {"Telnet",         ST_CONNECTION_TELNET         },
+	    {"Raw",            ST_CONNECTION_RAW            },
+	    {"SSH",            ST_CONNECTION_SSH            },
+	    {"SSHNA",          ST_CONNECTION_SSH_NO_AUTH    },
+	    {"Modem",          ST_CONNECTION_MODEM          },
+	    {"Serial",         ST_CONNECTION_SERIAL         },
+	    {"NoRTS",          ST_CONNECTION_SERIAL_3WIRE   },
+	    {"Shell",          ST_CONNECTION_SHELL          },
+	    {"MBBSGhost",      ST_CONNECTION_MBBS_GHOST     },
+	    {"TelnetS",        ST_CONNECTION_TELNET_TLS     },
+	    {"MQTT",           ST_CONNECTION_MQTT           },
 	};
+
 	char text[128];
 
 	for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); ++i) {
-		ini_document_t *document = NULL;
+		ini_document_t   *document = NULL;
 		struct st_profile profile;
-		ini_section_t *section;
-		int length = snprintf(text, sizeof(text),
-		    "[Profile]\nConnectionType=%s\n", cases[i].name);
+		ini_section_t    *section;
+		int length = snprintf(text, sizeof(text), "[Profile]\nConnectionType=%s\n", cases[i].name);
 
 		CHECK(length > 0 && (size_t)length < sizeof(text));
 		CHECK(ini_document_parse(&document, text, (size_t)length) == 0);
 		section = ini_document_find_section(document, "Profile");
 		CHECK(section != NULL);
-		CHECK(st_bbs_decode_profile(&profile, section, "Profile", false,
-		    NULL) == 0);
+		CHECK(st_bbs_decode_profile(&profile, section, "Profile", false, NULL) == 0);
 		CHECK(profile.connection_type == cases[i].type);
 		CHECK(profile.address_family == ST_ADDRESS_FAMILY_UNSPECIFIED);
-		CHECK(profile.port == st_connection_default_port(
-		    (enum st_connection_type)cases[i].type));
+		CHECK(profile.port == st_connection_default_port((enum st_connection_type)cases[i].type));
 		st_profile_dispose(&profile);
 		ini_document_free(&document);
 	}
 	{
-		static const char explicit_port[] =
-		    "[Profile]\nConnectionType=Raw\nPort=4567\n";
-		ini_document_t *document = NULL;
+		static const char explicit_port[] = "[Profile]\nConnectionType=Raw\nPort=4567\n";
+		ini_document_t   *document        = NULL;
 		struct st_profile profile;
-		ini_section_t *section;
+		ini_section_t    *section;
 
-		CHECK(ini_document_parse(&document, explicit_port,
-		    sizeof(explicit_port) - 1) == 0);
+		CHECK(ini_document_parse(&document, explicit_port, sizeof(explicit_port) - 1) == 0);
 		section = ini_document_find_section(document, "Profile");
 		CHECK(section != NULL);
-		CHECK(st_bbs_decode_profile(&profile, section, "Profile", false,
-		    NULL) == 0);
+		CHECK(st_bbs_decode_profile(&profile, section, "Profile", false, NULL) == 0);
 		CHECK(profile.port == 4567);
 		st_profile_dispose(&profile);
 		ini_document_free(&document);
@@ -312,77 +367,55 @@ check_profile_encodings(void)
 {
 	static const struct {
 		const char *source;
-		int expected;
+		int         expected;
 		const char *saved;
 	} cases[] = {
-		{"[Entry]\nFont=Codepage 850 Multilingual Latin I\n",
-		    ST_CODEPAGE_CP850, "CP850"},
-		{"[Entry]\nConnectionType=Shell\n",
-		    ST_CODEPAGE_CP437, "CP437"},
-		{"[Entry]\nConnectionType=Shell\nScreenMode=80x25\n"
-		    "Font=Codepage 850 Multilingual Latin I\n",
-		    ST_CODEPAGE_CP850, "CP850"},
-		{"[Entry]\nConnectionType=Shell\nScreenMode=AtariST80x25\n"
-		    "Font=Codepage 850 Multilingual Latin I\n",
-		    ST_CODEPAGE_CP850, "CP850"},
-		{"[Entry]\nConnectionType=Shell\nFont=Custom font\n",
-		    ST_CODEPAGE_CP437, "CP437"},
-		{"[Entry]\nConnectionType=Shell\nEncoding=UTF-8\n"
-		    "Font=Codepage 850 Multilingual Latin I\n",
-		    ST_PROFILE_ENCODING_UTF8, "UTF-8"},
-		{"[Entry]\nConnectionType=Shell\nEncoding=CP1251\n",
-		    ST_CODEPAGE_CP1251, "CP1251"},
-		{"[Entry]\nConnectionType=Shell\nScreenMode=C128-40col\n"
-		    "Font=Commodore 128 (Lower)\n",
-		    ST_CODEPAGE_PETSCII_LOWER, "PETSCIIL"},
-		{"[Entry]\nConnectionType=Shell\nScreenMode=C64\n"
-		    "Font=Commodore 64 (UPPER)\n",
-		    ST_CODEPAGE_PETSCII_UPPER, "PETSCIIU"},
-		{"[Entry]\nConnectionType=Shell\nScreenMode=C64\n"
-		    "Font=Commodore 64 (Lower)\n",
-		    ST_CODEPAGE_PETSCII_LOWER, "PETSCIIL"},
-		{"[Entry]\nConnectionType=Shell\nScreenMode=C128-40col\n"
-		    "Font=Commodore 128 (UPPER)\n",
-		    ST_CODEPAGE_PETSCII_UPPER, "PETSCIIU"},
-		{"[Entry]\nConnectionType=Shell\nScreenMode=C128-80col\n"
-		    "Font=Commodore 128 (Lower)\n",
-		    ST_CODEPAGE_PETSCII_LOWER, "PETSCIIL"},
-		{"[Entry]\nConnectionType=Shell\nScreenMode=Atari\nFont=Atari\n",
-		    ST_CODEPAGE_ATASCII, "ATASCII"},
-		{"[Entry]\nConnectionType=Shell\nScreenMode=Atari-XEP80\nFont=Atari\n",
-		    ST_CODEPAGE_ATASCII, "ATASCII"},
-		{"[Entry]\nConnectionType=Shell\nScreenMode=Prestel\nFont=Prestel\n",
-		    ST_CODEPAGE_PRESTEL, "PRESTEL"},
-		{"[Entry]\nConnectionType=Shell\nScreenMode=BBCMicro7\nFont=Prestel\n",
-		    ST_CODEPAGE_PRESTEL, "PRESTEL"},
-		{"[Entry]\nConnectionType=Shell\nScreenMode=AtariST80x25\n",
-		    ST_CODEPAGE_CP437, "CP437"},
-		{"[Entry]\nEncoding=CP850B\n",
-		    ST_CODEPAGE_CP850, "CP850"},
-		{"[Entry]\nEncoding=PRESTEL-SEP\n",
-		    ST_CODEPAGE_PRESTEL, "PRESTEL"},
-		{"[Entry]\nEncoding=invalid\n",
-		    ST_CODEPAGE_CP437, "CP437"},
+	    {"[Entry]\nFont=Codepage 850 Multilingual Latin I\n",                   ST_CODEPAGE_CP850,         "CP850"   },
+	    {"[Entry]\nConnectionType=Shell\n",                                     ST_CODEPAGE_CP437,         "CP437"   },
+	    {"[Entry]\nConnectionType=Shell\nScreenMode=80x25\n"
+	     "Font=Codepage 850 Multilingual Latin I\n",	       ST_CODEPAGE_CP850,         "CP850"   },
+	    {"[Entry]\nConnectionType=Shell\nScreenMode=AtariST80x25\n"
+	     "Font=Codepage 850 Multilingual Latin I\n",	       ST_CODEPAGE_CP850,         "CP850"   },
+	    {"[Entry]\nConnectionType=Shell\nFont=Custom font\n",                   ST_CODEPAGE_CP437,         "CP437"   },
+	    {"[Entry]\nConnectionType=Shell\nEncoding=UTF-8\n"
+	     "Font=Codepage 850 Multilingual Latin I\n",	       ST_PROFILE_ENCODING_UTF8,  "UTF-8"   },
+	    {"[Entry]\nConnectionType=Shell\nEncoding=CP1251\n",                    ST_CODEPAGE_CP1251,        "CP1251"  },
+	    {"[Entry]\nConnectionType=Shell\nScreenMode=C128-40col\n"
+	     "Font=Commodore 128 (Lower)\n",			   ST_CODEPAGE_PETSCII_LOWER, "PETSCIIL"},
+	    {"[Entry]\nConnectionType=Shell\nScreenMode=C64\n"
+	     "Font=Commodore 64 (UPPER)\n",			    ST_CODEPAGE_PETSCII_UPPER, "PETSCIIU"},
+	    {"[Entry]\nConnectionType=Shell\nScreenMode=C64\n"
+	     "Font=Commodore 64 (Lower)\n",			    ST_CODEPAGE_PETSCII_LOWER, "PETSCIIL"},
+	    {"[Entry]\nConnectionType=Shell\nScreenMode=C128-40col\n"
+	     "Font=Commodore 128 (UPPER)\n",			   ST_CODEPAGE_PETSCII_UPPER, "PETSCIIU"},
+	    {"[Entry]\nConnectionType=Shell\nScreenMode=C128-80col\n"
+	     "Font=Commodore 128 (Lower)\n",			   ST_CODEPAGE_PETSCII_LOWER, "PETSCIIL"},
+	    {"[Entry]\nConnectionType=Shell\nScreenMode=Atari\nFont=Atari\n",       ST_CODEPAGE_ATASCII,       "ATASCII" },
+	    {"[Entry]\nConnectionType=Shell\nScreenMode=Atari-XEP80\nFont=Atari\n", ST_CODEPAGE_ATASCII,
+	     "ATASCII"                                                                                                   },
+	    {"[Entry]\nConnectionType=Shell\nScreenMode=Prestel\nFont=Prestel\n",   ST_CODEPAGE_PRESTEL,       "PRESTEL" },
+	    {"[Entry]\nConnectionType=Shell\nScreenMode=BBCMicro7\nFont=Prestel\n", ST_CODEPAGE_PRESTEL,
+	     "PRESTEL"                                                                                                   },
+	    {"[Entry]\nConnectionType=Shell\nScreenMode=AtariST80x25\n",            ST_CODEPAGE_CP437,         "CP437"   },
+	    {"[Entry]\nEncoding=CP850B\n",                                          ST_CODEPAGE_CP850,         "CP850"   },
+	    {"[Entry]\nEncoding=PRESTEL-SEP\n",                                     ST_CODEPAGE_PRESTEL,       "PRESTEL" },
+	    {"[Entry]\nEncoding=invalid\n",                                         ST_CODEPAGE_CP437,         "CP437"   },
 	};
 
 	for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); ++i) {
-		ini_document_t *document = NULL;
-		ini_section_t *section;
+		ini_document_t   *document = NULL;
+		ini_section_t    *section;
 		struct st_profile profile;
 
-		CHECK(ini_document_parse(&document, cases[i].source,
-		    strlen(cases[i].source)) == 0);
+		CHECK(ini_document_parse(&document, cases[i].source, strlen(cases[i].source)) == 0);
 		section = ini_document_find_section(document, "Entry");
 		CHECK(section != NULL);
-		CHECK(st_bbs_decode_profile(&profile, section, "Entry", false,
-		    NULL) == 0);
-		CHECK(strcmp(profile.font, ini_section_get_string(section, "Font",
-		    "Codepage 437 English")) == 0);
+		CHECK(st_bbs_decode_profile(&profile, section, "Entry", false, NULL) == 0);
+		CHECK(strcmp(profile.font, ini_section_get_string(section, "Font", "Codepage 437 English")) == 0);
 		CHECK(profile.encoding == cases[i].expected);
 		CHECK(st_bbs_encode_profile(section, &profile, false) == 0);
 		CHECK(strcmp(ini_section_find(section, "Font"), profile.font) == 0);
-		CHECK(strcmp(ini_section_find(section, "Encoding"),
-		    cases[i].saved) == 0);
+		CHECK(strcmp(ini_section_find(section, "Encoding"), cases[i].saved) == 0);
 		st_profile_dispose(&profile);
 		ini_document_free(&document);
 	}
@@ -392,23 +425,23 @@ check_profile_encodings(void)
 static int
 check_scripts_are_per_entry(const struct st_app_paths *base)
 {
-	struct st_app_paths paths = *base;
-	st_bbs_list_t *list = NULL;
-	struct st_profile profile;
+	struct st_app_paths        paths = *base;
+	st_bbs_list_t             *list  = NULL;
+	struct st_profile          profile;
 	const struct st_bbs_entry *entry;
 
 	paths.personal_list = ST_BBS_TEST_DIRECTORY "/scripts-defaults.lst";
 	CHECK(write_text(paths.personal_list,
-	    "WrenScripts=root_script\n"
-	    "[Empty]\nAddress=empty.example\n"
-	    "[Explicit]\nAddress=explicit.example\nWrenScripts=entry_script\n") == 0);
+		  "WrenScripts=root_script\n"
+		  "[Empty]\nAddress=empty.example\n"
+		  "[Explicit]\nAddress=explicit.example\nWrenScripts=entry_script\n")
+	      == 0);
 	CHECK(st_bbs_list_open(&list, &paths, NULL, 0) == 0);
 	CHECK(st_bbs_list_defaults(list)->wren_scripts[0] == '\0');
 	entry = st_bbs_list_find(list, "Empty");
 	CHECK(entry != NULL && entry->profile->wren_scripts[0] == '\0');
 	entry = st_bbs_list_find(list, "Explicit");
-	CHECK(entry != NULL
-	    && strcmp(entry->profile->wren_scripts, "entry_script") == 0);
+	CHECK(entry != NULL && strcmp(entry->profile->wren_scripts, "entry_script") == 0);
 
 	st_profile_init(&profile);
 	CHECK(st_profile_copy(&profile, st_bbs_list_defaults(list)));
@@ -425,8 +458,7 @@ check_scripts_are_per_entry(const struct st_app_paths *base)
 	CHECK(st_bbs_list_defaults(list)->wren_scripts[0] == '\0');
 	CHECK(st_bbs_list_find(list, "Empty")->profile->wren_scripts[0] == '\0');
 	CHECK(st_bbs_list_find(list, "New")->profile->wren_scripts[0] == '\0');
-	CHECK(strcmp(st_bbs_list_find(list, "Explicit")->profile->wren_scripts,
-	    "entry_script") == 0);
+	CHECK(strcmp(st_bbs_list_find(list, "Explicit")->profile->wren_scripts, "entry_script") == 0);
 	st_profile_dispose(&profile);
 	st_bbs_list_close(list);
 	return 0;
@@ -436,14 +468,15 @@ static int
 check_connection_stats(const struct st_app_paths *base)
 {
 	struct st_app_paths paths = *base;
-	st_bbs_list_t *first = NULL, *second = NULL;
-	struct st_profile profile, other;
-	uint32_t calls = 0;
-	paths.personal_list = ST_BBS_TEST_DIRECTORY "/stats.lst";
+	st_bbs_list_t      *first = NULL, *second = NULL;
+	struct st_profile   profile, other;
+	uint32_t            calls = 0;
+	paths.personal_list       = ST_BBS_TEST_DIRECTORY "/stats.lst";
 	CHECK(write_text(paths.personal_list,
-	    "BeDumb=true\nTelnetLogLevel=Debug\n"
-	    "[Counter]\nTotalCalls=7\nComment=original\nUnknown=retain\n"
-	    "BeDumb=true\nTelnetLogLevel=Debug\n") == 0);
+		  "BeDumb=true\nTelnetLogLevel=Debug\n"
+		  "[Counter]\nTotalCalls=7\nComment=original\nUnknown=retain\n"
+		  "BeDumb=true\nTelnetLogLevel=Debug\n")
+	      == 0);
 	CHECK(st_bbs_list_open(&first, &paths, NULL, 0) == 0);
 	CHECK(st_bbs_list_open(&second, &paths, NULL, 0) == 0);
 	st_profile_init(&profile);
@@ -469,7 +502,7 @@ check_connection_stats(const struct st_app_paths *base)
 	/* System entries become personal without modifying their source. */
 	strcpy(profile.name, "Promoted");
 	profile.source = ST_PROFILE_SOURCE_SYSTEM;
-	profile.calls = 99;
+	profile.calls  = 99;
 	CHECK(st_bbs_list_record_connection(first, &profile, 1700000002, &calls) == 0 && calls == 1);
 	CHECK(st_bbs_list_find(first, "Promoted")->source == ST_BBS_SOURCE_PERSONAL);
 	profile.source = ST_PROFILE_SOURCE_USER;
@@ -486,20 +519,20 @@ check_connection_stats(const struct st_app_paths *base)
 static int
 check_encoding_persistence(const struct st_app_paths *base_paths)
 {
-	char personal[sizeof(ST_BBS_TEST_DIRECTORY) + 32];
-	struct st_app_paths paths = *base_paths;
-	st_bbs_list_t *first = NULL;
-	st_bbs_list_t *second = NULL;
-	struct st_profile profile, other;
+	char                     personal[sizeof(ST_BBS_TEST_DIRECTORY) + 32];
+	struct st_app_paths      paths  = *base_paths;
+	st_bbs_list_t           *first  = NULL;
+	st_bbs_list_t           *second = NULL;
+	struct st_profile        profile, other;
 	const struct st_profile *saved;
 
-	(void)snprintf(personal, sizeof(personal), "%s/encodings.lst",
-	    ST_BBS_TEST_DIRECTORY);
+	(void)snprintf(personal, sizeof(personal), "%s/encodings.lst", ST_BBS_TEST_DIRECTORY);
 	paths.personal_list = personal;
 	CHECK(write_text(personal,
-	    "Encoding=CP437\n[EncodingEntry]\nConnectionType=SSH\nPort=22\n"
-	    "Font=Codepage 437 English\nScreenMode=80x50\nNoStatus=true\n"
-	    "[LegacyShell]\nConnectionType=Shell\nFont=Codepage 437 English\n") == 0);
+		  "Encoding=CP437\n[EncodingEntry]\nConnectionType=SSH\nPort=22\n"
+		  "Font=Codepage 437 English\nScreenMode=80x50\nNoStatus=true\n"
+		  "[LegacyShell]\nConnectionType=Shell\nFont=Codepage 437 English\n")
+	      == 0);
 	CHECK(st_bbs_list_open(&first, &paths, NULL, 0) == 0);
 	st_profile_init(&profile);
 	st_profile_init(&other);
@@ -508,14 +541,15 @@ check_encoding_persistence(const struct st_app_paths *base_paths)
 	profile.encoding = ST_PROFILE_ENCODING_UTF8;
 	CHECK(st_bbs_list_update(first, "EncodingEntry", &profile, NULL) == 0);
 	CHECK(st_bbs_list_reload(first) == 0);
-	CHECK(st_bbs_list_find(first, "EncodingEntry")->profile->encoding
-	    == ST_PROFILE_ENCODING_UTF8);
-	CHECK(strcmp(ini_section_find(ini_document_find_section(
-	    first->personal_document, "EncodingEntry"), "Encoding"), "UTF-8") == 0);
+	CHECK(st_bbs_list_find(first, "EncodingEntry")->profile->encoding == ST_PROFILE_ENCODING_UTF8);
+	CHECK(strcmp(ini_section_find(ini_document_find_section(first->personal_document, "EncodingEntry"),
+			 "Encoding"),
+		  "UTF-8")
+	      == 0);
 
 	/* A transport-only edit must retain the independently saved display. */
 	profile.connection_type = ST_CONNECTION_TELNET;
-	profile.port = 23;
+	profile.port            = 23;
 	CHECK(st_bbs_list_update(first, "EncodingEntry", &profile, NULL) == 0);
 	st_bbs_list_close(first);
 	CHECK(st_bbs_list_open(&first, &paths, NULL, 0) == 0);
@@ -527,16 +561,19 @@ check_encoding_persistence(const struct st_app_paths *base_paths)
 	profile.screen_mode = ST_SCREEN_MODE_AMIGA_640X400;
 	CHECK(st_bbs_list_update(first, "EncodingEntry", &profile, NULL) == 0);
 	CHECK(st_bbs_list_reload(first) == 0);
-	CHECK(st_bbs_list_find(first, "EncodingEntry")->profile->screen_mode
-	    == ST_SCREEN_MODE_AMIGA_640X400);
-	CHECK(strcmp(ini_section_find(ini_document_find_section(
-	    first->personal_document, "EncodingEntry"), "ScreenMode"), "Amiga640x400") == 0);
+	CHECK(st_bbs_list_find(first, "EncodingEntry")->profile->screen_mode == ST_SCREEN_MODE_AMIGA_640X400);
+	CHECK(strcmp(ini_section_find(ini_document_find_section(first->personal_document, "EncodingEntry"),
+			 "ScreenMode"),
+		  "Amiga640x400")
+	      == 0);
 	profile.screen_mode = ST_SCREEN_MODE_CGA_80X25;
 	CHECK(st_bbs_list_update(first, "EncodingEntry", &profile, NULL) == 0);
 	CHECK(st_bbs_list_reload(first) == 0);
 	CHECK(st_bbs_list_find(first, "EncodingEntry")->profile->screen_mode == ST_SCREEN_MODE_CGA_80X25);
-	CHECK(strcmp(ini_section_find(ini_document_find_section(
-	    first->personal_document, "EncodingEntry"), "ScreenMode"), "CGA80x25") == 0);
+	CHECK(strcmp(ini_section_find(ini_document_find_section(first->personal_document, "EncodingEntry"),
+			 "ScreenMode"),
+		  "CGA80x25")
+	      == 0);
 
 	/* A stale writer changing another field preserves the remote encoding. */
 	CHECK(st_bbs_list_open(&second, &paths, NULL, 0) == 0);
@@ -555,13 +592,11 @@ check_encoding_persistence(const struct st_app_paths *base_paths)
 	CHECK(copy_named(&profile, first, "EncodingEntry") == 0);
 	CHECK(copy_named(&other, second, "EncodingEntry") == 0);
 	profile.encoding = ST_CODEPAGE_CP1251;
-	other.encoding = ST_CODEPAGE_CP865;
+	other.encoding   = ST_CODEPAGE_CP865;
 	CHECK(st_bbs_list_update(first, "EncodingEntry", &profile, NULL) == 0);
-	CHECK(st_bbs_list_update(second, "EncodingEntry", &other, NULL)
-	    == IO_ERROR_CONFLICT);
+	CHECK(st_bbs_list_update(second, "EncodingEntry", &other, NULL) == IO_ERROR_CONFLICT);
 	CHECK(st_bbs_list_reload(second) == 0);
-	CHECK(st_bbs_list_find(second, "EncodingEntry")->profile->encoding
-	    == ST_CODEPAGE_CP1251);
+	CHECK(st_bbs_list_find(second, "EncodingEntry")->profile->encoding == ST_CODEPAGE_CP1251);
 
 	/* Defaults use the same merge path, including encoding conflicts. */
 	CHECK(st_profile_copy(&profile, st_bbs_list_defaults(first)));
@@ -569,8 +604,7 @@ check_encoding_persistence(const struct st_app_paths *base_paths)
 	CHECK(st_bbs_list_set_defaults(first, &profile) == 0);
 	CHECK(st_bbs_list_reload(first) == 0);
 	CHECK(st_bbs_list_defaults(first)->encoding == ST_PROFILE_ENCODING_UTF8);
-	CHECK(strcmp(ini_section_find(ini_document_root(first->personal_document),
-	    "Encoding"), "UTF-8") == 0);
+	CHECK(strcmp(ini_section_find(ini_document_root(first->personal_document), "Encoding"), "UTF-8") == 0);
 	CHECK(st_bbs_list_reload(second) == 0);
 	CHECK(st_profile_copy(&profile, st_bbs_list_defaults(first)));
 	CHECK(st_profile_copy(&other, st_bbs_list_defaults(second)));
@@ -580,31 +614,30 @@ check_encoding_persistence(const struct st_app_paths *base_paths)
 	CHECK(st_bbs_list_set_defaults(second, &other) == 0);
 	CHECK(st_bbs_list_reload(first) == 0);
 	CHECK(st_bbs_list_defaults(first)->encoding == ST_CODEPAGE_CP850);
-	CHECK(strcmp(st_bbs_list_defaults(first)->terminal_name,
-	    "concurrent-defaults") == 0);
+	CHECK(strcmp(st_bbs_list_defaults(first)->terminal_name, "concurrent-defaults") == 0);
 	CHECK(st_profile_copy(&profile, st_bbs_list_defaults(first)));
 	CHECK(st_profile_copy(&other, st_bbs_list_defaults(second)));
 	profile.encoding = ST_CODEPAGE_CP1251;
-	other.encoding = ST_PROFILE_ENCODING_UTF8;
+	other.encoding   = ST_PROFILE_ENCODING_UTF8;
 	CHECK(st_bbs_list_set_defaults(first, &profile) == 0);
 	CHECK(st_bbs_list_set_defaults(second, &other) == IO_ERROR_CONFLICT);
 	CHECK(st_bbs_list_reload(second) == 0);
 	CHECK(st_bbs_list_defaults(second)->encoding == ST_CODEPAGE_CP1251);
-	CHECK(st_bbs_list_find(second, "EncodingEntry")->profile->encoding
-	    == ST_CODEPAGE_CP1251);
+	CHECK(st_bbs_list_find(second, "EncodingEntry")->profile->encoding == ST_CODEPAGE_CP1251);
 
 	/* A transport edit preserves the font-derived encoding and makes it
 	 * explicit on disk even when encoding itself was not edited. */
 	CHECK(copy_named(&profile, first, "LegacyShell") == 0);
 	CHECK(profile.encoding == ST_CODEPAGE_CP437);
 	profile.connection_type = ST_CONNECTION_TELNET;
-	profile.port = 23;
+	profile.port            = 23;
 	CHECK(st_bbs_list_update(first, "LegacyShell", &profile, NULL) == 0);
 	CHECK(st_bbs_list_reload(first) == 0);
-	CHECK(st_bbs_list_find(first, "LegacyShell")->profile->encoding
-	    == ST_CODEPAGE_CP437);
-	CHECK(strcmp(ini_section_find(ini_document_find_section(
-	    first->personal_document, "LegacyShell"), "Encoding"), "CP437") == 0);
+	CHECK(st_bbs_list_find(first, "LegacyShell")->profile->encoding == ST_CODEPAGE_CP437);
+	CHECK(strcmp(ini_section_find(ini_document_find_section(first->personal_document, "LegacyShell"),
+			 "Encoding"),
+		  "CP437")
+	      == 0);
 	st_profile_dispose(&profile);
 	st_profile_dispose(&other);
 	st_bbs_list_close(first);
@@ -615,20 +648,20 @@ check_encoding_persistence(const struct st_app_paths *base_paths)
 static int
 check_loaded_names(const struct st_app_paths *original)
 {
-	static const char full[] = "A Brother To Dragons (Photon BBS)";
+	static const char full[]      = "A Brother To Dragons (Photon BBS)";
 	static const char truncated[] = "A Brother To Dragons (Photon B";
 	static const char text[] =
 	    "[A Brother To Dragons (Photon BBS)]\nAddress=first.example\n"
 	    "[A Brother To Dragons (Photon BBS) again]\nAddress=last.example\n"
 	    "Unknown=preserve\n[Short (name)]\nAddress=short.example\n";
-	char personal[sizeof(ST_BBS_TEST_DIRECTORY) + 32];
-	char lock_path[sizeof(personal) + 8];
-	char missing[sizeof(personal)];
-	char prefix[ST_PROFILE_NAME_MAX + 1];
-	char unicode[128];
+	char                personal[sizeof(ST_BBS_TEST_DIRECTORY) + 32];
+	char                lock_path[sizeof(personal) + 8];
+	char                missing[sizeof(personal)];
+	char                prefix[ST_PROFILE_NAME_MAX + 1];
+	char                unicode[128];
 	struct st_app_paths paths = *original;
-	st_bbs_list_t *list = NULL;
-	struct st_profile profile;
+	st_bbs_list_t      *list  = NULL;
+	struct st_profile   profile;
 
 	/* Two- and four-byte scalars hit the scalar and byte limits separately. */
 	for (size_t i = 0; i < 31; ++i)
@@ -655,12 +688,12 @@ check_loaded_names(const struct st_app_paths *original)
 	CHECK(st_bbs_loaded_name(prefix, "Short (name)"));
 	CHECK(strcmp(prefix, "Short (name)") == 0);
 
-	CHECK(snprintf(personal, sizeof(personal), "%s/long-names.lst",
-	    ST_BBS_TEST_DIRECTORY) < (int)sizeof(personal));
+	CHECK(snprintf(personal, sizeof(personal), "%s/long-names.lst", ST_BBS_TEST_DIRECTORY)
+	      < (int)sizeof(personal));
 	paths.personal_list = personal;
-	paths.shared_list = NULL;
-	CHECK(snprintf(missing, sizeof(missing), "%s/long-missing.lst",
-	    ST_BBS_TEST_DIRECTORY) < (int)sizeof(missing));
+	paths.shared_list   = NULL;
+	CHECK(snprintf(missing, sizeof(missing), "%s/long-missing.lst", ST_BBS_TEST_DIRECTORY)
+	      < (int)sizeof(missing));
 	paths.cached_system_list = missing;
 	CHECK(write_text(personal, text) == 0);
 	CHECK(st_bbs_list_open(&list, &paths, NULL, 0) == 0);
@@ -675,8 +708,7 @@ check_loaded_names(const struct st_app_paths *original)
 	strcpy(profile.address, "edited.example");
 	CHECK(st_bbs_list_update(list, truncated, &profile, NULL) == 0);
 	CHECK(st_bbs_list_reload(list) == 0);
-	CHECK(strcmp(st_bbs_list_find(list, truncated)->profile->address,
-	    "edited.example") == 0);
+	CHECK(strcmp(st_bbs_list_find(list, truncated)->profile->address, "edited.example") == 0);
 	CHECK(ini_document_section_count(list->personal_document) == 2);
 	CHECK(file_contains(personal, "Unknown=preserve"));
 	/* Explicit rename and delete must find/remove the original long section. */
@@ -696,8 +728,7 @@ check_loaded_names(const struct st_app_paths *original)
 	CHECK(!file_contains(personal, full));
 	st_bbs_list_close(list);
 	CHECK(fs_remove_file(personal) == 0);
-	CHECK(snprintf(lock_path, sizeof(lock_path), "%s.lock", personal)
-	    < (int)sizeof(lock_path));
+	CHECK(snprintf(lock_path, sizeof(lock_path), "%s.lock", personal) < (int)sizeof(lock_path));
 	CHECK(fs_remove_file(lock_path) == 0);
 	return 0;
 }
@@ -705,54 +736,52 @@ check_loaded_names(const struct st_app_paths *original)
 static int
 check_prepared_sort(void)
 {
-	static const char *const names[] = {
-		"Zulu", "Alpha", "\xc3\x81lpha", "Beta", "Stra\xc3\x9f\x65",
-		"Delta"
-	};
-	static const int by_name[] = {ST_BBS_SORT_NAME, ST_BBS_SORT_NAME};
-	static const int by_calls[] = {
-		ST_BBS_SORT_CALLS, ST_BBS_SORT_ADDRESS, ST_BBS_SORT_NAME
-	};
-	static const int by_source[] = {-ST_BBS_SORT_SOURCE};
-	static const int by_encoding[] = {ST_BBS_SORT_ENCODING};
-	static const int by_encoding_descending[] = {-ST_BBS_SORT_ENCODING};
+	static const char *const names[] = {"Zulu", "Alpha", "\xc3\x81lpha", "Beta", "Stra\xc3\x9f\x65", "Delta"};
+	static const int         by_name[]     = {ST_BBS_SORT_NAME, ST_BBS_SORT_NAME};
+	static const int         by_calls[]    = {ST_BBS_SORT_CALLS, ST_BBS_SORT_ADDRESS, ST_BBS_SORT_NAME};
+	static const int         by_source[]   = {-ST_BBS_SORT_SOURCE};
+	static const int         by_encoding[] = {ST_BBS_SORT_ENCODING};
+	static const int         by_encoding_descending[] = {-ST_BBS_SORT_ENCODING};
+
 	static const struct {
 		const int *fields;
-		size_t count;
+		size_t     count;
 	} orders[] = {
-		{NULL, 0}, {by_name, 2}, {by_calls, 3}, {by_source, 1},
-		{by_encoding, 1}, {by_encoding_descending, 1}
-	};
-	struct st_profile profiles[sizeof(names) / sizeof(names[0])];
+	    {NULL,                   0},
+            {by_name,                2},
+            {by_calls,               3},
+            {by_source,              1},
+            {by_encoding,            1},
+            {by_encoding_descending, 1}
+        };
+	struct st_profile         profiles[sizeof(names) / sizeof(names[0])];
 	struct st_bbs_sort_record records[sizeof(profiles) / sizeof(profiles[0])];
 
 	for (size_t i = 0; i < sizeof(profiles) / sizeof(profiles[0]); ++i) {
 		st_profile_init(&profiles[i]);
 		(void)strcpy(profiles[i].name, names[i]);
 		(void)strcpy(profiles[i].address, i % 2 == 0 ? "omega" : "alpha");
-		profiles[i].calls = (uint32_t)(i % 3);
-		profiles[i].encoding = i % 3 == 0 ? ST_PROFILE_ENCODING_UTF8
-		    : i % 3 == 1 ? ST_CODEPAGE_CP850 : ST_CODEPAGE_CP437;
+		profiles[i].calls    = (uint32_t)(i % 3);
+		profiles[i].encoding = i % 3 == 0   ? ST_PROFILE_ENCODING_UTF8
+		                       : i % 3 == 1 ? ST_CODEPAGE_CP850
+		                                    : ST_CODEPAGE_CP437;
 	}
-	for (size_t order = 0; order < sizeof(orders) / sizeof(orders[0]);
-	    ++order) {
-		for (size_t i = 0; i < sizeof(records) / sizeof(records[0]);
-		    ++i) {
+	for (size_t order = 0; order < sizeof(orders) / sizeof(orders[0]); ++order) {
+		for (size_t i = 0; i < sizeof(records) / sizeof(records[0]); ++i) {
 			records[i].profile = &profiles[i];
-			records[i].source = i % 2 == 0 ? ST_BBS_SOURCE_PERSONAL
-			    : ST_BBS_SOURCE_SHARED;
-			records[i].value = &profiles[i];
+			records[i].source  = i % 2 == 0 ? ST_BBS_SOURCE_PERSONAL : ST_BBS_SOURCE_SHARED;
+			records[i].value   = &profiles[i];
 		}
-		CHECK(st_bbs_sort_records(records,
-		    sizeof(records) / sizeof(records[0]), orders[order].fields,
-		    orders[order].count) == 0);
+		CHECK(st_bbs_sort_records(records, sizeof(records) / sizeof(records[0]), orders[order].fields,
+			  orders[order].count)
+		      == 0);
 		for (size_t i = 0; i < sizeof(records) / sizeof(records[0]); ++i) {
 			CHECK(records[i].value == records[i].profile);
 			if (i != 0) {
-				CHECK(st_bbs_compare_profiles(records[i - 1].profile,
-				    records[i - 1].source, records[i].profile,
-				    records[i].source, orders[order].fields,
-				    orders[order].count) <= 0);
+				CHECK(st_bbs_compare_profiles(records[i - 1].profile, records[i - 1].source,
+					  records[i].profile, records[i].source, orders[order].fields,
+					  orders[order].count)
+				      <= 0);
 				if (orders[order].fields == by_encoding)
 					CHECK(records[i - 1].profile->encoding <= records[i].profile->encoding);
 				if (orders[order].fields == by_encoding_descending)
@@ -775,34 +804,35 @@ main(void)
 	static const char personal_text[] =
 	    "; personal comment\n[Alpha]\nAddress=old.example\nUnknown=keep\n"
 	    "[Alpha]\nAddress=personal.example\n"
-	    "[Stra\xc3\x9f" "e]\nAddress=unicode-personal.example\n";
+	    "[Stra\xc3\x9f"
+	    "e]\nAddress=unicode-personal.example\n";
 	static const char shared_text[] =
 	    "[Alpha]\nAddress=shared.example\n[Shared]\n"
 	    "Address=shared-only.example\nUserName=ignored\nPassword=ignored\n"
 	    "TotalCalls=99\n[STRASSE]\nAddress=unicode-shared.example\n";
-	static const char password[] = "list password";
-	struct st_app_paths paths = {0};
-	struct st_profile profile;
-	struct st_profile other;
+	static const char             password[] = "list password";
+	struct st_app_paths           paths      = {0};
+	struct st_profile             profile;
+	struct st_profile             other;
 	struct st_bbs_mutation_result mutation;
 	struct st_list_crypto_options crypto = ST_LIST_CRYPTO_OPTIONS_AES256;
-	st_bbs_list_t *first = NULL;
-	st_bbs_list_t *second = NULL;
-	st_bbs_list_t *verify = NULL;
-	char personal[sizeof(ST_BBS_TEST_DIRECTORY) + 32];
-	char shared[sizeof(ST_BBS_TEST_DIRECTORY) + 32];
-	char cache[sizeof(ST_BBS_TEST_DIRECTORY) + 32];
-	char system_cache[sizeof(ST_BBS_TEST_DIRECTORY) + 64];
-	char system_list[sizeof(ST_BBS_TEST_DIRECTORY) + 96];
-	char lock_path[sizeof(personal) + 8];
-	char cache_item[sizeof(cache) + 128];
-	char *public_cache_path = NULL;
-	uint8_t picker_key[32];
-	uint8_t reopened_picker_key[32];
-	bool picker_key_available;
-	struct fs_info info;
-	const struct st_bbs_entry *entry;
-	int status;
+	st_bbs_list_t                *first  = NULL;
+	st_bbs_list_t                *second = NULL;
+	st_bbs_list_t                *verify = NULL;
+	char                          personal[sizeof(ST_BBS_TEST_DIRECTORY) + 32];
+	char                          shared[sizeof(ST_BBS_TEST_DIRECTORY) + 32];
+	char                          cache[sizeof(ST_BBS_TEST_DIRECTORY) + 32];
+	char                          system_cache[sizeof(ST_BBS_TEST_DIRECTORY) + 64];
+	char                          system_list[sizeof(ST_BBS_TEST_DIRECTORY) + 96];
+	char                          lock_path[sizeof(personal) + 8];
+	char                          cache_item[sizeof(cache) + 128];
+	char                         *public_cache_path = NULL;
+	uint8_t                       picker_key[32];
+	uint8_t                       reopened_picker_key[32];
+	bool                          picker_key_available;
+	struct fs_info                info;
+	const struct st_bbs_entry    *entry;
+	int                           status;
 
 	CHECK(check_profile_default_ports() == 0);
 	CHECK(check_script_codec() == 0);
@@ -810,15 +840,19 @@ main(void)
 	CHECK(check_complete_profile_roundtrip() == 0);
 	CHECK(check_profile_encodings() == 0);
 	CHECK(check_prepared_sort() == 0);
-	CHECK(st_bbs_name_equal("Stra\xc3\x9f" "e", "STRASSE"));
+	CHECK(
+	    st_bbs_name_equal("Stra\xc3\x9f"
+			      "e",
+		"STRASSE"));
 	CHECK(st_bbs_name_equal("\xc3\x85", "A\xcc\x8a"));
 	CHECK(st_bbs_name_valid("M\xc3\xbcnchen"));
 	{
-		ini_document_t *document = NULL;
+		ini_document_t   *document = NULL;
 		struct st_profile shortened;
 		CHECK(ini_document_parse(&document, "Address=long.example\n", 21) == 0);
 		CHECK(st_bbs_decode_profile(&shortened, ini_document_root(document),
-		    "A Brother To Dragons (Photon BBS)", false, NULL) == 0);
+			  "A Brother To Dragons (Photon BBS)", false, NULL)
+		      == 0);
 		CHECK(strcmp(shortened.name, "A Brother To Dragons (Photon B") == 0);
 		CHECK(strcmp(shortened.address, "long.example") == 0);
 		st_profile_dispose(&shortened);
@@ -828,25 +862,21 @@ main(void)
 	CHECK(!st_bbs_name_valid("A\xcc\x8a"));
 	CHECK(!st_bbs_name_valid_normalized(" leading"));
 
-	(void)snprintf(personal, sizeof(personal), "%s/personal.lst",
-	    ST_BBS_TEST_DIRECTORY);
-	(void)snprintf(shared, sizeof(shared), "%s/shared.lst",
-	    ST_BBS_TEST_DIRECTORY);
+	(void)snprintf(personal, sizeof(personal), "%s/personal.lst", ST_BBS_TEST_DIRECTORY);
+	(void)snprintf(shared, sizeof(shared), "%s/shared.lst", ST_BBS_TEST_DIRECTORY);
 	(void)snprintf(cache, sizeof(cache), "%s/cache", ST_BBS_TEST_DIRECTORY);
-	(void)snprintf(system_cache, sizeof(system_cache), "%s/cache/system",
-	    ST_BBS_TEST_DIRECTORY);
-	(void)snprintf(system_list, sizeof(system_list), "%s/System List.lst",
-	    system_cache);
+	(void)snprintf(system_cache, sizeof(system_cache), "%s/cache/system", ST_BBS_TEST_DIRECTORY);
+	(void)snprintf(system_list, sizeof(system_list), "%s/System List.lst", system_cache);
 	CHECK(fs_create_directories(system_cache) == 0);
 	CHECK(write_text(personal, personal_text) == 0);
 	CHECK(write_text(shared, shared_text) == 0);
-	paths.settings_file = personal;
-	paths.personal_list = personal;
-	paths.shared_list = shared;
-	paths.cache_directory = cache;
+	paths.settings_file          = personal;
+	paths.personal_list          = personal;
+	paths.shared_list            = shared;
+	paths.cache_directory        = cache;
 	paths.system_cache_directory = system_cache;
-	paths.cached_system_list = system_list;
-	paths.download_directory = ST_BBS_TEST_DIRECTORY;
+	paths.cached_system_list     = system_list;
+	paths.download_directory     = ST_BBS_TEST_DIRECTORY;
 	CHECK(check_loaded_names(&paths) == 0);
 	CHECK(check_encoding_persistence(&paths) == 0);
 	CHECK(check_graphics_transactions(&paths) == 0);
@@ -855,8 +885,7 @@ main(void)
 
 	status = st_bbs_list_open(&first, &paths, NULL, 0);
 	CHECK(status == 0);
-	CHECK(st_bbs_list_picker_key(first, picker_key,
-	    &picker_key_available) == 0);
+	CHECK(st_bbs_list_picker_key(first, picker_key, &picker_key_available) == 0);
 	CHECK(!picker_key_available);
 	CHECK(st_bbs_list_cache_path(&public_cache_path, first, "Beta") == 0);
 	CHECK(path_append_separator(cache_item, sizeof(cache_item), cache) > 0);
@@ -866,37 +895,31 @@ main(void)
 	CHECK(strcmp(public_cache_path, cache_item) == 0);
 	free(public_cache_path);
 	public_cache_path = NULL;
-	CHECK(st_bbs_cache_path_for_name(&public_cache_path,
-	    paths.cache_directory, "Beta") == 0);
+	CHECK(st_bbs_cache_path_for_name(&public_cache_path, paths.cache_directory, "Beta") == 0);
 	CHECK(strcmp(public_cache_path, cache_item) == 0);
 	free(public_cache_path);
 	public_cache_path = NULL;
 	CHECK(st_bbs_list_count(first) == 3);
 	entry = st_bbs_list_find(first, "alpha");
 	CHECK(entry != NULL && entry->source == ST_BBS_SOURCE_PERSONAL);
-	CHECK(entry->name_key_size == 5
-	    && memcmp(entry->name_key, "alpha", entry->name_key_size) == 0);
-	CHECK(entry->name_key != ini_section_name_key(
-	    ini_document_find_section(first->personal_document, "Alpha"), NULL));
+	CHECK(entry->name_key_size == 5 && memcmp(entry->name_key, "alpha", entry->name_key_size) == 0);
+	CHECK(entry->name_key
+	      != ini_section_name_key(ini_document_find_section(first->personal_document, "Alpha"), NULL));
 	CHECK(strcmp(entry->profile->address, "personal.example") == 0);
 	CHECK(st_bbs_entry_shadowed(entry) != NULL);
 	CHECK(st_bbs_entry_shadowed(entry)->source == ST_BBS_SOURCE_SHARED);
-	CHECK(strcmp(st_bbs_entry_shadowed(entry)->profile->address,
-	    "shared.example") == 0);
+	CHECK(strcmp(st_bbs_entry_shadowed(entry)->profile->address, "shared.example") == 0);
 	CHECK(st_bbs_list_find(first, "Shared") != NULL);
 	CHECK(st_bbs_list_find(first, "Shared")->profile->username[0] == '\0');
 	CHECK(st_bbs_list_find(first, "Shared")->profile->password[0] == '\0');
 	CHECK(st_bbs_list_find(first, "Shared")->profile->calls == 0);
 	entry = st_bbs_list_find(first, "strasse");
 	CHECK(entry != NULL && entry->source == ST_BBS_SOURCE_PERSONAL);
-	CHECK(entry->name_key_size == 7
-	    && memcmp(entry->name_key, "strasse", entry->name_key_size) == 0);
+	CHECK(entry->name_key_size == 7 && memcmp(entry->name_key, "strasse", entry->name_key_size) == 0);
 	CHECK(st_bbs_entry_shadowed(entry) != NULL);
-	CHECK(strcmp(st_bbs_entry_shadowed(entry)->profile->address,
-	    "unicode-shared.example") == 0);
+	CHECK(strcmp(st_bbs_entry_shadowed(entry)->profile->address, "unicode-shared.example") == 0);
 	CHECK(st_bbs_sort_field_normalize(30) == ST_BBS_SORT_EXPLICIT);
-	CHECK(st_bbs_sort_field_normalize(ST_BBS_SORT_LF_EXPAND)
-	    == ST_BBS_SORT_LF_EXPAND);
+	CHECK(st_bbs_sort_field_normalize(ST_BBS_SORT_LF_EXPAND) == ST_BBS_SORT_LF_EXPAND);
 	CHECK(st_bbs_sort_field_normalize(ST_BBS_SORT_ENCODING) == ST_BBS_SORT_ENCODING);
 	CHECK(st_bbs_sort_field_normalize(-ST_BBS_SORT_ENCODING) == -ST_BBS_SORT_ENCODING);
 	CHECK(st_bbs_sort_field_normalize(ST_BBS_SORT_ENCODING + 1) == ST_BBS_SORT_NONE);
@@ -914,44 +937,44 @@ main(void)
 	(void)strcpy(profile.terminal_name, "xterm-test");
 	(void)strcpy(profile.tls_psk_identity, "client");
 	(void)strcpy(profile.tls_psk, "00112233");
-	profile.connection_type = ST_CONNECTION_TELNET_TLS;
-	profile.port = 992;
-	profile.screen_mode = ST_SCREEN_MODE_PRESTEL;
-	profile.flow_control = ST_PROFILE_FLOW_NONE;
-	profile.data_bits = 7;
-	profile.stop_bits = 2;
-	profile.parity = ST_PROFILE_PARITY_ODD;
-	profile.music = ST_PROFILE_MUSIC_ALL;
-	profile.address_family = ST_ADDRESS_FAMILY_IPV6;
-	profile.graphics_mode = ST_GRAPHICS_RIP_3;
-	profile.tls_psk_version = ST_TLS_VERSION_1_2;
-	profile.tls_version_floor = ST_TLS_VERSION_1_2;
-	profile.hide_status = true;
-	profile.hide_popups = true;
-	profile.force_lcf = true;
-	profile.yellow_is_yellow = true;
-	profile.expand_lf = true;
-	profile.sftp_public_key = true;
-	profile.ssh_allow_aes128_cbc = true;
-	profile.ssh_accept_early_data = true;
-	profile.telnet_no_binary = true;
+	profile.connection_type          = ST_CONNECTION_TELNET_TLS;
+	profile.port                     = 992;
+	profile.screen_mode              = ST_SCREEN_MODE_PRESTEL;
+	profile.flow_control             = ST_PROFILE_FLOW_NONE;
+	profile.data_bits                = 7;
+	profile.stop_bits                = 2;
+	profile.parity                   = ST_PROFILE_PARITY_ODD;
+	profile.music                    = ST_PROFILE_MUSIC_ALL;
+	profile.address_family           = ST_ADDRESS_FAMILY_IPV6;
+	profile.graphics_mode            = ST_GRAPHICS_RIP_3;
+	profile.tls_psk_version          = ST_TLS_VERSION_1_2;
+	profile.tls_version_floor        = ST_TLS_VERSION_1_2;
+	profile.hide_status              = true;
+	profile.hide_popups              = true;
+	profile.force_lcf                = true;
+	profile.yellow_is_yellow         = true;
+	profile.expand_lf                = true;
+	profile.sftp_public_key          = true;
+	profile.ssh_allow_aes128_cbc     = true;
+	profile.ssh_accept_early_data    = true;
+	profile.telnet_no_binary         = true;
 	profile.defer_telnet_negotiation = true;
-	profile.bps_rate = UINT32_MAX;
-	profile.sort_order = 7;
-	profile.palette[0] = 0x112233;
-	profile.palette[1] = 0xabcdef;
-	profile.palette_size = 2;
+	profile.bps_rate                 = UINT32_MAX;
+	profile.sort_order               = 7;
+	profile.palette[0]               = 0x112233;
+	profile.palette[1]               = 0xabcdef;
+	profile.palette_size             = 2;
 	for (size_t i = 0; i < 20; ++i)
 		profile.ssh_fingerprint[i] = (uint8_t)i;
 	profile.ssh_fingerprint_size = 20;
 	CHECK(write_text(shared,
-	    "[Alpha]\nAddress=shared.example\n[Shared]\n"
-	    "Address=z-externally.example\n[STRASSE]\n"
-	    "Address=unicode-shared.example\n") == 0);
+		  "[Alpha]\nAddress=shared.example\n[Shared]\n"
+		  "Address=z-externally.example\n[STRASSE]\n"
+		  "Address=unicode-shared.example\n")
+	      == 0);
 	CHECK(st_bbs_list_add(first, &profile, &mutation) == 0);
 	CHECK(st_bbs_list_count(first) == 4);
-	CHECK(strcmp(st_bbs_list_find(first, "Shared")->profile->address,
-	    "z-externally.example") == 0);
+	CHECK(strcmp(st_bbs_list_find(first, "Shared")->profile->address, "z-externally.example") == 0);
 	CHECK(st_bbs_list_find(first, "Alpha")->source == ST_BBS_SOURCE_PERSONAL);
 	CHECK(st_bbs_list_sort(first, NULL, 0) == 0);
 	st_profile_init(&other);
@@ -960,35 +983,32 @@ main(void)
 	st_profile_dispose(&other);
 	CHECK(strcmp(st_bbs_list_at(first, 0)->profile->name, "Alpha") == 0);
 	CHECK(write_text(shared,
-	    "[Alpha]\nAddress=shared.example\n[Shared]\n"
-	    "Address=y-externally.example\n[STRASSE]\n"
-	    "Address=unicode-shared.example\n") == 0);
+		  "[Alpha]\nAddress=shared.example\n[Shared]\n"
+		  "Address=y-externally.example\n[STRASSE]\n"
+		  "Address=unicode-shared.example\n")
+	      == 0);
 	st_profile_init(&other);
 	CHECK(copy_named(&other, first, "Beta") == 0);
 	CHECK(st_bbs_list_update(first, "Beta", &other, NULL) == 0);
 	st_profile_dispose(&other);
-	CHECK(strcmp(st_bbs_list_find(first, "Shared")->profile->address,
-	    "y-externally.example") == 0);
+	CHECK(strcmp(st_bbs_list_find(first, "Shared")->profile->address, "y-externally.example") == 0);
 	st_profile_init(&other);
 	CHECK(copy_named(&other, first, "Beta") == 0);
 	(void)strcpy(other.name, "Shared");
 	CHECK(st_bbs_list_update(first, "Beta", &other, NULL) == 0);
 	CHECK(st_bbs_list_count(first) == 3);
-	CHECK(st_bbs_list_find(first, "Shared")->source
-	    == ST_BBS_SOURCE_PERSONAL);
+	CHECK(st_bbs_list_find(first, "Shared")->source == ST_BBS_SOURCE_PERSONAL);
 	(void)strcpy(other.name, "Beta");
 	CHECK(st_bbs_list_update(first, "Shared", &other, NULL) == 0);
 	CHECK(st_bbs_list_count(first) == 4);
-	CHECK(st_bbs_list_find(first, "Shared")->source
-	    == ST_BBS_SOURCE_SHARED);
+	CHECK(st_bbs_list_find(first, "Shared")->source == ST_BBS_SOURCE_SHARED);
 	st_profile_dispose(&other);
 	st_profile_init(&other);
 	CHECK(copy_named(&other, first, "Beta") == 0);
 	(void)strcpy(other.name, "bEtA");
 	CHECK(st_bbs_list_update(first, "Beta", &other, NULL) == 0);
 	CHECK(st_bbs_list_reload(first) == 0);
-	CHECK(strcmp(st_bbs_list_find(first, "Beta")->profile->name,
-	    "bEtA") == 0);
+	CHECK(strcmp(st_bbs_list_find(first, "Beta")->profile->name, "bEtA") == 0);
 	(void)strcpy(other.name, "Beta");
 	CHECK(st_bbs_list_update(first, "bEtA", &other, NULL) == 0);
 	st_profile_dispose(&other);
@@ -996,15 +1016,13 @@ main(void)
 	CHECK(copy_named(&other, first, "Alpha") == 0);
 	(void)strcpy(other.name, "Delta");
 	CHECK(st_bbs_list_update(first, "Alpha", &other, NULL) == 0);
-	CHECK(st_bbs_list_find(first, "Alpha")->source
-	    == ST_BBS_SOURCE_SHARED);
+	CHECK(st_bbs_list_find(first, "Alpha")->source == ST_BBS_SOURCE_SHARED);
 	(void)strcpy(other.name, "Alpha");
 	CHECK(st_bbs_list_update(first, "Delta", &other, NULL) == 0);
-	CHECK(st_bbs_list_find(first, "Alpha")->source
-	    == ST_BBS_SOURCE_PERSONAL);
+	CHECK(st_bbs_list_find(first, "Alpha")->source == ST_BBS_SOURCE_PERSONAL);
 	st_profile_dispose(&other);
 	{
-		const int fields[] = { ST_BBS_SORT_ADDRESS };
+		const int fields[] = {ST_BBS_SORT_ADDRESS};
 
 		CHECK(st_bbs_list_sort(first, fields, 1) == 0);
 		CHECK(strcmp(st_bbs_list_at(first, 0)->profile->name, "Beta") == 0);
@@ -1039,8 +1057,7 @@ main(void)
 	(void)strcpy(other.address, "loser.example");
 	CHECK(st_bbs_list_update(first, "Beta", &profile, NULL) == 0);
 	CHECK(st_bbs_list_find(first, "Alpha")->source == ST_BBS_SOURCE_PERSONAL);
-	CHECK(st_bbs_list_update(second, "Beta", &other, NULL)
-	    == IO_ERROR_CONFLICT);
+	CHECK(st_bbs_list_update(second, "Beta", &other, NULL) == IO_ERROR_CONFLICT);
 	CHECK(st_bbs_list_remove(second, "Beta", NULL) == IO_ERROR_CONFLICT);
 	st_profile_dispose(&profile);
 	st_profile_dispose(&other);
@@ -1059,24 +1076,20 @@ main(void)
 	st_profile_dispose(&profile);
 
 	(void)snprintf(cache_item, sizeof(cache_item),
-	    "%s/[u18-f44e64e75f3948e9f73f8dfa94721c4ce8cbb4f265c4790c702b2d41cfbf2753]/nested",
-	    cache);
+	    "%s/[u18-f44e64e75f3948e9f73f8dfa94721c4ce8cbb4f265c4790c702b2d41cfbf2753]/nested", cache);
 	CHECK(fs_create_directories(cache_item) == 0);
 	(void)snprintf(cache_item, sizeof(cache_item),
-	    "%s/[u18-f44e64e75f3948e9f73f8dfa94721c4ce8cbb4f265c4790c702b2d41cfbf2753]/nested/item",
-	    cache);
+	    "%s/[u18-f44e64e75f3948e9f73f8dfa94721c4ce8cbb4f265c4790c702b2d41cfbf2753]/nested/item", cache);
 	CHECK(write_text(cache_item, "cached") == 0);
 	st_profile_init(&profile);
 	CHECK(copy_named(&profile, first, "Beta") == 0);
 	(void)strcpy(profile.name, "Gamma");
 	CHECK(st_bbs_list_update(first, "Beta", &profile, NULL) == 0);
 	(void)snprintf(cache_item, sizeof(cache_item),
-	    "%s/[u18-f44e64e75f3948e9f73f8dfa94721c4ce8cbb4f265c4790c702b2d41cfbf2753]",
-	    cache);
+	    "%s/[u18-f44e64e75f3948e9f73f8dfa94721c4ce8cbb4f265c4790c702b2d41cfbf2753]", cache);
 	CHECK(fs_get_link_info(&info, cache_item) == IO_ERROR_NOT_FOUND);
 	(void)snprintf(cache_item, sizeof(cache_item),
-	    "%s/[u18-be9d587defa1f0c09ef49eb17e206983a5f8f8289e4281860bd0ee5a19592c67]/nested/item",
-	    cache);
+	    "%s/[u18-be9d587defa1f0c09ef49eb17e206983a5f8f8289e4281860bd0ee5a19592c67]/nested/item", cache);
 	CHECK(fs_get_info(&info, cache_item) == 0 && info.kind == FS_ENTRY_FILE);
 	st_profile_dispose(&profile);
 	st_profile_init(&profile);
@@ -1086,57 +1099,45 @@ main(void)
 	st_profile_dispose(&profile);
 
 	(void)snprintf(cache_item, sizeof(cache_item),
-	    "%s/[u18-8ed3f6ad685b959ead7022518e1af76cd816f8e8ec7ccdda1ed4018e8f2223f8]/nested",
-	    cache);
+	    "%s/[u18-8ed3f6ad685b959ead7022518e1af76cd816f8e8ec7ccdda1ed4018e8f2223f8]/nested", cache);
 	CHECK(fs_create_directories(cache_item) == 0);
 	status = st_bbs_list_remove(first, "Alpha", NULL);
 	CHECK(status == 0);
 	(void)snprintf(cache_item, sizeof(cache_item),
-	    "%s/[u18-8ed3f6ad685b959ead7022518e1af76cd816f8e8ec7ccdda1ed4018e8f2223f8]",
-	    cache);
+	    "%s/[u18-8ed3f6ad685b959ead7022518e1af76cd816f8e8ec7ccdda1ed4018e8f2223f8]", cache);
 	CHECK(fs_get_link_info(&info, cache_item) == IO_ERROR_NOT_FOUND);
 	entry = st_bbs_list_find(first, "Alpha");
 	CHECK(entry != NULL && entry->source == ST_BBS_SOURCE_SHARED);
 	(void)snprintf(cache_item, sizeof(cache_item),
-	    "%s/[u18-0000000000000000000000000000000000000000000000000000000000000000]/nested",
-	    cache);
+	    "%s/[u18-0000000000000000000000000000000000000000000000000000000000000000]/nested", cache);
 	CHECK(fs_create_directories(cache_item) == 0);
 	CHECK(st_bbs_list_sweep_orphan_caches(first) == 0);
 	(void)snprintf(cache_item, sizeof(cache_item),
-	    "%s/[u18-0000000000000000000000000000000000000000000000000000000000000000]",
-	    cache);
+	    "%s/[u18-0000000000000000000000000000000000000000000000000000000000000000]", cache);
 	CHECK(fs_get_link_info(&info, cache_item) == IO_ERROR_NOT_FOUND);
 	(void)snprintf(cache_item, sizeof(cache_item),
-	    "%s/[u18-f44e64e75f3948e9f73f8dfa94721c4ce8cbb4f265c4790c702b2d41cfbf2753]",
-	    cache);
-	CHECK(fs_get_info(&info, cache_item) == 0
-	    && info.kind == FS_ENTRY_DIRECTORY);
-	CHECK(fs_get_info(&info, system_cache) == 0
-	    && info.kind == FS_ENTRY_DIRECTORY);
+	    "%s/[u18-f44e64e75f3948e9f73f8dfa94721c4ce8cbb4f265c4790c702b2d41cfbf2753]", cache);
+	CHECK(fs_get_info(&info, cache_item) == 0 && info.kind == FS_ENTRY_DIRECTORY);
+	CHECK(fs_get_info(&info, system_cache) == 0 && info.kind == FS_ENTRY_DIRECTORY);
 	crypto.cost_log2 = 8;
-	status = st_bbs_list_rewrite_encryption(first, &crypto, password,
-	    sizeof(password) - 1);
+	status           = st_bbs_list_rewrite_encryption(first, &crypto, password, sizeof(password) - 1);
 	CHECK(status == 0 || status == IO_ERROR_NOT_SUPPORTED);
 	if (status == 0) {
-		CHECK(st_bbs_list_picker_key(first, picker_key,
-		    &picker_key_available) == 0);
+		CHECK(st_bbs_list_picker_key(first, picker_key, &picker_key_available) == 0);
 		CHECK(picker_key_available);
 	}
 	st_bbs_list_close(second);
 	second = NULL;
 	st_bbs_list_close(first);
 	first = NULL;
-	CHECK(st_bbs_list_open(&verify, &paths,
-	    status == 0 ? password : NULL,
-	    status == 0 ? sizeof(password) - 1 : 0) == 0);
-	CHECK(st_bbs_list_crypto_info(verify)->format == (status == 0
-	    ? ST_LIST_CRYPTO_V2 : ST_LIST_CRYPTO_PLAIN));
-	CHECK(st_bbs_list_picker_key(verify, reopened_picker_key,
-	    &picker_key_available) == 0);
+	CHECK(st_bbs_list_open(&verify, &paths, status == 0 ? password : NULL,
+		  status == 0 ? sizeof(password) - 1 : 0)
+	      == 0);
+	CHECK(st_bbs_list_crypto_info(verify)->format == (status == 0 ? ST_LIST_CRYPTO_V2 : ST_LIST_CRYPTO_PLAIN));
+	CHECK(st_bbs_list_picker_key(verify, reopened_picker_key, &picker_key_available) == 0);
 	CHECK(picker_key_available == (status == 0));
 	if (status == 0)
-		CHECK(memcmp(picker_key, reopened_picker_key,
-		    sizeof(picker_key)) == 0);
+		CHECK(memcmp(picker_key, reopened_picker_key, sizeof(picker_key)) == 0);
 	CHECK(st_bbs_list_find(verify, "Beta") != NULL);
 	entry = st_bbs_list_find(verify, "Beta");
 	CHECK(entry->profile->connection_type == ST_CONNECTION_TELNET_TLS);
@@ -1146,21 +1147,17 @@ main(void)
 	CHECK(entry->profile->data_bits == 7 && entry->profile->stop_bits == 2);
 	CHECK(entry->profile->parity == ST_PROFILE_PARITY_ODD);
 	CHECK(entry->profile->tls_psk_version == ST_TLS_VERSION_1_2);
-	CHECK(entry->profile->palette_size == 2
-	    && entry->profile->palette[1] == 0xabcdef);
-	CHECK(entry->profile->ssh_fingerprint_size == 20
-	    && entry->profile->ssh_fingerprint[19] == 19);
-	CHECK(entry->profile->hide_status && entry->profile->expand_lf
-	    && entry->profile->defer_telnet_negotiation);
+	CHECK(entry->profile->palette_size == 2 && entry->profile->palette[1] == 0xabcdef);
+	CHECK(entry->profile->ssh_fingerprint_size == 20 && entry->profile->ssh_fingerprint[19] == 19);
+	CHECK(
+	    entry->profile->hide_status && entry->profile->expand_lf && entry->profile->defer_telnet_negotiation);
 	if (status == 0) {
 		const struct st_list_crypto_options plain = {
-			.cipher = ST_LIST_CIPHER_NONE,
+		    .cipher = ST_LIST_CIPHER_NONE,
 		};
 
-		CHECK(st_bbs_list_rewrite_encryption(verify, &plain, password,
-		    sizeof(password) - 1) == 0);
-		CHECK(st_bbs_list_picker_key(verify, reopened_picker_key,
-		    &picker_key_available) == 0);
+		CHECK(st_bbs_list_rewrite_encryption(verify, &plain, password, sizeof(password) - 1) == 0);
+		CHECK(st_bbs_list_picker_key(verify, reopened_picker_key, &picker_key_available) == 0);
 		CHECK(!picker_key_available);
 		CHECK(!file_contains(personal, "WrenPickerHmacKey"));
 	}

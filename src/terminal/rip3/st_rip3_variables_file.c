@@ -1,22 +1,25 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
-#include "st_rip3_variables_file.h"
-
-#include "filesystem.h"
-#include "io_error.h"
-
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-static const uint8_t magic[] = {'S','T','R','I','P','3','V'};
-enum { VARIABLE_FILE_WITH_FLAGS = 2, VARIABLE_FILE_WIDE_LENGTH = 3, CONFIRMATION_REQUIRED = 1 };
+#include "filesystem.h"
+#include "io_error.h"
+#include "st_rip3_variables_file.h"
+
+static const uint8_t magic[] = {'S', 'T', 'R', 'I', 'P', '3', 'V'};
+
+enum {
+	VARIABLE_FILE_WITH_FLAGS  = 2,
+	VARIABLE_FILE_WIDE_LENGTH = 3,
+	CONFIRMATION_REQUIRED     = 1
+};
 
 static uint32_t
 read_count(const uint8_t *bytes)
 {
-	return (uint32_t)bytes[0] | (uint32_t)bytes[1] << 8
-	    | (uint32_t)bytes[2] << 16 | (uint32_t)bytes[3] << 24;
+	return (uint32_t)bytes[0] | (uint32_t)bytes[1] << 8 | (uint32_t)bytes[2] << 16 | (uint32_t)bytes[3] << 24;
 }
 
 static void
@@ -27,14 +30,13 @@ write_count(uint8_t *bytes, uint32_t value)
 }
 
 int
-st_rip3_variables_save_file(const struct st_rip3_variables *variables,
-    const char *path)
+st_rip3_variables_save_file(const struct st_rip3_variables *variables, const char *path)
 {
 	struct st_rip3_variable_snapshot snapshot = {0};
-	uint8_t *bytes = NULL;
-	size_t count, size = 12, offset = 12;
-	bool wide = false;
-	int status;
+	uint8_t                         *bytes    = NULL;
+	size_t                           count, size = 12, offset = 12;
+	bool                             wide = false;
+	int                              status;
 
 	if (path == NULL || path[0] == 0)
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -48,7 +50,7 @@ st_rip3_variables_save_file(const struct st_rip3_variables *variables,
 		return status;
 	for (size_t i = 0; i < snapshot.count; i++) {
 		const struct st_rip3_variable_entry *entry = &snapshot.entries[i];
-		size_t added = 3 + strlen(entry->name) + entry->value.length;
+		size_t                               added = 3 + strlen(entry->name) + entry->value.length;
 
 		if (entry->value.length > UINT8_MAX)
 			wide = true;
@@ -74,8 +76,8 @@ st_rip3_variables_save_file(const struct st_rip3_variables *variables,
 	bytes[7] = wide ? VARIABLE_FILE_WIDE_LENGTH : VARIABLE_FILE_WITH_FLAGS;
 	write_count(bytes + 8, (uint32_t)snapshot.count);
 	for (size_t i = 0; i < snapshot.count; i++) {
-		const struct st_rip3_variable_entry *entry = &snapshot.entries[i];
-		size_t name_length = strlen(entry->name);
+		const struct st_rip3_variable_entry *entry       = &snapshot.entries[i];
+		size_t                               name_length = strlen(entry->name);
 
 		bytes[offset++] = (uint8_t)name_length;
 		bytes[offset++] = (uint8_t)entry->value.length;
@@ -105,11 +107,11 @@ read_exact(FILE *stream, void *bytes, size_t size)
 static int
 load_stream(struct st_rip3_variables **result, FILE *stream)
 {
-	uint8_t header[12];
+	uint8_t                   header[12];
 	struct st_rip3_variables *variables = NULL;
-	int64_t file_size = fs_stream_size(stream);
-	uint32_t count;
-	int status;
+	int64_t                   file_size = fs_stream_size(stream);
+	uint32_t                  count;
+	int                       status;
 
 	if (file_size < 0)
 		return (int)file_size;
@@ -123,7 +125,7 @@ load_stream(struct st_rip3_variables **result, FILE *stream)
 	if (header[7] < 1 || header[7] > VARIABLE_FILE_WIDE_LENGTH)
 		return IO_ERROR_NOT_SUPPORTED;
 	size_t record_header = (size_t)header[7] + 1;
-	count = read_count(header + 8);
+	count                = read_count(header + 8);
 	/* Each record contains a header and at least one name byte. */
 	if (count > (uint64_t)(file_size - 12) / (record_header + 1))
 		return IO_ERROR_INVALID_FORMAT;
@@ -131,10 +133,10 @@ load_stream(struct st_rip3_variables **result, FILE *stream)
 	if (status != 0)
 		return status;
 	for (uint32_t i = 0; i < count; i++) {
-		uint8_t fields[4] = {0};
+		uint8_t                       fields[4] = {0};
 		struct st_rip3_variable_value value;
-		char name[21];
-		size_t stored;
+		char                          name[21];
+		size_t                        stored;
 
 		status = read_exact(stream, fields, record_header);
 		if (status != 0)
@@ -178,9 +180,9 @@ int
 st_rip3_variables_load_file(struct st_rip3_variables **result, const char *path)
 {
 	struct st_rip3_variables *variables = NULL;
-	struct fs_info info;
-	FILE *stream = NULL;
-	int status;
+	struct fs_info            info;
+	FILE                     *stream = NULL;
+	int                       status;
 
 	if (result == NULL || path == NULL || path[0] == 0)
 		return IO_ERROR_INVALID_ARGUMENT;

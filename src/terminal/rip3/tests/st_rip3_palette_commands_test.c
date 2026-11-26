@@ -1,25 +1,29 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
-#include "st_rip3_commands.h"
-#include "st_rip3_environments.h"
-#include "st_rip3_palettes.h"
-#include "st_rip3_host_variables.h"
-#include "st_rip3_table_host.h"
-#include "st_pixels.h"
-
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
-#define CHECK(expression) do { \
-	if (!(expression)) { \
-		fprintf(stderr, "check failed at line %d: %s\n", __LINE__, #expression); \
-		return 1; \
-	} \
-} while (0)
+#include "st_pixels.h"
+#include "st_rip3_commands.h"
+#include "st_rip3_environments.h"
+#include "st_rip3_host_variables.h"
+#include "st_rip3_palettes.h"
+#include "st_rip3_table_host.h"
 
-struct observation { unsigned errors; enum st_rip3_command_diagnostic kind; };
+#define CHECK(expression)                                                                        \
+	do {                                                                                     \
+		if (!(expression)) {                                                             \
+			fprintf(stderr, "check failed at line %d: %s\n", __LINE__, #expression); \
+			return 1;                                                                \
+		}                                                                                \
+	} while (0)
+
+struct observation {
+	unsigned                        errors;
+	enum st_rip3_command_diagnostic kind;
+};
 
 static void
 error(void *context, enum st_rip3_command_diagnostic kind)
@@ -32,24 +36,28 @@ error(void *context, enum st_rip3_command_diagnostic kind)
 static int
 process(const struct st_rip3_command_host *host, const char *command, int diagnostic)
 {
-	struct observation seen = {0};
-	const struct st_rip3_command_sink sink = {&seen,error};
+	struct observation                seen = {0};
+	const struct st_rip3_command_sink sink = {&seen, error};
 
 	st_rip3_commands_process(host, &sink, (const uint8_t *)command, strlen(command));
 	CHECK(seen.errors == (diagnostic < 0 ? 0u : 1u));
-	if (diagnostic >= 0) CHECK((int)seen.kind == diagnostic);
+	if (diagnostic >= 0)
+		CHECK((int)seen.kind == diagnostic);
 	return 0;
 }
 
-struct answer { const char *expected; unsigned replies, errors; bool mismatch; };
+struct answer {
+	const char *expected;
+	unsigned    replies, errors;
+	bool        mismatch;
+};
 
 static void
 reply(void *context, const uint8_t *bytes, size_t length)
 {
 	struct answer *seen = context;
 	seen->replies++;
-	seen->mismatch = length != strlen(seen->expected)
-	    || memcmp(bytes, seen->expected, length) != 0;
+	seen->mismatch = length != strlen(seen->expected) || memcmp(bytes, seen->expected, length) != 0;
 }
 
 static void
@@ -63,10 +71,10 @@ query_error(void *context, enum st_rip3_host_diagnostic kind)
 static int
 query(struct st_rip3_palettes *palettes, const char *reference, const char *expected)
 {
-	struct st_rip3_table_host tables = {0};
-	const struct st_rip3_host_variables host = {.tables=&tables};
-	struct answer seen = {.expected=expected};
-	const struct st_rip3_host_sink sink = {&seen,reply,query_error};
+	struct st_rip3_table_host           tables = {0};
+	const struct st_rip3_host_variables host   = {.tables = &tables};
+	struct answer                       seen   = {.expected = expected};
+	const struct st_rip3_host_sink      sink   = {&seen, reply, query_error};
 
 	tables.tables[ST_RIP3_TABLE_PAL].live = palettes;
 	st_rip3_host_variables_process(&host, &sink, (const uint8_t *)reference, strlen(reference));
@@ -80,25 +88,25 @@ scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	/* Literal master colours encode each low/high RGB bit separately, plus
 	 * full white. Expectations are independent RGB values, not a conversion
 	 * through the palette routine under test. */
-	const char *all = "Q000W04100G020I0801091R0000000000";
-	const uint32_t expected[16] = {0xff0000,0x540000,0xa80000,0xff0000,
-	    0x005400,0x0000ff,0x00ff00,0x000054,0x0000a8,0x0000ff,0xffffff,
-	    0,0,0,0,0x0000a8};
+	const char    *all               = "Q000W04100G020I0801091R0000000000";
+	const uint32_t expected[16]      = {0xff0000, 0x540000, 0xa80000, 0xff0000, 0x005400, 0x0000ff, 0x00ff00,
+	    0x000054, 0x0000a8, 0x0000ff, 0xffffff, 0, 0, 0, 0, 0x0000a8};
 	struct st_rip3_environments *env = NULL;
-	struct st_rip3_palettes *palettes = NULL;
-	struct st_rip3_surface *surface = NULL;
-	struct st_pixel_buffer *capture = NULL;
-	struct st_rip3_environment before, after;
-	struct st_rip3_palette palette, other;
-	struct st_rip3_command_host host = {0};
-	const uint32_t higher = 0x123456;
-	const struct st_rip3_rect high_area = {20,2,29,4};
-	unsigned current;
+	struct st_rip3_palettes     *palettes = NULL;
+	struct st_rip3_surface      *surface  = NULL;
+	struct st_pixel_buffer      *capture  = NULL;
+	struct st_rip3_environment   before, after;
+	struct st_rip3_palette       palette, other;
+	struct st_rip3_command_host  host      = {0};
+	const uint32_t               higher    = 0x123456;
+	const struct st_rip3_rect    high_area = {20, 2, 29, 4};
+	unsigned                     current;
 
 	CHECK(st_rip3_environments_create(&env, canvas) == 0);
 	CHECK(st_rip3_palettes_create(&palettes) == 0);
 	CHECK(st_rip3_surface_create(&surface, width, height) == 0);
-	host.environments = env; host.palettes = palettes;
+	host.environments = env;
+	host.palettes     = palettes;
 	CHECK(st_rip3_palettes_get(palettes, 0, &other) == 0);
 	CHECK(st_rip3_palettes_switch(palettes, 7) == 0);
 	CHECK(st_rip3_environments_get(env, 0, &before) == 0);
@@ -106,7 +114,7 @@ scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	CHECK(st_rip3_environments_set(env, 0, &before) == 0);
 	CHECK(st_rip3_palettes_rgb(palettes, 200, 8, &higher, 1) == 0);
 	for (int32_t x = 0; x < 16; x++) {
-		const struct st_rip3_rect column = {x,0,x,7};
+		const struct st_rip3_rect column = {x, 0, x, 7};
 		CHECK(st_rip3_surface_fill(surface, NULL, &column, (uint8_t)x, ST_RIP3_COPY) == 0);
 	}
 	CHECK(st_rip3_surface_fill(surface, NULL, &high_area, 200, ST_RIP3_COPY) == 0);
@@ -121,8 +129,9 @@ scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	CHECK(st_rip3_surface_snapshot(surface, &palette, &capture) == 0);
 	for (uint32_t y = 0; y < height; y++) {
 		for (uint32_t x = 0; x < width; x++) {
-			uint32_t rgb = x < 16 && y < 8 ? expected[x]
-			    : x >= 20 && x <= 29 && y >= 2 && y <= 4 ? higher : expected[0];
+			uint32_t rgb = x < 16 && y < 8                          ? expected[x]
+			               : x >= 20 && x <= 29 && y >= 2 && y <= 4 ? higher
+			                                                        : expected[0];
 			CHECK(capture->primary[(size_t)y * width + x] == (ST_PIXEL_COLOR_RGB_TAG | rgb));
 		}
 	}
@@ -130,8 +139,8 @@ scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	CHECK(st_rip3_palettes_get(palettes, 0, &palette) == 0);
 	CHECK(memcmp(&palette, &other, sizeof(palette)) == 0);
 	CHECK(st_rip3_environments_get(env, 0, &after) == 0);
-	CHECK(after.palette == 3 && after.base_math == before.base_math
-	    && after.world_width == before.world_width && after.world_height == before.world_height);
+	CHECK(after.palette == 3 && after.base_math == before.base_math && after.world_width == before.world_width
+	      && after.world_height == before.world_height);
 	st_pixel_buffer_destroy(capture);
 	st_rip3_surface_destroy(surface);
 	st_rip3_palettes_destroy(palettes);
@@ -142,19 +151,20 @@ scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 static int
 validation(enum st_rip3_canvas canvas)
 {
-	const char *invalid[] = {"Q", "a", "a0", "a00", "a000 comment", "a7401", "a001S",
-	    "a0F?", "a?001", "Q000000000000000000000000000000", /* 15 values */
+	const char *invalid[] = {"Q", "a", "a0", "a00", "a000 comment", "a7401", "a001S", "a0F?", "a?001",
+	    "Q000000000000000000000000000000",          /* 15 values */
 	    "Q0000000000000000000000000000000 comment", /* unfinished field */
 	    "Q0101010101010101010101010101010?"};
-	struct st_rip3_environments *env = NULL;
-	struct st_rip3_palettes *palettes = NULL;
-	struct st_rip3_command_host host = {0}, missing = {0};
-	struct st_rip3_palette before, after;
-	struct st_rip3_environment value;
+	struct st_rip3_environments *env      = NULL;
+	struct st_rip3_palettes     *palettes = NULL;
+	struct st_rip3_command_host  host = {0}, missing = {0};
+	struct st_rip3_palette       before, after;
+	struct st_rip3_environment   value;
 
 	CHECK(st_rip3_environments_create(&env, canvas) == 0);
 	CHECK(st_rip3_palettes_create(&palettes) == 0);
-	host.environments = env; host.palettes = palettes;
+	host.environments = env;
+	host.palettes     = palettes;
 	CHECK(st_rip3_palettes_get(palettes, 0, &before) == 0);
 	for (size_t i = 0; i < sizeof(invalid) / sizeof(invalid[0]); i++) {
 		CHECK(process(&host, invalid[i], ST_RIP3_COMMAND_INVALID) == 0);
@@ -164,7 +174,8 @@ validation(enum st_rip3_canvas canvas)
 	CHECK(process(&missing, "a0001", ST_RIP3_COMMAND_UNSUPPORTED) == 0);
 	missing.environments = env;
 	CHECK(process(&missing, "a0001", ST_RIP3_COMMAND_UNSUPPORTED) == 0);
-	missing.environments = NULL; missing.palettes = palettes;
+	missing.environments = NULL;
+	missing.palettes     = palettes;
 	CHECK(process(&missing, "a0001", ST_RIP3_COMMAND_UNSUPPORTED) == 0);
 	CHECK(process(&host, "Q000102030405060708090A0B0C0D0E0F tail", -1) == 0);
 	CHECK(process(&host, "a0202 tail", -1) == 0);
@@ -208,11 +219,11 @@ validation(enum st_rip3_canvas canvas)
 static int
 master_publication(void)
 {
-	const char *failed = "Q0404040404040404040404040404041S";
-	struct st_rip3_environments *env = NULL;
-	struct st_rip3_palettes *palettes = NULL, *saved = NULL;
-	struct st_rip3_palette before, rgb;
-	const unsigned destination = 9;
+	const char                  *failed   = "Q0404040404040404040404040404041S";
+	struct st_rip3_environments *env      = NULL;
+	struct st_rip3_palettes     *palettes = NULL, *saved = NULL;
+	struct st_rip3_palette       before, rgb;
+	const unsigned               destination = 9;
 
 	CHECK(st_rip3_environments_create(&env, ST_RIP3_CANVAS_640_480) == 0);
 	CHECK(st_rip3_palettes_create(&palettes) == 0);
@@ -250,10 +261,10 @@ master_publication(void)
 static int
 wire_drawing_palette(void)
 {
-	struct st_rip3_environments *env = NULL;
-	struct st_rip3_palettes *palettes = NULL;
-	struct st_rip3_palette rgb, before;
-	struct st_rip3_palette_info info;
+	struct st_rip3_environments *env      = NULL;
+	struct st_rip3_palettes     *palettes = NULL;
+	struct st_rip3_palette       rgb, before;
+	struct st_rip3_palette_info  info;
 	CHECK(st_rip3_environments_create(&env, ST_RIP3_CANVAS_640_480) == 0);
 	CHECK(st_rip3_palettes_create(&palettes) == 0);
 	const struct st_rip3_command_host host = {.environments = env, .palettes = palettes};
@@ -266,9 +277,24 @@ wire_drawing_palette(void)
 	CHECK(process(&host, "D010A84ZH", -1) == 0 && query(palettes, "$PALENTRY(CUR,10)$", "6;0:18:52") == 0);
 	CHECK(st_rip3_palettes_get(palettes, 5, &before) == 0);
 	const char *malformed[] = {
-		"D", "D00008A", "D020#8&m00", "D010#8&m000000", "D020#8&m00?000",
-		"D023&8&m000000", "D003&7", "D00408", "D41008", "d0#74ZHM", "d0#8", "d408&H00",
-		"D..8.", "D01.8.1234", "D01.8. note", "D02.81.4ZHM", "d.812.", "d..4ZHM",
+	    "D",
+	    "D00008A",
+	    "D020#8&m00",
+	    "D010#8&m000000",
+	    "D020#8&m00?000",
+	    "D023&8&m000000",
+	    "D003&7",
+	    "D00408",
+	    "D41008",
+	    "d0#74ZHM",
+	    "d0#8",
+	    "d408&H00",
+	    "D..8.",
+	    "D01.8.1234",
+	    "D01.8. note",
+	    "D02.81.4ZHM",
+	    "d.812.",
+	    "d..4ZHM",
 	};
 	for (size_t i = 0; i < sizeof(malformed) / sizeof(*malformed); i++)
 		CHECK(process(&host, malformed[i], ST_RIP3_COMMAND_INVALID) == 0);
@@ -300,8 +326,7 @@ wire_drawing_palette(void)
 	CHECK(process(&host, "2A04", -1) == 0 && query(palettes, "$CUR(PAL)$", "0") == 0);
 	CHECK(st_rip3_palettes_info(palettes, 3, &info) == 0 && info.protected);
 	CHECK(process(&host, "2A7a", ST_RIP3_COMMAND_INVALID) == 0);
-	CHECK(process(&host, "J1S", -1) == 0
-	    && process(&host, "2A7a", ST_RIP3_COMMAND_OPERATION_FAILED) == 0);
+	CHECK(process(&host, "J1S", -1) == 0 && process(&host, "2A7a", ST_RIP3_COMMAND_OPERATION_FAILED) == 0);
 	CHECK(query(palettes, "$CUR(PAL)$", "7") == 0);
 	CHECK(process(&host, "2Aa01", ST_RIP3_COMMAND_INVALID) == 0);
 	CHECK(query(palettes, "$CUR(PAL)$", "7") == 0);
@@ -336,9 +361,9 @@ wire_drawing_palette(void)
 int
 main(void)
 {
-	CHECK(scene(ST_RIP3_CANVAS_640_480, 640,480) == 0);
-	CHECK(scene(ST_RIP3_CANVAS_800_600, 800,600) == 0);
-	CHECK(scene(ST_RIP3_CANVAS_1024_768, 1024,768) == 0);
+	CHECK(scene(ST_RIP3_CANVAS_640_480, 640, 480) == 0);
+	CHECK(scene(ST_RIP3_CANVAS_800_600, 800, 600) == 0);
+	CHECK(scene(ST_RIP3_CANVAS_1024_768, 1024, 768) == 0);
 	CHECK(validation(ST_RIP3_CANVAS_640_480) == 0);
 	CHECK(validation(ST_RIP3_CANVAS_800_600) == 0);
 	CHECK(validation(ST_RIP3_CANVAS_1024_768) == 0);
