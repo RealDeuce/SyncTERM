@@ -8,6 +8,7 @@
 
 #include "io_error.h"
 #include "st_cterm.h"
+#include "st_rip3_native_window.h"
 #include "string_compat.h"
 
 bool         st_cterm_window_test_tracking;

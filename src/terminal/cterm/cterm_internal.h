@@ -324,7 +324,7 @@ void cterm_delete_vtabstop(struct cterminal *cterm, int line);
 
 /* Output */
 void cterm_ctputs(struct cterminal *cterm, char *buf);
-void cterm_rip3_backspace(struct cterminal *cterm, bool destructive);
+void cterm_window_backspace(struct cterminal *cterm, bool destructive);
 void cterm_uctputs(struct cterminal *cterm, char *buf);
 void cterm_respond(struct cterminal *cterm, const char *data, size_t len);
 void cterm_respond_printf(struct cterminal *cterm, const char *fmt, ...);
@@ -361,6 +361,7 @@ bool cterm_accumulate_trailing(struct cterminal *cterm, unsigned char byte, int 
  * cterm_vt52.h, but routes sequence parsing through the same path).
  * cterm_dispatch_byte drives ATASCII and PETSCII via their bitmap +
  * handler tables. */
+bool cterm_csi_intermediate(struct cterminal *cterm, uint8_t byte, uint64_t *first);
 bool cterm_accumulate_ecma_seq(struct cterminal *cterm, unsigned char byte, int *speed);
 void cterm_dispatch_ecma(struct cterminal *cterm, unsigned char byte, int *speed);
 void cterm_dispatch_byte(struct cterminal *cterm, unsigned char byte, int *speed);

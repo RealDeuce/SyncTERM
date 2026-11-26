@@ -87,7 +87,7 @@ struct cterm_render_state {
 	st_console_t *console;
 	/* RIP cursor commands can address outside ANSI origin-mode margins.
 	 * Keep that addressing region separate from the physical cursor bounds. */
-	struct st_console_rect           rip3_addressing_window;
+	struct st_console_rect           addressing_window;
 	st_audio_runtime_t              *audio;
 	st_hyperlink_registry_t         *hyperlinks;
 	enum st_codepage                 codepage;

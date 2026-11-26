@@ -1,17 +1,18 @@
 # Terminal input and text placement
 
-`cterm_input_write` is the common input driver for wire input, RIP text
-passthrough, semantic UTF-8 injection, and macro playback. It selects the
-active main/status display before each input byte and owns parser dispatch,
-text boundaries, deferred status destruction, and original-byte consumption
-counts. `cterm_parse_byte` interprets one protocol byte; it does not route a
-receive buffer or select an encoding.
+The connected session owns graphics dispatch. Its graphics devices send ordinary
+text and emulation controls to CTerm. CTerm selects the active main or status
+display, handles parser dispatch and text boundaries, and reports consumption
+in original bytes. Macro playback and local UTF-8 injection share the same
+input driver.
 
-Ordinary codepage text becomes UTF-8 at the input boundary. Byte-oriented
-emulations first interpret their controls and character-set transformations,
-then emit UTF-8 into the same presenter. Sequence parameters, font uploads,
-macro definitions, and other protocol payloads remain bytes. Receive filters
-and text capture see decoded text and controls, while raw payloads bypass them.
+The wire decoder supplies a Unicode scalar or malformed byte sequence for text.
+Byte-oriented graphics adapters retain the original spelling for their grammar
+and forward ordinary text through CTerm's byte entry point. Codepage text maps
+directly to a Unicode scalar. Byte-oriented emulations interpret their controls
+and character-set transformations before presenting text. Sequence parameters,
+font uploads and stored macro definitions retain their bytes. Receive filters
+and text capture see decoded text and controls.
 The semantic capture callback also tags opaque protocol bytes so text-only
 consumers can omit them. ANSI capture instead observes the original connection
 bytes in the session layer before wire hooks, RIP conversion, and decoding.

@@ -6,6 +6,7 @@
 #include "cterm.h"
 #include "io_error.h"
 #include "st_cterm.h"
+#include "st_rip3_native_window.h"
 
 #define CHECK(x)                                                        \
 	do {                                                            \
@@ -41,7 +42,7 @@ create(struct fixture *f, unsigned columns)
 	    .codepage                                   = ST_CODEPAGE_CP437,
 	    .quiet                                      = true,
 	    .graphics_mode                              = ST_CTERM_GRAPHICS_RIP_3,
-	    .rip3_session_owner                         = true};
+	    .windowed_ansi                              = true};
 	CHECK(st_cterm_create(&f->text, &config) == 0 && st_cterm_start_text(f->text) == 0);
 	return 0;
 }
@@ -98,14 +99,14 @@ scene_input_continuation(void)
 	static const char prefix[] = "\x1b]0;caller";
 	CHECK(feed(&caller, prefix, sizeof(prefix) - 1) == 0);
 	struct st_cterm_suspended_input *saved = NULL;
-	CHECK(st_cterm_suspend_rip3_input(caller.text, &saved) == 0 && saved != NULL);
+	CHECK(st_cterm_suspend_input(caller.text, &saved) == 0 && saved != NULL);
 	CHECK(caller.text->accumulator == NULL && caller.text->strbuf == NULL);
 	destroy(&caller);
 
 	static const char child[] = "\x1b[31m\x1bPq~";
 	CHECK(feed(&replacement, child, sizeof(child) - 1) == 0);
 	CHECK(replacement.text->sixel == SIXEL_STARTED);
-	st_cterm_resume_rip3_input(replacement.text, saved);
+	st_cterm_resume_input(replacement.text, saved);
 	CHECK(replacement.text->sixel == SIXEL_INACTIVE && replacement.text->sx_pixels == NULL);
 	CHECK(replacement.text->string == CTERM_STRING_OSC && replacement.text->strbuflen == 8);
 	CHECK(memcmp(replacement.text->strbuf, "0;caller", 8) == 0);
@@ -244,7 +245,7 @@ window_copy(void)
 	    .quiet                                      = true,
 	    .font_selector                              = 46,
 	    .graphics_mode                              = ST_CTERM_GRAPHICS_RIP_3,
-	    .rip3_session_owner                         = true};
+	    .windowed_ansi                              = true};
 	CHECK(st_cterm_create(&source.text, &config) == 0 && st_cterm_start_text(source.text) == 0);
 	const char setup[] =
 	    "\x1b[3g\x1b[1;6H\x1bH\x1b[2;4r\x1b[?6h\x1b[2;3H\x1b[s\x1b[38;2;18;52;86;48;2;0;0;0m\x1b[?25l";
@@ -435,11 +436,11 @@ character_sets(void)
 				      && st_cterm_inherit_window_interpreter(next.text, source.text, true) == 0);
 				destroy(&source);
 				CHECK(feed(&next, sequence + split, 3 - split) == 0 && position(&next, 1, 1) == 0);
-				CHECK(next.text->rip3_g0 == (bank ? 'B' : finals[choice])
-				      && next.text->rip3_g1 == (bank ? finals[choice] : 'B'));
+				CHECK(next.text->g0_designation == (bank ? 'B' : finals[choice])
+				      && next.text->g1_designation == (bank ? finals[choice] : 'B'));
 				CHECK(feed(&next, "\x1b(x\x1b)y", 6) == 0 && position(&next, 1, 1) == 0);
-				CHECK(next.text->rip3_g0 == (bank ? 'B' : finals[choice])
-				      && next.text->rip3_g1 == (bank ? finals[choice] : 'B'));
+				CHECK(next.text->g0_designation == (bank ? 'B' : finals[choice])
+				      && next.text->g1_designation == (bank ? finals[choice] : 'B'));
 				destroy(&next);
 			}
 	struct fixture source = {0}, next = {0};
@@ -448,7 +449,7 @@ character_sets(void)
 	    "\x1b(A#\x0e"
 	    "q\x0f#\xb3";
 	CHECK(feed(&source, vector, sizeof(vector) - 1) == 0 && position(&source, 7, 1) == 0);
-	CHECK(source.text->rip3_g0 == 'A' && source.text->rip3_g1 == 'B');
+	CHECK(source.text->g0_designation == 'A' && source.text->g1_designation == 'B');
 	const char *const            glyphs[] = {"#", "\xe2\x99\xab", "q", "\xe2\x98\xbc", "#", "\xe2\x94\x82"};
 	struct st_console_cell       cells[6];
 	const struct st_console_rect row = {0, 0, 6, 1};
@@ -463,42 +464,42 @@ character_sets(void)
 	}
 	/* CSI coordinates, ESC c and the preliminary outer reset preserve sets. */
 	const char coordinates[] = "\x1b)0\x1b[s\x1b(B\x1b[u";
-	CHECK(feed(&source, coordinates, sizeof(coordinates) - 1) == 0 && source.text->rip3_g0 == 'B'
-	      && source.text->rip3_g1 == '0');
+	CHECK(feed(&source, coordinates, sizeof(coordinates) - 1) == 0 && source.text->g0_designation == 'B'
+	      && source.text->g1_designation == '0');
 	CHECK(feed(&source,
 		  "\x1b(A\x1b"
 		  "c",
 		  5)
 	          == 0
-	      && source.text->rip3_g0 == 'A' && source.text->rip3_g1 == '0');
-	CHECK(st_cterm_rip3_ansi_reset(source.text, true) == 0 && source.text->rip3_g0 == 'A'
-	      && source.text->rip3_g1 == '0');
-	CHECK(st_cterm_select_window_interpreter(next.text, source.text) == 0 && next.text->rip3_g0 == 'B'
-	      && next.text->rip3_g1 == 'B');
-	CHECK(st_cterm_copy_window_state(next.text, source.text) == 0 && next.text->rip3_g0 == 'A'
-	      && next.text->rip3_g1 == '0');
+	      && source.text->g0_designation == 'A' && source.text->g1_designation == '0');
+	CHECK(st_cterm_rip3_ansi_reset(source.text, true) == 0 && source.text->g0_designation == 'A'
+	      && source.text->g1_designation == '0');
+	CHECK(st_cterm_select_window_interpreter(next.text, source.text) == 0 && next.text->g0_designation == 'B'
+	      && next.text->g1_designation == 'B');
+	CHECK(st_cterm_copy_window_state(next.text, source.text) == 0 && next.text->g0_designation == 'A'
+	      && next.text->g1_designation == '0');
 	struct st_cterm_window_definition *saved = NULL;
 	CHECK(st_cterm_window_definition_create(&saved, source.text) == 0);
 	destroy(&source);
 	destroy(&next);
 	CHECK(create(&next, 17) == 0);
-	CHECK(st_cterm_window_definition_restore(next.text, saved) == 0 && next.text->rip3_g0 == 'A'
-	      && next.text->rip3_g1 == '0');
+	CHECK(st_cterm_window_definition_restore(next.text, saved) == 0 && next.text->g0_designation == 'A'
+	      && next.text->g1_designation == '0');
 	st_cterm_window_definition_destroy(saved);
 	destroy(&next);
 	CHECK(create(&source, 17) == 0 && create(&next, 17) == 0);
 	CHECK(feed(&source, "\x1b(A\x1b)0", 6) == 0
 	      && st_cterm_default_window_interpreter(next.text, source.text) == 0);
-	CHECK(next.text->rip3_g0 == 'B' && next.text->rip3_g1 == 'B');
+	CHECK(next.text->g0_designation == 'B' && next.text->g1_designation == 'B');
 	destroy(&source);
 	destroy(&next);
 	/* These declarations do not add charset interpretation to other routes. */
 	for (unsigned mode = 0; mode < 2; mode++) {
 		CHECK(create(&source, 17) == 0);
-		source.text->rip3_session_owner = false;
+		source.text->windowed_ansi      = false;
 		source.text->graphics_mode      = mode ? ST_CTERM_GRAPHICS_RIP_1 : ST_CTERM_GRAPHICS_OFF;
-		CHECK(feed(&source, "\x1b(A\x1b)0", 6) == 0 && source.text->rip3_g0 == 'B'
-		      && source.text->rip3_g1 == 'B');
+		CHECK(feed(&source, "\x1b(A\x1b)0", 6) == 0 && source.text->g0_designation == 'B'
+		      && source.text->g1_designation == 'B');
 		destroy(&source);
 	}
 	return 0;
@@ -521,7 +522,7 @@ ansi_window_save(void)
 		CHECK(st_cterm_write(source.text, save_sequence, split, &used) == 0 && used == split);
 		CHECK(st_cterm_write(source.text, save_sequence + split, 3 - split, &used) == 0
 		      && used == 2 - split);
-		CHECK(st_cterm_take_rip3_window_action(source.text) == ST_CTERM_RIP3_WINDOW_SAVE);
+		CHECK(st_cterm_take_window_action(source.text) == ST_CTERM_WINDOW_SAVE);
 		CHECK(source.text->save_xpos == 1 && source.text->save_ypos == 1 && position(&source, 4, 2) == 0);
 	}
 	struct st_cterm_window_definition *saved = NULL;
@@ -559,7 +560,7 @@ ansi_window_save(void)
 	target.text->screen.font_valid[0] = valid;
 	target.text->wire_encoding        = ST_CTERM_ENCODING_UTF8;
 	CHECK(st_cterm_window_ansi_restore(target.text, saved, target.text) == 0 && position(&target, 4, 2) == 0);
-	CHECK(target.text->attr == 0x14 && target.text->rip3_g0 == 'A' && target.text->rip3_g1 == '0'
+	CHECK(target.text->attr == 0x14 && target.text->g0_designation == 'A' && target.text->g1_designation == '0'
 	      && target.text->wire_encoding == ST_CTERM_ENCODING_UTF8
 	      && target.text->fg_color == UINT32_C(0x800c2238) && target.text->bg_color == UINT32_C(0x80412b15));
 	CHECK(feed(&target, "\x1b[H\x1b[u", 6) == 0 && position(&target, 4, 2) == 0);
@@ -571,8 +572,8 @@ ansi_window_save(void)
 		  3, &used)
 	          == 0
 	      && used == 2);
-	CHECK(st_cterm_take_rip3_window_action(target.text) == ST_CTERM_RIP3_WINDOW_RESTORE);
-	CHECK(st_cterm_take_rip3_window_action(target.text) == ST_CTERM_RIP3_WINDOW_NONE);
+	CHECK(st_cterm_take_window_action(target.text) == ST_CTERM_WINDOW_RESTORE);
+	CHECK(st_cterm_take_window_action(target.text) == ST_CTERM_WINDOW_NONE);
 	st_cterm_window_definition_destroy(saved);
 	static const char origin[] = "\x1b[2;4r\x1b[?6h\x1b[2;4H";
 	CHECK(feed(&target, origin, sizeof(origin) - 1) == 0 && position(&target, 4, 3) == 0);
@@ -587,14 +588,13 @@ ansi_window_save(void)
 		source.text->graphics_mode = mode == 0   ? ST_CTERM_GRAPHICS_OFF
 		                             : mode == 1 ? ST_CTERM_GRAPHICS_RIP_1
 		                                         : ST_CTERM_GRAPHICS_RIP_3;
-		if (mode == 2)
-			source.text->rip3_session_owner = false;
+		source.text->windowed_ansi = false;
 		static const char legacy[] =
 		    "\x1b[2;4H\x1b"
 		    "7\x1b[H\x1b"
 		    "8X";
 		CHECK(feed(&source, legacy, sizeof(legacy) - 1) == 0 && position(&source, 5, 2) == 0);
-		CHECK(st_cterm_take_rip3_window_action(source.text) == ST_CTERM_RIP3_WINDOW_NONE);
+		CHECK(st_cterm_take_window_action(source.text) == ST_CTERM_WINDOW_NONE);
 		destroy(&source);
 	}
 	return 0;
@@ -628,7 +628,7 @@ keyboard_action_mode(void)
 
 	/* Ordinary ANSI and legacy RIP keep their existing multi-mode handling. */
 	for (unsigned mode = 0; mode < 2; ++mode) {
-		fresh.text->rip3_session_owner = false;
+		fresh.text->windowed_ansi      = false;
 		fresh.text->graphics_mode      = mode == 0 ? ST_CTERM_GRAPHICS_OFF : ST_CTERM_GRAPHICS_RIP_1;
 		static const char compound[]   = "\x1b[2;14h";
 		CHECK(feed(&fresh, "\x1b[14l", 5) == 0);

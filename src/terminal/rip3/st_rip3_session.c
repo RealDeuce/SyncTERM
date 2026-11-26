@@ -1432,6 +1432,12 @@ next(void *context, uint8_t *byte)
 	return session->source.next(session->source.context, byte);
 }
 
+bool
+st_rip3_session_in_wire_command(const struct st_rip3_session *session)
+{
+	return st_rip3_stream_in_command(session->stream);
+}
+
 static void
 consume(void *context, uint8_t byte)
 {

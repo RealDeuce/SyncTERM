@@ -26,7 +26,6 @@
 #include "io_error.h"
 #include "st_builtin_fonts.h"
 #include "st_cterm.h"
-#include "st_screen_mode.h"
 #include "st_session_history.h"
 #include "st_threads.h"
 #include "st_time.h"
@@ -479,7 +478,7 @@ st_cterm_create(st_cterm_t **result, const struct st_cterm_config *config)
 	    || config->emulation > ST_CTERM_ATARI_ST_VT52 || config->encoding < ST_CTERM_ENCODING_UTF8
 	    || config->encoding > ST_CTERM_ENCODING_CODEPAGE || config->graphics_mode < ST_CTERM_GRAPHICS_OFF
 	    || (config->graphics_mode != ST_CTERM_GRAPHICS_OFF
-	        && (config->graphics_mode != ST_CTERM_GRAPHICS_RIP_3 || !config->rip3_session_owner))
+	        && (config->graphics_mode != ST_CTERM_GRAPHICS_RIP_3 || !config->windowed_ansi))
 	    || (config->graphics_mode != ST_CTERM_GRAPHICS_OFF && config->emulation != ST_CTERM_ANSI_BBS)
 	    || config->codepage >= ST_CODEPAGE_COUNT
 	    || (config->encoding == ST_CTERM_ENCODING_UTF8 && !utf8_supported(config->emulation))
@@ -541,17 +540,16 @@ st_cterm_create(st_cterm_t **result, const struct st_cterm_config *config)
 		return status;
 	}
 	terminal->graphics_mode = config->graphics_mode;
-	terminal->rip3_session_owner =
-	    config->graphics_mode == ST_CTERM_GRAPHICS_RIP_3 && config->rip3_session_owner;
-	if (terminal->rip3_session_owner) {
-		terminal->rip3_autosense         = config->rip3_autosense;
-		terminal->rip3_autosense_context = config->rip3_autosense_context;
+	terminal->windowed_ansi = config->graphics_mode == ST_CTERM_GRAPHICS_RIP_3 && config->windowed_ansi;
+	if (terminal->windowed_ansi) {
+		terminal->escape_extension = config->escape_extension;
+		terminal->escape_context   = config->escape_context;
 	}
 
 	terminal->quiet                   = config->quiet;
 	terminal->atari_st_key_clicks     = true;
 	terminal->lf_expand               = config->expand_lf;
-	if (terminal->rip3_session_owner)
+	if (terminal->windowed_ansi)
 		terminal->last_column_flag = CTERM_LCF_FORCED | CTERM_LCF_ENABLED;
 	terminal->status_display_type      = config->status_line ? 1 : 0;
 	terminal->api_reserved_rows        = rows - terminal_rows - status_rows;
@@ -730,12 +728,12 @@ input_display(st_cterm_t *owner)
 }
 
 bool
-st_cterm_rip3_ansi_pending(st_cterm_t *terminal)
+st_cterm_escape_pending(st_cterm_t *terminal)
 {
 	if (terminal == NULL)
 		return false;
 	st_cterm_t *owner = input_owner(terminal);
-	return owner->rip3_autosense != NULL && input_display(owner)->accumulator != NULL;
+	return input_display(owner)->accumulator != NULL;
 }
 
 /* Own only incomplete syntax. Completed settings, text, macros and graphics
@@ -861,9 +859,9 @@ suspend_partial_input(st_cterm_t *terminal, struct partial_input *saved)
 }
 
 int
-st_cterm_suspend_rip3_input(st_cterm_t *terminal, struct st_cterm_suspended_input **result)
+st_cterm_suspend_input(st_cterm_t *terminal, struct st_cterm_suspended_input **result)
 {
-	if (terminal == NULL || result == NULL || !terminal->rip3_session_owner || terminal->input_depth != 0
+	if (terminal == NULL || result == NULL || !terminal->windowed_ansi || terminal->input_depth != 0
 	    || (terminal->status_sub != NULL && terminal->status_sub->input_depth != 0))
 		return IO_ERROR_INVALID_ARGUMENT;
 	struct st_cterm_suspended_input *saved = NULL;
@@ -911,7 +909,7 @@ resume_partial_input(st_cterm_t *terminal, struct partial_input *saved)
 }
 
 void
-st_cterm_resume_rip3_input(st_cterm_t *terminal, struct st_cterm_suspended_input *saved)
+st_cterm_resume_input(st_cterm_t *terminal, struct st_cterm_suspended_input *saved)
 {
 	resume_partial_input(terminal, saved == NULL ? NULL : &saved->main);
 	resume_partial_input(terminal == NULL ? NULL : terminal->status_sub,
@@ -983,7 +981,7 @@ write_input(struct cterminal *terminal, const void *bytes, size_t size, size_t *
 		status = cterm_render_take_error(owner->status_sub);
 	while (*consumed < size && status == 0) {
 		st_cterm_t *target = input_display(owner);
-		if (target->rip3_window_action != ST_CTERM_RIP3_WINDOW_NONE)
+		if (target->window_action != ST_CTERM_WINDOW_NONE)
 			break;
 		uint8_t byte      = input[*consumed];
 		bool    text_mode = utf8 || target->emulation == CTERM_EMULATION_ANSI_BBS
@@ -1131,13 +1129,13 @@ write_plain(st_cterm_t *terminal, const void *bytes, size_t size, size_t *consum
 	    semantic_utf8 ? CTERM_INPUT_SEMANTIC_UTF8 : CTERM_INPUT_WIRE);
 }
 
-enum st_cterm_rip3_window_action
-st_cterm_take_rip3_window_action(st_cterm_t *terminal)
+enum st_cterm_window_action
+st_cterm_take_window_action(st_cterm_t *terminal)
 {
 	if (terminal == NULL || terminal->input_depth != 0)
-		return ST_CTERM_RIP3_WINDOW_NONE;
-	enum st_cterm_rip3_window_action action = terminal->rip3_window_action;
-	terminal->rip3_window_action            = ST_CTERM_RIP3_WINDOW_NONE;
+		return ST_CTERM_WINDOW_NONE;
+	enum st_cterm_window_action action = terminal->window_action;
+	terminal->window_action            = ST_CTERM_WINDOW_NONE;
 	return action;
 }
 
@@ -1283,15 +1281,15 @@ st_cterm_start_text(st_cterm_t *terminal)
 }
 
 void
-st_cterm_set_rip3_destructive_backspace(st_cterm_t *terminal, bool destructive)
+st_cterm_set_destructive_backspace(st_cterm_t *terminal, bool destructive)
 {
-	terminal->rip3_destructive_backspace = destructive;
+	terminal->destructive_backspace = destructive;
 }
 
 int
-st_cterm_echo_rip3_backspace(st_cterm_t *terminal, bool destructive)
+st_cterm_echo_window_backspace(st_cterm_t *terminal, bool destructive)
 {
-	if (terminal == NULL || !terminal->rip3_session_owner)
+	if (terminal == NULL || !terminal->windowed_ansi)
 		return IO_ERROR_INVALID_ARGUMENT;
 	cterm_start(terminal);
 	int status = cterm_text_boundary(terminal);
@@ -1301,7 +1299,7 @@ st_cterm_echo_rip3_backspace(st_cterm_t *terminal, bool destructive)
 	int x = terminal->xpos, y = terminal->ypos;
 	cterm_coord_conv_xy(terminal, CTERM_COORD_ABSTERM, CTERM_COORD_CURR, &x, &y);
 	cterm_render_set_position(terminal, x, y);
-	cterm_rip3_backspace(terminal, destructive);
+	cterm_window_backspace(terminal, destructive);
 	return cterm_render_take_error(terminal);
 }
 
@@ -1314,7 +1312,7 @@ st_cterm_position_text(st_cterm_t *terminal, uint32_t column, uint32_t row)
 	int status = cterm_text_boundary(terminal);
 	if (status != 0)
 		return status;
-	bool     origin = !terminal->rip3_session_owner && (terminal->extattr & CTERM_EXTATTR_ORIGINMODE);
+	bool     origin = !terminal->windowed_ansi && (terminal->extattr & CTERM_EXTATTR_ORIGINMODE);
 	uint32_t columns =
 	    (uint32_t)(origin ? terminal->right_margin - terminal->left_margin + 1 : terminal->width);
 	uint32_t rows = (uint32_t)(origin ? terminal->bottom_margin - terminal->top_margin + 1 : terminal->height);
@@ -1325,7 +1323,7 @@ st_cterm_position_text(st_cterm_t *terminal, uint32_t column, uint32_t row)
 	cterm_clear_lcf(terminal);
 	++terminal->cursor_position_changes;
 	int x = (int)column + 1, y = (int)row + 1;
-	if (terminal->rip3_session_owner)
+	if (terminal->windowed_ansi)
 		cterm_coord_conv_xy(terminal, CTERM_COORD_ABSTERM, CTERM_COORD_CURR, &x, &y);
 	cterm_render_set_position(terminal, x, y);
 	cterm_coord_get_xy(terminal, CTERM_COORD_ABSTERM, &terminal->xpos, &terminal->ypos);
@@ -1337,15 +1335,15 @@ st_cterm_set_text_cursor_visible(st_cterm_t *terminal, bool visible)
 {
 	if (terminal == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	if (!terminal->rip3_session_owner)
+	if (!terminal->windowed_ansi)
 		return IO_ERROR_NOT_SUPPORTED;
 	cterm_start(terminal);
 	int status = cterm_text_boundary(terminal);
 	if (status != 0)
 		return status;
 	if (terminal->cursor != CTERM_CURSOR_HIDDEN)
-		terminal->rip3_visible_cursor = terminal->cursor;
-	terminal->cursor = visible ? terminal->rip3_visible_cursor : CTERM_CURSOR_HIDDEN;
+		terminal->visible_cursor = terminal->cursor;
+	terminal->cursor = visible ? terminal->visible_cursor : CTERM_CURSOR_HIDDEN;
 	cterm_render_set_cursor(terminal, terminal->cursor);
 	return cterm_render_take_error(terminal);
 }
@@ -1355,7 +1353,7 @@ st_cterm_present_text_cursor(st_cterm_t *terminal)
 {
 	if (terminal == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	if (!terminal->rip3_session_owner)
+	if (!terminal->windowed_ansi)
 		return IO_ERROR_NOT_SUPPORTED;
 	cterm_render_set_cursor(terminal, terminal->cursor);
 	return cterm_render_take_error(terminal);
@@ -1366,7 +1364,7 @@ st_cterm_get_text_cursor_visible(const st_cterm_t *terminal, bool *visible)
 {
 	if (terminal == NULL || visible == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	if (!terminal->rip3_session_owner)
+	if (!terminal->windowed_ansi)
 		return IO_ERROR_NOT_SUPPORTED;
 	*visible = terminal->cursor != CTERM_CURSOR_HIDDEN;
 	return 0;
@@ -1377,7 +1375,7 @@ erase_text(st_cterm_t *terminal, bool whole, bool ansi, uint32_t rgb)
 {
 	if (terminal == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	if (!terminal->rip3_session_owner)
+	if (!terminal->windowed_ansi)
 		return IO_ERROR_NOT_SUPPORTED;
 	if (rgb > UINT32_C(0xffffff))
 		return IO_ERROR_OUT_OF_RANGE;
@@ -1689,8 +1687,8 @@ st_cterm_state(const st_cterm_t *terminal, struct st_cterm_state *state)
 	    .bg_color             = terminal->bg_color & 0xFFFFFFu,
 	    .has_palette_override = terminal->has_palette_override,
 	    .font_slot            = terminal->font_slot,
-	    .rip3_g0              = terminal->rip3_g0,
-	    .rip3_g1              = terminal->rip3_g1,
+	    .rip3_g0              = terminal->g0_designation,
+	    .rip3_g1              = terminal->g1_designation,
 	    .scrollback_lines     = terminal->backlines,
 	    .scrollback_width     = terminal->backwidth,
 	    .scrollback_pos       = terminal->backpos,

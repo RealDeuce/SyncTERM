@@ -2370,7 +2370,8 @@ st_rip154_open(struct st_rip154 **result, st_cterm_t **text, const struct st_cte
 	    .mouse                                                = device_mouse,
 	    .mouse_mode                                           = device_mouse_mode,
 	    .mouse_passthrough                                    = true,
-	    .encoding                                             = device_encoding};
+	    .record_designations = config->graphics_mode == ST_CTERM_GRAPHICS_RIP_3,
+	    .encoding            = device_encoding};
 	uint16_t normal;
 	st_font_catalog_identifier(config->fonts, config->font_selector, &normal);
 	if (services != NULL) {
@@ -2440,6 +2441,16 @@ st_rip154_destroy(struct st_rip154 *rip)
 	cterm_rip_engine_destroy(&rip->engine);
 	(void)st_console_set_full_surface_scroll(rip->terminal->screen.console, false);
 	free(rip);
+}
+
+bool
+st_rip154_owns_bytes(const struct st_rip154 *rip)
+{
+	if (rip == NULL)
+		return false;
+	const struct cterm_rip_parser *parser = &rip->engine.parser;
+	return parser->enabled && !parser->suspended
+	    && (parser->length > 1 || (parser->length == 1 && parser->command[0] == '|'));
 }
 
 int

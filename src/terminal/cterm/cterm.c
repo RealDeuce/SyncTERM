@@ -1397,14 +1397,14 @@ cterm_line_to_scrollback(struct cterminal *cterm, int row)
 		const struct st_console_rect region = {(uint32_t)(cterm->x - 1) * cw, (uint32_t)(row - 1) * ch,
 		    (uint32_t)width * cw, ch};
 		uint32_t                     flags  = cells[0].flags;
-		if (cterm->device.pixel_history || cterm->rip3_session_owner)
+		if (cterm->device.pixel_history || cterm->windowed_ansi)
 			cells[0].flags |= ST_CONSOLE_CELL_PIXEL_GRAPHICS;
 		status =
 		    st_history_capture_pixels(&pixels, cterm->screen.console, cells, (uint32_t)width, &region);
 		cells[0].flags = flags;
 	}
 	if (status == 0) {
-		if (cterm->device.pixel_history || cterm->rip3_session_owner)
+		if (cterm->device.pixel_history || cterm->windowed_ansi)
 			status = cterm_history_append_pixels(cterm, pixels, cells, ch);
 		else {
 			status = history_store_row(cterm, cells, pixels, (size_t)width);
@@ -2072,7 +2072,7 @@ cterm_reset(struct cterminal *cterm)
 	cterm->xpos                = TERM_MINX;
 	cterm->ypos                = TERM_MINY;
 	cterm->cursor              = CTERM_CURSOR_UNDERLINE;
-	cterm->rip3_visible_cursor = CTERM_CURSOR_UNDERLINE;
+	cterm->visible_cursor      = CTERM_CURSOR_UNDERLINE;
 	cterm->cursor_style        = 0;
 	cterm->extattr             = CTERM_EXTATTR_AUTOWRAP | CTERM_EXTATTR_SXSCROLL | CTERM_EXTATTR_DECBKM;
 	cterm->cell_flags          = 0;
@@ -2199,7 +2199,7 @@ cterm_init(int height, int width, int xpos, int ypos, int backlines, int backcol
 	if ((cterm = calloc(1, sizeof(struct cterminal))) == NULL)
 		return cterm;
 	cterm->screen  = *screen;
-	cterm->rip3_g0 = cterm->rip3_g1 = 'B';
+	cterm->g0_designation = cterm->g1_designation = 'B';
 
 	cterm->x          = xpos;
 	cterm->y          = ypos;
@@ -2215,7 +2215,7 @@ cterm_init(int height, int width, int xpos, int ypos, int backlines, int backcol
 		cterm->api_log_level          = initial->log_level;
 		cterm->api_diagnostic         = initial->diagnostic;
 		cterm->api_diagnostic_context = initial->diagnostic_context;
-		if (initial->force_lcf || initial->rip3_session_owner)
+		if (initial->force_lcf || initial->windowed_ansi)
 			cterm->last_column_flag = CTERM_LCF_FORCED | CTERM_LCF_ENABLED;
 		cterm->yellow_is_yellow = initial->yellow_is_yellow;
 		if (initial->palette_override != NULL) {
@@ -2352,7 +2352,7 @@ cterm_advance_char(struct cterminal *cterm, int *x, int *y, int move)
 
 	cterm_coord_conv_xy(cterm, CTERM_COORD_TERM, CTERM_COORD_CURR, &lm, &tm);
 	cterm_coord_conv_xy(cterm, CTERM_COORD_TERM, CTERM_COORD_CURR, &rm, &bm);
-	if (cterm->rip3_session_owner && (cterm->extattr & CTERM_EXTATTR_ORIGINMODE)) {
+	if (cterm->windowed_ansi && (cterm->extattr & CTERM_EXTATTR_ORIGINMODE)) {
 		/* RIP can position text beyond ANSI's addressing margins. Such
 		 * output reaches the physical edge without scrolling that region. */
 		if (*x > rm) {
@@ -2422,7 +2422,7 @@ cterm_advance_char(struct cterminal *cterm, int *x, int *y, int move)
 }
 
 void
-cterm_rip3_backspace(struct cterminal *cterm, bool destructive)
+cterm_window_backspace(struct cterminal *cterm, bool destructive)
 {
 	int x, y;
 	ABS_XY(&x, &y);
@@ -2467,8 +2467,8 @@ cterm_ctputs(struct cterminal *cterm, char *buf)
 				cterm_adjust_currpos(cterm, INT_MIN, 0, 0);
 				break;
 			case '\b':
-				if (cterm->rip3_session_owner)
-					cterm_rip3_backspace(cterm, cterm->rip3_destructive_backspace);
+				if (cterm->windowed_ansi)
+					cterm_window_backspace(cterm, cterm->destructive_backspace);
 				else
 					cterm_adjust_currpos(cterm, -1, 0, 0);
 				break;
@@ -2599,8 +2599,13 @@ cterm_parse_byte(struct cterminal *cterm, unsigned char byte, int *speed)
 	cterm->print_pos    = cterm->print_buf;
 	if (cterm->emulation == CTERM_EMULATION_PRESTEL || cterm->emulation == CTERM_EMULATION_BEEB)
 		cterm_prestel_get_state(cterm);
-	if (cterm->accumulator != NULL)
-		consumed = cterm->accumulator(cterm, byte, speed);
+	if (cterm->accumulator != NULL) {
+		struct cterminal *owner = cterm->parent == NULL ? cterm : cterm->parent;
+		if (owner->escape_extension == NULL || cterm->accumulator != cterm_accumulate_ecma_seq
+		    || cterm->saved_accumulator != NULL
+		    || !owner->escape_extension(owner->escape_context, cterm, byte))
+			consumed = cterm->accumulator(cterm, byte, speed);
+	}
 	else
 		cterm->dispatch(cterm, byte, speed);
 	cterm_uctputs(cterm, cterm->print_buf);

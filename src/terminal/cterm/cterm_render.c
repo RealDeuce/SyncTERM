@@ -266,14 +266,14 @@ cterm_render_set_window(struct cterminal *cterm, int left, int top, int right, i
 	    .width  = (uint32_t)(right - left + 1),
 	    .height = (uint32_t)(bottom - top + 1),
 	};
-	if (cterm->rip3_session_owner) {
+	if (cterm->windowed_ansi) {
 		/* ANSI coordinates remain relative to their addressing region, but
 		 * RIP g/H can leave the cursor elsewhere in this same text window.
 		 * The console requires every physical cursor inside its window. */
 		const struct st_console_rect physical = {(uint32_t)(cterm->x - 1), (uint32_t)(cterm->y - 1),
 		    (uint32_t)cterm->width, (uint32_t)cterm->height};
 		if (render_succeeded(cterm, st_console_set_window(cterm->screen.console, &physical))) {
-			cterm->screen.rip3_addressing_window = window;
+			cterm->screen.addressing_window = window;
 			(void)render_succeeded(cterm,
 			    st_console_set_position(cterm->screen.console, window.x, window.y));
 		}
@@ -285,8 +285,8 @@ cterm_render_set_window(struct cterminal *cterm, int left, int top, int right, i
 static bool
 addressing_window(struct cterminal *cterm, struct st_console_rect *window)
 {
-	if (cterm->rip3_session_owner && cterm->screen.rip3_addressing_window.width != 0) {
-		*window = cterm->screen.rip3_addressing_window;
+	if (cterm->windowed_ansi && cterm->screen.addressing_window.width != 0) {
+		*window = cterm->screen.addressing_window;
 		return true;
 	}
 	return render_succeeded(cterm, st_console_get_window(cterm->screen.console, window));
@@ -297,11 +297,11 @@ cterm_render_set_position(struct cterminal *cterm, int x, int y)
 {
 	struct st_console_rect window;
 
-	if (!cterm->rip3_session_owner && (x < 1 || y < 1))
+	if (!cterm->windowed_ansi && (x < 1 || y < 1))
 		return;
 	if (!addressing_window(cterm, &window))
 		return;
-	if (cterm->rip3_session_owner) {
+	if (cterm->windowed_ansi) {
 		int64_t physical_x = (int64_t)window.x + x - 1;
 		int64_t physical_y = (int64_t)window.y + y - 1;
 		if (physical_x < cterm->x - 1 || physical_y < cterm->y - 1
@@ -459,7 +459,7 @@ cterm_render_beep(struct cterminal *cterm)
 void
 cterm_render_clear_window(struct cterminal *cterm)
 {
-	if (cterm->rip3_session_owner) {
+	if (cterm->windowed_ansi) {
 		struct st_console_rect window;
 		struct st_console_cell blank;
 		if (addressing_window(cterm, &window)
@@ -474,7 +474,7 @@ cterm_render_clear_window(struct cterminal *cterm)
 void
 cterm_render_clear_line(struct cterminal *cterm)
 {
-	if (cterm->rip3_session_owner) {
+	if (cterm->windowed_ansi) {
 		struct st_console_rect window;
 		struct st_console_cell blank;
 		uint32_t               x, y;

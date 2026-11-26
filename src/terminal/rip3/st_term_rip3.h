@@ -15,7 +15,7 @@ void        st_term_rip3_flush(struct st_term_rip3 *rip);
 void        st_term_rip3_set_transfer_protocols(struct st_term_rip3 *rip, uint32_t protocols);
 int         st_term_rip3_receive_asset(struct st_term_rip3 *rip, const char *directory, const char *cache_root,
     const char *name, unsigned file_type);
-void        st_term_rip3_autosense(struct st_term_rip3 *rip, uint16_t selector);
+bool        st_term_rip3_escape(void *context, st_cterm_t *target, uint8_t byte);
 int         st_term_rip3_begin_local_text(struct st_term_rip3 *rip);
 int         st_term_rip3_end_local_text(struct st_term_rip3 *rip);
 void        st_term_rip3_destroy(struct st_term_rip3 *rip);
@@ -31,6 +31,7 @@ void st_term_rip3_note_queued_input(struct st_term_rip3 *rip, const struct st_co
 void st_term_rip3_captured_input(struct st_term_rip3 *rip, uint64_t token, const struct st_console_event *event);
 bool st_term_rip3_graphical_pending(const struct st_term_rip3 *rip);
 void st_term_rip3_graphical_failure(struct st_term_rip3 *rip);
+bool st_term_rip3_owns_bytes(const struct st_term_rip3 *);
 bool st_term_rip3_paused(const struct st_term_rip3 *rip);
 bool st_term_rip3_mouse_active(const struct st_term_rip3 *rip);
 bool st_term_rip3_pointer_shape(const struct st_term_rip3 *rip, enum st_console_pointer_shape *result);

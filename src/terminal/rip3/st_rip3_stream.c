@@ -413,6 +413,12 @@ st_rip3_stream_reset(struct st_rip3_stream *stream)
 }
 
 bool
+st_rip3_stream_in_command(const struct st_rip3_stream *stream)
+{
+	return stream->active;
+}
+
+bool
 st_rip3_stream_pending_lf(const struct st_rip3_stream *stream)
 {
 	return stream->skip_lf;

@@ -506,13 +506,13 @@ cterm_handle_sm(struct cterminal *cterm, int *speed) /* CSI h */
 {
 	int i;
 	(void)speed;
-	if (cterm->rip3_session_owner && (cterm->seq_param_count != 1 || cterm->seq_cur_has_sub))
+	if (cterm->windowed_ansi && (cterm->seq_param_count != 1 || cterm->seq_cur_has_sub))
 		return;
 	for (i = 0; i < cterm->seq_param_count; i++) {
 		cterm_seq_default(cterm, i, 0);
 		switch (cterm->seq_param_int[i]) {
 			case 2: /* KAM = keyboard locked */
-				if (cterm->rip3_session_owner)
+				if (cterm->windowed_ansi)
 					cterm->extattr |= CTERM_EXTATTR_KAM;
 				break;
 			case 14: /* FETM = EXCLUDE */
@@ -530,13 +530,13 @@ cterm_handle_rm(struct cterminal *cterm, int *speed) /* CSI l */
 {
 	int i;
 	(void)speed;
-	if (cterm->rip3_session_owner && (cterm->seq_param_count != 1 || cterm->seq_cur_has_sub))
+	if (cterm->windowed_ansi && (cterm->seq_param_count != 1 || cterm->seq_cur_has_sub))
 		return;
 	for (i = 0; i < cterm->seq_param_count; i++) {
 		cterm_seq_default(cterm, i, 0);
 		switch (cterm->seq_param_int[i]) {
 			case 2: /* KAM = keyboard unlocked */
-				if (cterm->rip3_session_owner)
+				if (cterm->windowed_ansi)
 					cterm->extattr &= ~CTERM_EXTATTR_KAM;
 				break;
 			case 14: /* FETM = INSERT */
@@ -1056,26 +1056,39 @@ cterm_dispatch_ecma(struct cterminal *cterm, unsigned char byte, int *speed)
 	}
 }
 
-/* RIP3 ANSI retains the declared sets for window lifecycle/save semantics.
+/* A window can retain its declared sets for save and restore.
  * Display remains CP437 and SI/SO do not invoke G1. Other routes retain their
  * existing unsupported-sequence handling and do not acquire new designations. */
 static bool
-rip3_designation(struct cterminal *cterm)
+record_designation(struct cterminal *cterm)
 {
-	if (cterm->graphics_mode != ST_CTERM_GRAPHICS_RIP_3 || cterm->emulation != CTERM_EMULATION_ANSI_BBS)
+	if ((!cterm->windowed_ansi && !cterm->device.record_designations)
+	    || cterm->emulation != CTERM_EMULATION_ANSI_BBS)
 		return false;
 	static const uint8_t finals[] = {'0', 'A', 'B'};
 	for (size_t i = 0; i < sizeof(finals) / sizeof(finals[0]); i++) {
 		if (cterm->seq_key == SEQ_GZD4(finals[i])) {
-			cterm->rip3_g0 = finals[i];
+			cterm->g0_designation = finals[i];
 			return true;
 		}
 		if (cterm->seq_key == SEQ_G1D4(finals[i])) {
-			cterm->rip3_g1 = finals[i];
+			cterm->g1_designation = finals[i];
 			return true;
 		}
 	}
 	return false;
+}
+
+/* Finalize the ordinary ECMA parameter fields for an extension that uses
+ * an intermediate as its terminator. Private or overflowing fields reject. */
+bool
+cterm_csi_intermediate(struct cterminal *cterm, uint8_t byte, uint64_t *first)
+{
+	(void)seq_feed(cterm, byte);
+	*first = cterm->seq_param_count != 0 && cterm->seq_params[0] >= '0' && cterm->seq_params[0] <= '9'
+	             ? cterm->seq_param_int[0]
+	             : 0;
+	return cterm->seq_key == (SEQ_CSI | SEQ_INTERM(byte)) && !cterm->seq_overflow;
 }
 
 /* ------------------------------------------------------------------------
@@ -1103,33 +1116,6 @@ cterm_accumulate_ecma_seq(struct cterminal *cterm, unsigned char byte, int *spee
 
 	if (byte == 0)
 		return true; /* NUL: media-fill, ignore (ECMA-48 §8.3.88) */
-
-	struct cterminal *owner = cterm->parent == NULL ? cterm : cterm->parent;
-	if (owner->rip3_autosense != NULL && cterm->saved_accumulator == NULL) {
-		if (byte == 0x18 || byte == 0x1a || byte == 0x1b) {
-			/* RIPtel closes pending ANSI without reusing an inner ESC. */
-			cterm->seq_phase   = SEQ_PHASE_IDLE;
-			cterm->sequence    = 0;
-			cterm->accumulator = NULL;
-			return true;
-		}
-		if (byte == '!' && cterm->seq_phase == SEQ_PHASE_PARAMS) {
-			/* RIP autosense uses an ANSI intermediate as its final byte.
-			 * Let the usual parameter parser finalize the first field. */
-			(void)seq_feed(cterm, byte);
-			bool     query    = cterm->seq_key == (SEQ_CSI | SEQ_INTERM('!')) && !cterm->seq_overflow;
-			uint16_t selector = 0;
-			if (cterm->seq_param_count != 0 && cterm->seq_params[0] >= '0'
-			    && cterm->seq_params[0] <= '9')
-				selector = (uint16_t)cterm->seq_param_int[0];
-			cterm->seq_phase   = SEQ_PHASE_IDLE;
-			cterm->sequence    = 0;
-			cterm->accumulator = NULL;
-			if (query)
-				owner->rip3_autosense(owner->rip3_autosense_context, selector);
-			return true;
-		}
-	}
 
 	s = seq_feed(cterm, byte);
 	if (s == SEQ_INCOMPLETE)
@@ -1203,7 +1189,7 @@ cterm_accumulate_ecma_seq(struct cterminal *cterm, unsigned char byte, int *spee
 		cterm->sequence  = 0;
 		if (d != NULL && d->handler != NULL)
 			d->handler(cterm, speed);
-		else if (!rip3_designation(cterm))
+		else if (!record_designation(cterm))
 			cterm_log_sequence(cterm, "Unsupported sequence");
 		/* A macro can leave the next sequence partially parsed. */
 		if (cterm->accumulator == pre_handler && cterm->seq_phase == SEQ_PHASE_IDLE) {
@@ -1500,10 +1486,10 @@ seq_feed(struct cterminal *cterm, unsigned char ch)
 				return SEQ_INCOMPLETE;
 			}
 			if (ch >= 0x30 && ch <= 0x7E) {
-				/* In RIP3 designation sequences A/B are final bytes after
+				/* In designation sequences A/B are final bytes after
 				 * the parenthesis, not fresh C1 introducers. Keep the old
 				 * parsing of other routes/sequences outside this scope. */
-				if (cterm->graphics_mode == ST_CTERM_GRAPHICS_RIP_3
+				if ((cterm->windowed_ansi || cterm->device.record_designations)
 				    && cterm->emulation == CTERM_EMULATION_ANSI_BBS
 				    && (cterm->seq_key == (SEQ_ESC | SEQ_INTERM('('))
 				        || cterm->seq_key == (SEQ_ESC | SEQ_INTERM(')')))) {

@@ -10,6 +10,7 @@
 #include "cterm_internal.h"
 #include "io_error.h"
 #include "st_cterm.h"
+#include "st_rip3_native_window.h"
 #include "string_compat.h"
 
 struct st_cterm_window_definition {
@@ -17,12 +18,12 @@ struct st_cterm_window_definition {
 	bool                             ansi;
 	uint32_t                         cell_width, cell_height;
 	int                              top_margin, bottom_margin, left_margin, right_margin;
-	int                              cursor, cursor_style, rip3_visible_cursor, fetm, ttm;
+	int                              cursor, cursor_style, visible_cursor, fetm, ttm;
 	unsigned char                    attr;
 	bool                             negative, default_tabs;
 	uint32_t                         fg_color, bg_color, cell_flags, extattr, last_column_flag, video_flags;
 	int32_t                          saved_mode, saved_mode_mask;
-	uint8_t                          decsace, rip3_g0, rip3_g1;
+	uint8_t                          decsace, g0_designation, g1_designation;
 	char                            *fg_tc_str, *bg_tc_str;
 	int                             *tabs, *vtabs, tab_count, vtab_count, tab_width;
 	enum st_codepage                 codepage;
@@ -55,7 +56,7 @@ valid_terminal(const st_cterm_t *terminal)
 {
 	return terminal != NULL && terminal->input_depth == 0 && terminal->started && terminal->width > 0
 	       && terminal->height > 0 && terminal->emulation == CTERM_EMULATION_ANSI_BBS
-	       && terminal->graphics_mode == ST_CTERM_GRAPHICS_RIP_3 && terminal->rip3_session_owner;
+	       && terminal->graphics_mode == ST_CTERM_GRAPHICS_RIP_3 && terminal->windowed_ansi;
 }
 
 static int
@@ -104,13 +105,13 @@ create_definition(struct st_cterm_window_definition **result, const st_cterm_t *
 	d->left_margin         = source->left_margin;
 	d->right_margin        = source->right_margin;
 	d->cursor              = source->cursor;
-	d->rip3_visible_cursor = source->rip3_visible_cursor;
+	d->visible_cursor      = source->visible_cursor;
 	d->cursor_style        = source->cursor_style;
 	d->fetm                = source->fetm;
 	d->ttm                 = source->ttm;
 	d->decsace             = source->decsace;
-	d->rip3_g0             = source->rip3_g0;
-	d->rip3_g1             = source->rip3_g1;
+	d->g0_designation      = source->g0_designation;
+	d->g1_designation      = source->g1_designation;
 	d->attr                = source->attr;
 	d->negative            = source->negative;
 	d->fg_color            = source->fg_color;
@@ -272,13 +273,13 @@ restore_definition(st_cterm_t *destination, const struct st_cterm_window_definit
 	destination->left_margin         = d->left_margin;
 	destination->right_margin        = d->right_margin;
 	destination->cursor              = d->cursor;
-	destination->rip3_visible_cursor = d->rip3_visible_cursor;
+	destination->visible_cursor      = d->visible_cursor;
 	destination->cursor_style        = d->cursor_style;
 	destination->fetm                = d->fetm;
 	destination->ttm                 = d->ttm;
 	destination->decsace             = d->decsace;
-	destination->rip3_g0             = d->rip3_g0;
-	destination->rip3_g1             = d->rip3_g1;
+	destination->g0_designation      = d->g0_designation;
+	destination->g1_designation      = d->g1_designation;
 	destination->attr                = d->attr;
 	destination->negative            = d->negative;
 	destination->fg_color            = d->fg_color;

@@ -5,6 +5,7 @@
 #include <string.h>
 #include <time.h>
 
+#include "cterm_internal.h"
 #include "cterm_rip_time.h"
 #include "io_error.h"
 #include "path.h"
@@ -16,6 +17,7 @@
 #include "st_rip3_host_variables.h"
 #include "st_rip3_local_variables.h"
 #include "st_rip3_maf.h"
+#include "st_rip3_native_window.h"
 #include "st_rip3_ports.h"
 #include "st_rip3_query.h"
 #include "st_rip3_resources.h"
@@ -490,18 +492,18 @@ flush_text(void *context)
 		st_cterm_t *text     = st_term_rip3_text(rip);
 		size_t      consumed = 0;
 		if (status == 0) {
-			st_cterm_set_rip3_destructive_backspace(text, !rip->backspace.nondestructive);
+			st_cterm_set_destructive_backspace(text, !rip->backspace.nondestructive);
 			status = st_cterm_write(text, rip->tty + used, length - used, &consumed);
 		}
 		used += consumed;
 		if (rip->view != NULL && status == 0)
 			status = st_term_rip3_view_present(rip->view, rip->config.console,
 			    st_rip3_session_text_active(rip->session));
-		enum st_cterm_rip3_window_action action = st_cterm_take_rip3_window_action(text);
+		enum st_cterm_window_action action = st_cterm_take_window_action(text);
 		/* Replacing a window is safe only after CTerm's writer has unwound.
 		 * Consume the action once, then resume at the following original byte. */
-		if (status == 0 && action != ST_CTERM_RIP3_WINDOW_NONE)
-			st_rip3_session_ansi_window(rip->session, action == ST_CTERM_RIP3_WINDOW_RESTORE);
+		if (status == 0 && action != ST_CTERM_WINDOW_NONE)
+			st_rip3_session_ansi_window(rip->session, action == ST_CTERM_WINDOW_RESTORE);
 		else if (consumed == 0)
 			break;
 	}
@@ -1220,7 +1222,7 @@ scene_begin(void *context, void **result)
 {
 	struct st_term_rip3             *rip = context;
 	struct st_cterm_suspended_input *saved;
-	int                              status = st_cterm_suspend_rip3_input(st_term_rip3_text(rip), &saved);
+	int                              status = st_cterm_suspend_input(st_term_rip3_text(rip), &saved);
 	if (status == 0)
 		*result = saved;
 	return status;
@@ -1230,7 +1232,7 @@ static void
 scene_end(void *context, void *state)
 {
 	struct st_term_rip3 *rip = context;
-	st_cterm_resume_rip3_input(st_term_rip3_text(rip), state);
+	st_cterm_resume_input(st_term_rip3_text(rip), state);
 }
 
 /* Explicit screen saves merge native ANSI ink into the existing raw graphics
@@ -1643,7 +1645,7 @@ ansi_owns_bang(void *context)
 {
 	struct st_term_rip3 *rip = context;
 	flush_text(rip);
-	return st_cterm_rip3_ansi_pending(st_term_rip3_text(rip));
+	return st_cterm_escape_pending(st_term_rip3_text(rip));
 }
 
 static void
@@ -1660,8 +1662,8 @@ text(void *context, const uint8_t *bytes, size_t length)
 		flush_text(rip);
 }
 
-void
-st_term_rip3_autosense(struct st_term_rip3 *rip, uint16_t selector)
+static void
+autosense(struct st_term_rip3 *rip, uint16_t selector)
 {
 	if (rip == NULL)
 		return;
@@ -1674,6 +1676,23 @@ st_term_rip3_autosense(struct st_term_rip3 *rip, uint16_t selector)
 			length++;
 		rip->output(rip->output_context, ST_CTERM_OUTPUT_RESPONSE, version, length);
 	}
+}
+
+bool
+st_term_rip3_escape(void *context, st_cterm_t *text, uint8_t byte)
+{
+	bool query = byte == '!' && text->seq_phase == SEQ_PHASE_PARAMS;
+	if (!query && byte != 0x18 && byte != 0x1a && byte != 0x1b)
+		return false;
+	uint64_t first = 0;
+	if (query)
+		query = cterm_csi_intermediate(text, byte, &first);
+	text->seq_phase   = SEQ_PHASE_IDLE;
+	text->sequence    = 0;
+	text->accumulator = NULL;
+	if (query)
+		autosense(context, (uint16_t)first);
+	return true;
 }
 
 static void
@@ -2239,7 +2258,7 @@ echo_backspace(struct st_term_rip3 *rip)
 	flush_text(rip);
 	int status = rip->view == NULL ? 0 : st_term_rip3_view_begin(rip->view, rip->config.console);
 	if (status == 0)
-		status = st_cterm_echo_rip3_backspace(st_term_rip3_text(rip), !rip->backspace.nondestructive);
+		status = st_cterm_echo_window_backspace(st_term_rip3_text(rip), !rip->backspace.nondestructive);
 	if (status == 0 && rip->view != NULL)
 		status = st_term_rip3_view_present(rip->view, rip->config.console, true);
 	if (status != 0)
@@ -2340,6 +2359,12 @@ st_term_rip3_graphical_failure(struct st_term_rip3 *rip)
 		return;
 	st_rip3_session_graphical_cancel(rip->session);
 	diagnostic(rip, ST_RIP3_COMMAND_RESOURCE_FAILURE);
+}
+
+bool
+st_term_rip3_owns_bytes(const struct st_term_rip3 *rip)
+{
+	return rip != NULL && st_rip3_session_in_wire_command(rip->session);
 }
 
 bool

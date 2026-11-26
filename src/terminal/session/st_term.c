@@ -399,11 +399,11 @@ igs_loop_service_pending(void *context)
 	return session->igs_dispatch_pending;
 }
 
-static void
-rip3_autosense(void *context, uint16_t selector)
+static bool
+rip3_escape(void *context, st_cterm_t *target, uint8_t byte)
 {
 	st_term_session_t *session = context;
-	st_term_rip3_autosense(session->rip3, selector);
+	return st_term_rip3_escape(session->rip3, target, byte);
 }
 
 static uint32_t
@@ -556,53 +556,53 @@ st_term_session_create(st_term_session_t **result, const struct st_term_config *
 	}
 	st_screen_mode_profile_palette(mode, config->palette, config->palette_size, palette_override);
 	const struct st_cterm_config cterm_config = {
-	    .console                = config->console,
-	    .fonts                  = config->fonts,
-	    .audio                  = config->audio,
-	    .hyperlinks             = config->hyperlinks,
-	    .emulation              = (config->graphics_mode == ST_CTERM_GRAPHICS_SKYPIX_13
-	                                  || config->graphics_mode == ST_CTERM_GRAPHICS_SKYPIX_31
-	                                  || config->graphics_mode == ST_CTERM_GRAPHICS_BIG_103)
-	                                  ? ST_CTERM_ANSI_BBS
-	                                  : profile_emulation(config->screen_mode),
-	    .encoding               = (config->graphics_mode == ST_CTERM_GRAPHICS_RIP_1
-	                                  || config->graphics_mode == ST_CTERM_GRAPHICS_RIP_3)
-	                                  ? ST_CTERM_ENCODING_UTF8
-	                                  : config->encoding,
-	    .graphics_mode          = config->graphics_mode,
-	    .rip3_session_owner     = config->graphics_mode == ST_CTERM_GRAPHICS_RIP_3,
-	    .rip3_autosense         = rip3_autosense,
-	    .rip3_autosense_context = session,
+	    .console          = config->console,
+	    .fonts            = config->fonts,
+	    .audio            = config->audio,
+	    .hyperlinks       = config->hyperlinks,
+	    .emulation        = (config->graphics_mode == ST_CTERM_GRAPHICS_SKYPIX_13
+	                            || config->graphics_mode == ST_CTERM_GRAPHICS_SKYPIX_31
+	                            || config->graphics_mode == ST_CTERM_GRAPHICS_BIG_103)
+	                            ? ST_CTERM_ANSI_BBS
+	                            : profile_emulation(config->screen_mode),
+	    .encoding         = (config->graphics_mode == ST_CTERM_GRAPHICS_RIP_1
+	                            || config->graphics_mode == ST_CTERM_GRAPHICS_RIP_3)
+	                            ? ST_CTERM_ENCODING_UTF8
+	                            : config->encoding,
+	    .graphics_mode    = config->graphics_mode,
+	    .windowed_ansi    = config->graphics_mode == ST_CTERM_GRAPHICS_RIP_3,
+	    .escape_extension = config->graphics_mode == ST_CTERM_GRAPHICS_RIP_3 ? rip3_escape : NULL,
+	    .escape_context   = session,
 
-	    .apc_directory       = config->apc_directory,
-	    .application_version = config->application_version,
-	    .codepage            = config->codepage,
-	    .palette_mapping     = mode == NULL ? NULL : palette_mapping,
-	    .petscii_machine     = profile_petscii_machine(config->screen_mode),
-	    .font_selector       = config->font_selector,
-	    .terminal_rows       = reserve_status ? rows - 1 : rows,
-	    .status_line         = reserve_status,
-	    .expand_lf           = config->expand_lf,
-	    .force_lcf           = config->force_lcf,
-	    .yellow_is_yellow    = config->yellow_is_yellow,
-	    .palette_override    = config->palette_size == 0 ? NULL : palette_override,
-	    .scrollback_lines    = config->history == NULL ? 0 : st_session_history_capacity(config->history),
-	    .output              = cterm_output,
-	    .output_context      = session,
-	    .size_changed        = cterm_size,
-	    .size_context        = session,
-	    .speed_query                 = cterm_speed_query,
-	    .speed_changed               = cterm_speed_changed,
-	    .speed_context               = session,
-	    .input_filter                = config->input_filter,
-	    .input_filter_active         = config->input_filter_active,
-	    .input_filter_context        = config->input_filter_context,
-	    .capture                     = config->capture,
-	    .capture_active              = config->capture_active,
-	    .capture_context             = config->capture_context,
-	    .log_level                   = config->cterm_log_level,
-	    .diagnostic                  = config->cterm_diagnostic,
-	    .diagnostic_context          = config->cterm_diagnostic_context,
+	    .apc_directory        = config->apc_directory,
+	    .application_version  = config->application_version,
+	    .codepage             = config->codepage,
+	    .palette_mapping      = mode == NULL ? NULL : palette_mapping,
+	    .petscii_machine      = profile_petscii_machine(config->screen_mode),
+	    .font_selector        = config->font_selector,
+	    .terminal_rows        = reserve_status ? rows - 1 : rows,
+	    .status_line          = reserve_status,
+	    .expand_lf            = config->expand_lf,
+	    .force_lcf            = config->force_lcf,
+	    .yellow_is_yellow     = config->yellow_is_yellow,
+	    .palette_override     = config->palette_size == 0 ? NULL : palette_override,
+	    .scrollback_lines     = config->history == NULL ? 0 : st_session_history_capacity(config->history),
+	    .output               = cterm_output,
+	    .output_context       = session,
+	    .size_changed         = cterm_size,
+	    .size_context         = session,
+	    .speed_query          = cterm_speed_query,
+	    .speed_changed        = cterm_speed_changed,
+	    .speed_context        = session,
+	    .input_filter         = config->input_filter,
+	    .input_filter_active  = config->input_filter_active,
+	    .input_filter_context = config->input_filter_context,
+	    .capture              = config->capture,
+	    .capture_active       = config->capture_active,
+	    .capture_context      = config->capture_context,
+	    .log_level            = config->cterm_log_level,
+	    .diagnostic           = config->cterm_diagnostic,
+	    .diagnostic_context   = config->cterm_diagnostic_context,
 	};
 	if (config->graphics_mode == ST_CTERM_GRAPHICS_BIG_103)
 		status = cterm_big_open(&session->big, &session->cterm, &cterm_config);
@@ -1232,7 +1232,8 @@ write_graphics(st_term_session_t *session, const uint8_t *bytes, size_t size)
 		/* Once an octet grammar owns the input, even an apparent OO][
 		 * marker or an incomplete UTF-8 lead is part of its payload. */
 		if (!split
-		    && (cterm_big_owns_bytes(session->big) || cterm_igs_owns_bytes(session->igs)
+		    && (st_rip154_owns_bytes(session->rip154) || st_term_rip3_owns_bytes(session->rip3)
+		        || cterm_big_owns_bytes(session->big) || cterm_igs_owns_bytes(session->igs)
 		        || (session->skypix != NULL && cterm_skypix_parser_owns_bytes(&session->skypix->parser))
 		        || st_cterm_input_bytes_pending(st_term_session_cterm(session)))) {
 			int status = write_terminal_wire(session, bytes, 1);

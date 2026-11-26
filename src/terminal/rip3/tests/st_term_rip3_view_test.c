@@ -53,7 +53,7 @@ shared_raster(void)
 	    .encoding                                   = ST_CTERM_ENCODING_CODEPAGE,
 	    .codepage                                   = ST_CODEPAGE_CP437,
 	    .graphics_mode                              = ST_CTERM_GRAPHICS_RIP_3,
-	    .rip3_session_owner                         = true};
+	    .windowed_ansi                              = true};
 	/* Preserve the parent's row-ring optimization, then draw across the
 	 * physical wrap point from a window whose cells have a different height. */
 	CHECK(st_console_scroll(parent, 1, ' ') == 0);
@@ -181,7 +181,7 @@ main(void)
 	    .encoding                                              = ST_CTERM_ENCODING_CODEPAGE,
 	    .codepage                                              = ST_CODEPAGE_CP437,
 	    .graphics_mode                                         = ST_CTERM_GRAPHICS_RIP_3,
-	    .rip3_session_owner                                    = true};
+	    .windowed_ansi                                         = true};
 	const struct st_rip3_text_window_layout layout = {.x = 16,
 	    .y                                               = 16,
 	    .columns                                         = 4,

@@ -21,10 +21,6 @@
 
 typedef struct cterminal st_cterm_t;
 
-/* Owner-thread streaming of validated received RIP scene bytes. begin/end
- * isolate file parsing from the live wire parser. end(false) discards an
- * unfinished command after cancellation or an invalid transfer. */
-
 enum st_cterm_emulation {
 	ST_CTERM_ANSI_BBS,
 	ST_CTERM_PETSCII,
@@ -124,14 +120,13 @@ struct st_cterm_config {
 	enum st_cterm_encoding   encoding;
 	/* Identity reported to scripts and diagnostics. Graphics devices are owned by the session. */
 	enum st_cterm_graphics_mode graphics_mode;
-	/* st_term owns the independent RIP3 engine and feeds only its ordinary
-	 * text into this CTerm. Keep the public mode identity, without creating
-	 * a second parser/raster for that connected session. RIP3 only. */
-	bool rip3_session_owner;
-	/* Synchronous RIP3 autosense notification from the ANSI parser. This
-	 * callback must not write to or replace the CTerm during notification. */
-	void  (*rip3_autosense)(void *context, uint16_t selector);
-	void *rip3_autosense_context;
+	/* Use the ANSI window's independent addressing, rendition and save state.
+	 * The session owns selection and replacement of these windows. */
+	bool windowed_ansi;
+	/* An optional session-owned extension gets first refusal on the next
+	 * byte of an open, top-level ANSI escape sequence. */
+	bool  (*escape_extension)(void *context, st_cterm_t *target, uint8_t byte);
+	void *escape_context;
 	/* Enables built-in SyncTERM APC commands independently of RIP. Both
 	 * strings are borrowed through destruction; version is NUL-terminated.
 	 * NULL directory retains callback-only handling. CTSV maps UTF-8 alpha/beta
@@ -244,64 +239,20 @@ int st_cterm_text_boundary(st_cterm_t *terminal);
  * terminal and result unchanged on failure. Resume discards incomplete child
  * input and consumes the saved state, which may be NULL. */
 struct st_cterm_suspended_input;
-int  st_cterm_suspend_rip3_input(st_cterm_t *terminal, struct st_cterm_suspended_input **result);
-void st_cterm_resume_rip3_input(st_cterm_t *terminal, struct st_cterm_suspended_input *saved);
-/* RIP3-only preparation of a started, idle fresh window: inherit unfinished
- * ordinary ANSI syntax and, when preserve_tabs is true, the old tab stops.
- * Extended b keeps fresh default tabs. Do not copy rendition/geometry or
- * UTF-8 presenter state. Ordinary definitions (preserve_tabs) also retain
- * RIP3 charset designations; extended definitions keep fresh US/US defaults.
- * No rendering/input callbacks. Failure preserves both
- * objects; success leaves source independently owned. Pending optional media
- * and font-download payloads remain unsupported, never partially transferred. */
-int st_cterm_inherit_window_interpreter(st_cterm_t *destination, const st_cterm_t *source, bool preserve_tabs);
-/* RIP3 window selection retains the destination's window state and resumes
- * connection-owned ordinary ANSI syntax in the destination. Wire first use copies represented
- * ANSI/window state and independently owned fonts/tabs from the source.
- * Copy targets must be fresh, same-sized private consoles; discard on error. */
-int st_cterm_select_window_interpreter(st_cterm_t *destination, const st_cterm_t *source);
-int st_cterm_copy_window_state(st_cterm_t *destination, const st_cterm_t *source);
-/* Explicit RIP3 definition saves own metadata/font resources, never cells,
- * pixels, history or connection parser state. Capture survives source teardown.
- * Restore into a fresh same-sized unpublished target and discard on error.
- * The caller supplies the current connection interpreter independently. */
-struct st_cterm_window_definition;
-
+int  st_cterm_suspend_input(st_cterm_t *terminal, struct st_cterm_suspended_input **result);
+void st_cterm_resume_input(st_cterm_t *terminal, struct st_cterm_suspended_input *saved);
 /* RIP3 ESC7/8 hand off only after the recognized sequence has been consumed
  * and the native input stack has unwound. A successful write may stop short;
  * the connection owner takes the action before continuing the remaining bytes. */
-enum st_cterm_rip3_window_action {
-	ST_CTERM_RIP3_WINDOW_NONE,
-	ST_CTERM_RIP3_WINDOW_SAVE,
-	ST_CTERM_RIP3_WINDOW_RESTORE
+enum st_cterm_window_action {
+	ST_CTERM_WINDOW_NONE,
+	ST_CTERM_WINDOW_SAVE,
+	ST_CTERM_WINDOW_RESTORE
 };
-enum st_cterm_rip3_window_action st_cterm_take_rip3_window_action(st_cterm_t *terminal);
-bool                             st_cterm_rip3_ansi_pending(st_cterm_t *terminal);
-bool                             st_cterm_rip3_keyboard_locked(const st_cterm_t *terminal);
-void                             st_cterm_set_rip3_destructive_backspace(st_cterm_t *, bool destructive);
-int                              st_cterm_echo_rip3_backspace(st_cterm_t *, bool destructive);
-/* ANSI saves own metadata and logical font selectors only. Restore prepares
- * a fresh unpublished target, resolving fonts from the current compatible
- * resource owner. It neither restores encoding nor owns saved font resources.
- * The snapshot's CSI saved position is derived from the captured live cursor. */
-int st_cterm_window_ansi_create(struct st_cterm_window_definition **result, const st_cterm_t *source);
-int st_cterm_window_ansi_restore(st_cterm_t *target, const struct st_cterm_window_definition *definition,
-    const st_cterm_t *resources);
-int st_cterm_window_definition_create(struct st_cterm_window_definition **result, const st_cterm_t *source);
-int st_cterm_window_definition_restore(st_cterm_t *target, const struct st_cterm_window_definition *definition);
-/* Prepare a differently sized RIP3 view with full margins and a
- * homed live cursor. Retain the saved cursor and the rest of the definition. */
-int  st_cterm_window_definition_restore_maximized(st_cterm_t *target,
-    const struct st_cterm_window_definition                 *definition);
-void st_cterm_window_definition_destroy(struct st_cterm_window_definition *definition);
-/* CUR first use: fresh per-window defaults and empty explicit tabs, retaining
- * only connection-owned ordinary ANSI syntax. Target must be fresh and idle. */
-int st_cterm_default_window_interpreter(st_cterm_t *destination, const st_cterm_t *source);
-/* Outer RIP3 SOFT's preliminary reset of the old current TW, even protected:
- * normal ANSI 7/0, full vertical margins, saved home and default tabs. Home
- * the live cursor only if active. Retain parser, visibility and other modes;
- * do not clear pixels, history, font resources or stop audio. */
-int st_cterm_rip3_ansi_reset(st_cterm_t *terminal, bool active);
+enum st_cterm_window_action st_cterm_take_window_action(st_cterm_t *terminal);
+bool                        st_cterm_escape_pending(st_cterm_t *terminal);
+void                        st_cterm_set_destructive_backspace(st_cterm_t *, bool destructive);
+int                         st_cterm_echo_window_backspace(st_cterm_t *, bool destructive);
 /* Restore physical cursor presentation from the retained native state. */
 int st_cterm_present_text_cursor(st_cterm_t *terminal);
 /* Zero-based local cursor placement. A RIP3 session owner uses full-window

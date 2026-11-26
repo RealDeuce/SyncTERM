@@ -116,7 +116,7 @@ place(struct cterminal *cterm, const struct st_unicode_presentation_event *event
 	cterm_coord_conv_xy(cterm, CTERM_COORD_TERM, CTERM_COORD_CURR, &right, NULL);
 	if (right > CURR_MAXX || x > right)
 		right = CURR_MAXX;
-	if (cterm->rip3_session_owner && x > right) {
+	if (cterm->windowed_ansi && x > right) {
 		right = cterm->width;
 		cterm_coord_conv_xy(cterm, CTERM_COORD_ABSTERM, CTERM_COORD_CURR, &right, NULL);
 	}

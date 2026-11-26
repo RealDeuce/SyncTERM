@@ -371,7 +371,7 @@ check_rip3_absolute_text_position(void)
 		    .codepage                                   = ST_CODEPAGE_CP437,
 		    .quiet                                      = true,
 		    .graphics_mode                              = ST_CTERM_GRAPHICS_RIP_3,
-		    .rip3_session_owner                         = true};
+		    .windowed_ansi                              = true};
 		CHECK(rip_test_create(&terminal, &config) == 0);
 		const char rows[] =
 		    "11111111\x1b[2;1H22222222\x1b[3;1H33333333"
@@ -507,7 +507,7 @@ check_rip3_absolute_text_position(void)
 }
 
 static void
-check_rip3_window_action_handoff(void)
+check_window_action_handoff(void)
 {
 	st_console_t                          *console  = NULL;
 	st_font_catalog_t                     *fonts    = NULL;
@@ -522,7 +522,7 @@ check_rip3_window_action_handoff(void)
 	    .encoding                                   = ST_CTERM_ENCODING_UTF8,
 	    .quiet                                      = true,
 	    .graphics_mode                              = ST_CTERM_GRAPHICS_RIP_3,
-	    .rip3_session_owner                         = true};
+	    .windowed_ansi                              = true};
 	CHECK(rip_test_create(&terminal, &config) == 0);
 
 	const char wire[] =
@@ -531,13 +531,13 @@ check_rip3_window_action_handoff(void)
 	    "8\x1b[37;40m";
 	size_t used;
 	CHECK(rip_test_write(terminal, wire, sizeof(wire) - 1, &used) == 0 && used == 19);
-	CHECK(st_cterm_take_rip3_window_action(terminal) == ST_CTERM_RIP3_WINDOW_SAVE);
-	CHECK(st_cterm_take_rip3_window_action(terminal) == ST_CTERM_RIP3_WINDOW_NONE);
+	CHECK(st_cterm_take_window_action(terminal) == ST_CTERM_WINDOW_SAVE);
+	CHECK(st_cterm_take_window_action(terminal) == ST_CTERM_WINDOW_NONE);
 	struct st_cterm_state state;
 	CHECK(st_cterm_state(terminal, &state) == 0 && state.x == 3 && state.y == 3 && state.attr == 0x07);
 	size_t offset = used;
 	CHECK(rip_test_write(terminal, wire + offset, sizeof(wire) - 1 - offset, &used) == 0 && used == 10);
-	CHECK(st_cterm_take_rip3_window_action(terminal) == ST_CTERM_RIP3_WINDOW_RESTORE);
+	CHECK(st_cterm_take_window_action(terminal) == ST_CTERM_WINDOW_RESTORE);
 	CHECK(st_cterm_state(terminal, &state) == 0 && state.attr == 0x14);
 	offset += used;
 	feed(terminal, wire + offset, sizeof(wire) - 1 - offset);
@@ -569,7 +569,7 @@ check_rip3_text_erase(void)
 		    .codepage                                   = ST_CODEPAGE_CP437,
 		    .quiet                                      = true,
 		    .graphics_mode                              = ST_CTERM_GRAPHICS_RIP_3,
-		    .rip3_session_owner                         = true};
+		    .windowed_ansi                              = true};
 		CHECK(rip_test_create(&terminal, &config) == 0);
 		const char rows[] =
 		    "\x1b[31;44mABCDEF\x1b[2;1HGHIJKL\x1b[3;1HMNOPQR\x1b[4;1HSTUVWX"
@@ -640,7 +640,7 @@ check_rip3_ansi_eol(void)
 		    .codepage                                   = ST_CODEPAGE_CP437,
 		    .quiet                                      = true,
 		    .graphics_mode                              = ST_CTERM_GRAPHICS_RIP_3,
-		    .rip3_session_owner                         = true,
+		    .windowed_ansi                              = true,
 		    .palette_mapping                            = mapping};
 		CHECK(rip_test_create(&terminal, &config) == 0 && st_cterm_start_text(terminal) == 0);
 		uint32_t red = 0x2468ac;
@@ -1247,7 +1247,7 @@ st_cterm_test_main(void)
 	check_insert_lines_bounds();
 	check_local_text_position();
 	check_rip3_absolute_text_position();
-	check_rip3_window_action_handoff();
+	check_window_action_handoff();
 	check_rip3_text_erase();
 	check_rip3_ansi_eol();
 	test_graphics_history();

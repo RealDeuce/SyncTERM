@@ -113,7 +113,28 @@ else()
 	target_compile_options(st_rip3_commands PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 endif()
 
+add_library(st_rip3_native_window STATIC st_cterm_text_window.c st_cterm_window_definition.c)
+target_include_directories(st_rip3_native_window PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(st_rip3_native_window PUBLIC st_cterm PRIVATE syncterm_string_compat)
+set_target_properties(st_rip3_native_window PROPERTIES C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+if(MSVC)
+	target_compile_options(st_rip3_native_window PRIVATE /W4)
+else()
+	target_compile_options(st_rip3_native_window PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
 if(BUILD_TESTING)
+	add_executable(st_cterm_text_window_test tests/st_cterm_text_window_test.c
+		tests/st_cterm_text_window_fault_impl.c)
+	target_link_libraries(st_cterm_text_window_test PRIVATE st_rip3_native_window syncterm_string_compat)
+	set_target_properties(st_cterm_text_window_test PROPERTIES C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	if(MSVC)
+		target_compile_options(st_cterm_text_window_test PRIVATE /W4)
+	else()
+		target_compile_options(st_cterm_text_window_test PRIVATE -Wall -Wextra -Wpedantic)
+	endif()
+	add_test(NAME cterm_text_window COMMAND st_cterm_text_window_test)
+
 	add_executable(st_rip3_file_query_test tests/st_rip3_file_query_test.c tests/st_rip3_file_query_fault_impl.c)
 	target_link_libraries(st_rip3_file_query_test PRIVATE st_rip3_storage syncterm_filesystem
 		syncterm_string_compat st_unicode_compare syncterm_value_convert)

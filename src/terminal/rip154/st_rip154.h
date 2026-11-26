@@ -10,6 +10,7 @@ struct st_rip154;
 int  st_rip154_open(struct st_rip154 **, st_cterm_t **, const struct st_cterm_config *,
     const struct st_rip154_services *);
 void st_rip154_destroy(struct st_rip154 *);
+bool st_rip154_owns_bytes(const struct st_rip154 *);
 int  st_rip154_feed(struct st_rip154 *, const void *, size_t, size_t *);
 int  st_rip154_finish(struct st_rip154 *);
 int  st_rip154_reset(struct st_rip154 *);

@@ -8,6 +8,7 @@
 #include "cterm_internal.h"
 #include "io_error.h"
 #include "st_cterm.h"
+#include "st_rip3_native_window.h"
 #include "string_compat.h"
 
 static int
@@ -19,8 +20,8 @@ inherit_interpreter(st_cterm_t *destination, const st_cterm_t *source, bool pres
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (destination->emulation != CTERM_EMULATION_ANSI_BBS || source->emulation != CTERM_EMULATION_ANSI_BBS
 	    || destination->graphics_mode != ST_CTERM_GRAPHICS_RIP_3
-	    || source->graphics_mode != ST_CTERM_GRAPHICS_RIP_3 || !destination->rip3_session_owner
-	    || !source->rip3_session_owner)
+	    || source->graphics_mode != ST_CTERM_GRAPHICS_RIP_3 || !destination->windowed_ansi
+	    || !source->windowed_ansi)
 		return IO_ERROR_NOT_SUPPORTED;
 	/* These optional media/download payloads carry resources beyond ordinary
 	 * ANSI syntax. Retain their existing owner rather than copying half a
@@ -119,8 +120,8 @@ st_cterm_inherit_window_interpreter(st_cterm_t *destination, const st_cterm_t *s
 {
 	int status = inherit_interpreter(destination, source, preserve_tabs, true);
 	if (status == 0 && preserve_tabs) {
-		destination->rip3_g0 = source->rip3_g0;
-		destination->rip3_g1 = source->rip3_g1;
+		destination->g0_designation = source->g0_designation;
+		destination->g1_designation = source->g1_designation;
 	}
 	return status;
 }
@@ -156,7 +157,7 @@ st_cterm_rip3_ansi_reset(st_cterm_t *terminal, bool active)
 	if (terminal == NULL || terminal->input_depth != 0 || !terminal->started || terminal->width < 1)
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (terminal->emulation != CTERM_EMULATION_ANSI_BBS || terminal->graphics_mode != ST_CTERM_GRAPHICS_RIP_3
-	    || !terminal->rip3_session_owner)
+	    || !terminal->windowed_ansi)
 		return IO_ERROR_NOT_SUPPORTED;
 	size_t count = (size_t)(terminal->width - 1) / 8 + 1;
 	if (count > SIZE_MAX / sizeof(int))
@@ -194,7 +195,7 @@ st_cterm_rip3_ansi_reset(st_cterm_t *terminal, bool active)
 bool
 st_cterm_rip3_keyboard_locked(const st_cterm_t *terminal)
 {
-	return terminal != NULL && terminal->rip3_session_owner && (terminal->extattr & CTERM_EXTATTR_KAM) != 0;
+	return terminal != NULL && terminal->windowed_ansi && (terminal->extattr & CTERM_EXTATTR_KAM) != 0;
 }
 
 int
@@ -273,8 +274,8 @@ st_cterm_copy_window_state(st_cterm_t *destination, const st_cterm_t *source)
 		}
 		*selections[i] = mapped[n];
 	}
-	destination->rip3_g0             = source->rip3_g0;
-	destination->rip3_g1             = source->rip3_g1;
+	destination->g0_designation      = source->g0_designation;
+	destination->g1_designation      = source->g1_designation;
 	destination->attr                = source->attr;
 	destination->fg_color            = source->fg_color;
 	destination->bg_color            = source->bg_color;
@@ -291,7 +292,7 @@ st_cterm_copy_window_state(st_cterm_t *destination, const st_cterm_t *source)
 	destination->left_margin         = source->left_margin;
 	destination->right_margin        = source->right_margin;
 	destination->cursor              = source->cursor;
-	destination->rip3_visible_cursor = source->rip3_visible_cursor;
+	destination->visible_cursor      = source->visible_cursor;
 	destination->cursor_style        = source->cursor_style;
 	destination->decsace             = source->decsace;
 	destination->fetm                = source->fetm;

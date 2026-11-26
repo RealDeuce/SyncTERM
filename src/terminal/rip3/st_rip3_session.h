@@ -197,6 +197,9 @@ int st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3
 /* Bind the initial text window once the connected text and graphics sinks are ready. */
 int  st_rip3_session_start_text_window(struct st_rip3_session *session);
 void st_rip3_session_destroy(struct st_rip3_session *session);
+/* The live stream is collecting a RIP command payload. */
+bool st_rip3_session_in_wire_command(const struct st_rip3_session *);
+
 /* Take at most budget source bytes. Resume an owned host continuation before
  * taking more bytes, even when no new input is available. Pauses for delays or
  * user prompts; no sleeping or threads. Syntax/resource/operation failures are
