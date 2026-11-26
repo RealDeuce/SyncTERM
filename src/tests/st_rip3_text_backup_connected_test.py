@@ -121,6 +121,18 @@ def run(args,width,height):
         values(b'$STW(10)$', b'$STW(10)$');values(b'$RTW(9)$');values(b'$RTW(PUSH)$', b'$RTW(PUSH)$')
         values(b'$CUR(TW)$:alive',b'1:alive')
         assert client.capture().application['connected']==1
+        if width == 640:
+            t.case('rip3-copy-text-window-table-between-base-slots-and-stack')
+            values(b'$CUR(TW,3)$$COPY(TW, TBL, S3, BASE, S5)$'
+                   b'$INUSE(TW,S3)$$INUSE(TW,BASE)$$INUSE(TW,S5)$', b'111')
+            values(b'$CUR(TW,9)$$COPY(TW, TBL, PUSH)$$COPY(TW, BASE, TBL)$'
+                   b'$CUR(TW)$:$INUSE(TW,9)$:$INUSE(TW,BASE)$', b'3:0:1')
+            values(b'$COPY(TW, POP, TBL)$$CUR(TW)$:$INUSE(TW,STACK)$', b'9:0')
+            values(b'$COPY(TW, TBL, BASE)$$COPY(TW, S3, BASE)$$COPY(TW, BASE, S2)$'
+                   b'$COPY(TW, TBL, S3)$$COPY(TW, S3, S5)$$COPY(TW, S2, TBL)$'
+                   b'$CUR(TW)$:$INUSE(TW,S2)$:$INUSE(TW,S3)$', b'3:0:1')
+            frame = values(b'$COPY(TW, S5, TBL)$$CUR(TW)$:$INUSE(TW,S5)$', b'9:0')
+            assert frame.application['connected'] == 1
 
 
 if __name__=='__main__':
