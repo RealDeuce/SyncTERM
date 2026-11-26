@@ -1,23 +1,23 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/346",
-  "revision": "f61a957b96880f45e22aca0d4638ad7dc9c64c52",
-  "previous_revision": "bc50d16a6f7ba3ce1a6faa317f7133e6ed0b8553",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/348",
+  "revision": "98016aef6472f265ddd11985fece4e3e8f83c3c3",
+  "previous_revision": "f61a957b96880f45e22aca0d4638ad7dc9c64c52",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
   "acceptance_scope": "See docs/RIP3_CONFORMANCE.md#acceptance-scope and the current requirements ledger. These adoption and implementation records are historical evidence. They do not add requirements for ordinary ANSI behavior, transport negotiation or client features.",
-  "upstream_state_at_adoption": "Fork stable incorporates #345, #346.",
-  "archive_sha256": "84e22104385ae7b83bb2eb2fe42c4191da633a931fb66796d90c2608e4be9e8c",
+  "upstream_state_at_adoption": "Fork stable incorporates #348.",
+  "archive_sha256": "4c9be5aa2dd150ea6c712f8c1d50e4a284b3ae37305ec40b5e564962e46a6c99",
   "normative_scope": [
-    "Reconciles the six user-variable directives, conditional prompts and playback consumer permissions in the index.",
-    "Defines the wire bitmap fitter, half-open device geometry, collapsed outputs and local failure marker."
+    "Aligns the font overviews with the 255 stored glyphs, implicit blank code zero and three added resolution banks."
   ],
   "changed_documents": [
-    "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
-    "version/3.0/ripscrip/9.1-text-variable-reference.md"
+    "version/2.0/techspecs/3.3-microansi-fonts.md",
+    "version/3.0/ripscrip/6.1-content-file-roles.md",
+    "version/3.0/techspecs/3.3-microansi-maf-delta.md"
   ],
   "new_documents": [],
   "retired_documents": [],
-  "matched_source_blocks": 9730,
+  "matched_source_blocks": 9760,
   "reopened_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:9",
     "version/1.54/techspecs/3.0-icon-format.md:11",
@@ -951,7 +951,7 @@
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:26",
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:32"
   ],
-  "upstream_issue_resolutions": 170,
+  "upstream_issue_resolutions": 171,
   "historical_pending_followups": [
     "B130 complete graphics metrics; B131 persistent grouped selection/template ownership; B132 hover handler/membership lifecycle edge policy.",
     "Stored-but-unexecuted query modes 1..4 and numbered table copy/backup ownership.",
@@ -1966,6 +1966,12 @@
       "sha256": "fe42e07e2f1bee7470cd8c8b7c8546b6bb0d0e568983c9dd318b00b37b13e38f",
       "title": "Issue #344 — Wire bitmap destination geometry",
       "role": "Defines the wire bitmap fitter, half-open device geometry, collapsed outputs and local failure marker."
+    },
+    {
+      "path": "version/3.0/research/issue-347-microansi-overview-counts.md",
+      "sha256": "c3353f7036e57d491cb6caf9885f76203758c27b9f5f2e33513004110116590d",
+      "title": "Issue #347 — MicroANSI glyph and resolution counts",
+      "role": "Aligns the font overviews with the 255 stored glyphs, implicit blank code zero and three added resolution banks."
     }
   ],
   "documents": [
@@ -2035,7 +2041,7 @@
     },
     {
       "path": "version/2.0/techspecs/3.3-microansi-fonts.md",
-      "sha256": "688f4d7c130982e23eddba559b9285e87290c9c8b1a7acc749715eaf4fe9f679"
+      "sha256": "13030cc4984e13a309b71431cedbcb0704392dfc581164de1ff7b906b8cd39b6"
     },
     {
       "path": "version/2.0/techspecs/3.4-audio.md",
@@ -2151,7 +2157,7 @@
     },
     {
       "path": "version/3.0/ripscrip/6.1-content-file-roles.md",
-      "sha256": "66e857510a7e4e34778532d254a4b4e51db8c1f7bae180eafc2391e0cde9450b"
+      "sha256": "7d793f8bf1b2ce3fbe9383a9bc0ee04b6ff2fa62a75323511438347e0fee06b7"
     },
     {
       "path": "version/3.0/ripscrip/6.2-asset-delivery-and-storage.md",
@@ -2219,7 +2225,7 @@
     },
     {
       "path": "version/3.0/techspecs/3.3-microansi-maf-delta.md",
-      "sha256": "47785b08e3bf4f0795adddfad92b29ecdc8d1c88f554ac64bde565be98949f63"
+      "sha256": "98a9273c1bf824f2a6d9e7f50ada466c5bbc2635bc988e4a4744d83fa822123c"
     },
     {
       "path": "version/3.0/techspecs/4.0-connection-directory-model-delta.md",
@@ -2242,7 +2248,7 @@
       "sha256": "f4ee849fa10559e8bab0f5b94d49a4277d9ffc79ebb1b0899ec3eb5003ab5fcd"
     }
   ],
-  "previous_ledger_commit": "3b863b5e963c26ccd9d36cac4646c0f42f24aee4",
+  "previous_ledger_commit": "f714e2e2aa1635ba4993ef7c6d8b6d7249bd1291",
   "replaced_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:33",
     "version/1.54/techspecs/3.1-bgi-stroked-fonts.md:94",
@@ -2317,11 +2323,10 @@
     "version/3.0/ripscrip/9.1-text-variable-reference.md:50"
   ],
   "states_at_adoption": {
-    "context": 3148,
-    "implemented": 5957,
-    "unreviewed": 376,
-    "excluded": 274,
-    "pending": 8
+    "context": 3381,
+    "implemented": 6096,
+    "excluded": 277,
+    "pending": 9
   },
   "source_blocks_at_adoption": 9763,
   "initial_revision": "a9e0c2f490714d82a0827675ffbc074aa5ae00e6",
@@ -22525,6 +22530,68 @@
         "version/3.0/ripscrip/9.1-text-variable-reference.md:263",
         "version/3.0/ripscrip/9.1-text-variable-reference.md:264",
         "version/3.0/ripscrip/9.1-text-variable-reference.md:265"
+      ]
+    },
+    {
+      "previous_revision": "f61a957b96880f45e22aca0d4638ad7dc9c64c52",
+      "revision": "98016aef6472f265ddd11985fece4e3e8f83c3c3",
+      "archive_sha256": "4c9be5aa2dd150ea6c712f8c1d50e4a284b3ae37305ec40b5e564962e46a6c99",
+      "archive_format": "git archive --format=tar",
+      "reviewed_pull_requests": [
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/347",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/348",
+          "reviewed_head": "49eccf447db9825b7593f84fe2b280aa2e3cdfc4",
+          "integration": "3995260d4bd127e6b9d4a613588a6249cb9d9a36"
+        }
+      ],
+      "changed_documents": [
+        {
+          "path": "version/2.0/techspecs/3.3-microansi-fonts.md",
+          "previous_sha256": "688f4d7c130982e23eddba559b9285e87290c9c8b1a7acc749715eaf4fe9f679",
+          "sha256": "13030cc4984e13a309b71431cedbcb0704392dfc581164de1ff7b906b8cd39b6"
+        },
+        {
+          "path": "version/3.0/ripscrip/6.1-content-file-roles.md",
+          "previous_sha256": "66e857510a7e4e34778532d254a4b4e51db8c1f7bae180eafc2391e0cde9450b",
+          "sha256": "7d793f8bf1b2ce3fbe9383a9bc0ee04b6ff2fa62a75323511438347e0fee06b7"
+        },
+        {
+          "path": "version/3.0/techspecs/3.3-microansi-maf-delta.md",
+          "previous_sha256": "47785b08e3bf4f0795adddfad92b29ecdc8d1c88f554ac64bde565be98949f63",
+          "sha256": "98a9273c1bf824f2a6d9e7f50ada466c5bbc2635bc988e4a4744d83fa822123c"
+        }
+      ],
+      "new_derivations": [
+        {
+          "path": "version/3.0/research/issue-347-microansi-overview-counts.md",
+          "sha256": "c3353f7036e57d491cb6caf9885f76203758c27b9f5f2e33513004110116590d",
+          "title": "Issue #347 — MicroANSI glyph and resolution counts",
+          "role": "Aligns the font overviews with the 255 stored glyphs, implicit blank code zero and three added resolution banks."
+        }
+      ],
+      "changed_derivations": [],
+      "moved_source_blocks": 0,
+      "new_source_units": [
+        "version/2.0/techspecs/3.3-microansi-fonts.md:5",
+        "version/3.0/ripscrip/6.1-content-file-roles.md:76",
+        "version/3.0/techspecs/3.3-microansi-maf-delta.md:60"
+      ],
+      "retired_source_units": [
+        "version/2.0/techspecs/3.3-microansi-fonts.md:5",
+        "version/3.0/ripscrip/6.1-content-file-roles.md:76",
+        "version/3.0/techspecs/3.3-microansi-maf-delta.md:60"
+      ],
+      "states_after_update": {
+        "context": 3381,
+        "implemented": 6096,
+        "excluded": 277,
+        "pending": 9
+      },
+      "resolved_source_units": [
+        "version/2.0/techspecs/3.3-microansi-fonts.md:5",
+        "version/3.0/ripscrip/6.1-content-file-roles.md:76",
+        "version/3.0/techspecs/3.3-microansi-maf-delta.md:60"
       ]
     }
   ],

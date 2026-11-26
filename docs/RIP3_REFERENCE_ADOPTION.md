@@ -1871,3 +1871,8 @@ Stable commit `bc50d16a6f7ba3ce1a6faa317f7133e6ed0b8553` incorporates #341, #342
 
 Stable commit `f61a957b96880f45e22aca0d4638ad7dc9c64c52` incorporates #345, #346.
 [PR #345](https://github.com/bbs-land/remote-imaging-protocol/pull/345) reconciles the index with chapters 5.1 and 5.2. [PR #346](https://github.com/bbs-land/remote-imaging-protocol/pull/346) defines ordered, projected bitmap bounds, the two zero decisions, collapsed follow-on effects and missing-image placement.
+
+## MicroANSI subrecord and directory counts
+
+Stable commit `98016aef6472f265ddd11985fece4e3e8f83c3c3` incorporates #348.
+All thirty font subrecords in the bundled file end after 255 stored glyphs. The three smaller resolution banks supplement three nominal banks. The correction updates the source descriptions for the existing decoder.
