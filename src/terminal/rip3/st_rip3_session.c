@@ -1988,6 +1988,16 @@ command(void *context, const uint8_t *bytes, size_t length)
 			session->graphical_job=GRAPHICAL_METRIC;
 		}
 	}
+	else if ((length != 0 && memchr("QadD", bytes[0], 4) != NULL)
+	    || (length >= 2 && bytes[0] == '2' && bytes[1] == 'A')) {
+		/* Selection, protection and a stored Q prefix can change without
+		 * changing any published color. Only publication needs a frame. */
+		const struct st_rip3_palette *published = st_rip3_palettes_published(session->commands.palettes);
+		struct st_rip3_palette before = *published;
+		st_rip3_commands_process(&session->commands, &sink, bytes, length);
+		if (memcmp(before.rgb, published->rgb, sizeof(before.rgb)) == 0)
+			return;
+	}
 	else {
 		st_rip3_commands_process(&session->commands,&sink,bytes,length);
 		/* These ENV and STYLE setters affect only subsequent drawing.

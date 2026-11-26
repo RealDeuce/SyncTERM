@@ -176,6 +176,14 @@ st_rip3_palettes_current_stored(const struct st_rip3_palettes *palettes,
 	return 0;
 }
 
+static void
+reset_slot(struct st_rip3_palettes *palettes, unsigned number)
+{
+	struct palette_entry *entry = &palettes->entries[number];
+	(void)st_rip3_palette_defaults(&entry->palette);
+	entry->info.defined = number == 0;
+}
+
 int
 st_rip3_palettes_reset_entry(struct st_rip3_palettes *palettes, unsigned number)
 {
@@ -186,10 +194,10 @@ st_rip3_palettes_reset_entry(struct st_rip3_palettes *palettes, unsigned number)
 	struct palette_entry *entry = &palettes->entries[number];
 	if (entry->info.protected)
 		return IO_ERROR_PERMISSION_DENIED;
-	(void)st_rip3_palette_defaults(&entry->palette);
-	entry->info.defined = number == 0;
-	if (number == palettes->current)
-		palettes->published = entry->palette;
+	reset_slot(palettes, number);
+	/* A successful reset uploads the selected slot, including stored
+	 * changes left unpublished by an earlier rejected Q command. */
+	palettes->published = palettes->entries[palettes->current].palette;
 	return 0;
 }
 
@@ -201,12 +209,11 @@ st_rip3_palettes_reset(struct st_rip3_palettes *palettes, bool hard)
 	for (unsigned i = 0; i < 36; i++) {
 		if (hard) palettes->entries[i].info.protected = false;
 		if (!palettes->entries[i].info.protected)
-			(void)st_rip3_palettes_reset_entry(palettes,i);
+			reset_slot(palettes, i);
 	}
-	if (hard) {
+	if (hard)
 		palettes->current = 0;
-		palettes->published = palettes->entries[0].palette;
-	}
+	palettes->published = palettes->entries[palettes->current].palette;
 	return 0;
 }
 

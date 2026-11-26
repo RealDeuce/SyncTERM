@@ -9,6 +9,7 @@ from st_migrated_control_test import connection
 from st_rip3_connected_test import pixel, query
 from st_rip3_extended_window_connected_test import window, xy
 from st_rip3_hover_connected_test import resident
+from st_rip3_scroll_connected_test import plane_pixel
 from st_rip3_text_erase_connected_test import number, scene
 from st_terminal_conformance_test import Terminal
 from syncterm_fixture import receive
@@ -60,6 +61,39 @@ def default_palette(t, capture, values, width, height):
     frame = values(b'$PALENTRY(0,ALL)$', stored)
     check_pixels(frame)  # The selected undefined slot publishes defaults too.
     values(b'$CUR(PAL,6)$$PALENTRY(CUR,ALL)$', stored)
+
+    t.case('rip3-master-colors-recolor-indexed-art')
+    # The 64 master codes interleave the two bit planes of the RGB channels.
+    # Write them to the high quarter of the existing row of indexed pixels.
+    edits = b'|'.join(b'a' + number(192+i,2) + number(i,2) for i in range(64))
+    levels = [(2*((i>>2)&1) + ((i>>5)&1), 2*((i>>1)&1) + ((i>>4)&1),
+               2*(i&1) + ((i>>3)&1)) for i in range(64)]
+    dac = (0,21,42,63)
+    rgb = (0,84,168,255)
+    readback = '6;' + ','.join(f'{dac[r]}:{dac[g]}:{dac[b]}' for r,g,b in levels)
+    frame = capture(b'\x01|' + edits + b'\r\n' + query(b'$PALENTRY(CUR,192,255)$', at_cursor=True),
+                    readback.encode())
+    colors = [rgb[r]<<16 | rgb[g]<<8 | rgb[b] for r,g,b in levels]
+    for phase in ('primary','alternate'):
+        assert [plane_pixel(frame,x,96,phase) for x in range(192,256)] == colors
+        assert plane_pixel(frame,191,96,phase) == rendered[191]
+
+    t.case('rip3-reset-republishes-current-palette')
+    # With the last master code out of range, Q stores red for 0..14
+    # but leaves the published colors alone. Resetting another writable
+    # slot uploads the selected slot even when that selection is protected.
+    frame = capture(b'\x01|Q' + b'04'*15 + b'1S\r\n')
+    assert pixel(frame,14,96) == rendered[14]
+    values(b'$PROT(PAL,6)$')
+    frame = values(b'$RESET(PAL,0)$$CUR(PAL)$:$PALENTRY(6,14)$', b'6:6;42:0:0')
+    for phase in ('primary','alternate'):
+        assert plane_pixel(frame,14,96,phase) == 0xa80000
+        assert plane_pixel(frame,15,96,phase) == rendered[15]
+    values(b'$UNPROT(PAL,6)$')
+    frame = capture(b'\x01|Q' + b'02'*15 + b'1S\r\n')
+    assert pixel(frame,14,96) == 0xa80000
+    frame = values(b'$PROT(PAL,6)$$RESET(PAL,TBL)$$CUR(PAL)$:$ISPROT(PAL,6)$', b'6:1')
+    assert pixel(frame,14,96) == 0x00a800
 
     values(b'$RESET(HARD)$$CUR(PAL)$:$PALENTRY(5,137)$:$PALENTRY(6,255)$:$PALENTRY(CUR,ALL)$',
            b'0:-1:-1:' + stored)

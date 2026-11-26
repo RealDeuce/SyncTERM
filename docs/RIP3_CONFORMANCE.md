@@ -149,6 +149,14 @@ world-frame setter’s 0–65535 range on each axis. A three-digit UltraNum
 can encode 65536. Sending that value for either axis preserves both
 dimensions. [Upstream PR #322](https://github.com/bbs-land/remote-imaging-protocol/pull/322)
 
+Palette resets publish the selected slot’s stored colors after resetting
+the requested entries. This also applies when a table reset skips the
+protected selected slot. A rejected master-palette block can leave a
+stored prefix that becomes visible on that later upload. Connected captures
+check both blink phases and all 64 master colors. The switch-palette
+chapter still conflicts with the established SOFT selection rule.
+[Upstream issue #324](https://github.com/bbs-land/remote-imaging-protocol/issues/324)
+
 A fresh drawing style has zero stored fill rows and a zero user line mask.
 Its selected solid brush and pen cover every pixel. Wire `s` sets the eight
 rows, and `S` loads the selected preset's rows. Wire `=` uses the supplied

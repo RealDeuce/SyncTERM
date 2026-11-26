@@ -2028,6 +2028,17 @@ scene_header_palette_upload(void)
 	struct fixture f={0};
 	struct st_rip3_session_config options=config(&f,ST_RIP3_CANVAS_640_480);
 	CHECK(st_rip3_session_create(&f.session,&options)==0);
+	uint64_t revision = st_rip3_session_revision(f.session);
+	CHECK(append(&f,"!|2A500|D..8|d.8.\r")==0 && pump(&f)==0);
+	CHECK(st_rip3_session_revision(f.session)==revision);
+	CHECK(append(&f,"!|Q0404040404040404040404040404041S\r")==0 && pump(&f)==0);
+	CHECK(f.errors==1 && st_rip3_session_revision(f.session)==revision);
+	CHECK(append(&f,"!|2A500\r")==0 && pump(&f)==0);
+	CHECK(st_rip3_session_revision(f.session)!=revision);
+	revision=st_rip3_session_revision(f.session);
+	CHECK(append(&f,"!|a0004|2A501|a0002|2A502\r")==0 && pump(&f)==0);
+	CHECK(f.errors==2 && st_rip3_session_revision(f.session)==revision);
+	f.errors=0;
 	CHECK(query(&f,"$CUR(PAL,5)$","")==0);
 	CHECK(append(&f,"!|a0409|h010000014106|h010000014206\r")==0 && pump(&f)==0);
 	CHECK(f.errors==0 && query(&f,"$CUR(PAL)$:$INUSE(PAL,6)$:$PALENTRY(5,4)$","5:0:6;0:0:63")==0);
