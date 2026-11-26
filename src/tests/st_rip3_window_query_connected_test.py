@@ -5,7 +5,7 @@ import argparse
 from pathlib import Path
 import time
 
-from st_migrated_control_test import connection
+from st_migrated_control_test import connection, square_canvas
 from st_rip3_connected_test import query
 from st_rip3_extended_window_connected_test import window
 from st_rip3_text_erase_connected_test import scene
@@ -16,9 +16,7 @@ from syncterm_fixture import receive
 def run(args, width, height, ox, oy, cw, ch, bcw, bch, bx, by):
     with connection(args.executable, args.reports, encoding=args.encoding,
                     options="ScreenMode=Custom\nRIP=RIPv3\n",
-                    settings=f"CustomColumns={width//8}\nCustomRows={height//8}\n"
-                             "CustomFontHeight=8\nCustomAspectWidth=4\nCustomAspectHeight=3\n"
-                             "AudioModes=0\n") as (client, root, peer, send):
+                    settings=square_canvas(width, height)) as (client, root, peer, send):
         t = Terminal(client, root, peer, send)
         serial = 0
 

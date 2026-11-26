@@ -4,7 +4,7 @@
 import argparse
 from pathlib import Path
 
-from st_migrated_control_test import connection
+from st_migrated_control_test import connection, square_canvas
 from st_rip3_connected_test import pixel, query
 from st_rip3_text_erase_connected_test import expect_region, number, scene
 from st_terminal_conformance_test import Terminal
@@ -33,9 +33,7 @@ def geometry(frame, width, height, x, y, cw, ch):
 def run(args, width, height, cw, ch, font0_width, font0_height, columns, rows, box, origin):
     with connection(args.executable, args.reports, encoding=args.encoding,
                     options="ScreenMode=Custom\nRIP=RIPv3\n",
-                    settings=f"CustomColumns={width//8}\nCustomRows={height//8}\n"
-                             "CustomFontHeight=8\nCustomAspectWidth=4\nCustomAspectHeight=3\n"
-                             "AudioModes=0\n") as (client, root, peer, send):
+                    settings=square_canvas(width, height)) as (client, root, peer, send):
         t = Terminal(client, root, peer, send)
         send(b"\x1b[!")
         receive(peer, b"RIPSCRIP030001", root / "replies.bin")
