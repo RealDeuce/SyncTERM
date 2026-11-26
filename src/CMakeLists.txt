@@ -819,7 +819,7 @@ if(BUILD_TESTING)
 						PROPERTIES TIMEOUT 90 LABELS "terminal;conformance")
 				endforeach()
 			endforeach()
-			foreach(_variant basic cp437 utf8 protocol transfer)
+			foreach(_variant basic cp437 utf8 protocol transfer cp437_delivery)
 				add_test(NAME syncterm_control_${_variant}
 					COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/st_test_control_test.py
 					$<TARGET_FILE:syncterm_app> ${_variant})

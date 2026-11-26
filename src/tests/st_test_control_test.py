@@ -308,6 +308,48 @@ def protocol(executable):
                     stream.close()
 
 
+def cp437_delivery(executable):
+    for mode in ("Off", "RIPv1", "RIPv3"):
+        controls = {0, 7, 8, 9, 10, 12, 13, 27}
+        if mode != "Off":
+            controls.update((1, 2))  # SOH/STX can introduce RIP commands.
+        if mode == "RIPv1":
+            controls.update((11, 14, 15))  # Cursor down, suppressed SI/SO.
+        printable = [byte for byte in range(256) if byte not in controls]
+        with listener() as server:
+            entry = ("[CP437 delivery]\nConnectionType=Raw\nAddress=127.0.0.1\n"
+                     f"Port={server.getsockname()[1]}\nScreenMode=80x30\nEncoding=CP437\n"
+                     f"RIP={mode}\nNoStatus=true\nHidePopups=true\n")
+            with fixture(executable, entries=entry) as (client, root):
+                client.wait_text("CP437 delivery")
+                client.key("enter")
+                with server.accept()[0] as peer:
+                    peer.sendall(b"\x1b[2J\x1b[44m\x1b[?25l")
+                    rows = [(b"", printable[i:i + 64]) for i in range(0, len(printable), 64)]
+                    if mode == "Off":
+                        rows.append((b"\0", sorted(controls)))
+                    for row, (prefix, codes) in enumerate(rows, 2):
+                        if prefix:
+                            peer.sendall(b"\x1b[=255h")
+                        # Start away from the margin so '!' is literal in every mode.
+                        peer.sendall(f"\x1b[{row};2H".encode())
+                        previous = client.wait_for(lambda f: f.application.get("cterm.x") == 2
+                                                   and f.application.get("cterm.y") == row)
+                        for column, byte in enumerate(codes, 2):
+                            peer.sendall(prefix + bytes([byte]))
+                            try:
+                                frame = client.wait_for(lambda f: f.application["cterm.x"] == column + 1
+                                                        and f.application["cterm.y"] == row, timeout=3)
+                            except TimeoutError as error:
+                                raise AssertionError(f"{mode}: no cursor advance for 0x{byte:02x}") from error
+                            # Blue background on a fresh cell makes even space and NBSP observable.
+                            assert frame.primary != previous.primary, (mode, hex(byte), column, row)
+                            if mode == "Off":
+                                cell = frame.cells[(row - 1) * frame.metadata["columns"] + column - 1]
+                                assert cell.glyph == byte, (hex(byte), cell)
+                            previous = frame
+
+
 def automatic_zmodem(executable):
     with listener() as server:
         entry = ("[Transfer peer]\nConnectionType=Raw\nAddress=127.0.0.1\n"
@@ -405,6 +447,8 @@ if __name__ == "__main__":
         basic(executable)
     elif variant in ("cp437", "utf8"):
         session(executable, variant == "utf8")
+    elif variant == "cp437_delivery":
+        cp437_delivery(executable)
     elif variant == "protocol":
         protocol(executable)
     elif variant == "transfer":

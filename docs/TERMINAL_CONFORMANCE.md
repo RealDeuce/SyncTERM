@@ -37,6 +37,13 @@ backspace, a raw escape operand, UTF-8 private-use input and the original TOS
 Fuji raster in both pixel phases. Native tests exercise clear/home, every input split,
 a logo wrapped across the right margin and the Atari ST codepage round trip for every byte.
 
+`syncterm_control_cp437_delivery` checks each drawable CP437 byte in an
+ordinary TCP text stream. The peer waits for the cell to paint and the cursor
+to advance before sending the next byte. The ANSI-BBS case checks the glyph
+index in all 256 slots, using doorway quoting for the eight control bytes.
+The RIPv1 and RIPv3 cases exercise the drawable bytes in each mode with
+RIP command recognition enabled.
+
 `syncterm_control_transfer` checks ZMODEM detection over a live TCP connection.
 The peer waits for each asterisk and each partial startup byte to reach the
 terminal before sending the next. The four-byte upload and download triggers
