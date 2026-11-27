@@ -435,7 +435,13 @@ st_ddofx_parse(struct st_ddofx *ddo, struct st_ddofx_framer *frame, const struct
 			const uint8_t *gs        = memchr(here, 0x1d, remaining);
 			size_t         length    = gs == NULL ? remaining : (size_t)(gs - here);
 			size_t         used      = 0;
-			int            status    = sink->text(sink->context, here, length, &used);
+			/* Publish all rows changed by this text run together. */
+			st_console_t *display =
+			    ddo->graphics && sink->text_config ? sink->text_config->console : NULL;
+			bool batch  = display && st_console_begin_update(display) == 0;
+			int  status = sink->text(sink->context, here, length, &used);
+			if (batch)
+				(void)st_console_end_update(display);
 			*consumed += used;
 			if (status != 0 || used < length)
 				return status;

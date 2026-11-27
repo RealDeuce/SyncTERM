@@ -43,6 +43,7 @@ change_origin(struct st_ddofx_graphic_window *w, int64_t x, int64_t y, bool clam
 struct repaint {
 	struct st_ddofx *ddo;
 	struct bounds    area;
+	const struct st_pixel_buffer *text;
 };
 
 static bool
@@ -173,6 +174,8 @@ paint(void *context, const struct st_pixel_buffer *pixels, struct st_console_rec
 		for (int x = b.left; x <= b.right; ++x)
 			pixels->primary[y * WIDTH + x] = pixels->alternate[y * WIDTH + x] = g->page[HIDDEN][y][x];
 
+	if (r->text)
+		st_ddofx_composite_desktop_text(r->ddo, r->text, pixels, b);
 	struct st_console_rect desktop = {b.left, b.top, b.right - b.left + 1, b.bottom - b.top + 1};
 	st_ddofx_repaint_clocks(r->ddo, 0, pixels, &desktop);
 	st_ddofx_repaint_marquees(r->ddo, 0, pixels, b);
@@ -210,12 +213,24 @@ paint(void *context, const struct st_pixel_buffer *pixels, struct st_console_rec
 	return 0;
 }
 
+static int
+paint_with_text(void *context, const struct st_pixel_buffer *text, struct st_console_rect *changed)
+{
+	struct repaint *r = context;
+	(void)changed;
+	r->text = text;
+	return st_console_modify_pixels(r->ddo->graphics->display, paint, r);
+}
+
 static void
 refresh(struct st_ddofx *ddo, struct bounds area)
 {
-	struct repaint r = {ddo, area};
+	struct repaint r = {.ddo = ddo, .area = area};
 	st_ddofx_mouse_view_changed(ddo->graphics);
-	(void)st_console_modify_pixels(ddo->graphics->display, paint, &r);
+	if (ddo->graphics->desktop_text)
+		(void)st_console_modify_pixels(ddo->graphics->desktop_text, paint_with_text, &r);
+	else
+		(void)st_console_modify_pixels(ddo->graphics->display, paint, &r);
 }
 
 /* Split a changed rectangle around covering windows. Repainting a covering

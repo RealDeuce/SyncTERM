@@ -1160,7 +1160,8 @@ st_console_view_pixels_written_locked(st_console_t *console, uint32_t x, uint32_
 			              == first + (size_t)area.height * stride)
 				++area.height;
 			console->view_output(console->view_output_context, console, area,
-			    parent->pixels->primary + first, stride, console->palette);
+			    parent->pixels->primary + first, parent->pixels->alternate + first, stride,
+			    console->palette);
 			area.y += area.height;
 		}
 	}

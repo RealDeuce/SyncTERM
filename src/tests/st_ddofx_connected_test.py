@@ -476,6 +476,33 @@ def check_attached_text(t):
                         b"2CGWIN,1", b"1CLOSE"), b"4\xff2\xff0\xff4,2,1,1\xff")
 
 
+def check_covered_text(t):
+    t.case("desktop text updates behind a graphic window and returns when it closes")
+    desk = b"1OPEN,1,11,20,5,9,7,15,N,N,N,N,N,,,"
+    cover = b"2GWIN,1,100,199,60,159,100,100,0,1,0,0,0,0,0,0,0,0,1,Cover"
+    initial = t.exchange(commands(b"2C,17", b"2aFILL", b"2CPYWP2VP", desk) +
+                         b"\x1b[41m        \x1b[3;5H\x1b[5;31;44mX")
+    frame = t.exchange(commands(cover, b"2ALERTGWIN,1", b"2C,53", b"2aFILL", b"2RGWINI",
+                                b"2C,79", b"2aFILL", b"2CALMGWIN") + b"\x1b[1;1H\x1b[42m       ")
+    # An unpublished change to the VGP must remain hidden while text changes behind it.
+    for plane in (frame.primary, frame.alternate):
+        assert list(plane[64*640+79:64*640+145]) == [17] + [2]*20 + [53]*45
+    moved = b"2CHGWIN,1,128,227,60,159,0,0,0,0,0,0,0,1,Cover"
+    frame = t.exchange(commands(moved, b"2SGWIN?,1"), b"128,227,60,159,0,0\xff")
+    lit = {frame.primary[y*640+x] for y in range(96,112) for x in range(112,120)}
+    dark = {frame.alternate[y*640+x] for y in range(96,112) for x in range(112,120)}
+    assert lit == {1,4} and dark == {1}
+    for plane, before in ((frame.primary,initial.primary),(frame.alternate,initial.alternate)):
+        assert list(plane[64*640+99:64*640+131]) == [2]*29 + [79]*3
+        for y in range(96,112):
+            assert plane[y*640+112:y*640+120] == before[y*640+112:y*640+120]
+    frame = t.exchange(commands(b"2CGWIN,1"))
+    for plane in (frame.primary, frame.alternate):
+        assert list(plane[64*640+79:64*640+145]) == [17] + [2]*56 + [4]*8 + [0]
+    frame = t.exchange(commands(b"1CLOSE"))
+    assert frame.primary[64*640+100] == frame.alternate[64*640+100] == 17
+
+
 def check_desktop_text(t):
     t.case("resource line breaks after the last text window closes preserve the graphics desktop")
     t.exchange(commands(b"2C,33", b"2aFILL", b"2C,91", b"2aP,5,470", b"2CPYWP2VP"))
@@ -2120,6 +2147,7 @@ def check_graphics(t, root):
     check_text_windows(t)
     check_desktop_text(t)
     check_attached_text(t)
+    check_covered_text(t)
     frame = t.exchange(commands(FULL_TEXT_WINDOW) + b"\x1b[H\x1b[41m " + commands(b"2CPYVP2WP", b"2aG,3,4",
                                                        b"2aSRGB,4,0,63,63"), b"4\xff")
     assert frame.primary[4 * 640 + 3] == 4 and frame.palette[4] == 0x00ffff

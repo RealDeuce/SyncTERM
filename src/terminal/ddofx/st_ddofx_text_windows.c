@@ -72,7 +72,7 @@ st_ddofx_graphics_text(struct st_ddofx_graphics *g)
 void
 st_ddofx_destroy_text_page(struct st_ddofx_text_page *page)
 {
-	if (page->backing && page->view)
+	if (page->view)
 		(void)st_console_set_view_output(page->view, NULL, NULL);
 	st_cterm_destroy(&page->text);
 	st_font_catalog_destroy(page->fonts);
@@ -91,19 +91,22 @@ st_ddofx_create_text_page(struct st_ddofx_graphics *g, struct st_ddofx_text_page
 	page->cell_width              = g->cell_width;
 	page->cell_height             = g->cell_height;
 	st_console_t *parent          = g->display;
-	if (page->owner) {
-		/* CHANGE and SCALE can expose any part of the 80 x 100 text page.
-		 * Size the native text raster independently of the owner's virtual graphics page. */
-		const struct st_console_display_config headless = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
-		const struct st_console_config         geometry = {.columns = 1,
-		    .rows                                                   = 1,
-		    .cell_width                                             = 8,
-		    .cell_height                                            = 16,
-		    .pixel_width                                            = 80 * 8,
-		    .pixel_height                                           = 100 * 16};
-		if (st_console_create(&page->backing, &headless, &geometry))
-			goto failed;
-		parent = page->backing;
+	if (page != &g->windows[0]) {
+		/* Desktop windows share one screen-sized text raster. A hosted
+		 * window can expose any part of its 80 x 100 virtual text page. */
+		st_console_t **backing = page->owner ? &page->backing : &g->desktop_text;
+		if (!*backing) {
+			const struct st_console_display_config headless = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+			const struct st_console_config         geometry = {.columns = 1,
+			    .rows                                                   = 1,
+			    .cell_width                                             = 8,
+			    .cell_height                                            = 16,
+			    .pixel_width                                            = WIDTH,
+			    .pixel_height = page->owner ? 100 * 16 : HEIGHT};
+			if (st_console_create(backing, &headless, &geometry))
+				goto failed;
+		}
+		parent = *backing;
 	}
 	if (st_console_create_clipped_raster_view(&page->view, parent, 80, 100, 8, 16, page->owner ? 0 : page->x,
 		page->owner ? 0 : page->y, page->hidden ? 0 : page->columns, page->hidden ? 0 : page->rows)
@@ -131,31 +134,51 @@ failed:
 	return false;
 }
 
+static void
+release_unused_desktop_text(struct st_ddofx_graphics *g)
+{
+	if (!g->desktop_text)
+		return;
+	for (unsigned id = 1; id <= 10; ++id)
+		if (g->windows[id].view && !g->windows[id].owner)
+			return;
+	st_console_destroy(g->desktop_text);
+	g->desktop_text = NULL;
+}
+
 void
 st_ddofx_close_text_windows(struct st_ddofx_graphics *g)
 {
 	for (unsigned i = 1; i <= 10; ++i)
 		st_ddofx_destroy_text_page(&g->windows[i]);
 	g->active_window = 0;
+	release_unused_desktop_text(g);
 }
 
 struct window_text_output {
 	struct st_ddofx_graphics *g;
 	unsigned                  owner;
 	struct bounds             area;
-	const uint32_t           *source, *palette;
+	const uint32_t           *source, *alternate, *palette;
 	uint32_t                  stride;
 };
 
 static void
-copy_text_pixels(void *context, const struct st_pixel_buffer *unused, struct bounds area)
+copy_text_pixels(void *context, const struct st_pixel_buffer *pixels, struct bounds area)
 {
 	const struct window_text_output *output = context;
 	struct st_ddofx_graphic_window  *w      = &output->g->graphic_windows[output->owner];
 	for (int y = area.top; y <= area.bottom; ++y) {
-		const uint32_t *src = output->source + (size_t)(y - output->area.top) * output->stride
-		                      + (area.left - output->area.left);
-		uint8_t        *dst = w->visual + (size_t)y * w->width + area.left;
+		size_t from = (size_t)(y - output->area.top) * output->stride + area.left - output->area.left;
+		const uint32_t *src = output->source + from;
+		if (pixels) {
+			size_t to    = (size_t)y * WIDTH + area.left;
+			size_t bytes = (area.right - area.left + 1) * sizeof(*src);
+			memcpy(pixels->primary + to, src, bytes);
+			memcpy(pixels->alternate + to, output->alternate + from, bytes);
+			continue;
+		}
+		uint8_t *dst = w->visual + (size_t)y * w->width + area.left;
 		for (int x = area.left; x <= area.right; ++x) {
 			uint32_t ink = *src++;
 			if (ink > 255 && !ST_CONSOLE_COLOR_IS_RGB(ink))
@@ -163,12 +186,11 @@ copy_text_pixels(void *context, const struct st_pixel_buffer *unused, struct bou
 			*dst++ = st_console_palette_index256(output->g->palette, ink);
 		}
 	}
-	(void)unused;
 }
 
 static void
 output_text(void *context, st_console_t *view, struct st_console_rect local, const uint32_t *source,
-    uint32_t stride, const uint32_t *palette)
+    const uint32_t *alternate, uint32_t stride, const uint32_t *palette)
 {
 	struct st_ddofx          *ddo = context;
 	struct st_ddofx_graphics *g   = ddo->graphics;
@@ -178,11 +200,13 @@ output_text(void *context, st_console_t *view, struct st_console_rect local, con
 		if (p->view != view)
 			continue;
 		const struct st_ddofx_graphic_window *w = &g->graphic_windows[p->owner];
-		int                                   x = p->x + (int)local.x, y = p->y + (int)local.y;
+		int                                   x = (int)local.x + (p->owner ? p->x : 0);
+		int                                   y = (int)local.y + (p->owner ? p->y : 0);
 		struct bounds             area   = {x, x + (int)local.width - 1, y, y + (int)local.height - 1};
-		struct window_text_output output = {g, p->owner, area, source, palette, stride};
-		struct bounds             limits = {0, w->width - 1, 0, w->height - 1};
-		if (!p->hidden && w->visual && st_ddofx_intersect_bounds(&area, &limits))
+		struct window_text_output output = {g, p->owner, area, source, alternate, palette, stride};
+		struct bounds             limits = {0, (p->owner ? w->width : WIDTH) - 1, 0,
+		    (p->owner ? w->height : HEIGHT) - 1};
+		if (!p->hidden && st_ddofx_intersect_bounds(&area, &limits))
 			st_ddofx_draw_text_control(ddo, p->owner, false, area, copy_text_pixels, &output);
 		break;
 	}
@@ -289,6 +313,40 @@ paint_frame(void *context, const struct st_pixel_buffer *pixels, struct bounds v
 				continue;
 			st_ddofx_paint_vga_string(frame->graphics, p->owner, pixels, frame->font, &ch, 1, x,
 			    y + p->cell_height - 1, ink, paper, &clip);
+		}
+	}
+}
+
+/* A graphic window refresh starts from the hidden page. Restore the
+ * desktop text intersecting that refresh before painting the graphic windows. */
+void
+st_ddofx_composite_desktop_text(struct st_ddofx *ddo, const struct st_pixel_buffer *text,
+    const struct st_pixel_buffer *display, struct bounds area)
+{
+	struct st_ddofx_graphics *g = ddo->graphics;
+	for (unsigned slot = 1; slot <= 11; ++slot) {
+		unsigned id = slot == 11 ? g->active_window : slot;
+		if (!id || (id == g->active_window && slot != 11))
+			continue;
+		const struct st_ddofx_text_page *p = &g->windows[id];
+		if (!p->view || p->hidden || p->owner)
+			continue;
+		struct bounds clip = outer_area(p);
+		if (!st_ddofx_intersect_bounds(&clip, &area))
+			continue;
+		if (p->border && p->font_width) {
+			struct window_frame frame = {g, p, p->font_bitmap, id == g->active_window, false};
+			paint_frame(&frame, display, clip);
+		}
+		struct bounds interior = {p->x, p->x + (int)p->columns * p->cell_width - 1, p->y,
+		    p->y + (int)p->rows * p->cell_height - 1};
+		if (!st_ddofx_intersect_bounds(&clip, &interior))
+			continue;
+		size_t bytes = (clip.right - clip.left + 1) * sizeof(*text->primary);
+		for (int y = clip.top; y <= clip.bottom; ++y) {
+			size_t i = (size_t)y * WIDTH + clip.left;
+			memcpy(display->primary + i, text->primary + i, bytes);
+			memcpy(display->alternate + i, text->alternate + i, bytes);
 		}
 	}
 }
@@ -592,7 +650,7 @@ configure_window(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *a
 			return false;
 	}
 	if (place_page(&page, page.hidden)
-	    || (create && page.owner && st_console_set_view_output(page.view, output_text, ddo))) {
+	    || (create && st_console_set_view_output(page.view, output_text, ddo))) {
 		if (create)
 			st_ddofx_destroy_text_page(&page);
 		return false;
@@ -687,6 +745,7 @@ st_ddofx_text_window_command(struct st_ddofx *ddo, const struct st_ddofx_sink *s
 				rebuild_text_owner(ddo, former_owner);
 			show_active_window(ddo, sink, id, true);
 		}
+		release_unused_desktop_text(g);
 		(void)st_console_end_update(g->display);
 		return;
 	}
@@ -717,6 +776,7 @@ st_ddofx_text_window_command(struct st_ddofx *ddo, const struct st_ddofx_sink *s
 		unsigned owner = page->owner;
 		(void)st_console_begin_update(g->display);
 		st_ddofx_destroy_text_page(page);
+		release_unused_desktop_text(g);
 		g->active_window = 0;
 		for (unsigned i = 1; i < 10; ++i) {
 			id = id == 1 ? 10 : id - 1;

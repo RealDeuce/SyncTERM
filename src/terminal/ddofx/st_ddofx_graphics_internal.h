@@ -170,6 +170,7 @@ struct st_ddofx_graphics {
 	int cell_width, cell_height;
 
 	st_console_t *display;
+	st_console_t *desktop_text;
 	/* Slot zero parses terminal traffic when the desktop has no text window. */
 	struct st_ddofx_text_page windows[11];
 	unsigned                  active_window;
@@ -265,6 +266,8 @@ bool    st_ddofx_page_name(const char *, enum page *);
 void    st_ddofx_bitmap_text(struct st_ddofx *, const struct st_ddofx_sink *, const char *, char *);
 bool    st_ddofx_create_text_page(struct st_ddofx_graphics *, struct st_ddofx_text_page *,
     const struct st_cterm_config *);
+void    st_ddofx_composite_desktop_text(struct st_ddofx *, const struct st_pixel_buffer *text,
+    const struct st_pixel_buffer *display, struct bounds area);
 void    st_ddofx_repaint_text_windows(struct st_ddofx *, unsigned owner);
 void    st_ddofx_destroy_text_page(struct st_ddofx_text_page *);
 void    st_ddofx_close_text_windows(struct st_ddofx_graphics *);
