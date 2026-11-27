@@ -58,6 +58,7 @@ clear_graphics_objects(struct st_ddofx_graphics *g)
 	free(g->mouse.fields);
 	free(g->mouse.regions);
 	g->mouse = (struct st_ddofx_mouse_state){0};
+	st_ddofx_mouse_defaults(&g->mouse);
 	st_ddofx_grid_destroy(g, false);
 	free(g->simple);
 	g->simple = NULL;
@@ -124,6 +125,7 @@ st_ddofx_graphics_enter(struct st_ddofx *ddo, const struct st_ddofx_sink *sink)
 		return;
 	struct st_cterm_config config = *sink->text_config;
 	g->display                    = config.console;
+	st_ddofx_mouse_defaults(&g->mouse);
 	if (st_console_get_config(g->display, &g->previous_mode) != 0
 	    || st_console_snapshot_create(&g->previous_screen, g->display) != 0) {
 		free(g);

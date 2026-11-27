@@ -20,7 +20,7 @@ A BBS can load legacy and four-bank BMF fonts into 32 slots with `2F` and switch
 
 The four desktop pages support lower-left anchored image scaling, rotation between pages with a transparent index and independent pivots, palette-based anti-aliasing, and single-index outlines.
 
-In Normal mode the BBS can show or hide the mouse pointer, query its position and three logical buttons, and read separate press and release counts and positions for each button. Up to 300 desktop regions share one table. Overlapping regions run in slot order. Each macro finishes before its return string is sent. Held repeatable regions run at 50 ms intervals during idle input. Non-repeating regions wait for all buttons to be released.
+In Normal mode the BBS can show or hide the mouse pointer, query its position and three logical buttons, and read separate press and release counts and positions for each button. The BBS can position the DDO pointer with `3MMOV` and confine it to a rectangle with `3MLIM`. SyncTERM accepts both the SDK spelling `MSPD` and the mouse-family spelling `3MSPD`. Relative to the default rates of 8 horizontally and 16 vertically, doubling an axis rate halves its travel. Motion is measured in desktop raster pixels, with fractional movement carried between samples. Up to 300 desktop regions share one table. Overlapping regions run in slot order. Each macro finishes before its return string is sent. Held repeatable regions run at 50 ms intervals during idle input. Non-repeating regions wait for all buttons to be released.
 
 Desktop hover fields use a separate table of 300 slots. The highest matching slot runs its macro, sends its return string and selects its static or animated pointer. As specified in the SDK, leaving a field for uncovered space preserves the remembered slot. Re-entering it fires again after a different field has won or the BBS has sent `3MFFRS`.
 
@@ -297,11 +297,11 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 8837 | ACTIVATE ANIMATED MOUSE | DDO-FX (NM) | Connected |
 | 8846 | DEACTIVATE ANIMATED MOUSE | DDO-FX (NM) | Connected |
 | 8855 | MOUSE VISIBILITY | DDO-FX (NM) | Connected |
-| 8866 | MOUSE LIMITS | DDO-FX (NM) | Pending |
-| 8875 | MOUSE MOVE | DDO-FX (NM) | Pending |
+| 8866 | MOUSE LIMITS | DDO-FX (NM) | Connected |
+| 8875 | MOUSE MOVE | DDO-FX (NM) | Connected |
 | 8890 | MOUSE INFO | DDO-FX (NM) | Connected |
 | 8928 | MOUSE INFO OLD | DDO-FX (NM) | Connected |
-| 8958 | MOUSE SPEED | DDO-FX (NM) | Pending |
+| 8958 | MOUSE SPEED | DDO-FX (NM) | Connected |
 | 8968 | MOUSE REGION | DDO-FX (NM) | Desktop regions |
 | 9189 | MOUSE REGION NON REPEAT | DDO-FX (NM) | Desktop regions |
 | 9211 | MOUSE FIELD | DDO-FX (NM) | Desktop hover fields |

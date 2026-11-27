@@ -231,6 +231,8 @@ execute(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *body)
 		if (ddo->graphics != NULL)
 			st_ddofx_graphics_command(ddo, sink, body);
 	}
+	else if (ddo->graphics && body[0] == 'M' && !ascii_case_ncompare(body + 1, "SPD,", 4))
+		st_ddofx_mouse_command(ddo, sink, body);
 	else if (body[0] == '3' && ddo->graphics)
 		st_ddofx_mouse_command(ddo, sink, body + 1);
 	else if (body[0] == '5' && ddo->graphics)

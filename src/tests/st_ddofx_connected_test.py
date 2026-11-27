@@ -662,6 +662,47 @@ def check_mouse(t, root):
         t.client.mouse(px, py, action=1, buttons=buttons)
         t.client.wait_for(lambda s: s.metadata["events_dequeued"] > before)
 
+    t.case("Normal mouse motion, limits and speed")
+    # Move the default arrow before the first physical mouse sample.
+    frame = t.exchange(commands(b"2C,4", b"2aFILL", b"2CPYWP2VP", b"3MMOV,120,90", b"3MINF"),
+                       b"120,90,0\xff")
+    px = m["destination_x"] + 241*m["destination_width"]//(2*m["plane_width"])
+    py = m["destination_y"] + 181*m["destination_height"]//(2*m["plane_height"])
+    assert frame.rgb[py*m["output_width"]+px] == frame.palette[0]
+    assert frame.primary[90*640+120] == 4
+    mouse(30, 30, 1)
+    t.exchange(commands(b"3MINF", b"3MIOLD,1"), b"120,90,1\xff1,120,90\xff")
+    mouse(32, 33, 0)
+    t.exchange(commands(b"3MIOLD,-1", b"3MLIM,50,110,60,80", b"3MINF",
+                        b"3MMOV,75,72", b"3MLIM,9,8,4,6", b"3MMOV,0,479", b"3MINF",
+                        b"3MMOV,40,600", b"3MINF"),
+               b"1,122,93\xff110,80,0\xff50,80,0\xff50,80,0\xff")
+    t.exchange(commands(b"3MMOV,70,70", b"MSPD,16,8"))
+    mouse(33, 34, 0)
+    t.exchange(commands(b"3MINF"), b"70,72,0\xff")
+    mouse(34, 35, 0)
+    t.exchange(commands(b"3MINF", b"3MSPD,4,32", b"3MSPD,0,1"), b"71,74,0\xff")
+    mouse(35, 36, 0)
+    mouse(36, 37, 0)
+    t.exchange(commands(b"3MINF", b"3MFLD,1,82,84,69,71,0,0,H,", b"3MREG,1,82,84,69,71,1,P,\x1d(3MREG,0)"),
+               b"75,75,0\xff")
+    mouse(36, 37, 1)
+    t.send(commands(b"3MMOV,83,70"))
+    # The host moved onto the region while left was held. Its return
+    # precedes the hover callback for the same position.
+    t.input(b"PH")
+    mouse(36, 37, 0)
+    t.exchange(commands(b"3MIOLD,-1", b"2RESET"), b"1,83,70\xff")
+
+    # Setting limits and speed alone takes the first absolute mouse sample.
+    t.exchange(commands(b"3MLIM,50,110,60,80", b"MSPD,16,16"))
+    mouse(90, 70, 0)
+    t.exchange(commands(b"3MINF"), b"90,70,0\xff")
+    mouse(300, 72, 0)
+    mouse(298, 72, 0)
+    t.exchange(commands(b"3MINF", b"3MPT,DEFAULT"), b"109,72,0\xff")
+    mouse(301, 90, 0)
+    t.exchange(commands(b"3MINF", b"2RESET"), b"112,90,0\xff")
     check_pointers(t, root, mouse)
     t.exchange(commands(b"3MREGN,300,70,85,40,55,3,B,", b"7DEFRET,1,M",
                         b"3MREGN,1,70,85,40,55,3,A~^M,\x1d(w1)\x1d(7SRET,1)",

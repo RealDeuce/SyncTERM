@@ -35,6 +35,10 @@ struct st_ddofx_mouse_state {
 	struct st_ddofx_regions *regions;
 	struct st_ddofx_pointers *pointers;
 	int x, y;
+	struct bounds limits;
+	int rate_x, rate_y, fraction_x, fraction_y;
+	int host_x, host_y;
+	bool controlled, host_known, keep_position, outside;
 	unsigned buttons;
 	bool hidden, ignore_hold, visibility_changed, previous_visibility;
 	struct {
@@ -78,6 +82,8 @@ struct st_ddofx_graphics {
 
 void st_ddofx_field_pointer(struct st_ddofx *, unsigned slot, bool animated);
 void st_ddofx_pointer_command(struct st_ddofx *, const struct st_ddofx_sink *, const char *, char *);
+void st_ddofx_mouse_defaults(struct st_ddofx_mouse_state *);
+bool st_ddofx_ensure_pointer(struct st_ddofx_mouse_state *);
 void st_ddofx_pointer_refresh(struct st_ddofx *);
 void st_ddofx_print_vga_text(struct st_ddofx *, const char *, char *);
 void st_ddofx_apply_vga_font(struct st_ddofx *);

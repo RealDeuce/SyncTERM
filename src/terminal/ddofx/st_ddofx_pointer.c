@@ -74,6 +74,33 @@ load(const struct st_ddofx *ddo, const struct st_ddofx_sink *sink, const char *n
 	return true;
 }
 
+static void
+default_arrow(struct pointer *p)
+{
+	/* White VGA arrow with a black outline and transparent surroundings. */
+	*p = (struct pointer) {.loaded = true};
+	memset(p->image.and_mask, 255, sizeof(p->image.and_mask));
+	for (unsigned y = 0; y < 14; ++y) {
+		for (unsigned x = 0; x <= y / 2; ++x) {
+			p->image.and_mask[y][x] = 0;
+			p->image.xor_mask[y][x] = (x && x < y / 2 && y < 13) ? 15 : 0;
+		}
+	}
+}
+
+/* A software arrow can be positioned independently of the window pointer. */
+bool
+st_ddofx_ensure_pointer(struct st_ddofx_mouse_state *m)
+{
+	if (!m->pointers)
+		m->pointers = calloc(1, sizeof(*m->pointers));
+	if (!m->pointers)
+		return false;
+	if (!m->pointers->current.loaded)
+		default_arrow(&m->pointers->current);
+	return true;
+}
+
 void
 st_ddofx_pointer_refresh(struct st_ddofx *ddo)
 {
@@ -89,9 +116,9 @@ st_ddofx_pointer_refresh(struct st_ddofx *ddo)
 			return;
 		m->visibility_changed = true;
 	}
-	bool custom =
-	    p && p->loaded && !ddo->pointer_paused && m->x >= 0 && m->y >= 0 && m->x < WIDTH && m->y < HEIGHT;
-	bool host = ddo->pointer_paused ? m->previous_visibility : !custom && !m->hidden;
+	bool custom = p && p->loaded && !m->outside && !ddo->pointer_paused && m->x >= 0 && m->y >= 0
+	              && m->x < WIDTH && m->y < HEIGHT;
+	bool host   = ddo->pointer_paused ? m->previous_visibility : !custom && !m->hidden;
 	bool host_visible;
 	if (st_console_get_pointer_visible(g->display, &host_visible) == 0 && host_visible != host)
 		(void)st_console_set_pointer_visible(g->display, host);
@@ -106,6 +133,8 @@ st_ddofx_pointer_pause(struct st_ddofx *ddo, bool pause)
 {
 	if (ddo->pointer_paused != pause) {
 		ddo->pointer_paused = pause;
+		if (pause && ddo->graphics)
+			ddo->graphics->mouse.host_known = false;
 		st_ddofx_pointer_refresh(ddo);
 	}
 }
@@ -155,15 +184,8 @@ st_ddofx_pointer_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink,
 		return;
 	if (!ascii_case_compare(verb, "MPT")) {
 		if (!ascii_case_compare(args, "DEFAULT")) {
-			/* White VGA arrow with a black outline and transparent surroundings. */
-			p->current = (struct pointer) {.loaded = true};
-			memset(p->current.image.and_mask, 255, sizeof(p->current.image.and_mask));
-			for (unsigned y = 0; y < 14; ++y) {
-				for (unsigned x = 0; x <= y / 2; ++x) {
-					p->current.image.and_mask[y][x] = 0;
-					p->current.image.xor_mask[y][x] = (x && x < y / 2 && y < 13) ? 15 : 0;
-				}
-			}
+			default_arrow(&p->current);
+			st_ddofx_mouse_defaults(m);
 		}
 		else if (!load(ddo, sink, args, &p->current))
 			return;

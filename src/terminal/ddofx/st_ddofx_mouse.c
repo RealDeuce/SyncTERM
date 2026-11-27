@@ -42,6 +42,41 @@ struct st_ddofx_fields {
 	bool         dirty;
 };
 
+void
+st_ddofx_mouse_defaults(struct st_ddofx_mouse_state *m)
+{
+	m->limits     = (struct bounds) {0, WIDTH - 1, 0, HEIGHT - 1};
+	m->rate_x     = 8;
+	m->rate_y     = 16;
+	m->fraction_x = 0;
+	m->fraction_y = 0;
+}
+
+static int
+clamp(int value, int low, int high)
+{
+	return value < low ? low : value > high ? high : value;
+}
+
+static void
+move_to(struct st_ddofx *ddo, int x, int y)
+{
+	struct st_ddofx_mouse_state *m = &ddo->graphics->mouse;
+	x                              = clamp(x, m->limits.left, m->limits.right);
+	y                              = clamp(y, m->limits.top, m->limits.bottom);
+	bool moved                     = x != m->x || y != m->y;
+	m->x                           = x;
+	m->y                           = y;
+	m->fraction_x                  = 0;
+	m->fraction_y                  = 0;
+	m->controlled                  = true;
+	if (moved && m->fields)
+		m->fields->dirty = true;
+	if (moved && m->regions && m->buttons && !m->regions->waiting && !m->ignore_hold)
+		m->regions->repeat_due = 1;
+	st_ddofx_pointer_refresh(ddo);
+}
+
 static bool
 read_area(struct st_ddofx *ddo, char **args, struct bounds *area)
 {
@@ -139,7 +174,8 @@ field_ready(const struct st_ddofx *ddo)
 	if (!ddo->graphics || ddo->pointer_paused || ddo->in_event || ddo->in_mouse || ddo->fade_due)
 		return false;
 	const struct st_ddofx_mouse_state *m = &ddo->graphics->mouse;
-	return m->fields && m->fields->dirty && !m->ignore_hold && (!m->regions || !m->regions->waiting);
+	return m->fields && m->fields->dirty && !m->outside && !m->ignore_hold
+	       && (!m->regions || !m->regions->waiting);
 }
 
 static void
@@ -197,6 +233,29 @@ st_ddofx_mouse_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, c
 		mouse->visibility_changed = true;
 		mouse->hidden             = !visible;
 		st_ddofx_pointer_refresh(ddo);
+	}
+	else if (!ascii_case_compare(verb, "MMOV")) {
+		int32_t v[2];
+		if (st_ddofx_numbers(ddo, args, v, 2) && v[0] >= 0 && v[0] < WIDTH && v[1] >= 0 && v[1] < HEIGHT
+		    && st_ddofx_ensure_pointer(mouse)) {
+			mouse->keep_position = !mouse->host_known;
+			move_to(ddo, v[0], v[1]);
+		}
+	}
+	else if (!ascii_case_compare(verb, "MLIM")) {
+		struct bounds limits;
+		if (read_area(ddo, &args, &limits) && !args && st_ddofx_ensure_pointer(mouse)) {
+			mouse->limits = limits;
+			move_to(ddo, mouse->x, mouse->y);
+		}
+	}
+	else if (!ascii_case_compare(verb, "MSPD")) {
+		int32_t v[2];
+		if (st_ddofx_numbers(ddo, args, v, 2) && v[0] > 0 && v[1] > 0 && st_ddofx_ensure_pointer(mouse)) {
+			mouse->rate_x = v[0];
+			mouse->rate_y = v[1];
+			move_to(ddo, mouse->x, mouse->y);
+		}
 	}
 	else if (!ascii_case_compare(verb, "MINF") && !args) {
 		snprintf(result, sizeof(result), "%d,%d,%u", mouse->x, mouse->y, mouse->buttons);
@@ -274,11 +333,61 @@ scan(struct st_ddofx *ddo)
 	struct st_ddofx_regions     *table = mouse->regions;
 	table->x                           = mouse->x;
 	table->y                           = mouse->y;
-	table->buttons                     = mouse->buttons;
+	table->buttons                     = mouse->outside ? 0 : mouse->buttons;
 	table->next                        = 0;
 	table->repeating                   = false;
 	table->repeat_due                  = 0;
 	st_ddofx_resume_mouse(ddo);
+}
+
+/* Console samples are absolute raster pixels. Integrate their differences
+ * at the requested mickey rate. Carry the remainder between small moves;
+ * discard it against a stop so reversing direction responds immediately. */
+static int
+advance(int value, int delta, int baseline, int rate, int *fraction, int low, int high)
+{
+	int64_t units    = (int64_t)delta * baseline + *fraction;
+	int64_t position = value + units / rate;
+	*fraction        = (int)(units % rate);
+	if (position < low || (position == low && *fraction < 0)) {
+		*fraction = 0;
+		return low;
+	}
+	if (position > high || (position == high && *fraction > 0)) {
+		*fraction = 0;
+		return high;
+	}
+	return (int)position;
+}
+
+static bool
+sample_position(struct st_ddofx_mouse_state *m, int x, int y)
+{
+	bool outside = x < 0 || x >= WIDTH || y < 0 || y >= HEIGHT;
+	bool changed = m->outside != outside;
+	m->outside   = outside;
+	if (outside) {
+		m->host_known = false;
+		return changed;
+	}
+
+	int old_x = m->x, old_y = m->y;
+	if (!m->controlled || (!m->host_known && !m->keep_position)) {
+		m->x          = clamp(x, m->limits.left, m->limits.right);
+		m->y          = clamp(y, m->limits.top, m->limits.bottom);
+		m->fraction_x = 0;
+		m->fraction_y = 0;
+	}
+	else if (m->host_known) {
+		m->x = advance(m->x, x - m->host_x, 8, m->rate_x, &m->fraction_x, m->limits.left, m->limits.right);
+		m->y =
+		    advance(m->y, y - m->host_y, 16, m->rate_y, &m->fraction_y, m->limits.top, m->limits.bottom);
+	}
+	m->host_x        = x;
+	m->host_y        = y;
+	m->host_known    = true;
+	m->keep_position = false;
+	return changed || m->x != old_x || m->y != old_y;
 }
 
 void
@@ -287,11 +396,8 @@ st_ddofx_mouse(struct st_ddofx *ddo, const struct st_console_event *event)
 	struct st_ddofx_mouse_state *mouse   = &ddo->graphics->mouse;
 	unsigned                     buttons = button_mask(event->data.mouse.buttons);
 	unsigned                     changed = mouse->buttons ^ buttons;
-	int                          x = event->data.mouse.pixel_x, y = event->data.mouse.pixel_y;
-	bool                         moved = mouse->x != x || mouse->y != y;
-	mouse->x                           = x;
-	mouse->y                           = y;
-	mouse->buttons                     = buttons;
+	bool moved     = sample_position(mouse, event->data.mouse.pixel_x, event->data.mouse.pixel_y);
+	mouse->buttons = buttons;
 	if (moved && mouse->pointers)
 		st_ddofx_pointer_refresh(ddo);
 	if (mouse->ignore_hold) {
@@ -305,8 +411,8 @@ st_ddofx_mouse(struct st_ddofx *ddo, const struct st_console_event *event)
 		unsigned release = !(buttons & bit);
 		if (mouse->history[i][release].count < UINT_MAX)
 			++mouse->history[i][release].count;
-		mouse->history[i][release].x = x;
-		mouse->history[i][release].y = y;
+		mouse->history[i][release].x = mouse->x;
+		mouse->history[i][release].y = mouse->y;
 	}
 	struct st_ddofx_regions *table = mouse->regions;
 	if (moved && mouse->fields)
