@@ -58,6 +58,7 @@ clear_graphics_objects(struct st_ddofx_graphics *g)
 	g->mouse = (struct st_ddofx_mouse_state){0};
 	st_ddofx_mouse_defaults(&g->mouse);
 	st_ddofx_grid_destroy(g, false);
+	st_ddofx_clear_polygons(g);
 	st_ddofx_ray_stop_recording(g->ray);
 	st_ddofx_ray_clear_profiles(g->ray);
 	if (g->ray)
@@ -491,7 +492,9 @@ st_ddofx_graphics_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink
 	char       *args = body;
 	const char *verb = st_ddofx_field(&args);
 	int32_t     n[4];
-	if (!ascii_case_compare(verb, "2GEXIT") && args == NULL)
+	if (!ascii_case_ncompare(verb, "23D", 3))
+		st_ddofx_polygon_command(ddo, sink, verb + 3, args);
+	else if (!ascii_case_compare(verb, "2GEXIT") && args == NULL)
 		st_ddofx_graphics_exit(ddo);
 	else if (!ascii_case_compare(verb, "2RESA") && st_ddofx_numbers(ddo, args, n, 1) && n[0] >= 1 && n[0] <= 100) {
 		st_ddofx_movie_resolution(g, (unsigned)n[0]);

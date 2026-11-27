@@ -24,6 +24,8 @@ uint32_t st_ddofx_animation_wait_ms(const struct st_ddofx *);
 void st_ddofx_animation_poll(struct st_ddofx *, const struct st_ddofx_sink *);
 uint32_t st_ddofx_ray_wait_ms(const struct st_ddofx *);
 void st_ddofx_ray_poll(struct st_ddofx *);
+uint32_t st_ddofx_polygon_wait_ms(const struct st_ddofx *);
+void st_ddofx_polygon_poll(struct st_ddofx *);
 uint32_t st_ddofx_landscape_wait_ms(const struct st_ddofx *);
 void st_ddofx_landscape_poll(struct st_ddofx *);
 uint32_t st_ddofx_movie_wait_ms(const struct st_ddofx *);

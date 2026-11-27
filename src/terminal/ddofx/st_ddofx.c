@@ -452,6 +452,9 @@ st_ddofx_wait_ms(const struct st_ddofx *ddo)
 	uint32_t animation = st_ddofx_animation_wait_ms(ddo);
 	if (animation < wait)
 		wait = animation;
+	uint32_t polygon = st_ddofx_polygon_wait_ms(ddo);
+	if (polygon < wait)
+		wait = polygon;
 	uint32_t ray = st_ddofx_ray_wait_ms(ddo);
 	if (ray < wait)
 		wait = ray;
@@ -483,6 +486,7 @@ st_ddofx_poll(struct st_ddofx *ddo, const struct st_ddofx_sink *sink)
 	st_ddofx_grid_poll(ddo);
 	st_ddofx_landscape_poll(ddo);
 	st_ddofx_ray_poll(ddo);
+	st_ddofx_polygon_poll(ddo);
 	st_ddofx_joystick_poll(ddo);
 	st_ddofx_movie_poll(ddo);
 	st_ddofx_animation_poll(ddo, sink);

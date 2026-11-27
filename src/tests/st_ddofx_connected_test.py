@@ -561,6 +561,72 @@ def check_landscape(t):
     t.exchange(commands(b"2RESET", *queries), b"0\xff0\xff100\xff0\xff")
 
 
+def check_polygon_objects(t, root):
+    t.case("polygon objects, projection, animation and background restoration")
+
+    def check(frame, expected):
+        for (x, y), colour in expected.items():
+            for plane in (frame.primary, frame.alternate):
+                assert plane[y * 640 + x] == colour, (x, y, plane[y * 640 + x], colour)
+
+    camera = b",-100,-100,-100,0,0,0,100"
+    face = b"23DFACE,1,0,0,0,-40,0,0,0,-40,0,31"
+    frame = t.exchange(commands(b"2RESET", b"2C,7", b"2aFILL", b"2CPYWP2BP", b"2CPYWP2VP",
+                                b"23DINITL,1" + camera, face, b"23DPLAY,1,1", b"w2"))
+    check(frame, {(105, 105): 16, (135, 135): 7})
+    frame = t.exchange(commands(b"23DROLL,1,1,45", b"w2"))
+    # A 45-degree roll puts the tips at (128,128) and (72,128).
+    check(frame, {(84, 122): 16, (115, 122): 16, (100, 134): 7})
+    frame = t.exchange(commands(b"23DROLL,1,1,0", b"23DPAINT,1,1,1,63", b"23DWIRE,1,1", b"w2"))
+    check(frame, {(105, 105): 7, (100, 120): 48})
+    frame = t.exchange(commands(b"23DWIRE,1,0", b"23DMOVE,1,1,2,-50", b"w2"))
+    check(frame, {(100, 120): 7, (155, 105): 48})
+    frame = t.exchange(commands(b"23DDIST,1,2,100", b"w2"))
+    check(frame, {(155, 105): 7, (310, 210): 48})
+
+    # Import two named meshes with local vertex indices and a fractional divisor.
+    def chunk(kind, data):
+        return struct.pack("<HI", kind, len(data) + 6) + data
+
+    def triangle(x):
+        points = struct.pack("<H9f", 3, x, 0, 0, x - 20, 0, 0, x, -20, 0)
+        faces = struct.pack("<5H", 1, 0, 1, 2, 7)
+        return chunk(0x4000, b"part\0" + chunk(0x4100, chunk(0x4110, points) + chunk(0x4120, faces)))
+
+    model = chunk(0x4d4d, chunk(0x3d3d, triangle(0) + triangle(-40)))
+    record = struct.Struct("<12sIIHH")
+    bank = bytearray(record.pack(b"\xff", 0, 0, 0, 0) * 33)
+    record.pack_into(bank, 0, b"TWO.3DS", len(bank), len(model), 0, 0)
+    record.pack_into(bank, record.size, b"SHORT.3DS", len(bank), len(model)-1, 0, 0)
+    marker, = root.rglob("syncterm-cache-name.txt")
+    (marker.parent / "DDOFX" / "BBSTHEME" / "Mesh.M").write_bytes(bank + model)
+    frame = t.exchange(commands(b"2fMesh.", b"23DDEL,1", b"23DINIT,2,.5,95" + camera + b",TWO.3DS",
+                                b"23DINIT,2,.5,95" + camera + b",SHORT.3DS", b"23DPLAY,2,1", b"w2"))
+    for plane in (frame.primary, frame.alternate):
+        assert {plane[105*640+105], plane[105*640+185]} == {80, 87}
+    check(frame, {(310, 210): 7, (160, 105): 7})
+    frame = t.exchange(commands(b"~PAUSEBAK", b"23DPLAY,2,0"))
+    check(frame, {(105, 105): 7, (185, 105): 7})
+    frame = t.exchange(commands(b"~UNPAUSEBAK", b"23DINITL,3" + camera, b"23DEQU,3,2",
+                                b"23DDEL,2", b"23DPLAY,3,1", b"w2"))
+    assert frame.primary[105*640+185] in (80, 87)
+    frame = t.exchange(commands(b"23DINITL,4" + camera, b"23DFACE,4,-160,0,0,-200,0,0,-160,-40,0,127",
+                                b"23DMERGE,3,4", b"w2"))
+    assert 112 <= frame.primary[105*640+265] <= 127
+    frame = t.exchange(commands(b"23DMORPH,3,4,10", b"23DPAINT,4,1,1,159", b"w24"))
+    check(frame, {(105, 105): 7, (185, 105): 7, (265, 105): 144})
+    frame = t.exchange(commands(b"23DYAW,3,1,180", b"w2"))
+    check(frame, {(265, 105): 7})
+    frame = t.exchange(commands(b"23DYAW,3,2,-180", b"23DMOVE,3,1,1,-320", b"23DROLL,3,1,180", b"w2"))
+    check(frame, {(155, 95): 144, (265, 105): 7})
+    frame = t.exchange(commands(b"23DPITCH,3,1,180", b"w2"))
+    check(frame, {(155, 105): 144, (155, 95): 7})
+    t.exchange(commands(b"23DMOVE,3,1,1,-100", b"23DROLL,3,1,0", b"23DPITCH,3,1,0", b"23DYAW,3,3,45", b"w2"))
+    t.client.wait_for(lambda f: f.primary and f.primary[105*640+265] == 7)
+    frame = t.exchange(commands(b"23DINIT,0", b"w2"))
+    check(frame, {(265, 105): 7, (105, 105): 7})
+
+
 def check_raycast_world(t, root):
     t.case("raycaster world, layered objects, SDK map definitions and overview")
     t.exchange(commands(b"2RESET", b"5CLSMAP,6", b"5CHMAP,1,1,1,8", b"5GETMAP,1,1",
@@ -1201,6 +1267,7 @@ def check_graphics(t, root):
     check_flics(t, root)
     check_text_scale(t, root)
     check_landscape(t)
+    check_polygon_objects(t, root)
     check_raycast_world(t, root)
     check_raycast_view(t)
     check_raycast_environment(t, root)
