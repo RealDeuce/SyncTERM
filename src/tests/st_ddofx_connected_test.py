@@ -320,6 +320,75 @@ def check_clocks(t, root):
     t.exchange(commands(b"5SOCLOCK,0", b"5SCLOCK,0", b"5KILLMQ,2", b"2CPYWP2VP"))
 
 
+def check_flics(t, root):
+    t.case("FLI/FLC frames, palette, desktop layering, play-once and paused playback")
+    marker, = root.rglob("syncterm-cache-name.txt")
+    theme = marker.parent / "DDOFX" / "BBSTHEME"
+    def chunk(kind, data):
+        return struct.pack("<IH", 6+len(data), kind) + data
+    def frame(*chunks):
+        data = b"".join(chunks)
+        return struct.pack("<IHH8x", 16+len(data), 0xf1fa, len(chunks)) + data
+    def movie(name, magic, frames):
+        prefix = struct.pack("<IH10x", 16, 0xf100)
+        body = prefix + b"".join(frames)
+        header = bytearray(128)
+        struct.pack_into("<I5H", header, 0, 128+len(body), magic, len(frames), 5, 3, 8)
+        (theme / name).write_bytes(header + body)
+
+    pal = b"\x01\0\x25\x01"
+    first = frame(chunk(18, b"meta"), chunk(4, pal + bytes([252,128,4])), chunk(16, bytes(range(15))))
+    # Only the middle row changes, leaving both neighboring scanlines intact.
+    second = frame(chunk(12, struct.pack("<HH", 1, 1) + bytes([2,0,254,15,1,2,8,9])))
+    # Skip row zero, update the last odd pixel, then repeat one word twice.
+    third = frame(chunk(7, struct.pack("<4H", 1, 0xffff, 0x8017, 1) + bytes([0,254,21,22])))
+    movie("DELTA.FLC", 0xaf12, [first, second, third])
+    brun = bytes([1,2,11,253,12,13,14])
+    movie("BYTE.FLI", 0xaf11, [frame(chunk(13, b"")), frame(chunk(11, pal+bytes([1,2,3])),
+                                                          chunk(15, brun*3))])
+    movie("BAD.FLC", 0xaf12, [frame(chunk(4, pal+bytes([0,0,0])), chunk(15, bytes([1,6,99])))])
+    x,y = 635,477
+    def rows(f):
+        result = [list(f.primary[r*640+x:r*640+x+5]) for r in range(y,y+3)]
+        assert result == [list(f.alternate[r*640+x:r*640+x+5]) for r in range(y,y+3)]
+        return result
+    f = t.exchange(commands(b"2C,44", b"2aFILL", b"2CPYWP2VP", b"2RESA,2", b"2aSRGB,37,6,7,8",
+                            b"5OFLIC,300,635,477,3,1,5,1,delta.flc"))
+    assert rows(f) == [[44]*5]*3
+    t.send(commands(b"5UFLIC,300"))
+    f = t.client.wait_for(lambda f: rows(f)[1] == [5,6,7,8,9])
+    assert rows(f) == [[0,1,2,3,4], [5,6,7,8,9], [10,11,12,13,14]]
+    assert f.palette[37] == 0xff8204
+    t.client.wait_for(lambda f: rows(f)[1] == [15,15,7,8,9])
+    t.client.wait_for(lambda f: rows(f)[1] == [21,22,21,22,23])
+    f = t.exchange(commands(b"2aG,639,479", b"5UFLIC,0", b"2CPYWP2VP", b"w9"), b"44\xff")
+    assert rows(f) == [[44]*5]*3
+    t.send(commands(b"2RESA,1", b"5OFLIC,1,635,477,2,0,8,0,BYTE.FLI", b"5UFLIC,0"))
+    t.client.wait_for(lambda f: rows(f) == [[0]*5]*3)
+    f = t.client.wait_for(lambda f: rows(f) == [[11,11,12,13,14]]*3)
+    assert f.palette[37] == 0xff8204
+    t.exchange(commands(b"5PFLIC,0", b"2CPYWP2VP", b"w6"))
+    assert rows(t.exchange()) == [[44]*5]*3
+    t.send(commands(b"5UFLIC,1"))
+    t.client.wait_for(lambda f: rows(f) != [[44]*5]*3)
+    t.exchange(commands(b"5SFLIC,1", b"5OFLIC,1,635,477,2,1,30,1,BYTE.FLI", b"5UFLIC,1", b"w4",
+                        b"2aGRGB,37"), b"1,2,3\xff")
+    f = t.exchange(commands(b"2CPYWP2VP", b"5OFLIC,2,635,477,1,1,30,1,BAD.FLC", b"5UFLIC,2", b"w4",
+                            b"2aGRGB,37", b"5OFLIC,0"), b"1,2,3\xff")
+    assert rows(f) == [[44]*5]*3
+
+    # The same film row crosses a marquee, a text clock and the uncovered desktop.
+    t.send(commands(b"5SOCLOCK,1,572,479,14,4,0,0,0,Digits.fnt", b"5UOCLOCK,1",
+                    b"5CMARQEE,1,627,479,1,12,3,10,LINE.TXT", b"5SHOWMQ,1"))
+    t.client.wait_for(lambda f: f.primary[477*640+634] in (3,12))
+    t.send(commands(b"5OFLIC,1,633,477,1,1,20,0,DELTA.FLC", b"5UFLIC,1"))
+    f = t.client.wait_for(lambda f: f.primary[477*640+637] == 4)
+    for plane in (f.primary, f.alternate):
+        strip = plane[477*640+633:477*640+638]
+        assert set(strip[:2]) <= {3,12} and strip[2] in (4,14) and list(strip[3:]) == [3,4]
+    t.exchange(commands(b"5CMARQEE,0", b"5SOCLOCK,0", b"2CPYWP2VP"))
+
+
 def check_sprite_banks(t, root):
     t.case("sprite bank files, slot order, row orientation and erase after load")
     marker, = root.rglob("syncterm-cache-name.txt")
@@ -670,6 +739,7 @@ def check_graphics(t, root):
     check_drawing(t)
     check_marquees(t, root)
     check_clocks(t, root)
+    check_flics(t, root)
     check_sprite_banks(t, root)
     check_sprites(t)
     check_grid(t)

@@ -106,6 +106,7 @@ st_ddofx_load_vga_font(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, c
 }
 
 struct text_run {
+	const struct bounds      *clip;
 	struct st_ddofx_graphics *g;
 	enum page                 page;
 	const uint8_t            *font, *text;
@@ -125,7 +126,11 @@ paint(void *context, const struct st_pixel_buffer *pixels, struct st_console_rec
 				bool lit = (rows[y] & (0x80u >> x)) != 0;
 				if (!lit && run->paper == 8)
 					continue;
-				int     col = run->x + i * 8 + x, row = run->top + y;
+				int col = run->x + i * 8 + x, row = run->top + y;
+				if (run->clip
+				    && (col < run->clip->left || col > run->clip->right || row < run->clip->top
+				        || row > run->clip->bottom))
+					continue;
 				uint8_t value = (uint8_t)(lit ? run->ink : run->paper);
 				if (pixels)
 					pixels->primary[row * WIDTH + col] = pixels->alternate[row * WIDTH + col] =
@@ -141,9 +146,10 @@ paint(void *context, const struct st_pixel_buffer *pixels, struct st_console_rec
 
 void
 st_ddofx_paint_vga_string(const struct st_pixel_buffer *pixels, const uint8_t *bitmap, const uint8_t *text,
-    unsigned length, int x, int top, unsigned ink, unsigned paper)
+    unsigned length, int x, int top, unsigned ink, unsigned paper, const struct bounds *clip)
 {
-	struct text_run run = {.font = bitmap,
+	struct text_run run = {.clip = clip,
+	    .font                    = bitmap,
 	    .text                    = text,
 	    .length                  = (int)length,
 	    .x                       = x,

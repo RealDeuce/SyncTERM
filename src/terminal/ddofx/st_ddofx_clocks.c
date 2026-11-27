@@ -29,6 +29,7 @@ struct clock_face {
 };
 
 struct st_ddofx_clocks {
+	int               seconds;
 	struct clock_face faces[CLOCK_KINDS][CLOCK_COUNT];
 	uint64_t          due;
 };
@@ -102,18 +103,21 @@ define_digital(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *arg
 }
 
 static void
-radial_line(const struct st_pixel_buffer *pixels, int x, int y, int angle, int inner, int outer, uint8_t colour)
+radial_line(const struct st_pixel_buffer *pixels, int x, int y, int angle, int inner, int outer, uint8_t colour,
+    const struct bounds *clip)
 {
 	double cosine, sine;
 	st_ddofx_rotation(angle, &cosine, &sine);
 	for (int r = inner; r <= outer; ++r) {
 		int px = x + (int)lround(r * sine), py = y - (int)lround(r * cosine);
+		if (px < clip->left || px > clip->right || py < clip->top || py > clip->bottom)
+			continue;
 		pixels->primary[py * WIDTH + px] = pixels->alternate[py * WIDTH + px] = colour;
 	}
 }
 
 static void
-draw_face(const struct clock_face *face, const struct st_pixel_buffer *pixels, int now)
+draw_face(const struct clock_face *face, const struct st_pixel_buffer *pixels, int now, const struct bounds *clip)
 {
 	int time = (now + face->offset + 86400) % 86400;
 	int hour = time / 3600, minute = time / 60 % 60, second = time % 60;
@@ -121,35 +125,54 @@ draw_face(const struct clock_face *face, const struct st_pixel_buffer *pixels, i
 		uint8_t text[8] = {'0' + hour / 10, '0' + hour % 10, ':', '0' + minute / 10, '0' + minute % 10,
 		    ':', '0' + second / 10, '0' + second % 10};
 		st_ddofx_paint_vga_string(pixels, face->font, text, 8, face->bounds.x, face->bounds.y,
-		    face->colours[0], face->colours[1]);
+		    face->colours[0], face->colours[1], clip);
 		return;
 	}
 	int radius = (int)face->bounds.width / 2;
 	int x = (int)face->bounds.x + radius, y = (int)face->bounds.y + radius;
 	for (int dy = -radius; dy <= radius; ++dy) {
-		int span = (int)sqrt(radius * radius - dy * dy);
-		for (int at = (y + dy) * WIDTH + x - span, end = at + 2 * span; at <= end; ++at)
+		if (y + dy < clip->top || y + dy > clip->bottom)
+			continue;
+		int span  = (int)sqrt(radius * radius - dy * dy);
+		int left  = x - span < clip->left ? clip->left : x - span,
+		    right = x + span > clip->right ? clip->right : x + span;
+		for (int at = (y + dy) * WIDTH + left, end = (y + dy) * WIDTH + right; at <= end; ++at)
 			pixels->primary[at] = pixels->alternate[at] = face->colours[0];
 	}
 	for (int tick = 0; tick < 60; ++tick) {
 		int inner = radius - radius / (tick % 5 == 0 ? 10 : 20);
-		radial_line(pixels, x, y, 6 * tick, inner, radius, face->colours[1]);
+		radial_line(pixels, x, y, 6 * tick, inner, radius, face->colours[1], clip);
 	}
-	radial_line(pixels, x, y, 30 * (hour % 12) + minute / 2, 0, radius - radius / 2, face->colours[4]);
-	radial_line(pixels, x, y, 6 * minute, 0, radius - radius / 5, face->colours[3]);
-	radial_line(pixels, x, y, 6 * second, 0, radius - radius / 10, face->colours[2]);
+	radial_line(pixels, x, y, 30 * (hour % 12) + minute / 2, 0, radius - radius / 2, face->colours[4], clip);
+	radial_line(pixels, x, y, 6 * minute, 0, radius - radius / 5, face->colours[3], clip);
+	radial_line(pixels, x, y, 6 * second, 0, radius - radius / 10, face->colours[2], clip);
 }
 
-struct clock_update {
-	struct st_ddofx *ddo;
-	int              seconds;
-};
+void
+st_ddofx_repaint_clocks(struct st_ddofx *ddo, const struct st_pixel_buffer *pixels,
+    const struct st_console_rect *area)
+{
+	const struct st_ddofx_clocks *clocks = ddo->graphics->clocks;
+	if (!clocks || !clocks->due)
+		return;
+	struct bounds clip = {(int)area->x, (int)(area->x + area->width) - 1, (int)area->y,
+	    (int)(area->y + area->height) - 1};
+	for (int kind = 0; kind < CLOCK_KINDS; ++kind)
+		for (int i = 0; i < CLOCK_COUNT; ++i) {
+			const struct clock_face *face = &clocks->faces[kind][i];
+			struct st_console_rect   b    = face->bounds;
+			if (face->running && area->x < b.x + b.width && area->x + area->width > b.x
+			    && area->y < b.y + b.height && area->y + area->height > b.y)
+				draw_face(face, pixels, clocks->seconds, &clip);
+		}
+}
 
 static int
 paint(void *context, const struct st_pixel_buffer *pixels, struct st_console_rect *damage)
 {
-	struct clock_update    *update = context;
-	struct st_ddofx_clocks *clocks = update->ddo->graphics->clocks;
+	struct st_ddofx        *ddo    = context;
+	const struct bounds     full   = {0, WIDTH - 1, 0, HEIGHT - 1};
+	struct st_ddofx_clocks *clocks = ddo->graphics->clocks;
 	if (pixels->width != WIDTH || pixels->height != HEIGHT)
 		return 0;
 	unsigned left = WIDTH, right = 0, top = HEIGHT, bottom = 0;
@@ -158,9 +181,9 @@ paint(void *context, const struct st_pixel_buffer *pixels, struct st_console_rec
 			const struct clock_face *face = &clocks->faces[kind][i];
 			if (!face->running)
 				continue;
-			draw_face(face, pixels, update->seconds);
+			draw_face(face, pixels, clocks->seconds, &full);
 			struct st_console_rect b = face->bounds;
-			st_ddofx_repaint_marquees(update->ddo, pixels, &b);
+			st_ddofx_repaint_marquees(ddo, pixels, &b);
 			if (b.x < left)
 				left = b.x;
 			if (b.y < top)
@@ -200,8 +223,8 @@ st_ddofx_clock_poll(struct st_ddofx *ddo)
 	if (timespec_get(&wall, TIME_UTC) != TIME_UTC || !value_convert_localtime(wall.tv_sec, &local))
 		return;
 	clocks->due -= (uint64_t)wall.tv_nsec / 1000000;
-	struct clock_update update = {ddo, 3600 * local.tm_hour + 60 * local.tm_min + local.tm_sec};
-	(void)st_console_modify_pixels(ddo->graphics->display, paint, &update);
+	clocks->seconds = 3600 * local.tm_hour + 60 * local.tm_min + local.tm_sec;
+	(void)st_console_modify_pixels(ddo->graphics->display, paint, ddo);
 }
 
 bool

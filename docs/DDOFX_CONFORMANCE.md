@@ -28,6 +28,8 @@ In Lite and Normal, `~INFSAV` and `~INFLOD` use the assigned resource prefix plu
 
 A marquee reads up to 20,000 bytes from the assigned M resource and uses the selected VGA text font. `5SHOWMQ` paints the initial strip on the work page. Its timer scrolls the strip one pixel to the right per frame on the visual page, following the direction stated in the SDK. `5STOPMQ` preserves the current position, and `5KILLMQ` releases the slot.
 
+A BBS can open up to 300 indexed FLI/FLC profiles from the entry’s BBSTHEME directory. Each opens paused and plays the requested frame count once or continuously. The host can retain the desktop palette or apply the movie’s palette. Frames draw at the specified upper-left corner, underneath active clocks and marquees. `2RESA` changes the rate of running and subsequently opened movies.
+
 Analog and text clocks have 30 slots each. A BBS defines each clock before showing it on the visual page. The hands and the eight-character digital display use local time with signed hour, minute and second offsets. Each text clock loads its own VGA font, defaulting to IBMSTD.FNT. Active marquees draw over clocks.
 
 The BBS can create up to 300 desktop push buttons with `5CPUSHB`. Creation draws the up sprite on the work page. A matching key or mouse combination draws the down sprite on the visual page for three clock ticks, restores the up sprite, then runs the macro and sends the return string. The pass flag controls whether a keyboard activation continues to the next binding and the connection.
@@ -239,7 +241,7 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 7219 | STOP ANIM PROFILE | DDO-FX (NM) | Pending |
 | 7235 | CHANGE ANIM PROFILE ON THE FLY | DDO-FX (NM) | Pending |
 | 7246 | ANIM COLLISION PROFILE | DDO-FX (NM) | Pending |
-| 7339 | RESOLUTION ANIMATOR | DDO-FX (NM) | Pending |
+| 7339 | RESOLUTION ANIMATOR | DDO-FX (NM) | Connected for FLI/FLC, animation profiles pending |
 | 7383 | DEFINE MOTION PROFILE | DDO-FX (NM) | Pending |
 | 7466 | DEFINE MOTION FRAME CONTROL | DDO-FX (NM) | Pending |
 | 7534 | DEFINE SIMPLE SPRITE | DDO-FX (NM) | Connected |
@@ -350,10 +352,10 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 10471 | SHOW MARQUEE | DDO-FX (NM) | Connected |
 | 10485 | STOP MARQUEE | DDO-FX (NM) | Connected |
 | 10498 | KILL MARQUEE | DDO-FX (NM) | Connected |
-| 10511 | OPEN FLI/FLC | DDO-FX (NM) | Pending |
-| 10600 | PAUSE FLI/FLC | DDO-FX (NM) | Pending |
-| 10620 | UNPAUSE FLI/FLC | DDO-FX (NM) | Pending |
-| 10632 | STOP FLI/FLC | DDO-FX (NM) | Pending |
+| 10511 | OPEN FLI/FLC | DDO-FX (NM) | Connected |
+| 10600 | PAUSE FLI/FLC | DDO-FX (NM) | Connected |
+| 10620 | UNPAUSE FLI/FLC | DDO-FX (NM) | Connected |
+| 10632 | STOP FLI/FLC | DDO-FX (NM) | Connected |
 | 10648 | START ANALOG CLOCK | DDO-FX (NM) | Connected |
 | 10703 | SHOW ANALOG CLOCK | DDO-FX (NM) | Connected |
 | 10715 | STOP ANALOG CLOCK | DDO-FX (NM) | Connected |

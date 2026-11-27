@@ -66,6 +66,7 @@ clear_graphics_objects(struct st_ddofx_graphics *g)
 	g->mouse = (struct st_ddofx_mouse_state){0};
 	st_ddofx_mouse_defaults(&g->mouse);
 	st_ddofx_grid_destroy(g, false);
+	st_ddofx_clear_movies(g);
 	st_ddofx_clear_clocks(g);
 	st_ddofx_clear_marquees(g);
 	free(g->simple);
@@ -150,6 +151,7 @@ st_ddofx_graphics_enter(struct st_ddofx *ddo, const struct st_ddofx_sink *sink)
 	    .scaling_mode                         = g->previous_mode.scaling_mode,
 	    .scaling_policy                       = g->previous_mode.scaling_policy,
 	    .color_emoji                          = g->previous_mode.color_emoji};
+	g->animator_divisor = 1;
 	g->colour                     = 10;
 	g->clip                       = (struct bounds) {0, WIDTH - 1, 0, HEIGHT - 1};
 	g->horizontal_thickness = g->vertical_thickness = 1;
@@ -500,6 +502,8 @@ st_ddofx_graphics_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink
 	int32_t     n[4];
 	if (!ascii_case_compare(verb, "2GEXIT") && args == NULL)
 		st_ddofx_graphics_exit(ddo);
+	else if (!ascii_case_compare(verb, "2RESA") && st_ddofx_numbers(ddo, args, n, 1) && n[0] >= 1 && n[0] <= 100)
+		st_ddofx_movie_resolution(g, (unsigned)n[0]);
 	else if (!ascii_case_ncompare(verb, "2XT", 3))
 		st_ddofx_print_vga_text(ddo, verb + 3, args);
 	else if (!strcmp(verb, "2F") || (verb[1] == 'F' && !ascii_case_compare(verb + 2, "SELECT"))
