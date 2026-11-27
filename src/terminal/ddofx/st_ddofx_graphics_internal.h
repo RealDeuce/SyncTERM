@@ -68,7 +68,20 @@ struct st_ddofx_text_page {
 	char               title[81], help[81], font_name[ST_DDOFX_BODY_MAX + 1];
 };
 
+enum { GRAPHIC_WINDOWS = 10 };
+
+struct st_ddofx_graphic_window {
+	struct bounds frame, original, before_zoom, clip;
+	int width, height, x, y, icon;
+	bool hidden, no_drag, no_resize, no_zoom, no_restore, no_icon, no_horizontal, no_vertical;
+	bool borderless, zoomed;
+	char title[61];
+	uint8_t *visual, *hidden_page;
+};
+
 struct st_ddofx_graphics {
+	struct st_ddofx_graphic_window graphic_windows[GRAPHIC_WINDOWS + 1];
+	unsigned active_graphic_window, alert_graphic_window;
 	struct st_ddofx_buttons    *buttons;
 	struct st_ddofx_text_fields *text_fields;
 	struct st_ddofx_lists *lists;
@@ -117,6 +130,9 @@ struct st_ddofx_graphics {
 	int           horizontal_thickness, vertical_thickness;
 };
 
+void st_ddofx_free_graphic_windows(struct st_ddofx_graphics *);
+bool st_ddofx_graphic_window_command(struct st_ddofx *, const struct st_ddofx_sink *, const char *, char *);
+void st_ddofx_refresh_graphic_interior(struct st_ddofx *);
 struct st_ddofx_sprite *st_ddofx_find_sprite(struct st_ddofx_graphics *, const char *);
 bool                    st_ddofx_sprite_fits(const struct st_ddofx_sprite *, int32_t x, int32_t y);
 void    st_ddofx_flood(uint8_t *, int stride, const struct bounds *, int32_t x, int32_t y, uint8_t colour);
@@ -169,7 +185,7 @@ bool    st_ddofx_create_text_page(struct st_ddofx_graphics *, struct st_ddofx_te
 void    st_ddofx_destroy_text_page(struct st_ddofx_text_page *);
 void    st_ddofx_close_text_windows(struct st_ddofx_graphics *);
 void    st_ddofx_set_palette(struct st_ddofx_graphics *, unsigned, unsigned);
-void    st_ddofx_resource_pcx(struct st_ddofx *, const struct st_ddofx_sink *, enum page, const char *);
+void    st_ddofx_resource_pcx(struct st_ddofx *, const struct st_ddofx_sink *, enum page, const char *, int, int);
 void    st_ddofx_page_file(struct st_ddofx *, enum page file, enum page target, bool save);
 void st_ddofx_sprite_bank(struct st_ddofx *, const struct st_ddofx_sink *, char *args, bool load);
 void st_ddofx_invert_sprite(struct st_ddofx_sprite *);

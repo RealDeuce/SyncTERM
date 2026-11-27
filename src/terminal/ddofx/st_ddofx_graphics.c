@@ -39,6 +39,7 @@ static void
 clear_graphics_objects(struct st_ddofx_graphics *g)
 {
 	st_ddofx_close_text_windows(g);
+	st_ddofx_free_graphic_windows(g);
 	if (g->mouse.pointers) {
 		(void)st_console_set_indexed_pointer(g->display, 0, 0, NULL);
 		free(g->mouse.pointers);
@@ -267,22 +268,47 @@ copy_page(struct st_ddofx *ddo, const char *verb, char *args, bool cut)
 	if (verb[6] != '2' || !st_ddofx_page_name(verb + 4, &t.source) || !st_ddofx_page_name(verb + 7, &t.dest)
 	    || t.source == t.dest || (t.transparent && t.source == VISUAL))
 		return;
+	struct st_ddofx_graphic_window *window = &t.g->graphic_windows[t.g->alert_graphic_window];
+	bool virtual_pages = window->visual && ((t.source == VISUAL && t.dest == HIDDEN)
+	    || (t.source == HIDDEN && t.dest == VISUAL));
+	int width = virtual_pages ? window->width : WIDTH;
+	int height = virtual_pages ? window->height : HEIGHT;
+	t.width = width;
+	t.height = height;
 	if (cut) {
 		int32_t n[6];
-		if (!st_ddofx_numbers(ddo, args, n, 6) || n[0] < 0 || n[1] <= n[0] || n[1] >= WIDTH || n[2] < 0
-		    || n[3] <= n[2] || n[3] >= HEIGHT)
+		if (!st_ddofx_numbers(ddo, args, n, 6) || n[0] < 0 || n[1] <= n[0] || n[1] >= width || n[2] < 0
+		    || n[3] <= n[2] || n[3] >= height)
 			return;
 		t.x      = n[0];
 		t.y      = n[2];
 		t.width  = n[1] - n[0] + 1;
 		t.height = n[3] - n[2] + 1;
-		if (n[4] < 0 || n[4] > WIDTH - t.width || n[5] < t.height - 1 || n[5] >= HEIGHT)
+		if (n[4] < 0 || n[4] > width - t.width || n[5] < t.height - 1 || n[5] >= height)
 			return;
 		t.dx = n[4];
 		t.dy = n[5] - (t.height - 1);
 	}
 	else if (args != NULL)
 		return;
+	if (virtual_pages) {
+		const uint8_t *source = t.source == VISUAL ? window->visual : window->hidden_page;
+		uint8_t *dest = t.dest == VISUAL ? window->visual : window->hidden_page;
+		for (int row = 0; row < t.height; ++row) {
+			const uint8_t *src = source + (t.y + row) * width + t.x;
+			uint8_t *dst = dest + (t.dy + row) * width + t.dx;
+			if (t.transparent) {
+				for (int x = 0; x < t.width; ++x)
+					if (!t.g->transparent[src[x]])
+						dst[x] = src[x];
+			}
+			else
+				memcpy(dst, src, t.width);
+		}
+		if (t.dest == VISUAL)
+			st_ddofx_refresh_graphic_interior(ddo);
+		return;
+	}
 	if (t.source == VISUAL || t.dest == VISUAL)
 		(void)st_console_modify_pixels_with_palette(t.g->display, copy_region, &t);
 	else
@@ -488,12 +514,14 @@ st_ddofx_graphics_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink
 	struct st_ddofx_graphics *g = ddo->graphics;
 	if (body[1] == 'b' || body[1] == 'w' || body[1] == 'v') {
 		enum page dest = body[1] == 'b' ? BACKGROUND : body[1] == 'w' ? WORK : VISUAL;
-		st_ddofx_resource_pcx(ddo, sink, dest, body + 2);
+		st_ddofx_resource_pcx(ddo, sink, dest, body + 2, 0, 0);
 		return;
 	}
 	char       *args = body;
 	const char *verb = st_ddofx_field(&args);
 	int32_t     n[4];
+	if (st_ddofx_graphic_window_command(ddo, sink, verb, args))
+		return;
 	if (!ascii_case_ncompare(verb, "23D", 3))
 		st_ddofx_polygon_command(ddo, sink, verb + 3, args);
 	else if (!ascii_case_compare(verb, "2GEXIT") && args == NULL)

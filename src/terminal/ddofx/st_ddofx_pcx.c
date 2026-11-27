@@ -51,7 +51,7 @@ read_row(FILE *file, uint32_t *remaining, uint8_t *row, unsigned width, unsigned
 }
 
 static struct pcx_image *
-read_image(FILE *file, uint32_t length)
+read_image(FILE *file, uint32_t length, unsigned max_width, unsigned max_height)
 {
 	uint8_t header[128], tail[769];
 	int64_t start = fs_stream_position(file);
@@ -65,7 +65,7 @@ read_image(FILE *file, uint32_t length)
 	if (xmax < x || ymax < y)
 		return NULL;
 	unsigned width = xmax - x + 1, height = ymax - y + 1;
-	if (width > WIDTH || height > HEIGHT || stride < width)
+	if (width > max_width || height > max_height || stride < width)
 		return NULL;
 	struct pcx_image *image = malloc(sizeof(*image) + width * height);
 	if (!image)
@@ -121,17 +121,26 @@ load_visual(void *context, const struct st_pixel_buffer *pixels, const uint32_t 
 			load->graphics->page[HIDDEN][y][x] = index;
 		}
 	}
-	*changed = (struct st_console_rect) {0, 0, image->width, image->height};
+	*changed = (struct st_console_rect) {0, 0, image->width < WIDTH ? image->width : WIDTH,
+	    image->height < HEIGHT ? image->height : HEIGHT};
 	return 0;
 }
 
 static void
-load_page(struct st_ddofx_graphics *g, enum page dest, FILE *file, uint32_t length)
+load_page(struct st_ddofx *ddo, enum page dest, FILE *file, uint32_t length, int x, int y, bool snapshot)
 {
-	struct pcx_image *image = read_image(file, length);
+	struct st_ddofx_graphics *g = ddo->graphics;
+	struct st_ddofx_graphic_window *w = &g->graphic_windows[g->alert_graphic_window];
+	bool window = dest == VISUAL && w->visual;
+	unsigned width = window ? (unsigned)w->width : WIDTH, height = window ? (unsigned)w->height : HEIGHT;
+	if ((unsigned)x >= width || (unsigned)y >= height)
+		return;
+	struct pcx_image *image = read_image(file, length, window || snapshot ? 10000 : WIDTH,
+	    window || snapshot ? 10000 : HEIGHT);
 	if (!image)
 		return;
-	if (dest == VISUAL) {
+
+	if (dest == VISUAL && !window) {
 		struct visual_load load = {g, image};
 		if (st_console_modify_pixels_with_palette(g->display, load_visual, &load) != 0) {
 			free(image);
@@ -139,64 +148,90 @@ load_page(struct st_ddofx_graphics *g, enum page dest, FILE *file, uint32_t leng
 		}
 	}
 	else {
-		for (unsigned y = 0; y < image->height; ++y)
-			memcpy(g->page[dest][y], image->pixels + y * image->width, image->width);
+		uint8_t *pixels = window ? w->visual : (uint8_t *)g->page[dest];
+		unsigned columns = image->width < width - x ? image->width : width - x;
+		unsigned rows = image->height < height - y ? image->height : height - y;
+		for (unsigned row = 0; row < rows; ++row)
+			memcpy(pixels + (y + row) * width + x, image->pixels + row * image->width, columns);
+		if (window)
+			memcpy(w->hidden_page, w->visual, (size_t)width * height);
 	}
 	memcpy(g->palette, image->palette, sizeof(g->palette));
 	st_ddofx_set_palette(g, 0, 256);
 	g->cx = g->cy = 0;
 	free(image);
+	if (window)
+		st_ddofx_refresh_graphic_interior(ddo);
 }
 
-void
-st_ddofx_resource_pcx(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, enum page dest, const char *member)
+static FILE *
+open_pcx(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, const char *member, uint32_t *length)
 {
-	if (ddo->resource_prefix[0] == 0 || sink->open_asset == NULL)
-		return;
+	if (!ddo->resource_prefix[0] || !sink->open_asset)
+		return NULL;
 	char container[sizeof(ddo->resource_prefix) + 1];
 	snprintf(container, sizeof(container), "%sS", ddo->resource_prefix);
 	FILE *file = sink->open_asset(sink->context, "BBSTHEME", NULL, container);
-	if (file == NULL)
-		return;
-	uint32_t length;
+	if (!file)
+		return NULL;
 	uint16_t type;
-	if (st_ddofx_resource_find(file, member, -1, &length, &type) >= 0
-	    && (type & 255) == 1)
-		load_page(ddo->graphics, dest, file, length);
+	if (st_ddofx_resource_find(file, member, -1, length, &type) >= 0 && (type & 255) == 1)
+		return file;
 	fclose(file);
+	return NULL;
+}
+
+void
+st_ddofx_resource_pcx(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, enum page dest, const char *member,
+    int x, int y)
+{
+	uint32_t length;
+	FILE *file = open_pcx(ddo, sink, member, &length);
+	if (file) {
+		load_page(ddo, dest, file, length, x, y, false);
+		fclose(file);
+	}
 }
 
 static bool
-write_page(FILE *file, const uint8_t *data, const uint32_t *palette)
+write_page(FILE *file, const uint8_t *data, const uint32_t *palette, unsigned width, unsigned height)
 {
 	uint8_t header[128] = {10, 5, 1, 8};
-	write_word(header + 8, WIDTH - 1);
-	write_word(header + 10, HEIGHT - 1);
+	write_word(header + 8, width - 1);
+	write_word(header + 10, height - 1);
 	write_word(header + 12, 128);
 	write_word(header + 14, 96);
 	header[65] = 1;
-	write_word(header + 66, WIDTH);
+	unsigned stride = (width + 1) & ~1u;
+	write_word(header + 66, stride);
 	header[68] = 1;
-	write_word(header + 70, WIDTH);
-	write_word(header + 72, HEIGHT);
+	write_word(header + 70, width);
+	write_word(header + 72, height);
 	if (fwrite(header, 1, sizeof(header), file) != sizeof(header))
 		return false;
-	for (unsigned y = 0; y < HEIGHT; ++y, data += WIDTH) {
-		uint8_t row[2 * WIDTH];
+	uint8_t *row = malloc(2 * stride);
+	if (!row)
+		return false;
+	for (unsigned y = 0; y < height; ++y, data += width) {
 		size_t  used = 0;
-		for (unsigned x = 0; x < WIDTH;) {
+		for (unsigned x = 0; x < width;) {
 			uint8_t  index = data[x];
 			unsigned count = 1;
-			while (count < 63 && x + count < WIDTH && data[x + count] == index)
+			while (count < 63 && x + count < width && data[x + count] == index)
 				++count;
 			if (count > 1 || index >= 0xc0)
 				row[used++] = (uint8_t)(0xc0 | count);
 			row[used++] = index;
 			x += count;
 		}
-		if (fwrite(row, 1, used, file) != used)
+		if (width < stride)
+			row[used++] = 0;
+		if (fwrite(row, 1, used, file) != used) {
+			free(row);
 			return false;
+		}
 	}
+	free(row);
 	uint8_t tail[769] = {12};
 	for (unsigned i = 0; i < 256; ++i) {
 		for (unsigned c = 0; c < 3; ++c) {
@@ -229,14 +264,21 @@ st_ddofx_page_file(struct st_ddofx *ddo, enum page file_page, enum page target, 
 		if (*slot && fs_stream_seek(*slot, 0) == 0) {
 			int64_t length = fs_stream_size(*slot);
 			if (length > 0 && length <= UINT32_MAX)
-				load_page(g, target, *slot, (uint32_t)length);
+				load_page(ddo, target, *slot, (uint32_t)length, 0, 0, true);
 		}
 		return;
 	}
 
 	uint8_t       *visible = NULL;
 	const uint8_t *data;
-	if (target == VISUAL) {
+	struct st_ddofx_graphic_window *w = &g->graphic_windows[g->alert_graphic_window];
+	unsigned width = WIDTH, height = HEIGHT;
+	if (target == VISUAL && w->visual) {
+		data = w->visual;
+		width = w->width;
+		height = w->height;
+	}
+	else if (target == VISUAL) {
 		visible = malloc(WIDTH * HEIGHT);
 		if (!visible || st_console_modify_pixels_with_palette(g->display, capture_visual, visible) != 0) {
 			free(visible);
@@ -248,7 +290,7 @@ st_ddofx_page_file(struct st_ddofx *ddo, enum page file_page, enum page target, 
 		data = (const uint8_t *)&g->page[target];
 
 	FILE *file = tmpfile();
-	if (file && write_page(file, data, g->palette)) {
+	if (file && write_page(file, data, g->palette, width, height)) {
 		if (*slot)
 			fclose(*slot);
 		*slot = file;

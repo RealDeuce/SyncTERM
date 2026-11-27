@@ -1229,6 +1229,63 @@ def check_pcx(t, root):
                b"193\xff48,37,15\xff255\xff6\xff")
 
 
+def check_graphic_windows(t):
+    t.case("graphic window pages, stacking, viewport and restoration")
+    frame = t.exchange(commands(b"2RESET", b"2C,7", b"2aFILL", b"2CPYWP2VP",
+                                b"2VGWIN?,11", b"2HGWIN?,1", b"2FGWIN",
+                                b"2GWIN,1,10,139,20,129,900,650,0,1,0,0,0,0,0,0,0,0,1,First",
+                                b"2AGWIN?,1", b"2VGWIN?,1", b"2ALERTGWIN,1",
+                                b"2C,37", b"2aFILL", b"2C,9", b"2aRECT,770,775,540,544",
+                                b"2aG,775,544"), b"-1\xff-2\xff0\xffY\xffY\xff9\xff")
+    def point(frame, x, y, colour):
+        i = y * 640 + x
+        assert frame.primary[i] == frame.alternate[i] == colour, (x, y, frame.primary[i], colour)
+
+    point(frame, 10, 20, 0)
+    frame = t.exchange(commands(b"2RGWINI", b"2SGWIN?,1"), b"10,139,20,129,0,0\xff")
+    point(frame, 10, 20, 37)
+    point(frame, 9, 20, 7)
+    frame = t.exchange(commands(b"2CHVGP,1,770,540", b"2CHVGP,1,771,1", b"2SGWIN?,1"),
+                       b"10,139,20,129,770,540\xff")
+    point(frame, 10, 20, 9)
+    frame = t.exchange(commands(b"2fArt.", b"2VXY,771,541,ART.PCX"))
+    point(frame, 11, 21, 193)
+    point(frame, 12, 22, 255)
+    frame = t.exchange(commands(b"2CPYVP2HP", b"2C,17", b"2aFILL",
+                                b"2CUTHP2VP,771,773,541,542,772,542",
+                                b"2aG,772,541", b"2aG,774,542"), b"193\xff6\xff")
+    point(frame, 12, 21, 193)
+    frame = t.exchange(commands(b"2CPYHP2VP"))
+    point(frame, 12, 22, 255)
+    frame = t.exchange(commands(b"2VP2PCX", b"2aERASE", b"2LVPPCX,VP", b"2aG,773,542"),
+                       b"6\xff")
+    point(frame, 12, 22, 255)
+    frame = t.exchange(commands(b"2CHVGPR,1,-1,-1", b"2CALMGWIN", b"2aG,10,20",
+                                b"2GWIN,2,15,130,16,130,160,150,0,0,0,0,0,0,0,0,0,0,0,Second",
+                                b"2FGWIN"), b"7\xff1\xff")
+    point(frame, 12, 22, 193)
+    point(frame, 30, 45, 37)
+    frame = t.exchange(commands(b"2AGWIN,0"))
+    point(frame, 30, 45, 0)
+    frame = t.exchange(commands(b"2CHGWIN,2,25,140,25,140,1,0,0,0,0,0,0,0,Hidden",
+                                b"2HGWIN?,2", b"2RGWIN,2", b"2SGWIN?,2"),
+                       b"Y\xff15,130,16,130,0,0\xff")
+    point(frame, 30, 45, 37)
+    t.exchange(commands(b"2CHGWIN,1,30,159,30,139,0,1,1,1,1,1,1,1,Changed",
+                        b"2RAGWIN", b"2SGWIN?,1", b"2RGWIN"), b"10,139,20,129,769,539\xff")
+    t.exchange(commands(b"2ZGWIN,1", b"2SGWIN?,1", b"2ZGWIN,1", b"2SGWIN?,1"),
+               b"0,639,0,479,260,170\xff10,139,20,129,260,170\xff")
+    frame = t.exchange(commands(b"2CGWIN,1", b"2VGWIN?,1", b"2GWIN,0", b"2VGWIN?,2"),
+                       b"N\xffN\xff")
+    point(frame, 10, 20, 7)
+    point(frame, 30, 45, 7)
+    t.exchange(commands(b"2GWIN,3,5,104,5,104,100,100,0,1,1,0,0,0,0,0,0,0,1,Hidden",
+                        b"2ALERTGWIN,3", b"2C,41", b"2aFILL", b"2HGWIN?,3", b"2AGWIN?,3",
+                        b"2GWIN,3,5,104,5,104,100,100,0,0,0,0,0,0,0,0,0,0,1,Again",
+                        b"2FGWIN", b"2aG,5,5", b"2ALERTGWIN,3", b"2aG,5,5", b"2RESET",
+                        b"2VGWIN?,3"), b"Y\xffY\xff0\xff7\xff0\xffN\xff")
+
+
 def check_vga_font(t, root):
     t.case("VGA font selection in Lite, Normal and on the graphics pages")
     [marker] = root.rglob("syncterm-cache-name.txt")
@@ -1337,6 +1394,7 @@ def check_graphics(t, root):
     check_grid(t)
     check_image_commands(t)
     check_pcx(t, root)
+    check_graphic_windows(t)
     t.exchange(b"\x1b[75;45H" + b"\x1b[6n", b"\x1b[75;45R")
     restored = t.check("Lite display and cursor restored", commands(b"2GEXIT", b"dVIDMODE") + b"!",
                        (8, 1), [(1, 1, "Before!")], reset=False, expected=b"0\xff")
