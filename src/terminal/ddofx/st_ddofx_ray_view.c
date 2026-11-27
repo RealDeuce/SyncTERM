@@ -260,7 +260,7 @@ animate(struct st_ddofx_graphics *g, uint64_t now)
 				a->current += a->step;
 				if (a->current > a->last)
 					a->current = a->first;
-				a->due = now + a->period * g->animator_divisor;
+				a->due = now + ((a->period_us + 999) / 1000) * g->animator_divisor;
 			}
 			if (!w->next_animation || a->due < w->next_animation)
 				w->next_animation = a->due;
@@ -413,11 +413,11 @@ st_ddofx_ray_view_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink
 				    .step = 1,
 				    .last                          = end,
 				    .loop                          = n[2],
-				    .period                        = (1000 + fps - 1) / fps};
+				    .period_us                     = 1000000u / (unsigned)fps};
 		}
 		else if (!args && op == STOP)
 			a->due = 0;
-		else if (!args && a->period) {
+		else if (!args && a->period_us) {
 			a->current        = a->first;
 			a->step           = 1;
 			w->next_animation = a->due = 1;

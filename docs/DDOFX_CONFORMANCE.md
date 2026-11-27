@@ -72,7 +72,7 @@ The raycaster renders a 244 × 64 world with textured walls, floors, ceilings an
 
 Raycaster cells can share any of 3,600 profiles. Instant profiles run on cell entry. Action profiles can require a DOS key, a mouse or joystick button combination, and a facing direction. Each link runs its macro and sends its return before selecting the next link. A macro can change that link or delete the profile. Ordinary keys reach the host before the matching profile's return.
 
-`5SAVE3D` and `5LOAD3D` exchange 1,141,178-byte loose MAP files in BBSTHEME. Loading restores the map, object layers, texture atlases, animation definitions, cell profiles, viewport and heading. The SDK specifies that the player keeps the current X and Y when switching environments. The file format has one collision characteristic per cell, shared by its saved layers. Sprite frames referenced by animations belong to the separate sprite bank.
+`5SAVE3D` and `5LOAD3D` exchange 1,141,178-byte loose MAP files in BBSTHEME. Loading restores the map, object layers, texture atlases, animation definitions, cell profiles, viewport and heading. The SDK specifies that the player keeps the current X and Y when switching environments. The file format has one collision characteristic per cell, shared by its saved layers. A saved animation interval uses whole centiseconds. A paused texture keeps its saved atlas image. An active texture resumes from the recorded sprite slot using the frames currently in the separate sprite bank.
 
 The raycaster records changed camera positions and headings as six-byte REC records in BBSTHEME. Playback applies one recorded pose per frame through the final record. A recording played from the assigned M resource is limited to 60,000 bytes. Its extracted file is removed on completion, replacement or reset.
 
@@ -464,8 +464,8 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 12392 | RC COPY MAP PROFILE | DDO-FX (NM) | Connected |
 | 12404 | RC FILL MAP PROFILE | DDO-FX (NM) | Connected |
 | 12414 | RC DEL MAP PROFILE | DDO-FX (NM) | Connected |
-| 12433 | RC SAVE 3D ENVIRONMENT | DDO-FX (NM) | Connected; native MAP layout. Default LI-Term shape masks and native playback timing unverified |
-| 12453 | RC LOAD 3D ENVIRONMENT | DDO-FX (NM) | Connected; native MAP layout. Animated texture timing and initial image publication unverified |
+| 12433 | RC SAVE 3D ENVIRONMENT | DDO-FX (NM) | Connected. Saves the native MAP layout, texture atlas and animation intervals |
+| 12453 | RC LOAD 3D ENVIRONMENT | DDO-FX (NM) | Connected. Restores the environment, renders imported textures and resumes active sprite sequences |
 | 12466 | RC RECORD 3D MOVEMENTS | DDO-FX (NM) | Connected |
 | 12510 | RC PLAY 3D MOVEMENTS | DDO-FX (NM) | Connected |
 | 12521 | RC PLAY 3D MOVEMENTS FROM RESOURCE | DDO-FX (NM) | Connected |

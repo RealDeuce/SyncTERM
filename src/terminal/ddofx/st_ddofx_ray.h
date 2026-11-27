@@ -31,7 +31,9 @@ struct rc_cell {
 };
 
 struct rc_animation {
-	int      first, last, current, step, loop, period;
+	int      first, last, current, step, loop;
+	/* The live scheduler uses milliseconds and MAP files use whole centiseconds. */
+	unsigned period_us;
 	uint64_t due;
 };
 

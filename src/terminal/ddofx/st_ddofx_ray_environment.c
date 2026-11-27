@@ -119,11 +119,11 @@ textures(struct rc_world *w, struct rc_environment *e, bool save)
 			struct rc_animation *a = &w->animations[kind][n - 1];
 			if (save) {
 				r[1] = (uint8_t)a->step;
-				r[3] = (uint8_t)(a->period / 10);
-				rc_put_word(r + 12, a->period ? a->first + 1 : 0);
+				r[3] = (uint8_t)(a->period_us / 10000);
+				rc_put_word(r + 12, a->period_us ? a->first + 1 : 0);
 				rc_put_word(r + 20, rc_word(r + 12));
-				rc_put_word(r + 22, a->period ? a->last + 1 : 0);
-				rc_put_word(r + 24, a->period ? a->current + 1 : 0);
+				rc_put_word(r + 22, a->period_us ? a->last + 1 : 0);
+				rc_put_word(r + 24, a->period_us ? a->current + 1 : 0);
 				r[26]  = (uint8_t)a->loop;
 				r[137] = a->due != 0;
 			}
@@ -138,7 +138,7 @@ textures(struct rc_world *w, struct rc_environment *e, bool save)
 					    .current                       = current - 1,
 					    .step                          = r[26] == 3 && r[1] == 255 ? -1 : 1,
 					    .loop                          = r[26],
-					    .period                        = 10 * r[3],
+					    .period_us                     = 10000u * r[3],
 					    .due                           = r[137] != 0};
 					if (a->due)
 						w->next_animation = 1;
