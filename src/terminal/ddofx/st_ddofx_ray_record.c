@@ -196,17 +196,18 @@ st_ddofx_ray_record_command(struct st_ddofx *ddo, const struct st_ddofx_sink *si
 	struct rc_world *w = st_ddofx_ray_world(ddo->graphics);
 	if (!w)
 		return true;
-	if (record && !ascii_case_compare(args, "STOP")) {
+	const char *name = st_ddofx_asset_name(ddo, args);
+	if (record && !ascii_case_compare(name, "STOP")) {
 		if (w->motion && w->motion->recording)
 			st_ddofx_ray_stop_recording(w);
 		return true;
 	}
-	if ((unsigned)append > 1 || !st_ddofx_dos_filename(args))
+	if ((unsigned)append > 1 || !st_ddofx_dos_filename(name))
 		return true;
 	struct rc_recording *r = calloc(1, sizeof(*r));
 	if (!r)
 		return true;
-	strcpy(r->name, args);
+	strcpy(r->name, name);
 	r->recording  = record;
 	r->context    = sink->context;
 	r->theme_path = sink->theme_path;
@@ -217,7 +218,7 @@ st_ddofx_ray_record_command(struct st_ddofx *ddo, const struct st_ddofx_sink *si
 		if (r->directory && (record || extract(r, ddo, sink))) {
 			st_file_lock_t *lock = NULL;
 			if (!st_file_lock_acquire(&lock, r->directory, true)) {
-				char *path = r->theme_path(r->context, args);
+				char *path = r->theme_path(r->context, name);
 				if (path) {
 					if (append) {
 						FILE *file;
@@ -234,7 +235,7 @@ st_ddofx_ray_record_command(struct st_ddofx *ddo, const struct st_ddofx_sink *si
 		}
 	}
 	else if (sink->open_asset) {
-		r->file = sink->open_asset(sink->context, "BBSTHEME", NULL, args);
+		r->file = sink->open_asset(sink->context, "BBSTHEME", NULL, name);
 		if (r->file) {
 			int64_t length = fs_stream_size(r->file);
 			if (length >= 0) {

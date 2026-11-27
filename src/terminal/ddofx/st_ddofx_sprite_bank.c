@@ -184,7 +184,10 @@ st_ddofx_sprite_bank(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, cha
 	int32_t erase = 0;
 	if (load && (!st_ddofx_field_number(ddo, &args, &erase) || (erase != 0 && erase != 1)))
 		return;
-	if (!args || !st_ddofx_dos_filename(args) || strchr(args, '.') || !sink->theme_path)
+	if (!args || !sink->theme_path)
+		return;
+	const char *name = st_ddofx_asset_name(ddo, args);
+	if (!st_ddofx_dos_filename(name) || strchr(name, '.'))
 		return;
 	/* Serialize the pair of files, including name resolution, across sessions. */
 	char *directory = sink->theme_path(sink->context, NULL);
@@ -197,9 +200,9 @@ st_ddofx_sprite_bank(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, cha
 		return;
 
 	char   filename[13];
-	size_t length = strlen(args);
+	size_t length = strlen(name);
 	for (size_t i = 0; i < length; ++i)
-		filename[i] = (char)ascii_to_upper((unsigned char)args[i]);
+		filename[i] = (char)ascii_to_upper((unsigned char)name[i]);
 	strcpy(filename + length, ".DAT");
 	char *dat = sink->theme_path(sink->context, filename);
 	strcpy(filename + length, ".RAW");

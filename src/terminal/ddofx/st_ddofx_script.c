@@ -114,13 +114,28 @@ variable(struct st_ddofx_script *script, int32_t id)
 	return script != NULL && id >= 1 && id <= VARIABLE_COUNT ? &script->variables[id - 1] : NULL;
 }
 
+static bool
+variable_id(const char *field, int32_t *id)
+{
+	return !ascii_case_ncompare(field, "DEFVAR", 6) && integer(field + 6, id);
+}
+
 static struct variable *
 reference(const struct st_ddofx *ddo, const char *s)
 {
 	int32_t id;
-	if (ascii_case_ncompare(s, "DEFVAR", 6) || !integer(s + 6, &id))
-		return NULL;
-	return variable(ddo->script, id);
+	return variable_id(s, &id) ? variable(ddo->script, id) : NULL;
+}
+
+const char *
+st_ddofx_asset_name(const struct st_ddofx *ddo, const char *field)
+{
+	/* DEFVAR.FNT and DEFVARX are also valid literal DOS names. */
+	int32_t id;
+	if (!variable_id(field, &id))
+		return field;
+	const struct variable *v = variable(ddo->script, id);
+	return v ? v->text : "";
 }
 
 const char *

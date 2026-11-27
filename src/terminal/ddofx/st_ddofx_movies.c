@@ -91,11 +91,14 @@ open_movie(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, unsigned id, 
 	struct st_ddofx_graphics *g = ddo->graphics;
 	unsigned owner = g->alert_graphic_window;
 	struct st_ddofx_surface target = st_ddofx_surface(g, owner, VISUAL);
-	if (!args || !st_ddofx_dos_filename(args) || !sink->open_asset || n[0] < 0 || n[0] >= target.width
+	if (!args || !sink->open_asset || n[0] < 0 || n[0] >= target.width
 	    || n[1] < 0 || n[1] >= target.height || n[2] <= 0 || (unsigned)n[3] > 1 || n[4] < 1 || n[4] > 100
 	    || (unsigned)n[5] > 1)
 		return;
-	FILE *file = sink->open_asset(sink->context, "BBSTHEME", NULL, args);
+	const char *name = st_ddofx_asset_name(ddo, args);
+	if (!st_ddofx_dos_filename(name))
+		return;
+	FILE *file = sink->open_asset(sink->context, "BBSTHEME", NULL, name);
 	if (!file)
 		return;
 	struct movie m = {.owner = owner, .fps = (unsigned)n[4], .once = n[3] != 0, .palette = n[5] != 0};

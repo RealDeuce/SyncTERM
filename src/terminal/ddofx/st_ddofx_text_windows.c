@@ -644,7 +644,8 @@ configure_window(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *a
 	page.title_colour = (uint8_t)n[5];
 	snprintf(page.title, sizeof(page.title), "%s", title);
 	snprintf(page.help, sizeof(page.help), "%s", help);
-	snprintf(page.font_name, sizeof(page.font_name), "%s", *args ? args : st_ddofx_vga_font_name(ddo));
+	const char *font = st_ddofx_asset_name(ddo, args);
+	snprintf(page.font_name, sizeof(page.font_name), "%s", *font ? font : st_ddofx_vga_font_name(ddo));
 	if (create) {
 		if (!st_ddofx_create_text_page(g, &page, sink->text_config))
 			return false;

@@ -11,7 +11,7 @@
 void
 st_ddofx_write_text_file(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *args)
 {
-	const char *name = st_ddofx_value(ddo, st_ddofx_field(&args));
+	const char *name = st_ddofx_asset_name(ddo, st_ddofx_field(&args));
 	int32_t     append;
 	if (!st_ddofx_field_number(ddo, &args, &append) || (unsigned)append > 1 || !args
 	    || !st_ddofx_dos_filename(name) || !sink->theme_path)
@@ -57,7 +57,7 @@ finish(struct st_ddofx *ddo, const struct st_ddofx_sink *sink)
 void
 st_ddofx_retrieve_text_file(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *args)
 {
-	const char *name = st_ddofx_value(ddo, st_ddofx_field(&args));
+	const char *name = st_ddofx_asset_name(ddo, st_ddofx_field(&args));
 	if (!args)
 		return;
 	ddo->retrieval.reply_length = st_ddofx_control_value(ddo, args, ddo->retrieval.reply, ST_DDOFX_BODY_MAX);
@@ -154,7 +154,7 @@ editor_file(const struct st_ddofx_sink *sink, const char *directory, const char 
 void
 st_ddofx_edit_text_file(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *args)
 {
-	const char *name = st_ddofx_value(ddo, st_ddofx_field(&args));
+	const char *name = st_ddofx_asset_name(ddo, st_ddofx_field(&args));
 	if (!args)
 		return;
 	uint8_t reply[ST_DDOFX_BODY_MAX];
@@ -248,8 +248,8 @@ st_ddofx_print_file(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char
 	char *device_field = st_ddofx_field(&args);
 	if (!args)
 		return;
-	const char *source_name = st_ddofx_value(ddo, source_field);
-	const char *suggestion  = print_filename(st_ddofx_value(ddo, device_field));
+	const char *source_name = st_ddofx_asset_name(ddo, source_field);
+	const char *suggestion  = print_filename(st_ddofx_asset_name(ddo, device_field));
 	uint8_t     reply[ST_DDOFX_BODY_MAX];
 	size_t      reply_length = st_ddofx_control_value(ddo, args, reply, sizeof(reply));
 	if (suggestion && sink->pick_save_path && sink->open_asset && st_ddofx_dos_filename(source_name)) {

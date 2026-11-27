@@ -293,7 +293,7 @@ play_file(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *args)
 	int32_t     rate;
 	if (args == NULL || !st_ddofx_number(ddo, args, &rate) || rate <= 0)
 		return;
-	st_ddofx_play_realplay(ddo, sink, st_ddofx_value(ddo, name), (unsigned)rate);
+	st_ddofx_play_realplay(ddo, sink, st_ddofx_asset_name(ddo, name), (unsigned)rate);
 }
 
 enum load_result {
@@ -426,7 +426,7 @@ load_bites(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, const char *a
 {
 	struct st_ddofx_samples *s = ddo->samples;
 	if (*arg == ',')
-		strcpy(s->bite_file, st_ddofx_value(ddo, arg + 1));
+		strcpy(s->bite_file, st_ddofx_asset_name(ddo, arg + 1));
 	else if (!ascii_case_compare(arg, "NONE"))
 		clear_bank(s, &s->bites);
 	else if (!ascii_case_compare(arg, "LOAD"))
@@ -516,7 +516,7 @@ big_sample(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, enum profile_
 	         && st_ddofx_number(ddo, args, &number))
 		play(s, &s->main, sink->audio, &p->sample, number);
 	else if (args && (cmd == LOAD || (cmd == ADD && p->loaded < p->expected))) {
-		const char *name = st_ddofx_value(ddo, args);
+		const char *name = st_ddofx_asset_name(ddo, args);
 		FILE       *file = sink->open_asset(sink->context, "BBSTHEME", NULL, s->theme_name);
 		if (file == NULL)
 			return;
@@ -545,7 +545,7 @@ big_sample(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, enum profile_
 struct speech {
 	const struct st_ddofx_sink *sink;
 	const char *container, *output;
-	char *phrase;
+	const char *phrase;
 	bool append;
 };
 
@@ -569,11 +569,8 @@ write_speech(FILE *output, void *context)
 	if (!bank)
 		return 0;
 	int status = 0;
-	for (char *token = speech->phrase; token && !status;) {
-		char *next = strchr(token, '-');
-		if (next)
-			*next++ = 0;
-		size_t size = strlen(token);
+	for (const char *token = speech->phrase; *token && !status;) {
+		size_t size = strcspn(token, "-");
 		if (size && size <= 8) {
 			char member[13];
 			unsigned divisor = 1;
@@ -583,12 +580,14 @@ write_speech(FILE *output, void *context)
 				divisor = (unsigned)(token[1] - '0');
 			}
 			else
-				snprintf(member, sizeof(member), "%s.SND", token);
+				snprintf(member, sizeof(member), "%.*s.SND", (int)size, token);
 			uint32_t length;
 			if (st_ddofx_resource_find(bank, member, -1, &length, NULL) >= 0)
 				status = st_ddofx_copy_bytes(output, bank, length / divisor);
 		}
-		token = next;
+		token += size;
+		if (*token)
+			++token;
 	}
 	fclose(bank);
 	return status;
@@ -599,10 +598,13 @@ assemble_speech(const struct st_ddofx *ddo, const struct st_ddofx_sink *sink, ch
 {
 	const char *container = st_ddofx_field(&args);
 	const char *name = st_ddofx_field(&args);
-	char *phrase = st_ddofx_field(&args);
+	const char *phrase = st_ddofx_field(&args);
 	int32_t operation;
-	if (!args || !sink->theme_path || !st_ddofx_dos_filename(container) || !st_ddofx_dos_filename(name)
-	    || !st_ddofx_number(ddo, args, &operation))
+	if (!args || !sink->theme_path || !st_ddofx_number(ddo, args, &operation))
+		return;
+	container = st_ddofx_asset_name(ddo, container);
+	name = st_ddofx_asset_name(ddo, name);
+	if (!st_ddofx_dos_filename(container) || !st_ddofx_dos_filename(name))
 		return;
 	char *path = sink->theme_path(sink->context, name);
 	if (!path)
@@ -611,7 +613,7 @@ assemble_speech(const struct st_ddofx *ddo, const struct st_ddofx_sink *sink, ch
 		(void)fs_remove_file(path);
 	else {
 		struct speech speech = {.sink = sink, .container = container, .output = path,
-		    .phrase = phrase, .append = operation != 1};
+		    .phrase = st_ddofx_value(ddo, phrase), .append = operation != 1};
 		(void)fs_replace_file_with(path, write_speech, &speech);
 	}
 	free(path);
@@ -647,13 +649,13 @@ st_ddofx_samples_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink,
 		return true;
 	struct st_ddofx_samples *s = ddo->samples;
 	if (*body == 'T')
-		select_term_theme(ddo, sink, st_ddofx_value(ddo, body + 1));
+		select_term_theme(ddo, sink, st_ddofx_asset_name(ddo, body + 1));
 	else if (*body != 't')
 		play_slot(ddo, sink, body);
 	else if (body[1] == 'b')
 		load_bites(ddo, sink, body + 2);
 	else {
-		const char *name = st_ddofx_value(ddo, body + 1);
+		const char *name = st_ddofx_asset_name(ddo, body + 1);
 		if (!ascii_case_compare(name, "NONE")) {
 			clear_bank(s, &s->theme);
 			s->theme_name[0] = 0;

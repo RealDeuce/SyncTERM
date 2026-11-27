@@ -280,12 +280,18 @@ def check_cache(t, root):
         asset.write_bytes(b"sample")
         os.utime(asset, (timestamp, timestamp))
         t.exchange(b"\x1d{" + prefix + b"SAMPLE.BIN}", b"6,2024,2,29,12,34,18\xff")
+        t.exchange(commands(b"~DEFVAR,62,1,Sample.bin", prefix + b"DEFVAR62"), b"6,2024,2,29,12,34,18\xff")
+        literal = directory / "Defvar.fnt"
+        literal.write_bytes(b"font")
+        os.utime(literal, (timestamp, timestamp))
+        t.exchange(commands(prefix + b"DEFVAR.FNT"), b"4,2024,2,29,12,34,18\xff")
         if prefix.startswith(b"d"):
-            master = prefix[1:] + b"SAMPLE.BIN"
+            master = prefix[1:] + b"DEFVAR62"
             t.exchange(commands(b"7DEFRET,31,+", b"~IFVAR," + master +
                                 b",=,6~2024~2~29~12~34~18,\x1d(7SRET,31)"), b"+")
         missing = b"N\xff" if prefix.startswith(b"8") else b"NO\xff"
-        t.exchange(b"\x1d{" + prefix + b"../Sample.bin}", missing)
+        t.exchange(commands(b"~DEFVAR,62,1,../Sample.bin", prefix + b"DEFVAR62", prefix + b"../Sample.bin"),
+                   missing * 2)
         t.exchange(b"\x1d{" + prefix + b"ABSENT}", missing)
     t.exchange(b"\x1d{8CDIR,slot}\x1d{8CDIR,../MUSIC}\x1d{8CDIR,ABSENT}", b"Y\xffN\xffN\xff")
     t.check("external client command", b"A\x1d{8EXEC,slot}B", (3, 1), [(1, 1, "AB")])
@@ -403,7 +409,8 @@ def check_text_windows(t):
     for ch, ink in [(201, 0x80), (205, 0x40), (186, 0x20), (ord("X"), 0x10), (ord("H"), 0x08)]:
         strike[ch*16] = strike[ch*16+8] = ink
     (marker.parent / "DDOFX" / "FONTS" / "Border.fnt").write_bytes(strike)
-    border = b"1OPEN,7,10,16,3,7,9,14,Y,N,N,N,N,X,H,Border.fnt"
+    t.exchange(commands(b"~DEFVAR,60,1,Border.fnt"))
+    border = b"1OPEN,7,10,16,3,7,9,14,Y,N,N,N,N,X,H,DEFVAR60"
     colours(commands(border, b"dGETFONT"), {(72,32):9,(73,32):0,(81,32):9,(74,48):9,
             (96,32):4,(99,32):14,(96,96):4,(100,96):14,(128,32):33}, b"Border.fnt\xff")
     colours(commands(first), {(96,32):1,(99,32):14})
@@ -771,7 +778,7 @@ def check_marquees(t, root):
     (cache / "BBSTHEME" / "Scroll.M").write_bytes(bank)
     off = 464 * 640 + 624
     wire = commands(b"2fScroll.", b"fStrip.fnt", b"2C,39", b"2aFILL", b"2CPYWP2VP", b"~PAUSEBAK",
-                    b"5CMARQEE,1,624,479,2,12,3,5,LINE.TXT", b"2aG,624,464",
+                    b"~DEFVAR,60,1,LINE.TXT", b"5CMARQEE,1,624,479,2,12,3,5,DEFVAR60", b"2aG,624,464",
                     b"5CMARQEE,300,20,80,1,14,4,10,LINE.TXT", b"5SHOWMQ,1", b"5SHOWMQ,300",
                     b"2aG,624,464", b"2aG,625,479", b"2aG,639,479", b"2aG,20,65",
                     b"5CMARQEE,2,12,159,2,9,5,10,LARGE.TXT", b"5SHOWMQ,2", b"2aG,12,144")
@@ -847,7 +854,7 @@ def check_clocks(t, root):
     center = 100*640 + 100
     frame = t.exchange(commands(b"2C,39", b"2aFILL", b"2CPYWP2VP",
                                 b"5SCLOCK,30,100,100,20,60,61,62,63,64,0,0,0",
-                                b"5SOCLOCK,30,576,479,12,3,-63,2,-5,Digits.fnt"))
+                                b"~DEFVAR,60,1,Digits.fnt", b"5SOCLOCK,30,576,479,12,3,-63,2,-5,DEFVAR60"))
     assert frame.primary[center] == frame.primary[-1] == 39
     started = int(time.time())
     frame = t.exchange(commands(b"5SHWCLK,30", b"5UOCLOCK,30", b"2aG,100,100", b"2aG,639,479"),
@@ -957,7 +964,7 @@ def check_flics(t, root):
     t.client.wait_for(lambda f: rows(f)[1] == [21,22,21,22,23])
     f = t.exchange(commands(b"2aG,639,479", b"5UFLIC,0", b"2CPYWP2VP", b"w9"), b"44\xff")
     assert rows(f) == [[44]*5]*3
-    t.send(commands(b"2RESA,1", b"5OFLIC,1,635,477,2,0,8,0,BYTE.FLI", b"5UFLIC,0"))
+    t.send(commands(b"2RESA,1", b"~DEFVAR,60,1,BYTE.FLI", b"5OFLIC,1,635,477,2,0,8,0,DEFVAR60", b"5UFLIC,0"))
     t.client.wait_for(lambda f: rows(f) == [[0]*5]*3)
     f = t.client.wait_for(lambda f: rows(f) == [[11,11,12,13,14]]*3)
     assert f.palette[37] == 0xff8204
@@ -1401,7 +1408,7 @@ def check_raycast_recordings(t, root):
     theme = marker.parent / "DDOFX" / "BBSTHEME"
     recorded = theme / "Tour.Rec"
     t.exchange(commands(b"2RESET", b"5CLSMAP,1", b"5SETXPOS,31,0", b"5SETYPOS,21,0",
-                        b"5SETANGL,90", b"5DREC,0,Tour.Rec", b"5DANIM,0,159,1", b"w3",
+                        b"5SETANGL,90", b"~DEFVAR,60,1,Tour.Rec", b"5DREC,0,DEFVAR60", b"5DANIM,0,159,1", b"w3",
                         b"5SETANGL,135", b"w3", b"5DREC,1,STOP"))
     poses = list(struct.iter_unpack("<HHH", recorded.read_bytes()))
     assert [(x//32-4,y//32-19,h) for x,y,h in poses] == [(31,21,128),(31,21,64)]
@@ -1411,7 +1418,7 @@ def check_raycast_recordings(t, root):
     # External recordings store X and Y in 1/32-cell units and a 512-step heading.
     tour = struct.pack("<6H",1120,1280,128,1216,1376,0)
     (theme / "Walk.Rec").write_bytes(tour)
-    t.exchange(commands(b"5DPLY,WALK.REC", b"w4", b"5GETXPOS", b"5GETYPOS", b"5GETANGL"),
+    t.exchange(commands(b"~DEFVAR,61,1,WALK.REC", b"5DPLY,DEFVAR61", b"w4", b"5GETXPOS", b"5GETYPOS", b"5GETANGL"),
                b"34\xff24\xff180,SOUTH\xff")
     assert (theme / "Walk.Rec").read_bytes() == tour
 
@@ -1419,7 +1426,7 @@ def check_raycast_recordings(t, root):
     bank = bytearray(record.pack(b"\xff",0,0,0,0)*33)
     record.pack_into(bank,0,b"MEMBER.REC",len(bank),6,0,0)
     (theme / "Tour.M").write_bytes(bank+tour[:6])
-    t.exchange(commands(b"2fTour.", b"~PAUSEBAK", b"5DPLYR,MEMBER.REC"))
+    t.exchange(commands(b"2fTour.", b"~PAUSEBAK", b"~DEFVAR,61,1,MEMBER.REC", b"5DPLYR,DEFVAR61"))
     assert (theme / "MEMBER.REC").read_bytes() == tour[:6]
     t.exchange(commands(b"5DPLY,member.rec", b"~UNPAUSEBAK", b"w3", b"5GETXPOS", b"5GETYPOS", b"5GETANGL"),
                b"31\xff21\xff90,EAST\xff")
@@ -1681,7 +1688,7 @@ def check_sprite_banks(t, root):
     record = struct.Struct("<BB8sIHHH")
     t.exchange(commands(b"2sFF", b"2aCLIP,0,639,0,479", b"2aERASE",
                         b"2C,10", b"2aP,1,1", b"2C,20", b"2aP,2,2", b"2S,1,2,1,2,logo",
-                        b"2STORES,BANK", b"2sP,5,6,LOGO", b"2aG,5,5"), b"10\xff")
+                        b"~DEFVAR,60,1,BANK", b"2STORES,DEFVAR60", b"2sP,5,6,LOGO", b"2aG,5,5"), b"10\xff")
     assert dat.read_bytes() == record.pack(1, 4, b"LOGO", 0, 104, 2, 2) + bytes(3199 * 20)
     assert raw.read_bytes() == bytes([0, 20, 10, 0]) + bytes(100)
 
@@ -1693,7 +1700,7 @@ def check_sprite_banks(t, root):
     dat.write_bytes(foreign)
     payload = bytes([3, 4, 1, 2, 90, 91, 92, 8, 9])
     raw.write_bytes(payload[:-1])
-    t.exchange(commands(b"2LOADS,1,bank", b"2aERASE", b"2sP,3,4,LOGO", b"2aG,3,3"), b"10\xff")
+    t.exchange(commands(b"2LOADS,1,DEFVAR60", b"2aERASE", b"2sP,3,4,LOGO", b"2aG,3,3"), b"10\xff")
     assert dat.exists() and raw.exists()
     raw.write_bytes(payload)
     t.exchange(commands(b"2loads,0,bank", b"2aERASE", b"2sP,3,4,LOGO", b"2aG,3,3",
@@ -1701,7 +1708,7 @@ def check_sprite_banks(t, root):
                         b"2sI,a", b"2stores,second"), b"0\xff1\xff4\xff9\xff")
     assert (theme / "SECOND.RAW").read_bytes() == bytes([1, 2, 3, 4]) + payload[4:]
     assert (theme / "SECOND.DAT").read_bytes()[3199*20:] == foreign[3199*20:]
-    t.exchange(commands(b"2sFF", b"2LOADS,1,BANK", b"2sP,3,4,A", b"2aG,4,4",
+    t.exchange(commands(b"2sFF", b"2LOADS,1,DEFVAR60", b"2sP,3,4,A", b"2aG,4,4",
                         b"2STORES,../escaped", b"2sFF"), b"4\xff")
     assert not dat.exists() and not raw.exists()
     assert not (theme.parent / "ESCAPED.DAT").exists()
@@ -1914,7 +1921,7 @@ def check_bitmap_fonts(t, root):
     (marker.parent/"DDOFX"/"BBSTHEME"/"Fonts.M").write_bytes(data)
 
     t.exchange(commands(b"2fFonts.", b"2C,7", b"2aFILL", b"2CPYWP2VP", b"2CPYWP2BP",
-                        b"2F,A.BMF,1", b"2F,B.BMF,32", b"2FSELECT,1"))
+                        b"~DEFVAR,60,1,A.BMF", b"2F,DEFVAR60,1", b"2F,B.BMF,32", b"2FSELECT,1"))
     glyph = [[7,11,7,7], [7,11,11,7], [7,7,7,11], [7,7,7,7]]
     for i, page in enumerate([b"WP", b"BP", b"HP", b"VP"]):
         rotated = glyph
@@ -1975,7 +1982,7 @@ def check_pcx(t, root):
         data.extend(payload)
     (directory/"Art.S").write_bytes(data)
     t.exchange(commands(b"2fArt.", b"2C,90", b"2aFILL", b"2CPYWP2VP", b"2CPYWP2BP",
-                        b"2wart.pcx", b"2aG,0,0", b"2aG,1,0", b"2aG,2,0", b"2aG,0,1", b"2aG,1,1",
+                        b"~DEFVAR,60,1,art.pcx", b"2wDEFVAR60", b"2aG,0,0", b"2aG,1,0", b"2aG,2,0", b"2aG,0,1", b"2aG,1,1",
                         b"2aG,2,1", b"2aG,3,1", b"2aGRGB,193", b"2WP2PCX"),
                b"193\xff193\xff3\xff5\xff255\xff6\xff90\xff48,37,15\xff")
     frame = t.exchange(commands(b"2wBAD.PCX", b"2wOTHER.PCX", b"2aG,1,1", b"2C,13", b"2aFILL", b"2CPYWP2HP",
@@ -2362,7 +2369,9 @@ def check_speech(t, root):
         bank.extend(payload)
     (theme / "Talk.The").write_bytes(bank)
     output = theme / "SAY.SAM"
-    t.exchange(commands(b"MTALK,talk.the,SAY.SAM,hello-p1-p2-p3-p4--absent-p,1"))
+    t.exchange(commands(b"~DEFVAR,60,1,talk.the", b"~DEFVAR,61,1,SAY.SAM",
+                        b"~DEFVAR,62,1,hello-p1-p2-p3-p4--absent-p", b"MTALK,DEFVAR60,DEFVAR61,DEFVAR62,1",
+                        b"7DEFRET,1,DEFVAR62", b"7SRET,1"), b"hello-p1-p2-p3-p4--absent-p")
     phrase = b"\x00\x80\xff" + b"".join(bytes(range(11 // n)) for n in range(1, 5)) + b"p"
     assert output.read_bytes() == phrase
     t.exchange(commands(b"MTALK,TALK.THE,say.sam,HELLO-,0", b"MTALK,TALK.THE,../SAY.SAM,p1,1"))
@@ -2485,7 +2494,8 @@ def check_lite_screen(t, root):
     (directory / "Screen.M").write_bytes(bank)
     prefix = b"\x1b[2$~\x1b[1$}STATUS\x1b[0$}TOP\x1b[11;6H"
     frame = t.check("Lite RAW copies VGA cells below the first row and above the live status row",
-                    prefix + commands(b"2fScreen.", b"!menu.raw", b"!SHORT.RAW", b"!MISSING.RAW")
+                    prefix + commands(b"~DEFVAR,64,1,Screen.", b"~DEFVAR,65,1,menu.raw", b"2fDEFVAR64",
+                                      b"!DEFVAR65", b"!SHORT.RAW", b"!MISSING.RAW")
                     + b"\x1b[6n", (6, 11), ((1, 1, "TOP"), (1, 2, "é←"), (80, 24, "Z"), (1, 25, "STATUS")),
                     expected=b"\x1b[11;6R")
     cell = frame.cells[80]
@@ -2782,9 +2792,9 @@ def check_pointers(t, root, mouse):
     check(t.exchange(commands(b"3SMP,100")), (69,55,165), (70,54,170), (71,54,0), (72,54,15))
     check(t.exchange(commands(b"3MVIS,0")), (70,54,165))
     mouse(0, 0, 0)
-    check(t.exchange(commands(b"3MVIS,1", b"3MPT,A.MPT")), (0,0,167), (70,54,165))
+    check(t.exchange(commands(b"3MVIS,1", b"~DEFVAR,60,1,A.MPT", b"3MPT,DEFVAR60")), (0,0,167), (70,54,165))
     mouse(70, 55, 0)
-    t.exchange(commands(b"3MPL,99,A.MPT", b"3AMP,100,99,100,1", b"3AAM,100", b"w5"))
+    t.exchange(commands(b"3MPL,99,DEFVAR60", b"3AMP,100,99,100,1", b"3AAM,100", b"w5"))
     check(t.client.wait_for(lambda f: pixel(f,72,54) == f.palette[15]), (70,54,170))
     t.exchange(commands(b"2S,0,8,0,8,ICON", b"2ANIM,1,0,0,0,ICON,ICON,0,0,0,1,20,0",
                         b"2ICON,100,80,65,0,1", b"2MPICON,100,0,99", b"2MPICON,100,0,0",

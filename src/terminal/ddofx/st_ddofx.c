@@ -70,7 +70,7 @@ static int
 resource_id(const struct st_ddofx *ddo, const struct st_ddofx_sink *sink, const char *container,
     const char *member, int wanted)
 {
-	const char *name     = st_ddofx_value(ddo, container);
+	const char *name     = st_ddofx_asset_name(ddo, container);
 	const char *category = "BBSTHEME";
 	if (ascii_case_ncompare(name, "BBSTHEME", 8) == 0 && (name[8] == '/' || name[8] == '\\'))
 		name += 9;
@@ -82,7 +82,7 @@ resource_id(const struct st_ddofx *ddo, const struct st_ddofx_sink *sink, const 
 	if (file == NULL)
 		return -1;
 	uint32_t size;
-	int      id = st_ddofx_resource_find(file, st_ddofx_value(ddo, member), wanted, &size, NULL);
+	int      id = st_ddofx_resource_find(file, st_ddofx_asset_name(ddo, member), wanted, &size, NULL);
 	fclose(file);
 	return id;
 }
@@ -140,7 +140,7 @@ st_ddofx_builtin(const struct st_ddofx *ddo, const struct st_ddofx_sink *sink, c
 	}
 	else if (*name && strchr("mftr", *name) != NULL) {
 		const char *category = *name == 'm' ? "MUSIC" : *name == 'f' ? "FONTS" : "BBSTHEME";
-		file_record(result, sink, category, NULL, name + 1);
+		file_record(result, sink, category, NULL, st_ddofx_asset_name(ddo, name + 1));
 	}
 	else
 		return false;
@@ -289,8 +289,9 @@ execute(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *body)
 	else if (matches(body, "dVIDMODE"))
 		st_ddofx_query_reply(ddo, sink, ddo->graphics ? "1" : "0", true);
 	else if (!strncmp(body, "2f", 2)) {
-		if (strlen(body + 2) < sizeof(ddo->resource_prefix))
-			strcpy(ddo->resource_prefix, body + 2);
+		const char *prefix = st_ddofx_asset_name(ddo, body + 2);
+		if (strlen(prefix) < sizeof(ddo->resource_prefix))
+			strcpy(ddo->resource_prefix, prefix);
 	}
 	else if (ddo->graphics && !ascii_case_ncompare(body, "1SCALE,", 7))
 		st_ddofx_text_scale(ddo, sink, body + 7);
@@ -344,9 +345,9 @@ execute(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *body)
 			st_ddofx_lite_fade(ddo, sink, false, value);
 	}
 	else if (!ddo->graphics && body[0] == '!')
-		st_ddofx_display_raw(ddo, sink, body + 1);
+		st_ddofx_display_raw(ddo, sink, st_ddofx_asset_name(ddo, body + 1));
 	else if (body[0] == '*')
-		st_ddofx_run_resource(ddo, sink, st_ddofx_value(ddo, body + 1));
+		st_ddofx_run_resource(ddo, sink, st_ddofx_asset_name(ddo, body + 1));
 	else if (body[0] == 'd' && !ascii_case_ncompare(body + 1, "VMEM,", 5))
 		check_memory(ddo, sink, body + 6);
 	else if (body[0] == 'd' && ascii_case_ncompare(body + 1, "RESOURCE,", 9) == 0) {
@@ -369,15 +370,15 @@ execute(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *body)
 	}
 	else if (ascii_case_ncompare(body, "8CDIR,", 6) == 0)
 		st_ddofx_query_reply(ddo, sink,
-		    sink->client_exists(sink->context, st_ddofx_value(ddo, body + 6)) ? "Y" : "N", false);
+		    sink->client_exists(sink->context, st_ddofx_asset_name(ddo, body + 6)) ? "Y" : "N", false);
 	else if (ascii_case_ncompare(body, "8CFILE,", 7) == 0) {
 		char *client = (char *)body + 7;
 		char *comma  = strchr(client, ',');
 		if (comma != NULL) {
 			*comma = 0;
 			char result[ST_DDOFX_BODY_MAX + 1];
-			file_record(result, sink, "TERMS", st_ddofx_value(ddo, client),
-			    st_ddofx_value(ddo, comma + 1));
+			file_record(result, sink, "TERMS", st_ddofx_asset_name(ddo, client),
+			    st_ddofx_asset_name(ddo, comma + 1));
 			st_ddofx_query_reply(ddo, sink, result, false);
 		}
 		else
@@ -388,9 +389,9 @@ execute(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *body)
 	else if (st_ddofx_samples_command(ddo, sink, body))
 		return;
 	else if (body[0] == 'f')
-		st_ddofx_load_vga_font(ddo, sink, st_ddofx_value(ddo, body + 1));
+		st_ddofx_load_vga_font(ddo, sink, st_ddofx_asset_name(ddo, body + 1));
 	else if (body[0] == 'm')
-		music(ddo, sink, st_ddofx_value(ddo, body + 1));
+		music(ddo, sink, st_ddofx_asset_name(ddo, body + 1));
 	else if (body[0] == 'w') {
 		int32_t  ticks;
 		uint64_t now;

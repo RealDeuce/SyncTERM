@@ -148,7 +148,7 @@ define(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, unsigned id, char
 	struct text_field *f = calloc(1, sizeof(*f));
 	if (!f)
 		return;
-	font = st_ddofx_value(ddo, font);
+	font = st_ddofx_asset_name(ddo, font);
 	if (!st_ddofx_read_vga_font(sink, *font ? font : "IBMSTD.FNT", f->font)) {
 		const uint8_t *current = st_ddofx_vga_bitmap(ddo);
 		if (!current) {

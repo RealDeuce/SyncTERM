@@ -94,7 +94,8 @@ define_digital(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *arg
 	face->font = malloc(4096);
 	if (!face->font)
 		return false;
-	if (!(*args && st_ddofx_read_vga_font(sink, args, face->font))
+	const char *font = st_ddofx_asset_name(ddo, args);
+	if (!(*font && st_ddofx_read_vga_font(sink, font, face->font))
 	    && !st_ddofx_read_vga_font(sink, "IBMSTD.FNT", face->font)) {
 		free(face->font);
 		return false;

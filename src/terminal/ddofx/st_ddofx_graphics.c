@@ -627,7 +627,7 @@ st_ddofx_graphics_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink
 	struct st_ddofx_graphics *g = ddo->graphics;
 	if (body[1] == 'b' || body[1] == 'w' || body[1] == 'v') {
 		enum page dest = body[1] == 'b' ? BACKGROUND : body[1] == 'w' ? WORK : VISUAL;
-		st_ddofx_resource_pcx(ddo, sink, dest, body + 2, 0, 0);
+		st_ddofx_resource_pcx(ddo, sink, dest, st_ddofx_asset_name(ddo, body + 2), 0, 0);
 		return;
 	}
 	char       *args = body;

@@ -80,7 +80,7 @@ initialize(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *args, b
 	struct polygon_object *o = calloc(1, sizeof(*o));
 	if (!o)
 		return NULL;
-	if (imported && !load(ddo, sink, &o->geometry, st_ddofx_value(ddo, args), divisor, (uint8_t)colour)) {
+	if (imported && !load(ddo, sink, &o->geometry, st_ddofx_asset_name(ddo, args), divisor, (uint8_t)colour)) {
 		destroy(o);
 		return NULL;
 	}
