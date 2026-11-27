@@ -24,6 +24,8 @@ The four desktop pages support lower-left anchored image scaling, rotation betwe
 
 In Normal mode the BBS can show or hide the mouse pointer, query its position and three logical buttons, and read separate press and release counts and positions for each button. The BBS can position the DDO pointer with `3MMOV` and confine it to a rectangle with `3MLIM`. SyncTERM accepts both the SDK spelling `MSPD` and the mouse-family spelling `3MSPD`. Relative to the default rates of 8 horizontally and 16 vertically, doubling an axis rate halves its travel. Motion is measured in desktop raster pixels, with fractional movement carried between samples. Up to 300 desktop regions share one table. Overlapping regions run in slot order. Each macro finishes before its return string is sent. Held repeatable regions run at 50 ms intervals during idle input. Non-repeating regions wait for all buttons to be released.
 
+In Lite and Normal, `~INFSAV` and `~INFLOD` use the assigned resource prefix plus `T` in the entry’s BBSTHEME directory. Slot numbers and signed 32-bit passwords follow the SDK. A successful load sends the saved bytes verbatim, including embedded control bytes. Variable capture keeps the first 50 bytes and preserves the destination variable’s type.
+
 A marquee reads up to 20,000 bytes from the assigned M resource and uses the selected VGA text font. `5SHOWMQ` paints the initial strip on the work page. Its timer scrolls the strip one pixel to the right per frame on the visual page, following the direction stated in the SDK. `5STOPMQ` preserves the current position, and `5KILLMQ` releases the slot.
 
 Analog and text clocks have 30 slots each. A BBS defines each clock before showing it on the visual page. The hands and the eight-character digital display use local time with signed hour, minute and second offsets. Each text clock loads its own VGA font, defaulting to IBMSTD.FNT. Active marquees draw over clocks.
@@ -148,8 +150,8 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 4322 | IF VAR DO MACRO | DDO-FX LITE | Variables and implemented system operands |
 | 4547 | REPEAT MACRO UNTIL VAR | DDO-FX LITE | Variables and implemented system operands |
 | 4604 | REPEAT MACRO | DDO-FX LITE | Connected |
-| 4654 | INFO SAVE | DDO-FX LITE | Pending |
-| 4728 | INFO LOAD | DDO-FX LITE | Pending |
+| 4654 | INFO SAVE | DDO-FX LITE | Connected |
+| 4728 | INFO LOAD | DDO-FX LITE | Connected |
 | 4777 | LAUNCH TEXT EDITOR | DDO-FX LITE | Pending |
 | 4821 | RETRIEVE TEXT FILE | DDO-FX LITE | Pending |
 | 4847 | WRITE TEXT FILE | DDO-FX LITE | Pending |

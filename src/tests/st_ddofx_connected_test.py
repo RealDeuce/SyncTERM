@@ -752,6 +752,36 @@ def check_resources(t, root):
             (2, 1), [(1, 1, "K")], expected=b"NO\xff")
 
 
+def check_info(t, root):
+    t.case("persistent INFO records in Lite and Normal with binary data and typed capture")
+    marker, = root.rglob("syncterm-cache-name.txt")
+    theme = marker.parent / "DDOFX" / "BBSTHEME"
+    t.exchange(commands(b"2fINFO.", b"~INFLOD,0,1", b"~INFSAV,0,0,bad", b"~INFLOD,0,32001"),
+               b"NO FILE\xff")
+    t.exchange(commands(b"~INFSAV,3,-2147483648,A^@,~^M^?", b"~INFLOD,-2147483648,3",
+                        b"~INFLOD,2147483647,3", b"~INFLOD,0,4"),
+               b"A\0,~\r\xffWRONG PW\xffNO INFO\xff")
+    path, = theme.glob("*.[Tt]")
+    data = path.read_bytes()
+    assert data == bytes(255*3) + struct.pack("<iB", -2147483648, 6) + b"A\0,~\r\xff" + bytes(244)
+    t.exchange(commands(b"~DEFVAR,9,1,old", b"~VARCAP,9", b"~INFLOD,-2147483648,3", b"~VARCAP,0",
+                        b"~VARLEN,9,10", b"7DEFRET,2,DEFVAR10", b"7SRET,2", b"~INFSAV,1,0,DEFVAR9",
+                        b"~INFLOD,0,1"), b"6A\0,~\r\xff")
+    t.exchange(commands(b"~INFSAV,3,2147483647,27", b"~DEFVAR,10,2,0", b"~VARCAP,10", b"~INFLOD,2147483647,3",
+                        b"~VARCAP,0", b"~INCVAR,10", b"7DEFRET,2,DEFVAR10", b"7SRET,2"), b"28")
+    t.exchange(commands(b"~INFSAV,32000,3,"+b"B"*201, b"~VARCAP,9", b"~INFLOD,3,32000", b"~VARCAP,0",
+                        b"7DEFRET,2,DEFVAR9", b"7SRET,2"), b"B"*50)
+    assert path.stat().st_size == 32001*255
+    with path.open("r+b") as info:
+        info.seek(255*2)
+        info.write(struct.pack("<iB", 23, 250) + bytes(range(250)))
+    t.exchange(commands(b"~INFLOD,23,2", b"~VARCAP,9", b"~INFLOD,23,2", b"~VARCAP,0",
+                        b"~IFVAR,DEFVAR9,=,,\x1d(7SRET,2)", b"~INFSAV,15,0,DEFVAR9", b"~INFLOD,0,15"),
+               bytes(range(250)) + bytes(range(50)))
+    t.exchange(commands(b"LIGMODE", b"LIGMODE", b"~INFLOD,3,32000", b"2fOTHER.", b"~INFLOD,0,3",
+                        b"2GEXIT"), b"B"*200 + b"NO FILE\xff")
+
+
 def check_scripts(t):
     def read_variable(slot):
         return commands(b"7DEFRET,300,DEFVAR" + str(slot).encode(), b"7SRET,300")
@@ -1133,6 +1163,7 @@ def run(args):
         check_cache(t, fixture[1])
         check_resources(t, fixture[1])
         check_speech(t, fixture[1])
+        check_info(t, fixture[1])
         check_scripts(t)
         check_events(t)
         check_lite_reset(t)

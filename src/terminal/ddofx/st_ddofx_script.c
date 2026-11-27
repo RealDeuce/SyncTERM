@@ -20,6 +20,7 @@ enum {
 
 struct variable {
 	char text[VARIABLE_LENGTH + 1];
+	size_t length;
 
 	enum {
 		UNDEFINED,
@@ -53,8 +54,12 @@ struct macro_frame {
 };
 
 struct st_ddofx_script {
-	struct variable     variables[VARIABLE_COUNT];
-	char                returns[RETURN_COUNT][LINE_LENGTH + 1];
+	struct variable variables[VARIABLE_COUNT];
+
+	struct {
+		uint8_t bytes[LINE_LENGTH];
+		size_t  length;
+	} returns[RETURN_COUNT];
 	char                macros[MACRO_COUNT][MACRO_LINES][LINE_LENGTH + 1];
 	bool                macro_resource_text[MACRO_COUNT][MACRO_LINES];
 	struct macro_frame *top;
@@ -71,6 +76,14 @@ copy(char *dest, const char *source, size_t limit)
 		length = limit;
 	memmove(dest, source, length);
 	dest[length] = 0;
+}
+
+static void
+set_value(struct variable *v, const void *data, size_t size)
+{
+	v->length = size < VARIABLE_LENGTH ? size : VARIABLE_LENGTH;
+	memmove(v->text, data, v->length);
+	v->text[v->length] = 0;
 }
 
 static bool
@@ -128,7 +141,7 @@ st_ddofx_capture(struct st_ddofx *ddo, const char *text, bool numeric)
 		return false;
 	struct variable *v = variable(script, script->capture);
 	v->type            = numeric ? NUMERIC : TEXT;
-	copy(v->text, text, VARIABLE_LENGTH);
+	set_value(v, text, strlen(text));
 	return true;
 }
 
@@ -139,7 +152,7 @@ set_number(struct variable *v, int64_t n)
 	n = (uint32_t)n;
 	if (n > INT32_MAX)
 		n -= INT64_C(4294967296);
-	snprintf(v->text, sizeof(v->text), "%" PRId64, n);
+	v->length = (size_t)snprintf(v->text, sizeof(v->text), "%" PRId64, n);
 }
 
 char *
@@ -331,20 +344,69 @@ define_reply(char *out, const char *source, size_t limit)
 			*out = ',';
 }
 
+static size_t
+decode_controls(uint8_t *out, const char *source, size_t length, bool keep_final_caret)
+{
+	size_t used = 0;
+	for (size_t i = 0; i < length; ++i) {
+		uint8_t c = (uint8_t)source[i];
+		if (c == '^') {
+			if (i + 1 < length)
+				c = (uint8_t)(ascii_to_upper((uint8_t)source[++i]) - 64);
+			else if (!keep_final_caret)
+				break;
+		}
+		out[used++] = c;
+	}
+	return used;
+}
+
 static void
 send_reply(const struct st_ddofx_sink *sink, const char *encoded)
 {
-	const uint8_t *p = (const uint8_t *)encoded;
-	uint8_t        bytes[LINE_LENGTH];
-	size_t         n = 0;
-	while (*p) {
-		uint8_t c = *p++;
-		if (c == '^' && *p)
-			c = (uint8_t)(ascii_to_upper(*p++) - 64);
-		bytes[n++] = c;
-	}
+	uint8_t bytes[LINE_LENGTH];
+	size_t  n = decode_controls(bytes, encoded, strlen(encoded), true);
 	if (n)
 		sink->reply(sink->context, bytes, n);
+}
+
+size_t
+st_ddofx_info_value(const struct st_ddofx *ddo, const char *source, uint8_t value[200])
+{
+	size_t length = strlen(source);
+	char   decoded[201];
+	length          = decode_controls((uint8_t *)decoded, source, length < 200 ? length : 200, false);
+	decoded[length] = 0;
+	if (length >= 6 && !ascii_case_ncompare(decoded, "DEFVAR", 6)) {
+		const struct variable *v = reference(ddo, decoded);
+		if (!v || memchr(decoded, 0, length))
+			return 0;
+		memcpy(value, v->text, v->length);
+		return v->length;
+	}
+	memcpy(value, decoded, length);
+	return length;
+}
+
+void
+st_ddofx_info_reply(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, const uint8_t *data, size_t length,
+    const char *error)
+{
+	if (error) {
+		data   = (const uint8_t *)error;
+		length = strlen(error);
+	}
+	struct variable *v = ddo->script ? variable(ddo->script, ddo->script->capture) : NULL;
+	if (v)
+		set_value(v, data, length);
+	else {
+		if (length)
+			sink->reply(sink->context, data, length);
+		if (error) {
+			static const uint8_t end = 0xff;
+			sink->reply(sink->context, &end, 1);
+		}
+	}
 }
 
 void
@@ -417,11 +479,21 @@ named_return(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, const char 
 	if (!strcmp(verb, "DEFRET")) {
 		if (id == 0)
 			memset(s->returns, 0, sizeof(s->returns));
-		else
-			define_reply(s->returns[id - 1], st_ddofx_value(ddo, args ? args : ""), LINE_LENGTH);
+		else {
+			const char            *source = st_ddofx_value(ddo, args ? args : "");
+			const struct variable *v      = args ? reference(ddo, args) : NULL;
+			size_t                 length = v ? v->length : strlen(source);
+			char                   encoded[LINE_LENGTH];
+			if (length > sizeof(encoded))
+				length = sizeof(encoded);
+			for (size_t i = 0; i < length; ++i)
+				encoded[i] = source[i] == '~' ? ',' : source[i];
+			s->returns[id - 1].length =
+			    decode_controls(s->returns[id - 1].bytes, encoded, length, true);
+		}
 	}
-	else if (id && !strcmp(verb, "SRET"))
-		send_reply(sink, s->returns[id - 1]);
+	else if (id && !strcmp(verb, "SRET") && s->returns[id - 1].length)
+		sink->reply(sink->context, s->returns[id - 1].bytes, s->returns[id - 1].length);
 }
 
 static void
@@ -458,7 +530,7 @@ static void
 edit_variables(struct st_ddofx *ddo, struct variable *v, const char *verb, char *args, int32_t n)
 {
 	int32_t index, count;
-	size_t  len = strlen(v->text);
+	size_t  len = v->length;
 	if (!strcmp(verb, "PADVARL") || !strcmp(verb, "PADVARR")) {
 		const char *pad = args == NULL ? "" : st_ddofx_value(ddo, args);
 		if (n > VARIABLE_LENGTH)
@@ -473,6 +545,7 @@ edit_variables(struct st_ddofx *ddo, struct variable *v, const char *verb, char 
 		else
 			memset(v->text + len, *pad, extra);
 		v->text[n] = 0;
+		v->length  = (size_t)n;
 		return;
 	}
 	if (!strcmp(verb, "VARDEL")) {
@@ -481,19 +554,27 @@ edit_variables(struct st_ddofx *ddo, struct variable *v, const char *verb, char 
 		size_t start   = (size_t)n - 1;
 		size_t removed = (size_t)count < len - start ? (size_t)count : len - start;
 		memmove(v->text + start, v->text + start + removed, len - start - removed + 1);
+		v->length -= removed;
 		return;
 	}
 	struct variable *other = variable(ddo->script, n);
 	if (other == NULL)
 		return;
 	if (!strcmp(verb, "VAREQU"))
-		copy(v->text, other->text, VARIABLE_LENGTH);
+		set_value(v, other->text, other->length);
 	else if (!strcmp(verb, "VARLEN") || !strcmp(verb, "VARPOS")) {
 		size_t result = len;
 		if (!strcmp(verb, "VARPOS")) {
 			const char *needle = args ? st_ddofx_value(ddo, args) : "";
-			const char *pos    = *needle ? strstr(v->text, needle) : NULL;
-			result             = pos == NULL ? 0 : (size_t)(pos - v->text) + 1;
+			const struct variable *needle_var = args ? reference(ddo, args) : NULL;
+			size_t                 size       = needle_var ? needle_var->length : strlen(needle);
+			result                            = 0;
+			for (size_t i = 0; size && size <= len && i <= len - size; ++i) {
+				if (!memcmp(v->text + i, needle, size)) {
+					result = i + 1;
+					break;
+				}
+			}
 		}
 		other->type = NUMERIC;
 		set_number(other, (int64_t)result);
@@ -503,18 +584,19 @@ edit_variables(struct st_ddofx *ddo, struct variable *v, const char *verb, char 
 		size_t start = index <= 1 ? 0 : (size_t)index - 1;
 		if (start > len)
 			start = len;
-		copy(other->text, v->text + start, count < 0 ? 0 : (size_t)count);
+		size_t size = count < 0 ? 0 : (size_t)count;
+		set_value(other, v->text + start, size < len - start ? size : len - start);
 	}
 	else if (!strcmp(verb, "VARINS") && st_ddofx_field_number(ddo, &args, &index)) {
 		char   joined[2 * VARIABLE_LENGTH + 1];
 		size_t start  = index <= 1 ? 0 : (size_t)index - 1;
-		size_t length = strlen(other->text);
+		size_t length = other->length;
 		if (start > length)
 			start = length;
 		memcpy(joined, other->text, start);
 		memcpy(joined + start, v->text, len);
 		memcpy(joined + start + len, other->text + start, length - start + 1);
-		copy(other->text, joined, VARIABLE_LENGTH);
+		set_value(other, joined, len + length);
 	}
 }
 
@@ -538,19 +620,20 @@ variable_command(struct st_ddofx *ddo, const char *verb, char *args)
 	if (v == NULL)
 		return;
 	if (!strcmp(verb, "CAPVAR")) {
-		for (char *p = v->text; *p; ++p)
-			*p = (char)ascii_to_upper((unsigned char)*p);
+		for (size_t i = 0; i < v->length; ++i)
+			v->text[i] = (char)ascii_to_upper((unsigned char)v->text[i]);
 		return;
 	}
 	if (!strcmp(verb, "INCVAR") || !strcmp(verb, "DECVAR")) {
-		size_t len = strlen(v->text);
+		size_t len = v->length;
 		if (v->type == TEXT) {
 			if (*verb == 'I' && len < VARIABLE_LENGTH) {
 				v->text[len++] = ' ';
 				v->text[len]   = 0;
+				v->length      = len;
 			}
 			else if (*verb == 'D' && len)
-				v->text[len - 1] = 0;
+				v->text[--v->length] = 0;
 		}
 		else
 			arithmetic(s, v, verb, 1);
@@ -563,7 +646,7 @@ variable_command(struct st_ddofx *ddo, const char *verb, char *args)
 			return;
 		v->type = n == TEXT ? TEXT : NUMERIC;
 		if (!strcmp(verb, "DEFVAR"))
-			copy(v->text, args ? args : "", VARIABLE_LENGTH);
+			set_value(v, args ? args : "", args ? strlen(args) : 0);
 	}
 	else if (!strcmp(verb, "RNDVAR") || !strcmp(verb, "VARADD") || !strcmp(verb, "VARSUB")
 	         || !strcmp(verb, "VARMLT") || !strcmp(verb, "VARDIV"))
@@ -601,8 +684,17 @@ compare(const struct st_ddofx *ddo, const struct st_ddofx_sink *sink, const stru
 		integer(slave, &b);
 		relation = (a > b) - (a < b);
 	}
-	else
-		relation = ascii_case_compare(master, slave);
+	else {
+		const struct variable *rhs = reference(ddo, p->slave);
+		size_t                 a   = v ? v->length : strlen(master);
+		size_t                 b   = rhs ? rhs->length : strlen(slave);
+		relation                   = 0;
+		for (size_t i = 0; !relation && i < a && i < b; ++i)
+			relation =
+			    (int)ascii_to_upper((uint8_t)master[i]) - (int)ascii_to_upper((uint8_t)slave[i]);
+		if (!relation)
+			relation = (a > b) - (a < b);
+	}
 	*valid = true;
 	if (!strcmp(p->op, "="))
 		return relation == 0;
@@ -747,6 +839,8 @@ st_ddofx_script_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, 
 		st_ddofx_event_command(ddo, verb, args);
 	else if (root == '7')
 		named_return(ddo, sink, verb, args);
+	else if (!strcmp(verb, "INFSAV") || !strcmp(verb, "INFLOD"))
+		st_ddofx_info(ddo, sink, !strcmp(verb, "INFSAV"), args);
 	else if (!strcmp(verb, "IFVAR") || !strcmp(verb, "REPVAR") || !strcmp(verb, "REPMAC"))
 		repeat_macro(ddo, sink, verb, args);
 	else
