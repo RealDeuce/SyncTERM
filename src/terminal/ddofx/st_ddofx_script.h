@@ -12,16 +12,25 @@ struct st_ddofx_callback {
 enum st_ddofx_callback_kind { DDO_EVENT = 1, DDO_KEY, DDO_MOUSE, DDO_FIELD
 };
 
-enum st_ddofx_choice_kind {
+enum st_ddofx_group_kind {
 	DDO_RADIO,
-	DDO_CHECKBOX
+	DDO_CHECKBOX,
+	DDO_TEXT_FIELD
 };
 
+enum { ST_DDOFX_FIELD_REPLY_MAX = 120 }; /* Two 25-byte affixes and up to 70 edited bytes. */
+unsigned st_ddofx_text_field_count(const struct st_ddofx *);
+bool st_ddofx_text_field_hotkey(struct st_ddofx *, unsigned, uint16_t);
+bool st_ddofx_text_field_editing(const struct st_ddofx *);
+bool st_ddofx_text_field_edit(struct st_ddofx *, uint16_t);
+bool st_ddofx_next_text_field(struct st_ddofx *, unsigned anchor, unsigned *next);
+bool st_ddofx_text_field_value(const struct st_ddofx *, int32_t id, bool full, char out[ST_DDOFX_FIELD_REPLY_MAX+1]);
+bool st_ddofx_field_callback(struct st_ddofx *, const struct st_ddofx_callback *, const char *reply);
 unsigned st_ddofx_control_count(const struct st_ddofx *);
-bool     st_ddofx_choice_mouse(struct st_ddofx *, enum st_ddofx_choice_kind, unsigned slot, int x, int y);
+bool     st_ddofx_choice_mouse(struct st_ddofx *, enum st_ddofx_group_kind, unsigned slot, int x, int y);
 bool     st_ddofx_choices_consume_key(struct st_ddofx *, unsigned slot, uint16_t word);
-void     st_ddofx_execute_choices(struct st_ddofx *, enum st_ddofx_choice_kind, unsigned anchor);
-bool     st_ddofx_next_choice(struct st_ddofx *, enum st_ddofx_choice_kind, unsigned anchor, unsigned *next);
+void     st_ddofx_execute_group(struct st_ddofx *, enum st_ddofx_group_kind, unsigned anchor, bool submitted_by_key);
+bool     st_ddofx_next_choice(struct st_ddofx *, enum st_ddofx_group_kind, unsigned anchor, unsigned *next);
 
 unsigned st_ddofx_button_count(const struct st_ddofx *);
 bool     st_ddofx_button_key(struct st_ddofx *, unsigned, uint16_t);

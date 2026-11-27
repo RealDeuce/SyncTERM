@@ -1,0 +1,404 @@
+/* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
+#include <stdlib.h>
+#include <string.h>
+
+#include "st_ddofx_graphics_internal.h"
+#include "st_ddofx_script.h"
+#include "string_util.h"
+
+enum {
+	FIELD_COUNT = 250,
+	TEXT_MAX    = 70,
+	AFFIX_MAX   = 25
+};
+
+struct text_field {
+	struct st_ddofx_callback callback;
+	struct st_console_rect   area;
+	char                     text[TEXT_MAX + 1], before[AFFIX_MAX + 1], after[AFFIX_MAX + 1];
+	uint8_t                  font[4096];
+	unsigned                 limit, normal, selected, ink, filter, up, down;
+	uint8_t                  mask;
+	bool                     echo, caps, immediate, pass;
+	int32_t                  group;
+	uint16_t                 key;
+};
+
+struct st_ddofx_text_fields {
+	struct text_field *slots[FIELD_COUNT];
+	unsigned           order[FIELD_COUNT], count, highest;
+	unsigned           active, cursor;
+	bool               overwrite;
+};
+
+static struct st_ddofx_text_fields *
+fields(const struct st_ddofx *ddo)
+{
+	return ddo->graphics ? ddo->graphics->text_fields : NULL;
+}
+
+void
+st_ddofx_clear_text_fields(struct st_ddofx_graphics *g)
+{
+	struct st_ddofx_text_fields *t = g->text_fields;
+	if (t) {
+		for (unsigned i = 0; i < t->count; ++i)
+			free(t->slots[t->order[i] - 1]);
+		free(t);
+		g->text_fields = NULL;
+	}
+}
+
+unsigned
+st_ddofx_text_field_count(const struct st_ddofx *ddo)
+{
+	const struct st_ddofx_text_fields *t = fields(ddo);
+	return t ? t->highest : 0;
+}
+
+struct field_image {
+	struct st_ddofx_graphics *g;
+	const struct text_field  *f;
+	int                       caret;
+};
+
+static int
+paint(void *context, const struct st_pixel_buffer *pixels, struct st_console_rect *damage)
+{
+	const struct field_image    *image = context;
+	const struct text_field     *f     = image->f;
+	const struct st_console_rect a     = f->area;
+	if (pixels && (pixels->width != WIDTH || pixels->height != HEIGHT))
+		return 0;
+	unsigned paper = image->caret < 0 ? f->normal : f->selected;
+	for (unsigned y = a.y; y < a.y + a.height; ++y) {
+		if (pixels) {
+			size_t at = y * WIDTH + a.x;
+			for (unsigned x = 0; x < a.width; ++x)
+				pixels->primary[at + x] = pixels->alternate[at + x] = paper;
+		}
+		else
+			memset(image->g->page[WORK][y] + a.x, (int)paper, a.width);
+	}
+	size_t  length = strlen(f->text);
+	uint8_t visible[TEXT_MAX];
+	if (f->echo)
+		memset(visible, f->mask, length);
+	else
+		memcpy(visible, f->text, length);
+	struct bounds clip = {(int)a.x, (int)(a.x + a.width) - 1, (int)a.y, (int)(a.y + a.height) - 1};
+	st_ddofx_paint_vga_string(image->g, pixels, f->font, visible, (unsigned)length, a.x, a.y + a.height - 16,
+	    f->ink, paper, &clip);
+	if (pixels && image->caret >= 0) {
+		unsigned left = a.x + (unsigned)image->caret * 8;
+		for (unsigned x = left; x < left + 8 && x < a.x + a.width; ++x) {
+			size_t at           = (a.y + a.height - 1) * WIDTH + x;
+			pixels->primary[at] = pixels->alternate[at] = 15;
+		}
+	}
+	if (damage)
+		*damage = a;
+	return 0;
+}
+
+static void
+draw(struct st_ddofx *ddo, unsigned id, bool work)
+{
+	struct st_ddofx_text_fields *t     = fields(ddo);
+	struct field_image           image = {ddo->graphics, t->slots[id - 1],
+	    !work && t->active == id ? (int)t->cursor : -1};
+	if (work)
+		(void)paint(&image, NULL, NULL);
+	else
+		(void)st_console_modify_pixels(ddo->graphics->display, paint, &image);
+}
+
+static void
+affix(char dest[AFFIX_MAX + 1], const char *source)
+{
+	size_t n = 0;
+	for (; n < AFFIX_MAX && source[n]; ++n)
+		dest[n] = source[n] == '~' ? ',' : source[n];
+	dest[n] = 0;
+}
+
+static void
+define(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, unsigned id, char *args)
+{
+	const char *font = st_ddofx_field(&args), *text = st_ddofx_field(&args);
+	const char *before = st_ddofx_field(&args), *after = st_ddofx_field(&args);
+	int32_t     x, y, limit, normal, selected, ink, echo;
+	if (!after || !st_ddofx_field_number(ddo, &args, &x) || !st_ddofx_field_number(ddo, &args, &y)
+	    || !st_ddofx_field_number(ddo, &args, &limit) || !st_ddofx_field_number(ddo, &args, &normal)
+	    || !st_ddofx_field_number(ddo, &args, &selected) || !st_ddofx_field_number(ddo, &args, &ink)
+	    || !st_ddofx_field_number(ddo, &args, &echo))
+		return;
+	const char *mask = st_ddofx_field(&args);
+	int32_t     n[9];
+	for (unsigned i = 0; i < 9; ++i)
+		if (!st_ddofx_field_number(ddo, &args, n + i))
+			return;
+	if (!args || (unsigned)x >= WIDTH || y < 17 || y >= HEIGHT || limit < 1 || limit > TEXT_MAX
+	    || (unsigned)normal > 7 || (unsigned)selected > 7 || (unsigned)ink > 255 || (unsigned)echo > 1
+	    || (unsigned)n[0] > FIELD_COUNT || (unsigned)n[1] > FIELD_COUNT || (unsigned)n[2] > 1
+	    || (unsigned)n[4] > 2 || (unsigned)n[5] > 1 || (unsigned)n[6] > 255 || (unsigned)n[7] > 255
+	    || (unsigned)n[8] > 1)
+		return;
+	struct text_field *f = calloc(1, sizeof(*f));
+	if (!f)
+		return;
+	font = st_ddofx_value(ddo, font);
+	if (!st_ddofx_read_vga_font(sink, *font ? font : "IBMSTD.FNT", f->font)) {
+		const uint8_t *current = st_ddofx_vga_bitmap(ddo);
+		if (!current) {
+			free(f);
+			return;
+		}
+		memcpy(f->font, current, sizeof(f->font));
+	}
+	st_ddofx_callback_define(ddo, &f->callback, "", args);
+	affix(f->before, st_ddofx_value(ddo, before));
+	affix(f->after, st_ddofx_value(ddo, after));
+	snprintf(f->text, sizeof(f->text), "%.*s", TEXT_MAX, st_ddofx_value(ddo, text));
+	f->limit       = (unsigned)limit;
+	unsigned width = 8 * (f->limit + 1);
+	f->area =
+	    (struct st_console_rect) {x, y - 17, width < WIDTH - (unsigned)x ? width : WIDTH - (unsigned)x, 18};
+	f->normal                      = (unsigned)normal;
+	f->selected                    = (unsigned)selected;
+	f->ink                         = (unsigned)ink;
+	f->echo                        = echo != 0;
+	f->mask                        = (uint8_t)*mask;
+	f->up                          = (unsigned)n[0];
+	f->down                        = (unsigned)n[1];
+	f->immediate                   = n[2] == 0;
+	f->group                       = n[3];
+	f->filter                      = (unsigned)n[4];
+	f->caps                        = n[5] != 0;
+	f->key                         = (uint16_t)((n[6] << 8) | n[7]);
+	f->pass                        = n[8] != 0;
+	struct st_ddofx_text_fields *t = fields(ddo);
+	if (!t)
+		ddo->graphics->text_fields = t = calloc(1, sizeof(*t));
+	if (!t) {
+		free(f);
+		return;
+	}
+	if (!t->slots[id - 1])
+		t->order[t->count++] = id;
+	else
+		free(t->slots[id - 1]);
+	t->slots[id - 1] = f;
+	if (id > t->highest)
+		t->highest = id;
+	if (t->active == id)
+		t->active = 0;
+	draw(ddo, id, true);
+}
+
+static void
+finish_edit(struct st_ddofx *ddo)
+{
+	struct st_ddofx_text_fields *t = fields(ddo);
+	if (!t->active)
+		return;
+	unsigned           id = t->active;
+	struct text_field *f  = t->slots[id - 1];
+	if (f->caps)
+		for (char *p = f->text; *p; ++p)
+			*p = (char)ascii_to_upper((uint8_t)*p);
+	t->active = 0;
+	draw(ddo, id, false);
+}
+
+static void
+activate(struct st_ddofx *ddo, unsigned id)
+{
+	struct st_ddofx_text_fields *t = fields(ddo);
+	struct text_field           *f = t->slots[id - 1];
+	if (!f || !st_ddofx_callback_enabled(ddo, &f->callback) || id == t->active)
+		return;
+	finish_edit(ddo);
+	t->active    = id;
+	t->cursor    = (unsigned)strlen(f->text);
+	t->overwrite = false;
+	draw(ddo, id, false);
+}
+
+bool
+st_ddofx_text_field_hotkey(struct st_ddofx *ddo, unsigned slot, uint16_t word)
+{
+	struct st_ddofx_text_fields *t = fields(ddo);
+	struct text_field           *f = t && slot < t->highest ? t->slots[slot] : NULL;
+	if (!f || !word || (f->key != word && f->key != UINT16_MAX)
+	    || !st_ddofx_callback_enabled(ddo, &f->callback))
+		return false;
+	activate(ddo, slot + 1);
+	return !f->pass;
+}
+
+bool
+st_ddofx_text_field_mouse(struct st_ddofx *ddo, int x, int y)
+{
+	struct st_ddofx_text_fields *t = fields(ddo);
+	if (!t)
+		return false;
+	for (unsigned i = t->count; i > 0; --i) {
+		unsigned               id = t->order[i - 1];
+		struct text_field     *f  = t->slots[id - 1];
+		struct st_console_rect a  = f->area;
+		if ((unsigned)x >= a.x && (unsigned)x < a.x + a.width && (unsigned)y >= a.y
+		    && (unsigned)y < a.y + a.height && st_ddofx_callback_enabled(ddo, &f->callback)) {
+			activate(ddo, id);
+			return true;
+		}
+	}
+	finish_edit(ddo);
+	return false;
+}
+
+bool
+st_ddofx_text_field_editing(const struct st_ddofx *ddo)
+{
+	const struct st_ddofx_text_fields *t = fields(ddo);
+	return t && t->active && st_ddofx_callback_enabled(ddo, &t->slots[t->active - 1]->callback);
+}
+
+bool
+st_ddofx_text_field_edit(struct st_ddofx *ddo, uint16_t word)
+{
+	if (!st_ddofx_text_field_editing(ddo))
+		return false;
+	struct st_ddofx_text_fields *t  = fields(ddo);
+	unsigned                     id = t->active, ch = word & 255;
+	struct text_field           *f    = t->slots[id - 1];
+	char                        *text = f->text;
+	unsigned                     len  = (unsigned)strlen(text);
+	if (ch == 13 || ch == 27 || ch == 9 || word == 0x0f00 || word == 0x4800 || word == 0x5000) {
+		if (ch == 27)
+			*text = 0;
+		finish_edit(ddo);
+		unsigned link = word == 0x0f00 || word == 0x4800 ? f->up : f->down;
+		if (ch == 13 && f->immediate)
+			st_ddofx_execute_group(ddo, DDO_TEXT_FIELD, id, true);
+		else if (ch != 27 && link)
+			activate(ddo, link);
+		return true;
+	}
+	unsigned p = t->cursor;
+	if (word == 0x4700)
+		t->cursor = 0;
+	else if (word == 0x4f00)
+		t->cursor = len;
+	else if (word == 0x4b00 && p)
+		--t->cursor;
+	else if (word == 0x4d00 && p < len)
+		++t->cursor;
+	else if (word == 0x5200)
+		t->overwrite = !t->overwrite;
+	else if (word == 0x5300 && p < len)
+		memmove(text + p, text + p + 1, len - p);
+	else if (ch == 8 && p)
+		memmove(text + (--t->cursor), text + p, len - p + 1);
+	else if (ch >= 32 && ch != 127) {
+		unsigned upper = ascii_to_upper((uint8_t)ch);
+		if ((f->filter == 1 && (upper < 'A' || upper > 'Z'))
+		    || (f->filter == 2 && !ascii_is_digit((uint8_t)ch)))
+			return true;
+		if (t->overwrite && p < len)
+			text[t->cursor++] = (char)ch;
+		else if (len < f->limit) {
+			memmove(text + p + 1, text + p, len - p + 1);
+			text[t->cursor++] = (char)ch;
+		}
+	}
+	draw(ddo, id, false);
+	return true;
+}
+
+bool
+st_ddofx_text_field_value(const struct st_ddofx *ddo, int32_t id, bool full,
+    char out[ST_DDOFX_FIELD_REPLY_MAX + 1])
+{
+	const struct st_ddofx_text_fields *t = fields(ddo);
+	if (!t || id < 1 || (unsigned)id > t->highest || !t->slots[id - 1])
+		return false;
+	const struct text_field *f = t->slots[id - 1];
+	snprintf(out, ST_DDOFX_FIELD_REPLY_MAX + 1, "%s%s%s", full ? f->before : "", f->text,
+	    full ? f->after : "");
+	return true;
+}
+
+bool
+st_ddofx_next_text_field(struct st_ddofx *ddo, unsigned anchor, unsigned *next)
+{
+	struct st_ddofx_text_fields *t = fields(ddo);
+	if (!t || !t->slots[anchor - 1])
+		return false;
+	const struct text_field *target = t->slots[anchor - 1];
+	while (*next < t->count) {
+		unsigned                 id = t->order[(*next)++];
+		const struct text_field *f  = t->slots[id - 1];
+		if ((f == target || (f->group && f->group == target->group))
+		    && st_ddofx_callback_enabled(ddo, &f->callback)) {
+			char reply[ST_DDOFX_FIELD_REPLY_MAX + 1];
+			st_ddofx_text_field_value(ddo, id, true, reply);
+			return st_ddofx_field_callback(ddo, &f->callback, reply);
+		}
+	}
+	return false;
+}
+
+bool
+st_ddofx_text_field_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, const char *verb, char *args)
+{
+	bool create = !ascii_case_compare(verb, "5CTXTFLD"), show = !ascii_case_compare(verb, "5SHOWTFLD");
+	bool swap = !ascii_case_compare(verb, "5SWPTFLD"), execute = !ascii_case_compare(verb, "5EXTFLD");
+	if (!create && !show && !swap && !execute && ascii_case_compare(verb, "5ACTTFLD"))
+		return false;
+	int32_t id;
+	if (!st_ddofx_field_number(ddo, &args, &id) || (unsigned)id > FIELD_COUNT)
+		return true;
+	if (create) {
+		if (!id)
+			st_ddofx_clear_text_fields(ddo->graphics);
+		else
+			define(ddo, sink, (unsigned)id, args);
+		return true;
+	}
+	struct st_ddofx_text_fields *t = fields(ddo);
+	if (!t || !id)
+		return true;
+	if (swap) {
+		int32_t other;
+		if (!st_ddofx_numbers(ddo, args, &other, 1) || other < 1 || other > FIELD_COUNT)
+			return true;
+		struct text_field *first = t->slots[id - 1], *second = t->slots[other - 1];
+		if (!first || !second)
+			for (unsigned i = 0; i < t->count; ++i) {
+				if (t->order[i] == (unsigned)id)
+					t->order[i] = (unsigned)other;
+				else if (t->order[i] == (unsigned)other)
+					t->order[i] = (unsigned)id;
+			}
+		t->slots[id - 1]    = second;
+		t->slots[other - 1] = first;
+		if (t->active == (unsigned)id)
+			t->active = (unsigned)other;
+		else if (t->active == (unsigned)other)
+			t->active = (unsigned)id;
+		if (t->highest < (unsigned)other && first)
+			t->highest = (unsigned)other;
+		if (t->highest < (unsigned)id && second)
+			t->highest = (unsigned)id;
+	}
+	else if (!args && t->slots[id - 1]) {
+		if (show)
+			draw(ddo, (unsigned)id, true);
+		else if (execute)
+			st_ddofx_execute_group(ddo, DDO_TEXT_FIELD, (unsigned)id, false);
+		else
+			activate(ddo, (unsigned)id);
+	}
+	return true;
+}

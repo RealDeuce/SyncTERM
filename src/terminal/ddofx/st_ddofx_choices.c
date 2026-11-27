@@ -29,6 +29,9 @@ unsigned
 st_ddofx_control_count(const struct st_ddofx *ddo)
 {
 	unsigned count = st_ddofx_button_count(ddo);
+	unsigned fields = st_ddofx_text_field_count(ddo);
+	if (fields > count)
+		count = fields;
 	if (ddo->graphics) {
 		for (unsigned i = 0; i < 2; ++i) {
 			const struct st_ddofx_choices *table = ddo->graphics->choices[i];
@@ -77,7 +80,7 @@ fill_visible(void *context, const struct st_pixel_buffer *pixels, const uint32_t
 }
 
 static void
-paint(struct st_ddofx_graphics *g, enum st_ddofx_choice_kind kind, const struct choice *c, enum page page,
+paint(struct st_ddofx_graphics *g, enum st_ddofx_group_kind kind, const struct choice *c, enum page page,
     bool selection_changed)
 {
 	const char                   *name = !c->enabled ? c->disabled : c->selected ? c->on : c->off;
@@ -109,7 +112,7 @@ paint(struct st_ddofx_graphics *g, enum st_ddofx_choice_kind kind, const struct 
 }
 
 static void
-define(struct st_ddofx *ddo, enum st_ddofx_choice_kind kind, unsigned slot, char *args)
+define(struct st_ddofx *ddo, enum st_ddofx_group_kind kind, unsigned slot, char *args)
 {
 	struct st_ddofx_graphics *g = ddo->graphics;
 	struct choice             c = {0};
@@ -176,7 +179,7 @@ define(struct st_ddofx *ddo, enum st_ddofx_choice_kind kind, unsigned slot, char
 }
 
 static void
-toggle(struct st_ddofx_graphics *g, enum st_ddofx_choice_kind kind, struct choice *c)
+toggle(struct st_ddofx_graphics *g, enum st_ddofx_group_kind kind, struct choice *c)
 {
 	if (c->exclusive) {
 		if (c->selected)
@@ -200,10 +203,10 @@ st_ddofx_choices_consume_key(struct st_ddofx *ddo, unsigned slot, uint16_t word)
 	if (!ddo->graphics || !word)
 		return false;
 
-	const enum st_ddofx_choice_kind order[] = {DDO_CHECKBOX, DDO_RADIO};
+	const enum st_ddofx_group_kind order[] = {DDO_CHECKBOX, DDO_RADIO};
 
 	for (unsigned i = 0; i < 2; ++i) {
-		enum st_ddofx_choice_kind kind  = order[i];
+		enum st_ddofx_group_kind kind  = order[i];
 		struct st_ddofx_choices  *table = ddo->graphics->choices[kind];
 		if (!table || slot >= table->count)
 			continue;
@@ -218,7 +221,7 @@ st_ddofx_choices_consume_key(struct st_ddofx *ddo, unsigned slot, uint16_t word)
 }
 
 bool
-st_ddofx_choice_mouse(struct st_ddofx *ddo, enum st_ddofx_choice_kind kind, unsigned slot, int x, int y)
+st_ddofx_choice_mouse(struct st_ddofx *ddo, enum st_ddofx_group_kind kind, unsigned slot, int x, int y)
 {
 	struct st_ddofx_choices *table = ddo->graphics->choices[kind];
 	if (!table || slot >= table->count || !table->slots[slot].enabled)
@@ -233,7 +236,7 @@ st_ddofx_choice_mouse(struct st_ddofx *ddo, enum st_ddofx_choice_kind kind, unsi
 }
 
 bool
-st_ddofx_next_choice(struct st_ddofx *ddo, enum st_ddofx_choice_kind kind, unsigned anchor, unsigned *next)
+st_ddofx_next_choice(struct st_ddofx *ddo, enum st_ddofx_group_kind kind, unsigned anchor, unsigned *next)
 {
 	struct st_ddofx_choices *table = ddo->graphics ? ddo->graphics->choices[kind] : NULL;
 	if (!table || anchor > table->count)
@@ -263,7 +266,7 @@ st_ddofx_choice_command(struct st_ddofx *ddo, const char *verb, char *args)
 
 	static const struct {
 		const char               *name;
-		enum st_ddofx_choice_kind kind;
+		enum st_ddofx_group_kind kind;
 		int                       op;
 	} commands[] = {
 	    {"5CRBUTTON", DDO_RADIO,    CREATE },
@@ -282,7 +285,7 @@ st_ddofx_choice_command(struct st_ddofx *ddo, const char *verb, char *args)
 		int32_t slot, value;
 		if (!st_ddofx_field_number(ddo, &args, &slot) || (unsigned)slot > CHOICE_COUNT)
 			return true;
-		enum st_ddofx_choice_kind kind  = commands[i].kind;
+		enum st_ddofx_group_kind kind  = commands[i].kind;
 		struct st_ddofx_choices  *table = ddo->graphics->choices[kind];
 		if (commands[i].op == CREATE)
 			define(ddo, kind, (unsigned)slot, args);
@@ -291,7 +294,7 @@ st_ddofx_choice_command(struct st_ddofx *ddo, const char *verb, char *args)
 			switch (commands[i].op) {
 				case EXECUTE:
 					if (!args && c->on[0])
-						st_ddofx_execute_choices(ddo, kind, (unsigned)slot);
+						st_ddofx_execute_group(ddo, kind, (unsigned)slot, false);
 					break;
 				case SWAP:
 					if (st_ddofx_numbers(ddo, args, &value, 1) && value >= 1

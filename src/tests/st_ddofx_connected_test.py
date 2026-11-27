@@ -1091,6 +1091,66 @@ def check_choices(t, mouse):
     t.exchange(commands(b"5CCHKBOX,0", b"5EXCBOX,299", b"2RESET"))
 
 
+def check_text_fields(t, root, mouse):
+    t.case("desktop text fields edit locally, mask input, follow links and submit in creation order")
+    marker, = root.rglob("syncterm-cache-name.txt")
+    fonts = marker.parent / "DDOFX" / "FONTS"
+    glyphs = bytearray(4096)
+    glyphs[ord("*")*16:(ord("*")+1)*16] = b"\x80"*16
+    (fonts / "EDIT.FNT").write_bytes(glyphs)
+    name = b"5CTXTFLD,250,EDIT.FNT,ab,(,^M,30,80,7,1,4,20,1,*,0,2,1,12,1,1,59,0,0,\x1d(7SRET,1)"
+    number = b"5CTXTFLD,2,IBMSTD.FNT,1,[,],635,90,4,3,5,11,0,,250,0,0,12,2,0,60,0,1,"
+    pos = lambda x,y: y*640+x
+    f = t.exchange(commands(b"2aERASE", b"2CPYWP2VP", b"7DEFRET,1,M", name, number,
+                            b"2aG,30,67", b"2aG,31,67", b"2aG,639,73"), b"20\xff1\xff3\xff")
+    assert f.primary[pos(30,67)] == 0
+    t.exchange(commands(b"2CPYWP2VP", b"~DEFVAR,777,1,", b"~DEFVAR,778,2,0"))
+    t.client.key("f1")
+    t.client.wait_for(lambda f: f.primary[pos(31,67)] == 4)
+    t.client.text("c7!")
+    t.client.key("home")
+    t.client.text("d")
+    t.client.key("end")
+    t.client.key("backspace")
+    t.client.key("tab")
+    t.client.wait_for(lambda f: f.primary[pos(635,73)] == 5)
+    t.client.text("x23")
+    t.client.key("enter")
+    t.input(b"M(DAB\r[123]")
+    f = t.exchange(commands(b"~GTXTFLD+,777,250", b"~GTXTFLD-,778,2", b"~INCVAR,778",
+                            b"7DEFRET,2,DEFVAR777", b"7SRET,2", b"7DEFRET,2,DEFVAR778", b"7SRET,2"),
+                   b"(DAB\r124")
+    for plane in (f.primary, f.alternate):
+        assert plane[pos(30,67)] == 20 and plane[pos(31,67)] == 1
+    t.exchange(commands(b"5SWPTFLD,250,2", b"5EXTFLD,2"), b"[123]M(DAB\r")
+    t.exchange(commands(b"5SWPTFLD,2,250"))
+    mouse(31,67,1)
+    mouse(31,67,0)
+    t.client.wait_for(lambda f: f.primary[pos(31,67)] == 4)
+    t.client.key("escape")
+    t.client.wait_for(lambda f: f.primary[pos(31,67)] == 1)
+    t.exchange(commands(b"5EXTFLD,250", b"5ACTTFLD,250"), b"M(\r[123]")
+    t.client.text("q")
+    t.client.key("enter")
+    t.client.wait_for(lambda f: f.primary[pos(635,73)] == 5)
+    t.client.key("tab", 1)
+    t.client.wait_for(lambda f: f.primary[pos(31,67)] == 4)
+    # SHOW redraws the unselected field on WP while editing continues on VP.
+    f = t.exchange(commands(b"2aERASE", b"5SHOWTFLD,250", b"2aG,31,67"), b"1\xff")
+    assert f.primary[pos(31,67)] == 4
+    t.exchange(commands(b"5CTXTFLD,0", b"7DEFRET,1,S"))
+    full = b"5CTXTFLD,1,EDIT.FNT," + b"z"*70 + b"," + b"B"*25 + b"," + b"A"*23 + b"^@,"
+    full += b"0,479,70,1,4,9,0,,0,0,0,0,0,0,0,0,0,\x1d(w1)\x1d(7SRET,1)"
+    t.exchange(commands(full, b"5ACTTFLD,1"))
+    t.client.key("enter")
+    t.client.text("x")
+    t.input(b"S" + b"B"*25 + b"z"*70 + b"A"*23 + b"\x00x")
+    t.exchange(commands(b"5CTXTFLD,0", b"5EXTFLD,2", b"~GTXTFLD-,778,2", b"7DEFRET,2,DEFVAR778",
+                        b"7SRET,2", b"2RESET"), b"124")
+    t.client.text("x")
+    t.input(b"x")
+
+
 def check_mouse(t, root):
     t.case("Normal mouse region callbacks and button history")
     frame = t.exchange(commands(b"LIGMODE", b"LIGMODE", b"3MACT", b"dMOUSE"), b"Y\xff3\xff")
@@ -1148,6 +1208,7 @@ def check_mouse(t, root):
     t.exchange(commands(b"3MINF", b"2RESET"), b"112,90,0\xff")
     check_push_buttons(t, mouse)
     check_choices(t, mouse)
+    check_text_fields(t, root, mouse)
     check_pointers(t, root, mouse)
     t.exchange(commands(b"3MREGN,300,70,85,40,55,3,B,", b"7DEFRET,1,M",
                         b"3MREGN,1,70,85,40,55,3,A~^M,\x1d(w1)\x1d(7SRET,1)",

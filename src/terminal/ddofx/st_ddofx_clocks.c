@@ -124,7 +124,7 @@ draw_face(const struct clock_face *face, const struct st_pixel_buffer *pixels, i
 	if (face->font) {
 		uint8_t text[8] = {'0' + hour / 10, '0' + hour % 10, ':', '0' + minute / 10, '0' + minute % 10,
 		    ':', '0' + second / 10, '0' + second % 10};
-		st_ddofx_paint_vga_string(pixels, face->font, text, 8, face->bounds.x, face->bounds.y,
+		st_ddofx_paint_vga_string(NULL, pixels, face->font, text, 8, face->bounds.x, face->bounds.y,
 		    face->colours[0], face->colours[1], clip);
 		return;
 	}

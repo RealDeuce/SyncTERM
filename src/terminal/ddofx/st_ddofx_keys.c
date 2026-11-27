@@ -218,7 +218,7 @@ next_binding(struct st_ddofx *ddo)
 		}
 		keys->checked_button = false;
 		++keys->next;
-		if (st_ddofx_choices_consume_key(ddo, slot, keys->word))
+		if (st_ddofx_text_field_hotkey(ddo, slot, keys->word) || st_ddofx_choices_consume_key(ddo, slot, keys->word))
 			return KEY_CONSUMED;
 		struct binding *b = &keys->bindings[slot];
 		if (b->word && (b->word == keys->word || b->word == UINT16_MAX)
@@ -268,7 +268,7 @@ st_ddofx_key(struct st_ddofx *ddo, const struct st_console_event *e)
 				keys->physical_scan = 0;
 				keys->alt_echo      = 0;
 			}
-			return ddo->keys_locked;
+			return ddo->keys_locked || st_ddofx_text_field_editing(ddo);
 		}
 		keys->physical_scan = scan <= 83 ? scan : 0;
 		keys->alt_echo      = 0;
@@ -277,7 +277,7 @@ st_ddofx_key(struct st_ddofx *ddo, const struct st_console_event *e)
 		if (!(e->data.physical_key.modifiers & ST_CONSOLE_MODIFIER_ALT)
 		    || !((scan >= 2 && scan <= 13) || (scan >= 16 && scan <= 27) || (scan >= 30 && scan <= 41)
 		         || (scan >= 43 && scan <= 53)))
-			return ddo->keys_locked;
+			return ddo->keys_locked || st_ddofx_text_field_editing(ddo);
 		word = alt_word(scan);
 	}
 	else {
@@ -291,7 +291,14 @@ st_ddofx_key(struct st_ddofx *ddo, const struct st_console_event *e)
 	}
 	/* A Unicode text event can match the wildcard even without a DOS encoding. */
 	if (!word && e->type != ST_CONSOLE_EVENT_TEXT)
-		return ddo->keys_locked;
+		return ddo->keys_locked || st_ddofx_text_field_editing(ddo);
+	if (st_ddofx_text_field_edit(ddo, word)) {
+		if (e->type == ST_CONSOLE_EVENT_PHYSICAL_KEY) {
+			keys->alt_echo = word;
+			keys->pass_echo = false;
+		}
+		return true;
+	}
 	keys->word = word;
 	keys->next = 0;
 	keys->checked_button = false;

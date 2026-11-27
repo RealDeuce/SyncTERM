@@ -44,13 +44,14 @@ struct macro_frame {
 	int                    remaining;
 	bool                   until;
 	struct predicate       condition;
-	char                   after_reply[101];
+	char                   after_reply[ST_DDOFX_FIELD_REPLY_MAX + 1];
+	bool                   submitted_by_key;
 	enum st_ddofx_callback_kind callback;
 	bool saved_in_event;
 	uint64_t               saved_wait;
 	unsigned                    pressed_button;
-	enum st_ddofx_choice_kind   choice_kind;
-	unsigned choice_anchor, choice_next; /* Anchor is one-based, zero for ordinary macro frames. */
+	enum st_ddofx_group_kind   group_kind;
+	unsigned group_anchor, group_next; /* Anchor is one-based, zero for ordinary macro frames. */
 };
 
 struct st_ddofx_script {
@@ -445,15 +446,27 @@ st_ddofx_callback_start(struct st_ddofx *ddo, const struct st_ddofx_callback *cb
 	return f != NULL;
 }
 
+bool
+st_ddofx_field_callback(struct st_ddofx *ddo, const struct st_ddofx_callback *cb, const char *reply)
+{
+	if (!st_ddofx_callback_start(ddo, cb, DDO_EVENT))
+		return false;
+	copy(ddo->script->top->after_reply, reply, sizeof(ddo->script->top->after_reply)-1);
+	return true;
+}
+
 void
-st_ddofx_execute_choices(struct st_ddofx *ddo, enum st_ddofx_choice_kind kind, unsigned anchor)
+st_ddofx_execute_group(struct st_ddofx *ddo, enum st_ddofx_group_kind kind, unsigned anchor, bool submitted_by_key)
 {
 	if (!script_ready(ddo))
 		return;
 	struct macro_frame *f = push(ddo->script);
 	if (f) {
-		f->choice_kind   = kind;
-		f->choice_anchor = anchor;
+		f->group_kind   = kind;
+		f->group_anchor = anchor;
+		f->submitted_by_key = submitted_by_key;
+		if (submitted_by_key)
+			ddo->in_key = true;
 	}
 }
 
@@ -758,9 +771,15 @@ st_ddofx_script_step(struct st_ddofx *ddo, const struct st_ddofx_sink *sink)
 {
 	struct st_ddofx_script *s = ddo->script;
 	struct macro_frame     *f = s->top;
-	if (f->choice_anchor) {
-		if (!st_ddofx_next_choice(ddo, f->choice_kind, f->choice_anchor, &f->choice_next))
+	if (f->group_anchor) {
+		bool started = f->group_kind == DDO_TEXT_FIELD
+		    ? st_ddofx_next_text_field(ddo, f->group_anchor, &f->group_next)
+		    : st_ddofx_next_choice(ddo, f->group_kind, f->group_anchor, &f->group_next);
+		if (!started) {
+			if (f->submitted_by_key)
+				ddo->in_key = false;
 			pop(s);
+		}
 		return 0;
 	}
 	if (f->pressed_button) {
@@ -839,6 +858,20 @@ st_ddofx_script_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, 
 		st_ddofx_event_command(ddo, verb, args);
 	else if (root == '7')
 		named_return(ddo, sink, verb, args);
+	else if (!strcmp(verb, "GTXTFLD+") || !strcmp(verb, "GTXTFLD-")) {
+		int32_t id, field;
+		if (!st_ddofx_field_number(ddo, &args, &id) || !st_ddofx_field_number(ddo, &args, &field) || args)
+			return;
+		struct variable *v = variable(ddo->script, id);
+		bool full = verb[7] == '+';
+		char result[ST_DDOFX_FIELD_REPLY_MAX+1];
+		if (v && st_ddofx_text_field_value(ddo, field, full, result)) {
+			size_t len = strlen(result);
+			if (full)
+				len = decode_controls((uint8_t *)result, result, len, true);
+			set_value(v, result, len);
+		}
+	}
 	else if (!strcmp(verb, "INFSAV") || !strcmp(verb, "INFLOD"))
 		st_ddofx_info(ddo, sink, !strcmp(verb, "INFSAV"), args);
 	else if (!strcmp(verb, "IFVAR") || !strcmp(verb, "REPVAR") || !strcmp(verb, "REPMAC"))

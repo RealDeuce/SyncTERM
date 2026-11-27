@@ -145,10 +145,10 @@ paint(void *context, const struct st_pixel_buffer *pixels, struct st_console_rec
 }
 
 void
-st_ddofx_paint_vga_string(const struct st_pixel_buffer *pixels, const uint8_t *bitmap, const uint8_t *text,
+st_ddofx_paint_vga_string(struct st_ddofx_graphics *g, const struct st_pixel_buffer *pixels, const uint8_t *bitmap, const uint8_t *text,
     unsigned length, int x, int top, unsigned ink, unsigned paper, const struct bounds *clip)
 {
-	struct text_run run = {.clip = clip,
+	struct text_run run = {.g = g, .page = WORK, .clip = clip,
 	    .font                    = bitmap,
 	    .text                    = text,
 	    .length                  = (int)length,

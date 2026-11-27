@@ -308,7 +308,7 @@ st_ddofx_resume_mouse(struct st_ddofx *ddo)
 	while (scan->buttons && (scan->next < regions || scan->next < st_ddofx_control_count(ddo))) {
 		unsigned slot = scan->next;
 		while (scan->stage < 2) {
-			enum st_ddofx_choice_kind kind = scan->stage++ == 0 ? DDO_RADIO : DDO_CHECKBOX;
+			enum st_ddofx_group_kind kind = scan->stage++ == 0 ? DDO_RADIO : DDO_CHECKBOX;
 			if (scan->buttons == 1 && st_ddofx_choice_mouse(ddo, kind, slot, scan->x, scan->y)
 			    && mouse->buttons) {
 				scan->waiting = true;
@@ -429,6 +429,10 @@ st_ddofx_mouse(struct st_ddofx *ddo, const struct st_console_event *event)
 			++mouse->history[i][release].count;
 		mouse->history[i][release].x = mouse->x;
 		mouse->history[i][release].y = mouse->y;
+	}
+	if ((changed & 1) && buttons == 1 && !mouse->outside && st_ddofx_text_field_mouse(ddo, mouse->x, mouse->y)) {
+		mouse->ignore_hold = true;
+		return;
 	}
 	if (moved && mouse->fields)
 		mouse->fields->dirty = true;

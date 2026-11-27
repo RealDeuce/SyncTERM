@@ -59,6 +59,7 @@ clear_graphics_objects(struct st_ddofx_graphics *g)
 		free(g->choices[i]);
 		g->choices[i] = NULL;
 	}
+	st_ddofx_clear_text_fields(g);
 	free(g->buttons);
 	g->buttons = NULL;
 	free(g->mouse.fields);
