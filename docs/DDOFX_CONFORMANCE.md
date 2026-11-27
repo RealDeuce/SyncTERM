@@ -10,6 +10,8 @@ BBS sound themes, resident sound bites and big-sample profiles use signed 8-bit 
 
 An online pair of `LIGMODE` commands enters Normal mode on a pixel display. The visible page is 640×480 with 256 palette entries. The work, background and hidden pages store pixel indices. Whole-page copies, rectangular cuts anchored at the lower left, transparent cuts, work-page drawing, vertical scrolling and palette changes are available from a connection. Ordinary ANSI goes to an 80×100 virtual text page with the top 30 rows visible. `2GEXIT` restores the Lite screen, cursor and palette. Named text windows and window scrolling remain pending.
 
+Sprites can be captured from any of the four graphics pages. The SDK repeats the background spelling for hidden-page capture. SyncTERM accepts `2SH` for the hidden page. Simple sprite definitions and animation frames share the SDK stack. `2DSS` restores the buffered regions from the background, draws the current frame in stack order, then publishes the regions to the visual page.
+
 Loose-file queries read the entry’s `DDOFX/MUSIC`, `DDOFX/FONTS`, and `DDOFX/BBSTHEME` directories. Professional queries use `DDOFX/TERMS/<client>`. Names use DOS-style case matching. The timestamp is local modification time with DOS two-second precision. `8EXEC` consumes the command without starting a program.
 
 Resource assignment selects the M container in `DDOFX/BBSTHEME` for local scripts. Scripts up to 40,000 bytes can call other scripts and render DOS text. A resource entry query tests the member name and component ID. Conditional scripts can also read that ID.
@@ -169,32 +171,32 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 6544 | LOAD VISUAL PAGE PCX | DDO-FX (NM) | Pending |
 | 6556 | LOAD WORK PAGE PCX | DDO-FX (NM) | Pending |
 | 6568 | LOAD BACKGROUND PAGE PCX | DDO-FX (NM) | Pending |
-| 6580 | GET SPRITE | DDO-FX (NM) | Pending |
-| 6669 | GET SPRITE VISUAL PAGE | DDO-FX (NM) | Pending |
-| 6679 | GET SPRITE BACKGROUND PAGE | DDO-FX (NM) | Pending |
-| 6689 | GET SPRITE HIDDEN PAGE | DDO-FX (NM) | Pending |
-| 6699 | DRAW SPRITE | DDO-FX (NM) | Pending |
-| 6725 | DRAW SPRITE VISUAL PAGE | DDO-FX (NM) | Pending |
-| 6733 | DRAW SPRITE BACKGROUND PAGE | DDO-FX (NM) | Pending |
-| 6741 | DRAW SPRITE HIDDEN PAGE | DDO-FX (NM) | Pending |
-| 6749 | CLIP SPRITE | DDO-FX (NM) | Pending |
-| 6762 | CLIP SPRITE VISUAL PAGE | DDO-FX (NM) | Pending |
-| 6769 | CLIP SPRITE BACKGROUND PAGE | DDO-FX (NM) | Pending |
-| 6776 | CLIP SPRITE HIDDEN PAGE | DDO-FX (NM) | Pending |
-| 6783 | FLIP SPRITE | DDO-FX (NM) | Pending |
-| 6799 | FLIP SPRITE VISUAL PAGE | DDO-FX (NM) | Pending |
-| 6806 | FLIP SPRITE BACKGROUND PAGE | DDO-FX (NM) | Pending |
-| 6813 | FLIP SPRITE HIDDEN PAGE | DDO-FX (NM) | Pending |
-| 6820 | REVERSE SPRITE | DDO-FX (NM) | Pending |
-| 6831 | REVERSE SPRITE VISUAL PAGE | DDO-FX (NM) | Pending |
-| 6838 | REVERSE SPRITE BACKGROUND PAGE | DDO-FX (NM) | Pending |
-| 6845 | REVERSE SPRITE HIDDEN PAGE | DDO-FX (NM) | Pending |
-| 6852 | PUT SPRITE | DDO-FX (NM) | Pending |
-| 6861 | PUT SPRITE VISUAL PAGE | DDO-FX (NM) | Pending |
-| 6868 | PUT SPRITE BACKGROUND PAGE | DDO-FX (NM) | Pending |
-| 6875 | PUT SPRITE HIDDEN PAGE | DDO-FX (NM) | Pending |
-| 6882 | INVERT SPRITE | DDO-FX (NM) | Pending |
-| 6895 | FREE ALL SPRITES | DDO-FX (NM) | Pending |
+| 6580 | GET SPRITE | DDO-FX (NM) | Connected |
+| 6669 | GET SPRITE VISUAL PAGE | DDO-FX (NM) | Connected |
+| 6679 | GET SPRITE BACKGROUND PAGE | DDO-FX (NM) | Connected |
+| 6689 | GET SPRITE HIDDEN PAGE | DDO-FX (NM) | Connected |
+| 6699 | DRAW SPRITE | DDO-FX (NM) | Connected |
+| 6725 | DRAW SPRITE VISUAL PAGE | DDO-FX (NM) | Connected |
+| 6733 | DRAW SPRITE BACKGROUND PAGE | DDO-FX (NM) | Connected |
+| 6741 | DRAW SPRITE HIDDEN PAGE | DDO-FX (NM) | Connected |
+| 6749 | CLIP SPRITE | DDO-FX (NM) | Connected |
+| 6762 | CLIP SPRITE VISUAL PAGE | DDO-FX (NM) | Connected |
+| 6769 | CLIP SPRITE BACKGROUND PAGE | DDO-FX (NM) | Connected |
+| 6776 | CLIP SPRITE HIDDEN PAGE | DDO-FX (NM) | Connected |
+| 6783 | FLIP SPRITE | DDO-FX (NM) | Connected |
+| 6799 | FLIP SPRITE VISUAL PAGE | DDO-FX (NM) | Connected |
+| 6806 | FLIP SPRITE BACKGROUND PAGE | DDO-FX (NM) | Connected |
+| 6813 | FLIP SPRITE HIDDEN PAGE | DDO-FX (NM) | Connected |
+| 6820 | REVERSE SPRITE | DDO-FX (NM) | Connected |
+| 6831 | REVERSE SPRITE VISUAL PAGE | DDO-FX (NM) | Connected |
+| 6838 | REVERSE SPRITE BACKGROUND PAGE | DDO-FX (NM) | Connected |
+| 6845 | REVERSE SPRITE HIDDEN PAGE | DDO-FX (NM) | Connected |
+| 6852 | PUT SPRITE | DDO-FX (NM) | Connected |
+| 6861 | PUT SPRITE VISUAL PAGE | DDO-FX (NM) | Connected |
+| 6868 | PUT SPRITE BACKGROUND PAGE | DDO-FX (NM) | Connected |
+| 6875 | PUT SPRITE HIDDEN PAGE | DDO-FX (NM) | Connected |
+| 6882 | INVERT SPRITE | DDO-FX (NM) | Connected |
+| 6895 | FREE ALL SPRITES | DDO-FX (NM) | Connected |
 | 6904 | STORE ALL SPRITES | DDO-FX (NM) | Pending |
 | 6919 | LOAD ALL SPRITES | DDO-FX (NM) | Pending |
 | 6939 | DEFINE ANIM PROFILE | DDO-FX (NM) | Pending |
@@ -206,11 +208,11 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 7339 | RESOLUTION ANIMATOR | DDO-FX (NM) | Pending |
 | 7383 | DEFINE MOTION PROFILE | DDO-FX (NM) | Pending |
 | 7466 | DEFINE MOTION FRAME CONTROL | DDO-FX (NM) | Pending |
-| 7534 | DEFINE SIMPLE SPRITE | DDO-FX (NM) | Pending |
-| 7652 | DEFINE SIMPLE SPRITE ANIMATION | DDO-FX (NM) | Pending |
-| 7733 | CLEAR SIMPLE SPRITES | DDO-FX (NM) | Pending |
-| 7747 | CLEAR ALL SIMPLE SPRITES | DDO-FX (NM) | Pending |
-| 7754 | DRAW SIMPLE SPRITES | DDO-FX (NM) | Pending |
+| 7534 | DEFINE SIMPLE SPRITE | DDO-FX (NM) | Connected |
+| 7652 | DEFINE SIMPLE SPRITE ANIMATION | DDO-FX (NM) | Connected |
+| 7733 | CLEAR SIMPLE SPRITES | DDO-FX (NM) | Connected |
+| 7747 | CLEAR ALL SIMPLE SPRITES | DDO-FX (NM) | Connected |
+| 7754 | DRAW SIMPLE SPRITES | DDO-FX (NM) | Connected |
 | 7765 | COPY BACKGROUND PAGE TO HIDDEN PAGE | DDO-FX (NM) | Connected |
 | 7824 | COPY HIDDEN PAGE TO BACKGROUND PAGE | DDO-FX (NM) | Connected |
 | 7831 | COPY WORK PAGE TO HIDDEN PAGE | DDO-FX (NM) | Connected |

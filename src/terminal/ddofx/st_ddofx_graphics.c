@@ -51,6 +51,8 @@ st_ddofx_graphics_exit(struct st_ddofx *ddo)
 	struct st_ddofx_graphics *g = ddo->graphics;
 	if (!g)
 		return;
+	free(g->simple);
+	st_ddofx_free_sprites(g);
 	st_cterm_destroy(&g->text);
 	st_font_catalog_destroy(g->fonts);
 	if (g->view)
@@ -165,8 +167,8 @@ page_name(const char *s, enum page *page)
 
 /* Most source pixels already carry hardware indices. Text extensions can
  * paint direct RGB, in which case capture the nearest available DAC entry. */
-static uint8_t
-index_of(const uint32_t *palette, uint32_t pixel)
+uint8_t
+st_ddofx_pixel_index(const uint32_t *palette, uint32_t pixel)
 {
 	if (pixel < 256)
 		return (uint8_t)pixel;
@@ -205,7 +207,7 @@ copy_region(void *context, const struct st_pixel_buffer *pixels, const uint32_t 
 		size_t from = (size_t)(t->y + row) * WIDTH + t->x;
 		size_t to   = (size_t)(t->dy + row) * WIDTH + t->dx;
 		for (int x = 0; x < t->width; ++x) {
-			uint8_t index = src ? src[x] : index_of(palette, pixels->primary[from + x]);
+			uint8_t index = src ? src[x] : st_ddofx_pixel_index(palette, pixels->primary[from + x]);
 			if (t->transparent && g->transparent[index])
 				continue;
 			if (dst)
@@ -220,7 +222,7 @@ copy_region(void *context, const struct st_pixel_buffer *pixels, const uint32_t 
 		 * Read back after the copy so a cut from HP can overlap its source. */
 		for (int y = t->dy; y < t->dy + t->height; ++y) {
 			for (int x = t->dx; x < t->dx + t->width; ++x)
-				g->page[HIDDEN][y][x] = index_of(palette, pixels->primary[y * WIDTH + x]);
+				g->page[HIDDEN][y][x] = st_ddofx_pixel_index(palette, pixels->primary[y * WIDTH + x]);
 		}
 	}
 	return 0;
@@ -396,6 +398,11 @@ st_ddofx_graphics_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink
 	}
 	else if (!ascii_case_compare(verb, "2C") && st_ddofx_numbers(ddo, args, n, 1) && (unsigned)n[0] <= 255)
 		g->colour = (uint8_t)n[0];
+	else if (!strcmp(verb, "2SS") || !strcmp(verb, "2SSA") || !strcmp(verb, "2CSS")
+	    || !strcmp(verb, "2ACSS") || !strcmp(verb, "2DSS"))
+		st_ddofx_simple_command(ddo, verb, args);
+	else if (verb[1] == 'S' || verb[1] == 's')
+		st_ddofx_sprite_command(ddo, verb, args);
 	else if (verb[1] == 'a') {
 		const char *op = verb + 2;
 		if (!ascii_case_compare(op, "SCROLL"))

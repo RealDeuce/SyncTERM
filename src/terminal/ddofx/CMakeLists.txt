@@ -1,5 +1,5 @@
 # Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
-add_library(st_ddofx STATIC st_ddofx.c st_ddofx_graphics.c st_ddofx_drawing.c st_ddofx_script.c st_ddofx_events.c st_ddofx_resource.c st_ddofx_samples.c)
+add_library(st_ddofx STATIC st_ddofx.c st_ddofx_graphics.c st_ddofx_drawing.c st_ddofx_sprites.c st_ddofx_simple.c st_ddofx_script.c st_ddofx_events.c st_ddofx_resource.c st_ddofx_samples.c)
 target_link_libraries(st_ddofx PUBLIC st_tracker PRIVATE st_cterm st_cmf st_time syncterm_string_util syncterm_filesystem syncterm_value_convert)
 syncterm_dependency_math(st_ddofx)
 syncterm_target_atomics(st_ddofx)

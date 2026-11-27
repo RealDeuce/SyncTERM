@@ -73,6 +73,59 @@ def check_drawing(t):
     scene([b"2CPYHP2WP"], {(1,1):5,(1,2):2,(1,3):2,(1,4):5})
 
 
+def check_sprites(t):
+    t.case("sprite capture and drawing across the four graphics pages")
+    # A 3x2 sprite with distinguishable rows and a transparent top-left pixel.
+    rows = [[0, 11, 12], [13, 14, 15]]
+    wire = [b"2aCLIP,0,639,0,479", b"2aERASE"]
+    for y, row in enumerate(rows):
+        for x, index in enumerate(row):
+            wire += [f"2C,{index}".encode(), f"2aP,{x},{y}".encode()]
+    wire += [b"2CPYWP2VP", b"2CPYWP2BP", b"2S,0,2,0,1,work", b"2SH,0,2,0,1,hid",
+             b"2SV,0,2,0,1,vis", b"2SB,0,2,0,1,back", b"2C,77", b"2aFILL",
+             b"2CPYWP2VP", b"2CPYWP2BP", b"2CCOL,0,3"]
+    expected = bytearray()
+    for suffix, name, page in [(b"", b"WoRk", b"WP"), (b"H", b"Hid", b"HP"),
+                               (b"B", b"Back", b"BP"), (b"V", b"Vis", b"VP")]:
+        for i, op in enumerate(b"DCRFP"):
+            x = 10 + 3*i
+            wire.append(b"2s" + bytes([op]) + suffix + f",{x},20,".encode() + name)
+        if page != b"WP":
+            wire.append(b"2CPY" + page + b"2WP")
+        for i, op in enumerate(b"DCRFP"):
+            for dy, row in enumerate(rows):
+                for dx, pixel in enumerate(row[::-1] if op in b"RF" else row):
+                    wire.append(f"2aG,{10+3*i+dx},{19+dy}".encode())
+                    expected.extend(str(pixel if pixel or op == ord("P") else 77).encode() + b"\xff")
+    frame = t.exchange(commands(*wire), bytes(expected))
+    assert list(frame.primary[19*640+10:19*640+13]) == [77, 11, 12]
+
+    t.exchange(commands(b"2aERASE", b"2aCLIP,0,1,0,1", b"2sD,-1,1,work", b"2aG,0,0",
+                        b"2sF,-1,1,work", b"2aG,0,0", b"2aG,1,1", b"2sI,work", b"2sP,3,4,work",
+                        b"2aG,3,3", b"2sI,work", b"2sP,3,4,work", b"2aG,3,3",
+                        b"2sC,2147483647,-2147483648,work", b"2S,0,0,0,0,work", b"2sP,4,8,work", b"2aG,4,8",
+                        b"2sFF", b"2sP,4,8,vis", b"2aG,4,8", b"2aCLIP,0,639,0,479"),
+               b"0\xff11\xff13\xff13\xff0\xff0\xff0\xff")
+
+    # Definitions leave the screen alone until DSS. Static sprites are
+    # composited after animation frames; HP remains a separate page.
+    t.case("overlapping simple sprites and demand-driven animation")
+    t.exchange(commands(b"2C,3", b"2aFILL", b"2CPYWP2BP", b"2CPYWP2VP",
+                        b"2C,4", b"2aFILL", b"2S,0,1,0,1,A", b"2C,5", b"2aFILL", b"2S,0,1,0,1,B",
+                        b"2C,6", b"2aFILL", b"2S,0,1,0,1,C", b"2aERASE", b"2C,9", b"2aP,0,0",
+                        b"2S,0,1,0,1,Dot", b"2SSA,20,50,50,1,A,C,2,1", b"2SS,50,50,2,Dot,2",
+                        b"2CPYVP2WP", b"2aG,50,50"), b"3\xff")
+    for index in (4, 5, 6, 5):
+        frame = t.exchange(commands(b"2DSS", b"2aG,50,50", b"2aG,51,49"),
+                           str(index).encode()+b"\xff9\xff")
+        assert list(frame.primary[49*640+50:49*640+52]) == [index, 9]
+    frame = t.exchange(commands(b"2CSS", b"2SS,52,50,2,Dot,1", b"2DSS",
+                                b"2CPYHP2WP", b"2aG,51,49"), b"3\xff")
+    assert list(frame.primary[49*640+50:49*640+54]) == [4, 4, 9, 3]
+    t.exchange(commands(b"2SSA,20,50,50,1,NONE,C,1,1", b"2DSS", b"2aG,51,49",
+                        b"2ACSS", b"2C,12", b"2aFILL", b"2DSS", b"2aG,51,49"), b"3\xff12\xff")
+
+
 def check_graphics(t):
     lite = t.check("Lite screen before graphics", b"Before", (7, 1), [(1, 1, "Before")])
     enter = commands(b"LIGMODE", b"LIGMODE")
@@ -104,6 +157,7 @@ def check_graphics(t):
                                                        b"2aSRGB,4,0,63,63"), b"4\xff")
     assert frame.primary[4 * 640 + 3] == 4 and frame.palette[4] == 0x00ffff
     check_drawing(t)
+    check_sprites(t)
     t.exchange(b"\x1b[75;45H" + b"\x1b[6n", b"\x1b[75;45R")
     restored = t.check("Lite display and cursor restored", commands(b"2GEXIT", b"dVIDMODE") + b"!",
                        (8, 1), [(1, 1, "Before!")], reset=False, expected=b"0\xff")

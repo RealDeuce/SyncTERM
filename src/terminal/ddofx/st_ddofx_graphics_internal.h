@@ -20,7 +20,20 @@ enum page {
 	VISUAL
 };
 
+enum {
+	SPRITE_COUNT = 3200
+};
+
+struct st_ddofx_sprite {
+	char     name[9];
+	uint16_t width, height;
+	uint8_t *pixels;
+};
+
 struct st_ddofx_graphics {
+	struct st_ddofx_sprite  sprites[SPRITE_COUNT];
+	struct st_ddofx_simple *simple;
+
 	st_console_t            *display, *view;
 	st_font_catalog_t       *fonts;
 	st_cterm_t              *text;
@@ -35,6 +48,13 @@ struct st_ddofx_graphics {
 	int                      horizontal_thickness, vertical_thickness;
 };
 
-bool st_ddofx_numbers(struct st_ddofx *, char *, int32_t *, unsigned);
-void st_ddofx_draw(struct st_ddofx *, const struct st_ddofx_sink *, const char *, char *);
+uint8_t st_ddofx_pixel_index(const uint32_t *, uint32_t);
+void    st_ddofx_free_sprites(struct st_ddofx_graphics *);
+int     st_ddofx_sprite_slot(struct st_ddofx_graphics *, const char *, bool create);
+void    st_ddofx_draw_sprite(struct st_ddofx_graphics *, const struct st_ddofx_sprite *, enum page, char op,
+    int32_t x, int32_t y);
+void    st_ddofx_simple_command(struct st_ddofx *, const char *, char *);
+void    st_ddofx_sprite_command(struct st_ddofx *, const char *, char *);
+bool    st_ddofx_numbers(struct st_ddofx *, char *, int32_t *, unsigned);
+void    st_ddofx_draw(struct st_ddofx *, const struct st_ddofx_sink *, const char *, char *);
 #endif
