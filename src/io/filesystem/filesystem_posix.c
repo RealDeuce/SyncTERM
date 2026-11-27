@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <sys/statvfs.h>
 #include <unistd.h>
 #include <utime.h>
 
@@ -22,6 +23,20 @@ static int
 fs_errno_error(int error)
 {
 	return io_error_from_errno(error);
+}
+
+int
+fs_available_bytes(uint64_t *result, const char *directory)
+{
+	if (!result || !directory || !*directory)
+		return IO_ERROR_INVALID_ARGUMENT;
+	struct statvfs volume;
+	if (statvfs(directory, &volume))
+		return fs_errno_error(errno);
+	if (volume.f_frsize && volume.f_bavail > UINT64_MAX / volume.f_frsize)
+		return IO_ERROR_OUT_OF_RANGE;
+	*result = (uint64_t)volume.f_bavail * volume.f_frsize;
+	return 0;
 }
 
 static enum fs_entry_kind

@@ -35,6 +35,7 @@ else()
 	set(_filesystem_posix_probe [=[
 #include <stdio.h>
 #include <sys/stat.h>
+#include <sys/statvfs.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <utime.h>
@@ -44,6 +45,9 @@ _Static_assert(sizeof(off_t) >= 8, "64-bit off_t required");
 int main(void)
 {
 	struct stat status;
+	struct statvfs volume;
+	(void)statvfs(".", &volume);
+	(void)(volume.f_frsize * volume.f_bavail);
 	struct utimbuf times = {0, 0};
 	(void)fileno(stdin);
 	(void)fstat(0, &status);

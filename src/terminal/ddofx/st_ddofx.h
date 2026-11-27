@@ -38,7 +38,7 @@ struct st_ddofx {
 	struct st_ddofx_graphics *graphics;
 	struct st_ddofx_vga_font *vga_font;
 	struct st_ddofx_lite_fade *lite_fade;
-	bool                      mode_prefix;
+	bool                       mode_prefix, abort_script;
 	uint32_t                 *saved_palette;
 	FILE                     *page_files[3];
 	struct {
@@ -70,6 +70,10 @@ struct st_ddofx {
 
 struct st_ddofx_sink {
 	void               *context;
+	const char                   *cache_directory;
+	int32_t                       (*available_memory)(void);
+	void                          (*alert)(void *, const char *title, const char *message);
+	void                         *alert_context;
 	bool                mouse_disabled;
 	st_audio_runtime_t *audio;
 	const struct st_cterm_config *text_config;
@@ -84,6 +88,9 @@ struct st_ddofx_sink {
 	void                (*reply)(void *, const uint8_t *, size_t);
 };
 
+int32_t  st_ddofx_speed_index(void);
+int32_t  st_ddofx_available_memory(void);
+int32_t  st_ddofx_available_drive(const char *directory);
 void st_ddofx_controller(struct st_ddofx *, const struct st_controller_event *, bool consumed);
 void st_ddofx_pointer_pause(struct st_ddofx *, bool);
 void st_ddofx_mouse(struct st_ddofx *, const struct st_console_event *);

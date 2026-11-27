@@ -66,6 +66,8 @@ The Normal-mode landscape accepts a seed or a 255 × 255 indexed map from the vi
 
 Normal mode supports a tile map of up to 150 × 150 cells. The host can fill either layer, move the viewport, move or remove foreground tiles, and animate consecutive sprite frames. Grid assignments become visible on a draw. Movement redraws immediately. A grid created in an alerted window retains that window as its owner. Its tiles animate while the owner is active, and removing the grid restores the underlying page.
 
+In Lite and Normal mode, `dDRIVE` reports free space available to the user on the BBS asset-cache volume. `dMEM` estimates available memory from the OS. Both report bytes up to the largest signed DDO script integer (2,147,483,647), and return −1 if the measurement is unavailable. When a positive `dVMEM` request exceeds measured memory, SyncTERM reports the shortfall through the connection’s alert handler, ends local script execution, and returns to text mode. It continues receiving host input. `dSPEED` reports a numeric processing-speed estimate taken once per process. SyncTERM samples the string, integer and floating-point workload of the SDK-era MPORT diagnostic over a short interval. The index is an estimate across architectures.
+
 Loose-file queries read the entry’s `DDOFX/MUSIC`, `DDOFX/FONTS`, and `DDOFX/BBSTHEME` directories. Professional queries use `DDOFX/TERMS/<client>`. Names use DOS-style case matching. The timestamp is local modification time with DOS two-second precision. `8EXEC` consumes the command without starting a program.
 
 In Lite and Normal mode, `EWTEXT` creates or replaces a loose BBSTHEME file with flag 0 and appends with flag 1. It adds the carriage return specified by the SDK to each line. `ERTEXT` sends the file bytes followed by the supplied return string. A missing file still sends the return string.
@@ -110,12 +112,12 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 1528 | WAIT | DDO-FX LITE | Connected |
 | 1544 | GOTO DDO-FX (NORMAL MODE) | DDO-FX LITE | Connected |
 | 1573 | DETECT LITERM | DDO-FX LITE | Connected |
-| 1611 | DETECT USER MEMORY | DDO-FX LITE | Pending |
-| 1634 | DETECT USER MEMORY & REACT | DDO-FX LITE | Pending |
-| 1729 | DETECT USER DRIVE SIZE | DDO-FX LITE | Pending |
+| 1611 | DETECT USER MEMORY | DDO-FX LITE | Connected |
+| 1634 | DETECT USER MEMORY & REACT | DDO-FX LITE | Connected |
+| 1729 | DETECT USER DRIVE SIZE | DDO-FX LITE | Connected |
 | 1755 | DETECT GRAPHICS ADAPTER TYPE | DDO-FX LITE | Connected |
 | 1770 | DETECT AUDIO CARD | DDO-FX LITE | Connected |
-| 1798 | DETECT Machine Speed | DDO-FX LITE | Pending |
+| 1798 | DETECT Machine Speed | DDO-FX LITE | Connected |
 | 1851 | DETECT VIDEO MODE | DDO-FX LITE | Connected |
 | 1880 | DETECT FOR MUSIC FILE | DDO-FX LITE | Connected |
 | 1921 | DETECT FOR THEME FILE | DDO-FX LITE | Connected |

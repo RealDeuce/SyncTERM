@@ -70,6 +70,11 @@ main(void)
 	make_path(nested, sizeof(nested), directory, "one/two/three");
 	make_path(child, sizeof(child), nested, "child.txt");
 
+	uint64_t available = 42;
+	CHECK(fs_available_bytes(&available, "path-that-does-not-exist") == IO_ERROR_NOT_FOUND);
+	CHECK(available == 42);
+	CHECK(fs_available_bytes(&available, directory) == 0);
+
 	struct fs_info untouched = {FS_ENTRY_OTHER, 42, 43};
 	CHECK(fs_get_info(&untouched, "path-that-does-not-exist") == IO_ERROR_NOT_FOUND);
 	CHECK(untouched.kind == FS_ENTRY_OTHER && untouched.size == 42 && untouched.modified_time == 43);

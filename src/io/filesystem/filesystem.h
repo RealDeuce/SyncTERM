@@ -38,6 +38,8 @@ struct fs_info {
  * covers Windows reparse points.
  */
 int fs_get_info(struct fs_info *result, const char *path);
+/* Space available to the current user on the volume containing this directory. */
+int fs_available_bytes(uint64_t *result, const char *directory);
 int fs_get_link_info(struct fs_info *result, const char *path);
 /* Observe the opened file, including after its path is renamed or replaced. */
 int fs_get_stream_info(struct fs_info *result, FILE *stream);

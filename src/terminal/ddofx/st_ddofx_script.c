@@ -818,7 +818,16 @@ st_ddofx_script_step(struct st_ddofx *ddo, const struct st_ddofx_sink *sink)
 			destination.text = sink->resource_text;
 		int status = st_ddofx_parse(ddo, &f->framer, &destination, source + f->position,
 		    f->length - f->position, &used);
-		f->position += used;
+		if (ddo->abort_script) {
+			/* The framer and instruction bytes belong to these frames. Release
+			 * them only after parse returns. Queued connection input stays live. */
+			while (s->top)
+				pop(s);
+			ddo->abort_script = false;
+			ddo->in_key = ddo->in_mouse = ddo->in_event = false;
+		}
+		else
+			f->position += used;
 		return status;
 	}
 	if (f->macro && f->next_line <= f->end_line) {

@@ -94,6 +94,18 @@ st_ddofx_builtin(const struct st_ddofx *ddo, const struct st_ddofx_sink *sink, c
 	*numeric = false;
 	if (!ascii_case_compare(name, "LITERM"))
 		strcpy(result, "LITERM Ver. 2.00");
+	else if (!ascii_case_compare(name, "SPEED")) {
+		snprintf(result, ST_DDOFX_BODY_MAX + 1, "%" PRId32, st_ddofx_speed_index());
+		*numeric = true;
+	}
+	else if (!ascii_case_compare(name, "MEM") || !ascii_case_compare(name, "DRIVE")) {
+		int32_t bytes = !ascii_case_compare(name, "DRIVE")
+		                    ? st_ddofx_available_drive(sink->cache_directory)
+		                : sink->available_memory ? sink->available_memory()
+		                                         : -1;
+		snprintf(result, ST_DDOFX_BODY_MAX + 1, "%" PRId32, bytes);
+		*numeric = true;
+	}
 	else if (!ascii_case_compare(name, "VCARD"))
 		strcpy(result, st_ddofx_svga(sink) ? "S" : "V");
 	else if (ddo->graphics && !ascii_case_compare(name, "MOUSE")) {
@@ -203,6 +215,26 @@ st_ddofx_reset(struct st_ddofx *ddo)
 }
 
 static void
+check_memory(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, const char *amount)
+{
+	int32_t requested;
+	if (!st_ddofx_number(ddo, amount, &requested) || requested <= 0 || !sink->available_memory)
+		return;
+	int32_t available = sink->available_memory();
+	if (available < 0 || available >= requested)
+		return;
+	if (sink->alert) {
+		char message[192];
+		snprintf(message, sizeof(message), "This script needs %" PRId32 " bytes more memory.%s",
+		    requested - available, ddo->graphics ? " Returning to text mode." : "");
+		sink->alert(sink->alert_context, "DDO F/X", message);
+	}
+	st_ddofx_graphics_exit(ddo);
+	ddo->keys_locked  = false;
+	ddo->abort_script = st_ddofx_script_active(ddo);
+}
+
+static void
 execute(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *body)
 {
 	if (matches(body, "~HEARCMD"))
@@ -272,6 +304,8 @@ execute(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *body)
 		st_ddofx_display_raw(ddo, sink, body + 1);
 	else if (body[0] == '*')
 		st_ddofx_run_resource(ddo, sink, st_ddofx_value(ddo, body + 1));
+	else if (body[0] == 'd' && !ascii_case_ncompare(body + 1, "VMEM,", 5))
+		check_memory(ddo, sink, body + 6);
 	else if (body[0] == 'd' && ascii_case_ncompare(body + 1, "RESOURCE,", 9) == 0) {
 		char       *args      = body + 10;
 		const char *container = st_ddofx_field(&args);

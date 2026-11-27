@@ -1406,18 +1406,22 @@ static struct st_ddofx_sink
 ddofx_sink(st_term_session_t *session)
 {
 	return (struct st_ddofx_sink) {
-	    .context       = session,
-	    .text          = ddofx_text,
-	    .resource_text = render_cp437_resource,
-	    .pass_key      = ddofx_pass_key,
-	    .mouse_disabled = session->mouse_disabled,
-	    .text_config   = &session->ddofx_text_config,
-	    .lite_terminal = session->cterm,
-	    .reply         = protocol_reply,
-	    .open_asset    = ddofx_open_asset,
-	    .theme_path = ddofx_theme_path,
-	    .client_exists = ddofx_client_exists,
-	    .audio         = session->config.audio,
+	    .context          = session,
+	    .text             = ddofx_text,
+	    .resource_text    = render_cp437_resource,
+	    .cache_directory  = session->config.ddofx_directory,
+	    .available_memory = st_ddofx_available_memory,
+	    .alert            = session->config.graphics_alert,
+	    .alert_context    = session->config.graphics_alert_context,
+	    .pass_key         = ddofx_pass_key,
+	    .mouse_disabled   = session->mouse_disabled,
+	    .text_config      = &session->ddofx_text_config,
+	    .lite_terminal    = session->cterm,
+	    .reply            = protocol_reply,
+	    .open_asset       = ddofx_open_asset,
+	    .theme_path       = ddofx_theme_path,
+	    .client_exists    = ddofx_client_exists,
+	    .audio            = session->config.audio,
 	};
 }
 

@@ -4,6 +4,7 @@ import argparse
 from binascii import crc_hqx
 import os
 import re
+import shutil
 import struct
 import time
 import zipfile
@@ -138,6 +139,21 @@ def check_background_download(t):
     t.client.text("c")
     t.input(b"ordinary")
     t.exchange(commands(b"2RESET", b"2GEXIT"))
+
+
+def check_capacity(t):
+    t.case("drive, memory and speed queries on the connection and in script variables")
+    t.exchange(commands(b"dDRIVE,", b"dMEM,", b"dVMEM,0", b"dMEM"), re.compile(rb"[0-9]+\xff"))
+    t.exchange(commands(b"dSPEED,", b"~VARCAP,2", b"dSPEED", b"~VARCAP,0",
+                        b"7DEFRET,2,DEFVAR2", b"dSPEED", b"7SRET,2"), re.compile(rb"(-1|[1-9][0-9]*)\xff\1"))
+    # A DDO numeric variable can hold at most a signed 32-bit count.
+    marker, = t.root.rglob("syncterm-cache-name.txt")
+    available = shutil.disk_usage(marker.parent).free
+    t.exchange(commands(b"~VARCAP,1", b"dDRIVE", b"~VARCAP,0", b"7DEFRET,1,DEFVAR1", b"7SRET,1",
+                        b"7DEFRET,2,OK", b"~IFVAR,MEM,>,0,\x1d(7SRET,2)"),
+               (str(2**31 - 1).encode() + b"OK" if available > 2**31 + 8*1024**2 else re.compile(rb"[0-9]+OK")))
+    t.exchange(commands(b"LIGMODE", b"LIGMODE", b"dVIDMODE", b"dVMEM,1", b"dDRIVE", b"dMEM", b"dSPEED",
+                        b"2GEXIT", b"dVIDMODE"), re.compile(rb"1\xff[0-9]+\xff[0-9]+\xff-?[0-9]+\xff0\xff"))
 
 
 def check_cache(t, root):
@@ -2407,6 +2423,7 @@ def run(args):
         t.exchange(commands(b"dSOUNDON", b"dACARD", b"tABSENT.THE", b"dGETTHEME", b"6CHECKBS,150", b"6CHECKBS,151",
                             b"~VARCAP,10", b"6CHECKBS,1", b"~VARCAP,0", b"7DEFRET,1,DEFVAR10", b"7SRET,1"),
                    b"NO\xffNONE\xffNONE\xffN/A\xffN/A")
+        check_capacity(t)
         check_joysticks(t)
         check_package_downloads(t)
         check_background_download(t)

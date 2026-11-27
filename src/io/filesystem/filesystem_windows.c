@@ -42,6 +42,24 @@ fs_windows_path(const char *path, wchar_t **result)
 	return path_windows_extended(result, path);
 }
 
+int
+fs_available_bytes(uint64_t *result, const char *directory)
+{
+	if (!result || !directory || !*directory)
+		return IO_ERROR_INVALID_ARGUMENT;
+	wchar_t *path;
+	int      status = fs_windows_path(directory, &path);
+	if (status)
+		return status;
+	ULARGE_INTEGER available;
+	if (GetDiskFreeSpaceExW(path, &available, NULL, NULL))
+		*result = available.QuadPart;
+	else
+		status = fs_windows_error(GetLastError());
+	free(path);
+	return status;
+}
+
 static int64_t
 fs_filetime_seconds(FILETIME value)
 {

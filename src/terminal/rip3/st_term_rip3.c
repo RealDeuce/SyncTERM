@@ -528,7 +528,7 @@ notice(void *context, const char *title, const char *message)
 {
 	struct st_term_rip3 *rip = context;
 	st_term_rip3_flush(rip);
-	rip->config.rip3_alert(rip->config.rip3_alert_context, title, message);
+	rip->config.graphics_alert(rip->config.graphics_alert_context, title, message);
 }
 
 int
@@ -2561,7 +2561,7 @@ st_term_rip3_create(struct st_term_rip3 **result, const struct st_term_config *c
 					     .scene_begin         = scene_begin,
 					     .scene_end           = scene_end,
 					     .scene_decode        = config->encoding == ST_CTERM_ENCODING_CODEPAGE ? decode_scene_byte : NULL,
-					     .notice              = config->rip3_alert != NULL ? notice : NULL,
+					     .notice              = config->graphics_alert != NULL ? notice : NULL,
 					     .transfer            = start_transfer,
 					     .transfer_active     = transfer_active},
 	    .services                     = &services,
