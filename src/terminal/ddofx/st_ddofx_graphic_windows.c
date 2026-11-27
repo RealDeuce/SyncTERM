@@ -163,24 +163,14 @@ paint_controls(const struct st_ddofx_graphic_window *w, const struct bounds *dam
 }
 
 static int
-paint(void *context, const struct st_pixel_buffer *pixels, struct st_console_rect *changed)
+paint_windows(void *context, const struct st_pixel_buffer *pixels, struct st_console_rect *changed)
 {
-	const struct repaint     *r = context;
-	struct st_ddofx_graphics *g = r->ddo->graphics;
-	struct bounds             b = r->area;
+	const struct repaint *r = context;
+	struct st_ddofx *ddo = r->ddo;
+	struct st_ddofx_graphics *g = ddo->graphics;
+	struct bounds b = r->area;
 	if (pixels->width != WIDTH || pixels->height != HEIGHT)
 		return -1;
-	for (int y = b.top; y <= b.bottom; ++y)
-		for (int x = b.left; x <= b.right; ++x)
-			pixels->primary[y * WIDTH + x] = pixels->alternate[y * WIDTH + x] = g->page[HIDDEN][y][x];
-
-	if (r->text)
-		st_ddofx_composite_desktop_text(r->ddo, r->text, pixels, b);
-	struct st_console_rect desktop = {b.left, b.top, b.right - b.left + 1, b.bottom - b.top + 1};
-	st_ddofx_repaint_clocks(r->ddo, 0, pixels, &desktop);
-	st_ddofx_repaint_marquees(r->ddo, 0, pixels, b);
-	st_ddofx_repaint_desktop_bars(g, pixels, b);
-
 	/* Inactive slots paint in numeric order. The active slot paints last. */
 	for (unsigned i = 1; i <= GRAPHIC_WINDOWS + 1; ++i) {
 		bool active = i > GRAPHIC_WINDOWS;
@@ -202,15 +192,37 @@ paint(void *context, const struct st_pixel_buffer *pixels, struct st_console_rec
 				pixels->primary[y * WIDTH + x] = pixels->alternate[y * WIDTH + x] = colour;
 			}
 		struct bounds  title = {w->frame.left + 2, w->frame.right - (w->icon && !w->no_icon ? 54 : 42), w->frame.top, view.top - 1};
-		const uint8_t *font  = st_ddofx_vga_bitmap(r->ddo);
+		const uint8_t *font  = st_ddofx_vga_bitmap(ddo);
 		if (!w->borderless && font && st_ddofx_intersect_bounds(&title, &area))
 			st_ddofx_paint_vga_string(g, 0, pixels, font, (const uint8_t *)w->title,
 			    (unsigned)strlen(w->title), w->frame.left + 2, view.top - 3, 14, title_colour, &title);
 		if (!w->borderless)
 			paint_controls(w, &area, pixels);
 	}
-	*changed = (struct st_console_rect) {b.left, b.top, b.right - b.left + 1, b.bottom - b.top + 1};
+	*changed = (struct st_console_rect){b.left, b.top, b.right - b.left + 1, b.bottom - b.top + 1};
 	return 0;
+}
+
+static int
+paint(void *context, const struct st_pixel_buffer *pixels, struct st_console_rect *changed)
+{
+	const struct repaint     *r = context;
+	struct st_ddofx_graphics *g = r->ddo->graphics;
+	struct bounds             b = r->area;
+	if (pixels->width != WIDTH || pixels->height != HEIGHT)
+		return -1;
+	for (int y = b.top; y <= b.bottom; ++y)
+		for (int x = b.left; x <= b.right; ++x)
+			pixels->primary[y * WIDTH + x] = pixels->alternate[y * WIDTH + x] = g->page[HIDDEN][y][x];
+
+	if (r->text)
+		st_ddofx_composite_desktop_text(r->ddo, r->text, pixels, b);
+	struct st_console_rect desktop = {b.left, b.top, b.right - b.left + 1, b.bottom - b.top + 1};
+	st_ddofx_repaint_clocks(r->ddo, 0, pixels, &desktop);
+	st_ddofx_repaint_marquees(r->ddo, 0, pixels, b);
+	st_ddofx_repaint_desktop_bars(g, pixels, b);
+
+	return paint_windows(context, pixels, changed);
 }
 
 static int
@@ -437,13 +449,23 @@ st_ddofx_free_graphic_windows(struct st_ddofx_graphics *g)
 		dispose(g, i);
 }
 
+void
+st_ddofx_redraw_graphic_windows(struct st_ddofx *ddo)
+{
+	struct st_ddofx_graphics *g = ddo->graphics;
+	struct repaint r = {.ddo = ddo, .area = {WIDTH, -1, HEIGHT, -1}};
+	for (unsigned i = 1; i <= GRAPHIC_WINDOWS; ++i)
+		if (g->graphic_windows[i].visual && !g->graphic_windows[i].hidden)
+			st_ddofx_extend_bounds(&r.area, g->graphic_windows[i].frame);
+	if (r.area.left <= r.area.right)
+		(void)st_console_modify_pixels(g->display, paint_windows, &r);
+}
+
 static void
 redraw_all(struct st_ddofx *ddo)
 {
-	struct st_ddofx_graphics *g = ddo->graphics;
-	for (unsigned i = 1; i <= GRAPHIC_WINDOWS; ++i)
-		if (g->graphic_windows[i].visual && !g->graphic_windows[i].hidden)
-			refresh(ddo, g->graphic_windows[i].frame);
+	st_ddofx_mouse_view_changed(ddo->graphics);
+	st_ddofx_redraw_graphic_windows(ddo);
 }
 
 static bool

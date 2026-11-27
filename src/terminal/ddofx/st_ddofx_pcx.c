@@ -140,12 +140,11 @@ load_page(struct st_ddofx *ddo, enum page dest, FILE *file, uint32_t length, int
 	if (!image)
 		return;
 
+	bool batch = dest == VISUAL && st_console_begin_update(g->display) == 0;
 	if (dest == VISUAL && !window) {
 		struct visual_load load = {g, image};
-		if (st_console_modify_pixels_with_palette(g->display, load_visual, &load) != 0) {
-			free(image);
-			return;
-		}
+		if (st_console_modify_pixels_with_palette(g->display, load_visual, &load) != 0)
+			goto done;
 	}
 	else {
 		uint8_t *pixels = window ? w->visual : (uint8_t *)g->page[dest];
@@ -159,11 +158,18 @@ load_page(struct st_ddofx *ddo, enum page dest, FILE *file, uint32_t length, int
 	memcpy(g->palette, image->palette, sizeof(g->palette));
 	st_ddofx_set_palette(g, 0, 256);
 	g->cx = g->cy = 0;
-	free(image);
 	if (window)
 		st_ddofx_refresh_graphic_interior(ddo);
-	if (dest == VISUAL)
+	if (dest == VISUAL) {
 		st_ddofx_repaint_text_windows(ddo, window ? g->alert_graphic_window : 0);
+		if (!window)
+			st_ddofx_redraw_graphic_windows(ddo);
+	}
+
+done:
+	if (batch)
+		(void)st_console_end_update(g->display);
+	free(image);
 }
 
 static FILE *

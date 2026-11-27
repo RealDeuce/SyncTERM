@@ -317,8 +317,10 @@ copy_region(void *context, const struct st_pixel_buffer *pixels, const uint32_t 
 	}
 	if (t->dest == VISUAL) {
 		*changed = (struct st_console_rect) {t->dx, t->dy, t->width, t->height};
-		/* VP publication supplies the hidden restoration image for animations.
-		 * Read back after the copy so a cut from HP can overlap its source. */
+		/* HP is the source for a restoration. Only new desktop imagery
+		 * replaces the hidden pixels used to repair moving objects. */
+		if (t->source == HIDDEN)
+			return 0;
 		for (int y = t->dy; y < t->dy + t->height; ++y) {
 			for (int x = t->dx; x < t->dx + t->width; ++x)
 				g->page[HIDDEN][y][x] =
@@ -386,17 +388,26 @@ copy_page(struct st_ddofx *ddo, const char *verb, char *args, bool cut)
 				memcpy(dst, src, t.width);
 		}
 		if (t.dest == VISUAL) {
-			st_ddofx_refresh_graphic_interior(ddo);
 			st_ddofx_repaint_text_windows(ddo, t.g->alert_graphic_window);
+			if (t.transparent)
+				st_ddofx_redraw_graphic_windows(ddo);
+			else
+				st_ddofx_refresh_graphic_interior(ddo);
 		}
 		return;
 	}
+	bool batch = t.dest == VISUAL && st_console_begin_update(t.g->display) == 0;
 	if (t.source == VISUAL || t.dest == VISUAL)
 		(void)st_console_modify_pixels_with_palette(t.g->display, copy_region, &t);
 	else
 		(void)copy_region(&t, NULL, NULL, NULL);
-	if (t.dest == VISUAL)
+	if (t.dest == VISUAL) {
 		st_ddofx_repaint_text_windows(ddo, 0);
+		if (t.source != HIDDEN || t.transparent)
+			st_ddofx_redraw_graphic_windows(ddo);
+	}
+	if (batch)
+		(void)st_console_end_update(t.g->display);
 }
 
 struct scroll {

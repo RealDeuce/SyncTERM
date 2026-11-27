@@ -583,6 +583,52 @@ def check_page_transfers(t):
     t.exchange(commands(b"2CCOL,72,0", b"2sFF"))
 
 
+def check_window_page_transfers(t):
+    t.case("desktop copies and cuts redraw graphic windows after saving the background")
+    focused = b"2GWIN,1,40,139,30,129,100,100,0,1,0,0,0,0,0,0,0,0,1,Focused"
+    other = b"2GWIN,2,70,169,60,159,100,100,0,0,0,0,0,0,0,0,0,0,1,Other"
+    t.exchange(commands(b"2C,11", b"2aFILL", b"2CPYWP2VP", focused, other))
+    for n, src in enumerate((b"WP", b"BP")):
+        for kind in range(3):
+            colour = 20 + n*3 + kind
+            focused_ink, other_ink = colour + 30, colour + 60
+            setup = [b"2CALMGWIN", f"2C,{colour}".encode(), b"2aFILL", b"2CPYWP2BP",
+                     b"2ALERTGWIN,1", f"2C,{focused_ink}".encode(), b"2aFILL",
+                     b"2ALERTGWIN,2", f"2C,{other_ink}".encode(), b"2aFILL", b"2CALMGWIN"]
+            # Slot 1 has focus and covers slot 2 at (80,70). Both fills are deferred.
+            if kind == 0:
+                copy = b"2CPY" + src + b"2VP"
+            else:
+                copy = b"2CUT" + src + b"2VP" + (b"T" if kind == 2 else b"") + b",39,41,29,31,39,31"
+            frame = t.exchange(commands(*setup, copy))
+            for plane in (frame.primary, frame.alternate):
+                assert plane[30*640+39] == colour
+                assert plane[30*640+40] == plane[70*640+80] == focused_ink
+                assert plane[70*640+150] == other_ink
+    # Even a completely transparent cut repaints windows outside the cut.
+    # A rejected cut leaves that same virtual-page change pending.
+    t.exchange(commands(b"2ALERTGWIN,1", b"2C,93", b"2aFILL", b"2CALMGWIN",
+                        b"2C,17", b"2aFILL", b"2CCOL,17,1"))
+    for cut, visible in ((b"2CUTWP2VPT,0,1,0,1,639,0", 55), (b"2CUTWP2VPT,0,1,0,1,0,1", 93)):
+        frame = t.exchange(commands(cut))
+        for plane in (frame.primary, frame.alternate):
+            assert plane[0] == 23 and plane[70*640+80] == visible
+    t.exchange(commands(b"2CCOL,17,0", b"2CPYVP2WP", b"2aG,80,70", b"2aG,150,70", b"2CGWIN,2", b"2CGWIN,1",
+                        b"2CPYVP2WP", b"2aG,40,30"), b"93\xff85\xff25\xff")
+
+    t.case("hidden-page restoration preserves its source and distinguishes opaque and transparent cuts")
+    frame = t.exchange(commands(focused, b"2ALERTGWIN,1", b"2C,73", b"2aFILL", b"2RGWINI", b"2CALMGWIN",
+                                b"2C,13", b"2aFILL", b"2C,44", b"2aRECT,0,1,0,1", b"2CPYWP2HP",
+                                b"2CUTHP2VP,0,1,0,1,40,31", b"2CPYHP2WP", b"2aG,40,30"), b"13\xff")
+    for plane in (frame.primary, frame.alternate):
+        assert list(plane[30*640+40:30*640+43]) == [44, 44, 73]
+    frame = t.exchange(commands(b"2CPYHP2VP"))
+    assert frame.primary[30*640+40] == frame.alternate[30*640+40] == 13
+    frame = t.exchange(commands(b"2CUTHP2VPT,0,1,0,1,40,31", b"2CPYHP2WP", b"2aG,40,30"), b"13\xff")
+    assert frame.primary[30*640+40] == frame.alternate[30*640+40] == 73
+    t.exchange(commands(b"2CGWIN,1"))
+
+
 def check_drawing(t):
     def scene(bodies, expected):
         queries = [f"2aG,{x},{y}".encode() for x, y in expected]
@@ -1852,6 +1898,19 @@ def check_pcx(t, root):
     frame = t.exchange(commands(b"1CLOSE"))
     assert frame.primary[641] == frame.alternate[641] == 255
 
+    t.case("desktop PCX loads redraw the windows over the saved image")
+    cover = b"2GWIN,1,1,100,1,100,100,100,0,1,0,0,0,0,0,0,0,0,1,Cover"
+    t.exchange(commands(cover, b"2ALERTGWIN,1", b"2C,57", b"2aFILL", b"2CALMGWIN"))
+    frame = t.exchange(commands(b"2vBAD.PCX"))
+    assert frame.primary[641] == frame.alternate[641] == 0
+    frame = t.exchange(commands(b"2vART.PCX", b"2CPYHP2WP", b"2aG,1,1"), b"255\xff")
+    for plane in (frame.primary, frame.alternate):
+        assert list(plane[640:643]) == [5, 57, 57]
+    frame = t.exchange(commands(b"2ALERTGWIN,1", b"2C,68", b"2aFILL", b"2CALMGWIN", b"2LWPPCX,VP"))
+    assert frame.primary[641] == frame.alternate[641] == 68
+    frame = t.exchange(commands(b"2CGWIN,1"))
+    assert frame.primary[641] == frame.alternate[641] == 255
+
 
 def check_graphic_windows(t):
     t.case("graphic window pages, stacking, viewport and restoration")
@@ -2144,6 +2203,7 @@ def check_graphics(t, root):
     t.exchange(commands(b"2CPYBP2WP", b"2aG,639,479", b"2CPYVP2WP", b"2aG,639,479",
                         b"2CUTBP2WP,0,1,0,1,639,479", b"2aG,639,479"), b"8\xff3\xff3\xff")
     check_page_transfers(t)
+    check_window_page_transfers(t)
     check_text_windows(t)
     check_desktop_text(t)
     check_attached_text(t)

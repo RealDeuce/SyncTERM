@@ -210,6 +210,7 @@ void st_ddofx_bar_window_closed(struct st_ddofx_graphics *, unsigned owner);
 void st_ddofx_repaint_desktop_bars(const struct st_ddofx_graphics *, const struct st_pixel_buffer *, struct bounds);
 void st_ddofx_grid_window_closed(struct st_ddofx_graphics *, unsigned slot);
 void st_ddofx_refresh_window_area(struct st_ddofx *, unsigned slot, struct bounds area);
+void st_ddofx_redraw_graphic_windows(struct st_ddofx *);
 void st_ddofx_refresh_graphic_interior(struct st_ddofx *);
 struct st_ddofx_sprite *st_ddofx_find_sprite(struct st_ddofx_graphics *, const char *);
 bool    st_ddofx_sprite_fits(const struct st_ddofx_graphics *, unsigned window, const struct st_ddofx_sprite *,
