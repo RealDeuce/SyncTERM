@@ -1352,9 +1352,10 @@ def check_raycast_environment(t, root):
     theme = marker.parent / "DDOFX" / "BBSTHEME"
     t.exchange(commands(b"2RESET"))
     capture_callback_return(t)
+    t.exchange(commands(b"~INFSAV,18,0,^@^](7SRET,9)", b"~VARCAP,68", b"~INFLOD,0,18", b"~VARCAP,0"))
     t.exchange(commands(b"5CLSMAP,7", b"5CHMAP,4,41,12,8", b"5DLYR,2",
                         b"5CHOBJ,3,42,12,2,15", b"5SETANGL,90", b"5DSCALE,160,80",
-                        b"5MAPPRO,3600,0,0,0,0,0,9,0,31,21,DEFVAR67,",
+                        b"5MAPPRO,3600,0,0,0,0,0,9,0,31,21,DEFVAR67,DEFVAR68",
                         b"2C,17", b"2aFILL", b"2S,0,31,0,31,Floor",
                         b"2C,81", b"2aFILL", b"2S,0,31,0,31,FrameA",
                         b"2C,82", b"2aFILL", b"2S,0,31,0,31,FrameB",
@@ -1378,16 +1379,19 @@ def check_raycast_environment(t, root):
     assert struct.unpack_from("<H", data, 2*(20*245+30)) == (3600,)
     profile_reply = 31850 + 3599*64 + 9
     assert data[profile_reply:profile_reply+5] == b"\x04\0V,\xff"
+    macro = b"\0\x1d{7SRET,9}"
+    profile_macro = profile_reply + 26
+    assert data[profile_macro:profile_macro+1+len(macro)] == bytes([len(macro)]) + macro
     assert struct.unpack_from("<HBHH", data, len(data)-7) == (128,1,160,80)
 
     # Edit the native world plane independently, then import it at a different player position.
     data[world+at], data[world+32768+at] = 5,9
     data[profile_reply:profile_reply+5] = b"\x04\0Z^M"
     (theme / "Foreign.Map").write_bytes(data)
-    frame = t.exchange(commands(b"2RESET", b"5SETXPOS,31,0", b"5SETYPOS,21,0", b"5LOAD3D,FOREIGN.MAP",
+    frame = t.exchange(commands(b"2RESET", b"5SETXPOS,31,0", b"5SETYPOS,21,0", b"5LOAD3D,FOREIGN.MAP", b"7DEFRET,9,M",
                         b"5GETXPOS", b"5GETYPOS", b"5GETANGL", b"5GETMAP,41,12",
                         b"5DLYR,2", b"5GETMAP,42,12", b"5DANIM,0,159,1", b"w4"),
-               b"31\xff21\xff90,EAST\xff0,0,5,9,0,0\xff0,0,7,7,3,15\xff\0Z\r")
+               b"31\xff21\xff90,EAST\xff0,0,5,9,0,0\xff0,0,7,7,3,15\xffM\0Z\r")
     # The imported texture is paused. Its static atlas draws on the first
     # render after LOAD3D, even though RESET emptied the sprite bank.
     floor = 158*640+80
@@ -2755,6 +2759,15 @@ def check_scripts(t):
     # Clearing a whole bank and rejecting out-of-range selectors preserve framing.
     t.check("script limits and recovery", commands(b"~DEFVAR,0", b"4DEFM,1,1,Q", b"4DEFM,0",
             b"4RUNM,1", b"4RUNM,33", b"7SRET,301") + read_variable(1000) + b"R", (2, 1), [(1, 1, "R")])
+    # A captured macro starts with NUL, prints Z and invokes a return command.
+    t.check("counted macro bodies", commands(b"~INFSAV,18,0,^@Z^](7SRET,9)", b"~VARCAP,68",
+            b"~INFLOD,0,18", b"~VARCAP,0", b"7DEFRET,9,M", b"4DEFM,31,1,DEFVAR68",
+            b"4MKEY,1,46,99,0,K,DEFVAR68", b"~REPMAC,2,DEFVAR68",
+            b"~IFVAR,X,=,X,DEFVAR68", b"~REPVAR,X,=,X,DEFVAR68", b"~DEFVAR,68,1,replaced",
+            b"4EXCM,31,1", b"4CLRM,31", b"4RUNM,31"), (6, 1), [(1, 1, "ZZZZZ")], expected=b"MMMMM")
+    t.client.text("c")
+    t.input(b"MK")
+    t.exchange(commands(b"4MKEY,0"))
     start = time.monotonic()
     t.exchange(commands(b"4DEFM,1,1,\x1d(w3)\x1d(7SRET,2)", b"4RUNM,1", b"dLITERM"),
                b"a,bLITERM Ver. 2.00\xff")

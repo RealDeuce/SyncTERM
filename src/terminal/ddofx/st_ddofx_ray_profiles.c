@@ -14,8 +14,8 @@ struct rc_profile {
 	uint16_t chain, key;
 	uint8_t  mouse, joystick, direction;
 	bool     defined, action, stealth, resource_text;
-	char     reply[PROFILE_TEXT], macro[PROFILE_TEXT + 1];
-	size_t   reply_length;
+	char     reply[PROFILE_TEXT], macro[PROFILE_TEXT];
+	size_t   reply_length, macro_length;
 };
 
 struct rc_key {
@@ -78,7 +78,7 @@ st_ddofx_ray_profiles_save(const struct rc_world *w, uint8_t *map, struct rc_sav
 		s->stealth   = r->stealth;
 		rc_put_word(s->chain, r->chain);
 		s->reply[0] = (uint8_t)r->reply_length;
-		s->macro[0] = (uint8_t)strlen(r->macro);
+		s->macro[0] = (uint8_t)r->macro_length;
 		memcpy(s->reply + 1, r->reply, s->reply[0]);
 		memcpy(s->macro + 1, r->macro, s->macro[0]);
 	}
@@ -117,7 +117,8 @@ st_ddofx_ray_profiles_load(struct rc_world *w, const uint8_t *map, const struct 
 		    .direction                     = s->direction};
 		r->reply_length = s->reply[0];
 		memcpy(r->reply, s->reply + 1, r->reply_length);
-		memcpy(r->macro, s->macro + 1, s->macro[0]);
+		r->macro_length = s->macro[0];
+		memcpy(r->macro, s->macro + 1, r->macro_length);
 	}
 	st_ddofx_ray_clear_profiles(w);
 	if (defined)
@@ -211,7 +212,8 @@ st_ddofx_ray_profile_command(struct st_ddofx *ddo, const char *verb, char *args)
 		    .stealth                       = cb.stealth};
 		r->reply_length = cb.reply_length;
 		memcpy(r->reply, cb.reply, r->reply_length);
-		strcpy(r->macro, cb.macro);
+		r->macro_length = cb.macro_length;
+		memcpy(r->macro, cb.macro, cb.macro_length);
 		if (n[7])
 			w->profiles->cells[n[8] - 1][n[7] - 1] = id;
 		return true;
@@ -262,7 +264,8 @@ step(struct st_ddofx *ddo, struct rc_profiles *p)
 		    && (r->direction == 9 || r->direction == direction);
 		if (r->action ? match : p->entered) {
 			struct st_ddofx_callback cb = {.stealth = r->stealth, .resource_text = r->resource_text};
-			strcpy(cb.macro, r->macro);
+			cb.macro_length = r->macro_length;
+			memcpy(cb.macro, r->macro, r->macro_length);
 			cb.reply_length = r->reply_length;
 			memcpy(cb.reply, r->reply, cb.reply_length);
 			if (st_ddofx_callback_start(ddo, &cb, DDO_RAY)) {

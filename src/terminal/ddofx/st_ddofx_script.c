@@ -59,6 +59,12 @@ struct macro_frame {
 	unsigned group_anchor, group_next; /* Anchor is one-based, zero for ordinary macro frames. */
 };
 
+struct macro_line {
+	char   text[LINE_LENGTH];
+	size_t length;
+	bool   resource_text;
+};
+
 struct st_ddofx_script {
 	struct variable variables[VARIABLE_COUNT];
 
@@ -66,8 +72,7 @@ struct st_ddofx_script {
 		uint8_t bytes[LINE_LENGTH];
 		size_t  length;
 	} returns[RETURN_COUNT];
-	char                macros[MACRO_COUNT][MACRO_LINES][LINE_LENGTH + 1];
-	bool                macro_resource_text[MACRO_COUNT][MACRO_LINES];
+	struct macro_line   macros[MACRO_COUNT][MACRO_LINES];
 	struct macro_frame *top;
 	unsigned            depth;
 	int                 capture;
@@ -245,12 +250,12 @@ st_ddofx_field_number(const struct st_ddofx *ddo, char **args, int32_t *n)
 	return s != NULL && st_ddofx_number(ddo, s, n);
 }
 
-static void
-macro_text(char *out, const char *in, size_t limit)
+static size_t
+macro_text(const struct st_ddofx *ddo, const char *field, char *out, size_t limit)
 {
-	size_t i = 0;
-	for (; i < limit && in[i]; ++i) {
-		switch (in[i]) {
+	size_t length = st_ddofx_copy_value(ddo, field, out, limit);
+	for (size_t i = 0; i < length; ++i) {
+		switch (out[i]) {
 			case '(':
 				out[i] = '{';
 				break;
@@ -263,12 +268,9 @@ macro_text(char *out, const char *in, size_t limit)
 			case ']':
 				out[i] = ')';
 				break;
-			default:
-				out[i] = in[i];
-				break;
 		}
 	}
-	out[i] = 0;
+	return length;
 }
 
 static struct macro_frame *
@@ -324,7 +326,6 @@ st_ddofx_script_clear(struct st_ddofx *ddo)
 	memset(s->variables, 0, sizeof(s->variables));
 	memset(s->returns, 0, sizeof(s->returns));
 	memset(s->macros, 0, sizeof(s->macros));
-	memset(s->macro_resource_text, 0, sizeof(s->macro_resource_text));
 	s->capture = 0;
 }
 
@@ -388,9 +389,9 @@ named_macro(struct st_ddofx *ddo, const char *verb, char *args)
 		if (!st_ddofx_field_number(ddo, &args, &line) || line < 1 || line > MACRO_LINES)
 			return;
 		if (!strcmp(verb, "DEFM")) {
-			s->macro_resource_text[id - 1][line - 1] = using_resource_text(ddo);
-			macro_text(s->macros[id - 1][line - 1], st_ddofx_value(ddo, args ? args : ""),
-			    LINE_LENGTH);
+			struct macro_line *entry = &s->macros[id - 1][line - 1];
+			entry->resource_text = using_resource_text(ddo);
+			entry->length = macro_text(ddo, args ? args : "", entry->text, sizeof(entry->text));
 			return;
 		}
 		if (strcmp(verb, "EXCM"))
@@ -503,7 +504,7 @@ st_ddofx_callback_define(const struct st_ddofx *ddo, struct st_ddofx_callback *c
 	cb->reply_length = length < limit ? length : limit;
 	for (size_t i = 0; i < cb->reply_length; ++i)
 		cb->reply[i] = bytes[i] == '~' ? ',' : bytes[i];
-	macro_text(cb->macro, st_ddofx_value(ddo, macro), limit);
+	cb->macro_length = macro_text(ddo, macro, cb->macro, limit);
 }
 
 bool
@@ -525,8 +526,8 @@ st_ddofx_callback_start(struct st_ddofx *ddo, const struct st_ddofx_callback *cb
 		ddo->wait_until  = 0;
 		ddo->in_event    = true;
 		f->resource_text = cb->resource_text;
-		copy(f->source, cb->macro, sizeof(cb->macro) - 1);
-		f->length = strlen(f->source);
+		f->length = cb->macro_length;
+		memcpy(f->source, cb->macro, f->length);
 		f->after_reply_length = st_ddofx_decode_controls(f->after_reply, cb->reply, cb->reply_length, true);
 	}
 	return f != NULL;
@@ -858,15 +859,17 @@ repeat_macro(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, const char 
 				return;
 		}
 	}
-	const char *body = args ? st_ddofx_value(ddo, args) : NULL;
-	if (!body || !*body)
+	if (!args || !*args)
 		return;
 	struct macro_frame *f = push(ddo->script);
 	if (f == NULL)
 		return;
 	f->resource_text = f->parent != NULL && f->parent->resource_text;
-	macro_text(f->source, body, ST_DDOFX_BODY_MAX);
-	f->length    = strlen(f->source);
+	f->length = macro_text(ddo, args, f->source, ST_DDOFX_BODY_MAX);
+	if (!f->length) {
+		pop(ddo->script);
+		return;
+	}
 	f->remaining = count;
 	f->until     = until;
 	f->condition = p;
@@ -928,9 +931,10 @@ st_ddofx_script_step(struct st_ddofx *ddo, const struct st_ddofx_sink *sink)
 	}
 	if (f->macro && f->next_line <= f->end_line) {
 		/* Snapshot this line. Commands in it may change any later line. */
-		f->resource_text = s->macro_resource_text[f->macro - 1][f->next_line - 1];
-		copy(f->source, s->macros[f->macro - 1][f->next_line++ - 1], LINE_LENGTH);
-		f->length = strlen(f->source);
+		const struct macro_line *line = &s->macros[f->macro - 1][f->next_line++ - 1];
+		f->resource_text = line->resource_text;
+		f->length = line->length;
+		memcpy(f->source, line->text, f->length);
 	}
 	else if (f->until) {
 		bool valid;

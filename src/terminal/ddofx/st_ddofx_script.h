@@ -5,8 +5,8 @@
 #include "st_ddofx.h"
 
 struct st_ddofx_callback {
-	char macro[101], reply[100];
-	size_t reply_length;
+	char macro[100], reply[100];
+	size_t macro_length, reply_length;
 	bool resource_text, stealth;
 };
 

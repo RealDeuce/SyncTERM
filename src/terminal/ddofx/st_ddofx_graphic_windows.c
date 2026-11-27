@@ -89,7 +89,7 @@ control_bounds(const struct st_ddofx_graphic_window *w, enum st_ddofx_frame_part
 				return (struct bounds){f.right - 52, f.right - 41, f.top + 2, f.top + 16};
 			break;
 		case FRAME_CLOSE:
-			if (*w->close.macro || w->close.reply_length)
+			if (w->close.macro_length || w->close.reply_length)
 				return (struct bounds){f.right - 16, f.right - 4, f.top + 2, f.top + 16};
 			break;
 		case FRAME_ZOOM:
@@ -611,7 +611,7 @@ define_close(struct st_ddofx *ddo, struct st_ddofx_graphic_window *w, char *args
 		return;
 
 	st_ddofx_callback_define(ddo, &w->close, reply, args, 100);
-	w->close_key = (*w->close.macro || w->close.reply_length) ? (uint16_t)((high << 8) | low) : 0;
+	w->close_key = (w->close.macro_length || w->close.reply_length) ? (uint16_t)((high << 8) | low) : 0;
 	w->pass_key = pass != 0;
 	if (!w->hidden && !w->borderless)
 		refresh(ddo, w->frame);

@@ -116,8 +116,9 @@ modify(struct st_ddofx *ddo, struct list_box *box, char *args)
 			memcpy(item->callback.reply, cb.reply, cb.reply_length);
 			item->callback.reply_length = cb.reply_length;
 		}
-		if (*cb.macro) {
-			strcpy(item->callback.macro, cb.macro);
+		if (cb.macro_length) {
+			item->callback.macro_length = cb.macro_length;
+			memcpy(item->callback.macro, cb.macro, cb.macro_length);
 			item->callback.resource_text = cb.resource_text;
 		}
 	}

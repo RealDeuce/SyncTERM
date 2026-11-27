@@ -178,7 +178,7 @@ selected(const struct st_ddofx *ddo, unsigned slot)
 	if (!c->active || !s->device)
 		return NULL;
 	const struct st_ddofx_callback *cb = &c->fields[direction(s, c)][s->buttons];
-	return (*cb->macro || cb->reply_length) && st_ddofx_callback_enabled(ddo, cb) ? cb : NULL;
+	return (cb->macro_length || cb->reply_length) && st_ddofx_callback_enabled(ddo, cb) ? cb : NULL;
 }
 
 uint32_t
