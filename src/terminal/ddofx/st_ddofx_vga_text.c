@@ -61,16 +61,16 @@ install(const struct st_ddofx_text_page *page, const struct st_ddofx_vga_font *f
 	return false;
 }
 
-struct st_console_rect
-st_ddofx_text_area(const struct st_ddofx_graphics *g, unsigned x, unsigned bottom, unsigned columns, unsigned rows,
-    unsigned padding)
+struct bounds
+st_ddofx_text_bounds(const struct st_ddofx_graphics *g, unsigned owner, int x, int bottom, unsigned columns,
+    unsigned rows, unsigned padding)
 {
-	unsigned width = columns * (unsigned)g->cell_width, height = rows * (unsigned)g->cell_height + padding;
-	if (width > WIDTH - x)
-		width = WIDTH - x;
-	if (height > bottom + 1)
-		height = bottom + 1;
-	return (struct st_console_rect) {x, bottom + 1 - height, width, height};
+	const struct st_ddofx_graphic_window *w = &g->graphic_windows[owner];
+	struct bounds page = {0, (owner ? w->width : WIDTH) - 1, 0, (owner ? w->height : HEIGHT) - 1};
+	struct bounds area = {x, x + (int)columns * g->cell_width - 1,
+	    bottom + 1 - (int)rows * g->cell_height - (int)padding, bottom};
+	st_ddofx_intersect_bounds(&area, &page);
+	return area;
 }
 
 void

@@ -459,10 +459,11 @@ st_ddofx_mouse(struct st_ddofx *ddo, const struct st_console_event *event)
 		mouse->scan.repeat_due = 0;
 		return;
 	}
-	int x = mouse->x, y = mouse->y;
-	if ((changed & 1) && buttons == 1 && !mouse->outside && !st_ddofx_window_point(ddo->graphics, &x, &y)) {
-		st_ddofx_list_click(ddo, mouse->x, mouse->y);
-		if (st_ddofx_text_field_mouse(ddo, mouse->x, mouse->y)) {
+	if ((changed & 1) && buttons == 1 && !mouse->outside) {
+		int x = mouse->x, y = mouse->y;
+		int owner = st_ddofx_window_point(ddo->graphics, &x, &y);
+		st_ddofx_list_click(ddo, owner, x, y);
+		if (st_ddofx_text_field_mouse(ddo, owner, x, y)) {
 			mouse->ignore_hold = true;
 			return;
 		}

@@ -211,10 +211,10 @@ bool    st_ddofx_sprite_fits(const struct st_ddofx_graphics *, unsigned window, 
 void    st_ddofx_flood(uint8_t *, int stride, const struct bounds *, int32_t x, int32_t y, uint8_t colour);
 void st_ddofx_clear_lists(struct st_ddofx_graphics *);
 bool st_ddofx_list_command(struct st_ddofx *, const char *, char *);
-void st_ddofx_list_click(struct st_ddofx *, int x, int y);
+void           st_ddofx_list_click(struct st_ddofx *, int owner, int x, int y);
 void st_ddofx_clear_text_fields(struct st_ddofx_graphics *);
 bool st_ddofx_text_field_command(struct st_ddofx *, const struct st_ddofx_sink *, const char *, char *);
-bool st_ddofx_text_field_mouse(struct st_ddofx *, int x, int y);
+bool           st_ddofx_text_field_mouse(struct st_ddofx *, int owner, int x, int y);
 bool    st_ddofx_choice_command(struct st_ddofx *, const char *verb, char *args);
 void st_ddofx_field_pointer(struct st_ddofx *, unsigned slot, bool animated);
 void    st_ddofx_define_button(struct st_ddofx *, char *args);
@@ -223,8 +223,11 @@ void st_ddofx_pointer_command(struct st_ddofx *, const struct st_ddofx_sink *, c
 void st_ddofx_mouse_defaults(struct st_ddofx_mouse_state *);
 bool st_ddofx_ensure_pointer(struct st_ddofx_mouse_state *);
 void st_ddofx_pointer_refresh(struct st_ddofx *);
-struct st_console_rect st_ddofx_text_area(const struct st_ddofx_graphics *, unsigned x, unsigned bottom,
+struct bounds  st_ddofx_text_bounds(const struct st_ddofx_graphics *, unsigned owner, int x, int bottom,
     unsigned columns, unsigned rows, unsigned padding);
+typedef void   st_ddofx_region_painter(void *context, const struct st_pixel_buffer *, struct bounds);
+void           st_ddofx_draw_text_control(struct st_ddofx *, unsigned owner, bool work, struct bounds,
+    st_ddofx_region_painter *, void *context);
 const uint8_t *st_ddofx_vga_bitmap(const struct st_ddofx *);
 bool st_ddofx_read_vga_font(const struct st_ddofx_sink *, const char *, uint8_t bitmap[4096]);
 void st_ddofx_print_text_box(struct st_ddofx *, enum page, struct bounds, const uint8_t *);

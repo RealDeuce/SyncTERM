@@ -2533,6 +2533,64 @@ def check_list_boxes(t, root, mouse):
                         b"fIBMSTD.FNT", b"2RESET"), b"second")
 
 
+def check_window_lists_and_fields(t, mouse):
+    t.case("list selection and editable fields use virtual window coordinates")
+    window = b"2GWIN,1,20,119,30,129,1000,750,0,1,0,0,0,0,0,0,0,0,1,Form"
+    top = 40*640+30
+    field = 94*640+30
+    frame = t.exchange(commands(b"2C,41", b"2aFILL", b"2CPYWP2VP", window, b"2CHVGP,1,900,650",
+                                b"2ALERTGWIN,1", b"2C,23", b"2aFILL", b"2RGWINI", b"fList.fnt",
+                                b"5CLBOX,1,910,691,3,2,10,1,11,2,12,3,2,0",
+                                b"5LBMODLST,1,1,1,0,A,first,", b"5LBMODLST,1,2,1,0,B,second,",
+                                b"5CTXTFLD,1,EDIT.FNT,A,[,],910,727,4,1,4,20,1,*,0,0,0,0,0,0,59,0,0,",
+                                b"2CALMGWIN", b"5LBDRWLST,1"))
+    for plane in (frame.primary, frame.alternate):
+        assert list(plane[top:top+3]) == [11,2,2]
+        assert list(plane[field:field+3]) == [20,1,1]
+    frame = t.exchange(commands(b"2CHVGP,1,890,640", b"5LBSHWLST,1", b"5SHOWTFLD,1"))
+    top += 10*640+10
+    field += 10*640+10
+    assert frame.primary[top] == 11 and frame.primary[field] == 20
+    for _ in range(2):
+        mouse(41,68,1)
+        mouse(41,68,0)
+    frame = t.exchange(commands(b"5LBEXCLST,1"), b"second")
+    assert list(frame.primary[top+16*640:top+16*640+3]) == [2,12,2]
+    mouse(41,100,1)
+    mouse(41,100,0)
+    frame = t.client.wait_for(lambda f: f.primary[field+1] == 4)
+    caret = 117*640+48
+    assert frame.primary[caret] == frame.alternate[caret] == 15
+    t.client.text("B")
+    t.client.key("enter")
+    t.input(b"[AB]")
+    # A desktop redraw intersecting the window must leave its visible controls intact.
+    frame = t.exchange(commands(b"5CLBOX,2,4,65,6,2,9,5,8,7,2,1,2,1", b"5LBSHWLST,2"))
+    assert frame.primary[50*640+15] == 5 and frame.primary[top] == 10
+    cover = b"2GWIN,2,20,119,30,129,100,100,0,1,0,0,0,0,0,0,0,0,1,Cover"
+    t.exchange(commands(cover, b"2ALERTGWIN,2", b"2C,53", b"2aFILL", b"2RGWINI", b"2CALMGWIN"))
+    mouse(41,100,1)
+    mouse(41,100,0)
+    t.client.text("z")
+    t.input(b"z")
+    t.client.key("f1")
+    t.client.text("C")
+    t.client.key("enter")
+    t.input(b"[ABC]")
+    frame = t.exchange(commands(b"5LBADJHLT,1,0,-1", b"5LBSHWLST,1"))
+    assert frame.primary[top] == frame.primary[field] == 53
+    frame = t.exchange(commands(b"2CGWIN,2", b"2ALERTGWIN,1", b"2aG,910,660", b"2CALMGWIN"), b"11\xff")
+    assert frame.primary[top] == 11
+    # Controls survive their host window. A reused slot can have a smaller page.
+    smaller = b"2GWIN,1,20,119,30,129,100,100,0,1,0,0,0,0,0,0,0,0,1,Small"
+    frame = t.exchange(commands(b"2CGWIN,1", b"5EXTFLD,1", b"5LBEXCLST,1", smaller, b"5SHOWTFLD,1",
+                                b"5LBSHWLST,1", b"5CTXTFLD,2,EDIT.FNT,A,,,96,40,4,3,4,20,1,*,0,0,0,0,0,0,0,0,0,",
+                                b"2aG,98,38", b"2ALERTGWIN,1", b"5CTXTFLD,3,EDIT.FNT,A,,,96,40,4,1,4,20,1,*,0,0,0,0,0,0,0,0,0,",
+                                b"2aG,99,38", b"2aG,0,39", b"2CALMGWIN"), b"[ABC]second3\xff1\xff0\xff")
+    assert list(frame.primary[68*640+116:68*640+120]) == [20,1,1,1]
+    t.exchange(commands(b"fIBMSTD.FNT", b"2RESET"))
+
+
 def check_mouse(t, root):
     t.case("Normal mouse region callbacks and button history")
     frame = t.exchange(commands(b"LIGMODE", b"LIGMODE", b"3MACT", b"dMOUSE"), b"Y\xff3\xff")
@@ -2592,6 +2650,7 @@ def check_mouse(t, root):
     check_choices(t, mouse)
     check_text_fields(t, root, mouse)
     check_list_boxes(t, root, mouse)
+    check_window_lists_and_fields(t, mouse)
     check_pointers(t, root, mouse)
     t.exchange(commands(b"3MREGN,300,70,85,40,55,3,B,", b"7DEFRET,1,M",
                         b"3MREGN,1,70,85,40,55,3,A~^M,\x1d(w1)\x1d(7SRET,1)",

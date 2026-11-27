@@ -16,7 +16,7 @@ In Normal mode, `2aCHORG` shifts the displayed page left and up. Pixels wrap hor
 
 A door can create ten graphic windows with independent visual and hidden pages. The active window paints above the other visible windows. An alert window receives primitive drawing commands in virtual-page coordinates. Its viewport can scroll, zoom, refresh and restore. PCX loads and hidden-to-visual copies publish to the viewport immediately. Closing a window reveals the remaining windows and the desktop hidden page. A user can raise a window, drag or resize its frame, zoom, restore and scroll its virtual pages. Close-button clicks and programmed keys execute the configured macro and send its return. A macro can explicitly close the window. An animation can serve as a draggable desktop or window icon. Doors can query its bounds, restore its creation position and associate open, close and drop procedures. A hosted window’s return-to-icon button runs the close procedure.
 
-In Normal mode, `1SCALE` sets a common cell width of 2–8 pixels and height of 2–16 pixels. Font scaling preserves each window’s logical page dimensions. Direct graphics text, desktop text fields, list boxes, marquees and digital clocks take their glyphs from the lower left of each 8×16 font record. The dimensions determine the space each character occupies. The font pixels keep their native size. A scene reset retains the current dimensions.
+In Normal mode, `1SCALE` sets a common cell width of 2–8 pixels and height of 2–16 pixels. Font scaling preserves each window’s logical page dimensions. Direct graphics text, text fields, list boxes, marquees and digital clocks take their glyphs from the lower left of each 8×16 font record. The dimensions determine the space each character occupies. The font pixels keep their native size. A scene reset retains the current dimensions.
 
 Sprites can be captured from any of the four graphics pages. The SDK repeats the background spelling for hidden-page capture. SyncTERM accepts `2SH` for the hidden page. Simple sprite definitions and animation frames share the SDK stack. `2DSS` restores the buffered regions from the background, draws the current frame in stack order, then publishes the regions to the visual page.
 
@@ -58,9 +58,9 @@ The BBS can create up to 300 push buttons with `5CPUSHB`. Creation draws the up 
 
 Radio buttons and checkboxes each have 300 slots shared by the desktop and graphic windows. A key or left click changes the selection. An explicit execute command runs the selected members of the addressed exclusive or multiple-selection group in slot order. Each macro finishes before its return string is sent.
 
-Desktop list boxes hold up to 100 items in each of 300 slots. The BBS can prepare a list on the work page, show it on the visual page, scroll by line or page, move the highlight, and toggle selections. A left click moves the highlight, and a double-click toggles the item. Execution visits selected items in list order. For `5LBADJLST`, positive movement goes toward the end, following the SDK’s direction parameter description.
+List boxes hold up to 100 items in each of 300 slots. A list defined in an alerted graphic window retains that window’s coordinates for navigation, selection and display. The BBS can prepare a list on the work page, show it on the visual page, scroll by line or page, move the highlight, and toggle selections. A left click moves the highlight, and a double-click toggles the item. Execution visits selected items in list order. For `5LBADJLST`, positive movement goes toward the end, following the SDK’s direction parameter description.
 
-A BBS can define 250 single-line text fields on the desktop. Creation and `5SHOWTFLD` paint the work page. Selecting a field by command, key or mouse edits it on the visual page. Fields support masked input, letter and digit filters, linked navigation and grouped submission in creation order. Each field’s macro finishes before its return is sent. The two `~GTXTFLD` commands take the variable number first and field number second, following the SDK. They preserve the variable’s type.
+A BBS can define 250 single-line text fields on the desktop or in graphic windows. Creation and `5SHOWTFLD` paint the owner’s virtual page when its window has focus and the desktop work page otherwise. Selecting a field by command, key or mouse edits it on the visual page. Mouse hits track the owner’s viewport and stacking order. Keyboard bindings remain global. Fields support masked input, letter and digit filters, linked navigation and grouped submission in creation order. Each field’s macro finishes before its return is sent. The two `~GTXTFLD` commands take the variable number first and field number second, following the SDK. They preserve the variable’s type.
 
 Desktop and graphic-window hover fields share a table of 300 slots. Graphic-window fields and regions use virtual-page coordinates and retain their slot association across window recreation. The highest matching slot runs its macro, sends its return string and selects its static or animated pointer. As specified in the SDK, leaving a field for uncovered space preserves the remembered slot. Re-entering it fires again after a different field has won or the BBS has sent `3MFFRS`.
 
@@ -378,22 +378,22 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 9688 | SWAP CHECK BOX | DDO-FX (NM) | Connected on the desktop and in graphic windows |
 | 9697 | DISABLE/ENABLE CHECK BOX | DDO-FX (NM) | Connected on the desktop and in graphic windows |
 | 9706 | CREATE PUSH BUTTON | DDO-FX (NM) | Connected on the desktop and in graphic windows |
-| 9792 | CREATE TEXT FIELD | DDO-FX (NM) | Connected on the desktop |
-| 9973 | SHOW TEXT FIELD | DDO-FX (NM) | Connected on the desktop |
-| 9981 | ACTIVATE TEXT FIELD | DDO-FX (NM) | Connected on the desktop |
-| 9992 | EXECUTE TEXT FIELD | DDO-FX (NM) | Connected on the desktop |
-| 10008 | SWAP TEXT FIELD | DDO-FX (NM) | Connected on the desktop |
-| 10016 | CREATE LIST BOX | DDO-FX (NM) | Connected on the desktop |
-| 10143 | MODIFY LIST ITEM | DDO-FX (NM) | Connected on the desktop |
-| 10197 | DRAW LIST BOX | DDO-FX (NM) | Connected on the desktop |
-| 10211 | SHOW LIST BOX | DDO-FX (NM) | Connected on the desktop |
-| 10224 | EXECUTE LIST BOX | DDO-FX (NM) | Connected on the desktop |
-| 10237 | KILL LIST BOX | DDO-FX (NM) | Connected on the desktop |
-| 10248 | DEACTIVATE LIST BOX | DDO-FX (NM) | Connected on the desktop |
-| 10262 | REACTIVATE LIST BOX | DDO-FX (NM) | Connected on the desktop |
-| 10274 | ADJUST LIST | DDO-FX (NM) | Connected on the desktop |
-| 10341 | ADJUST HIGHLIGHT | DDO-FX (NM) | Connected on the desktop |
-| 10378 | TOGGLE SELECTION | DDO-FX (NM) | Connected on the desktop |
+| 9792 | CREATE TEXT FIELD | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 9973 | SHOW TEXT FIELD | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 9981 | ACTIVATE TEXT FIELD | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 9992 | EXECUTE TEXT FIELD | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 10008 | SWAP TEXT FIELD | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 10016 | CREATE LIST BOX | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 10143 | MODIFY LIST ITEM | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 10197 | DRAW LIST BOX | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 10211 | SHOW LIST BOX | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 10224 | EXECUTE LIST BOX | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 10237 | KILL LIST BOX | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 10248 | DEACTIVATE LIST BOX | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 10262 | REACTIVATE LIST BOX | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 10274 | ADJUST LIST | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 10341 | ADJUST HIGHLIGHT | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 10378 | TOGGLE SELECTION | DDO-FX (NM) | Connected on the desktop and in graphic windows |
 | 10399 | CREATE MARQUEE | DDO-FX (NM) | Connected |
 | 10471 | SHOW MARQUEE | DDO-FX (NM) | Connected |
 | 10485 | STOP MARQUEE | DDO-FX (NM) | Connected |
@@ -523,7 +523,7 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 15049 | RESTORE ALL GRAPHIC WINDOWS | DDO-FX (NM) | Connected |
 | 15056 | REFRESH ALL GRAPHIC WINDOWS | DDO-FX (NM) | Connected |
 | 15062 | REFRESH GRAPHIC WINDOWS INTERIOR | DDO-FX (NM) | Connected |
-| 15074 | ALERT GRAPHIC WINDOW | DDO-FX (NM) | Connected for primitives, PCX, visual/hidden page copies, sprites, mouse fields and regions, push buttons, radio buttons, checkboxes, animations, collisions, icons, bitmap and VGA text, image transforms, tile grids, clocks, marquees, music bars, and FLI/FLC playback. Other attached operations pending |
+| 15074 | ALERT GRAPHIC WINDOW | DDO-FX (NM) | Connected for primitives, PCX, visual/hidden page copies, sprites, mouse fields and regions, push buttons, radio buttons, checkboxes, animations, collisions, icons, bitmap and VGA text, image transforms, tile grids, clocks, marquees, music bars, FLI/FLC playback, list boxes and editable text fields. Graphic text window attachment pending |
 | 15094 | CALM GRAPHIC WINDOW | DDO-FX (NM) | Connected |
 | 15101 | CREATE ICON | DDO-FX (NM) | Connected |
 | 15135 | ICON MOUSE POINTER | DDO-FX (NM) | Connected |

@@ -14,7 +14,7 @@ enum {
 
 struct text_field {
 	struct st_ddofx_callback callback;
-	unsigned                 x, bottom;
+	unsigned                 owner, x, bottom;
 	char                     text[TEXT_MAX + 1], before[AFFIX_MAX + 1], after[AFFIX_MAX + 1];
 	uint8_t                  font[4096];
 	unsigned                 limit, normal, selected, ink, filter, up, down;
@@ -60,25 +60,24 @@ struct field_image {
 	struct st_ddofx_graphics *g;
 	const struct text_field  *f;
 	int                       caret;
+	unsigned                  owner;
 };
 
-static int
-paint(void *context, const struct st_pixel_buffer *pixels, struct st_console_rect *damage)
+static void
+paint(void *context, const struct st_pixel_buffer *pixels, struct bounds clip)
 {
-	const struct field_image    *image = context;
-	const struct text_field     *f     = image->f;
-	const struct st_console_rect a     = st_ddofx_text_area(image->g, f->x, f->bottom, f->limit + 1, 1, 2);
-	if (pixels && (pixels->width != WIDTH || pixels->height != HEIGHT))
-		return 0;
+	const struct field_image *image  = context;
+	const struct text_field  *f      = image->f;
+	struct st_ddofx_surface   target = st_ddofx_surface(image->g, image->owner, image->owner ? VISUAL : WORK);
 	unsigned paper = image->caret < 0 ? f->normal : f->selected;
-	for (unsigned y = a.y; y < a.y + a.height; ++y) {
+	for (int y = clip.top; y <= clip.bottom; ++y) {
+		size_t at = (size_t)y * target.width + clip.left;
 		if (pixels) {
-			size_t at = y * WIDTH + a.x;
-			for (unsigned x = 0; x < a.width; ++x)
-				pixels->primary[at + x] = pixels->alternate[at + x] = paper;
+			for (int x = clip.left; x <= clip.right; ++x, ++at)
+				pixels->primary[at] = pixels->alternate[at] = paper;
 		}
 		else
-			memset(image->g->page[WORK][y] + a.x, (int)paper, a.width);
+			memset(target.data + at, (int)paper, clip.right - clip.left + 1);
 	}
 	size_t  length = strlen(f->text);
 	uint8_t visible[TEXT_MAX];
@@ -86,31 +85,31 @@ paint(void *context, const struct st_pixel_buffer *pixels, struct st_console_rec
 		memset(visible, f->mask, length);
 	else
 		memcpy(visible, f->text, length);
-	struct bounds clip = {(int)a.x, (int)(a.x + a.width) - 1, (int)a.y, (int)(a.y + a.height) - 1};
-	st_ddofx_paint_vga_string(image->g, 0, pixels, f->font, visible, (unsigned)length, a.x, f->bottom, f->ink,
-	    paper, &clip);
-	if (pixels && image->caret >= 0) {
-		unsigned left = a.x + (unsigned)image->caret * image->g->cell_width;
-		for (unsigned x = left; x < left + image->g->cell_width && x < a.x + a.width; ++x) {
-			size_t at           = (a.y + a.height - 1) * WIDTH + x;
-			pixels->primary[at] = pixels->alternate[at] = 15;
+	st_ddofx_paint_vga_string(image->g, image->owner, pixels, f->font, visible, (unsigned)length, f->x,
+	    f->bottom, f->ink, paper, &clip);
+	if (image->caret >= 0 && (int)f->bottom >= clip.top && (int)f->bottom <= clip.bottom) {
+		int left = (int)f->x + image->caret * image->g->cell_width;
+		int end  = left + image->g->cell_width;
+		for (int x = left < clip.left ? clip.left : left; x < end && x <= clip.right; ++x) {
+			size_t at = (size_t)f->bottom * target.width + x;
+			if (pixels)
+				pixels->primary[at] = pixels->alternate[at] = 15;
+			else
+				target.data[at] = 15;
 		}
 	}
-	if (damage)
-		*damage = a;
-	return 0;
 }
 
 static void
 draw(struct st_ddofx *ddo, unsigned id, bool work)
 {
+	struct st_ddofx_graphics    *g     = ddo->graphics;
 	struct st_ddofx_text_fields *t     = fields(ddo);
-	struct field_image           image = {ddo->graphics, t->slots[id - 1],
-	    !work && t->active == id ? (int)t->cursor : -1};
-	if (work)
-		(void)paint(&image, NULL, NULL);
-	else
-		(void)st_console_modify_pixels(ddo->graphics->display, paint, &image);
+	const struct text_field     *f     = t->slots[id - 1];
+	unsigned                     owner = work && f->owner != g->active_graphic_window ? 0 : f->owner;
+	struct field_image           image = {g, f, !work && t->active == id ? (int)t->cursor : -1, owner};
+	struct bounds                area  = st_ddofx_text_bounds(g, owner, f->x, f->bottom, f->limit + 1, 1, 2);
+	st_ddofx_draw_text_control(ddo, owner, work, area, paint, &image);
 }
 
 static void
@@ -138,11 +137,13 @@ define(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, unsigned id, char
 	for (unsigned i = 0; i < 9; ++i)
 		if (!st_ddofx_field_number(ddo, &args, n + i))
 			return;
-	if (!args || (unsigned)x >= WIDTH || y < ddo->graphics->cell_height + 1 || y >= HEIGHT || limit < 1
-	    || limit > TEXT_MAX || (unsigned)normal > 7 || (unsigned)selected > 7 || (unsigned)ink > 255
-	    || (unsigned)echo > 1 || (unsigned)n[0] > FIELD_COUNT || (unsigned)n[1] > FIELD_COUNT
-	    || (unsigned)n[2] > 1 || (unsigned)n[4] > 2 || (unsigned)n[5] > 1 || (unsigned)n[6] > 255
-	    || (unsigned)n[7] > 255 || (unsigned)n[8] > 1)
+	unsigned                owner = ddo->graphics->alert_graphic_window;
+	struct st_ddofx_surface page  = st_ddofx_surface(ddo->graphics, owner, VISUAL);
+	if (!args || x < 0 || x >= page.width || y < ddo->graphics->cell_height + 1 || y >= page.height
+	    || limit < 1 || limit > TEXT_MAX || (unsigned)normal > 7 || (unsigned)selected > 7
+	    || (unsigned)ink > 255 || (unsigned)echo > 1 || (unsigned)n[0] > FIELD_COUNT
+	    || (unsigned)n[1] > FIELD_COUNT || (unsigned)n[2] > 1 || (unsigned)n[4] > 2 || (unsigned)n[5] > 1
+	    || (unsigned)n[6] > 255 || (unsigned)n[7] > 255 || (unsigned)n[8] > 1)
 		return;
 	struct text_field *f = calloc(1, sizeof(*f));
 	if (!f)
@@ -161,6 +162,7 @@ define(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, unsigned id, char
 	affix(f->after, st_ddofx_value(ddo, after));
 	snprintf(f->text, sizeof(f->text), "%.*s", TEXT_MAX, st_ddofx_value(ddo, text));
 	f->limit                       = (unsigned)limit;
+	f->owner                       = owner;
 	f->x                           = (unsigned)x;
 	f->bottom                      = (unsigned)y;
 	f->normal                      = (unsigned)normal;
@@ -237,7 +239,7 @@ st_ddofx_text_field_hotkey(struct st_ddofx *ddo, unsigned slot, uint16_t word)
 }
 
 bool
-st_ddofx_text_field_mouse(struct st_ddofx *ddo, int x, int y)
+st_ddofx_text_field_mouse(struct st_ddofx *ddo, int owner, int x, int y)
 {
 	struct st_ddofx_text_fields *t = fields(ddo);
 	if (!t)
@@ -245,9 +247,12 @@ st_ddofx_text_field_mouse(struct st_ddofx *ddo, int x, int y)
 	for (unsigned i = t->count; i > 0; --i) {
 		unsigned               id = t->order[i - 1];
 		struct text_field     *f  = t->slots[id - 1];
-		struct st_console_rect a  = st_ddofx_text_area(ddo->graphics, f->x, f->bottom, f->limit + 1, 1, 2);
-		if ((unsigned)x >= a.x && (unsigned)x < a.x + a.width && (unsigned)y >= a.y
-		    && (unsigned)y < a.y + a.height && st_ddofx_callback_enabled(ddo, &f->callback)) {
+		if ((int)f->owner != owner)
+			continue;
+		struct bounds a =
+		    st_ddofx_text_bounds(ddo->graphics, f->owner, f->x, f->bottom, f->limit + 1, 1, 2);
+		if (x >= a.left && x <= a.right && y >= a.top && y <= a.bottom
+		    && st_ddofx_callback_enabled(ddo, &f->callback)) {
 			activate(ddo, id);
 			return true;
 		}
