@@ -12,7 +12,7 @@ little_u32(const uint8_t *p)
 }
 
 int
-st_ddofx_resource_find(FILE *file, const char *member, int id, uint32_t *length)
+st_ddofx_resource_find(FILE *file, const char *member, int id, uint32_t *length, uint16_t *type)
 {
 	enum {
 		RECORD_SIZE  = 24,
@@ -45,6 +45,8 @@ st_ddofx_resource_find(FILE *file, const char *member, int id, uint32_t *length)
 			if (fs_stream_seek(file, offset) != 0)
 				return -1;
 			*length = bytes;
+			if (type != NULL)
+				*type = (uint16_t)(p[20] | (unsigned)p[21] << 8);
 			return found;
 		}
 		at = little_u32(block + MEMBER_SLOTS * RECORD_SIZE + 12);

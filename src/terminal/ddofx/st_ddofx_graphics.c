@@ -368,8 +368,8 @@ dac(int32_t value)
 	return (uint32_t)((value << 2) | (value >> 4));
 }
 
-static void
-set_palette(struct st_ddofx_graphics *g, unsigned first, unsigned count)
+void
+st_ddofx_set_palette(struct st_ddofx_graphics *g, unsigned first, unsigned count)
 {
 	(void)st_console_set_palette(g->display, (uint16_t)first, g->palette + first, count);
 	(void)st_console_set_palette(g->view, (uint16_t)first, g->palette + first, count);
@@ -378,12 +378,28 @@ set_palette(struct st_ddofx_graphics *g, unsigned first, unsigned count)
 void
 st_ddofx_graphics_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *body)
 {
-	struct st_ddofx_graphics *g    = ddo->graphics;
-	char                     *args = body;
-	const char               *verb = st_ddofx_field(&args);
-	int32_t                   n[4];
+	struct st_ddofx_graphics *g = ddo->graphics;
+	if (body[1] == 'b' || body[1] == 'w' || body[1] == 'v') {
+		enum page dest = body[1] == 'b' ? BACKGROUND : body[1] == 'w' ? WORK : VISUAL;
+		st_ddofx_resource_pcx(ddo, sink, dest, body + 2);
+		return;
+	}
+	char       *args = body;
+	const char *verb = st_ddofx_field(&args);
+	int32_t     n[4];
 	if (!ascii_case_compare(verb, "2GEXIT") && args == NULL)
 		st_ddofx_graphics_exit(ddo);
+	else if (strlen(verb) == 7 && !args && !ascii_case_compare(verb + 3, "2PCX")) {
+		enum page page;
+		if (page_name(verb + 1, &page) && page != HIDDEN)
+			st_ddofx_page_file(ddo, page, page, true);
+	}
+	else if (strlen(verb) == 7 && ascii_case_ncompare(verb, "2L", 2) == 0
+	         && !ascii_case_compare(verb + 4, "PCX") && args && strlen(args) == 2) {
+		enum page file, dest;
+		if (page_name(verb + 2, &file) && page_name(args, &dest) && file != HIDDEN && dest != HIDDEN)
+			st_ddofx_page_file(ddo, file, dest, false);
+	}
 	else if (!ascii_case_ncompare(verb, "2CPY", 4))
 		copy_page(ddo, verb, args, false);
 	else if (!ascii_case_ncompare(verb, "2CUT", 4))
@@ -411,7 +427,7 @@ st_ddofx_graphics_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink
 		         && (unsigned)n[0] < 256 && (unsigned)n[1] < 64 && (unsigned)n[2] < 64
 		         && (unsigned)n[3] < 64) {
 			g->palette[n[0]] = dac(n[1]) << 16 | dac(n[2]) << 8 | dac(n[3]);
-			set_palette(g, (unsigned)n[0], 1);
+			st_ddofx_set_palette(g, (unsigned)n[0], 1);
 		}
 		else if (!ascii_case_compare(op, "GRGB") && st_ddofx_numbers(ddo, args, n, 1)
 		         && (unsigned)n[0] < 256) {
@@ -428,15 +444,15 @@ st_ddofx_graphics_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink
 				memcpy(ddo->saved_palette, g->palette, sizeof(g->palette));
 			else if (!ascii_case_compare(op, "RESTOREPAL")) {
 				memcpy(g->palette, ddo->saved_palette, sizeof(g->palette));
-				set_palette(g, 0, 256);
+				st_ddofx_set_palette(g, 0, 256);
 			}
 			else if (!ascii_case_compare(op, "ZEROPAL")) {
 				memset(g->palette, 0, sizeof(g->palette));
-				set_palette(g, 0, 256);
+				st_ddofx_set_palette(g, 0, 256);
 			}
 			else if (!ascii_case_compare(op, "DEFPAL")) {
 				memcpy(g->palette, text_colours, sizeof(text_colours));
-				set_palette(g, 0, 16);
+				st_ddofx_set_palette(g, 0, 16);
 			}
 		}
 		else

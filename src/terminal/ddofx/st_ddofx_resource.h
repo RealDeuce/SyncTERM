@@ -8,6 +8,6 @@
 
 /* An ID of -1 matches the first named entry. On success the stream points
  * at its payload, and the return value is the entry's component ID. */
-int st_ddofx_resource_find(FILE *, const char *member, int id, uint32_t *length);
+int st_ddofx_resource_find(FILE *, const char *member, int id, uint32_t *length, uint16_t *type);
 
 #endif

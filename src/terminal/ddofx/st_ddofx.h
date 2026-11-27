@@ -28,6 +28,7 @@ struct st_ddofx {
 	struct st_ddofx_graphics *graphics;
 	bool                      mode_prefix;
 	uint32_t                 *saved_palette;
+	FILE                     *page_files[3];
 	struct st_ddofx_framer   wire;
 	struct st_ddofx_script  *script;
 	struct st_ddofx_events  *events;

@@ -2364,7 +2364,9 @@ st_console_set_palette(st_console_t *console, uint16_t first, const uint32_t *rg
 			    &console->palette[changed_first], changed_count);
 		(void)st_mutex_unlock(&console->display->backend_mutex);
 	}
-	if (console->color_emoji || console->raster_parent != NULL)
+	/* A shared indexed view has already painted the hardware indices. Replaying
+	 * its retained text here would overwrite subsequent page graphics. */
+	if (!console->raster_parent_palette && (console->color_emoji || console->raster_parent != NULL))
 		st_console_invalidate_text_locked(console);
 	if (console->raster_parent == NULL)
 		st_console_mark_all_locked(console);

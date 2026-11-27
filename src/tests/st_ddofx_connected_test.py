@@ -126,7 +126,43 @@ def check_sprites(t):
                         b"2ACSS", b"2C,12", b"2aFILL", b"2DSS", b"2aG,51,49"), b"3\xff12\xff")
 
 
-def check_graphics(t):
+def check_pcx(t, root):
+    t.case("indexed PCX resource loading and page snapshots")
+    [marker] = root.rglob("syncterm-cache-name.txt")
+    directory = marker.parent / "DDOFX" / "BBSTHEME"
+    header = bytearray(128)
+    header[:4] = bytes((10,5,1,8))
+    struct.pack_into("<4H", header, 4, 12,18,14,19)
+    header[65] = 1
+    struct.pack_into("<H", header, 66, 4)
+    palette = bytearray(768)
+    palette[3*193:3*194] = bytes((192,149,63))
+    tail = b"\x0c"+palette
+    members = [(b"ART.PCX", 1, header+b"\xc2\xc1\x03\x09\x05\xc1\xff\x06\x09"+tail),
+               (b"BAD.PCX", 1, header+b"\xc0\x04"+tail),
+               (b"OTHER.PCX", 0, header+b"\xc4\x01\xc4\x02"+tail)]
+    entry = struct.Struct("<12sIIHH")
+    data = bytearray(entry.pack(b"\xff",0,0,0,0)*33)
+    for slot, (name, kind, payload) in enumerate(members):
+        entry.pack_into(data, slot*entry.size, name,len(data),len(payload),kind,0)
+        data.extend(payload)
+    (directory/"Art.S").write_bytes(data)
+    t.exchange(commands(b"2fArt.", b"2C,90", b"2aFILL", b"2CPYWP2VP", b"2CPYWP2BP",
+                        b"2wart.pcx", b"2aG,0,0", b"2aG,1,0", b"2aG,2,0", b"2aG,0,1", b"2aG,1,1",
+                        b"2aG,2,1", b"2aG,3,1", b"2aGRGB,193", b"2WP2PCX"),
+               b"193\xff193\xff3\xff5\xff255\xff6\xff90\xff48,37,15\xff")
+    frame = t.exchange(commands(b"2wBAD.PCX", b"2wOTHER.PCX", b"2aG,1,1", b"2C,13", b"2aFILL", b"2CPYWP2HP",
+                                b"2vART.PCX", b"2VP2PCX", b"2CPYHP2WP", b"2aG,1,1", b"2aG,639,479"),
+                       b"255\xff255\xff90\xff")
+    indices = list(frame.primary[640:644])
+    assert indices == [5, 255, 6, 90], indices
+    t.exchange(commands(b"2bART.PCX", b"2BP2PCX", b"2fmissing.", b"2C,8", b"2aFILL", b"2CPYWP2VP",
+                        b"2aZEROPAL", b"2LWPPCX,BP", b"2CPYBP2WP", b"2aG,1,0", b"2aGRGB,193",
+                        b"2LVPPCX,WP", b"2aG,1,1", b"2LBPPCX,VP", b"2CPYVP2WP", b"2aG,2,1"),
+               b"193\xff48,37,15\xff255\xff6\xff")
+
+
+def check_graphics(t, root):
     lite = t.check("Lite screen before graphics", b"Before", (7, 1), [(1, 1, "Before")])
     enter = commands(b"LIGMODE", b"LIGMODE")
     t.exchange(commands(b"dVCARD", b"LIGMODE", b"dVIDMODE",
@@ -158,12 +194,14 @@ def check_graphics(t):
     assert frame.primary[4 * 640 + 3] == 4 and frame.palette[4] == 0x00ffff
     check_drawing(t)
     check_sprites(t)
+    check_pcx(t, root)
     t.exchange(b"\x1b[75;45H" + b"\x1b[6n", b"\x1b[75;45R")
     restored = t.check("Lite display and cursor restored", commands(b"2GEXIT", b"dVIDMODE") + b"!",
                        (8, 1), [(1, 1, "Before!")], reset=False, expected=b"0\xff")
     assert restored.metadata["plane_height"] == lite.metadata["plane_height"]
     assert restored.palette[3] == lite.palette[3]
-    t.exchange(enter + commands(b"2aGRGB,3", b"2aG,639,479", b"2GEXIT"), b"63,21,0\xff0\xff")
+    t.exchange(enter + commands(b"2aGRGB,3", b"2aG,639,479", b"2LWPPCX,WP", b"2aG,1,0", b"2GEXIT"),
+               b"63,21,0\xff0\xff193\xff")
 
 
 def check_resources(t, root):
@@ -297,7 +335,7 @@ def run(args):
         check_resources(t, fixture[1])
         check_scripts(t)
         check_events(t)
-        check_graphics(t)
+        check_graphics(t, fixture[1])
         glyph = "é".encode("utf-8" if args.encoding == "UTF-8" else "cp437")
         t.check("framing amid ANSI", b"\x1b[2;" + ident + b"3H" + glyph + ident + ident + b"B",
                 (5, 2), [(3, 2, "éB")], expected=reply * 3)

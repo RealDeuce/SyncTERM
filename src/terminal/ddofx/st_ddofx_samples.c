@@ -257,7 +257,7 @@ static enum load_result
 append_member(FILE *file, const char *name, struct sample *sample)
 {
 	uint32_t length;
-	if (st_ddofx_resource_find(file, name, -1, &length) < 0)
+	if (st_ddofx_resource_find(file, name, -1, &length, NULL) < 0)
 		return ABSENT;
 	if (length == 0 || length > MAX_SAMPLE_SIZE)
 		return FAILED;

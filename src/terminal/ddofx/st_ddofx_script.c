@@ -240,7 +240,7 @@ st_ddofx_run_resource(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, co
 	if (file == NULL)
 		return;
 	uint32_t size;
-	if (st_ddofx_resource_find(file, member, -1, &size) >= 0 && size && size <= 40000 && script_ready(ddo)) {
+	if (st_ddofx_resource_find(file, member, -1, &size, NULL) >= 0 && size && size <= 40000 && script_ready(ddo)) {
 		struct macro_frame *f = push(ddo->script);
 		if (f != NULL) {
 			f->resource = malloc(size);

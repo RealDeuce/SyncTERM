@@ -48,6 +48,9 @@ struct st_ddofx_graphics {
 	int                      horizontal_thickness, vertical_thickness;
 };
 
+void    st_ddofx_set_palette(struct st_ddofx_graphics *, unsigned, unsigned);
+void    st_ddofx_resource_pcx(struct st_ddofx *, const struct st_ddofx_sink *, enum page, const char *);
+void    st_ddofx_page_file(struct st_ddofx *, enum page file, enum page target, bool save);
 uint8_t st_ddofx_pixel_index(const uint32_t *, uint32_t);
 void    st_ddofx_free_sprites(struct st_ddofx_graphics *);
 int     st_ddofx_sprite_slot(struct st_ddofx_graphics *, const char *, bool create);

@@ -12,9 +12,11 @@ An online pair of `LIGMODE` commands enters Normal mode on a pixel display. The 
 
 Sprites can be captured from any of the four graphics pages. The SDK repeats the background spelling for hidden-page capture. SyncTERM accepts `2SH` for the hidden page. Simple sprite definitions and animation frames share the SDK stack. `2DSS` restores the buffered regions from the background, draws the current frame in stack order, then publishes the regions to the visual page.
 
+Work, background and visual pages can load version-5, single-plane, 8-bit PCX artwork up to 640×480. Loading artwork installs its palette across all pages. Each page can save a session-owned PCX file and restore it to any of the three pages. The files survive a return to Lite mode and close at disconnect.
+
 Loose-file queries read the entry’s `DDOFX/MUSIC`, `DDOFX/FONTS`, and `DDOFX/BBSTHEME` directories. Professional queries use `DDOFX/TERMS/<client>`. Names use DOS-style case matching. The timestamp is local modification time with DOS two-second precision. `8EXEC` consumes the command without starting a program.
 
-Resource assignment selects the M container in `DDOFX/BBSTHEME` for local scripts. Scripts up to 40,000 bytes can call other scripts and render DOS text. A resource entry query tests the member name and component ID. Conditional scripts can also read that ID.
+Resource assignment selects the M container in `DDOFX/BBSTHEME` for local scripts and the S container for indexed PCX artwork. Scripts up to 40,000 bytes can call other scripts and render DOS text. A resource entry query tests the member name and component ID. Conditional scripts can also read that ID.
 
 Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed variables. Local macro calls, repeats and waits preserve the order of the wire stream. Variable capture redirects automatic query results. Configured return strings can send binary bytes. Conditional macros can compare user variables, identity, music state and loose-file metadata. Additional predefined system operands await their respective query implementations.
 
@@ -138,9 +140,9 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 6006 | CHANGE GRAPHIC TEXT WINDOW | DDO-FX (NM) | Pending |
 | 6035 | SCALE GRAPHIC TEXT FONTS | DDO-FX (NM) | Pending |
 | 6100 | SET GRAPHIC TEXT WINDOW COLUMNS | DDO-FX (NM) | Pending |
-| 6131 | LOAD PCX TO BACKGROUND PAGE | DDO-FX (NM) | Pending |
-| 6163 | LOAD PCX TO WORK PAGE | DDO-FX (NM) | Pending |
-| 6179 | LOAD PCX TO VISUAL PAGE | DDO-FX (NM) | Pending |
+| 6131 | LOAD PCX TO BACKGROUND PAGE | DDO-FX (NM) | Connected |
+| 6163 | LOAD PCX TO WORK PAGE | DDO-FX (NM) | Connected |
+| 6179 | LOAD PCX TO VISUAL PAGE | DDO-FX (NM) | Desktop pages; graphic window refresh pending |
 | 6199 | LOAD A BITMAP FONT | DDO-FX (NM) | Pending |
 | 6237 | BITMAP FONT SELECT | DDO-FX (NM) | Pending |
 | 6246 | COPY BACKGROUND PAGE TO WORK PAGE | DDO-FX (NM) | Connected |
@@ -165,12 +167,12 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 6443 | CUT VISUAL PAGE TO BACKGROUND PAGE | DDO-FX (NM) | Connected |
 | 6453 | CUT VISUAL PAGE TO WORK PAGE | DDO-FX (NM) | Connected |
 | 6463 | DEFINE TRANSPARENT COLORS | DDO-FX (NM) | Connected |
-| 6514 | SAVE BACKGROUND PAGE TO PCX | DDO-FX (NM) | Pending |
-| 6528 | SAVE WORK PAGE TO PCX | DDO-FX (NM) | Pending |
-| 6536 | SAVE VISUAL PAGE TO PCX | DDO-FX (NM) | Pending |
-| 6544 | LOAD VISUAL PAGE PCX | DDO-FX (NM) | Pending |
-| 6556 | LOAD WORK PAGE PCX | DDO-FX (NM) | Pending |
-| 6568 | LOAD BACKGROUND PAGE PCX | DDO-FX (NM) | Pending |
+| 6514 | SAVE BACKGROUND PAGE TO PCX | DDO-FX (NM) | Connected |
+| 6528 | SAVE WORK PAGE TO PCX | DDO-FX (NM) | Connected |
+| 6536 | SAVE VISUAL PAGE TO PCX | DDO-FX (NM) | Connected |
+| 6544 | LOAD VISUAL PAGE PCX | DDO-FX (NM) | Desktop pages; graphic window refresh pending |
+| 6556 | LOAD WORK PAGE PCX | DDO-FX (NM) | Desktop pages; graphic window refresh pending |
+| 6568 | LOAD BACKGROUND PAGE PCX | DDO-FX (NM) | Desktop pages; graphic window refresh pending |
 | 6580 | GET SPRITE | DDO-FX (NM) | Connected |
 | 6669 | GET SPRITE VISUAL PAGE | DDO-FX (NM) | Connected |
 | 6679 | GET SPRITE BACKGROUND PAGE | DDO-FX (NM) | Connected |

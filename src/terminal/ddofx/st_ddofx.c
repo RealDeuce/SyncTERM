@@ -82,7 +82,7 @@ resource_id(const struct st_ddofx *ddo, const struct st_ddofx_sink *sink, const 
 	if (file == NULL)
 		return -1;
 	uint32_t size;
-	int      id = st_ddofx_resource_find(file, st_ddofx_value(ddo, member), wanted, &size);
+	int      id = st_ddofx_resource_find(file, st_ddofx_value(ddo, member), wanted, &size, NULL);
 	fclose(file);
 	return id;
 }
@@ -170,6 +170,9 @@ void
 st_ddofx_reset(struct st_ddofx *ddo)
 {
 	st_ddofx_graphics_exit(ddo);
+	for (size_t i = 0; i < sizeof(ddo->page_files) / sizeof(ddo->page_files[0]); ++i)
+		if (ddo->page_files[i] != NULL)
+			fclose(ddo->page_files[i]);
 	free(ddo->saved_palette);
 	free(ddo->queued);
 	free(ddo->events);
