@@ -326,6 +326,8 @@ check_local_text_position(void)
 	CHECK(st_cterm_position_text(terminal, 3, 0) == 0);
 	feed(terminal, "X", 1);
 	CHECK(st_cterm_position_text(terminal, 0, 1) == 0);
+	/* A local console user can change the window between received glyphs. */
+	CHECK(st_console_set_window(console, &(struct st_console_rect) {2, 0, 2, 1}) == 0);
 	feed(terminal, "B", 1);
 	CHECK(st_cterm_state(terminal, &state) == 0 && state.x == 2 && state.y == 2);
 	struct st_console_cell       cell;

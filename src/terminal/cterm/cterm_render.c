@@ -269,17 +269,24 @@ cterm_render_set_window(struct cterminal *cterm, int left, int top, int right, i
 	    .width  = (uint32_t)(right - left + 1),
 	    .height = (uint32_t)(bottom - top + 1),
 	};
-	if (cterm->screen.addressing_window.width != 0) {
-		/* ANSI coordinates remain relative to their addressing region, but
-		 * RIP g/H can leave the cursor elsewhere in this same text window.
-		 * The console requires every physical cursor inside its window. */
-		const struct st_console_rect physical = {(uint32_t)(cterm->x - 1), (uint32_t)(cterm->y - 1),
+	struct st_console_rect physical = window;
+	bool                   rip_window = cterm->screen.addressing_window.width != 0;
+	if (rip_window) {
+		/* RIP g/H may position the cursor outside the ANSI addressing region. */
+		physical = (struct st_console_rect) {(uint32_t)(cterm->x - 1), (uint32_t)(cterm->y - 1),
 		    (uint32_t)cterm->width, (uint32_t)cterm->height};
-		if (render_succeeded(cterm, st_console_set_window(cterm->screen.console, &physical)))
-			cterm->screen.addressing_window = window;
-		return;
 	}
-	(void)render_succeeded(cterm, st_console_set_window(cterm->screen.console, &window));
+	/* The status line and local UI can select another window on this console. */
+	struct st_console_rect active;
+	if (!render_succeeded(cterm, st_console_get_window(cterm->screen.console, &active)))
+		return;
+	if (active.x != physical.x || active.y != physical.y || active.width != physical.width
+	    || active.height != physical.height) {
+		if (!render_succeeded(cterm, st_console_set_window(cterm->screen.console, &physical)))
+			return;
+	}
+	if (rip_window)
+		cterm->screen.addressing_window = window;
 }
 
 static bool
