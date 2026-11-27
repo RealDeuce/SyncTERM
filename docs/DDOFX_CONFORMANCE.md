@@ -14,6 +14,8 @@ Sprites can be captured from any of the four graphics pages. The SDK repeats the
 
 Work, background and visual pages can load version-5, single-plane, 8-bit PCX artwork up to 640×480. Loading artwork installs its palette across all pages. Each page can save a session-owned PCX file and restore it to any of the three pages. The files survive a return to Lite mode and close at disconnect.
 
+Lite and Normal accept complete 4,096-byte VGA fonts from `DDOFX/FONTS` with lowercase `f`. The selected font applies to console text and all four desktop `2XT` destinations. `dGETFONT` reports its filename. SyncTERM supplies its built-in VGA font for `IBMSTD.FNT` when that file is absent.
+
 A BBS can load legacy and four-bank BMF fonts into 32 slots with `2F` and switch between loaded fonts with `2FSELECT`. On all four desktop pages, `2X` scales a variable-width string to the specified rectangle, draws an optional one-pixel outline, and rotates it about the rectangle center.
 
 The four desktop pages support lower-left anchored image scaling, rotation between pages with a transparent index and independent pivots, palette-based anti-aliasing, and single-index outlines.
@@ -30,7 +32,7 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 
 | SDK line | Definition | Domain | Coverage |
 | ---: | --- | --- | --- |
-| 575 | LOAD FONT | DDO-FX LITE | Pending |
+| 575 | LOAD FONT | DDO-FX LITE | Connected |
 | 616 | LOAD MUSIC | DDO-FX LITE | MOD, S3M, CMF with embedded instruments |
 | 635 | LOAD BBS THEME | DDO-FX LITE | Connected |
 | 693 | LOAD SOUND BITES LIBRARY | DDO-FX LITE | Connected |
@@ -73,7 +75,7 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 2345 | DETECT SOUND F/X ON/OFF | DDO-FX LITE | Connected |
 | 2367 | DETECT MUSIC PLAYING | DDO-FX LITE | Connected |
 | 2389 | DETECT THEME LOADED | DDO-FX LITE | Connected |
-| 2411 | DETECT FONT LOADED | DDO-FX LITE | Pending |
+| 2411 | DETECT FONT LOADED | DDO-FX LITE | Connected |
 | 2431 | DEFINE A MACRO | DDO-FX LITE | Connected |
 | 2590 | CLEAR A MACRO | DDO-FX LITE | Connected |
 | 2602 | RUN A MACRO | DDO-FX LITE | Connected |
@@ -236,10 +238,10 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 7899 | CUT VISUAL PAGE TO HIDDEN PAGE | DDO-FX (NM) | Connected |
 | 7909 | CUT HIDDEN PAGE TO VISUAL PAGE | DDO-FX (NM) | Connected |
 | 7919 | DO PRINT | DDO-FX (NM) | Desktop pages; low-memory text fallback and virtual windows pending |
-| 8058 | DO PRINT TEXT FONT | DDO-FX (NM) | Pending |
-| 8110 | DO PRINT TEXT FONT WP | DDO-FX (NM) | Pending |
-| 8118 | DO PRINT TEXT FONT BP | DDO-FX (NM) | Pending |
-| 8127 | DO PRINT TEXT FONT HP | DDO-FX (NM) | Pending |
+| 8058 | DO PRINT TEXT FONT | DDO-FX (NM) | Connected on the desktop |
+| 8110 | DO PRINT TEXT FONT WP | DDO-FX (NM) | Connected on the desktop |
+| 8118 | DO PRINT TEXT FONT BP | DDO-FX (NM) | Connected on the desktop |
+| 8127 | DO PRINT TEXT FONT HP | DDO-FX (NM) | Connected on the desktop |
 | 8136 | SET COLOR | DDO-FX (NM) | Connected |
 | 8146 | DRAW POINT | DDO-FX (NM) | Connected |
 | 8156 | DRAW POINT XOR | DDO-FX (NM) | Connected |

@@ -340,6 +340,64 @@ def check_pcx(t, root):
                b"193\xff48,37,15\xff255\xff6\xff")
 
 
+def check_vga_font(t, root):
+    t.case("VGA font selection in Lite, Normal and on the graphics pages")
+    [marker] = root.rglob("syncterm-cache-name.txt")
+    directory = marker.parent / "DDOFX" / "FONTS"
+    font = bytearray(4096)
+    # Deliberately asymmetric first and last rows of A. Comma has its
+    # own glyph so a parser that splits the text field loses visible ink.
+    font[65*16] = 0x81
+    font[65*16+15] = 0x40
+    font[44*16+7] = 0x10
+    (directory / "Test.FNT").write_bytes(font)
+    replacement = bytearray(font)
+    replacement[66*16:67*16] = font[65*16:66*16]
+    (directory / "Second.FNT").write_bytes(replacement)
+    (directory / "Short.FNT").write_bytes(font[:-1])
+    (directory / "Long.FNT").write_bytes(font+b"x")
+
+    def glyph(frame, x, y, fg, bg):
+        for plane in (frame.primary, frame.alternate):
+            width = frame.metadata["plane_width"]
+            for dy in range(16):
+                for dx in range(8):
+                    ink = (dy == 0 and dx in (0,7)) or (dy == 15 and dx == 1)
+                    assert plane[(y+dy)*width+x+dx] == (fg if ink else bg), (x,y,dx,dy,fg,bg)
+
+    # Change a glyph already present in VGA text memory, then write another.
+    frame = t.exchange(b"\x1b[2J\x1b[H\x1b[37;40mA"+commands(b"dGETFONT", b"~DEFVAR,90,1,TEST.FNT",
+                       b"fDEFVAR90", b"fShort.FNT", b"fLong.FNT", b"fNONE.FNT", b"dGETFONT")+b"A",
+                       b"IBMSTD.FNT\xffTEST.FNT\xff")
+    cell = frame.cells[0]
+    glyph(frame,0,0,cell.foreground,cell.background)
+    glyph(frame,8,0,cell.foreground,cell.background)
+
+    frame = t.exchange(commands(b"LIGMODE", b"LIGMODE", b"dGETFONT", b"2C,54", b"2aFILL",
+                                b"2CPYWP2VP", b"2CPYWP2BP", b"2XT,632,479,0,8,A",
+                                b"2XTBP,0,15,201,6,A,A", b"2XTWP,0,14,5,3,A",
+                                b"2XTWP,633,479,5,3,A", b"2aG,633,479", b"2aG,0,0"),
+                       b"TEST.FNT\xff54\xff54\xff")
+    glyph(frame,632,464,0,54)
+    frame = t.exchange(commands(b"2CPYBP2VP"))
+    glyph(frame,0,0,201,6)
+    glyph(frame,16,0,201,6)
+    assert frame.primary[7*640+11] == 201
+    frame = t.exchange(commands(b"2XTHP,88,31,19,3,A", b"2CPYHP2VP", b"2XTWP,12,31,2,8,A",
+                                b"2aG,12,16", b"2aG,13,16"), b"2\xff54\xff")
+    glyph(frame,88,16,19,3)
+    frame = t.exchange(commands(b"2RESET") + b"\x1b[H\x1b[37;40mA")
+    glyph(frame,0,0,7,0)
+    frame = t.exchange(commands(b"2XT,0,15,18,4,A", b"fSecond.FNT", b"fNONE.FNT") + b"\x1b[1;2HB")
+    glyph(frame,0,0,18,4)
+    glyph(frame,8,0,7,0)
+    frame = t.exchange(commands(b"2GEXIT", b"dGETFONT")+b"B", b"Second.FNT\xff")
+    glyph(frame,0,0,cell.foreground,cell.background)
+    glyph(frame,16,0,cell.foreground,cell.background)
+    frame = t.exchange(commands(b"fIBMSTD.FNT", b"dGETFONT"), b"IBMSTD.FNT\xff")
+    assert frame.primary[0] != cell.foreground
+
+
 def check_graphics(t, root):
     lite = t.check("Lite screen before graphics", b"Before", (7, 1), [(1, 1, "Before")])
     enter = commands(b"LIGMODE", b"LIGMODE")
@@ -533,6 +591,7 @@ def run(args):
         check_scripts(t)
         check_events(t)
         check_lite_reset(t)
+        check_vga_font(t, fixture[1])
         check_graphics(t, fixture[1])
         glyph = "é".encode("utf-8" if args.encoding == "UTF-8" else "cp437")
         t.check("framing amid ANSI", b"\x1b[2;" + ident + b"3H" + glyph + ident + ident + b"B",

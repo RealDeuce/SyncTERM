@@ -80,6 +80,7 @@ st_ddofx_graphics_exit(struct st_ddofx *ddo)
 	}
 	ddo->graphics = NULL;
 	free(g);
+	st_ddofx_apply_vga_font(ddo);
 }
 
 static int
@@ -159,6 +160,7 @@ st_ddofx_graphics_enter(struct st_ddofx *ddo, const struct st_ddofx_sink *sink)
 	static const uint16_t pc_indices[16] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
 	config.console                       = g->view;
 	config.fonts                         = g->fonts;
+	config.font_selector                 = 0;
 	config.terminal_rows                 = 100;
 	config.status_line                   = false;
 	config.scrollback_lines              = 0;
@@ -170,6 +172,8 @@ st_ddofx_graphics_enter(struct st_ddofx *ddo, const struct st_ddofx_sink *sink)
 	if (st_cterm_create(&g->text, &config) != 0 || st_cterm_start_text(g->text) != 0
 	    || st_console_raster_view_adopt_indexed(g->view) != 0)
 		st_ddofx_graphics_exit(ddo);
+	else
+		st_ddofx_apply_vga_font(ddo);
 }
 
 struct transfer {
@@ -499,6 +503,8 @@ st_ddofx_graphics_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink
 	int32_t     n[4];
 	if (!ascii_case_compare(verb, "2GEXIT") && args == NULL)
 		st_ddofx_graphics_exit(ddo);
+	else if (!ascii_case_ncompare(verb, "2XT", 3))
+		st_ddofx_print_vga_text(ddo, verb + 3, args);
 	else if (!strcmp(verb, "2F") || (verb[1] == 'F' && !ascii_case_compare(verb + 2, "SELECT"))
 	         || !strcmp(verb, "2X"))
 		st_ddofx_bitmap_text(ddo, sink, verb, args);

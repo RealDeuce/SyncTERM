@@ -20,6 +20,7 @@ _Static_assert((ST_CONSOLE_RASTER_INVALID & (ST_CONSOLE_CELL_PUBLIC_FLAGS | ST_C
     "Raster invalidation must be independent of logical cell flags");
 
 struct st_console_font_registration {
+	struct st_console_font_registration *strike;
 	uint16_t               identifier;
 	struct st_console_font font;
 	bool                   owned;
@@ -469,8 +470,8 @@ void st_console_set_cell_locked(st_console_t *console, size_t index, const struc
 const struct st_console_font        *st_console_font_locked(st_console_t *console, uint16_t identifier);
 const struct st_console_color_glyph *st_console_font_color_glyph(const struct st_console_font *font,
     uint32_t                                                                                   glyph);
-const struct st_console_font        *st_console_font_raster_variant_locked(st_console_t *console,
-    const struct st_console_font                                                 *font);
+const struct st_console_font *st_console_resolve_font_raster_locked(st_console_t *console,
+    uint16_t identifier, const struct st_console_font **source);
 bool   st_console_font_remap_glyph(const struct st_console_font *source, const struct st_console_font *destination,
     uint32_t *glyph);
 void   st_console_invalidate_text_locked(st_console_t *console);

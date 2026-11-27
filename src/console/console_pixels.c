@@ -179,8 +179,7 @@ static const struct st_console_font *
 cached_font(st_console_t *console, struct font_cache *cache, uint16_t identifier, uint32_t *glyph)
 {
 	if (!cache->valid || cache->identifier != identifier) {
-		cache->source     = st_console_font_locked(console, identifier);
-		cache->font       = st_console_font_raster_variant_locked(console, cache->source);
+		cache->font       = st_console_resolve_font_raster_locked(console, identifier, &cache->source);
 		cache->identifier = identifier;
 		cache->valid      = true;
 	}

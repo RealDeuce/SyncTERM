@@ -26,6 +26,7 @@ struct st_ddofx_framer {
 
 struct st_ddofx {
 	struct st_ddofx_graphics *graphics;
+	struct st_ddofx_vga_font *vga_font;
 	bool                      mode_prefix;
 	uint32_t                 *saved_palette;
 	FILE                     *page_files[3];

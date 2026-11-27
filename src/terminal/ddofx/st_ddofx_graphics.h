@@ -5,6 +5,9 @@
 #include "st_cterm.h"
 #include "st_ddofx.h"
 
+void st_ddofx_load_vga_font(struct st_ddofx *, const struct st_ddofx_sink *, const char *);
+const char *st_ddofx_vga_font_name(const struct st_ddofx *);
+void st_ddofx_release_vga_font(struct st_ddofx *);
 bool st_ddofx_fade_step(struct st_ddofx *, uint64_t now);
 void st_ddofx_gadget_command(struct st_ddofx *, char *body);
 uint32_t st_ddofx_grid_wait_ms(const struct st_ddofx *);

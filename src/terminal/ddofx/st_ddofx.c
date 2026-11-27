@@ -96,6 +96,8 @@ st_ddofx_builtin(const struct st_ddofx *ddo, const struct st_ddofx_sink *sink, c
 		strcpy(result, "LITERM Ver. 2.00");
 	else if (!ascii_case_compare(name, "VCARD"))
 		strcpy(result, st_ddofx_svga(sink) ? "S" : "V");
+	else if (!ascii_case_compare(name, "GETFONT"))
+		strcpy(result, st_ddofx_vga_font_name(ddo));
 	else if (!ascii_case_compare(name, "GETMUSIC"))
 		strcpy(result, *ddo->music_name ? ddo->music_name : "NONE");
 	else if (!ascii_case_compare(name, "GETTHEME"))
@@ -170,6 +172,7 @@ void
 st_ddofx_reset(struct st_ddofx *ddo)
 {
 	st_ddofx_graphics_exit(ddo);
+	st_ddofx_release_vga_font(ddo);
 	for (size_t i = 0; i < sizeof(ddo->page_files) / sizeof(ddo->page_files[0]); ++i)
 		if (ddo->page_files[i] != NULL)
 			fclose(ddo->page_files[i]);
@@ -254,6 +257,8 @@ execute(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *body)
 	}
 	else if (st_ddofx_samples_command(ddo, sink, body))
 		return;
+	else if (body[0] == 'f')
+		st_ddofx_load_vga_font(ddo, sink, st_ddofx_value(ddo, body + 1));
 	else if (body[0] == 'm')
 		music(ddo, sink, st_ddofx_value(ddo, body + 1));
 	else if (body[0] == 'w') {

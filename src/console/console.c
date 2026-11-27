@@ -2520,8 +2520,8 @@ find_font(st_console_t *console, uint16_t identifier, size_t *index)
 	return true;
 }
 
-const struct st_console_font *
-st_console_font_locked(st_console_t *console, uint16_t identifier)
+static struct st_console_font_registration *
+font_registration_locked(st_console_t *console, uint16_t identifier)
 {
 	size_t                               index;
 	struct st_console_font_registration *registration;
@@ -2531,7 +2531,14 @@ st_console_font_locked(st_console_t *console, uint16_t identifier)
 	registration = console->fonts[index];
 	atomic_store_explicit(&registration->last_used,
 	    atomic_fetch_add_explicit(&console->font_clock, 1, memory_order_relaxed) + 1, memory_order_relaxed);
-	return &registration->font;
+	return registration;
+}
+
+const struct st_console_font *
+st_console_font_locked(st_console_t *console, uint16_t identifier)
+{
+	const struct st_console_font_registration *registration = font_registration_locked(console, identifier);
+	return registration ? &registration->font : NULL;
 }
 
 bool
@@ -2633,8 +2640,13 @@ font_matches_raster(const st_console_t *console, const struct st_console_font *f
 }
 
 const struct st_console_font *
-st_console_font_raster_variant_locked(st_console_t *console, const struct st_console_font *font)
+st_console_resolve_font_raster_locked(st_console_t *console, uint16_t identifier, const struct st_console_font **source)
 {
+	const struct st_console_font_registration *registration = font_registration_locked(console, identifier);
+	const struct st_console_font *font = registration ? &registration->font : NULL;
+	*source = font;
+	if (registration && registration->strike)
+		return &registration->strike->font;
 	if (font == NULL || font->raster_family == NULL || font_matches_raster(console, font))
 		return font;
 	for (size_t i = array_list_count(console->fonts); i > 0; --i) {
@@ -2888,6 +2900,8 @@ font_registration_free(struct st_console_font_registration *registration)
 {
 	if (registration == NULL)
 		return;
+	if (registration->strike)
+		font_registration_free(registration->strike);
 	if (registration->owned) {
 		for (size_t i = 0;
 		    registration->font.cluster_mapping != NULL && i < registration->font.cluster_mapping_count;
@@ -3075,6 +3089,40 @@ int
 st_console_register_font_copy(st_console_t *console, const struct st_console_font *font, uint16_t *identifier)
 {
 	return register_font(console, font, identifier, true);
+}
+
+int
+st_console_set_font_strike(st_console_t *console, uint16_t identifier, const struct st_console_font *strike)
+{
+	if (console == NULL || (strike && !font_valid(strike)))
+		return IO_ERROR_INVALID_ARGUMENT;
+	struct st_console_font_registration *next = strike ? font_registration_create(strike, true) : NULL;
+	if (strike && !next)
+		return IO_ERROR_OUT_OF_MEMORY;
+	if (st_rwlock_write_lock(st_console_state_lock(console)) != ST_THREAD_SUCCESS) {
+		font_registration_free(next);
+		return IO_ERROR_IO;
+	}
+
+	int status = 0;
+	struct st_console_font_registration *owner = font_registration_locked(console, identifier);
+	if (!owner)
+		status = IO_ERROR_NOT_FOUND;
+	else if (next || owner->strike) {
+		struct st_console_font_registration *old = owner->strike;
+		owner->strike = next;
+		st_console_invalidate_text_locked(console);
+		status = st_console_finish_change_locked(console);
+		if (status && next) {
+			owner->strike = old;
+			st_console_invalidate_text_locked(console);
+		}
+		else
+			next = old;
+	}
+	(void)st_rwlock_unlock(st_console_state_lock(console));
+	font_registration_free(next);
+	return status;
 }
 
 int

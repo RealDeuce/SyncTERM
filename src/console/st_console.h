@@ -650,6 +650,9 @@ int st_console_get_default_palette(uint16_t first, uint32_t *rgb, uint32_t count
 int st_console_register_static_font(st_console_t *console, const struct st_console_font *font,
     uint16_t *identifier);
 int st_console_register_font_copy(st_console_t *console, const struct st_console_font *font, uint16_t *identifier);
+/* Use a copied strike to present an existing identifier and its retained text.
+ * Passing NULL restores the registered strike. Logical glyphs stay intact. */
+int st_console_set_font_strike(st_console_t *, uint16_t identifier, const struct st_console_font *strike);
 /* Copy one registered font into another console with independent ownership.
  * No simultaneous console locks; source replacement/destruction after return
  * cannot invalidate the destination. Failure preserves identifier. */
