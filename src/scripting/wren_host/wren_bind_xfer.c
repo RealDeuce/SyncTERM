@@ -966,6 +966,12 @@ inline_upload(WrenVM *vm)
 }
 
 static void
+background_download(WrenVM *vm)
+{
+	wrenSetSlotBool(vm, 0, st_term_session_background_download(st_wren_context_from_vm(vm)->session));
+}
+
+static void
 inline_progress(WrenVM *vm)
 {
 	struct st_wren_transfer *s = st_wren_context_from_vm(vm)->transfer;
@@ -1316,6 +1322,7 @@ st_wren_transfer_bind_method(const char *class_name, bool is_static, const char 
 	    {"active",             active           },
             {"uploading",          uploading        },
             {"inlineUpload",       inline_upload    },
+	    {"backgroundDownload_", background_download},
 	    {"inlineProgress",     inline_progress  },
             {"beginSession(_)",    begin            },
             {"endSession()",       end              },

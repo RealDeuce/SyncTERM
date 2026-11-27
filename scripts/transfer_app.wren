@@ -77,6 +77,7 @@ class TransferApp is App {
       _dialogActive = true
       Cleanup_.run(Fn.new { dialog_(Transfer.dialogPending) },
           Fn.new { _dialogActive = false })
+      if (_dialogOnly) quit()
     }
     if (Transfer.done && _deadline == null) {
       var result = Transfer.result
@@ -107,6 +108,11 @@ class TransferApp is App {
     } else {
       Transfer.dialogRespond(1, "")
     }
+  }
+  runDialog() {
+    _dialogOnly = true
+    _waitTimeoutMs = 0
+    run()
   }
   run() {
     Screen.checked_(Screen.modalRun(Fn.new {

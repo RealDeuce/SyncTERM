@@ -2096,6 +2096,7 @@ class Transfer {
   foreign static active
   foreign static uploading
   foreign static inlineUpload
+  foreign static backgroundDownload_
   foreign static inlineProgress
   foreign static autoPending_
   foreign static cancelAuto_()

@@ -20,7 +20,7 @@ struct st_ddofx_keys {
 	struct binding          bindings[KEY_COUNT];
 	struct st_console_event event;
 	unsigned                next, count, active_slot;
-	bool                    checked_button, active_button;
+	bool                    checked_button, active_button, local_only;
 	uint16_t                word;
 	unsigned                physical_scan;
 	uint16_t                alt_echo;
@@ -244,7 +244,7 @@ st_ddofx_resume_key(struct st_ddofx *ddo, const struct st_ddofx_sink *sink)
 		pass = match == KEY_PASS;
 	}
 	ddo->in_key = false;
-	pass        = pass && !ddo->keys_locked;
+	pass        = pass && !keys->local_only && !ddo->keys_locked;
 	if (keys->event.type == ST_CONSOLE_EVENT_PHYSICAL_KEY)
 		keys->pass_echo = pass;
 	return pass && sink->pass_key ? sink->pass_key(sink->context, &keys->event) : 0;
@@ -299,6 +299,7 @@ st_ddofx_key(struct st_ddofx *ddo, const struct st_console_event *e)
 	if (match == KEY_PASS && e->type != ST_CONSOLE_EVENT_PHYSICAL_KEY)
 		return ddo->keys_locked;
 	keys->event = *e;
+	keys->local_only = ddo->background_download;
 	if (e->type == ST_CONSOLE_EVENT_PHYSICAL_KEY)
 		keys->alt_echo = word;
 	if (match != KEY_CALLBACK) {

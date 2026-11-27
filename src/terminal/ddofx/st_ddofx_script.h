@@ -6,7 +6,7 @@
 
 struct st_ddofx_callback {
 	char macro[101], reply[101];
-	bool resource_text;
+	bool resource_text, stealth;
 };
 
 enum st_ddofx_callback_kind { DDO_EVENT = 1, DDO_KEY, DDO_MOUSE, DDO_FIELD
@@ -32,6 +32,7 @@ void     st_ddofx_button_up(struct st_ddofx *, unsigned);
 void st_ddofx_finish_field(struct st_ddofx *);
 void st_ddofx_resume_mouse(struct st_ddofx *);
 void     st_ddofx_callback_define(const struct st_ddofx *, struct st_ddofx_callback *, const char *, const char *);
+bool     st_ddofx_callback_enabled(const struct st_ddofx *, const struct st_ddofx_callback *);
 bool     st_ddofx_callback_start(struct st_ddofx *, const struct st_ddofx_callback *, enum st_ddofx_callback_kind);
 void     st_ddofx_define_key(struct st_ddofx *, char *args);
 void     st_ddofx_clear_keys(struct st_ddofx *);

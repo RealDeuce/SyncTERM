@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <inttypes.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -41,6 +42,7 @@ struct local_input {
 
 struct deferred_event {
 	struct local_input     input;
+	bool                   during_background_download;
 	struct deferred_event *next;
 };
 
@@ -85,6 +87,8 @@ struct st_term_session {
 	st_transfer_t         *transfer;
 	bool                   transfer_reserved, transfer_was_binary, wire_replaying;
 	bool                   transfer_skip_lf;
+	uint64_t               download_started_ms, download_row_due;
+	char                   download_row[81];
 	uint8_t               *returned_wire;
 	size_t                 returned_position, returned_size;
 	uint8_t                prestel_frame[65536];
@@ -122,11 +126,56 @@ st_term_session_device_paused(st_term_session_t *session)
 	           || cterm_igs_paused(session->igs));
 }
 
+bool
+st_term_session_background_download(const st_term_session_t *session)
+{
+	return session != NULL && session->ddofx.background_download;
+}
+
+static void
+download_status_row(st_term_session_t *session)
+{
+	uint64_t now;
+	if (st_time_monotonic_ms(&now) != 0 || now < session->download_row_due)
+		return;
+	session->download_row_due = now + 100;
+
+	struct st_transfer_inspection state;
+	st_transfer_inspect(session->transfer, &state);
+	int64_t total = state.progress.bytes_total, current = state.progress.bytes_current;
+	double fraction = total > 0 && current > 0 ? (double)current / total : 0;
+	unsigned filled = fraction >= 1 ? 20 : (unsigned)(20 * fraction);
+	uint64_t elapsed = (now - session->download_started_ms) / 1000;
+	char estimate[24] = "?", bar[21], line[81];
+	if (fraction > 0)
+		snprintf(estimate, sizeof(estimate), "%.0f", elapsed / fraction);
+	memset(bar, 178, filled);
+	memset(bar + filled, 176, 20 - filled);
+	bar[20] = 0;
+	snprintf(line, sizeof(line), "DOWNLOADING <PLEASE WAIT>:%s SIZE %" PRId64 " TIME %" PRIu64 " of %s",
+	    bar, total, elapsed, estimate);
+	if (!strcmp(line, session->download_row))
+		return;
+	struct st_console_cell cells[80];
+	size_t length = strlen(line);
+	for (size_t i = 0; i < 80; ++i)
+		cells[i] = (struct st_console_cell){
+		    .glyph = i < length ? (unsigned char)line[i] : ' ',
+		    .foreground = ST_CONSOLE_COLOR_RGB_VALUE(255, 255, 255),
+		    .background = ST_CONSOLE_COLOR_RGB_VALUE(0, 0, 168),
+		};
+	if (st_console_write_status_row(session->config.console, cells, 80) == 0) {
+		(void)st_console_show_status_row(session->config.console, true);
+		strcpy(session->download_row, line);
+	}
+}
+
 static bool
 ddofx_can_run(const st_term_session_t *session)
 {
-	return session->config.graphics_mode == ST_GRAPHICS_DDOFX_20 && session->transfer == NULL
-	       && !session->transfer_reserved && session->wire_owner == NULL;
+	return session->config.graphics_mode == ST_GRAPHICS_DDOFX_20 && session->wire_owner == NULL
+	       && ((session->transfer == NULL && !session->transfer_reserved)
+	           || (session->ddofx.background_download && !session->suspended));
 }
 
 int
@@ -142,6 +191,14 @@ st_term_session_poll_display(st_term_session_t *session)
 	if (status == 0 && ddofx_can_run(session)) {
 		const struct st_ddofx_sink sink = ddofx_sink(session);
 		status = st_ddofx_poll(&session->ddofx, &sink);
+		if (session->ddofx.background_download) {
+			if (session->ddofx.graphics)
+				download_status_row(session);
+			else if (session->download_row[0]) {
+				(void)st_console_write_status_row(session->config.console, NULL, 0);
+				session->download_row[0] = 0;
+			}
+		}
 	}
 	if (status == 0 && session->igs != NULL)
 		status = cterm_igs_poll(session->igs);
@@ -424,7 +481,7 @@ static void
 session_output(st_term_session_t *session, enum st_cterm_output_origin origin, const uint8_t *bytes, size_t size,
     bool text)
 {
-	if (session->wire_owner != NULL)
+	if (session->wire_owner != NULL || session->ddofx.background_download)
 		return;
 	if (origin == ST_CTERM_OUTPUT_RESPONSE
 	    && (session->config.suppress_responses || session->transfer != NULL || session->transfer_reserved))
@@ -968,6 +1025,11 @@ st_term_session_set_suspended(st_term_session_t *session, bool suspended)
 	if (session != NULL) {
 		if (session->suspended != suspended)
 			session->throttle_last_ms = 0;
+		if (session->suspended != suspended && session->ddofx.background_download) {
+			(void)st_console_show_status_row(session->config.console, false);
+			session->download_row[0] = 0;
+			session->download_row_due = 0;
+		}
 		session->suspended = suspended;
 		st_ddofx_pointer_pause(&session->ddofx,
 		    session->suspended || session->unfocused || session->mouse_disabled);
@@ -1046,7 +1108,7 @@ st_term_session_send_text(st_term_session_t *session, const char *utf8, size_t s
 
 	if (session == NULL || (utf8 == NULL && size != 0))
 		return IO_ERROR_INVALID_ARGUMENT;
-	if (session->wire_owner != NULL)
+	if (session->wire_owner != NULL || session->ddofx.background_download)
 		return IO_ERROR_BUSY;
 	status = st_unicode_text_create(&text, ST_UNICODE_TEXT_GRAPHEMES);
 	if (status == 0)
@@ -1715,6 +1777,8 @@ static int
 ddofx_pass_key(void *context, const struct st_console_event *event)
 {
 	bool handled = false;
+	if (st_term_session_background_download(context))
+		return 0;
 	return deliver_terminal_key(context, event, &handled);
 }
 
@@ -1723,7 +1787,8 @@ deliver_key(st_term_session_t *session, const struct st_console_event *event, bo
 {
 	if (session->wire_owner != NULL)
 		return 0;
-	if ((ddofx_can_run(session) && st_ddofx_key(&session->ddofx, event)) || st_term_rip3_key(session->rip3, event)) {
+	if ((ddofx_can_run(session) && st_ddofx_key(&session->ddofx, event)) || session->ddofx.background_download
+	    || st_term_rip3_key(session->rip3, event)) {
 		*handled = true;
 		return session->output_error;
 	}
@@ -1825,7 +1890,10 @@ deliver_deferred(st_term_session_t *session)
 	session->deferred_head       = saved->next;
 	if (session->deferred_head == NULL)
 		session->deferred_tail = NULL;
+	bool expired = saved->during_background_download && !session->ddofx.background_download;
 	free(saved);
+	if (expired)
+		return 0;
 
 	bool handled = false;
 	return deliver_input(session, &input, &handled);
@@ -1862,7 +1930,9 @@ forward_input(st_term_session_t *session, const struct local_input *input, bool 
 		}
 		return deliver_input(session, input, handled);
 	}
-	*saved = (struct deferred_event) {.input = *input};
+	*saved = (struct deferred_event) {
+	    .input = *input, .during_background_download = session->ddofx.background_download
+	};
 	st_term_rip3_note_queued_input(session->rip3, &input->event);
 	if (session->deferred_tail != NULL)
 		session->deferred_tail->next = saved;
@@ -2087,7 +2157,7 @@ st_term_session_service(st_term_session_t *session, enum st_term_disposition *di
 			return status;
 	}
 	bool paused = !protocol_input && input_paused(session);
-	if (parser_was_waiting && !paused)
+	if (parser_was_waiting && !protocol_input && !paused)
 		session->did_work = true;
 	if (session->transfer_reserved || session->wire_owner != NULL || paused)
 		read_size = 0;
@@ -2403,6 +2473,16 @@ st_term_session_begin_transfer(st_term_session_t *session, st_transfer_t *transf
 		return status;
 	session->transfer          = transfer;
 	session->transfer_reserved = false;
+	if (session->ddofx.graphics && session->ddofx.enable_background_download) {
+		struct st_transfer_inspection state;
+		st_transfer_inspect(transfer, &state);
+		if (state.protocol == ST_TRANSFER_ZMODEM && !state.upload) {
+			st_ddofx_background_download(&session->ddofx, true);
+			(void)st_time_monotonic_ms(&session->download_started_ms);
+			session->download_row[0] = 0;
+			session->download_row_due = 0;
+		}
+	}
 	return 0;
 }
 
@@ -2451,6 +2531,10 @@ st_term_session_end_transfer(st_term_session_t *session)
 			session->wire_position     = session->wire_size;
 			session->returned_position = session->returned_size;
 		}
+	}
+	if (session->ddofx.background_download) {
+		(void)st_console_write_status_row(session->config.console, NULL, 0);
+		st_ddofx_background_download(&session->ddofx, false);
 	}
 	session->transfer          = NULL;
 	session->transfer_reserved = false;

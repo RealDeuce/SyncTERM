@@ -46,6 +46,7 @@ struct st_ddofx {
 	struct st_cmf           *cmf;
 	unsigned                 volume;
 	bool                     pointer_paused;
+	bool                     enable_background_download, background_download, define_stealth;
 	bool                     keys_locked, in_key, in_mouse;
 	bool                     ignoring, background_paused, in_event;
 };
@@ -65,6 +66,7 @@ struct st_ddofx_sink {
 
 void st_ddofx_pointer_pause(struct st_ddofx *, bool);
 void st_ddofx_mouse(struct st_ddofx *, const struct st_console_event *);
+void st_ddofx_background_download(struct st_ddofx *, bool active);
 void st_ddofx_mouse_cancel(struct st_ddofx *, uint32_t buttons);
 bool st_ddofx_key(struct st_ddofx *, const struct st_console_event *);
 uint32_t st_ddofx_wait_ms(const struct st_ddofx *);

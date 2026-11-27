@@ -13,39 +13,40 @@ from st_migrated_control_test import connection
 from st_terminal_conformance_test import Terminal
 
 
+def receive_header(t, kind):
+    # A recipient may advertise ZRINIT both at startup and in reply to
+    # ZRQINIT. Read one frame at a time even when TCP combines them.
+    while True:
+        data = bytearray()
+        while len(data) < 20:
+            part = t.peer.recv(20 - len(data))
+            assert part, data
+            data.extend(part)
+        assert data[:4] == b"**\x18B" and data[18:] == b"\r\n", data
+        fields = bytes.fromhex(data[4:18].decode("ascii"))
+        assert crc_hqx(fields[:5], 0) == int.from_bytes(fields[5:], "big")
+        if fields[0] != 8:
+            assert t.peer.recv(1) == b"\x11"
+        if fields[0] == kind:
+            return
+        assert fields[0] == 1 and kind in (5, 8, 9), data
+
+
 def check_package_downloads(t):
     t.case("ZMODEM command packages install before the next DDO query")
-
-    def receive_header(kind):
-        # A recipient may advertise ZRINIT both at startup and in reply to
-        # ZRQINIT. Read one frame at a time even when TCP combines them.
-        while True:
-            size = 20 if kind == 8 else 21
-            data = bytearray()
-            while len(data) < size:
-                part = t.peer.recv(size - len(data))
-                assert part, data
-                data.extend(part)
-            assert data[:4] == b"**\x18B", data
-            assert data[18:] == (b"\r\n" if kind == 8 else b"\r\n\x11"), data
-            fields = bytes.fromhex(data[4:18].decode("ascii"))
-            assert crc_hqx(fields[:5], 0) == int.from_bytes(fields[5:], "big")
-            if fields[0] == kind:
-                return
-            assert fields[0] == 1 and kind == 9, data
 
     def transfer(name, contents):
         info = name + b"\x00" + str(len(contents)).encode() + b"\x00"
         t.send(header(4) + subpacket(info, b"k"))
-        receive_header(9)
+        receive_header(t, 9)
         t.send(header(10) + subpacket(contents, b"h") + header(11, len(contents)))
-        receive_header(1)
+        receive_header(t, 1)
 
     # A damaged member must leave the earlier complete asset in place.
     broken = package([("TUNE.MOD", b"damaged replacement")], zipfile.ZIP_STORED)
     broken = broken.replace(b"damaged replacement", b"invalid replacement")
     t.send(header(0))
-    receive_header(1)
+    receive_header(t, 1)
     music = package([("nested/TUNE.MOD", b"first"), ("DRUM.S3M", b"second")], zipfile.ZIP_DEFLATED)
     transfer(b"$li$mA-0.zip", music)
     record = struct.Struct("<12sIIHH")
@@ -65,7 +66,7 @@ def check_package_downloads(t):
     transfer(b"$LI$F013.ZIP", b"incomplete archive")
     assert not list((t.root / "cache").glob("*/DDOFX/MUSIC/TUNE.MOD"))
     t.send(header(8))
-    receive_header(8)
+    receive_header(t, 8)
     t.send(b"OO")
     t.client.wait_for(lambda frame: not frame.application.get("transfer.active"))
     t.exchange(commands(b"dmTUNE.MOD", b"dmDRUM.S3M", b"dtMARK.THE"),
@@ -82,6 +83,46 @@ def check_package_downloads(t):
         assert (cache / path).read_bytes() == b"asset"
     downloads = t.root / "downloads"
     assert {p.name for p in downloads.iterdir()} == {"$LI$Q013.ZIP", "$LI$F013.ZIP", "$LI$Mbad.ZIP"}
+
+
+def check_background_download(t):
+    t.case("background ZMODEM keeps the scene interactive and owns the wire")
+    frame = t.exchange(commands(b"LIGMODE", b"LIGMODE", b"2C,3", b"2aFILL", b"2CPYWP2VP",
+                                b"4MKEY,1,46,99,0,ordinary,\x1d(2C,5)\x1d(2aFILL)\x1d(2CPYWP2VP)",
+                                b"7CEVENT,1,0,20,0,0,0,0,0,0,0,parked,",
+                                b"7ZMSTEALTH,1",
+                                b"7CEVENT,2,0,20,0,0,0,0,0,0,0,local,\x1d(2C,6)\x1d(2aFILL)\x1d(2CPYWP2VP)",
+                                b"4MKEY,2,46,99,1,stealth,\x1d(7AEVENT,1)\x1d(7AEVENT,2)",
+                                b"7ZMSTEALTH,0", b"7ZMBKGRND,1"))
+    def bottom(f):
+        m = f.metadata
+        x = m["destination_x"] + m["destination_width"] // 2
+        y = m["destination_y"] + m["destination_height"] - 1
+        return f.rgb[y * m["output_width"] + x]
+
+    assert bottom(frame) == frame.palette[3]
+    t.send(header(0))
+    receive_header(t, 1)
+    t.client.wait_for(lambda f: f.application.get("transfer.active") and bottom(f) != frame.palette[3])
+    duplicate = t.root / "downloads" / "DUP.BIN"
+    duplicate.write_bytes(b"existing file")
+    t.send(header(4) + subpacket(b"DUP.BIN\x001\x00", b"k"))
+    t.client.wait_for(lambda f: "Overwrite" in f.text and "Rename" in f.text)
+    t.client.key("enter")  # Skip is the default.
+    receive_header(t, 5)
+    assert duplicate.read_bytes() == b"existing file"
+    t.client.wait_for(lambda f: "Rename" not in f.text and bottom(f) != frame.palette[3])
+    t.client.text("xc")
+    active = t.client.wait_for(lambda f: f.primary and f.primary[0] == 6)
+    assert bottom(active) != active.palette[6]
+    t.send(header(8))
+    receive_header(t, 8)
+    t.send(b"OO")
+    t.client.wait_for(lambda f: not f.application.get("transfer.active") and bottom(f) == f.palette[6])
+    t.input(b"parked")
+    t.client.text("c")
+    t.input(b"ordinary")
+    t.exchange(commands(b"2RESET", b"2GEXIT"))
 
 
 def check_cache(t, root):
@@ -937,6 +978,7 @@ def run(args):
                             b"~VARCAP,10", b"6CHECKBS,1", b"~VARCAP,0", b"7DEFRET,1,DEFVAR10", b"7SRET,1"),
                    b"NO\xffNONE\xffN/A\xffN/A")
         check_package_downloads(t)
+        check_background_download(t)
         check_cache(t, fixture[1])
         check_resources(t, fixture[1])
         check_scripts(t)

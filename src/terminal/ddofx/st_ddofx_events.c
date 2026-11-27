@@ -19,18 +19,20 @@ struct event {
 
 struct st_ddofx_events {
 	struct event slots[EVENT_COUNT];
-	uint64_t     next_due;
+	uint64_t     next_due, next_stealth;
 	unsigned     cursor;
 };
 
 static void
 next_deadline(struct st_ddofx_events *events)
 {
-	events->next_due = UINT64_MAX;
+	events->next_due = events->next_stealth = UINT64_MAX;
 	for (unsigned i = 0; i < EVENT_COUNT; ++i) {
 		const struct event *e = &events->slots[i];
 		if (e->active && e->due < events->next_due)
 			events->next_due = e->due;
+		if (e->active && e->callback.stealth && e->due < events->next_stealth)
+			events->next_stealth = e->due;
 	}
 }
 
@@ -124,13 +126,19 @@ st_ddofx_event_command(struct st_ddofx *ddo, const char *verb, char *args)
 	next_deadline(ddo->events);
 }
 
+static uint64_t
+event_deadline(const struct st_ddofx *ddo)
+{
+	return ddo->background_download ? ddo->events->next_stealth : ddo->events->next_due;
+}
+
 static bool
 events_active(const struct st_ddofx *ddo)
 {
 	/* Event macros may change pages, palettes or modes. Dispatch them at
 	 * foreground command boundaries once a palette transition finishes. */
 	return ddo->events != NULL && !ddo->fade_due && !ddo->background_paused && !ddo->in_event
-	       && ddo->events->next_due != UINT64_MAX;
+	       && event_deadline(ddo) != UINT64_MAX;
 }
 
 uint32_t
@@ -141,9 +149,9 @@ st_ddofx_event_wait_ms(const struct st_ddofx *ddo)
 	uint64_t now;
 	if (st_time_monotonic_ms(&now) != 0)
 		return UINT32_MAX;
-	if (now >= ddo->events->next_due)
+	if (now >= event_deadline(ddo))
 		return 0;
-	uint64_t delay = ddo->events->next_due - now;
+	uint64_t delay = event_deadline(ddo) - now;
 	return delay >= UINT32_MAX ? UINT32_MAX - 1 : (uint32_t)delay;
 }
 
@@ -153,14 +161,14 @@ st_ddofx_event_poll(struct st_ddofx *ddo)
 	if (!events_active(ddo))
 		return;
 	uint64_t now;
-	if (st_time_monotonic_ms(&now) != 0 || now < ddo->events->next_due)
+	if (st_time_monotonic_ms(&now) != 0 || now < event_deadline(ddo))
 		return;
 
 	struct st_ddofx_events *events = ddo->events;
 	for (unsigned offset = 0; offset < EVENT_COUNT; ++offset) {
 		unsigned      i = (events->cursor + offset) % EVENT_COUNT;
 		struct event *e = &events->slots[i];
-		if (!e->active || e->due > now)
+		if (!e->active || e->due > now || !st_ddofx_callback_enabled(ddo, &e->callback))
 			continue;
 		if (e->calendar && time(NULL) < e->date) {
 			/* Calendar events follow changes to the local wall clock. */

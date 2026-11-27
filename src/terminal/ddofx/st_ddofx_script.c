@@ -352,14 +352,21 @@ st_ddofx_callback_define(const struct st_ddofx *ddo, struct st_ddofx_callback *c
     const char *macro)
 {
 	cb->resource_text = using_resource_text(ddo);
+	cb->stealth = ddo->define_stealth;
 	define_reply(cb->reply, st_ddofx_value(ddo, reply), sizeof(cb->reply) - 1);
 	macro_text(cb->macro, st_ddofx_value(ddo, macro), sizeof(cb->macro) - 1);
 }
 
 bool
+st_ddofx_callback_enabled(const struct st_ddofx *ddo, const struct st_ddofx_callback *cb)
+{
+	return !ddo->background_download || cb->stealth;
+}
+
+bool
 st_ddofx_callback_start(struct st_ddofx *ddo, const struct st_ddofx_callback *cb, enum st_ddofx_callback_kind kind)
 {
-	if (!script_ready(ddo))
+	if (!st_ddofx_callback_enabled(ddo, cb) || !script_ready(ddo))
 		return false;
 	struct macro_frame *f = push(ddo->script);
 	if (f != NULL) {
@@ -727,6 +734,15 @@ st_ddofx_script_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, 
 		st_ddofx_define_key(ddo, args);
 	else if (root == '4')
 		named_macro(ddo, verb, args);
+	else if (root == '7' && (!strcmp(verb, "ZMBKGRND") || !strcmp(verb, "ZMSTEALTH"))) {
+		int32_t enabled;
+		if (ddo->graphics && st_ddofx_number(ddo, args, &enabled) && (enabled == 0 || enabled == 1)) {
+			if (!strcmp(verb, "ZMBKGRND"))
+				ddo->enable_background_download = enabled != 0;
+			else
+				ddo->define_stealth = enabled != 0;
+		}
+	}
 	else if (root == '7' && (!strcmp(verb, "CEVENT") || !strcmp(verb, "AEVENT") || !strcmp(verb, "DEVENT")))
 		st_ddofx_event_command(ddo, verb, args);
 	else if (root == '7')

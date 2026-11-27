@@ -91,7 +91,7 @@ class TransferFlow {
       }
       var error = Transfer.download(row[0], filename)
       if (error != null) Fiber.abort(error)
-      TransferApp.new(row[1] + " Download").run()
+      showDownload_(row[1] + " Download")
     })
   }
   static automatic() {
@@ -100,7 +100,7 @@ class TransferFlow {
     if (pending == "upload") {
       upload(true, 0)
     } else if (pending == "download") {
-      launch_(Fn.new { TransferApp.new("ZMODEM Download").run() })
+      launch_(Fn.new { showDownload_("ZMODEM Download") })
     } else if (pending == "skypix-download") {
       launch_(Fn.new {
         var app = TransferApp.new("SkyPix Asset Download")
@@ -132,12 +132,24 @@ class TransferFlow {
       })
     }
   }
-  static inline_() {
+  static showDownload_(label) {
+    if (Transfer.backgroundDownload_) {
+      inline_(true)
+    } else {
+      TransferApp.new(label).run()
+    }
+  }
+  static inline_() { inline_(false) }
+  static inline_(background) {
     var claim = Input.pushClaim(Fn.new {|event|
-      if (event is KeyEvent && (event.shortcut_ == Key.escape || event.shortcut_ == Key.chord_(99, Mod.control) || event.shortcut_ == Key.chord_(120, Mod.control))) Transfer.requestAbort()
-      return true
+      if (event is KeyEvent && (event.shortcut_ == Key.escape || event.shortcut_ == Key.chord_(99, Mod.control) || event.shortcut_ == Key.chord_(120, Mod.control))) {
+        Transfer.requestAbort()
+        return true
+      }
+      return !background
     })
     while (!Transfer.done) {
+      if (background && Transfer.dialogPending != 0) TransferApp.new("ZMODEM Download").runDialog()
       Transfer.drainLog()
       Timer.after(50).await()
     }

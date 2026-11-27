@@ -29,6 +29,7 @@ void st_term_session_set_auxiliary_active(st_term_session_t *session, bool activ
 /* Serialized owner-only read. A false result means there is no transfer. */
 bool st_term_session_inspect_transfer(st_term_session_t *session, struct st_transfer_inspection *state,
     bool *reserved);
+bool st_term_session_background_download(const st_term_session_t *session);
 bool st_term_session_transfer_active(const st_term_session_t *session);
 /* Protocol-number bits for IFS. Set after the transfer bridge is ready. */
 void st_term_session_set_rip3_transfer_protocols(st_term_session_t *session, uint32_t protocols);

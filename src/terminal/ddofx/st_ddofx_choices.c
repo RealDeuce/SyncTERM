@@ -208,7 +208,7 @@ st_ddofx_choices_consume_key(struct st_ddofx *ddo, unsigned slot, uint16_t word)
 		if (!table || slot >= table->count)
 			continue;
 		struct choice *c = &table->slots[slot];
-		if (c->enabled && c->key == word) {
+		if (c->enabled && c->key == word && st_ddofx_callback_enabled(ddo, &c->callback)) {
 			toggle(ddo->graphics, kind, c);
 			if (!c->pass)
 				return true;
@@ -225,7 +225,7 @@ st_ddofx_choice_mouse(struct st_ddofx *ddo, enum st_ddofx_choice_kind kind, unsi
 		return false;
 	struct choice                *c = &table->slots[slot];
 	const struct st_ddofx_sprite *s = st_ddofx_find_sprite(ddo->graphics, c->on);
-	if (!st_ddofx_sprite_fits(s, c->x, c->y) || x < c->x || x >= c->x + s->width || y > c->y
+	if (!st_ddofx_callback_enabled(ddo, &c->callback) || !st_ddofx_sprite_fits(s, c->x, c->y) || x < c->x || x >= c->x + s->width || y > c->y
 	    || y <= c->y - s->height)
 		return false;
 	toggle(ddo->graphics, kind, c);
@@ -243,7 +243,7 @@ st_ddofx_next_choice(struct st_ddofx *ddo, enum st_ddofx_choice_kind kind, unsig
 		return false;
 	while (*next < table->count) {
 		const struct choice *c = &table->slots[(*next)++];
-		if (c->enabled && c->selected
+		if (c->enabled && c->selected && st_ddofx_callback_enabled(ddo, &c->callback)
 		    && (target == c || (target->exclusive && target->exclusive == c->exclusive)
 		        || (target->multiple && target->multiple == c->multiple)))
 			return st_ddofx_callback_start(ddo, &c->callback, DDO_EVENT);

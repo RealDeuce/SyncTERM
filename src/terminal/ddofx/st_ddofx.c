@@ -187,7 +187,9 @@ st_ddofx_reset(struct st_ddofx *ddo)
 	st_ddofx_samples_destroy(ddo);
 	st_ddofx_script_destroy(ddo);
 	stop_music(ddo);
-	*ddo = (struct st_ddofx) {.volume = 64};
+	/* The session releases the receive worker after joining it. Resetting
+	 * a display during reception must retain that worker's wire ownership. */
+	*ddo = (struct st_ddofx) {.volume = 64, .background_download = ddo->background_download};
 }
 
 static void
@@ -220,6 +222,8 @@ execute(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *body)
 		free(ddo->events);
 		ddo->events = NULL;
 		ddo->background_paused = false;
+		ddo->enable_background_download = false;
+		ddo->define_stealth = false;
 	}
 	else if (matches(body, "dVIDMODE"))
 		st_ddofx_query_reply(ddo, sink, ddo->graphics ? "1" : "0", true);

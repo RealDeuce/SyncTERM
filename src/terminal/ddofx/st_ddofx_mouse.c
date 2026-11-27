@@ -184,7 +184,7 @@ hover(struct st_ddofx *ddo)
 	fields->dirty                       = false;
 	for (unsigned i = REGION_COUNT; i; --i) {
 		const struct field *f = &fields->slots[i - 1];
-		if (!f->defined || !inside(&f->area, m->x, m->y))
+		if (!f->defined || !st_ddofx_callback_enabled(ddo, &f->callback) || !inside(&f->area, m->x, m->y))
 			continue;
 		if (fields->last != i && st_ddofx_callback_start(ddo, &f->callback, DDO_FIELD)) {
 			fields->last    = i;
@@ -324,7 +324,7 @@ st_ddofx_resume_mouse(struct st_ddofx *ddo)
 			}
 		}
 		struct region *r   = slot < regions ? &mouse->regions->slots[slot] : NULL;
-		bool           hit = r && r->buttons == scan->buttons && inside(&r->area, scan->x, scan->y);
+		bool           hit = r && st_ddofx_callback_enabled(ddo, &r->callback) && r->buttons == scan->buttons && inside(&r->area, scan->x, scan->y);
 		if (hit && r->on_release && mouse->buttons) {
 			scan->waiting = true;
 			return;
@@ -453,6 +453,19 @@ st_ddofx_mouse_cancel(struct st_ddofx *ddo, uint32_t buttons)
 	mouse->buttons                     = button_mask(buttons);
 	mouse->ignore_hold                 = mouse->buttons != 0;
 	mouse->scan                        = (struct st_ddofx_mouse_scan) {0};
+}
+
+void
+st_ddofx_background_download(struct st_ddofx *ddo, bool active)
+{
+	ddo->background_download = active;
+	if (ddo->graphics) {
+		struct st_ddofx_mouse_state *m = &ddo->graphics->mouse;
+		m->ignore_hold = m->buttons != 0;
+		m->scan = (struct st_ddofx_mouse_scan){0};
+		if (m->fields)
+			m->fields->dirty = true;
+	}
 }
 
 static uint32_t
