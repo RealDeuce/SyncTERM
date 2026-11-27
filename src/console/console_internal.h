@@ -149,9 +149,12 @@ struct st_console {
 	 * own lock is initialized/destroyed normally but is never the raster lock. */
 	st_console_t *raster_parent;
 	uint64_t      raster_x, raster_y;
-	uint32_t      view_columns, view_rows;
+	uint32_t      view_columns, view_rows, view_left, view_top;
+	uint32_t      view_capacity_columns;
 	size_t        raster_children;
 	bool          raster_enabled;
+	bool          view_hidden, view_follow_x, view_follow_y, view_repaint;
+	uint32_t      view_cursor_x, view_cursor_y;
 	bool          raster_transient;
 	bool          raster_parent_palette;
 	bool          view_pixels_written;
@@ -276,30 +279,21 @@ st_console_status_pixels_locked(const st_console_t *console)
 		   : NULL;
 }
 
-static inline uint32_t
-st_console_raster_visible_width(const st_console_t *console)
+/* Rectangle in the logical page whose pixels have storage on the display. */
+static inline struct st_console_rect
+st_console_visible_pixels(const st_console_t *console)
 {
-	if (console->raster_parent == NULL)
-		return console->pixels->width;
+	if (!console->raster_parent)
+		return (struct st_console_rect) {0, 0, console->pixels->width, console->pixels->height};
 	const struct st_pixel_buffer *parent = console->raster_parent->pixels;
-	if (console->raster_x >= parent->width)
-		return 0;
-	uint32_t visible = parent->width - (uint32_t)console->raster_x;
-	uint32_t extent  = console->view_columns * console->cell_width;
-	return extent < visible ? extent : visible;
-}
-
-static inline uint32_t
-st_console_raster_visible_height(const st_console_t *console)
-{
-	if (console->raster_parent == NULL)
-		return console->pixels->height;
-	const struct st_pixel_buffer *parent = console->raster_parent->pixels;
-	if (console->raster_y >= parent->height)
-		return 0;
-	uint32_t visible = parent->height - (uint32_t)console->raster_y;
-	uint32_t extent  = console->view_rows * console->cell_height;
-	return extent < visible ? extent : visible;
+	if (console->view_hidden)
+		return (struct st_console_rect) {0};
+	uint32_t w      = console->raster_x < parent->width ? parent->width - (uint32_t)console->raster_x : 0;
+	uint32_t h      = console->raster_y < parent->height ? parent->height - (uint32_t)console->raster_y : 0;
+	uint32_t width  = console->view_columns * console->cell_width;
+	uint32_t height = console->view_rows * console->cell_height;
+	return (struct st_console_rect) {console->view_left * console->cell_width,
+	    console->view_top * console->cell_height, w < width ? w : width, h < height ? h : height};
 }
 
 static inline uint32_t
@@ -320,18 +314,17 @@ st_console_raster_cell_clip(const st_console_t *console, uint32_t x, uint32_t y,
 	*height = console->cell_height;
 	if (console->raster_parent == NULL)
 		return;
-	uint32_t visible_width  = st_console_raster_visible_width(console),
-		 visible_height = st_console_raster_visible_height(console);
-	x *= console->cell_width;
-	y *= console->cell_height;
-	if (x >= visible_width || y >= visible_height) {
+	struct st_console_rect v = st_console_visible_pixels(console);
+	x                        = x * console->cell_width - v.x;
+	y                        = y * console->cell_height - v.y;
+	if (x >= v.width || y >= v.height) {
 		*width = *height = 0;
 		return;
 	}
-	if (*width > visible_width - x)
-		*width = visible_width - x;
-	if (*height > visible_height - y)
-		*height = visible_height - y;
+	if (*width > v.width - x)
+		*width = v.width - x;
+	if (*height > v.height - y)
+		*height = v.height - y;
 }
 
 static inline bool
@@ -463,6 +456,7 @@ int           st_console_start_presentation_worker(st_console_t *console);
 void          st_console_display_request_repaint(st_console_display_t *display);
 void          st_console_display_reset_animation(st_console_display_t *display, enum st_console_blink_mode mode,
     bool restart);
+void          st_console_follow_view_locked(st_console_t *, uint32_t x, uint32_t y);
 void          st_console_mark_all_locked(st_console_t *console);
 void          st_console_cursor_span_locked(const st_console_t *console, uint32_t *x, uint32_t *columns);
 bool          st_console_rect_valid(const st_console_t *console, const struct st_console_rect *rect);

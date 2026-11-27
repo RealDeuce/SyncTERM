@@ -7,7 +7,8 @@
 #include "string_util.h"
 
 st_console_t *
-st_ddofx_graphics_view(struct st_ddofx_graphics *g, uint64_t *x, uint64_t *y, uint32_t *width, uint32_t *height)
+st_ddofx_graphics_view(struct st_ddofx_graphics *g, uint64_t *x, uint64_t *y, uint32_t *width, uint32_t *height,
+    struct st_console_rect *source)
 {
 	const struct st_ddofx_text_page *page = &g->windows[g->active_window];
 	if (!g->active_window || page->hidden)
@@ -16,6 +17,9 @@ st_ddofx_graphics_view(struct st_ddofx_graphics *g, uint64_t *x, uint64_t *y, ui
 	*y      = page->y;
 	*width  = page->cell_width;
 	*height = page->cell_height;
+	*source = (struct st_console_rect) {page->origin_x, page->origin_y, page->columns, page->rows};
+	if (page->track_x || page->track_y)
+		(void)st_console_raster_view_origin(page->view, &source->x, &source->y);
 	return page->view;
 }
 
@@ -59,7 +63,8 @@ st_ddofx_create_text_page(struct st_ddofx_graphics *g, struct st_ddofx_text_page
 	/* Text and DDO share one hardware palette, including indices 0..15. */
 	config.disabled_capabilities |= ST_CONSOLE_CAP_EXTENDED_PALETTE;
 	if (st_cterm_create(&page->text, &config) || st_cterm_start_text(page->text)
-	    || st_console_raster_view_adopt_indexed(page->view))
+	    || st_console_raster_view_adopt_indexed(page->view)
+	    || (g->text_columns != 80 && st_cterm_resize(page->text, g->text_columns, 100)))
 		goto failed;
 	return true;
 failed:
@@ -73,19 +78,6 @@ st_ddofx_close_text_windows(struct st_ddofx_graphics *g)
 	for (unsigned i = 1; i <= 10; ++i)
 		st_ddofx_destroy_text_page(&g->windows[i]);
 	g->active_window = 0;
-}
-
-static void
-draw_text_page(const struct st_ddofx_text_page *page)
-{
-	struct st_console_cell cells[80];
-	struct st_console_rect row = {0, 0, page->columns, 1};
-	(void)st_console_begin_update(page->view);
-	for (; row.y < page->rows; ++row.y) {
-		if (!st_console_read_cells(page->view, &row, cells, row.width))
-			(void)st_console_write_complete_cells(page->view, &row, cells, row.width);
-	}
-	(void)st_console_end_update(page->view);
 }
 
 struct desktop_repair {
@@ -203,7 +195,7 @@ draw_window(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, unsigned id,
 		if (frame.font)
 			(void)st_console_modify_pixels(g->display, paint_frame, &frame);
 	}
-	draw_text_page(page);
+	(void)st_console_redraw_raster_view(page->view);
 }
 
 static void
@@ -222,8 +214,87 @@ redraw_text_pages(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, const 
 static int
 place_page(const struct st_ddofx_text_page *page, bool hidden)
 {
-	return st_console_place_raster_view(page->view, page->x, page->y, hidden ? 0 : page->columns,
-	    hidden ? 0 : page->rows);
+	struct st_console_viewport port = {
+	    .cells    = {page->origin_x, page->origin_y, page->columns, page->rows},
+	    .hidden   = hidden,
+	    .follow_x = page->track_x,
+	    .follow_y = page->track_y
+        };
+	return st_console_place_raster_view(page->view, page->x, page->y, &port);
+}
+
+/* Origins here are zero-based. Each axis is validated independently. */
+static void
+move_origin(struct st_ddofx_graphics *g, int64_t x, int64_t y)
+{
+	struct st_ddofx_text_page *p = &g->windows[g->active_window];
+	uint32_t                   width, rows;
+	if (st_cterm_size(p->text, &width, &rows))
+		return;
+	if (x < 0 || x + p->columns > width)
+		x = p->origin_x;
+	if (y < 0 || y + p->rows > rows)
+		y = p->origin_y;
+	if ((unsigned)x == p->origin_x && (unsigned)y == p->origin_y)
+		return;
+	p->origin_x = (unsigned)x;
+	p->origin_y = (unsigned)y;
+	if (place_page(p, p->hidden) == 0 && !p->hidden)
+		(void)st_console_redraw_raster_view(p->view);
+}
+
+static void
+sync_origin(struct st_ddofx_text_page *p)
+{
+	if (p->view && (p->track_x || p->track_y))
+		(void)st_console_raster_view_origin(p->view, &p->origin_x, &p->origin_y);
+}
+
+static void
+goto_cursor(struct st_ddofx_graphics *g)
+{
+	struct st_ddofx_text_page *p = &g->windows[g->active_window];
+	struct st_cterm_state      state;
+	if (st_cterm_state(p->text, &state) || state.x < 1 || state.y < 1)
+		return;
+	unsigned x = p->origin_x, cursor = (unsigned)state.x - 1;
+	if (cursor < x)
+		x = cursor;
+	else if (cursor - x >= p->columns)
+		x = cursor - p->columns + 1;
+	unsigned y = (unsigned)state.y > p->rows ? (unsigned)state.y - p->rows : 0;
+	move_origin(g, x, y);
+}
+
+bool
+st_ddofx_window_scroll_key(struct st_ddofx *ddo, uint16_t word)
+{
+	struct st_ddofx_graphics *g = ddo->graphics;
+	if (!g || !g->active_window || ddo->keys_locked)
+		return false;
+	struct st_ddofx_text_page *p = &g->windows[g->active_window];
+	if (!p->manual_scroll)
+		return false;
+	sync_origin(p);
+	int x = (int)p->origin_x, y = (int)p->origin_y;
+	switch (word) {
+		case 119 << 8: /* Ctrl-Home */
+			--x;
+			break;
+		case 117 << 8: /* Ctrl-End */
+			++x;
+			break;
+		case 132 << 8: /* Ctrl-PgUp */
+			--y;
+			break;
+		case 118 << 8: /* Ctrl-PgDn */
+			++y;
+			break;
+		default:
+			return false;
+	}
+	move_origin(g, x, y);
+	return true;
 }
 
 void
@@ -243,6 +314,7 @@ st_ddofx_text_scale(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char
 			continue;
 		if (i)
 			uncover_page(g, page);
+		sync_origin(page);
 		page->x           = page->x / page->cell_width * n[0];
 		page->y           = page->y / page->cell_height * n[1];
 		page->cell_width  = n[0];
@@ -268,14 +340,18 @@ configure_window(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *a
 	for (unsigned i = 0; i < 6; ++i)
 		if (!st_ddofx_field_number(ddo, &args, &n[i]))
 			return false;
-	if (n[0] < 1 || n[1] <= n[0] || n[1] > WIDTH / g->cell_width || n[1] - n[0] >= 80 || n[2] < 1
-	    || n[3] <= n[2] || n[3] > HEIGHT / g->cell_height || n[3] - n[2] >= 100 || (unsigned)n[4] > 15
-	    || (unsigned)n[5] > 15)
+	if (n[0] < 1 || n[1] < n[0] || (n[0] == n[1] && g->text_columns != 1) || n[1] > WIDTH / g->cell_width
+	    || (unsigned)(n[1] - n[0]) >= g->text_columns || n[2] < 1 || n[3] <= n[2]
+	    || n[3] > HEIGHT / g->cell_height || n[3] - n[2] >= 100 || (unsigned)n[4] > 15 || (unsigned)n[5] > 15)
 		return false;
 	const char *border = st_ddofx_field(&args), *hidden = st_ddofx_field(&args);
-	for (unsigned i = 0; i < 3; ++i) /* X and Y tracking, manual scroll. */
-		if (!st_ddofx_field(&args))
-			return false;
+	const char *track_x = st_ddofx_field(&args), *track_y = st_ddofx_field(&args),
+		   *manual = st_ddofx_field(&args);
+	if (!track_x || !track_y || !manual)
+		return false;
+	page.track_x       = ascii_to_upper((unsigned char)*track_x) == 'Y';
+	page.track_y       = ascii_to_upper((unsigned char)*track_y) == 'Y';
+	page.manual_scroll = ascii_to_upper((unsigned char)*manual) == 'Y';
 	const char *title = st_ddofx_field(&args), *help = st_ddofx_field(&args);
 	if (!args || !title || !help || !border || !hidden)
 		return false;
@@ -288,6 +364,10 @@ configure_window(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *a
 		return false;
 	page.columns      = (unsigned)columns;
 	page.rows         = (unsigned)rows;
+	if (page.origin_x > g->text_columns - page.columns)
+		page.origin_x = g->text_columns - page.columns;
+	if (page.origin_y > 100 - page.rows)
+		page.origin_y = 100 - page.rows;
 	page.cell_width   = g->cell_width;
 	page.cell_height  = g->cell_height;
 	page.x            = (n[0] - 1 + inset) * g->cell_width;
@@ -301,8 +381,11 @@ configure_window(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *a
 		if (!st_ddofx_create_text_page(g, &page, sink->text_config))
 			return false;
 	}
-	else if (place_page(&page, page.hidden))
+	if (place_page(&page, page.hidden)) {
+		if (create)
+			st_ddofx_destroy_text_page(&page);
 		return false;
+	}
 	uncover_page(g, old);
 	if (create)
 		st_ddofx_destroy_text_page(old);
@@ -311,6 +394,43 @@ configure_window(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *a
 	if (create && page.hidden)
 		st_ddofx_select_window_font(ddo, sink, old, old->font_name);
 	return true;
+}
+
+static void
+set_columns(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, unsigned width)
+{
+	struct st_ddofx_graphics *g       = ddo->graphics;
+	bool                      changed = false;
+	(void)st_console_begin_update(g->display);
+	for (unsigned id = 1; id <= 10; ++id) {
+		struct st_ddofx_text_page *page = &g->windows[id];
+		uint32_t                   current, rows;
+		if (!page->view || st_cterm_size(page->text, &current, &rows) || current == width)
+			continue;
+		sync_origin(page);
+		if (st_cterm_resize(page->text, width, rows))
+			continue;
+		uncover_page(g, page);
+		changed = true;
+		/* Preserve the outer position when the new limit cannot hold a frame. */
+		if (page->border && width < 3) {
+			page->border = false;
+			page->x -= page->cell_width;
+			page->y -= page->cell_height;
+			page->rows += 2;
+			page->columns += 2;
+		}
+		unsigned maximum = width - (page->border ? 2 : 0);
+		if (page->columns > maximum)
+			page->columns = maximum;
+		if (page->origin_x > width - page->columns)
+			page->origin_x = width - page->columns;
+		(void)place_page(page, page->hidden);
+	}
+	g->text_columns = width;
+	if (changed)
+		redraw_text_pages(ddo, sink, NULL);
+	(void)st_console_end_update(g->display);
 }
 
 static bool
@@ -328,6 +448,12 @@ st_ddofx_text_window_command(struct st_ddofx *ddo, const struct st_ddofx_sink *s
 	unsigned                   id   = g->active_window;
 	struct st_ddofx_text_page *page = &g->windows[id];
 	int32_t                    n[2];
+	sync_origin(page);
+	if (!ascii_case_compare(op, "1SETC") && st_ddofx_numbers(ddo, args, n, 1)) {
+		if (n[0] >= 1 && n[0] <= 80)
+			set_columns(ddo, sink, (unsigned)n[0]);
+		return;
+	}
 	if (!ascii_case_compare(op, "1GETPOS") && !args) {
 		if (!id)
 			st_ddofx_query_reply(ddo, sink, "NONE", false);
@@ -335,7 +461,8 @@ st_ddofx_text_window_command(struct st_ddofx *ddo, const struct st_ddofx_sink *s
 			struct st_cterm_state state;
 			if (st_cterm_state(page->text, &state) == 0) {
 				char reply[64];
-				snprintf(reply, sizeof(reply), "%d,%d,1,1", state.x, state.y);
+				snprintf(reply, sizeof(reply), "%d,%d,%u,%u", state.x, state.y, page->origin_x + 1,
+				    page->origin_y + 1);
 				st_ddofx_query_reply(ddo, sink, reply, false);
 			}
 		}
@@ -348,6 +475,18 @@ st_ddofx_text_window_command(struct st_ddofx *ddo, const struct st_ddofx_sink *s
 	}
 	else if (!id)
 		return;
+	else if (!ascii_case_compare(op, "1GOTOC") && !args) {
+		goto_cursor(g);
+		return;
+	}
+	else if ((!ascii_case_compare(op, "1POS") || !ascii_case_compare(op, "1POSR"))
+	         && st_ddofx_numbers(ddo, args, n, 2)) {
+		bool    rel = !ascii_case_compare(op, "1POSR");
+		int64_t x   = rel ? (int64_t)page->origin_x + n[0] : (int64_t)n[0] - 1;
+		int64_t y   = rel ? (int64_t)page->origin_y + n[1] : (int64_t)n[1] - 1;
+		move_origin(g, x, y);
+		return;
+	}
 	else if (!ascii_case_compare(op, "1CHANGE")) {
 		if (!configure_window(ddo, sink, args, id, false))
 			return;

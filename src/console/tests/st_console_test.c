@@ -3387,6 +3387,46 @@ test_default_palette_contract(void)
 	CHECK(st_console_get_default_palette(UINT16_MAX, palette, 2) == IO_ERROR_INVALID_ARGUMENT);
 }
 
+static void
+test_raster_view_origin(void)
+{
+	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_config         mode = {.columns = 8, .rows = 5, .cell_width = 2, .cell_height = 2};
+	st_console_t                          *parent = NULL, *view = NULL;
+	CHECK(st_console_create(&parent, &display, &mode) == 0);
+	CHECK(st_console_create_clipped_raster_view(&view, parent, 8, 6, 2, 2, 4, 2, 3, 2) == 0);
+	CHECK(st_console_raster_view_adopt_indexed(view) == 0);
+	const struct st_console_viewport port = {
+	    .cells = {3, 2, 3, 2}
+        };
+	CHECK(st_console_place_raster_view(view, 4, 2, &port) == 0);
+	CHECK(st_console_set_pixel(view, 0, 0, 8) == 0);
+	CHECK(st_console_set_pixel(view, 6, 4, 5) == 0);
+	CHECK(st_console_set_pixel(view, 11, 7, 9) == 0);
+	struct st_pixel_buffer      *pixels = NULL;
+	const struct st_console_rect rect   = {0, 0, 16, 12};
+	CHECK(st_console_get_pixels(&pixels, view, &rect, false) == 0);
+	for (size_t i = 0; i < 16 * 12; ++i)
+		CHECK(pixels->primary[i] == (i == 4 * 16 + 6 ? 5u : i == 7 * 16 + 11 ? 9u : 0u));
+	st_pixel_buffer_destroy(pixels);
+
+	st_console_snapshot_t *snapshot = NULL;
+	CHECK(st_console_snapshot_create(&snapshot, view) == 0);
+	CHECK(st_console_set_pixel(view, 6, 4, 3) == 0);
+	CHECK(st_console_set_pixel(parent, 3, 2, 7) == 0);
+	CHECK(st_console_snapshot_restore(view, snapshot, NULL) == 0);
+	st_console_snapshot_destroy(snapshot);
+	const struct st_console_rect physical = {0, 0, 16, 10};
+	CHECK(st_console_get_pixels(&pixels, parent, &physical, false) == 0);
+	for (size_t i = 0; i < 16 * 10; ++i) {
+		unsigned expected = i == 2 * 16 + 3 ? 7u : i == 2 * 16 + 4 ? 5u : i == 5 * 16 + 9 ? 9u : 0u;
+		CHECK(pixels->primary[i] == expected && pixels->alternate[i] == expected);
+	}
+	st_pixel_buffer_destroy(pixels);
+	st_console_destroy(view);
+	st_console_destroy(parent);
+}
+
 int
 main(void)
 {
@@ -3425,6 +3465,7 @@ main(void)
 	test_cluster_font_mapping();
 	test_circular_row_moves();
 	test_pixel_row_rotation_preserves_outside();
+	test_raster_view_origin();
 	test_zero_width_text();
 	test_font_registration_preserves_cells();
 	test_font_registry_lru_replacement();

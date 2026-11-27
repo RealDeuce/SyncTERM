@@ -10,9 +10,9 @@ After a ZMODEM batch finishes, SyncTERM installs up to 50 Lite/Normal command ZI
 
 BBS sound themes, resident sound bites and big-sample profiles use signed 8-bit PCM from the entry’s `DDOFX/BBSTHEME` resources. `MTALK` assembles loose RealPlay files from named `.SND` members, supports the four pause lengths, and can append, replace or delete a phrase. RealPlay streams loose sample files from the same directory. `dACARD` reports the SDK’s 16-bit stereo capability `SB 16` when SyncTERM has audio output configured, and `NONE` otherwise. The mixer advances the samples at the requested frequency alongside MOD or S3M playback. A connected peer checks `dSOUNDON` and starts RealPlay from the cache. The test reads the resulting stereo frames from a pull-only audio device.
 
-An online pair of `LIGMODE` commands enters Normal mode on a pixel display. The visible page is 640×480 with 256 palette entries. The work, background and hidden pages store pixel indices. Whole-page copies, rectangular cuts anchored at the lower left, transparent cuts, work-page drawing, vertical scrolling and palette changes are available from a connection. Each open text window has an 80×100 virtual page. Ordinary text and ANSI from the connection or a resource script paint only within the active visible text window. Closing the last window restores the desktop. `2GEXIT` restores the Lite screen, cursor and palette. Basic fade-out saves the active palette, fades to black and clears the visual and hidden pages. Advanced fade-out preserves page pixels and blends an inclusive palette range toward a selected register. Fade-in returns the palette to the saved values. Windows retain their virtual text pages and cursor positions across hiding, switching, swapping and changes in placement. Visible windows are painted in slot order with the active window on top. Bordered windows use the selected VGA font for their double-line frame and centered title and help. Origin changes, cursor tracking and manual scrolling remain pending.
+An online pair of `LIGMODE` commands enters Normal mode on a pixel display. The visible page is 640×480 with 256 palette entries. The work, background and hidden pages store pixel indices. Whole-page copies, rectangular cuts anchored at the lower left, transparent cuts, work-page drawing, vertical scrolling and palette changes are available from a connection. Each open text window has a 100-row virtual page, initially 80 columns wide. Ordinary text and ANSI from the connection or a resource script paint only within the active visible text window. Closing the last window restores the desktop. `2GEXIT` restores the Lite screen, cursor and palette. Basic fade-out saves the active palette, fades to black and clears the visual and hidden pages. Advanced fade-out preserves page pixels and blends an inclusive palette range toward a selected register. Fade-in returns the palette to the saved values. Windows retain their virtual text pages and cursor positions across hiding, switching, swapping and changes in placement. Visible windows are painted in slot order with the active window on top. Bordered windows use the selected VGA font for their double-line frame and centered title and help. Each window retains its own viewport origin and can follow the cursor independently on each axis. When the window enables manual scrolling, Ctrl+Home and Ctrl+End move one column and Ctrl+PgUp and Ctrl+PgDn move one row. `1SETC` changes the wrap width for open and future windows. An existing window narrows to fit the new limit. At one or two columns a framed window drops its border to leave room for text. Reset restores 80 columns.
 
-In Normal mode, `1SCALE` sets a common cell width of 2–8 pixels and height of 2–16 pixels. The primary text page keeps its 80×100 logical cells. Direct graphics text, desktop text fields, list boxes, marquees and digital clocks take their glyphs from the lower left of each 8×16 font record. The dimensions determine the space each character occupies. The font pixels keep their native size. A scene reset retains the current dimensions.
+In Normal mode, `1SCALE` sets a common cell width of 2–8 pixels and height of 2–16 pixels. Font scaling preserves each window’s logical page dimensions. Direct graphics text, desktop text fields, list boxes, marquees and digital clocks take their glyphs from the lower left of each 8×16 font record. The dimensions determine the space each character occupies. The font pixels keep their native size. A scene reset retains the current dimensions.
 
 Sprites can be captured from any of the four graphics pages. The SDK repeats the background spelling for hidden-page capture. SyncTERM accepts `2SH` for the hidden page. Simple sprite definitions and animation frames share the SDK stack. `2DSS` restores the buffered regions from the background, draws the current frame in stack order, then publishes the regions to the visual page.
 
@@ -187,19 +187,19 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 4940 | LABEL | DDO-FX LITE | Connected |
 | 4955 | RESET ENVIRONMENT | DDO-FX LITE | Connected for implemented scene objects |
 | 5436 | DETECT MOUSE | DDO-FX (NM) | Connected |
-| 5457 | OPEN GRAPHIC TEXT WINDOW | DDO-FX (NM) | Placement, frame, labels, font, visibility and virtual page. Tracking and manual scrolling pending. |
-| 5780 | GOTO CURSOR | DDO-FX (NM) | Pending |
+| 5457 | OPEN GRAPHIC TEXT WINDOW | DDO-FX (NM) | Connected on the desktop |
+| 5780 | GOTO CURSOR | DDO-FX (NM) | Connected on the desktop |
 | 5819 | CLOSE WINDOW | DDO-FX (NM) | Desktop text windows |
 | 5855 | HIDE WINDOW | DDO-FX (NM) | Desktop text windows |
 | 5866 | UNHIDE WINDOW | DDO-FX (NM) | Desktop text windows |
 | 5874 | ACTIVATE WINDOW | DDO-FX (NM) | Desktop text windows |
 | 5884 | SWAP WINDOWS | DDO-FX (NM) | Desktop text windows |
-| 5924 | POSITION VTP ORIGIN | DDO-FX (NM) | Pending |
-| 5956 | POSITION VTP ORIGIN RELATIVE | DDO-FX (NM) | Pending |
-| 5982 | GETPOS OF GRAPHIC TEXT WINDOW | DDO-FX (NM) | Cursor, default origin and absent window. Viewport movement pending. |
-| 6006 | CHANGE GRAPHIC TEXT WINDOW | DDO-FX (NM) | Placement, frame, labels, font and visibility. Tracking and manual scrolling pending. |
-| 6035 | SCALE GRAPHIC TEXT FONTS | DDO-FX (NM) | Connected on the desktop and primary text page. Named windows pending. |
-| 6100 | SET GRAPHIC TEXT WINDOW COLUMNS | DDO-FX (NM) | Pending |
+| 5924 | POSITION VTP ORIGIN | DDO-FX (NM) | Connected on the desktop |
+| 5956 | POSITION VTP ORIGIN RELATIVE | DDO-FX (NM) | Connected on the desktop |
+| 5982 | GETPOS OF GRAPHIC TEXT WINDOW | DDO-FX (NM) | Connected on the desktop |
+| 6006 | CHANGE GRAPHIC TEXT WINDOW | DDO-FX (NM) | Connected on the desktop |
+| 6035 | SCALE GRAPHIC TEXT FONTS | DDO-FX (NM) | Connected on the desktop and named text windows |
+| 6100 | SET GRAPHIC TEXT WINDOW COLUMNS | DDO-FX (NM) | Connected on the desktop |
 | 6131 | LOAD PCX TO BACKGROUND PAGE | DDO-FX (NM) | Connected |
 | 6163 | LOAD PCX TO WORK PAGE | DDO-FX (NM) | Connected |
 | 6179 | LOAD PCX TO VISUAL PAGE | DDO-FX (NM) | Desktop pages; graphic window refresh pending |

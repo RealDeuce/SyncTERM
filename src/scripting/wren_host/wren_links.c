@@ -130,6 +130,11 @@ link_cell(struct st_wren_context *context, int32_t *x, int32_t *y, int32_t pixel
 			return false;
 		uint64_t column = ((uint64_t)pixel_x - view.x) / view.cell_width;
 		uint64_t row    = ((uint64_t)pixel_y - view.y) / view.cell_height;
+		if (view.source_cells.width
+		    && (column >= view.source_cells.width || row >= view.source_cells.height))
+			return false;
+		column += view.source_cells.x;
+		row += view.source_cells.y;
 		if (column > INT32_MAX || row > INT32_MAX)
 			return false;
 		*x      = (int32_t)column;

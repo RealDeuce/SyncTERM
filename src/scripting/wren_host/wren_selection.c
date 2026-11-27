@@ -171,8 +171,8 @@ paint_selection(struct text_selection *selection)
 		}
 		if (changed) {
 			struct st_console_rect row = {
-			    .x      = 0,
-			    .y      = y,
+			    .x      = selection->view.source_cells.x,
+			    .y      = selection->view.source_cells.y + y,
 			    .width  = selection->columns,
 			    .height = 1,
 			};
@@ -356,6 +356,10 @@ st_wren_mouse_drag_select(struct st_wren_context *context, bool rectangular)
 	    && st_term_session_text_view(context->session, context->console, &selection.view))
 		selection.console = selection.view.console;
 	result = st_console_size(selection.console, &selection.columns, &selection.rows);
+	if (selection.view.source_cells.width) {
+		selection.columns = selection.view.source_cells.width;
+		selection.rows    = selection.view.source_cells.height;
+	}
 	if (result != 0 || selection.columns == 0 || selection.rows == 0)
 		return result != 0 ? result : IO_ERROR_OUT_OF_RANGE;
 	selection.palette = malloc((UINT16_MAX + 1U) * sizeof(selection.palette[0]));
@@ -380,7 +384,8 @@ st_wren_mouse_drag_select(struct st_wren_context *context, bool rectangular)
 		result = IO_ERROR_OUT_OF_MEMORY;
 		goto done;
 	}
-	screen = (struct st_console_rect) {0, 0, selection.columns, selection.rows};
+	screen = (struct st_console_rect) {selection.view.source_cells.x, selection.view.source_cells.y,
+	    selection.columns, selection.rows};
 	result = st_console_read_cells(selection.console, &screen, selection.original, selection.columns);
 	if (result != 0)
 		goto done;

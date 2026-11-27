@@ -183,6 +183,7 @@ struct st_term_text_view {
 	st_console_t *console;
 	uint64_t      x, y;
 	uint32_t      cell_width, cell_height;
+	struct st_console_rect source_cells;
 };
 
 bool st_term_session_text_view(st_term_session_t *session, st_console_t *display, struct st_term_text_view *view);

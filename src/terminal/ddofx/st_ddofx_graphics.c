@@ -120,6 +120,7 @@ st_ddofx_graphics_reset(struct st_ddofx_graphics *g)
 	if (!g)
 		return;
 	clear_graphics_objects(g);
+	g->text_columns = 80;
 	memset(g->page, 0, sizeof(g->page));
 	(void)st_console_modify_pixels(g->display, blank, NULL);
 }
@@ -134,6 +135,7 @@ st_ddofx_graphics_enter(struct st_ddofx *ddo, const struct st_ddofx_sink *sink)
 		return;
 	struct st_cterm_config config = *sink->text_config;
 	g->display                    = config.console;
+	g->text_columns               = 80;
 	g->cell_width = 8;
 	g->cell_height = 16;
 	st_ddofx_mouse_defaults(&g->mouse);

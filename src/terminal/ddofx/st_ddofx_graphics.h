@@ -46,7 +46,8 @@ void          st_ddofx_graphics_enter(struct st_ddofx *, const struct st_ddofx_s
 void          st_ddofx_graphics_exit(struct st_ddofx *);
 void          st_ddofx_graphics_command(struct st_ddofx *, const struct st_ddofx_sink *, char *);
 st_cterm_t   *st_ddofx_graphics_text(struct st_ddofx_graphics *);
-st_console_t *st_ddofx_graphics_view(struct st_ddofx_graphics *, uint64_t *, uint64_t *, uint32_t *, uint32_t *);
+st_console_t *st_ddofx_graphics_view(struct st_ddofx_graphics *, uint64_t *, uint64_t *, uint32_t *, uint32_t *,
+    struct st_console_rect *);
 void          st_ddofx_text_window_command(struct st_ddofx *, const struct st_ddofx_sink *, char *);
 
 #endif

@@ -568,7 +568,14 @@ int st_console_create_clipped_raster_view(st_console_t **result, st_console_t *p
     uint32_t visible_rows);
 /* Reposition the visible region of a logical page. Its owner restores the
  * old rectangle and paints the new one. A zero extent hides the page. */
-int st_console_place_raster_view(st_console_t *, uint64_t x, uint64_t y, uint32_t columns, uint32_t rows);
+struct st_console_viewport {
+	struct st_console_rect cells;
+	bool                   hidden, follow_x, follow_y;
+};
+
+int st_console_place_raster_view(st_console_t *, uint64_t x, uint64_t y, const struct st_console_viewport *);
+int st_console_raster_view_origin(st_console_t *, uint32_t *x, uint32_t *y);
+int st_console_redraw_raster_view(st_console_t *);
 int st_console_raster_view_adopt(st_console_t *console);
 /* The view and graphics page use the same palette. Preserve native pixel
  * indices so palette edits recolour text already painted on the page. */

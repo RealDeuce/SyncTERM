@@ -961,7 +961,7 @@ st_term_session_text_view(st_term_session_t *session, st_console_t *display, str
 	if (session != NULL && session->config.console == display && view != NULL
 	    && session->ddofx.graphics != NULL) {
 		view->console = st_ddofx_graphics_view(session->ddofx.graphics, &view->x, &view->y,
-		    &view->cell_width, &view->cell_height);
+		    &view->cell_width, &view->cell_height, &view->source_cells);
 		return view->console != NULL;
 	}
 	return session != NULL && session->config.console == display

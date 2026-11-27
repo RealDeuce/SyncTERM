@@ -60,7 +60,8 @@ struct st_ddofx_text_page {
 	st_console_t      *view;
 	st_font_catalog_t *fonts;
 	st_cterm_t        *text;
-	unsigned           columns, rows;
+	unsigned           columns, rows, origin_x, origin_y;
+	bool               track_x, track_y, manual_scroll;
 	int                x, y, cell_width, cell_height;
 	bool               hidden, border;
 	uint8_t            frame_colour, title_colour;
@@ -94,6 +95,7 @@ struct st_ddofx_graphics {
 	/* Slot zero parses terminal traffic when the desktop has no text window. */
 	struct st_ddofx_text_page windows[11];
 	unsigned                  active_window;
+	unsigned                  text_columns;
 	struct st_console_config previous_mode;
 	st_console_snapshot_t   *previous_screen;
 	uint32_t                 palette[256];

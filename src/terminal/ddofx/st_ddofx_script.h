@@ -52,6 +52,7 @@ void     st_ddofx_callback_define(const struct st_ddofx *, struct st_ddofx_callb
 bool     st_ddofx_callback_enabled(const struct st_ddofx *, const struct st_ddofx_callback *);
 bool     st_ddofx_callback_start(struct st_ddofx *, const struct st_ddofx_callback *, enum st_ddofx_callback_kind);
 void     st_ddofx_define_key(struct st_ddofx *, char *args);
+bool     st_ddofx_window_scroll_key(struct st_ddofx *, uint16_t);
 void     st_ddofx_clear_keys(struct st_ddofx *);
 int      st_ddofx_resume_key(struct st_ddofx *, const struct st_ddofx_sink *);
 char    *st_ddofx_field(char **);

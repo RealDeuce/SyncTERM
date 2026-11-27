@@ -259,6 +259,9 @@ st_ddofx_resume_key(struct st_ddofx *ddo, const struct st_ddofx_sink *sink)
 bool
 st_ddofx_key(struct st_ddofx *ddo, const struct st_console_event *e)
 {
+	if ((e->type == ST_CONSOLE_EVENT_KEY_CODE || e->type == ST_CONSOLE_EVENT_DOORWAY_KEY)
+	    && st_ddofx_window_scroll_key(ddo, logical_key(e, 0)))
+		return true;
 	struct st_ddofx_keys *keys = ddo->keys;
 	if (!keys && (st_ddofx_control_count(ddo) || st_ddofx_ray_accepts_key(ddo))) {
 		ddo->keys = calloc(1, sizeof(*ddo->keys));

@@ -190,6 +190,59 @@ def check_text_windows(t):
     colours(commands(b"1CLOSE", b"1GETPOS"), {(16,16):4,(80,96):33}, b"6,1,1,1\xff")
     colours(commands(b"1CLOSE", b"1UNHIDE", b"1GETPOS"), {(8,16):33,(16,16):33}, b"NONE\xff")
 
+    # A 4x3 aperture at screen (8,16) can see any part of its 80x100 page.
+    viewport = b"1OPEN,1,2,5,2,4,7,15,N,N,N,N,Y,,,"
+    colours(commands(viewport) + b"\x1b[5;7H\x1b[41m \x1b[6;8H\x1b[42m " +
+            commands(b"1POS,7,5", b"1GETPOS"), {(8,16):4,(16,32):2,(0,16):33}, b"9,6,7,5\xff")
+    for key, pos in [("end", b"8,5"), ("page_down", b"8,6"), ("home", b"7,6"), ("page_up", b"7,5")]:
+        t.client.key(key, 2)
+        t.exchange(commands(b"1GETPOS"), b"9,6," + pos + b"\xff")
+    colours(commands(b"1POSR,-1,2147483647", b"1POS,81,0", b"1GETPOS"),
+            {(8,16):0,(16,16):4,(24,32):2}, b"9,6,6,5\xff")
+    colours(commands(b"1POS,77,98", b"1POSR,1,1", b"1GETPOS"), {(8,16):0}, b"9,6,77,98\xff")
+    colours(commands(b"1GOTOC", b"1GETPOS"), {(8,32):0,(8,48):0}, b"9,6,9,4\xff")
+    colours(commands(b"1POS,7,5") + b"\x1b[100;1H\n" + commands(b"1GETPOS"),
+            {(8,16):0,(16,16):2,(0,16):33}, b"1,100,7,5\xff")
+    colours(commands(b"1CHANGE,2,5,2,4,7,15,N,N,Y,Y,Y,,,") + b"\x1b[12;22H" +
+            commands(b"1GETPOS"), {(8,16):0}, b"22,12,19,10\xff")
+    # Both cursor movements occur in one receive burst.
+    colours(b"\x1b[60;50H\x1b[12;22H" + commands(b"1GETPOS"), {(8,16):0}, b"22,12,22,12\xff")
+    colours(b"\x1b[1;1H" + commands(b"1GETPOS", b"1CLOSE"), {(8,16):33}, b"1,1,1,1\xff")
+
+    # Drag over the displayed columns of a scrolled page, then verify that
+    # restoring the selection snapshot preserves both graphics planes.
+    before = t.exchange(commands(viewport) + b"\x1b[9;17HVIEW" + commands(b"1POS,17,9"))
+    m = before.metadata
+    def display_point(x, y):
+        return (m["destination_x"] + x*m["destination_width"]//640,
+                m["destination_y"] + y*m["destination_height"]//480)
+    start, end = display_point(9, 17), display_point(25, 17)
+    t.client.command_key(24)  # Alt+O enables local mouse gestures.
+    t.client.clipboard("unchanged")
+    t.client.mouse(*start, action=1, buttons=1)
+    t.client.mouse(*end, buttons=1)
+    t.client.wait_for(lambda f: f.primary != before.primary)
+    t.client.mouse(*end, action=1)
+    after = t.client.wait_for(lambda f: f.clipboard == "VIE")
+    assert before.primary == after.primary and before.alternate == after.alternate
+    # The fourth displayed cell and one beyond the right edge both own
+    # a link on the virtual page. Only the displayed cell is a hit.
+    t.exchange(b"\x1b[9;20H\x1b]8;;https://example.invalid/test\x1b\\XY\x1b]8;;\x1b\\")
+    t.client.mouse(*display_point(33, 17))
+    t.client.wait_for(lambda f: f.metadata["pointer_shape"] == 2)
+    t.client.mouse(*display_point(41, 17))
+    t.client.wait_for(lambda f: f.metadata["pointer_shape"] != 2)
+    t.client.command_key(24)
+    t.exchange(commands(b"1CLOSE"))
+
+    # Column limits apply to existing and subsequently opened windows.
+    # The colour and cursor survive narrowing, and ordinary ANSI wraps.
+    colours(commands(viewport) + b"\x1b[45mab" + commands(b"1SETC,5") + b"cdef" + commands(b"1GETPOS"),
+            {(8,16):5,(8,32):5}, b"2,2,1,1\xff")
+    colours(commands(b"1OPEN,2,10,13,2,4,7,15,N,N,N,N,N,,,") + b"123456" +
+            commands(b"1GETPOS", b"1WIN,1", b"1GETPOS", b"1SETC,1", b"1GETPOS"),
+            {(16,16):33}, b"2,2,1,1\xff2,2,1,1\xff1,2,1,1\xff")
+    colours(commands(b"1SETC,80", b"1CLOSE", b"1CLOSE"), {(8,16):33})
     # The tabs of a double-line window use the selected FNT and center the
     # clipped title and help. Give each tested glyph a distinct literal row.
     marker, = t.root.rglob("syncterm-cache-name.txt")
@@ -205,6 +258,11 @@ def check_text_windows(t):
     colours(commands(b"1UNHIDE", b"1SCALE,4,8"), {(36,16):9,(48,16):4,(51,16):14,
             (72,32):33,(99,32):33})
     colours(commands(b"1SCALE,8,16", b"1CLOSE", b"1CLOSE", b"fIBMSTD.FNT"), {(72,32):33,(8,16):33})
+
+    colours(commands(b"1SETC,1", b"1OPEN,1,4,4,2,5,7,15,N,N,N,Y,N,,,") + b"abc" + commands(b"1GETPOS"),
+            {(24,16):0}, b"1,3,1,1\xff")
+    t.exchange(commands(b"2RESET", FULL_TEXT_WINDOW) + b"123456" + commands(b"1GETPOS", b"1CLOSE"),
+               b"7,1,1,1\xff")
 
 
 def check_desktop_text(t):

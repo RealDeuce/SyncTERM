@@ -61,6 +61,7 @@ st_console_create_clipped_raster_view(st_console_t **result, st_console_t *paren
 			console->cell_width    = cell_width;
 			console->cell_height   = cell_height;
 			console->raster_parent = parent;
+			console->view_capacity_columns = columns;
 			console->view_columns  = visible_columns;
 			console->view_rows     = visible_rows;
 			console->raster_x      = x;
@@ -90,18 +91,86 @@ st_console_create_clipped_raster_view(st_console_t **result, st_console_t *paren
 }
 
 int
-st_console_place_raster_view(st_console_t *console, uint64_t x, uint64_t y, uint32_t columns, uint32_t rows)
+st_console_place_raster_view(st_console_t *console, uint64_t x, uint64_t y, const struct st_console_viewport *port)
 {
-	if (!console || !console->raster_parent || columns > console->columns || rows > console->rows)
+	if (!console || !console->raster_parent || !port)
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (st_rwlock_write_lock(st_console_state_lock(console)) != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
+	const struct st_console_rect *source = &port->cells;
+	if (source->x > console->columns || source->width > console->columns - source->x
+	    || source->y > console->rows || source->height > console->rows - source->y) {
+		(void)st_rwlock_unlock(st_console_state_lock(console));
+		return IO_ERROR_INVALID_ARGUMENT;
+	}
 	console->raster_x     = x;
 	console->raster_y     = y;
-	console->view_columns = columns;
-	console->view_rows    = rows;
+	console->view_columns  = source->width;
+	console->view_rows     = source->height;
+	console->view_left     = source->x;
+	console->view_top      = source->y;
+	console->view_hidden   = port->hidden;
+	console->view_follow_x = port->follow_x;
+	console->view_follow_y = port->follow_y;
+	console->view_cursor_x = console->cursor_x;
+	console->view_cursor_y = console->cursor_y;
 	(void)st_rwlock_unlock(st_console_state_lock(console));
 	return 0;
+}
+
+int
+st_console_raster_view_origin(st_console_t *console, uint32_t *x, uint32_t *y)
+{
+	if (!console || !console->raster_parent || !x || !y)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (st_rwlock_read_lock(st_console_state_lock(console)) != ST_THREAD_SUCCESS)
+		return IO_ERROR_IO;
+	*x = console->view_left;
+	*y = console->view_top;
+	(void)st_rwlock_unlock(st_console_state_lock(console));
+	return 0;
+}
+
+int
+st_console_redraw_raster_view(st_console_t *console)
+{
+	if (!console || !console->raster_parent)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (st_rwlock_write_lock(st_console_state_lock(console)) != ST_THREAD_SUCCESS)
+		return IO_ERROR_IO;
+	console->view_repaint   = true;
+	console->raster_current = false;
+	int status              = st_console_finish_change_locked(console);
+	(void)st_rwlock_unlock(st_console_state_lock(console));
+	return status;
+}
+
+static uint32_t
+reveal(uint32_t first, uint32_t cursor, uint32_t count)
+{
+	if (cursor < first)
+		return cursor;
+	if (count && cursor - first >= count)
+		return cursor - count + 1;
+	return first;
+}
+
+void
+st_console_follow_view_locked(st_console_t *c, uint32_t x, uint32_t y)
+{
+	uint32_t left = c->view_left, top = c->view_top;
+	if (c->view_follow_x && x != c->view_cursor_x)
+		left = reveal(left, x, c->view_columns);
+	if (c->view_follow_y && y != c->view_cursor_y)
+		top = reveal(top, y, c->view_rows);
+	c->view_cursor_x = x;
+	c->view_cursor_y = y;
+	if (left == c->view_left && top == c->view_top)
+		return;
+	c->view_left      = left;
+	c->view_top       = top;
+	c->view_repaint   = true;
+	c->raster_current = false;
 }
 
 static int

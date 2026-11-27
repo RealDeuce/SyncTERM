@@ -22,8 +22,9 @@ size_t
 st_console_pixel_position_locked(const st_console_t *console, uint32_t x, uint32_t y)
 {
 	if (console->raster_parent != NULL)
-		return st_console_pixel_position_locked(console->raster_parent, (uint32_t)console->raster_x + x,
-		    (uint32_t)console->raster_y + y);
+		return st_console_pixel_position_locked(console->raster_parent,
+		    (uint32_t)console->raster_x + (x - console->view_left * console->cell_width),
+		    (uint32_t)console->raster_y + (y - console->view_top * console->cell_height));
 	uint32_t text_width  = console->columns * console->cell_width;
 	uint32_t text_height = console->rows * console->cell_height;
 	uint32_t physical_y  = y;
@@ -44,18 +45,19 @@ st_console_copy_pixels_locked(const st_console_t *console, uint32_t *destination
 	const uint32_t *plane = alternate && console->pixels->alternate != NULL ? console->pixels->alternate
 	                                                                        : console->pixels->primary;
 	if (console->raster_parent != NULL) {
-		uint32_t width  = st_console_raster_visible_width(console),
-			 height = st_console_raster_visible_height(console);
+		struct st_console_rect v     = st_console_visible_pixels(console);
+		uint32_t               left  = rectangle->x > v.x ? rectangle->x : v.x;
+		uint32_t               right = rectangle->x + rectangle->width;
+		if (right > v.x + v.width)
+			right = v.x + v.width;
 		for (uint32_t y = 0; y < rectangle->height; y++) {
 			uint32_t *row = destination + (size_t)y * destination_stride;
 			memset(row, 0, rectangle->width * sizeof(*row));
-			if (rectangle->y + y >= height || rectangle->x >= width)
-				continue;
-			uint32_t count =
-			    rectangle->width < width - rectangle->x ? rectangle->width : width - rectangle->x;
-			memcpy(row,
-			    plane + st_console_pixel_position_locked(console, rectangle->x, rectangle->y + y),
-			    count * sizeof(*row));
+			uint32_t sy = rectangle->y + y;
+			if (sy - v.y < v.height && left < right)
+				memcpy(row + (left - rectangle->x),
+				    plane + st_console_pixel_position_locked(console, left, sy),
+				    (right - left) * sizeof(*row));
 		}
 		return;
 	}
@@ -233,11 +235,11 @@ render_fast_cells(st_console_t *console, uint32_t x, uint32_t y, size_t count, s
 	struct fast_cell states[FAST_CELL_COUNT];
 	size_t           prepared = 0;
 	if (console->raster_parent != NULL) {
-		uint32_t width  = st_console_raster_visible_width(console),
-			 height = st_console_raster_visible_height(console);
-		if (x * console->cell_width >= width || (y + 1) * console->cell_height > height)
+		struct st_console_rect v  = st_console_visible_pixels(console);
+		uint32_t               px = x * console->cell_width - v.x, py = y * console->cell_height - v.y;
+		if (px >= v.width || py >= v.height || console->cell_height > v.height - py)
 			return 0;
-		size_t visible = (width - x * console->cell_width) / console->cell_width;
+		size_t visible = (v.width - px) / console->cell_width;
 		if (count > visible)
 			count = visible;
 	}
@@ -704,6 +706,20 @@ st_console_rasterize_locked(st_console_t *console, bool force)
 
 	if (console->pixels == NULL || (console->raster_parent != NULL && !console->raster_enabled))
 		return 0;
+	/* Moving an aperture exposes retained cells even when their contents
+	 * match the drawn-cell cache. Coalesce moves in the same update. */
+	if (console->view_repaint) {
+		console->view_repaint = false;
+		if (!console->view_hidden) {
+			for (uint32_t y = 0; y < console->view_rows; ++y) {
+				size_t index =
+				    (size_t)(console->view_top + y) * console->columns + console->view_left;
+				struct st_console_cell *row = st_console_drawn_at(console, index);
+				for (uint32_t x = 0; x < console->view_columns; ++x)
+					row[x].flags |= ST_CONSOLE_RASTER_INVALID;
+			}
+		}
+	}
 	/* Choose the nearer of square pixels and 6:5 tall pixels. The midpoint
 	 * is 11:10; use the whole native raster, including mode margins. */
 	if (console->aspect_width != 0) {
@@ -819,19 +835,14 @@ move_raster_locked(st_console_t *console, const struct st_console_rect *source, 
 	cell_bytes              = (size_t)source->width * sizeof(console->drawn_cells[0]);
 	pixel_bytes = (size_t)source->width * console->cell_width * sizeof(console->pixels->primary[0]);
 	if (console->raster_parent != NULL) {
-		uint32_t width    = st_console_raster_visible_width(console),
-			 height   = st_console_raster_visible_height(console);
-		uint32_t source_x = source->x * console->cell_width,
-			 target_x = destination_x * console->cell_width;
-		size_t   span     = (size_t)source->width * console->cell_width;
-		if (source_x >= width || target_x >= width)
-			span = 0;
-		else {
-			if (span > width - source_x)
-				span = width - source_x;
-			if (span > width - target_x)
-				span = width - target_x;
-		}
+		struct st_console_rect v = st_console_visible_pixels(console);
+		/* Offsets within each moved row for which both ends have pixels. */
+		uint32_t sx = source->x * console->cell_width, dx = destination_x * console->cell_width;
+		uint32_t min_x = sx < dx ? sx : dx, max_x = sx < dx ? dx : sx;
+		uint32_t first = v.x > min_x ? v.x - min_x : 0;
+		uint32_t end   = v.x + v.width > max_x ? v.x + v.width - max_x : 0;
+		if (end > source->width * console->cell_width)
+			end = source->width * console->cell_width;
 		for (uint32_t i = 0; i < source->height; i++) {
 			uint32_t row = backwards ? source->height - i - 1 : i;
 			uint32_t sy = source->y + row, dy = destination_y + row;
@@ -855,39 +866,45 @@ move_raster_locked(st_console_t *console, const struct st_console_rect *source, 
 			 * which there were no source pixels to move. The drawn-cell
 			 * cache follows the source row during a circular scroll. */
 			if ((console->view_rows < console->rows || console->view_columns < console->columns)
-			    && dy < console->view_rows && destination_x < console->view_columns) {
-				uint32_t first = 0;
-				if (sy < height / console->cell_height && source->x < width / console->cell_width)
-					first = width / console->cell_width - source->x;
-				uint32_t end = console->view_columns - destination_x;
-				if (end > source->width)
-					end = source->width;
+			    && dy - console->view_top < console->view_rows) {
+				uint32_t start =
+				    destination_x < console->view_left ? console->view_left - destination_x : 0;
+				uint32_t limit = console->view_left + console->view_columns;
+				limit          = destination_x < limit ? limit - destination_x : 0;
+				if (limit > source->width)
+					limit = source->width;
 				size_t cell = metadata ? (size_t)dy * console->columns + destination_x
 				                       : (size_t)sy * console->columns + source->x;
-				for (uint32_t i = first; i < end; ++i)
-					st_console_drawn_at(console, cell + i)->flags |= ST_CONSOLE_RASTER_INVALID;
+				for (uint32_t col = start; col < limit; ++col)
+					if (sy - console->view_top >= v.height / console->cell_height
+					    || col * console->cell_width < first
+					    || (col + 1) * console->cell_width > end)
+						st_console_drawn_at(console, cell + col)->flags |=
+						    ST_CONSOLE_RASTER_INVALID;
 			}
-			for (uint32_t py = 0; span != 0 && py < console->cell_height; py++) {
+			if (first >= end)
+				continue;
+			for (uint32_t py = 0; py < console->cell_height; ++py) {
 				uint32_t from_y = sy * console->cell_height + py,
 					 to_y   = dy * console->cell_height + py;
-				if (from_y >= height || to_y >= height)
+				if (from_y - v.y >= v.height || to_y - v.y >= v.height)
 					continue;
-				size_t from = st_console_pixel_position_locked(console, source_x, from_y);
-				size_t to   = st_console_pixel_position_locked(console, target_x, to_y);
-				memmove(console->pixels->primary + to, console->pixels->primary + from,
-				    span * sizeof(*console->pixels->primary));
-				memmove(console->pixels->alternate + to, console->pixels->alternate + from,
-				    span * sizeof(*console->pixels->alternate));
+				size_t from  = st_console_pixel_position_locked(console, sx + first, from_y);
+				size_t to    = st_console_pixel_position_locked(console, dx + first, to_y);
+				size_t bytes = (size_t)(end - first) * sizeof(*console->pixels->primary);
+				memmove(console->pixels->primary + to, console->pixels->primary + from, bytes);
+				memmove(console->pixels->alternate + to, console->pixels->alternate + from, bytes);
 			}
 		}
-		uint32_t source_y     = source->y * console->cell_height;
-		uint32_t moved_height = source->height * console->cell_height;
-		if (source_y < height && span != 0) {
-			if (moved_height > height - source_y)
-				moved_height = height - source_y;
-			st_console_view_pixels_written_locked(console, target_x,
-			    destination_y * console->cell_height, (uint32_t)span, moved_height);
-		}
+		uint32_t sy = source->y * console->cell_height, dy = destination_y * console->cell_height;
+		uint32_t min_y = sy < dy ? sy : dy, max_y = sy > dy ? sy : dy;
+		uint32_t top    = min_y < v.y ? v.y - min_y : 0;
+		uint32_t bottom = max_y < v.y + v.height ? v.y + v.height - max_y : 0;
+		if (bottom > source->height * console->cell_height)
+			bottom = source->height * console->cell_height;
+		if (end > first && bottom > top)
+			st_console_view_pixels_written_locked(console, dx + first, dy + top, end - first,
+			    bottom - top);
 		return;
 	}
 	full_scroll_up   = source->x == 0 && destination_x == 0 && source->width == console->columns
@@ -1088,17 +1105,20 @@ void
 st_console_view_pixels_written_locked(st_console_t *console, uint32_t x, uint32_t y, uint32_t width,
     uint32_t height)
 {
-	uint32_t visible_width  = st_console_raster_visible_width(console);
-	uint32_t visible_height = st_console_raster_visible_height(console);
-	if (x >= visible_width || y >= visible_height || width == 0 || height == 0)
+	struct st_console_rect v    = st_console_visible_pixels(console);
+	uint32_t               left = x < v.x ? v.x : x, top = y < v.y ? v.y : y;
+	uint32_t               right = x + width, bottom = y + height;
+	if (right > v.x + v.width)
+		right = v.x + v.width;
+	if (bottom > v.y + v.height)
+		bottom = v.y + v.height;
+	if (left >= right || top >= bottom)
 		return;
-	if (width > visible_width - x)
-		width = visible_width - x;
-	if (height > visible_height - y)
-		height = visible_height - y;
+	width                         = right - left;
+	height                        = bottom - top;
 	st_console_t          *parent = console->raster_parent;
-	struct st_console_rect area   = {(uint32_t)console->raster_x + x, (uint32_t)console->raster_y + y, width,
-	    height};
+	struct st_console_rect area   = {(uint32_t)console->raster_x + (left - v.x),
+	    (uint32_t)console->raster_y + (top - v.y), width, height};
 	damage_pixel_cells(parent, area.x, area.y, (int64_t)area.x + width, (int64_t)area.y + height,
 	    !console->raster_transient);
 	console->view_pixels_written = true;
@@ -1135,9 +1155,13 @@ st_console_set_pixel(st_console_t *console, uint32_t x, uint32_t y, uint32_t col
 		status = IO_ERROR_NOT_SUPPORTED;
 	else if (x >= console->pixels->width || y >= console->pixels->height)
 		status = IO_ERROR_OUT_OF_RANGE;
-	else if (x >= st_console_raster_visible_width(console) || y >= st_console_raster_visible_height(console))
-		status = 0;
+
 	else {
+		struct st_console_rect v = st_console_visible_pixels(console);
+		if (x - v.x >= v.width || y - v.y >= v.height) {
+			(void)st_rwlock_unlock(st_console_state_lock(console));
+			return 0;
+		}
 		status = console->raster_current ? 0 : st_console_rasterize_locked(console, false);
 		if (status == 0) {
 			position                             = st_console_pixel_position_locked(console, x, y);
@@ -1398,14 +1422,13 @@ blit_view_locked(st_console_t *console, const struct st_pixel_buffer *source, co
 	int     status = st_pixel_buffer_validate_blit(console->pixels, source, mask, blit, &right, &bottom);
 	if (status != 0)
 		return status;
-	uint32_t width  = st_console_raster_visible_width(console),
-		 height = st_console_raster_visible_height(console);
-	int64_t  left   = blit->destination_x < 0 ? 0 : blit->destination_x;
-	int64_t  top    = blit->destination_y < 0 ? 0 : blit->destination_y;
-	if (right > width)
-		right = width;
-	if (bottom > height)
-		bottom = height;
+	struct st_console_rect v    = st_console_visible_pixels(console);
+	int64_t                left = blit->destination_x < (int64_t)v.x ? (int64_t)v.x : blit->destination_x;
+	int64_t                top  = blit->destination_y < (int64_t)v.y ? (int64_t)v.y : blit->destination_y;
+	if (right > v.x + v.width)
+		right = v.x + v.width;
+	if (bottom > v.y + v.height)
+		bottom = v.y + v.height;
 	for (int64_t y = top; y < bottom; y++) {
 		int64_t  start = left;
 		uint32_t sy    = (uint32_t)((y - blit->destination_y) / blit->scale_y);

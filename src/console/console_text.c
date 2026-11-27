@@ -131,6 +131,8 @@ st_console_set_position(st_console_t *console, uint32_t x, uint32_t y)
 		if (!console->pixel_cursor.enabled && console->cursor_custom && console->custom_cursor.visible
 		    && console->custom_cursor.index_xor != 0 && (console->cursor_x != x || console->cursor_y != y))
 			restart_cursor_animation(console);
+		if (console->view_follow_x || console->view_follow_y)
+			st_console_follow_view_locked(console, x, y);
 		console->cursor_x = x;
 		console->cursor_y = y;
 		console->changed  = true;

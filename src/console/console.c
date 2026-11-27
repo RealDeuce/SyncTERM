@@ -1721,6 +1721,53 @@ st_console_capabilities(st_console_t *console, uint32_t *capabilities)
 	return 0;
 }
 
+/* An indexed text view borrows its two pixel planes. Its allocated cell
+ * grid can change stride without resizing the parent or allocating planes. */
+static int
+resize_view(st_console_t *console, uint32_t columns, uint32_t rows)
+{
+	if (st_rwlock_write_lock(st_console_state_lock(console)) != ST_THREAD_SUCCESS)
+		return IO_ERROR_IO;
+	if (!console->raster_parent_palette || rows != console->rows || columns > console->view_capacity_columns) {
+		(void)st_rwlock_unlock(st_console_state_lock(console));
+		return IO_ERROR_BUSY;
+	}
+	if (columns != console->columns) {
+		struct st_console_cell blank  = st_console_blank_locked(console, ' ');
+		unsigned               common = columns < console->columns ? columns : console->columns;
+		/* Stage the new rows in the existing drawn-cell array so a rotated
+		 * source grid and overlapping old/new strides are both safe. */
+		for (unsigned y = 0; y < rows; ++y) {
+			struct st_console_cell *row = console->drawn_cells + (size_t)y * columns;
+			memcpy(row, st_console_cell_at(console, (size_t)y * console->columns),
+			    common * sizeof(*row));
+			for (unsigned x = common; x < columns; ++x)
+				row[x] = blank;
+			if (!(row[columns - 1].flags & ST_CONSOLE_CELL_CONTINUATION)
+			    && cell_is_wide_locked(console, &row[columns - 1]))
+				row[columns - 1] = blank;
+		}
+		const size_t count = (size_t)columns * rows;
+		memcpy(console->cells, console->drawn_cells, count * sizeof(*console->cells));
+		memset(console->view_text_batch, 0, count * sizeof(*console->view_text_batch));
+		memset(console->raster_rows, 0, rows * sizeof(*console->raster_rows));
+		console->columns       = columns;
+		console->cell_top      = 0;
+		console->pixels->width = columns * console->cell_width;
+		if (console->view_columns > columns)
+			console->view_columns = columns;
+		if (console->view_left > columns - console->view_columns)
+			console->view_left = columns - console->view_columns;
+		console->window = (struct st_console_rect) {0, 0, columns, rows};
+		if (console->cursor_x >= columns)
+			console->cursor_x = columns - 1;
+		console->dirty_row_end  = 0;
+		console->raster_current = true;
+	}
+	(void)st_rwlock_unlock(st_console_state_lock(console));
+	return 0;
+}
+
 int
 st_console_resize(st_console_t *console, uint32_t columns, uint32_t rows)
 {
@@ -1748,6 +1795,8 @@ st_console_resize(st_console_t *console, uint32_t columns, uint32_t rows)
 		console->cell_height == 0 ? 0 : rows * console->cell_height + console->pixel_extra_height,
 		&pixel_width, &pixel_height, &ignored_extra_width, &ignored_extra_height))
 		return IO_ERROR_INVALID_ARGUMENT;
+	if (console->raster_parent)
+		return resize_view(console, columns, rows);
 	cells = malloc(count * sizeof(*cells));
 	if (cells == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
@@ -3569,17 +3618,16 @@ st_console_snapshot_restore(st_console_t *console, const st_console_snapshot_t *
 			    pixels_count * sizeof(console->pixels->alternate[0]));
 		}
 		else {
-			uint32_t width  = st_console_raster_visible_width(console),
-				 height = st_console_raster_visible_height(console);
-			for (uint32_t y = 0; width != 0 && y < height; y++) {
-				size_t to   = st_console_pixel_position_locked(console, 0, y),
-				       from = (size_t)y * snapshot->pixels->width;
+			struct st_console_rect v = st_console_visible_pixels(console);
+			for (uint32_t y = v.y; v.width && y < v.y + v.height; ++y) {
+				size_t to   = st_console_pixel_position_locked(console, v.x, y);
+				size_t from = (size_t)y * snapshot->pixels->width + v.x;
 				memcpy(console->pixels->primary + to, snapshot->pixels->primary + from,
-				    width * sizeof(*console->pixels->primary));
+				    v.width * sizeof(*console->pixels->primary));
 				memcpy(console->pixels->alternate + to, snapshot->pixels->alternate + from,
-				    width * sizeof(*console->pixels->alternate));
+				    v.width * sizeof(*console->pixels->alternate));
 			}
-			st_console_view_pixels_written_locked(console, 0, 0, width, height);
+			st_console_view_pixels_written_locked(console, v.x, v.y, v.width, v.height);
 			for (size_t i = 0; i < count; ++i)
 				console->view_text_batch[i] = snapshot->view_text[i] ? console->view_batch : 0;
 		}
