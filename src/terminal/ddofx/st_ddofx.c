@@ -164,6 +164,8 @@ music(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, const char *filena
 		stop_music(ddo);
 		return;
 	}
+	if (!ascii_case_compare(filename, ddo->music_name))
+		return;
 	if (!st_audio_runtime_is_pull(sink->audio) && st_audio_runtime_allowed(sink->audio) == 0)
 		return;
 	FILE *file = sink->open_asset(sink->context, "MUSIC", NULL, filename);

@@ -35,10 +35,10 @@ ddofx-orders)
 		printf '\035{mORDERS.DAT}\035{mMISSING.S3M}\035{dGETMUSIC}\035{MICMF}'
 		test "$(dd bs=1 count=13 2>/dev/null | od -An -tx1 | tr -d ' \n')" = 4f52444552532e444154ff4eff
 		step ''
-		step '\035{MMPAT,1}'
+		step '\035{MMPAT,1}\035{morders.dat}'
 		step '\035{MMPAT,-1}'
 		step '\035{MMPAT,-1}'
-		step '\035{MMPR}\035{MMPAT,1}'
+		step '\035{MMPR}\035{MMPAT,1}\035{mORDERS.DAT}'
 		step '\035{MMPR}'
 		step '\035{MMPAT,1}'
 		step '\035{MMPAT,1}\035{MMPAT,-1}'

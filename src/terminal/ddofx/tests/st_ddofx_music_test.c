@@ -375,7 +375,11 @@ check_cmf(struct st_ddofx *ddo, struct st_ddofx_sink *sink)
 	CHECK(sounded);
 	CHECK(command_reply(ddo, sink, "mDAMAGED", ""));
 	CHECK(command_reply(ddo, sink, "dGETMUSIC", "FM\xff"));
-	CHECK(st_audio_runtime_pull(sink->audio, repeat, 8820) == 0 && !memcmp(pcm, repeat, sizeof(pcm)));
+	/* Reselect the CMF halfway through its loop, just as the note starts. */
+	CHECK(st_audio_runtime_pull(sink->audio, repeat, 4410) == 0);
+	CHECK(command_reply(ddo, sink, "mFM", ""));
+	CHECK(st_audio_runtime_pull(sink->audio, repeat + 4410 * 2, 4410) == 0);
+	CHECK(!memcmp(pcm, repeat, sizeof(pcm)));
 	CHECK(command_reply(ddo, sink, "mDRUM", ""));
 	CHECK(command_reply(ddo, sink, "dGETMUSIC", "DRUM\xff"));
 	CHECK(has_signal(sink->audio));
