@@ -372,6 +372,28 @@ decode_controls(uint8_t *out, const char *source, size_t length, bool keep_final
 	return used;
 }
 
+void
+st_ddofx_define_ping(struct st_ddofx *ddo, char *args)
+{
+	int32_t minutes;
+	if (!st_ddofx_field_number(ddo, &args, &minutes) || !args)
+		return;
+	if (minutes <= 0) {
+		ddo->ping.interval_ms = 0;
+		return;
+	}
+	uint64_t now;
+	if (st_time_monotonic_ms(&now) != 0)
+		return;
+	/* Decode in place. The SDK's ten-byte limit applies to the transmitted
+	 * string, which can contain NUL and commas. */
+	size_t length    = decode_controls((uint8_t *)args, args, strlen(args), false);
+	ddo->ping.length = length < sizeof(ddo->ping.bytes) ? length : sizeof(ddo->ping.bytes);
+	memcpy(ddo->ping.bytes, args, ddo->ping.length);
+	ddo->ping.interval_ms = (uint64_t)minutes * 60000;
+	ddo->ping.due         = now + ddo->ping.interval_ms;
+}
+
 static void
 send_reply(const struct st_ddofx_sink *sink, const char *encoded)
 {

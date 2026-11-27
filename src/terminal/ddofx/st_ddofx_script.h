@@ -63,6 +63,7 @@ void     st_ddofx_clear_keys(struct st_ddofx *);
 int      st_ddofx_resume_key(struct st_ddofx *, const struct st_ddofx_sink *);
 char    *st_ddofx_field(char **);
 bool     st_ddofx_field_number(const struct st_ddofx *, char **, int32_t *);
+void     st_ddofx_define_ping(struct st_ddofx *, char *args);
 void     st_ddofx_event_command(struct st_ddofx *, const char *, char *);
 uint32_t st_ddofx_event_wait_ms(const struct st_ddofx *);
 void     st_ddofx_event_poll(struct st_ddofx *);

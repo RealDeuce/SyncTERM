@@ -47,6 +47,14 @@ text(void *context, const uint8_t *s, size_t size, size_t *used)
 	return 0;
 }
 
+static void
+reply(void *context, const uint8_t *bytes, size_t size)
+{
+	size_t used;
+	if (text(context, bytes, size, &used) != 0)
+		abort();
+}
+
 static bool
 feed(struct st_ddofx *ddo, struct st_ddofx_sink *sink, const char *s, size_t size)
 {
@@ -109,6 +117,34 @@ main(void)
 		struct st_console_config restored;
 		CHECK(st_console_get_config(config.console, &restored) == 0 && restored.rows == mode.rows);
 	}
+	out                      = (struct output) {0};
+	sink.reply               = reply;
+	static const char ping[] = DDO("5PING,7,P^@");
+	CHECK(feed(&ddo, &sink, ping, sizeof(ping) - 1) && !ddo.ping.interval_ms);
+	CHECK(feed(&ddo, &sink, enter, sizeof(enter) - 1) && ddo.graphics);
+	CHECK(feed(&ddo, &sink, ping, sizeof(ping) - 1) && ddo.ping.interval_ms == 420000);
+	CHECK(st_ddofx_poll(&ddo, &sink) == 0 && out.length == 0);
+
+	/* An overdue ping fires once after control of the wire returns. */
+	ddo.ping.due = 0;
+	st_ddofx_background_download(&ddo, true);
+	CHECK(st_ddofx_poll(&ddo, &sink) == 0 && out.length == 0);
+	st_ddofx_background_download(&ddo, false);
+	CHECK(st_ddofx_wait_ms(&ddo) == 0 && st_ddofx_poll(&ddo, &sink) == 0);
+	CHECK(out.length == 2 && !memcmp(out.text, "P\0", 2));
+	CHECK(st_ddofx_poll(&ddo, &sink) == 0 && out.length == 2);
+
+	static const char disable[] = DDO("5PING,0,");
+	CHECK(feed(&ddo, &sink, disable, sizeof(disable) - 1) && !ddo.ping.interval_ms);
+	CHECK(feed(&ddo, &sink, ping, sizeof(ping) - 1));
+	static const char leave[] = DDO("2GEXIT") DDO("2RESET") DDO("5PING,0,");
+	CHECK(feed(&ddo, &sink, leave, sizeof(leave) - 1) && !ddo.graphics);
+	ddo.ping.due = 0;
+	CHECK(st_ddofx_poll(&ddo, &sink) == 0 && out.length == 2);
+	CHECK(feed(&ddo, &sink, enter, sizeof(enter) - 1) && st_ddofx_poll(&ddo, &sink) == 0);
+	CHECK(out.length == 4 && !memcmp(out.text, "P\0P\0", 4));
+	static const char reset[] = DDO("2RESET");
+	CHECK(feed(&ddo, &sink, reset, sizeof(reset) - 1) && !ddo.ping.interval_ms);
 	st_ddofx_reset(&ddo);
 	st_console_destroy(config.console);
 	return EXIT_SUCCESS;

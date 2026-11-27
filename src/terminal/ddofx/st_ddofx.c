@@ -256,6 +256,8 @@ execute(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *body)
 	else if (ddo->ignoring || body[0] == ':')
 		return;
 	else if (matches(body, "2RESET")) {
+		if (ddo->graphics)
+			ddo->ping.interval_ms = 0;
 		st_ddofx_graphics_reset(ddo->graphics);
 		st_ddofx_script_clear(ddo);
 		st_ddofx_clear_keys(ddo);
@@ -287,6 +289,8 @@ execute(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *body)
 		st_ddofx_mouse_command(ddo, sink, body);
 	else if (body[0] == '3' && ddo->graphics)
 		st_ddofx_mouse_command(ddo, sink, body + 1);
+	else if (ddo->graphics && !ascii_case_ncompare(body, "5PING,", 6))
+		st_ddofx_define_ping(ddo, body + 6);
 	else if (body[0] == '5' && ddo->graphics)
 		st_ddofx_gadget_command(ddo, sink, body);
 	else if (body[0] == 'E' && !ascii_case_ncompare(body + 1, "WTEXT,", 6))
@@ -470,6 +474,18 @@ st_ddofx_busy(const struct st_ddofx *ddo)
 	       || ddo->queued_start != ddo->queued_end;
 }
 
+static uint32_t
+ping_wait_ms(const struct st_ddofx *ddo, uint64_t *now)
+{
+	if (!ddo->ping.interval_ms || !ddo->graphics || ddo->background_download || ddo->wait_until
+	    || ddo->fade_due || st_time_monotonic_ms(now) != 0)
+		return UINT32_MAX;
+	if (*now >= ddo->ping.due)
+		return 0;
+	uint64_t remaining = ddo->ping.due - *now;
+	return remaining < UINT32_MAX ? (uint32_t)remaining : UINT32_MAX - 1;
+}
+
 uint32_t
 st_ddofx_wait_ms(const struct st_ddofx *ddo)
 {
@@ -509,12 +525,22 @@ st_ddofx_wait_ms(const struct st_ddofx *ddo)
 		wait = mouse;
 	if (grid < wait)
 		wait = grid;
-	return bars < wait ? bars : wait;
+	if (bars < wait)
+		wait = bars;
+	uint64_t now;
+	uint32_t ping = ping_wait_ms(ddo, &now);
+	return ping < wait ? ping : wait;
 }
 
 int
 st_ddofx_poll(struct st_ddofx *ddo, const struct st_ddofx_sink *sink)
 {
+	uint64_t ping_time;
+	if (ping_wait_ms(ddo, &ping_time) == 0) {
+		ddo->ping.due = ping_time + ddo->ping.interval_ms;
+		if (ddo->ping.length && sink->reply)
+			sink->reply(sink->context, ddo->ping.bytes, ddo->ping.length);
+	}
 	st_ddofx_samples_poll(ddo);
 	st_ddofx_bar_poll(ddo);
 	st_ddofx_grid_poll(ddo);

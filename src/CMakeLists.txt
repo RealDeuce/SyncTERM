@@ -432,6 +432,11 @@ if(BUILD_TESTING)
 				set_tests_properties(syncterm_font_assignments_${_encoding}
 					PROPERTIES TIMEOUT 90 LABELS "terminal;conformance;font")
 			endforeach()
+			add_test(NAME syncterm_ddofx_ping
+				COMMAND ${Python3_EXECUTABLE} -B ${CMAKE_CURRENT_SOURCE_DIR}/tests/st_ddofx_connected_test.py
+				$<TARGET_FILE:syncterm_app> UTF-8 --ping
+				--reports ${CMAKE_BINARY_DIR}/reports/test-control)
+			set_tests_properties(syncterm_ddofx_ping PROPERTIES TIMEOUT 90 LABELS "terminal;conformance;ddofx")
 			add_test(NAME syncterm_amiga_font_manager
 				COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/st_amiga_font_manager_test.py
 					$<TARGET_FILE:syncterm_app> --reports ${CMAKE_BINARY_DIR}/reports/test-control)

@@ -47,6 +47,12 @@ struct st_ddofx {
 		uint8_t reply[ST_DDOFX_BODY_MAX];
 		size_t reply_length;
 	} retrieval;
+
+	struct {
+		uint64_t interval_ms, due;
+		uint8_t  bytes[10];
+		size_t   length;
+	} ping;
 	struct st_ddofx_framer   wire;
 	struct st_ddofx_script  *script;
 	struct st_ddofx_keys    *keys;

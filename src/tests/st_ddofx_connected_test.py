@@ -2403,6 +2403,19 @@ def check_events(t):
     t.exchange(commands(b"7CEVENT,0", b"7AEVENT,1", b"dLITERM"), b"LITERM Ver. 2.00\xff")
 
 
+def check_ping(args):
+    with connection(args.executable, args.reports, encoding=args.encoding,
+                    options="Graphics=DDO F/X 2.0\n", settings="AudioModes=0\n") as fixture:
+        t = Terminal(*fixture)
+        t.case("one-minute DDO ping arrives on an idle UTF-8 connection")
+        t.exchange(commands(b"LIGMODE", b"LIGMODE", b"~DEFVAR,1,2,1", b"~VARCAP,2", b"dVIDMODE"))
+        start = time.monotonic()
+        t.exchange(commands(b"5PING,DEFVAR1,A^@,^h~^?12345678"))
+        t.input(b"A\0,\b~\xff1234", timeout=70)
+        assert time.monotonic() - start >= 59
+        t.exchange(commands(b"5PING,0,", b"~VARCAP,0", b"7DEFRET,1,DEFVAR2", b"7SRET,1"), b"1")
+
+
 def run(args):
     ident = b"\x1d{dLITERM}"
     reply = b"LITERM Ver. 2.00\xff"
@@ -2454,4 +2467,6 @@ if __name__ == "__main__":
     parser.add_argument("executable", type=Path)
     parser.add_argument("encoding", choices=("CP437", "UTF-8"))
     parser.add_argument("--reports", type=Path, required=True)
-    run(parser.parse_args())
+    parser.add_argument("--ping", action="store_true")
+    args = parser.parse_args()
+    (check_ping if args.ping else run)(args)
