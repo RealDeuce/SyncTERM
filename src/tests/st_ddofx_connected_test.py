@@ -94,7 +94,10 @@ def check_background_download(t):
                                 b"4MKEY,1,46,99,0,ordinary,\x1d(2C,5)\x1d(2aFILL)\x1d(2CPYWP2VP)",
                                 b"7CEVENT,1,0,20,0,0,0,0,0,0,0,parked,",
                                 b"6DEFJOY,1,0,B1,ordinary,\x1d(2C,5)\x1d(2aFILL)\x1d(2CPYWP2VP)",
-                                b"7ZMSTEALTH,1",
+                                b"2GWIN,1,10,139,20,129,150,150,0,0,1,0,0,0,0,0,0,0,0,Invisible",
+                                b"2DCGWIN,1,44,122,0,ordinary,\x1d(2C,5)", b"7ZMSTEALTH,1",
+                                b"2GWIN,2,10,139,20,129,150,150,0,0,1,0,0,0,0,0,0,0,0,Invisible",
+                                b"2DCGWIN,2,44,122,1,stealth,\x1d(2C,9)\x1d(2aFILL)\x1d(2CPYWP2VP)",
                                 b"6DEFJOY,1,0,B2,stealth,\x1d(2C,4)\x1d(2aFILL)\x1d(2CPYWP2VP)",
                                 b"6DEFJOY,1,1,AC,,",
                                 b"7CEVENT,2,0,20,0,0,0,0,0,0,0,local,\x1d(2C,6)\x1d(2aFILL)\x1d(2CPYWP2VP)",
@@ -122,6 +125,8 @@ def check_background_download(t):
     t.client.request(7, bytes([2, 0, 0, 20, 0, 32]) + bytes(16))
     t.client.wait_for(lambda f: f.primary and f.primary[0] == 4)
     t.client.request(7, bytes([3, 0]))
+    t.client.text("z")
+    t.client.wait_for(lambda f: f.primary and f.primary[0] == 9)
     t.client.text("xc")
     active = t.client.wait_for(lambda f: f.primary and f.primary[0] == 6)
     assert bottom(active) != active.palette[6]
@@ -1286,6 +1291,95 @@ def check_graphic_windows(t):
                         b"2VGWIN?,3"), b"Y\xffY\xff0\xff7\xff0\xffN\xff")
 
 
+def check_graphic_window_controls(t):
+    t.case("graphic window frame controls and close callbacks")
+    create = b"2GWIN,1,60,259,80,229,400,300,0,0,0,0,0,0,0,0,0,0,0,First"
+    frame = t.exchange(commands(create, b"2DCGWIN,1,46,99,0,R~^M,\x1d(2FGWIN)"))
+    m = frame.metadata
+    def mouse(x, y, buttons):
+        px = m["destination_x"] + (2*x+1)*m["destination_width"]//1280
+        py = m["destination_y"] + (2*y+1)*m["destination_height"]//960
+        n = t.client.capture().metadata["events_dequeued"]
+        t.client.mouse(px, py, action=1, buttons=buttons)
+        t.client.wait_for(lambda f: f.metadata["events_dequeued"] > n)
+
+    def click(x, y):
+        mouse(x, y, 1)
+        mouse(x, y, 0)
+
+    def stats(expected):
+        t.exchange(commands(b"2SGWIN?,1"), expected + b"\xff")
+
+    click(249, 90)
+    t.input(b"1\xffR,\r")
+    t.client.text("c")
+    t.input(b"1\xffR,\r")
+    stats(b"60,259,80,229,0,0")
+    mouse(95, 88, 1)
+    mouse(125, 103, 1)
+    mouse(125, 103, 0)
+    stats(b"90,289,95,244,0,0")
+    mouse(286, 241, 1)
+    mouse(306, 261, 1)
+    mouse(306, 261, 0)
+    stats(b"90,309,95,264,0,0")
+    click(275, 105)  # Restore the authored rectangle.
+    stats(b"60,259,80,229,0,0")
+    click(237, 90)
+    stats(b"0,423,0,333,0,0")
+    click(401, 10)
+    stats(b"60,259,80,229,0,0")
+    click(242, 222)
+    click(253, 212)
+    stats(b"60,259,80,229,20,20")
+    mouse(110, 222, 1)  # Drag the horizontal thumb.
+    mouse(135, 222, 1)
+    mouse(135, 222, 0)
+    mouse(254, 132, 1)  # Drag the vertical thumb.
+    mouse(254, 151, 1)
+    mouse(254, 151, 0)
+    stats(b"60,259,80,229,45,39")
+    t.exchange(commands(b"2CHGWIN,1,60,259,80,229,0,1,1,1,1,1,1,1,Fixed"))
+    mouse(95, 88, 1)
+    mouse(135, 128, 1)
+    mouse(135, 128, 0)
+    click(237, 90)
+    click(242, 222)
+    stats(b"60,259,80,229,45,39")
+    t.exchange(commands(b"2DCGWIN,1,46,99,1,BYE,\x1d(2CGWIN,1)"))
+    t.client.text("c")
+    t.input(b"BYEc")
+    t.exchange(commands(b"2VGWIN?,1", create, b"2DCGWIN,1,46,99,0,,"), b"N\xff")
+    t.client.text("c")
+    t.input(b"c")
+    click(249, 90)
+    t.exchange(commands(b"2VGWIN?,1", b"2RESET"), b"Y\xff")
+
+    t.case("mouse regions and hover fields follow their window and its virtual origin")
+    t.exchange(commands(b"3MREGN,1,0,200,0,160,1,Desktop,",
+                        b"2GWIN,3,40,239,30,179,1000,700,0,1,0,0,0,0,0,0,0,0,0,Large",
+                        b"2CHVGP,3,700,490", b"2ALERTGWIN,3",
+                        b"3MREGN,2,707,718,495,509,1,Window,",
+                        b"3MFLD,4,707,718,495,509,0,0,Hover,", b"2CALMGWIN"))
+    mouse(62, 60, 0)
+    t.input(b"Hover")
+    t.exchange(commands(b"2ALERTGWIN,3", b"3MFLD,5,747,758,495,509,0,0,Panned,", b"2CALMGWIN"))
+    t.send(commands(b"2CHVGPR,3,40,0"))
+    t.input(b"Panned")
+    t.send(commands(b"2CHVGPR,3,-40,0"))
+    t.input(b"Hover")
+    click(62, 60)
+    t.input(b"Window")
+    t.exchange(commands(b"2CGWIN,3"))
+    click(62, 60)
+    t.input(b"Desktop")
+    t.exchange(commands(b"2GWIN,3,40,239,30,179,1000,700,0,1,0,0,0,0,0,0,0,0,0,Reopened",
+                        b"2CHVGP,3,700,490"))
+    click(62, 60)
+    t.input(b"Window")
+    t.exchange(commands(b"2RESET"))
+
+
 def check_vga_font(t, root):
     t.case("VGA font selection in Lite, Normal and on the graphics pages")
     [marker] = root.rglob("syncterm-cache-name.txt")
@@ -1395,6 +1489,7 @@ def check_graphics(t, root):
     check_image_commands(t)
     check_pcx(t, root)
     check_graphic_windows(t)
+    check_graphic_window_controls(t)
     t.exchange(b"\x1b[75;45H" + b"\x1b[6n", b"\x1b[75;45R")
     restored = t.check("Lite display and cursor restored", commands(b"2GEXIT", b"dVIDMODE") + b"!",
                        (8, 1), [(1, 1, "Before!")], reset=False, expected=b"0\xff")

@@ -21,6 +21,8 @@ struct st_ddofx_keys {
 	struct st_console_event event;
 	unsigned                next, count, active_slot;
 	bool                    checked_button, active_button, local_only;
+	unsigned                next_window;
+	bool                    window_callback, window_pass;
 	uint16_t                word;
 	unsigned                physical_scan;
 	uint16_t                alt_echo;
@@ -228,6 +230,9 @@ next_binding(struct st_ddofx *ddo)
 			return KEY_CALLBACK;
 		}
 	}
+	keys->window_callback = st_ddofx_next_window_key(ddo, keys->word, &keys->next_window, &keys->window_pass);
+	if (keys->window_callback)
+		return KEY_CALLBACK;
 	return KEY_PASS;
 }
 
@@ -235,7 +240,7 @@ int
 st_ddofx_resume_key(struct st_ddofx *ddo, const struct st_ddofx_sink *sink)
 {
 	struct st_ddofx_keys *keys = ddo->keys;
-	bool                  pass = keys->active_button ? st_ddofx_button_pass(ddo, keys->active_slot)
+	bool                  pass = keys->window_callback ? keys->window_pass : keys->active_button ? st_ddofx_button_pass(ddo, keys->active_slot)
 	                                                 : keys->bindings[keys->active_slot].pass;
 	if (pass) {
 		enum key_match match = next_binding(ddo);
@@ -263,7 +268,7 @@ st_ddofx_key(struct st_ddofx *ddo, const struct st_console_event *e)
 	    && st_ddofx_window_scroll_key(ddo, logical_key(e, 0)))
 		return true;
 	struct st_ddofx_keys *keys = ddo->keys;
-	if (!keys && (st_ddofx_control_count(ddo) || st_ddofx_ray_accepts_key(ddo))) {
+	if (!keys && (st_ddofx_control_count(ddo) || st_ddofx_has_window_key(ddo) || st_ddofx_ray_accepts_key(ddo))) {
 		ddo->keys = calloc(1, sizeof(*ddo->keys));
 		keys      = ddo->keys;
 	}
@@ -310,6 +315,8 @@ st_ddofx_key(struct st_ddofx *ddo, const struct st_console_event *e)
 	}
 	keys->word = word;
 	keys->next = 0;
+	keys->next_window = 1;
+	keys->window_callback = false;
 	keys->checked_button = false;
 	enum key_match match = next_binding(ddo);
 	if (match == KEY_PASS && !ddo->keys_locked)

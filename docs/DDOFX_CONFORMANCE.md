@@ -12,7 +12,7 @@ BBS sound themes, resident sound bites and big-sample profiles use signed 8-bit 
 
 An online pair of `LIGMODE` commands enters Normal mode on a pixel display. The visible page is 640×480 with 256 palette entries. The work, background and hidden pages store pixel indices. Whole-page copies, rectangular cuts anchored at the lower left, transparent cuts, work-page drawing, vertical scrolling and palette changes are available from a connection. Each open text window has a 100-row virtual page, initially 80 columns wide. Ordinary text and ANSI from the connection or a resource script paint only within the active visible text window. Closing the last window restores the desktop. `2GEXIT` restores the Lite screen, cursor and palette. Basic fade-out saves the active palette, fades to black and clears the visual and hidden pages. Advanced fade-out preserves page pixels and blends an inclusive palette range toward a selected register. Fade-in returns the palette to the saved values. Windows retain their virtual text pages and cursor positions across hiding, switching, swapping and changes in placement. Visible windows are painted in slot order with the active window on top. Bordered windows use the selected VGA font for their double-line frame and centered title and help. Each window retains its own viewport origin and can follow the cursor independently on each axis. When the window enables manual scrolling, Ctrl+Home and Ctrl+End move one column and Ctrl+PgUp and Ctrl+PgDn move one row. `1SETC` changes the wrap width for open and future windows. An existing window narrows to fit the new limit. At one or two columns a framed window drops its border to leave room for text. Reset restores 80 columns.
 
-A door can create ten graphic windows with independent visual and hidden pages. The active window paints above the other visible windows. An alert window receives primitive drawing commands in virtual-page coordinates. Its viewport can scroll, zoom, refresh and restore. PCX loads and hidden-to-visual copies publish to the viewport immediately. Closing a window reveals the remaining windows and the desktop hidden page. Window frame mouse controls, close callbacks, icons and attaching other drawing and interactive objects to a window remain pending.
+A door can create ten graphic windows with independent visual and hidden pages. The active window paints above the other visible windows. An alert window receives primitive drawing commands in virtual-page coordinates. Its viewport can scroll, zoom, refresh and restore. PCX loads and hidden-to-visual copies publish to the viewport immediately. Closing a window reveals the remaining windows and the desktop hidden page. A user can raise a window, drag or resize its frame, zoom, restore and scroll its virtual pages. Close-button clicks and programmed keys execute the configured macro and send its return. A macro can explicitly close the window. Icons, window-owned animations and additional window-owned controls remain pending.
 
 In Normal mode, `1SCALE` sets a common cell width of 2–8 pixels and height of 2–16 pixels. Font scaling preserves each window’s logical page dimensions. Direct graphics text, desktop text fields, list boxes, marquees and digital clocks take their glyphs from the lower left of each 8×16 font record. The dimensions determine the space each character occupies. The font pixels keep their native size. A scene reset retains the current dimensions.
 
@@ -50,7 +50,7 @@ Desktop list boxes hold up to 100 items in each of 300 slots. The BBS can prepar
 
 A BBS can define 250 single-line text fields on the desktop. Creation and `5SHOWTFLD` paint the work page. Selecting a field by command, key or mouse edits it on the visual page. Fields support masked input, letter and digit filters, linked navigation and grouped submission in creation order. Each field’s macro finishes before its return is sent. The two `~GTXTFLD` commands take the variable number first and field number second, following the SDK. They preserve the variable’s type.
 
-Desktop hover fields use a separate table of 300 slots. The highest matching slot runs its macro, sends its return string and selects its static or animated pointer. As specified in the SDK, leaving a field for uncovered space preserves the remembered slot. Re-entering it fires again after a different field has won or the BBS has sent `3MFFRS`.
+Desktop and graphic-window hover fields share a table of 300 slots. Graphic-window fields and regions use virtual-page coordinates and retain their slot association across window recreation. The highest matching slot runs its macro, sends its return string and selects its static or animated pointer. As specified in the SDK, leaving a field for uncovered space preserves the remembered slot. Re-entering it fires again after a different field has won or the BBS has sent `3MFFRS`.
 
 The host can load either MPT pointer format from the assigned M resource. A selected image keeps its own hotspot and AND/XOR masks when the BBS replaces or clears its list entry. The bitmap presenter applies those masks to the displayed palette indices, leaving the graphics pages available for capture and copying under the pointer. The 100 static slots and 100 animation profiles support one-shot, looping and oscillating playback.
 
@@ -346,11 +346,11 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 8890 | MOUSE INFO | DDO-FX (NM) | Connected |
 | 8928 | MOUSE INFO OLD | DDO-FX (NM) | Connected |
 | 8958 | MOUSE SPEED | DDO-FX (NM) | Connected |
-| 8968 | MOUSE REGION | DDO-FX (NM) | Desktop regions |
-| 9189 | MOUSE REGION NON REPEAT | DDO-FX (NM) | Desktop regions |
-| 9211 | MOUSE FIELD | DDO-FX (NM) | Desktop hover fields |
-| 9292 | MOUSE FIELD SWAP | DDO-FX (NM) | Desktop hover fields |
-| 9302 | MOUSE FIELD FRESHEN | DDO-FX (NM) | Desktop hover fields |
+| 8968 | MOUSE REGION | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 9189 | MOUSE REGION NON REPEAT | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 9211 | MOUSE FIELD | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 9292 | MOUSE FIELD SWAP | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 9302 | MOUSE FIELD FRESHEN | DDO-FX (NM) | Connected on the desktop and in graphic windows |
 | 9317 | CREATE RADIO BUTTON | DDO-FX (NM) | Desktop controls |
 | 9481 | EXECUTE RADIO BUTTON | DDO-FX (NM) | Desktop controls |
 | 9548 | SWAP RADIO BUTTON | DDO-FX (NM) | Desktop controls |
@@ -482,13 +482,13 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 13819 | ANTI-ALIAS IMAGE | DDO-FX (NM) | Connected on the desktop |
 | 13917 | OUTLINE IMAGE | DDO-FX (NM) | Connected on the desktop |
 | 13975 | ZMODEM BACKGROUND TRANSFERS | DDO-FX (NM) | Implemented |
-| 14035 | ZMODEM STEALTH MODE | DDO-FX (NM) | Partial: keyboard macros, fields, regions, push/radio/check buttons, text fields, list boxes, timed events, joysticks, animation collisions and raycaster cell profiles. Icons and window close pending |
+| 14035 | ZMODEM STEALTH MODE | DDO-FX (NM) | Partial: keyboard macros, fields, regions, push/radio/check buttons, text fields, list boxes, timed events, joysticks, animation collisions and raycaster cell profiles. Window close callbacks connected. Icons pending |
 | 14120 | DEFINE MUSIC BAR | DDO-FX (NM) | Desktop pages; virtual windows pending |
 | 14292 | ACTIVATE/DEACTIVATE MUSIC BAR | DDO-FX (NM) | Desktop pages; virtual windows pending |
 | 14308 | CLEAR MUSIC BAR | DDO-FX (NM) | Desktop pages; virtual windows pending |
 | 14318 | EXIT TO TEXT MODE | DDO-FX (NM) | Connected |
-| 14638 | CREATE GRAPHIC WINDOW | DDO-FX (NM) | Scripted creation, frames, pages and stacking connected. Mouse frame controls and linked objects pending |
-| 14837 | DEFINE CLOSE GRAPHIC WINDOW | DDO-FX (NM) | Pending |
+| 14638 | CREATE GRAPHIC WINDOW | DDO-FX (NM) | Scripted creation, frames, pages and stacking connected. Frame controls connected. Linked icons and other attached objects pending |
+| 14837 | DEFINE CLOSE GRAPHIC WINDOW | DDO-FX (NM) | Connected |
 | 14898 | CLOSE GRAPHIC WINDOW | DDO-FX (NM) | Connected |
 | 14916 | LOAD PCX (X,Y) Graphic Window VP | DDO-FX (NM) | Connected |
 | 14936 | FIND ACTIVE GRAPHIC WINDOW | DDO-FX (NM) | Connected |
@@ -497,7 +497,7 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 14962 | IS GRAPHIC WINDOW CREATED | DDO-FX (NM) | Connected |
 | 14970 | GET GRAPHIC WINDOW STATS | DDO-FX (NM) | Connected |
 | 14980 | ACTIVATE GRAPHIC WINDOW | DDO-FX (NM) | Connected |
-| 14995 | CHANGE GRAPHIC WINDOW | DDO-FX (NM) | Scripted geometry, visibility and title connected. Frame control input pending |
+| 14995 | CHANGE GRAPHIC WINDOW | DDO-FX (NM) | Scripted geometry, visibility and title connected. Mouse drag, resize, zoom, restore and scroll enable flags connected. Return-to-icon pending |
 | 15008 | CHANGE GRAPHIC WINDOW VGP REL | DDO-FX (NM) | Connected |
 | 15024 | CHANGE GRAPHIC WINDOW VGP | DDO-FX (NM) | Connected |
 | 15034 | ZOOM/SHRINK GRAPHIC WINDOW | DDO-FX (NM) | Connected |
@@ -505,7 +505,7 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 15049 | RESTORE ALL GRAPHIC WINDOWS | DDO-FX (NM) | Connected |
 | 15056 | REFRESH ALL GRAPHIC WINDOWS | DDO-FX (NM) | Connected |
 | 15062 | REFRESH GRAPHIC WINDOWS INTERIOR | DDO-FX (NM) | Connected |
-| 15074 | ALERT GRAPHIC WINDOW | DDO-FX (NM) | Connected for primitives, PCX and visual/hidden page copies. Other attached operations pending |
+| 15074 | ALERT GRAPHIC WINDOW | DDO-FX (NM) | Connected for primitives, PCX, visual/hidden page copies, mouse fields and regions. Other attached operations pending |
 | 15094 | CALM GRAPHIC WINDOW | DDO-FX (NM) | Connected |
 | 15101 | CREATE ICON | DDO-FX (NM) | Pending |
 | 15135 | ICON MOUSE POINTER | DDO-FX (NM) | Pending |

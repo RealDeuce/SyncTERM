@@ -3,6 +3,7 @@
 #define ST_DDOFX_GRAPHICS_INTERNAL_H_
 
 #include "st_ddofx_graphics.h"
+#include "st_ddofx_script.h"
 
 struct bounds {
 	int left, right, top, bottom;
@@ -70,7 +71,23 @@ struct st_ddofx_text_page {
 
 enum { GRAPHIC_WINDOWS = 10 };
 
+enum st_ddofx_frame_part {
+	FRAME_NONE, FRAME_DRAG, FRAME_CLOSE, FRAME_ZOOM, FRAME_RESTORE, FRAME_SCROLL_X, FRAME_SCROLL_Y,
+	FRAME_LEFT, FRAME_RIGHT, FRAME_UP, FRAME_DOWN, FRAME_RESIZE
+};
+
+struct st_ddofx_frame_drag {
+	unsigned slot;
+	enum st_ddofx_frame_part part;
+	int mouse_x, mouse_y, origin_x, origin_y;
+	struct bounds start;
+	uint64_t repeat_due;
+};
+
 struct st_ddofx_graphic_window {
+	struct st_ddofx_callback close;
+	uint16_t close_key;
+	bool pass_key;
 	struct bounds frame, original, before_zoom, clip;
 	int width, height, x, y, icon;
 	bool hidden, no_drag, no_resize, no_zoom, no_restore, no_icon, no_horizontal, no_vertical;
@@ -82,6 +99,7 @@ struct st_ddofx_graphic_window {
 struct st_ddofx_graphics {
 	struct st_ddofx_graphic_window graphic_windows[GRAPHIC_WINDOWS + 1];
 	unsigned active_graphic_window, alert_graphic_window;
+	struct st_ddofx_frame_drag frame_drag;
 	struct st_ddofx_buttons    *buttons;
 	struct st_ddofx_text_fields *text_fields;
 	struct st_ddofx_lists *lists;
@@ -130,6 +148,10 @@ struct st_ddofx_graphics {
 	int           horizontal_thickness, vertical_thickness;
 };
 
+int st_ddofx_window_point(const struct st_ddofx_graphics *, int *x, int *y);
+void st_ddofx_mouse_view_changed(struct st_ddofx_graphics *);
+bool st_ddofx_graphic_window_mouse(struct st_ddofx *, unsigned changed);
+void st_ddofx_repeat_window_arrow(struct st_ddofx *);
 void st_ddofx_free_graphic_windows(struct st_ddofx_graphics *);
 bool st_ddofx_graphic_window_command(struct st_ddofx *, const struct st_ddofx_sink *, const char *, char *);
 void st_ddofx_refresh_graphic_interior(struct st_ddofx *);
