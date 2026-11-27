@@ -39,16 +39,20 @@ struct realplay {
 	uint8_t  buffer[8192];
 };
 
-struct st_ddofx_samples {
-	struct realplay      real;
-	struct bank          theme, bites;
-	struct profile       profiles[PROFILE_COUNT];
-	char                 theme_name[ST_DDOFX_BODY_MAX + 1], bite_file[ST_DDOFX_BODY_MAX + 1];
+struct sample_voice {
 	audio_stream_t      *stream;
 	const struct sample *source;
 	uint64_t             position;
 	unsigned             rate;
 	atomic_bool          playing;
+};
+
+struct st_ddofx_samples {
+	struct realplay     real;
+	struct bank         theme, bites;
+	struct profile      profiles[PROFILE_COUNT];
+	char                theme_name[ST_DDOFX_BODY_MAX + 1], bite_file[ST_DDOFX_BODY_MAX + 1];
+	struct sample_voice main, animation, motion;
 };
 
 const char *
@@ -66,9 +70,9 @@ amplitude(uint8_t byte)
 static size_t
 render(void *context, int16_t *pcm, size_t frames)
 {
-	struct st_ddofx_samples *s      = context;
-	const uint64_t           end    = (uint64_t)s->source->length * AUDIO_SAMPLE_RATE;
-	size_t                   filled = 0;
+	struct sample_voice *s      = context;
+	const uint64_t       end    = (uint64_t)s->source->length * AUDIO_SAMPLE_RATE;
+	size_t               filled = 0;
 	while (filled < frames && s->position < end) {
 		pcm[2 * filled] = pcm[2 * filled + 1] =
 		    amplitude(s->source->bytes[s->position / AUDIO_SAMPLE_RATE]);
@@ -81,41 +85,61 @@ render(void *context, int16_t *pcm, size_t frames)
 }
 
 static void
+stop_voice(struct sample_voice *v)
+{
+	/* Destruction waits for the renderer before its sample storage is released. */
+	audio_stream_destroy(v->stream);
+	v->stream = NULL;
+	v->source = NULL;
+	atomic_store_explicit(&v->playing, false, memory_order_relaxed);
+}
+
+static void
 stop(struct st_ddofx_samples *s)
 {
-	/* Destroy waits out any in-flight callback before a bank or profile
-	 * can release its samples, including during device shutdown. */
-	if (s->real.file != NULL) {
+	if (s->real.file) {
 		fclose(s->real.file);
 		s->real.file = NULL;
 	}
-	audio_stream_destroy(s->stream);
-	s->stream = NULL;
-	s->source = NULL;
-	atomic_store_explicit(&s->playing, false, memory_order_relaxed);
+	stop_voice(&s->main);
+	stop_voice(&s->animation);
+	stop_voice(&s->motion);
 }
 
 static bool
-start_stream(struct st_ddofx_samples *s, st_audio_runtime_t *audio, unsigned rate)
+start_stream(struct st_ddofx_samples *s, struct sample_voice *v, st_audio_runtime_t *audio, unsigned rate)
 {
 	audio_engine_t *engine;
 	if (st_audio_runtime_acquire(audio, &engine) != 0)
 		return false;
-	stop(s);
-	s->rate = rate;
-	return audio_stream_create(&s->stream, engine, 0, 0) == 0;
+	if (v == &s->main)
+		stop(s);
+	else
+		stop_voice(v);
+	v->rate = rate;
+	return audio_stream_create(&v->stream, engine, 0, 0) == 0;
 }
 
 static void
-play(struct st_ddofx_samples *s, st_audio_runtime_t *audio, const struct sample *source, int32_t rate)
+play(struct st_ddofx_samples *s, struct sample_voice *v, st_audio_runtime_t *audio, const struct sample *source,
+    int32_t rate)
 {
-	if (source->length == 0 || rate <= 0 || !start_stream(s, audio, (unsigned)rate))
+	if (source->length == 0 || rate <= 0 || !start_stream(s, v, audio, (unsigned)rate))
 		return;
-	s->source   = source;
-	s->position = 0;
-	atomic_store_explicit(&s->playing, true, memory_order_relaxed);
-	if (audio_stream_set_source(s->stream, render, s) != 0 || audio_stream_source_active(s->stream, true) != 0)
-		stop(s);
+	v->source   = source;
+	v->position = 0;
+	atomic_store_explicit(&v->playing, true, memory_order_relaxed);
+	if (audio_stream_set_source(v->stream, render, v) != 0 || audio_stream_source_active(v->stream, true) != 0)
+		stop_voice(v);
+}
+
+void
+st_ddofx_animation_sample(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, bool motion, int sample,
+    int rate)
+{
+	struct st_ddofx_samples *s = ddo->samples;
+	if (s && sample >= 1 && (unsigned)sample <= s->theme.count)
+		play(s, motion ? &s->motion : &s->animation, sink->audio, &s->theme.samples[sample - 1], rate);
 }
 
 enum {
@@ -128,7 +152,7 @@ st_ddofx_sample_wait_ms(const struct st_ddofx *ddo)
 	const struct st_ddofx_samples *s = ddo->samples;
 	if (s == NULL || s->real.file == NULL)
 		return UINT32_MAX;
-	size_t queued = audio_stream_buffered_frames(s->stream);
+	size_t queued = audio_stream_buffered_frames(s->main.stream);
 	return queued <= QUEUED_FRAMES / 2 ? 0
 	                                   : (uint32_t)((queued - QUEUED_FRAMES / 2) * 1000 / AUDIO_SAMPLE_RATE);
 }
@@ -161,12 +185,12 @@ st_ddofx_samples_poll(struct st_ddofx *ddo)
 	size_t filled = 0;
 	while (filled < QUEUED_FRAMES && r->position < r->length && r->position - r->buffer_start < r->available) {
 		pcm[2 * filled] = pcm[2 * filled + 1] = amplitude(r->buffer[r->position - r->buffer_start]);
-		r->fraction += s->rate;
+		r->fraction += s->main.rate;
 		r->position += r->fraction / AUDIO_SAMPLE_RATE;
 		r->fraction %= AUDIO_SAMPLE_RATE;
 		++filled;
 	}
-	if (audio_stream_append_take(s->stream, pcm, filled, NULL) != 0) {
+	if (audio_stream_append_take(s->main.stream, pcm, filled, NULL) != 0) {
 		free(pcm);
 		stop(s);
 	}
@@ -179,8 +203,12 @@ st_ddofx_samples_poll(struct st_ddofx *ddo)
 static void
 clear_sample(struct st_ddofx_samples *s, struct sample *sample)
 {
-	if (s->source == sample)
-		stop(s);
+	if (s->main.source == sample)
+		stop_voice(&s->main);
+	if (s->animation.source == sample)
+		stop_voice(&s->animation);
+	if (s->motion.source == sample)
+		stop_voice(&s->motion);
 	free(sample->bytes);
 	*sample = (struct sample) {0};
 }
@@ -229,7 +257,9 @@ samples_ready(struct st_ddofx *ddo)
 		ddo->samples = calloc(1, sizeof(*ddo->samples));
 		if (ddo->samples == NULL)
 			return false;
-		atomic_init(&ddo->samples->playing, false);
+		atomic_init(&ddo->samples->main.playing, false);
+		atomic_init(&ddo->samples->animation.playing, false);
+		atomic_init(&ddo->samples->motion.playing, false);
 	}
 	return true;
 }
@@ -246,7 +276,7 @@ st_ddofx_play_realplay(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, c
 		return;
 	int64_t                  length = fs_stream_size(file);
 	struct st_ddofx_samples *s      = ddo->samples;
-	if (length > 0 && start_stream(s, sink->audio, rate)) {
+	if (length > 0 && start_stream(s, &s->main, sink->audio, rate)) {
 		s->real = (struct realplay) {.file = file, .length = (uint64_t)length};
 		st_ddofx_samples_poll(ddo);
 	}
@@ -369,7 +399,7 @@ play_slot(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *body)
 		return;
 	struct bank *bank = bite ? &s->bites : &s->theme;
 	if (id >= 1 && (unsigned)id <= bank->count)
-		play(s, sink->audio, &bank->samples[id - 1], rate);
+		play(s, &s->main, sink->audio, &bank->samples[id - 1], rate);
 }
 
 enum profile_command {
@@ -393,8 +423,8 @@ big_sample(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, enum profile_
 			const char           *reply = "N/A";
 			const struct profile *p     = s ? &s->profiles[id - 1] : NULL;
 			if (p != NULL && p->loaded && p->loaded == p->expected)
-				reply = s->source == &p->sample
-				                && atomic_load_explicit(&s->playing, memory_order_relaxed)
+				reply = s->main.source == &p->sample
+				                && atomic_load_explicit(&s->main.playing, memory_order_relaxed)
 				            ? "1"
 				            : "0";
 			st_ddofx_query_reply(ddo, sink, reply, false);
@@ -421,7 +451,7 @@ big_sample(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, enum profile_
 	}
 	else if (cmd == PLAY && p->loaded && p->loaded == p->expected && args
 	         && st_ddofx_number(ddo, args, &number))
-		play(s, sink->audio, &p->sample, number);
+		play(s, &s->main, sink->audio, &p->sample, number);
 	else if (args && (cmd == LOAD || (cmd == ADD && p->loaded < p->expected))) {
 		const char *name = st_ddofx_value(ddo, args);
 		FILE       *file = sink->open_asset(sink->context, "BBSTHEME", NULL, s->theme_name);

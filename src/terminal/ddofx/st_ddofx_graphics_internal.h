@@ -76,6 +76,8 @@ struct st_ddofx_graphics {
 	struct st_ddofx_sprite  sprites[SPRITE_COUNT];
 	struct st_ddofx_bmf    *bitmap_fonts[32];
 	unsigned                bitmap_slot;
+	struct st_ddofx_collisions *collisions;
+	struct st_ddofx_animations *animations;
 	struct st_ddofx_simple *simple;
 	struct st_ddofx_bars   *bars;
 	struct st_ddofx_grid   *grid;
@@ -170,6 +172,15 @@ void    st_ddofx_free_sprites(struct st_ddofx_graphics *);
 int     st_ddofx_sprite_slot(struct st_ddofx_graphics *, const char *, bool create);
 void    st_ddofx_draw_sprite(struct st_ddofx_graphics *, const struct st_ddofx_sprite *, enum page, char op,
     int32_t x, int32_t y);
+void st_ddofx_collision_command(struct st_ddofx *, char *args);
+bool st_ddofx_collision_active(const struct st_ddofx_graphics *);
+void st_ddofx_collision_frame(struct st_ddofx *, unsigned slot, int x, int y, const struct st_ddofx_sprite *);
+bool st_ddofx_collision_pending(const struct st_ddofx *);
+void st_ddofx_collision_poll(struct st_ddofx *);
+int32_t st_ddofx_bezier_coordinate(const int32_t *points, double t);
+void st_ddofx_animation_resolution(struct st_ddofx_graphics *);
+void st_ddofx_clear_animations(struct st_ddofx_graphics *);
+bool st_ddofx_animation_command(struct st_ddofx *, const char *verb, char *args);
 void    st_ddofx_simple_command(struct st_ddofx *, const char *, char *);
 void    st_ddofx_sprite_command(struct st_ddofx *, const char *, char *);
 bool    st_ddofx_numbers(struct st_ddofx *, char *, int32_t *, unsigned);

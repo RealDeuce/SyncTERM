@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "st_cterm.h"
 #include "st_ddofx.h"
 
 #define CHECK(e)                                                   \
@@ -313,6 +314,34 @@ check_samples(struct st_ddofx *ddo, struct st_ddofx_sink *sink)
 }
 
 static int
+check_animation_sound(struct st_ddofx *ddo, struct st_ddofx_sink *sink)
+{
+	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_config geometry = {.columns = 80, .rows = 25, .cell_width = 8, .cell_height = 16};
+	struct st_cterm_config         text     = {.codepage = ST_CODEPAGE_CP437, .quiet = true};
+	CHECK(st_console_create(&text.console, &display, &geometry) == 0);
+	sink->text_config   = &text;
+	const char *scene[] = {"LIGMODE", "LIGMODE", "tBANK.THE", "2S,0,1,0,1,A",
+	    "2MOTION,1,10,10,10,10,10,10,10,10,1", "2MFRAME,1,1,1,1,2,22050", "2ANIM,1,10,10,4,A,A,1,1,0,1,1,1",
+	    "2ANIMSOUND,1,19,1,44100,1", "2PLAYA,1"};
+	for (size_t i = 0; i < sizeof(scene) / sizeof(*scene); ++i)
+		CHECK(command_reply(ddo, sink, scene[i], ""));
+	CHECK(ddo->graphics && st_ddofx_poll(ddo, sink) == 0);
+	/* Each voice has its own Q15 unity envelope before soft clipping. */
+	int16_t both[8];
+	CHECK(st_audio_runtime_pull(sink->audio, both, 4) == 0);
+	int mixed = (int)(32767.0 * tanh((8191.0 + 10239.0) / 32767.0));
+	for (unsigned i = 0; i < 8; ++i)
+		CHECK(both[i] == mixed);
+	CHECK(pull_level(sink->audio, 4, 40));
+	CHECK(pull_level(sink->audio, 1, 0));
+	CHECK(command_reply(ddo, sink, "2GEXIT", ""));
+	sink->text_config = NULL;
+	st_console_destroy(text.console);
+	return 0;
+}
+
+static int
 check_cmf(struct st_ddofx *ddo, struct st_ddofx_sink *sink)
 {
 	CHECK(command_reply(ddo, sink, "MICMF", "N\xff"));
@@ -381,6 +410,7 @@ main(void)
 	CHECK(command_reply(&ddo, &sink, "dGETMUSIC", "NONE\xff"));
 	CHECK(check_cmf(&ddo, &sink) == 0);
 	CHECK(check_samples(&ddo, &sink) == 0);
+	CHECK(check_animation_sound(&ddo, &sink) == 0);
 	CHECK(command_reply(&ddo, &sink, "MPREAL,LONG.RLP,8000", ""));
 	CHECK(command_reply(&ddo, &sink, "mB", ""));
 	st_audio_runtime_close_device(sink.audio);

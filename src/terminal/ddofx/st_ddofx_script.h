@@ -79,6 +79,7 @@ void st_ddofx_write_text_file(struct st_ddofx *, const struct st_ddofx_sink *, c
 void st_ddofx_retrieve_text_file(struct st_ddofx *, const struct st_ddofx_sink *, char *);
 void st_ddofx_retrieve_step(struct st_ddofx *, const struct st_ddofx_sink *);
 void st_ddofx_info_reply(struct st_ddofx *, const struct st_ddofx_sink *, const uint8_t *, size_t, const char *error);
+void st_ddofx_set_numeric_variable(struct st_ddofx *, unsigned id, int number);
 bool        st_ddofx_capture(struct st_ddofx *, const char *, bool numeric);
 
 #endif

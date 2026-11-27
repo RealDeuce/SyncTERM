@@ -193,8 +193,8 @@ st_ddofx_flood(uint8_t *data, int stride, const struct bounds *b, int32_t x, int
 	free(todo);
 }
 
-static int32_t
-bezier_coordinate(const int32_t *p, double t)
+int32_t
+st_ddofx_bezier_coordinate(const int32_t *p, double t)
 {
 	double s     = 1 - t;
 	double value = s * s * s * p[0] + 3 * s * s * t * p[2] + 3 * s * t * t * p[4] + t * t * t * p[6];
@@ -215,7 +215,7 @@ bezier(struct st_ddofx_graphics *g, const int32_t *n, bool xor)
 	int32_t x = n[0], y = n[1];
 	for (int i = 1; i <= steps; ++i) {
 		double  t  = (double)i / steps;
-		int32_t nx = bezier_coordinate(n, t), ny = bezier_coordinate(n + 1, t);
+		int32_t nx = st_ddofx_bezier_coordinate(n, t), ny = st_ddofx_bezier_coordinate(n + 1, t);
 		line(g, &screen, x, y, nx, ny, UINT16_MAX, xor, i != 1);
 		x = nx;
 		y = ny;

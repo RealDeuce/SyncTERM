@@ -449,6 +449,9 @@ st_ddofx_wait_ms(const struct st_ddofx *ddo)
 	uint32_t joystick = st_ddofx_joystick_wait_ms(ddo);
 	if (joystick < wait)
 		wait = joystick;
+	uint32_t animation = st_ddofx_animation_wait_ms(ddo);
+	if (animation < wait)
+		wait = animation;
 	uint32_t ray = st_ddofx_ray_wait_ms(ddo);
 	if (ray < wait)
 		wait = ray;
@@ -482,6 +485,7 @@ st_ddofx_poll(struct st_ddofx *ddo, const struct st_ddofx_sink *sink)
 	st_ddofx_ray_poll(ddo);
 	st_ddofx_joystick_poll(ddo);
 	st_ddofx_movie_poll(ddo);
+	st_ddofx_animation_poll(ddo, sink);
 	st_ddofx_clock_poll(ddo);
 	st_ddofx_marquee_poll(ddo);
 	st_ddofx_event_poll(ddo);

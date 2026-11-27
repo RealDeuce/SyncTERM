@@ -794,6 +794,58 @@ def check_raycast_profiles(t):
     t.exchange(commands(b"5DELMAPPRO,3", b"2RESET"))
 
 
+def check_animation_profiles(t):
+    t.case("desktop animation queue, frame controls and chained Bezier motion")
+    def check(data, expected):
+        frame = t.exchange(data)
+        for (x, y), value in expected.items():
+            for plane in (frame.primary, frame.alternate):
+                assert plane[y*640+x] == value, (x, y, value, plane[y*640+x])
+
+    # A is [0,11], B is [0,12], and C is solid 13. Each sprite is two rows high.
+    setup = [b"2RESET", b"2C,0", b"2aFILL", b"2C,11", b"2aP,1,0", b"2aP,1,1",
+             b"2S,0,1,0,1,A", b"2C,12", b"2aP,1,0", b"2aP,1,1", b"2S,0,1,0,1,B",
+             b"2C,13", b"2aFILL", b"2S,0,1,0,1,C", b"2C,60", b"2aFILL", b"2CPYWP2VP"]
+    check(commands(*setup, b"2ANIM,400,8,9,2,A,B,0,0,0,0,50,0", b"2PLAYA,400", b"w5"),
+          {(8,8):0,(9,9):12,(10,9):60})
+    check(commands(b"2ANIM,2,8,9,0,C,C,0,0,0,0,50,0", b"2PLAYA,2", b"w2"),
+          {(8,9):13,(9,9):13})
+    check(commands(b"2STOPA,2"), {(8,9):0,(9,9):12})
+    check(commands(b"2STOPA,400", b"2PLAYA,400", b"w2"), {(8,9):0,(9,9):12})
+    check(commands(b"2ANIM,400,8,9,1,A,A,0,0,0,1,20,0", b"2PLAYA,400", b"w2",
+                   b"2AFLY,400,-1,9,A,A,2", b"w2"), {(0,9):60,(8,9):60,(9,9):60})
+    check(commands(b"2AFLY,400,-1,9,A,A,1", b"w2"), {(0,9):11})
+    check(commands(b"2AFLY,400,-1,9,C,C,0", b"w2"), {(0,9):60})
+
+    # At the slowest animator resolution the first frame holds. Changing resolution
+    # during that hold rearms playback and the one-shot arrives at its last frame.
+    check(commands(b"2RESA,100", b"2ANIM,5,57,59,2,A,C,0,0,0,1,20,0", b"2PLAYA,5", b"w3"),
+          {(58,59):11})
+    check(commands(b"2RESA,1", b"w5"), {(58,59):13})
+    check(commands(b"2RESA,100", b"2PLAYA,5", b"w2"), {(58,59):11})
+    check(commands(b"2STOPA,5", b"2RESA,1"), {(58,59):60})
+
+    t.send(commands(b"2ANIM,5,80,80,3,A,C,0,0,0,0,3,0", b"2PLAYA,5"))
+    for index in (11,12,13,12):
+        t.client.wait_for(lambda f: f.primary[80*640+81] == index)
+    check(commands(b"2STOPA,5", b"2RESA,100", b"2PLAYA,5", b"w3"), {(81,80):12})
+    check(commands(b"2STOPA,5", b"2RESA,1"), {(81,80):60})
+
+    check(commands(b"2MOTION,255,20,25,30,25,22,25,28,25,3",
+                   b"2MOTION,256,31,25,40,27,35,25,39,27,3",
+                   b"2MFRAME,256,30,3,2,0,0",
+                   b"2ANIM,3,0,0,4,A,B,255,256,2,1,50,0", b"~PAUSEBAK",
+                   b"2PLAYA,3", b"w4"), {(21,25):60,(41,27):60})
+    check(commands(b"~UNPAUSEBAK", b"w8"), {(21,25):60,(32,25):60,(40,27):60,(41,27):12})
+    # Collision edges are inclusive, including the invisible part of an offscreen sprite.
+    # Its macro reads the numeric animation ID before returning the collision text.
+    t.exchange(commands(b"~PAUSEBAK", b"2COLL,300,-1,-1,8,8,1,1000,400,H,\x1d(7DEFRET,1,DEFVAR1000)\x1d(7SRET,1)",
+                        b"2COLL,1,42,42,27,27,1,0,3,MISS,", b"~UNPAUSEBAK", b"w4"), b"400H")
+    t.exchange(commands(b"2COLL,2,41,41,27,27,0,0,3,R,\x1d(2COLL,0)", b"w3"), b"R")
+    check(commands(b"2STOPA,0", b"2PLAYA,3", b"w2"), {(41,27):60})
+    check(commands(b"2RESET"), {(41,27):0})
+
+
 def check_sprite_banks(t, root):
     t.case("sprite bank files, slot order, row orientation and erase after load")
     marker, = root.rglob("syncterm-cache-name.txt")
@@ -1154,6 +1206,7 @@ def check_graphics(t, root):
     check_raycast_environment(t, root)
     check_raycast_recordings(t, root)
     check_raycast_profiles(t)
+    check_animation_profiles(t)
     check_sprite_banks(t, root)
     check_sprites(t)
     check_grid(t)

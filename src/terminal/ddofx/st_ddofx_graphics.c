@@ -69,6 +69,9 @@ clear_graphics_objects(struct st_ddofx_graphics *g)
 	st_ddofx_clear_movies(g);
 	st_ddofx_clear_clocks(g);
 	st_ddofx_clear_marquees(g);
+	free(g->collisions);
+	g->collisions = NULL;
+	st_ddofx_clear_animations(g);
 	free(g->simple);
 	g->simple = NULL;
 	free(g->bars);
@@ -490,8 +493,10 @@ st_ddofx_graphics_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink
 	int32_t     n[4];
 	if (!ascii_case_compare(verb, "2GEXIT") && args == NULL)
 		st_ddofx_graphics_exit(ddo);
-	else if (!ascii_case_compare(verb, "2RESA") && st_ddofx_numbers(ddo, args, n, 1) && n[0] >= 1 && n[0] <= 100)
+	else if (!ascii_case_compare(verb, "2RESA") && st_ddofx_numbers(ddo, args, n, 1) && n[0] >= 1 && n[0] <= 100) {
 		st_ddofx_movie_resolution(g, (unsigned)n[0]);
+		st_ddofx_animation_resolution(g);
+	}
 	else if (!ascii_case_ncompare(verb, "2XT", 3))
 		st_ddofx_print_vga_text(ddo, verb + 3, args);
 	else if (!strcmp(verb, "2F") || (verb[1] == 'F' && !ascii_case_compare(verb + 2, "SELECT"))
@@ -522,6 +527,8 @@ st_ddofx_graphics_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink
 	}
 	else if (!ascii_case_compare(verb, "2C") && st_ddofx_numbers(ddo, args, n, 1) && (unsigned)n[0] <= 255)
 		g->colour = (uint8_t)n[0];
+	else if (st_ddofx_animation_command(ddo, verb, args))
+		return;
 	else if (!strcmp(verb, "2SS") || !strcmp(verb, "2SSA") || !strcmp(verb, "2CSS")
 	    || !strcmp(verb, "2ACSS") || !strcmp(verb, "2DSS"))
 		st_ddofx_simple_command(ddo, verb, args);

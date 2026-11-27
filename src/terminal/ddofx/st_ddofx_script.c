@@ -156,6 +156,16 @@ set_number(struct variable *v, int64_t n)
 	v->length = (size_t)snprintf(v->text, sizeof(v->text), "%" PRId64, n);
 }
 
+void
+st_ddofx_set_numeric_variable(struct st_ddofx *ddo, unsigned id, int number)
+{
+	struct variable *v = variable(ddo->script, id);
+	if (v) {
+		v->type = NUMERIC;
+		set_number(v, number);
+	}
+}
+
 char *
 st_ddofx_field(char **remaining)
 {

@@ -16,6 +16,8 @@ In Normal mode, `1SCALE` sets a common cell width of 2–8 pixels and height of 
 
 Sprites can be captured from any of the four graphics pages. The SDK repeats the background spelling for hidden-page capture. SyncTERM accepts `2SH` for the hidden page. Simple sprite definitions and animation frames share the SDK stack. `2DSS` restores the buffered regions from the background, draws the current frame in stack order, then publishes the regions to the visual page.
 
+Desktop animation profiles draw in play order. A door can play a sprite range once, loop or oscillate it, or select frames at knots along chained cubic Bézier paths. Individual `2STOPA` removes the image and retains the current frame for resuming, as specified by the SDK. Frame and path samples can play together. Collision boxes test the full sprite rectangle, including offscreen portions, and can report the animation number to a macro before sending their return string.
+
 Work, background and visual pages can load version-5, single-plane, 8-bit PCX artwork up to 640×480. Loading artwork installs its palette across all pages. Each page can save a session-owned PCX file and restore it to any of the three pages. The files survive a return to Lite mode and close at disconnect.
 
 Lite and Normal accept complete 4,096-byte VGA fonts from `DDOFX/FONTS` with lowercase `f`. The selected font applies to console text and all four desktop `2XT` destinations. `dGETFONT` reports its filename. SyncTERM supplies its built-in VGA font for `IBMSTD.FNT` when that file is absent.
@@ -257,15 +259,15 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 6895 | FREE ALL SPRITES | DDO-FX (NM) | Connected |
 | 6904 | STORE ALL SPRITES | DDO-FX (NM) | Connected |
 | 6919 | LOAD ALL SPRITES | DDO-FX (NM) | Connected |
-| 6939 | DEFINE ANIM PROFILE | DDO-FX (NM) | Pending |
-| 7151 | DEFINE ANIM SOUND | DDO-FX (NM) | Pending |
-| 7186 | PLAY ANIM PROFILE | DDO-FX (NM) | Pending |
-| 7219 | STOP ANIM PROFILE | DDO-FX (NM) | Pending |
-| 7235 | CHANGE ANIM PROFILE ON THE FLY | DDO-FX (NM) | Pending |
-| 7246 | ANIM COLLISION PROFILE | DDO-FX (NM) | Pending |
-| 7339 | RESOLUTION ANIMATOR | DDO-FX (NM) | Connected for FLI/FLC, animation profiles pending |
-| 7383 | DEFINE MOTION PROFILE | DDO-FX (NM) | Pending |
-| 7466 | DEFINE MOTION FRAME CONTROL | DDO-FX (NM) | Pending |
+| 6939 | DEFINE ANIM PROFILE | DDO-FX (NM) | Connected on the desktop |
+| 7151 | DEFINE ANIM SOUND | DDO-FX (NM) | Connected on the desktop |
+| 7186 | PLAY ANIM PROFILE | DDO-FX (NM) | Connected on the desktop |
+| 7219 | STOP ANIM PROFILE | DDO-FX (NM) | Connected on the desktop |
+| 7235 | CHANGE ANIM PROFILE ON THE FLY | DDO-FX (NM) | Connected on the desktop |
+| 7246 | ANIM COLLISION PROFILE | DDO-FX (NM) | Connected on the desktop |
+| 7339 | RESOLUTION ANIMATOR | DDO-FX (NM) | Connected for FLI/FLC and desktop animation profiles |
+| 7383 | DEFINE MOTION PROFILE | DDO-FX (NM) | Connected on the desktop |
+| 7466 | DEFINE MOTION FRAME CONTROL | DDO-FX (NM) | Connected on the desktop |
 | 7534 | DEFINE SIMPLE SPRITE | DDO-FX (NM) | Connected |
 | 7652 | DEFINE SIMPLE SPRITE ANIMATION | DDO-FX (NM) | Connected |
 | 7733 | CLEAR SIMPLE SPRITES | DDO-FX (NM) | Connected |
@@ -476,7 +478,7 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 13819 | ANTI-ALIAS IMAGE | DDO-FX (NM) | Connected on the desktop |
 | 13917 | OUTLINE IMAGE | DDO-FX (NM) | Connected on the desktop |
 | 13975 | ZMODEM BACKGROUND TRANSFERS | DDO-FX (NM) | Implemented |
-| 14035 | ZMODEM STEALTH MODE | DDO-FX (NM) | Partial: keyboard macros, fields, regions, push/radio/check buttons, text fields, list boxes, timed events, joysticks and raycaster cell profiles. Icons and window close pending |
+| 14035 | ZMODEM STEALTH MODE | DDO-FX (NM) | Partial: keyboard macros, fields, regions, push/radio/check buttons, text fields, list boxes, timed events, joysticks, animation collisions and raycaster cell profiles. Icons and window close pending |
 | 14120 | DEFINE MUSIC BAR | DDO-FX (NM) | Desktop pages; virtual windows pending |
 | 14292 | ACTIVATE/DEACTIVATE MUSIC BAR | DDO-FX (NM) | Desktop pages; virtual windows pending |
 | 14308 | CLEAR MUSIC BAR | DDO-FX (NM) | Desktop pages; virtual windows pending |
