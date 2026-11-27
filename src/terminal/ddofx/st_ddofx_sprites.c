@@ -75,6 +75,15 @@ capture_visible(void *context, const struct st_pixel_buffer *pixels, const uint3
 	return 0;
 }
 
+bool
+st_ddofx_sprite_fits(const struct st_ddofx_graphics *g, unsigned slot, const struct st_ddofx_sprite *s, int32_t x,
+    int32_t y)
+{
+	const struct st_ddofx_graphic_window *w     = &g->graphic_windows[slot];
+	int                                   width = slot ? w->width : WIDTH, height = slot ? w->height : HEIGHT;
+	return s && s->pixels && x >= 0 && x <= width - s->width && y >= s->height - 1 && y < height;
+}
+
 static void
 capture_sprite(struct st_ddofx *ddo, char *args, enum page page)
 {
@@ -92,7 +101,10 @@ capture_sprite(struct st_ddofx *ddo, char *args, enum page page)
 	struct st_ddofx_sprite *s = &g->sprites[slot];
 	free(s->pixels);
 	*s = (struct st_ddofx_sprite) {0};
-	if (n[0] < 0 || n[1] <= n[0] || n[1] >= WIDTH || n[2] < 0 || n[3] <= n[2] || n[3] >= HEIGHT)
+	unsigned                              window = page == BACKGROUND ? 0 : g->alert_graphic_window;
+	const struct st_ddofx_graphic_window *w      = &g->graphic_windows[window];
+	int width = window ? w->width : WIDTH, height = window ? w->height : HEIGHT;
+	if (n[0] < 0 || n[1] <= n[0] || n[1] >= width || n[2] < 0 || n[3] <= n[2] || n[3] >= height)
 		return;
 	struct st_console_rect r     = {n[0], n[2], n[1] - n[0] + 1, n[3] - n[2] + 1};
 	size_t                 count = (size_t)r.width * r.height;
@@ -102,7 +114,7 @@ capture_sprite(struct st_ddofx *ddo, char *args, enum page page)
 	uint8_t *data = calloc(count + 100, 1);
 	if (!data)
 		return;
-	if (page == VISUAL) {
+	if (!window && page == VISUAL) {
 		struct capture c = {data, r};
 		if (st_console_modify_pixels_with_palette(g->display, capture_visible, &c) != 0) {
 			free(data);
@@ -110,8 +122,10 @@ capture_sprite(struct st_ddofx *ddo, char *args, enum page page)
 		}
 	}
 	else {
+		const uint8_t *src =
+		    window ? (page == HIDDEN ? w->hidden_page : w->visual) : (uint8_t *)g->page[page];
 		for (unsigned row = 0; row < r.height; ++row)
-			memcpy(data + row * r.width, &g->page[page][r.y + row][r.x], r.width);
+			memcpy(data + row * r.width, src + (r.y + row) * width + r.x, r.width);
 	}
 	s->active = 1;
 	s->allocation = (uint16_t)(count + 100);
@@ -131,20 +145,20 @@ struct sprite_draw {
 };
 
 static void
-paint(const struct sprite_draw *d, uint8_t page[HEIGHT][WIDTH], const struct st_pixel_buffer *pixels)
+paint(const struct sprite_draw *d, uint8_t *page, unsigned stride, const struct st_pixel_buffer *pixels)
 {
 	const struct st_console_rect *r = &d->area;
 	const struct st_ddofx_sprite *s = d->sprite;
 	for (unsigned row = 0; row < r->height; ++row) {
 		const uint8_t *src  = s->pixels + (row + d->src_y) * s->width;
-		size_t         dest = (row + r->y) * WIDTH + r->x;
+		size_t         dest = (row + r->y) * stride + r->x;
 		for (unsigned col = 0; col < r->width; ++col) {
 			unsigned sx    = col + d->src_x;
 			uint8_t  index = src[d->mirror ? s->width - 1 - sx : sx];
 			if (index == 0 && !d->opaque)
 				continue;
 			if (page)
-				page[r->y + row][r->x + col] = index;
+				page[dest + col] = index;
 			else
 				pixels->primary[dest + col] = pixels->alternate[dest + col] = index;
 		}
@@ -156,20 +170,24 @@ paint_visible(void *context, const struct st_pixel_buffer *pixels, struct st_con
 {
 	const struct sprite_draw *d = context;
 	if (pixels->width == WIDTH && pixels->height == HEIGHT) {
-		paint(d, NULL, pixels);
+		paint(d, NULL, WIDTH, pixels);
 		*changed = d->area;
 	}
 	return 0;
 }
 
 void
-st_ddofx_draw_sprite(struct st_ddofx_graphics *g, const struct st_ddofx_sprite *s, enum page page, char op, int32_t x,
-    int32_t y)
+st_ddofx_draw_sprite(struct st_ddofx_graphics *g, unsigned window, const struct st_ddofx_sprite *s, enum page page,
+    char op, int32_t x, int32_t y)
 {
-	struct bounds b       = {0, WIDTH - 1, 0, HEIGHT - 1};
+	struct st_ddofx_graphic_window *w = &g->graphic_windows[window];
+	if (window && !w->visual)
+		return;
+	int           width = window ? w->width : WIDTH, height = window ? w->height : HEIGHT;
+	struct bounds b       = {0, width - 1, 0, height - 1};
 	bool          clipped = op == 'F' || op == 'C';
 	if (clipped && page == WORK)
-		b = g->clip;
+		b = window ? w->clip : g->clip;
 	int64_t left = x, right = (int64_t)x + s->width - 1, top = (int64_t)y - s->height + 1, bottom = y;
 	if (!clipped && (left < b.left || right > b.right || top < b.top || bottom > b.bottom))
 		return;
@@ -187,10 +205,12 @@ st_ddofx_draw_sprite(struct st_ddofx_graphics *g, const struct st_ddofx_sprite *
 	    .mirror = op == 'R' || op == 'F',
 	    .opaque = op == 'P'
         };
-	if (page == VISUAL)
+	if (window)
+		paint(&d, page == HIDDEN ? w->hidden_page : w->visual, width, NULL);
+	else if (page == VISUAL)
 		(void)st_console_modify_pixels(g->display, paint_visible, &d);
 	else
-		paint(&d, g->page[page], NULL);
+		paint(&d, (uint8_t *)g->page[page], WIDTH, NULL);
 }
 
 void
@@ -229,6 +249,7 @@ st_ddofx_sprite_command(struct st_ddofx *ddo, const char *verb, char *args)
 			return;
 		int slot = st_ddofx_sprite_slot(g, st_ddofx_value(ddo, args), false);
 		if (slot >= 0)
-			st_ddofx_draw_sprite(g, &g->sprites[slot], page, verb[2], x, y);
+			st_ddofx_draw_sprite(g, page == BACKGROUND ? 0 : g->alert_graphic_window,
+			    &g->sprites[slot], page, verb[2], x, y);
 	}
 }

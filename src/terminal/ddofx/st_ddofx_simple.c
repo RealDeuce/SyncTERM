@@ -150,7 +150,7 @@ draw_stack(struct st_ddofx_graphics *g)
 		const struct profile         *p = &stack->profiles[i];
 		const struct st_ddofx_sprite *s = &g->sprites[p->frame];
 		if (p->active && s->pixels)
-			st_ddofx_draw_sprite(g, s, WORK, p->mirror ? 'F' : 'C', p->x, p->y);
+			st_ddofx_draw_sprite(g, 0, s, WORK, p->mirror ? 'F' : 'C', p->x, p->y);
 	}
 	(void)st_console_modify_pixels(g->display, publish, g);
 	for (unsigned i = 0; i < stack->animations; ++i)

@@ -16,6 +16,7 @@ struct choice {
 	uint8_t                  colours[2];
 	int32_t                  exclusive, multiple;
 	uint16_t                 key;
+	unsigned                 window;
 	bool                     enabled, selected, pass;
 	struct st_ddofx_callback callback;
 };
@@ -80,42 +81,47 @@ fill_visible(void *context, const struct st_pixel_buffer *pixels, const uint32_t
 }
 
 static void
-paint(struct st_ddofx_graphics *g, enum st_ddofx_group_kind kind, const struct choice *c, enum page page,
+paint(struct st_ddofx *ddo, enum st_ddofx_group_kind kind, const struct choice *c, enum page page,
     bool selection_changed)
 {
+	struct st_ddofx_graphics     *g    = ddo->graphics;
 	const char                   *name = !c->enabled ? c->disabled : c->selected ? c->on : c->off;
 	const struct st_ddofx_sprite *s    = st_ddofx_find_sprite(g, name);
-	if (!st_ddofx_sprite_fits(s, c->x, c->y))
+	if (!st_ddofx_sprite_fits(g, c->window, s, c->x, c->y))
 		return;
 	if (kind == DDO_CHECKBOX || !selection_changed)
-		st_ddofx_draw_sprite(g, s, page, 'D', c->x, c->y);
+		st_ddofx_draw_sprite(g, c->window, s, page, 'D', c->x, c->y);
+	int           top  = c->y - s->height + 1;
+	struct bounds area = {c->x, c->x + s->width - 1, top, c->y};
 	if (kind == DDO_CHECKBOX) {
 		if (selection_changed)
-			st_ddofx_draw_sprite(g, s, HIDDEN, 'D', c->x, c->y);
-		return;
+			st_ddofx_draw_sprite(g, c->window, s, HIDDEN, 'D', c->x, c->y);
 	}
-	if (!c->enabled || c->fx >= s->width || c->fy >= s->height)
-		return;
-	int     top    = c->y - s->height + 1;
-	uint8_t colour = c->colours[c->selected];
-	if (page == WORK) {
-		struct bounds bounds = {c->x, c->x + s->width - 1, top, c->y};
-		st_ddofx_flood((uint8_t *)g->page[WORK], WIDTH, &bounds, c->x + c->fx, c->y - c->fy, colour);
+	else if (c->enabled && c->fx < s->width && c->fy < s->height) {
+		uint8_t colour = c->colours[c->selected];
+		if (page == WORK || c->window) {
+			struct st_ddofx_graphic_window *w      = &g->graphic_windows[c->window];
+			uint8_t                        *pixels = c->window ? w->visual : (uint8_t *)g->page[WORK];
+			st_ddofx_flood(pixels, c->window ? w->width : WIDTH, &area, c->x + c->fx, c->y - c->fy,
+			    colour);
+		}
+		else {
+			struct radio_fill fill = {
+			    {c->x, top, s->width, s->height},
+                            c->fx, s->height - 1 - c->fy, colour
+                        };
+			(void)st_console_modify_pixels_with_palette(g->display, fill_visible, &fill);
+		}
 	}
-	else {
-		struct radio_fill fill = {
-		    {c->x, top, s->width, s->height},
-                    c->fx, s->height - 1 - c->fy, colour
-                };
-		(void)st_console_modify_pixels_with_palette(g->display, fill_visible, &fill);
-	}
+	if (c->window)
+		st_ddofx_refresh_window_area(ddo, c->window, area);
 }
 
 static void
 define(struct st_ddofx *ddo, enum st_ddofx_group_kind kind, unsigned slot, char *args)
 {
 	struct st_ddofx_graphics *g = ddo->graphics;
-	struct choice             c = {0};
+	struct choice             c = {.window = g->alert_graphic_window};
 	if (!slot) {
 		free(g->choices[kind]);
 		g->choices[kind] = NULL;
@@ -147,8 +153,9 @@ define(struct st_ddofx *ddo, enum st_ddofx_group_kind kind, unsigned slot, char 
 	    || (unsigned)v[8] > 1)
 		return;
 	const struct st_ddofx_sprite *s = st_ddofx_find_sprite(g, on);
-	if (!st_ddofx_sprite_fits(s, v[0], v[1]) || !st_ddofx_sprite_fits(st_ddofx_find_sprite(g, off), v[0], v[1])
-	    || !st_ddofx_sprite_fits(st_ddofx_find_sprite(g, disabled), v[0], v[1])
+	if (!st_ddofx_sprite_fits(g, c.window, s, v[0], v[1])
+	    || !st_ddofx_sprite_fits(g, c.window, st_ddofx_find_sprite(g, off), v[0], v[1])
+	    || !st_ddofx_sprite_fits(g, c.window, st_ddofx_find_sprite(g, disabled), v[0], v[1])
 	    || (kind == DDO_RADIO && (c.fx >= s->width || c.fy >= s->height)))
 		return;
 	strcpy(c.on, on);
@@ -173,28 +180,28 @@ define(struct st_ddofx *ddo, enum st_ddofx_group_kind kind, unsigned slot, char 
 	table->slots[slot - 1] = c;
 	if (slot > table->count)
 		table->count = slot;
-	paint(g, kind, &c, WORK, false);
+	paint(ddo, kind, &c, WORK, false);
 	if (g->mouse.buttons && !g->mouse.scan.waiting && !g->mouse.ignore_hold)
 		g->mouse.scan.repeat_due = 1;
 }
 
 static void
-toggle(struct st_ddofx_graphics *g, enum st_ddofx_group_kind kind, struct choice *c)
+toggle(struct st_ddofx *ddo, enum st_ddofx_group_kind kind, struct choice *c)
 {
 	if (c->exclusive) {
 		if (c->selected)
 			return;
-		struct st_ddofx_choices *table = g->choices[kind];
+		struct st_ddofx_choices *table = ddo->graphics->choices[kind];
 		for (unsigned i = 0; i < table->count; ++i) {
 			struct choice *peer = &table->slots[i];
 			if (peer->selected && peer->exclusive == c->exclusive) {
 				peer->selected = false;
-				paint(g, kind, peer, VISUAL, true);
+				paint(ddo, kind, peer, VISUAL, true);
 			}
 		}
 	}
 	c->selected = !c->selected;
-	paint(g, kind, c, VISUAL, true);
+	paint(ddo, kind, c, VISUAL, true);
 }
 
 bool
@@ -212,7 +219,7 @@ st_ddofx_choices_consume_key(struct st_ddofx *ddo, unsigned slot, uint16_t word)
 			continue;
 		struct choice *c = &table->slots[slot];
 		if (c->enabled && c->key == word && st_ddofx_callback_enabled(ddo, &c->callback)) {
-			toggle(ddo->graphics, kind, c);
+			toggle(ddo, kind, c);
 			if (!c->pass)
 				return true;
 		}
@@ -221,17 +228,18 @@ st_ddofx_choices_consume_key(struct st_ddofx *ddo, unsigned slot, uint16_t word)
 }
 
 bool
-st_ddofx_choice_mouse(struct st_ddofx *ddo, enum st_ddofx_group_kind kind, unsigned slot, int x, int y)
+st_ddofx_choice_mouse(struct st_ddofx *ddo, enum st_ddofx_group_kind kind, unsigned slot, int owner, int x, int y)
 {
 	struct st_ddofx_choices *table = ddo->graphics->choices[kind];
 	if (!table || slot >= table->count || !table->slots[slot].enabled)
 		return false;
 	struct choice                *c = &table->slots[slot];
 	const struct st_ddofx_sprite *s = st_ddofx_find_sprite(ddo->graphics, c->on);
-	if (!st_ddofx_callback_enabled(ddo, &c->callback) || !st_ddofx_sprite_fits(s, c->x, c->y) || x < c->x || x >= c->x + s->width || y > c->y
-	    || y <= c->y - s->height)
+	if ((int)c->window != owner || !st_ddofx_callback_enabled(ddo, &c->callback)
+	    || !st_ddofx_sprite_fits(ddo->graphics, c->window, s, c->x, c->y) || x < c->x || x >= c->x + s->width
+	    || y > c->y || y <= c->y - s->height)
 		return false;
-	toggle(ddo->graphics, kind, c);
+	toggle(ddo, kind, c);
 	return true;
 }
 
@@ -314,7 +322,7 @@ st_ddofx_choice_command(struct st_ddofx *ddo, const char *verb, char *args)
 						c->enabled = value;
 						if (!value)
 							c->selected = false;
-						paint(ddo->graphics, kind, c, VISUAL, false);
+						paint(ddo, kind, c, VISUAL, false);
 					}
 					break;
 			}

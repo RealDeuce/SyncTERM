@@ -1377,6 +1377,30 @@ def check_graphic_window_controls(t):
                         b"2CHVGP,3,700,490"))
     click(62, 60)
     t.input(b"Window")
+    t.case("window sprites and buttons use the owning page after CALM")
+    t.exchange(commands(b"3MREG,0", b"3MFLD,0", b"2ALERTGWIN,3", b"2C,42",
+                        b"2aRECT,780,784,550,554", b"2SV,780,784,550,554,UP",
+                        b"2C,11", b"2aP,780,550", b"2S,780,784,550,554,DOWN",
+                        b"2sPH,730,520,DOWN", b"2SH,730,734,516,520,HSPRITE",
+                        b"2sRV,740,525,HSPRITE", b"2aG,744,521", b"2aG,740,521",
+                        b"2aCLIP,700,709,490,499", b"2sC,708,496,UP", b"2aG,709,494",
+                        b"2aG,710,494"), b"11\xff42\xff42\xff0\xff")
+    frame = t.exchange(commands(b"5CPUSHB,1,UP,DOWN,710,503,46,99,0,1,P,",
+                                b"5CCHKBOX,1,DOWN,UP,UP,720,503,0,1,0,0,0,0,0,C,",
+                                b"5CRBUTTON,1,2,2,21,9,UP,UP,730,503,0,1,0,0,0,0,0,R,",
+                                b"2RGWINI", b"2CALMGWIN"))
+    for x, colour in [(62,42), (72,42), (82,9)]:
+        assert frame.primary[59*640 + x] == colour
+    click(63, 60)
+    t.input(b"P")
+    click(73, 60)
+    click(83, 60)
+    frame = t.exchange(commands(b"5EXCBOX,1", b"5EXRBTN,1"), b"CR")
+    assert frame.primary[59*640 + 72] == 11
+    assert frame.primary[59*640 + 82] == 21
+    t.exchange(commands(b"2CHGWIN,3,40,239,30,179,1,0,0,0,0,0,0,0,Hidden"))
+    t.client.text("c")
+    t.input(b"P")
     t.exchange(commands(b"2RESET"))
 
 

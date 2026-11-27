@@ -154,9 +154,11 @@ bool st_ddofx_graphic_window_mouse(struct st_ddofx *, unsigned changed);
 void st_ddofx_repeat_window_arrow(struct st_ddofx *);
 void st_ddofx_free_graphic_windows(struct st_ddofx_graphics *);
 bool st_ddofx_graphic_window_command(struct st_ddofx *, const struct st_ddofx_sink *, const char *, char *);
+void st_ddofx_refresh_window_area(struct st_ddofx *, unsigned slot, struct bounds area);
 void st_ddofx_refresh_graphic_interior(struct st_ddofx *);
 struct st_ddofx_sprite *st_ddofx_find_sprite(struct st_ddofx_graphics *, const char *);
-bool                    st_ddofx_sprite_fits(const struct st_ddofx_sprite *, int32_t x, int32_t y);
+bool    st_ddofx_sprite_fits(const struct st_ddofx_graphics *, unsigned window, const struct st_ddofx_sprite *,
+    int32_t x, int32_t y);
 void    st_ddofx_flood(uint8_t *, int stride, const struct bounds *, int32_t x, int32_t y, uint8_t colour);
 void st_ddofx_clear_lists(struct st_ddofx_graphics *);
 bool st_ddofx_list_command(struct st_ddofx *, const char *, char *);
@@ -167,7 +169,7 @@ bool st_ddofx_text_field_mouse(struct st_ddofx *, int x, int y);
 bool    st_ddofx_choice_command(struct st_ddofx *, const char *verb, char *args);
 void st_ddofx_field_pointer(struct st_ddofx *, unsigned slot, bool animated);
 void    st_ddofx_define_button(struct st_ddofx *, char *args);
-bool    st_ddofx_button_mouse(struct st_ddofx *, unsigned, int x, int y, unsigned buttons);
+bool    st_ddofx_button_mouse(struct st_ddofx *, unsigned, int owner, int x, int y, unsigned buttons);
 void st_ddofx_pointer_command(struct st_ddofx *, const struct st_ddofx_sink *, const char *, char *);
 void st_ddofx_mouse_defaults(struct st_ddofx_mouse_state *);
 bool st_ddofx_ensure_pointer(struct st_ddofx_mouse_state *);
@@ -213,8 +215,8 @@ void st_ddofx_sprite_bank(struct st_ddofx *, const struct st_ddofx_sink *, char 
 void st_ddofx_invert_sprite(struct st_ddofx_sprite *);
 void    st_ddofx_free_sprites(struct st_ddofx_graphics *);
 int     st_ddofx_sprite_slot(struct st_ddofx_graphics *, const char *, bool create);
-void    st_ddofx_draw_sprite(struct st_ddofx_graphics *, const struct st_ddofx_sprite *, enum page, char op,
-    int32_t x, int32_t y);
+void st_ddofx_draw_sprite(struct st_ddofx_graphics *, unsigned window, const struct st_ddofx_sprite *, enum page,
+    char op, int32_t x, int32_t y);
 void st_ddofx_collision_command(struct st_ddofx *, char *args);
 bool st_ddofx_collision_active(const struct st_ddofx_graphics *);
 void st_ddofx_collision_frame(struct st_ddofx *, unsigned slot, int x, int y, const struct st_ddofx_sprite *);

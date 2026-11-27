@@ -326,7 +326,7 @@ st_ddofx_resume_mouse(struct st_ddofx *ddo)
 		unsigned slot = scan->next;
 		while (scan->stage < 2) {
 			enum st_ddofx_group_kind kind = scan->stage++ == 0 ? DDO_RADIO : DDO_CHECKBOX;
-			if (!owner && scan->buttons == 1 && st_ddofx_choice_mouse(ddo, kind, slot, scan->x, scan->y)
+			if (scan->buttons == 1 && st_ddofx_choice_mouse(ddo, kind, slot, owner, x, y)
 			    && mouse->buttons) {
 				scan->waiting = true;
 				return;
@@ -334,7 +334,7 @@ st_ddofx_resume_mouse(struct st_ddofx *ddo)
 		}
 		if (scan->stage == 2) {
 			++scan->stage;
-			if (!owner && st_ddofx_button_mouse(ddo, slot, scan->x, scan->y, scan->buttons)) {
+			if (st_ddofx_button_mouse(ddo, slot, owner, x, y, scan->buttons)) {
 				scan->waiting = mouse->buttons != 0;
 				ddo->in_mouse = true;
 				return;

@@ -42,9 +42,9 @@ A BBS can open up to 300 indexed FLI/FLC profiles from the entry’s BBSTHEME di
 
 Analog and text clocks have 30 slots each. A BBS defines each clock before showing it on the visual page. The hands and the eight-character digital display use local time with signed hour, minute and second offsets. Each text clock loads its own VGA font, defaulting to IBMSTD.FNT. Active marquees draw over clocks.
 
-The BBS can create up to 300 desktop push buttons with `5CPUSHB`. Creation draws the up sprite on the work page. A matching key or mouse combination draws the down sprite on the visual page for three clock ticks, restores the up sprite, then runs the macro and sends the return string. The pass flag controls whether a keyboard activation continues to the next binding and the connection.
+The BBS can create up to 300 push buttons with `5CPUSHB`. Creation draws the up sprite on the desktop work page or in the alert window. Window buttons keep their owner when a later command changes the alert window. A matching key or mouse combination draws the down sprite on the visual page for three clock ticks, restores the up sprite, then runs the macro and sends the return string. The pass flag controls whether a keyboard activation continues to the next binding and the connection.
 
-Desktop radio buttons and checkboxes each have 300 slots. A key or left click changes the selection. An explicit execute command runs the selected members of the addressed exclusive or multiple-selection group in slot order. Each macro finishes before its return string is sent.
+Radio buttons and checkboxes each have 300 slots shared by the desktop and graphic windows. A key or left click changes the selection. An explicit execute command runs the selected members of the addressed exclusive or multiple-selection group in slot order. Each macro finishes before its return string is sent.
 
 Desktop list boxes hold up to 100 items in each of 300 slots. The BBS can prepare a list on the work page, show it on the visual page, scroll by line or page, move the highlight, and toggle selections. A left click moves the highlight, and a double-click toggles the item. Execution visits selected items in list order. For `5LBADJLST`, positive movement goes toward the end, following the SDK’s direction parameter description.
 
@@ -351,15 +351,15 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 9211 | MOUSE FIELD | DDO-FX (NM) | Connected on the desktop and in graphic windows |
 | 9292 | MOUSE FIELD SWAP | DDO-FX (NM) | Connected on the desktop and in graphic windows |
 | 9302 | MOUSE FIELD FRESHEN | DDO-FX (NM) | Connected on the desktop and in graphic windows |
-| 9317 | CREATE RADIO BUTTON | DDO-FX (NM) | Desktop controls |
-| 9481 | EXECUTE RADIO BUTTON | DDO-FX (NM) | Desktop controls |
-| 9548 | SWAP RADIO BUTTON | DDO-FX (NM) | Desktop controls |
-| 9560 | DISABLE/ENABLE RADIO BUTTON | DDO-FX (NM) | Desktop controls |
-| 9576 | CREATE CHECK BOX | DDO-FX (NM) | Desktop controls |
-| 9679 | EXECUTE CHECK BOX | DDO-FX (NM) | Desktop controls |
-| 9688 | SWAP CHECK BOX | DDO-FX (NM) | Desktop controls |
-| 9697 | DISABLE/ENABLE CHECK BOX | DDO-FX (NM) | Desktop controls |
-| 9706 | CREATE PUSH BUTTON | DDO-FX (NM) | Desktop mouse and keyboard |
+| 9317 | CREATE RADIO BUTTON | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 9481 | EXECUTE RADIO BUTTON | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 9548 | SWAP RADIO BUTTON | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 9560 | DISABLE/ENABLE RADIO BUTTON | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 9576 | CREATE CHECK BOX | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 9679 | EXECUTE CHECK BOX | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 9688 | SWAP CHECK BOX | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 9697 | DISABLE/ENABLE CHECK BOX | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 9706 | CREATE PUSH BUTTON | DDO-FX (NM) | Connected on the desktop and in graphic windows |
 | 9792 | CREATE TEXT FIELD | DDO-FX (NM) | Connected on the desktop |
 | 9973 | SHOW TEXT FIELD | DDO-FX (NM) | Connected on the desktop |
 | 9981 | ACTIVATE TEXT FIELD | DDO-FX (NM) | Connected on the desktop |
@@ -505,7 +505,7 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 15049 | RESTORE ALL GRAPHIC WINDOWS | DDO-FX (NM) | Connected |
 | 15056 | REFRESH ALL GRAPHIC WINDOWS | DDO-FX (NM) | Connected |
 | 15062 | REFRESH GRAPHIC WINDOWS INTERIOR | DDO-FX (NM) | Connected |
-| 15074 | ALERT GRAPHIC WINDOW | DDO-FX (NM) | Connected for primitives, PCX, visual/hidden page copies, mouse fields and regions. Other attached operations pending |
+| 15074 | ALERT GRAPHIC WINDOW | DDO-FX (NM) | Connected for primitives, PCX, visual/hidden page copies, sprites, mouse fields and regions, push buttons, radio buttons and checkboxes. Other attached operations pending |
 | 15094 | CALM GRAPHIC WINDOW | DDO-FX (NM) | Connected |
 | 15101 | CREATE ICON | DDO-FX (NM) | Pending |
 | 15135 | ICON MOUSE POINTER | DDO-FX (NM) | Pending |

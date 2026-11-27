@@ -29,7 +29,7 @@ bool st_ddofx_next_text_field(struct st_ddofx *, unsigned anchor, unsigned *next
 bool st_ddofx_text_field_value(const struct st_ddofx *, int32_t id, bool full, char out[ST_DDOFX_FIELD_REPLY_MAX+1]);
 bool st_ddofx_field_callback(struct st_ddofx *, const struct st_ddofx_callback *, const char *reply);
 unsigned st_ddofx_control_count(const struct st_ddofx *);
-bool     st_ddofx_choice_mouse(struct st_ddofx *, enum st_ddofx_group_kind, unsigned slot, int x, int y);
+bool st_ddofx_choice_mouse(struct st_ddofx *, enum st_ddofx_group_kind, unsigned slot, int owner, int x, int y);
 bool     st_ddofx_choices_consume_key(struct st_ddofx *, unsigned slot, uint16_t word);
 void     st_ddofx_execute_group(struct st_ddofx *, enum st_ddofx_group_kind, unsigned anchor, bool submitted_by_key);
 bool     st_ddofx_next_choice(struct st_ddofx *, enum st_ddofx_group_kind, unsigned anchor, unsigned *next);

@@ -149,7 +149,7 @@ compose(struct st_ddofx *ddo)
 		}
 		a->painted = r;
 		copy_background(g, a, true);
-		st_ddofx_draw_sprite(g, s, HIDDEN, "PCF"[a->draw], a->x, a->y);
+		st_ddofx_draw_sprite(g, 0, s, HIDDEN, "PCF"[a->draw], a->x, a->y);
 		p.areas[p.count++] = r;
 	}
 	g->cx = cx;

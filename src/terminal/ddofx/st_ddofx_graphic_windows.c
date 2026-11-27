@@ -224,6 +224,22 @@ refresh(struct st_ddofx *ddo, struct bounds area)
 }
 
 void
+st_ddofx_refresh_window_area(struct st_ddofx *ddo, unsigned slot, struct bounds area)
+{
+	const struct st_ddofx_graphic_window *w = &ddo->graphics->graphic_windows[slot];
+	if (!w->visual || w->hidden)
+		return;
+	struct bounds view = interior(w);
+	int           dx = view.left - w->x, dy = view.top - w->y;
+	area.left += dx;
+	area.right += dx;
+	area.top += dy;
+	area.bottom += dy;
+	if (intersect(&area, &view))
+		refresh(ddo, area);
+}
+
+void
 st_ddofx_refresh_graphic_interior(struct st_ddofx *ddo)
 {
 	struct st_ddofx_graphics       *g = ddo->graphics;

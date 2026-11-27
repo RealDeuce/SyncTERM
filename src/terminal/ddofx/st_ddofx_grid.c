@@ -187,7 +187,7 @@ draw(struct st_ddofx_graphics *g, bool tick)
 			int dx = col * grid->tile_w, dy = row * grid->tile_h;
 			int x = grid->x + dx, y = grid->y + dy, bottom = y + grid->tile_h - 1;
 			if (t->background && fits(g, t->background - 1))
-				st_ddofx_draw_sprite(g, &g->sprites[t->background - 1], HIDDEN, 'P', x, bottom);
+				st_ddofx_draw_sprite(g, 0, &g->sprites[t->background - 1], HIDDEN, 'P', x, bottom);
 			else
 				for (int i = 0; i < grid->tile_h; ++i)
 					memcpy(&g->page[HIDDEN][y + i][x], grid->underlay + (dy + i) * width + dx,
@@ -195,7 +195,7 @@ draw(struct st_ddofx_graphics *g, bool tick)
 			if (t->first) {
 				unsigned slot = t->first - 1 + (grid->frame - t->phase) % (t->last - t->first + 1);
 				if (fits(g, slot))
-					st_ddofx_draw_sprite(g, &g->sprites[slot], HIDDEN, 'D', x, bottom);
+					st_ddofx_draw_sprite(g, 0, &g->sprites[slot], HIDDEN, 'D', x, bottom);
 			}
 		}
 	}

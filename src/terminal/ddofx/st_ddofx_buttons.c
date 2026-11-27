@@ -14,7 +14,7 @@ struct push_button {
 	char                     up[9], down[9];
 	int                      x, y;
 	uint16_t                 key;
-	unsigned                 mask;
+	unsigned                 mask, window;
 	bool                     pass;
 	struct st_ddofx_callback callback;
 };
@@ -37,10 +37,16 @@ st_ddofx_find_sprite(struct st_ddofx_graphics *g, const char *name)
 	return i >= 0 ? &g->sprites[i] : NULL;
 }
 
-bool
-st_ddofx_sprite_fits(const struct st_ddofx_sprite *s, int32_t x, int32_t y)
+static void
+paint_button(struct st_ddofx *ddo, const struct push_button *button, const struct st_ddofx_sprite *sprite,
+    enum page page)
 {
-	return s && x >= 0 && x <= WIDTH - s->width && y >= s->height - 1 && y < HEIGHT;
+	st_ddofx_draw_sprite(ddo->graphics, button->window, sprite, page, 'D', button->x, button->y);
+	if (button->window) {
+		struct bounds area = {button->x, button->x + sprite->width - 1, button->y - sprite->height + 1,
+		    button->y};
+		st_ddofx_refresh_window_area(ddo, button->window, area);
+	}
 }
 
 void
@@ -69,8 +75,9 @@ st_ddofx_define_button(struct st_ddofx *ddo, char *args)
 		if (!st_ddofx_field_number(ddo, &args, &v[i]))
 			return;
 	char *reply = st_ddofx_field(&args);
-	if (!args || !reply || !st_ddofx_sprite_fits(up, v[0], v[1]) || !st_ddofx_sprite_fits(down, v[0], v[1])
-	    || (unsigned)v[2] > 255 || (unsigned)v[3] > 255 || (v[4] != 0 && v[4] != 1) || v[5] < 1 || v[5] > 7)
+	if (!args || !reply || !st_ddofx_sprite_fits(g, g->alert_graphic_window, up, v[0], v[1])
+	    || !st_ddofx_sprite_fits(g, g->alert_graphic_window, down, v[0], v[1]) || (unsigned)v[2] > 255
+	    || (unsigned)v[3] > 255 || (v[4] != 0 && v[4] != 1) || v[5] < 1 || v[5] > 7)
 		return;
 	if (!g->buttons)
 		g->buttons = calloc(1, sizeof(*g->buttons));
@@ -82,13 +89,14 @@ st_ddofx_define_button(struct st_ddofx *ddo, char *args)
 	b->x    = v[0];
 	b->y    = v[1];
 	b->key  = (uint16_t)((v[2] << 8) | v[3]);
+	b->window = g->alert_graphic_window;
 	b->pass = v[4] != 0;
 	b->mask = (unsigned)v[5];
 	st_ddofx_callback_define(ddo, &b->callback, reply, args);
 	b->callback.macro[95] = b->callback.reply[95] = 0;
 	if ((unsigned)slot > g->buttons->count)
 		g->buttons->count = (unsigned)slot;
-	st_ddofx_draw_sprite(g, up, WORK, 'D', b->x, b->y);
+	paint_button(ddo, b, up, WORK);
 	if (g->mouse.buttons && !g->mouse.scan.waiting && !g->mouse.ignore_hold)
 		g->mouse.scan.repeat_due = 1;
 }
@@ -106,8 +114,8 @@ st_ddofx_button_up(struct st_ddofx *ddo, unsigned i)
 		return;
 	struct push_button     *b = &ddo->graphics->buttons->slots[i];
 	struct st_ddofx_sprite *s = st_ddofx_find_sprite(ddo->graphics, b->up);
-	if (st_ddofx_sprite_fits(s, b->x, b->y))
-		st_ddofx_draw_sprite(ddo->graphics, s, VISUAL, 'D', b->x, b->y);
+	if (st_ddofx_sprite_fits(ddo->graphics, b->window, s, b->x, b->y))
+		paint_button(ddo, b, s, VISUAL);
 }
 
 static bool
@@ -116,13 +124,14 @@ press(struct st_ddofx *ddo, unsigned i, enum st_ddofx_callback_kind kind, int x,
 	struct push_button     *b  = &ddo->graphics->buttons->slots[i];
 	struct st_ddofx_sprite *up   = st_ddofx_find_sprite(ddo->graphics, b->up),
 			       *down = st_ddofx_find_sprite(ddo->graphics, b->down);
-	if (!st_ddofx_sprite_fits(up, b->x, b->y) || !st_ddofx_sprite_fits(down, b->x, b->y))
+	if (!st_ddofx_sprite_fits(ddo->graphics, b->window, up, b->x, b->y)
+	    || !st_ddofx_sprite_fits(ddo->graphics, b->window, down, b->x, b->y))
 		return false;
 	if (kind == DDO_MOUSE && (x < b->x || x >= b->x + up->width || y > b->y || y <= b->y - up->height))
 		return false;
 	if (!st_ddofx_button_callback(ddo, &b->callback, kind, i))
 		return false;
-	st_ddofx_draw_sprite(ddo->graphics, down, VISUAL, 'D', b->x, b->y);
+	paint_button(ddo, b, down, VISUAL);
 	return true;
 }
 
@@ -134,8 +143,8 @@ st_ddofx_button_key(struct st_ddofx *ddo, unsigned i, uint16_t word)
 }
 
 bool
-st_ddofx_button_mouse(struct st_ddofx *ddo, unsigned i, int x, int y, unsigned buttons)
+st_ddofx_button_mouse(struct st_ddofx *ddo, unsigned i, int owner, int x, int y, unsigned buttons)
 {
-	return i < st_ddofx_button_count(ddo) && ddo->graphics->buttons->slots[i].mask == buttons
-	       && press(ddo, i, DDO_MOUSE, x, y);
+	return i < st_ddofx_button_count(ddo) && (int)ddo->graphics->buttons->slots[i].window == owner
+	       && ddo->graphics->buttons->slots[i].mask == buttons && press(ddo, i, DDO_MOUSE, x, y);
 }
