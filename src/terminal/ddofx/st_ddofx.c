@@ -367,7 +367,8 @@ st_ddofx_parse(struct st_ddofx *ddo, struct st_ddofx_framer *frame, const struct
 bool
 st_ddofx_busy(const struct st_ddofx *ddo)
 {
-	return ddo->wait_until != 0 || st_ddofx_script_active(ddo) || ddo->queued_start != ddo->queued_end;
+	return ddo->wait_until != 0 || ddo->fade_due != 0 || st_ddofx_script_active(ddo)
+	       || ddo->queued_start != ddo->queued_end;
 }
 
 uint32_t
@@ -388,9 +389,13 @@ st_ddofx_poll(struct st_ddofx *ddo, const struct st_ddofx_sink *sink)
 	/* Yield back to the session between slices so long or infinite scripts
 	 * cannot prevent local disconnect, redraws or transfer servicing. */
 	for (unsigned i = 0; i < 128; ++i) {
-		if (ddo->wait_until != 0) {
+		if (ddo->fade_due != 0 || ddo->wait_until != 0) {
 			uint64_t now;
-			if (st_time_monotonic_ms(&now) == 0 && now < ddo->wait_until)
+			if (st_time_monotonic_ms(&now) != 0)
+				now = UINT64_MAX;
+			if (ddo->fade_due && (now < ddo->fade_due || st_ddofx_fade_step(ddo, now)))
+				break;
+			if (now < ddo->wait_until)
 				break;
 			ddo->wait_until = 0;
 		}

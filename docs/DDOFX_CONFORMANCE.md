@@ -8,7 +8,7 @@ Connected tests cover framing, detection, and ignore/hear across CP437 and UTF-8
 
 BBS sound themes, resident sound bites and big-sample profiles use signed 8-bit PCM from the entry’s `DDOFX/BBSTHEME` resources. RealPlay streams loose sample files from the same directory. The mixer advances the samples at the requested frequency alongside MOD or S3M playback. A connected peer checks `dSOUNDON` and starts RealPlay from the cache. The test reads the resulting stereo frames from a pull-only audio device.
 
-An online pair of `LIGMODE` commands enters Normal mode on a pixel display. The visible page is 640×480 with 256 palette entries. The work, background and hidden pages store pixel indices. Whole-page copies, rectangular cuts anchored at the lower left, transparent cuts, work-page drawing, vertical scrolling and palette changes are available from a connection. Ordinary ANSI goes to an 80×100 virtual text page with the top 30 rows visible. `2GEXIT` restores the Lite screen, cursor and palette. Named text windows and window scrolling remain pending.
+An online pair of `LIGMODE` commands enters Normal mode on a pixel display. The visible page is 640×480 with 256 palette entries. The work, background and hidden pages store pixel indices. Whole-page copies, rectangular cuts anchored at the lower left, transparent cuts, work-page drawing, vertical scrolling and palette changes are available from a connection. Ordinary ANSI goes to an 80×100 virtual text page with the top 30 rows visible. `2GEXIT` restores the Lite screen, cursor and palette. Basic fade-out saves the active palette, fades to black and clears the visual and hidden pages. Advanced fade-out preserves page pixels and blends an inclusive palette range toward a selected register. Fade-in returns the palette to the saved values. Named text windows and window scrolling remain pending.
 
 Sprites can be captured from any of the four graphics pages. The SDK repeats the background spelling for hidden-page capture. SyncTERM accepts `2SH` for the hidden page. Simple sprite definitions and animation frames share the SDK stack. `2DSS` restores the buffered regions from the background, draws the current frame in stack order, then publishes the regions to the visual page.
 
@@ -244,9 +244,9 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 8234 | STORE PALETTE | DDO-FX (NM) | Connected |
 | 8245 | RESTORE PALETTE | DDO-FX (NM) | Connected |
 | 8253 | ZERO PALETTE | DDO-FX (NM) | Connected |
-| 8260 | FADE PALETTE OUT | DDO-FX (NM) | Pending |
-| 8299 | FADE PALETTE OUT ADVANCED | DDO-FX (NM) | Pending |
-| 8350 | FADE PALETTE IN | DDO-FX (NM) | Pending |
+| 8260 | FADE PALETTE OUT | DDO-FX (NM) | Connected |
+| 8299 | FADE PALETTE OUT ADVANCED | DDO-FX (NM) | Connected |
+| 8350 | FADE PALETTE IN | DDO-FX (NM) | Connected |
 | 8361 | DRAW LINE RELATIVE | DDO-FX (NM) | Connected |
 | 8374 | CHANGE VIEW PORT ORIGIN | DDO-FX (NM) | Pending |
 | 8394 | SHAKE SCREEN | DDO-FX (NM) | Pending |

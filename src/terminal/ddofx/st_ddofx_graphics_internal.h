@@ -41,6 +41,16 @@ struct st_ddofx_graphics {
 	struct st_console_config previous_mode;
 	st_console_snapshot_t   *previous_screen;
 	uint32_t                 palette[256];
+
+	enum {
+		FADE_NONE,
+		FADE_OUT,
+		FADE_RANGE,
+		FADE_IN
+	} fade;
+
+	unsigned                 fade_first, fade_last;
+	uint32_t                 fade_target;
 	uint8_t                  page[3][HEIGHT][WIDTH];
 	bool                     transparent[256];
 	uint8_t                  colour;

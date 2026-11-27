@@ -35,7 +35,7 @@ struct st_ddofx {
 	struct st_ddofx_samples *samples;
 	uint8_t                 *queued;
 	size_t                   queued_start, queued_end;
-	uint64_t                 wait_until;
+	uint64_t                 wait_until, fade_due;
 	char                     music_name[ST_DDOFX_BODY_MAX + 1];
 	char                     resource_prefix[12];
 	struct st_tracker       *player;

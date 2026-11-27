@@ -73,6 +73,31 @@ def check_drawing(t):
     scene([b"2CPYHP2WP"], {(1,1):5,(1,2):2,(1,3):2,(1,4):5})
 
 
+def check_fades(t):
+    t.case("foreground palette fades and page preservation")
+    t.exchange(commands(b"2C,17", b"2aFILL", b"2CPYWP2VP", b"2C,18", b"2aFILL", b"2CPYWP2BP",
+                        b"2aSRGB,17,63,0,0", b"2aSRGB,18,0,63,0", b"2aSRGB,19,0,0,63"))
+    t.send(commands(b"2aFPALOUTA,18,17,18"))
+    deadline = time.monotonic() + 3
+    while True:
+        frame = t.client.capture()
+        green = (frame.palette[17] >> 8) & 255
+        if 0 < green < 255:
+            assert frame.primary[-1] == 17 and frame.palette[19] == 255
+            break
+        assert time.monotonic() < deadline, "advanced fade never showed an intermediate palette"
+    frame = t.exchange(commands(b"2aGRGB,17", b"2aGRGB,19", b"2aFPALIN", b"2aGRGB,17"),
+                       b"0,63,0\xff0,0,63\xff63,0,0\xff")
+    assert frame.primary[-1] == 17 and frame.palette[17] == 0xff0000
+    frame = t.exchange(commands(b"2aFPALOUT", b"2aGRGB,17", b"2aG,639,479", b"2CPYHP2WP",
+                                b"2aG,639,479", b"2CPYBP2WP", b"2aG,639,479"),
+                       b"0,0,0\xff18\xff0\xff18\xff")
+    assert frame.primary[-1] == frame.alternate[-1] == 0
+    assert all(rgb == 0 for rgb in frame.palette[:256])
+    frame = t.exchange(commands(b"2CPYWP2VP", b"2aFPALIN", b"2aGRGB,18"), b"0,63,0\xff")
+    assert frame.primary[-1] == 18 and frame.palette[18] == 0x00ff00
+
+
 def check_sprites(t):
     t.case("sprite capture and drawing across the four graphics pages")
     # A 3x2 sprite with distinguishable rows and a transparent top-left pixel.
@@ -200,8 +225,10 @@ def check_graphics(t, root):
                        (8, 1), [(1, 1, "Before!")], reset=False, expected=b"0\xff")
     assert restored.metadata["plane_height"] == lite.metadata["plane_height"]
     assert restored.palette[3] == lite.palette[3]
-    t.exchange(enter + commands(b"2aGRGB,3", b"2aG,639,479", b"2LWPPCX,WP", b"2aG,1,0", b"2GEXIT"),
+    t.exchange(enter + commands(b"2aGRGB,3", b"2aG,639,479", b"2LWPPCX,WP", b"2aG,1,0"),
                b"63,21,0\xff0\xff193\xff")
+    check_fades(t)
+    t.exchange(commands(b"2GEXIT"))
 
 
 def check_resources(t, root):

@@ -4,6 +4,7 @@
 
 #include "st_ddofx_graphics_internal.h"
 #include "st_ddofx_script.h"
+#include "st_time.h"
 #include "string_util.h"
 
 static const uint32_t text_colours[16] = {
@@ -376,6 +377,89 @@ st_ddofx_set_palette(struct st_ddofx_graphics *g, unsigned first, unsigned count
 	(void)st_console_set_palette(g->view, (uint16_t)first, g->palette + first, count);
 }
 
+/* A fade owns the foreground until it reaches the target. Local input and
+ * music playback continue between palette updates. */
+bool
+st_ddofx_fade_step(struct st_ddofx *ddo, uint64_t now)
+{
+	struct st_ddofx_graphics *g = ddo->graphics;
+	if (!g || g->fade == FADE_NONE)
+		return false;
+
+	enum {
+		INTERVAL_MS = 16
+	};
+
+	uint64_t elapsed = (now - ddo->fade_due) / INTERVAL_MS;
+	int      change  = elapsed >= 31 ? 64 : 2 * (1 + (int)elapsed);
+	bool     done    = true;
+	for (unsigned i = g->fade_first; i <= g->fade_last; ++i) {
+		uint32_t target = g->fade == FADE_IN ? ddo->saved_palette[i] : g->fade_target;
+		uint32_t colour = 0;
+		for (unsigned shift = 0; shift < 24; shift += 8) {
+			int current = (int)((g->palette[i] >> shift) & 255) >> 2;
+			int end     = (int)((target >> shift) & 255) >> 2;
+			if (current + change < end)
+				current += change;
+			else if (g->fade != FADE_IN && current - change > end)
+				current -= change;
+			else
+				current = end;
+			if (current == end)
+				colour |= target & (UINT32_C(255) << shift);
+			else {
+				done = false;
+				colour |= dac(current) << shift;
+			}
+		}
+		g->palette[i] = colour;
+	}
+	st_ddofx_set_palette(g, g->fade_first, g->fade_last + 1 - g->fade_first);
+	if (!done) {
+		ddo->fade_due += (1 + elapsed) * INTERVAL_MS;
+		return true;
+	}
+	if (g->fade == FADE_OUT) {
+		memset(g->page[HIDDEN], 0, sizeof(g->page[HIDDEN]));
+		(void)st_console_modify_pixels(g->display, blank, NULL);
+	}
+	g->fade = FADE_NONE;
+	ddo->fade_due = 0;
+	return false;
+}
+
+static void
+start_fade(struct st_ddofx *ddo, const char *op, char *args)
+{
+	struct st_ddofx_graphics *g     = ddo->graphics;
+	unsigned                  first = 0, last = 255;
+	uint32_t                  target = 0;
+	if (!ascii_case_compare(op, "FPALOUTA")) {
+		int32_t n[3];
+		if (!st_ddofx_numbers(ddo, args, n, 3) || (unsigned)n[0] > 255 || (unsigned)n[1] > 255
+		    || (unsigned)n[2] > 255 || n[1] > n[2])
+			return;
+		first   = (unsigned)n[1];
+		last    = (unsigned)n[2];
+		target  = g->palette[n[0]];
+		g->fade = FADE_RANGE;
+	}
+	else if (!args)
+		g->fade = !ascii_case_compare(op, "FPALIN") ? FADE_IN : FADE_OUT;
+	else
+		return;
+	if (g->fade != FADE_IN)
+		memcpy(ddo->saved_palette, g->palette, sizeof(g->palette));
+	g->fade_first  = first;
+	g->fade_last   = last;
+	g->fade_target = target;
+	uint64_t now;
+	if (st_time_monotonic_ms(&now) != 0)
+		now = UINT64_MAX;
+	ddo->fade_due = now == UINT64_MAX ? 0 : now;
+	(void)st_ddofx_fade_step(ddo, now);
+}
+
 void
 st_ddofx_graphics_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *body)
 {
@@ -438,6 +522,9 @@ st_ddofx_graphics_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink
 			    (unsigned)((rgb >> 10) & 63), (unsigned)((rgb >> 2) & 63));
 			st_ddofx_query_reply(ddo, sink, reply, false);
 		}
+		else if (!ascii_case_compare(op, "FPALOUT") || !ascii_case_compare(op, "FPALOUTA")
+		         || !ascii_case_compare(op, "FPALIN"))
+			start_fade(ddo, op, args);
 		else if (args == NULL
 		         && (!ascii_case_compare(op, "STOREPAL") || !ascii_case_compare(op, "RESTOREPAL")
 		             || !ascii_case_compare(op, "ZEROPAL") || !ascii_case_compare(op, "DEFPAL"))) {

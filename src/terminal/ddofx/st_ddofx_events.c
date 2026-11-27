@@ -127,7 +127,9 @@ st_ddofx_event_command(struct st_ddofx *ddo, const char *verb, char *args)
 static bool
 events_active(const struct st_ddofx *ddo)
 {
-	return ddo->events != NULL && !ddo->background_paused && !ddo->in_event
+	/* Event macros may change pages, palettes or modes. Dispatch them at
+	 * foreground command boundaries once a palette transition finishes. */
+	return ddo->events != NULL && !ddo->fade_due && !ddo->background_paused && !ddo->in_event
 	       && ddo->events->next_due != UINT64_MAX;
 }
 
