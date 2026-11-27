@@ -117,7 +117,7 @@ load_visual(void *context, const struct st_pixel_buffer *pixels, const uint32_t 
 				pixels->primary[pos] = pixels->alternate[pos] = index;
 			}
 			else
-				index = st_ddofx_pixel_index(palette, pixels->primary[pos]);
+				index = st_console_palette_index256(palette, pixels->primary[pos]);
 			load->graphics->page[HIDDEN][y][x] = index;
 		}
 	}
@@ -216,7 +216,7 @@ capture_visual(void *context, const struct st_pixel_buffer *pixels, const uint32
 	if (pixels->width != WIDTH || pixels->height != HEIGHT)
 		return -1;
 	for (unsigned i = 0; i < WIDTH * HEIGHT; ++i)
-		data[i] = st_ddofx_pixel_index(palette, pixels->primary[i]);
+		data[i] = st_console_palette_index256(palette, pixels->primary[i]);
 	return 0;
 }
 

@@ -579,7 +579,50 @@ def check_key_macros(t):
             t.exchange(commands(b"2GEXIT"))
 
 
-def check_mouse(t):
+def check_pointers(t, root, mouse):
+    t.case("Normal mouse pointer masks and animation")
+    [marker] = root.rglob("syncterm-cache-name.txt")
+    record = struct.Struct("<12sIIHH")
+    data = bytearray(record.pack(b"\xff", 0, 0, 0, 0)*33)
+    # The hotspot puts the first mask byte one pixel left of the mouse.
+    color = struct.pack("<hh", 1, 0) + bytes([0, 240]+[255]*254) + bytes([3, 7]+[0]*254)
+    mono = struct.pack("<hh32H", 0, 1, 0x9fff, *([0xffff]*15), 0xa000, *([0]*15))
+    for i, (name, payload) in enumerate([(b"A.MPT", color), (b"B.MPT", mono), (b"BAD.MPT", mono[:-1])]):
+        record.pack_into(data, i*record.size, name, len(data), len(payload), 0, 1)
+        data.extend(payload)
+    (marker.parent/"DDOFX"/"BBSTHEME"/"Mouse.M").write_bytes(data)
+
+    def pixel(frame, x, y):
+        m = frame.metadata
+        px = m["destination_x"] + (2*x+1)*m["destination_width"]//(2*m["plane_width"])
+        py = m["destination_y"] + (2*y+1)*m["destination_height"]//(2*m["plane_height"])
+        return frame.rgb[py*m["output_width"]+px]
+
+    def check(frame, *points):
+        for x, y, index in points:
+            assert pixel(frame, x, y) == frame.palette[index], (x, y, index, pixel(frame, x, y))
+
+    mouse(70, 55, 0)
+    t.exchange(commands(b"2fMouse.", b"2C,165", b"2aFILL", b"2CPYWP2VP",
+                        b"3MPL,1,A.MPT", b"3MPL,100,B.MPT"))
+    frame = t.exchange(commands(b"3SMP,1", b"3MPT,BAD.MPT", b"3MPL,1,MISSING", b"3SMP,1"))
+    check(frame, (69,55,3), (70,55,167), (71,55,165))
+    assert list(frame.primary[55*640+69:55*640+72]) == [165]*3
+    check(t.exchange(commands(b"3SMP,100")), (69,55,165), (70,54,170), (71,54,0), (72,54,15))
+    check(t.exchange(commands(b"3MVIS,0")), (70,54,165))
+    mouse(0, 0, 0)
+    check(t.exchange(commands(b"3MVIS,1", b"3MPT,A.MPT")), (0,0,167), (70,54,165))
+    mouse(70, 55, 0)
+    t.exchange(commands(b"3MPL,99,A.MPT", b"3AMP,100,99,100,1", b"3AAM,100", b"w5"))
+    check(t.client.wait_for(lambda f: pixel(f,72,54) == f.palette[15]), (70,54,170))
+    t.exchange(commands(b"3AMP,1,99,100,3", b"3AMP,2,99,100,2", b"3AAM,1", b"3AAM,2"))
+    t.client.wait_for(lambda f: pixel(f,69,55) == f.palette[3])
+    t.client.wait_for(lambda f: pixel(f,72,54) == f.palette[15])
+    check(t.exchange(commands(b"3DAM", b"3MPT,A.MPT", b"3MPL,0", b"3AMP,0", b"w4")), (69,55,3))
+    check(t.exchange(commands(b"3MPT,DEFAULT")), (69,55,165))
+
+
+def check_mouse(t, root):
     t.case("Normal mouse region callbacks and button history")
     frame = t.exchange(commands(b"LIGMODE", b"LIGMODE", b"3MACT", b"dMOUSE"), b"Y\xff3\xff")
     m = frame.metadata
@@ -593,6 +636,7 @@ def check_mouse(t):
         t.client.mouse(px, py, action=1, buttons=buttons)
         t.client.wait_for(lambda s: s.metadata["events_dequeued"] > before)
 
+    check_pointers(t, root, mouse)
     t.exchange(commands(b"3MREGN,300,70,85,40,55,3,B,", b"7DEFRET,1,M",
                         b"3MREGN,1,70,85,40,55,3,A~^M,\x1d(w1)\x1d(7SRET,1)",
                         b"3MREG,1,90,85,40,55,3,BAD,"))
@@ -673,7 +717,7 @@ def run(args):
         check_events(t)
         check_lite_reset(t)
         check_key_macros(t)
-        check_mouse(t)
+        check_mouse(t, fixture[1])
         check_vga_font(t, fixture[1])
         check_graphics(t, fixture[1])
         glyph = "é".encode("utf-8" if args.encoding == "UTF-8" else "cp437")

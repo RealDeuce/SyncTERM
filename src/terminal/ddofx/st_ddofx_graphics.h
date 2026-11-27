@@ -8,6 +8,8 @@
 void st_ddofx_load_vga_font(struct st_ddofx *, const struct st_ddofx_sink *, const char *);
 const char *st_ddofx_vga_font_name(const struct st_ddofx *);
 void st_ddofx_release_vga_font(struct st_ddofx *);
+uint32_t st_ddofx_pointer_wait_ms(const struct st_ddofx *);
+void st_ddofx_pointer_poll(struct st_ddofx *);
 void st_ddofx_mouse_command(struct st_ddofx *, const struct st_ddofx_sink *, char *);
 uint32_t st_ddofx_mouse_wait_ms(const struct st_ddofx *);
 void st_ddofx_mouse_poll(struct st_ddofx *);

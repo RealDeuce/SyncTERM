@@ -1462,3 +1462,75 @@ st_console_blit_pixels(st_console_t *console, const struct st_pixel_buffer *sour
 	(void)st_rwlock_unlock(st_console_state_lock(console));
 	return status;
 }
+
+/* Most source pixels already carry hardware indices. Text extensions can
+ * paint direct RGB, in which case capture the nearest available DAC entry. */
+uint8_t
+st_console_palette_index256(const uint32_t *palette, uint32_t pixel)
+{
+	if (pixel < 256)
+		return (uint8_t)pixel;
+	uint32_t rgb     = ST_CONSOLE_COLOR_IS_RGB(pixel) ? pixel : palette[(uint16_t)pixel];
+	unsigned closest = 0, distance = UINT32_MAX;
+	for (unsigned i = 0; i < 256; ++i) {
+		int      dr = (int)((rgb >> 16) & 255) - (int)(palette[i] >> 16);
+		int      dg = (int)((rgb >> 8) & 255) - (int)((palette[i] >> 8) & 255);
+		int      db = (int)(rgb & 255) - (int)(palette[i] & 255);
+		unsigned d  = (unsigned)(dr * dr + dg * dg + db * db);
+		if (d < distance) {
+			closest  = i;
+			distance = d;
+			if (!d)
+				break;
+		}
+	}
+	return (uint8_t)closest;
+}
+
+int
+st_console_set_indexed_pointer(st_console_t *console, int32_t x, int32_t y,
+    const struct st_console_indexed_pointer *image)
+{
+	if (!console)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (st_rwlock_write_lock(st_console_state_lock(console)) != ST_THREAD_SUCCESS)
+		return IO_ERROR_IO;
+	if (!console->pixels || console->raster_parent) {
+		(void)st_rwlock_unlock(st_console_state_lock(console));
+		return IO_ERROR_NOT_SUPPORTED;
+	}
+	int64_t left = x < 0 ? 0 : x, top = y < 0 ? 0 : y;
+	int64_t right = (int64_t)x + 16, bottom = (int64_t)y + 16;
+	if (right > console->pixels->width)
+		right = console->pixels->width;
+	if (bottom > console->pixels->height)
+		bottom = console->pixels->height;
+	struct st_console_rect rect   = {0};
+	unsigned               skip_x = 0, skip_y = 0;
+	if (image && left < right && top < bottom) {
+		rect   = (struct st_console_rect) {(uint32_t)left, (uint32_t)top, (uint32_t)(right - left),
+		    (uint32_t)(bottom - top)};
+		skip_x = (unsigned)(left - x);
+		skip_y = (unsigned)(top - y);
+	}
+	int status = 0;
+	if (!st_console_rects_equal(&rect, &console->pointer_rect)
+	    || (rect.width
+	        && (skip_x != console->pointer_skip_x || skip_y != console->pointer_skip_y
+	            || memcmp(image, &console->indexed_pointer, sizeof(*image))))) {
+		if (console->pointer_rect.width)
+			st_console_rect_accumulate(&console->pixel_damage, &console->pixel_damage_valid,
+			    &console->pointer_rect);
+		if (rect.width) {
+			st_console_rect_accumulate(&console->pixel_damage, &console->pixel_damage_valid, &rect);
+			console->indexed_pointer = *image;
+		}
+		console->pointer_rect   = rect;
+		console->pointer_skip_x = skip_x;
+		console->pointer_skip_y = skip_y;
+		console->changed        = true;
+		status                  = st_console_finish_change_locked(console);
+	}
+	(void)st_rwlock_unlock(st_console_state_lock(console));
+	return status;
+}

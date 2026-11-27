@@ -88,7 +88,8 @@ st_ddofx_mouse_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, c
 		    && st_console_get_pointer_visible(ddo->graphics->display, &mouse->previous_visibility) != 0)
 			return;
 		mouse->visibility_changed = true;
-		(void)st_console_set_pointer_visible(ddo->graphics->display, visible != 0);
+		mouse->hidden             = !visible;
+		st_ddofx_pointer_refresh(ddo);
 	}
 	else if (!ascii_case_compare(verb, "MINF") && !args) {
 		snprintf(result, sizeof(result), "%d,%d,%u", mouse->x, mouse->y, mouse->buttons);
@@ -106,6 +107,8 @@ st_ddofx_mouse_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, c
 	}
 	else if (!ascii_case_compare(verb, "MREG") || !ascii_case_compare(verb, "MREGN"))
 		define_region(ddo, args, !ascii_case_compare(verb, "MREGN"));
+	else
+		st_ddofx_pointer_command(ddo, sink, verb, args);
 }
 
 void
@@ -164,6 +167,8 @@ st_ddofx_mouse(struct st_ddofx *ddo, const struct st_console_event *event)
 	mouse->x                           = x;
 	mouse->y                           = y;
 	mouse->buttons                     = buttons;
+	if (moved && mouse->pointers)
+		st_ddofx_pointer_refresh(ddo);
 	if (mouse->ignore_hold) {
 		mouse->ignore_hold = buttons != 0;
 		return;

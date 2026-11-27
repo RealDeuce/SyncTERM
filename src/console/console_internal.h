@@ -141,6 +141,9 @@ struct st_console_snapshot {
 };
 
 struct st_console {
+	struct st_console_indexed_pointer indexed_pointer;
+	struct st_console_rect pointer_rect;
+	unsigned pointer_skip_x, pointer_skip_y;
 	st_rwlock_t state_lock;
 	/* Positioned text views share their parent's raster and state lock. Their
 	 * own lock is initialized/destroyed normally but is never the raster lock. */

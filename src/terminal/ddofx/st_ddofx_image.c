@@ -28,7 +28,7 @@ static uint8_t
 read_index(const struct image_op *im, int x, int y)
 {
 	if (im->src == VISUAL)
-		return st_ddofx_pixel_index(im->palette, im->screen->primary[y * WIDTH + x]);
+		return st_console_palette_index256(im->palette, im->screen->primary[y * WIDTH + x]);
 	return im->g->page[im->src][y][x];
 }
 

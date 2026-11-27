@@ -920,6 +920,71 @@ collect_cell_damage(struct st_console_bitmap_presenter *presenter, const st_cons
 }
 
 static bool
+contains_pixel(const struct st_console_rect *rect, uint32_t x, uint32_t y)
+{
+	return x >= rect->x && x - rect->x < rect->width && y >= rect->y && y - rect->y < rect->height;
+}
+
+/* Compose after the text cursor. The retained planes still contain the
+ * original palette indices, including distinct indices with identical RGB. */
+static bool
+compose_pointer(struct st_console_bitmap_presenter *p, const st_console_t *console,
+    const struct st_console_rect *damage, bool alternate)
+{
+	const struct st_console_rect *rect          = &console->pointer_rect;
+	const struct st_pixel_buffer *indicator     = st_console_status_pixels_locked(console);
+	uint32_t                      indicator_top = (console->rows - 1) * console->cell_height;
+	unsigned                      image         = alternate ? BITMAP_ALTERNATE : BITMAP_PRIMARY;
+	const uint32_t               *plane =
+	    alternate && console->pixels->alternate ? console->pixels->alternate : console->pixels->primary;
+	bool changed = false;
+	for (uint32_t dy = 0; dy < rect->height; ++dy) {
+		uint32_t y      = rect->y + dy;
+		size_t   source = st_console_pixel_position_locked(console, rect->x, y);
+		size_t   target = (size_t)y * p->images[image]->width + rect->x;
+		for (uint32_t dx = 0; dx < rect->width; ++dx) {
+			uint32_t x       = rect->x + dx;
+			bool     repaint = contains_pixel(damage, x, y);
+			bool     cursor  = p->cursor_composed && contains_pixel(&p->cursor_rectangle, x, y);
+			if (!repaint && !cursor)
+				continue;
+			unsigned row = console->pointer_skip_y + dy, col = console->pointer_skip_x + dx;
+			unsigned keep   = console->indexed_pointer.and_mask[row][col],
+				 toggle = console->indexed_pointer.xor_mask[row][col];
+			if (keep == 255 && !toggle)
+				continue;
+			uint32_t ink     = plane[source + dx];
+			bool     covered = indicator && y >= indicator_top && y - indicator_top < indicator->height
+			                   && x < indicator->width;
+			if (covered)
+				ink = (alternate
+				           ? indicator->alternate
+				           : indicator
+				                 ->primary)[(size_t)(y - indicator_top) * indicator->width + x];
+			unsigned idx = keep ? st_console_palette_index256(p->palette, ink) : 0;
+			uint32_t rgb = p->palette[(idx & keep) ^ toggle];
+			if (repaint) {
+				uint32_t *pixel = &p->images[image]->pixels[target + dx];
+				changed |= *pixel != rgb;
+				*pixel = rgb;
+			}
+			if (cursor && !covered && keep) {
+				uint32_t mask = p->cursor_index_xor, base = p->cursor_index_base;
+				if (!mask)
+					ink = p->cursor_colour;
+				else if (ink >= base && ink - base <= mask)
+					ink = base + ((ink - base) ^ mask);
+				rgb = p->palette[(st_console_palette_index256(p->palette, ink) & keep) ^ toggle];
+			}
+			uint32_t *pixel = &p->images[image + 1]->pixels[target + dx];
+			changed |= *pixel != rgb;
+			*pixel = rgb;
+		}
+	}
+	return changed;
+}
+
+static bool
 resolve_images(struct st_console_bitmap_presenter *presenter, const st_console_t *console,
     const struct st_console_rect *rectangle)
 {
@@ -970,6 +1035,10 @@ resolve_images(struct st_console_bitmap_presenter *presenter, const st_console_t
 					    presenter->images[BITMAP_ALTERNATE], &cursor)
 			                || changed;
 		}
+	}
+	if (console->pointer_rect.width) {
+		changed |= compose_pointer(presenter, console, rectangle, false);
+		changed |= compose_pointer(presenter, console, rectangle, true);
 	}
 	return changed;
 }

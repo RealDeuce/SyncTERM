@@ -32,9 +32,10 @@ struct st_ddofx_sprite {
 
 struct st_ddofx_mouse_state {
 	struct st_ddofx_regions *regions;
+	struct st_ddofx_pointers *pointers;
 	int x, y;
 	unsigned buttons;
-	bool ignore_hold, visibility_changed, previous_visibility;
+	bool hidden, ignore_hold, visibility_changed, previous_visibility;
 	struct {
 		unsigned count;
 		int x, y;
@@ -74,6 +75,8 @@ struct st_ddofx_graphics {
 	int           horizontal_thickness, vertical_thickness;
 };
 
+void st_ddofx_pointer_command(struct st_ddofx *, const struct st_ddofx_sink *, const char *, char *);
+void st_ddofx_pointer_refresh(struct st_ddofx *);
 void st_ddofx_print_vga_text(struct st_ddofx *, const char *, char *);
 void st_ddofx_apply_vga_font(struct st_ddofx *);
 void st_ddofx_grid_command(struct st_ddofx *, const char *, char *);
@@ -84,7 +87,6 @@ void    st_ddofx_bitmap_text(struct st_ddofx *, const struct st_ddofx_sink *, co
 void    st_ddofx_set_palette(struct st_ddofx_graphics *, unsigned, unsigned);
 void    st_ddofx_resource_pcx(struct st_ddofx *, const struct st_ddofx_sink *, enum page, const char *);
 void    st_ddofx_page_file(struct st_ddofx *, enum page file, enum page target, bool save);
-uint8_t st_ddofx_pixel_index(const uint32_t *, uint32_t);
 void    st_ddofx_free_sprites(struct st_ddofx_graphics *);
 int     st_ddofx_sprite_slot(struct st_ddofx_graphics *, const char *, bool create);
 void    st_ddofx_draw_sprite(struct st_ddofx_graphics *, const struct st_ddofx_sprite *, enum page, char op,

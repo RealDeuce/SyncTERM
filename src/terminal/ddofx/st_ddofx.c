@@ -407,6 +407,9 @@ st_ddofx_wait_ms(const struct st_ddofx *ddo)
 	uint32_t wait = audio < event ? audio : event;
 	uint32_t grid = st_ddofx_grid_wait_ms(ddo);
 	uint32_t mouse = st_ddofx_mouse_wait_ms(ddo);
+	uint32_t pointer = st_ddofx_pointer_wait_ms(ddo);
+	if (pointer < wait)
+		wait = pointer;
 	if (mouse < wait)
 		wait = mouse;
 	if (grid < wait)
@@ -422,6 +425,7 @@ st_ddofx_poll(struct st_ddofx *ddo, const struct st_ddofx_sink *sink)
 	st_ddofx_grid_poll(ddo);
 	st_ddofx_event_poll(ddo);
 	st_ddofx_mouse_poll(ddo);
+	st_ddofx_pointer_poll(ddo);
 	/* Yield back to the session between slices so long or infinite scripts
 	 * cannot prevent local disconnect, redraws or transfer servicing. */
 	for (unsigned i = 0; i < 128; ++i) {

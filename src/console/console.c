@@ -2102,6 +2102,7 @@ st_console_reconfigure(st_console_t *console, const struct st_console_config *co
 	}
 	console->custom_cursor        = console->default_cursor;
 	console->pixel_cursor.enabled = false;
+	console->pointer_rect         = (struct st_console_rect) {0};
 	console->cursor_visible       = console->default_cursor.visible;
 	console->cursor_shape =
 	    console->default_cursor.start == 0 && console->default_cursor.end >= console->default_cursor.range - 1

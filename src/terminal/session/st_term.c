@@ -966,6 +966,8 @@ st_term_session_set_suspended(st_term_session_t *session, bool suspended)
 		if (session->suspended != suspended)
 			session->throttle_last_ms = 0;
 		session->suspended = suspended;
+		st_ddofx_pointer_pause(&session->ddofx,
+		    session->suspended || session->unfocused || session->mouse_disabled);
 		if (suspended) {
 			st_ddofx_mouse_cancel(&session->ddofx, 0);
 			session->controller_refresh = true;
@@ -980,6 +982,8 @@ st_term_session_set_mouse_disabled(st_term_session_t *session, bool disabled)
 {
 	if (session != NULL) {
 		session->mouse_disabled = disabled;
+		st_ddofx_pointer_pause(&session->ddofx,
+		    session->suspended || session->unfocused || session->mouse_disabled);
 		if (disabled) {
 			st_ddofx_mouse_cancel(&session->ddofx, 0);
 			st_term_rip3_mouse_cancel(session->rip3, false);
@@ -1724,6 +1728,8 @@ deliver_input(st_term_session_t *session, const struct local_input *input, bool 
 			return session->output_error;
 		case ST_CONSOLE_EVENT_FOCUS:
 			session->unfocused = !event->data.focus.focused;
+			st_ddofx_pointer_pause(&session->ddofx,
+			    session->suspended || session->unfocused || session->mouse_disabled);
 			if (session->unfocused) {
 				st_ddofx_mouse_cancel(&session->ddofx, 0);
 				st_cterm_pad_pause(st_term_session_cterm(session), true);

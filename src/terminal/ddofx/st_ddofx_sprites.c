@@ -70,7 +70,7 @@ capture_visible(void *context, const struct st_pixel_buffer *pixels, const uint3
 	for (unsigned row = 0; row < r->height; ++row) {
 		const uint32_t *src = pixels->primary + (row + r->y) * WIDTH + r->x;
 		for (unsigned x = 0; x < r->width; ++x)
-			c->data[row * r->width + x] = st_ddofx_pixel_index(palette, src[x]);
+			c->data[row * r->width + x] = st_console_palette_index256(palette, src[x]);
 	}
 	return 0;
 }

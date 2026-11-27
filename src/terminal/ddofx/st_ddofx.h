@@ -45,6 +45,7 @@ struct st_ddofx {
 	struct st_tracker       *player;
 	struct st_cmf           *cmf;
 	unsigned                 volume;
+	bool                     pointer_paused;
 	bool                     keys_locked, in_key, in_mouse;
 	bool                     ignoring, background_paused, in_event;
 };
@@ -62,6 +63,7 @@ struct st_ddofx_sink {
 	void                (*reply)(void *, const uint8_t *, size_t);
 };
 
+void st_ddofx_pointer_pause(struct st_ddofx *, bool);
 void st_ddofx_mouse(struct st_ddofx *, const struct st_console_event *);
 void st_ddofx_mouse_cancel(struct st_ddofx *, uint32_t buttons);
 bool st_ddofx_key(struct st_ddofx *, const struct st_console_event *);

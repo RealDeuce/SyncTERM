@@ -22,6 +22,8 @@ The four desktop pages support lower-left anchored image scaling, rotation betwe
 
 In Normal mode the BBS can show or hide the mouse pointer, query its position and three logical buttons, and read separate press and release counts and positions for each button. Up to 300 desktop regions share one table. Overlapping regions run in slot order. Each macro finishes before its return string is sent. Held repeatable regions run at 50 ms intervals during idle input. Non-repeating regions wait for all buttons to be released.
 
+The host can load either MPT pointer format from the assigned M resource. A selected image keeps its own hotspot and AND/XOR masks when the BBS replaces or clears its list entry. The bitmap presenter applies those masks to the displayed palette indices, leaving the graphics pages available for capture and copying under the pointer. The 100 static slots and 100 animation profiles support one-shot, looping and oscillating playback.
+
 Normal mode supports a tile map of up to 150 × 150 cells. The host can fill either layer, move the viewport, move or remove foreground tiles, and animate consecutive sprite frames. Grid assignments become visible on a draw. Movement redraws immediately.
 
 Loose-file queries read the entry’s `DDOFX/MUSIC`, `DDOFX/FONTS`, and `DDOFX/BBSTHEME` directories. Professional queries use `DDOFX/TERMS/<client>`. Names use DOS-style case matching. The timestamp is local modification time with DOS two-second precision. `8EXEC` consumes the command without starting a program.
@@ -286,12 +288,12 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 8646 | DRAW BEZIER CURVE XOR | DDO-FX (NM) | Connected |
 | 8656 | VERTICAL SCROLL | DDO-FX (NM) | Connected |
 | 8694 | MOUSE ACTIVE | DDO-FX (NM) | Connected |
-| 8713 | CHANGE MOUSE POINTER | DDO-FX (NM) | Pending |
-| 8750 | LOAD MOUSE POINTER | DDO-FX (NM) | Pending |
-| 8776 | SELECT MOUSE POINTER | DDO-FX (NM) | Pending |
-| 8786 | ANIMATED MOUSE POINTER | DDO-FX (NM) | Pending |
-| 8837 | ACTIVATE ANIMATED MOUSE | DDO-FX (NM) | Pending |
-| 8846 | DEACTIVATE ANIMATED MOUSE | DDO-FX (NM) | Pending |
+| 8713 | CHANGE MOUSE POINTER | DDO-FX (NM) | Connected |
+| 8750 | LOAD MOUSE POINTER | DDO-FX (NM) | Connected |
+| 8776 | SELECT MOUSE POINTER | DDO-FX (NM) | Connected |
+| 8786 | ANIMATED MOUSE POINTER | DDO-FX (NM) | Connected |
+| 8837 | ACTIVATE ANIMATED MOUSE | DDO-FX (NM) | Connected |
+| 8846 | DEACTIVATE ANIMATED MOUSE | DDO-FX (NM) | Connected |
 | 8855 | MOUSE VISIBILITY | DDO-FX (NM) | Connected |
 | 8866 | MOUSE LIMITS | DDO-FX (NM) | Pending |
 | 8875 | MOUSE MOVE | DDO-FX (NM) | Pending |

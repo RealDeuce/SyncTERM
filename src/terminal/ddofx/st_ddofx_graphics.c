@@ -49,6 +49,10 @@ st_ddofx_svga(const struct st_ddofx_sink *sink)
 static void
 clear_graphics_objects(struct st_ddofx_graphics *g)
 {
+	if (g->mouse.pointers) {
+		(void)st_console_set_indexed_pointer(g->display, 0, 0, NULL);
+		free(g->mouse.pointers);
+	}
 	if (g->mouse.visibility_changed)
 		(void)st_console_set_pointer_visible(g->display, g->mouse.previous_visibility);
 	free(g->mouse.regions);
@@ -200,30 +204,6 @@ st_ddofx_page_name(const char *s, enum page *page)
 	return false;
 }
 
-/* Most source pixels already carry hardware indices. Text extensions can
- * paint direct RGB, in which case capture the nearest available DAC entry. */
-uint8_t
-st_ddofx_pixel_index(const uint32_t *palette, uint32_t pixel)
-{
-	if (pixel < 256)
-		return (uint8_t)pixel;
-	uint32_t rgb     = ST_CONSOLE_COLOR_IS_RGB(pixel) ? pixel : palette[(uint16_t)pixel];
-	unsigned closest = 0, distance = UINT32_MAX;
-	for (unsigned i = 0; i < 256; ++i) {
-		int      dr = (int)((rgb >> 16) & 255) - (int)(palette[i] >> 16);
-		int      dg = (int)((rgb >> 8) & 255) - (int)((palette[i] >> 8) & 255);
-		int      db = (int)(rgb & 255) - (int)(palette[i] & 255);
-		unsigned d  = (unsigned)(dr * dr + dg * dg + db * db);
-		if (d < distance) {
-			closest  = i;
-			distance = d;
-			if (!d)
-				break;
-		}
-	}
-	return (uint8_t)closest;
-}
-
 static int
 copy_region(void *context, const struct st_pixel_buffer *pixels, const uint32_t *palette,
     struct st_console_rect *changed)
@@ -242,7 +222,8 @@ copy_region(void *context, const struct st_pixel_buffer *pixels, const uint32_t 
 		size_t from = (size_t)(t->y + row) * WIDTH + t->x;
 		size_t to   = (size_t)(t->dy + row) * WIDTH + t->dx;
 		for (int x = 0; x < t->width; ++x) {
-			uint8_t index = src ? src[x] : st_ddofx_pixel_index(palette, pixels->primary[from + x]);
+			uint8_t index =
+			    src ? src[x] : st_console_palette_index256(palette, pixels->primary[from + x]);
 			if (t->transparent && g->transparent[index])
 				continue;
 			if (dst)
@@ -257,7 +238,8 @@ copy_region(void *context, const struct st_pixel_buffer *pixels, const uint32_t 
 		 * Read back after the copy so a cut from HP can overlap its source. */
 		for (int y = t->dy; y < t->dy + t->height; ++y) {
 			for (int x = t->dx; x < t->dx + t->width; ++x)
-				g->page[HIDDEN][y][x] = st_ddofx_pixel_index(palette, pixels->primary[y * WIDTH + x]);
+				g->page[HIDDEN][y][x] =
+				    st_console_palette_index256(palette, pixels->primary[y * WIDTH + x]);
 		}
 	}
 	return 0;

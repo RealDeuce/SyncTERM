@@ -241,6 +241,11 @@ struct st_console_pixel_cursor {
 	bool                   visible;
 };
 
+/* A 16 by 16 pointer with per-pixel masks on the first 256 palette entries. */
+struct st_console_indexed_pointer {
+	uint8_t and_mask[16][16], xor_mask[16][16];
+};
+
 enum st_console_blink_mode {
 	ST_CONSOLE_BLINK_PC,
 	ST_CONSOLE_BLINK_PRESTEL,
@@ -796,6 +801,10 @@ int  st_console_open_url(st_console_t *console, const char *url);
 /* Reports mouse-equivalent input for a bitmap console, using a native presence
  * signal where one is available and frontend input capability otherwise. */
 int st_console_mouse_present(st_console_t *console, bool *present);
+/* Set the pointer's top-left raster coordinate. NULL removes the image.
+ * Composition is presentation-only and independent of host pointer visibility. */
+int st_console_set_indexed_pointer(st_console_t *, int32_t x, int32_t y, const struct st_console_indexed_pointer *);
+uint8_t st_console_palette_index256(const uint32_t *palette, uint32_t pixel);
 int st_console_set_pointer_visible(st_console_t *console, bool visible);
 int st_console_get_pointer_visible(st_console_t *console, bool *visible);
 int st_console_set_pointer_shape(st_console_t *console, enum st_console_pointer_shape shape);
