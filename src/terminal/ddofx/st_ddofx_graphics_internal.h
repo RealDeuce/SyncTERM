@@ -167,8 +167,8 @@ void st_ddofx_free_graphic_windows(struct st_ddofx_graphics *);
 bool st_ddofx_graphic_window_command(struct st_ddofx *, const struct st_ddofx_sink *, const char *, char *);
 struct bounds st_ddofx_window_interior(const struct st_ddofx_graphic_window *);
 void st_ddofx_animation_window_closed(struct st_ddofx_graphics *, unsigned);
-void st_ddofx_publish_page_area(struct st_ddofx *, unsigned owner, const struct st_pixel_buffer *,
-    struct bounds area, struct bounds *damage);
+void          st_ddofx_publish_page_area(struct st_ddofx *, unsigned owner, enum page desktop_page,
+    const struct st_pixel_buffer *, struct bounds area, struct bounds *damage);
 void st_ddofx_bar_window_closed(struct st_ddofx_graphics *, unsigned owner);
 void st_ddofx_repaint_desktop_bars(const struct st_ddofx_graphics *, const struct st_pixel_buffer *, struct bounds);
 void st_ddofx_grid_window_closed(struct st_ddofx_graphics *, unsigned slot);
@@ -202,6 +202,7 @@ void st_ddofx_paint_vga_string(struct st_ddofx_graphics *g, const struct st_pixe
 void st_ddofx_repaint_clocks(struct st_ddofx *, const struct st_pixel_buffer *, const struct st_console_rect *);
 void st_ddofx_clear_movies(struct st_ddofx_graphics *);
 void st_ddofx_clear_polygons(struct st_ddofx_graphics *);
+void    st_ddofx_polygon_window_closed(struct st_ddofx_graphics *, unsigned);
 void st_ddofx_polygon_command(struct st_ddofx *, const struct st_ddofx_sink *, const char *, char *);
 void st_ddofx_ray_clear_profiles(struct rc_world *);
 void st_ddofx_ray_stop_recording(struct rc_world *);

@@ -55,7 +55,7 @@ publish_tiles(const struct grid_update *update, const struct st_pixel_buffer *pi
 			memcpy(w->visual + at, w->hidden_page + at, area.right - area.left + 1);
 		}
 	}
-	st_ddofx_publish_page_area(update->ddo, owner, pixels, area, damage);
+	st_ddofx_publish_page_area(update->ddo, owner, HIDDEN, pixels, area, damage);
 }
 
 static int

@@ -84,7 +84,7 @@ present_area(const struct presentation *p, const struct st_pixel_buffer *pixels,
 		}
 	}
 	if (pixels)
-		st_ddofx_publish_page_area(p->ddo, p->window, pixels, area, changed);
+		st_ddofx_publish_page_area(p->ddo, p->window, HIDDEN, pixels, area, changed);
 }
 
 static int

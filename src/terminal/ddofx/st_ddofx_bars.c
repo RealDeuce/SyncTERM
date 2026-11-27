@@ -139,7 +139,7 @@ paint(void *context, const struct st_pixel_buffer *pixels, struct st_console_rec
 			        && r.height == rects[1].height))
 				continue;
 			struct bounds b = {r.x, r.x + r.width - 1, r.y, r.y + r.height - 1};
-			st_ddofx_publish_page_area(frame->ddo, bars->owner, pixels, b, &damage);
+			st_ddofx_publish_page_area(frame->ddo, bars->owner, HIDDEN, pixels, b, &damage);
 		}
 	}
 	if (damage.left <= damage.right)

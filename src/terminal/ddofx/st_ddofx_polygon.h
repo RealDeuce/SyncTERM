@@ -13,18 +13,23 @@ struct polygon_object {
 	struct mesh geometry;
 	double      position[3], distance;
 	int         angle[3], increment[3];
-	unsigned    morph_target, morph_speed;
+	unsigned    owner, morph_target, morph_speed;
 	bool        playing, wire;
+};
+
+struct polygon_page {
+	uint64_t      due;
+	uint8_t      *bits;
+	bool          second_mask;
+	struct bounds area;
 };
 
 struct polygon_scene {
 	struct polygon_object *object[POLYGON_SLOTS];
-	uint64_t               due;
+	struct polygon_page    page[GRAPHIC_WINDOWS + 1];
 	struct projected_face *projected;
 	size_t                 capacity;
-	uint8_t                coverage[HEIGHT][WIDTH / 8], damage[HEIGHT][WIDTH / 8];
-	struct bounds          area;
 };
 
-void st_ddofx_render_polygons(struct st_ddofx_graphics *);
+void st_ddofx_render_polygons(struct st_ddofx *, unsigned owner);
 #endif

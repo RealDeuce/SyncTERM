@@ -20,7 +20,7 @@ Sprites can be captured from any of the four graphics pages. The SDK repeats the
 
 Animation profiles draw in play order within their owning desktop or graphic window. Window profiles advance while their window is active. A moving sprite updates its virtual page and publishes the part inside the viewport. Desktop animations remain behind visible windows. Collision boxes match profiles in the same coordinate space. A door can play a sprite range once, loop or oscillate it, or select frames at knots along chained cubic Bézier paths. Individual `2STOPA` removes the image and retains the current frame for resuming, as specified by the SDK. Frame and path samples can play together. Collision boxes test the full sprite rectangle, including offscreen portions, and can report the animation number to a macro before sending their return string.
 
-Desktop polygon objects can load triangle meshes from the current M resource or build them face by face. Each object has its own camera, base colours and solid or wireframe setting. Playback draws on the work page, publishes to the visual page and restores the old footprint from the background page. Morphing changes geometry and face colours during playback, including when the target has a different number of faces or vertices. The connected tests use known camera coordinates and check both display planes.
+Polygon objects can load triangle meshes from the current M resource or build them face by face. Each object has its own camera, base colours and solid or wireframe setting. Desktop playback draws on the work page, publishes to the visual page and restores the old footprint from the background page. Initializing an object in an alerted graphic window binds it to that window. While the window has focus, the object draws on its visual page and restores its old footprint from the window’s hidden page. Each owner presents only the changed pixels visible through its viewport. Morphing changes geometry and face colours during playback, including when the target has a different number of faces or vertices. The connected tests use known camera coordinates and check both display planes.
 
 Work, background and visual pages can load version-5, single-plane, 8-bit PCX artwork up to 640×480. Loading artwork installs its palette across all pages. Each page can save a session-owned PCX file and restore it to any of the three pages. The files survive a return to Lite mode and close at disconnect.
 
@@ -450,20 +450,20 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 12510 | RC PLAY 3D MOVEMENTS | DDO-FX (NM) | Connected |
 | 12521 | RC PLAY 3D MOVEMENTS FROM RESOURCE | DDO-FX (NM) | Connected |
 | 12539 | RC DEFINE OBJECTS LAYER | DDO-FX (NM) | Connected on the desktop |
-| 12570 | 3D OBJECT INIT | DDO-FX (NM) | Connected on the desktop |
-| 12829 | 3D OBJECT INIT LITE | DDO-FX (NM) | Connected on the desktop |
-| 12844 | 3D DELETE OBJECT | DDO-FX (NM) | Connected on the desktop |
-| 12856 | 3D ADJUST YAW | DDO-FX (NM) | Connected on the desktop |
-| 12888 | 3D ADJUST ROLL | DDO-FX (NM) | Connected on the desktop |
-| 12920 | 3D ADJUST PITCH | DDO-FX (NM) | Connected on the desktop |
-| 12952 | 3D ADJUST LOCATION | DDO-FX (NM) | Connected on the desktop |
-| 12981 | 3D ADJUST DISTANCE ZOOM | DDO-FX (NM) | Connected on the desktop |
-| 13003 | 3D ADD FACE | DDO-FX (NM) | Connected on the desktop |
-| 13026 | 3D PAINT OBJECT | DDO-FX (NM) | Connected on the desktop |
-| 13059 | 3D RENDER TYPE | DDO-FX (NM) | Connected on the desktop |
-| 13075 | 3D SET OBJECT | DDO-FX (NM) | Connected on the desktop |
-| 13094 | 3D MERGE OBJECT | DDO-FX (NM) | Connected on the desktop |
-| 13111 | 3D MORPH OBJECT | DDO-FX (NM) | Connected on the desktop |
+| 12570 | 3D OBJECT INIT | DDO-FX (NM) | Connected |
+| 12829 | 3D OBJECT INIT LITE | DDO-FX (NM) | Connected |
+| 12844 | 3D DELETE OBJECT | DDO-FX (NM) | Connected |
+| 12856 | 3D ADJUST YAW | DDO-FX (NM) | Connected |
+| 12888 | 3D ADJUST ROLL | DDO-FX (NM) | Connected |
+| 12920 | 3D ADJUST PITCH | DDO-FX (NM) | Connected |
+| 12952 | 3D ADJUST LOCATION | DDO-FX (NM) | Connected |
+| 12981 | 3D ADJUST DISTANCE ZOOM | DDO-FX (NM) | Connected |
+| 13003 | 3D ADD FACE | DDO-FX (NM) | Connected |
+| 13026 | 3D PAINT OBJECT | DDO-FX (NM) | Connected |
+| 13059 | 3D RENDER TYPE | DDO-FX (NM) | Connected |
+| 13075 | 3D SET OBJECT | DDO-FX (NM) | Connected |
+| 13094 | 3D MERGE OBJECT | DDO-FX (NM) | Connected |
+| 13111 | 3D MORPH OBJECT | DDO-FX (NM) | Connected |
 | 13144 | 3D PLAY OBJECT | DDO-FX (NM) | Connected on the desktop |
 | 13158 | GD DEFINE GRID | DDO-FX (NM) | Connected on the desktop and window virtual pages |
 | 13236 | GD CHANGE GRID | DDO-FX (NM) | Connected on the desktop and window virtual pages |

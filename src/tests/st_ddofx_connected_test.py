@@ -751,6 +751,30 @@ def check_polygon_objects(t, root):
     frame = t.exchange(commands(b"23DINIT,0", b"w2"))
     check(frame, {(265, 105): 7, (105, 105): 7})
 
+    # Desktop and window objects use independent backgrounds and clocks.
+    # The scrolled window is initially inactive, and CALM precedes PLAY.
+    frame = t.exchange(commands(b"2GWIN,1,20,119,30,129,1000,750,0,0,0,0,0,0,0,0,0,0,1,Mesh",
+                                b"2CHVGP,1,700,500", b"2ALERTGWIN,1", b"2C,33", b"2aFILL", b"2CPYVP2HP",
+                                b"2C,42", b"2aFILL", b"2RGWINI",
+                                b"23DINITL,1,-710,-510,-100,0,0,0,100", face, b"2CALMGWIN",
+                                b"23DINIT,2,.5,95" + camera + b",TWO.3DS", b"23DPLAY,1,1", b"23DPLAY,2,1", b"w3"))
+    check(frame, {(35,45):42, (105,105):42})
+    assert frame.primary[105*640+185] in (80,87)
+    frame = t.exchange(commands(b"2AGWIN,1", b"w3"))
+    check(frame, {(35,45):16, (75,85):42, (105,105):42})
+    frame = t.exchange(commands(b"23DMOVE,1,1,1,-750", b"w3"))
+    check(frame, {(35,45):33, (75,45):16, (105,105):42})
+    frame = t.exchange(commands(b"23DPLAY,1,0", b"23DPLAY,2,0", b"w2"))
+    check(frame, {(75,45):33, (105,105):42, (185,105):7})
+    # A replacement window has fresh backing and may use a different mask stride.
+    frame = t.exchange(commands(b"2CGWIN,1",
+                                b"2GWIN,1,20,119,30,129,101,101,0,1,0,0,0,0,0,0,0,0,1,Small",
+                                b"23DMOVE,1,1,1,-95", b"23DMOVE,1,2,1,-95", b"23DPLAY,1,1", b"w3"))
+    check(frame, {(118,128):16, (117,120):0})
+    frame = t.exchange(commands(b"23DDEL,1"))
+    check(frame, {(118,128):0})
+    t.exchange(commands(b"2RESET"))
+
 
 def check_raycast_world(t, root):
     t.case("raycaster world, layered objects, SDK map definitions and overview")

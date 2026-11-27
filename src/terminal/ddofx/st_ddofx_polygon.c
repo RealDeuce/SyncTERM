@@ -19,11 +19,24 @@ destroy(struct polygon_object *o)
 }
 
 void
+st_ddofx_polygon_window_closed(struct st_ddofx_graphics *g, unsigned owner)
+{
+	if (g->polygons) {
+		struct polygon_page *p = &g->polygons->page[owner];
+		free(p->bits);
+		p->bits = NULL;
+		p->area = (struct bounds) {0, -1, 0, -1};
+	}
+}
+
+void
 st_ddofx_clear_polygons(struct st_ddofx_graphics *g)
 {
 	if (g->polygons) {
 		for (unsigned i = 0; i < POLYGON_SLOTS; ++i)
 			destroy(g->polygons->object[i]);
+		for (unsigned owner = 0; owner <= GRAPHIC_WINDOWS; ++owner)
+			free(g->polygons->page[owner].bits);
 		free(g->polygons->projected);
 		free(g->polygons);
 		g->polygons = NULL;
@@ -76,6 +89,7 @@ initialize(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *args, b
 		o->position[i] = camera[i] ? camera[i] : defaults[i];
 		o->angle[i]    = camera[i + 3] % 360;
 	}
+	o->owner    = ddo->graphics->alert_graphic_window;
 	o->distance = camera[6] ? camera[6] : 1800;
 	return o;
 }
@@ -108,7 +122,9 @@ st_ddofx_polygon_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink,
 					destroy(s->object[i]);
 					s->object[i] = NULL;
 				}
-				st_ddofx_render_polygons(g);
+				for (unsigned owner = 0; owner <= GRAPHIC_WINDOWS; ++owner)
+					if (s->page[owner].bits)
+						st_ddofx_render_polygons(ddo, owner);
 				st_ddofx_clear_polygons(g);
 			}
 			return;
@@ -122,25 +138,24 @@ st_ddofx_polygon_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink,
 				destroy(o);
 				return;
 			}
-			s->due  = UINT64_MAX;
-			s->area = (struct bounds) {WIDTH, -1, HEIGHT, -1};
+			for (unsigned owner = 0; owner <= GRAPHIC_WINDOWS; ++owner)
+				s->page[owner].due = UINT64_MAX;
 		}
-		bool displaced = s->object[id - 1] && s->object[id - 1]->playing;
-		destroy(s->object[id - 1]);
+		struct polygon_object *old = s->object[id - 1];
 		s->object[id - 1] = o;
-		if (displaced)
-			st_ddofx_render_polygons(g);
+		if (old && old->playing)
+			st_ddofx_render_polygons(ddo, old->owner);
+		destroy(old);
 		return;
 	}
 	struct polygon_object *o = id && s ? s->object[id - 1] : NULL;
 	if (!o)
 		return;
 	if (!ascii_case_compare(verb, "DEL") && !args) {
-		bool displaced = o->playing;
-		destroy(o);
 		s->object[id - 1] = NULL;
-		if (displaced)
-			st_ddofx_render_polygons(g);
+		if (o->playing)
+			st_ddofx_render_polygons(ddo, o->owner);
+		destroy(o);
 	}
 	else if (!ascii_case_compare(verb, "FACE") && st_ddofx_numbers(ddo, args, n, 10)
 	         && (unsigned)n[9] <= 255) {
@@ -155,9 +170,9 @@ st_ddofx_polygon_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink,
 		bool stopped = o->playing && !n[0];
 		o->playing   = n[0] != 0;
 		if (stopped)
-			st_ddofx_render_polygons(g);
+			st_ddofx_render_polygons(ddo, o->owner);
 		else if (o->playing)
-			s->due = 0;
+			s->page[o->owner].due = 0;
 	}
 	else if (!ascii_case_compare(verb, "WIRE") && st_ddofx_numbers(ddo, args, n, 1) && (unsigned)n[0] <= 1)
 		o->wire = n[0] != 0;
@@ -206,26 +221,28 @@ st_ddofx_polygon_wait_ms(const struct st_ddofx *ddo)
 {
 	const struct polygon_scene *s = ddo->graphics ? ddo->graphics->polygons : NULL;
 	uint64_t                    now;
-	if (!s || s->due == UINT64_MAX || ddo->background_paused || st_time_monotonic_ms(&now))
+	if (!s || ddo->background_paused)
 		return UINT32_MAX;
-	return s->due <= now ? 0 : (uint32_t)(s->due - now);
+	uint64_t due = s->page[ddo->graphics->active_graphic_window].due;
+	if (s->page[0].due < due)
+		due = s->page[0].due;
+	if (due == UINT64_MAX || st_time_monotonic_ms(&now))
+		return UINT32_MAX;
+	return due <= now ? 0 : (uint32_t)(due - now);
 }
 
-void
-st_ddofx_polygon_poll(struct st_ddofx *ddo)
+static void
+advance_page(struct st_ddofx *ddo, unsigned owner, uint64_t now)
 {
-	if (st_ddofx_polygon_wait_ms(ddo))
-		return;
 	struct polygon_scene *s = ddo->graphics->polygons;
-	uint64_t              now;
-	if (st_time_monotonic_ms(&now))
+	if (now < s->page[owner].due)
 		return;
-	s->due = UINT64_MAX;
+	s->page[owner].due = UINT64_MAX;
 	for (unsigned i = 0; i < POLYGON_SLOTS; ++i) {
 		struct polygon_object *o = s->object[i];
-		if (!o || !o->playing)
+		if (!o || !o->playing || o->owner != owner)
 			continue;
-		s->due = now + 55 * ddo->graphics->animator_divisor;
+		s->page[owner].due = now + 55 * ddo->graphics->animator_divisor;
 		for (unsigned j = 0; j < 3; ++j)
 			o->angle[j] = (o->angle[j] + o->increment[j]) % 360;
 		if (o->morph_target) {
@@ -234,5 +251,16 @@ st_ddofx_polygon_poll(struct st_ddofx *ddo)
 				o->morph_target = 0;
 		}
 	}
-	st_ddofx_render_polygons(ddo->graphics);
+	st_ddofx_render_polygons(ddo, owner);
+}
+
+void
+st_ddofx_polygon_poll(struct st_ddofx *ddo)
+{
+	uint64_t now;
+	if (st_ddofx_polygon_wait_ms(ddo) || st_time_monotonic_ms(&now))
+		return;
+	advance_page(ddo, 0, now);
+	if (ddo->graphics->active_graphic_window)
+		advance_page(ddo, ddo->graphics->active_graphic_window, now);
 }
