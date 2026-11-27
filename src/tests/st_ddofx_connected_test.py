@@ -1,13 +1,87 @@
 """DDO F/X over a live connection with ordinary ANSI before and after commands."""
 # Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
 import argparse
+from binascii import crc_hqx
 import os
 import struct
 import time
+import zipfile
 from pathlib import Path
 
+from st_ddofx_package_test import header, subpacket, package
 from st_migrated_control_test import connection
 from st_terminal_conformance_test import Terminal
+
+
+def check_package_downloads(t):
+    t.case("ZMODEM command packages install before the next DDO query")
+
+    def receive_header(kind):
+        # A recipient may advertise ZRINIT both at startup and in reply to
+        # ZRQINIT. Read one frame at a time even when TCP combines them.
+        while True:
+            size = 20 if kind == 8 else 21
+            data = bytearray()
+            while len(data) < size:
+                part = t.peer.recv(size - len(data))
+                assert part, data
+                data.extend(part)
+            assert data[:4] == b"**\x18B", data
+            assert data[18:] == (b"\r\n" if kind == 8 else b"\r\n\x11"), data
+            fields = bytes.fromhex(data[4:18].decode("ascii"))
+            assert crc_hqx(fields[:5], 0) == int.from_bytes(fields[5:], "big")
+            if fields[0] == kind:
+                return
+            assert fields[0] == 1 and kind == 9, data
+
+    def transfer(name, contents):
+        info = name + b"\x00" + str(len(contents)).encode() + b"\x00"
+        t.send(header(4) + subpacket(info, b"k"))
+        receive_header(9)
+        t.send(header(10) + subpacket(contents, b"h") + header(11, len(contents)))
+        receive_header(1)
+
+    # A damaged member must leave the earlier complete asset in place.
+    broken = package([("TUNE.MOD", b"damaged replacement")], zipfile.ZIP_STORED)
+    broken = broken.replace(b"damaged replacement", b"invalid replacement")
+    t.send(header(0))
+    receive_header(1)
+    music = package([("nested/TUNE.MOD", b"first"), ("DRUM.S3M", b"second")], zipfile.ZIP_DEFLATED)
+    transfer(b"$li$mA-0.zip", music)
+    record = struct.Struct("<12sIIHH")
+    base = bytearray(record.pack(b"\xff", 0, 0, 0, 0) * 33)
+    base[:24] = record.pack(b"OLD.FX", len(base), 1, 0, 13)
+    transfer(b"$LI$T013.ZIP", package([("MARK.THE", b"theme"), ("Art.M", base+b"X")], zipfile.ZIP_STORED))
+    instructions = (b"[RESOURCE]=ART.M\r\n[DEL]=old.fx\r\n[ADD]=SIGN.FX,324\r\n"
+                    b"[RESOURCE]=NONE\r\n[ADD]=DROP.BIN")
+    transfer(b"$LI$T014.ZIP", package([("DDOFX.INI",instructions), ("sign.fx", commands(b"7SRET,33")),
+                                       ("drop.bin",b"obsolete")], zipfile.ZIP_DEFLATED))
+    transfer(b"$LI$Mbad.ZIP", broken)
+    transfer(b"$LI$R001.ZIP", package([("TONE.RLP", b"tone"), ("ddofx.ini", b"[REALPLAY]=tone.rlp,8000")],
+                                       zipfile.ZIP_DEFLATED))
+    for kind, name in [(b"F", "PROMPT.FNT"), (b"S", "ENTRY.SCR"), (b"P", "LOGIN.THE")]:
+        transfer(b"$LI$" + kind + b"001.ZIP", package([(name, b"asset")], zipfile.ZIP_STORED))
+    transfer(b"$LI$Q013.ZIP", music)
+    transfer(b"$LI$F013.ZIP", b"incomplete archive")
+    assert not list((t.root / "cache").glob("*/DDOFX/MUSIC/TUNE.MOD"))
+    t.send(header(8))
+    receive_header(8)
+    t.send(b"OO")
+    t.client.wait_for(lambda frame: not frame.application.get("transfer.active"))
+    t.exchange(commands(b"dmTUNE.MOD", b"dmDRUM.S3M", b"dtMARK.THE"),
+               b"5,2024,2,29,12,34,18\xff6,2024,2,29,12,34,18\xff5,2024,2,29,12,34,18\xff")
+    cache, = (t.root / "cache").glob("*/DDOFX")
+    assert (cache / "MUSIC" / "TUNE.MOD").read_bytes() == b"first"
+    t.exchange(commands(b"dRESOURCE,ART.M,OLD.FX,13", b"dRESOURCE,ART.M,SIGN.FX,324",
+                        b"2fArt.", b"7DEFRET,33,installed", b"*SIGN.FX"), b"NO\xffYES\xffinstalled")
+    theme = cache / "BBSTHEME"
+    assert {p.name for p in theme.iterdir()} == {"MARK.THE", "Art.M", "TONE.RLP"}
+    assert (theme / "Art.M").read_bytes().endswith(b"\xe5\xff\xe6")
+    assert int((theme / "Art.M").stat().st_mtime) == int((theme / "MARK.THE").stat().st_mtime)
+    for path in ("FONTS/PROMPT.FNT", "SCRIPTS/ENTRY.SCR", "THEMES/LOGIN.THE"):
+        assert (cache / path).read_bytes() == b"asset"
+    downloads = t.root / "downloads"
+    assert {p.name for p in downloads.iterdir()} == {"$LI$Q013.ZIP", "$LI$F013.ZIP", "$LI$Mbad.ZIP"}
 
 
 def check_cache(t, root):
@@ -845,7 +919,12 @@ def check_events(t):
 def run(args):
     ident = b"\x1d{dLITERM}"
     reply = b"LITERM Ver. 2.00\xff"
-    with connection(args.executable, args.reports, encoding=args.encoding,
+    def configure_downloads(root):
+        (root / "downloads").mkdir(exist_ok=True)
+        with (root / "syncterm.lst").open("a") as profile:
+            profile.write(f"DownloadPath={root / 'downloads'}\n")
+
+    with connection(args.executable, args.reports, encoding=args.encoding, prepare=configure_downloads,
                     options="Graphics=DDO F/X 2.0\n", settings="AudioModes=0\n") as fixture:
         t = Terminal(*fixture)
         for split in range(len(ident) + 1):
@@ -857,6 +936,7 @@ def run(args):
         t.exchange(commands(b"dSOUNDON", b"tABSENT.THE", b"dGETTHEME", b"6CHECKBS,150", b"6CHECKBS,151",
                             b"~VARCAP,10", b"6CHECKBS,1", b"~VARCAP,0", b"7DEFRET,1,DEFVAR10", b"7SRET,1"),
                    b"NO\xffNONE\xffN/A\xffN/A")
+        check_package_downloads(t)
         check_cache(t, fixture[1])
         check_resources(t, fixture[1])
         check_scripts(t)

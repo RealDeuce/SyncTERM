@@ -7152,6 +7152,11 @@ unsafe roots and existing non-file destinations are rejected. Existing files
 can be overwritten, skipped, or renamed. ZMODEM resumes a partial file only
 after checking its prefix CRC against the sender.
 
+For a DDO F/X entry, a completed ZMODEM download batch installs recognized
+`$LI$` command packages in that BBS's DDOFX cache before the session resumes.
+Installation errors go to the transfer log. Ordinary downloads retain their
+chosen destination.
+
 RIP block-transfer commands use that BBS's `RIP` cache subdirectory instead of
 the download directory. RIP 1.54 display-only and active dynamic modes render validated
 blocks as they arrive, using status-row progress so a modal restore cannot erase the

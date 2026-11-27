@@ -216,8 +216,11 @@ start(struct st_wren_context *context, struct st_transfer_config *config, bool a
 			return IO_ERROR_PERMISSION_DENIED;
 		config->send         = send_bytes;
 		config->send_context = context->connection;
-		if (!asset)
+		if (!asset) {
 			config->directory = download_root(context);
+			if (!config->upload && config->protocol == ST_TRANSFER_ZMODEM)
+				st_term_session_configure_download(context->session, config);
+		}
 		if (!config->upload && config->directory == NULL)
 			return IO_ERROR_PERMISSION_DENIED;
 	}

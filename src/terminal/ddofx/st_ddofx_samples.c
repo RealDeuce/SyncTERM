@@ -177,26 +177,6 @@ st_ddofx_samples_poll(struct st_ddofx *ddo)
 }
 
 static void
-play_file(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *args)
-{
-	const char *name = st_ddofx_field(&args);
-	int32_t     rate;
-	if (args == NULL || !st_ddofx_number(ddo, args, &rate) || rate <= 0)
-		return;
-	FILE *file = sink->open_asset(sink->context, "BBSTHEME", NULL, st_ddofx_value(ddo, name));
-	if (file == NULL)
-		return;
-	int64_t                  length = fs_stream_size(file);
-	struct st_ddofx_samples *s      = ddo->samples;
-	if (length > 0 && start_stream(s, sink->audio, (unsigned)rate)) {
-		s->real = (struct realplay) {.file = file, .length = (uint64_t)length};
-		st_ddofx_samples_poll(ddo);
-	}
-	else
-		fclose(file);
-}
-
-static void
 clear_sample(struct st_ddofx_samples *s, struct sample *sample)
 {
 	if (s->source == sample)
@@ -252,6 +232,36 @@ samples_ready(struct st_ddofx *ddo)
 		atomic_init(&ddo->samples->playing, false);
 	}
 	return true;
+}
+
+void
+st_ddofx_play_realplay(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, const char *name,
+    unsigned rate)
+{
+	if ((!st_audio_runtime_is_pull(sink->audio) && !st_audio_runtime_allowed(sink->audio))
+	    || !samples_ready(ddo))
+		return;
+	FILE *file = sink->open_asset(sink->context, "BBSTHEME", NULL, name);
+	if (file == NULL)
+		return;
+	int64_t                  length = fs_stream_size(file);
+	struct st_ddofx_samples *s      = ddo->samples;
+	if (length > 0 && start_stream(s, sink->audio, rate)) {
+		s->real = (struct realplay) {.file = file, .length = (uint64_t)length};
+		st_ddofx_samples_poll(ddo);
+	}
+	else
+		fclose(file);
+}
+
+static void
+play_file(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *args)
+{
+	const char *name = st_ddofx_field(&args);
+	int32_t     rate;
+	if (args == NULL || !st_ddofx_number(ddo, args, &rate) || rate <= 0)
+		return;
+	st_ddofx_play_realplay(ddo, sink, st_ddofx_value(ddo, name), (unsigned)rate);
 }
 
 enum load_result {
@@ -454,16 +464,17 @@ st_ddofx_samples_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink,
 		}
 		return false;
 	}
-	bool real = *body == 'M' && ascii_case_ncompare(body + 1, "PREAL,", 6) == 0;
-	if (!real && *body != 't' && *body != 'p' && *body != 'P')
+	if (*body == 'M' && ascii_case_ncompare(body + 1, "PREAL,", 6) == 0) {
+		play_file(ddo, sink, body + 7);
+		return true;
+	}
+	if (*body != 't' && *body != 'p' && *body != 'P')
 		return false;
 	if ((!st_audio_runtime_is_pull(sink->audio) && !st_audio_runtime_allowed(sink->audio))
 	    || !samples_ready(ddo))
 		return true;
 	struct st_ddofx_samples *s = ddo->samples;
-	if (real)
-		play_file(ddo, sink, body + 7);
-	else if (*body != 't')
+	if (*body != 't')
 		play_slot(ddo, sink, body);
 	else if (body[1] == 'b')
 		load_bites(ddo, sink, body + 2);

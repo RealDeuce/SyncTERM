@@ -37,6 +37,12 @@ struct st_transfer_config {
 	 * an allocated destination or an IO_ERROR. Borrowed until join. */
 	int   (*destination)(void *context, const char *directory, const char *name, char **path);
 	void *destination_context;
+	/* Called on the worker after a successful ZMODEM download, before accepting
+	 * the next file. Installation errors are logged separately from wire errors. */
+	int (*downloaded)(void *context, const char *offered_name, const char *local_path);
+	/* After the batch handshake or failure, still on the worker. */
+	int   (*finish_downloads)(void *context, bool complete);
+	void *downloaded_context;
 	bool  overwrite;           /* Replace existing files without a collision prompt. */
 	bool  resume_on_overwrite; /* Check for a resumable ZMODEM prefix before replacing a file. */
 	bool  remove_incomplete;   /* Remove an opened receive destination if this file fails. */

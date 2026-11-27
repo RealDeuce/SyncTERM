@@ -10,4 +10,6 @@
  * at its payload, and the return value is the entry's component ID. */
 int st_ddofx_resource_find(FILE *, const char *member, int id, uint32_t *length, uint16_t *type);
 
+int st_ddofx_edit_resource(const char *path, const char *member, const char *addition, uint16_t id);
+
 #endif

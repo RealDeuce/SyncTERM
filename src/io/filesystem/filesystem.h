@@ -60,6 +60,9 @@ int fs_rename(const char *source, const char *destination);
  * failure. A NULL data pointer is valid only when size is zero.
  */
 int fs_replace_file(const char *path, const void *data, size_t size);
+/* The writer returns zero on success or an IO_ERROR. The stream is borrowed.
+ * A failed write or close leaves the destination intact. */
+int fs_replace_file_with(const char *path, int (*write_file)(FILE *, void *), void *context);
 /* Overwrites destination and preserves permission mode and modified time. */
 int fs_copy_file(const char *source, const char *destination);
 /* Single creation reports IO_ERROR_ALREADY_EXISTS. */

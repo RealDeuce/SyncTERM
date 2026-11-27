@@ -206,6 +206,7 @@ void st_term_session_observe_prompt_input(st_term_session_t *session, const stru
  * feeds protocol input while a modal UI suspends ordinary terminal display. */
 int                    st_term_session_start_musicomm(st_term_session_t *session);
 enum st_musicomm_state st_term_session_musicomm_state(const st_term_session_t *session);
+void                   st_term_session_configure_download(st_term_session_t *, struct st_transfer_config *);
 int st_term_session_begin_transfer(st_term_session_t *session, st_transfer_t *transfer);
 int st_term_session_end_transfer(st_term_session_t *session);
 int st_term_session_reserve_transfer(st_term_session_t *session, bool reserved);

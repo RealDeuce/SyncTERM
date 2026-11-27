@@ -7,6 +7,7 @@
 
 #include <inttypes.h>
 #include <stdatomic.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -46,13 +47,13 @@ temporary_path(char **result, const char *path, uint32_t sequence)
 }
 
 int
-fs_replace_file(const char *path, const void *data, size_t size)
+fs_replace_file_with(const char *path, int (*write_file)(FILE *, void *), void *context)
 {
 	char *temporary = NULL;
 	FILE *stream    = NULL;
 	int   status    = IO_ERROR_ALREADY_EXISTS;
 
-	if (path == NULL || path[0] == '\0' || (data == NULL && size != 0))
+	if (path == NULL || path[0] == '\0' || write_file == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	for (unsigned int attempt = 0; attempt < 256; ++attempt) {
 		uint32_t sequence =
@@ -67,16 +68,39 @@ fs_replace_file(const char *path, const void *data, size_t size)
 		if (status != IO_ERROR_ALREADY_EXISTS)
 			break;
 	}
-	if (status == 0 && size != 0 && fwrite(data, 1, size, stream) != size)
-		status = IO_ERROR_IO;
+	bool created = stream != NULL;
+	if (status == 0)
+		status = write_file(stream, context);
 	if (stream != NULL && fclose(stream) != 0 && status == 0)
 		status = IO_ERROR_IO;
 	if (status == 0)
 		status = fs_rename(temporary, path);
-	if (status != 0 && temporary != NULL)
+	if (status != 0 && created)
 		(void)fs_remove_file(temporary);
 	free(temporary);
 	return status;
+}
+
+struct file_contents {
+	const void *data;
+	size_t      size;
+};
+
+static int
+write_contents(FILE *stream, void *context)
+{
+	const struct file_contents *contents = context;
+	return contents->size && fwrite(contents->data, 1, contents->size, stream) != contents->size ? IO_ERROR_IO
+	                                                                                             : 0;
+}
+
+int
+fs_replace_file(const char *path, const void *data, size_t size)
+{
+	struct file_contents contents = {data, size};
+	if (!data && size)
+		return IO_ERROR_INVALID_ARGUMENT;
+	return fs_replace_file_with(path, write_contents, &contents);
 }
 
 int

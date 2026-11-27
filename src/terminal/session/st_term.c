@@ -19,6 +19,8 @@
 #include "path.h"
 #include "st_controller.h"
 #include "st_ddofx_graphics.h"
+#include "st_ddofx_package.h"
+#include "st_ddofx_samples.h"
 #include "st_graphics_input.h"
 #include "st_ooii.h"
 #include "st_rip154.h"
@@ -45,6 +47,7 @@ struct deferred_event {
 struct st_term_session {
 	struct st_term_config  config;
 	struct st_ddofx        ddofx;
+	struct st_ddofx_package_batch packages;
 	struct st_cterm_config ddofx_text_config;
 	st_cterm_t            *cterm;
 	struct cterm_big      *big;
@@ -1238,6 +1241,53 @@ ddofx_directory(const char *root, const char *name)
 	return NULL;
 }
 
+static int
+ensure_package_directory(const char *path)
+{
+	int status = fs_create_directory(path);
+	if (status == IO_ERROR_ALREADY_EXISTS) {
+		struct fs_info info;
+		status = fs_get_link_info(&info, path);
+		if (!status && info.kind != FS_ENTRY_DIRECTORY)
+			status = IO_ERROR_PERMISSION_DENIED;
+	}
+	return status;
+}
+
+static int
+package_member_path(char **result, const char *directory, const char *member)
+{
+	return cterm_rip_asset_transfer_path(result, directory, member, false);
+}
+
+static int
+package_directory(char **result, const char *root, const char *category)
+{
+	int status = ensure_package_directory(root);
+	if (status)
+		return status;
+	*result = ddofx_directory(root, category);
+	if (*result)
+		return 0;
+	status = path_join_alloc(result, root, category);
+	return status ? status : ensure_package_directory(*result);
+}
+
+void
+st_term_session_configure_download(st_term_session_t *session, struct st_transfer_config *config)
+{
+	if (session && session->config.graphics_mode == ST_GRAPHICS_DDOFX_20 && session->config.ddofx_directory) {
+		session->packages = (struct st_ddofx_package_batch) {
+		    .root      = session->config.ddofx_directory,
+		    .directory = package_directory,
+		    .resolve   = package_member_path,
+		};
+		config->downloaded         = st_ddofx_remember_package;
+		config->finish_downloads   = st_ddofx_install_packages;
+		config->downloaded_context = &session->packages;
+	}
+}
+
 static char *
 ddofx_asset_directory(st_term_session_t *session, const char *category, const char *client)
 {
@@ -2363,6 +2413,12 @@ st_term_session_end_transfer(st_term_session_t *session)
 		return 0;
 	st_transfer_t *transfer = session->transfer;
 	(void)st_transfer_join(transfer);
+	if (session->packages.autoplay.name[0]) {
+		const struct st_ddofx_sink sink = ddofx_sink(session);
+		st_ddofx_play_realplay(&session->ddofx, &sink, session->packages.autoplay.name,
+		    session->packages.autoplay.rate);
+		session->packages.autoplay = (struct st_ddofx_autoplay) {0};
+	}
 	int status = 0;
 	if (st_transfer_needs_input(transfer)) {
 		if (st_transfer_result(transfer) == 0) {

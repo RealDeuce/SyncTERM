@@ -64,10 +64,10 @@ that prerequisite uses runtime loading; the report records that closure too.
 The old MIDI feature values `STATIC` and `RUNTIME` now belong on the dependency
 linkage option, rather than the feature enablement switch.
 
-Library names are `HIDAPI`, `LIBUSB`, `OPENSSL`, `BOTAN`, `SNDFILE`, `OPENMPT`, `JPEG`, `JXL`, `SDL2`, `PORTAUDIO`,
+Library names are `HIDAPI`, `LIBUSB`, `OPENSSL`, `BOTAN`, `SNDFILE`, `OPENMPT`, `LIBZIP`, `JPEG`, `JXL`, `SDL2`, `PORTAUDIO`,
 `ALSA`, `PULSEAUDIO`, `PIPEWIRE`, `FLUIDSYNTH`, `ADLMIDI`, `CURSES`, `TERMINFO`,
 `X11`, `XRENDER`, `XRANDR`, `XINERAMA`, `WAYLAND`, and `XKBCOMMON`.
-Transitive libraries have the same controls: `FLAC`, `OGG`, `VORBIS`, `OPUS`,
+Transitive libraries have the same controls: `ZLIB`, `FLAC`, `OGG`, `VORBIS`, `OPUS`,
 `MPG123`, `LAME`, `BROTLI`, `HIGHWAY`, `LCMS2`, `FFI`, `EXPAT`, `XCB`,
 `XEXT`, `XAU`, `XDMCP`, `XORGPROTO`, `XTRANS`, `PTHREAD_STUBS`, and the
 FluidSynth build-time header dependency `GCEM`.

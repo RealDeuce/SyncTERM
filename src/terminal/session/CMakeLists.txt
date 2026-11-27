@@ -40,6 +40,13 @@ if(BUILD_TESTING)
 		target_compile_options(st_term_ddofx_audio_test PRIVATE -Wall -Wextra -Wpedantic)
 		add_test(NAME ddofx_session_audio COMMAND st_term_ddofx_audio_test "${CMAKE_CURRENT_SOURCE_DIR}/../ddofx/tests")
 		set_tests_properties(ddofx_session_audio PROPERTIES TIMEOUT 15)
+		find_package(Python3 QUIET COMPONENTS Interpreter)
+		if(Python3_Interpreter_FOUND)
+			add_test(NAME ddofx_package_audio COMMAND "${Python3_EXECUTABLE}" -B
+				"${CMAKE_CURRENT_SOURCE_DIR}/../../tests/st_ddofx_package_test.py"
+				"$<TARGET_FILE:st_term_ddofx_audio_test>")
+			set_tests_properties(ddofx_package_audio PROPERTIES TIMEOUT 15)
+		endif()
 
 		add_executable(st_term_big_pacing_test tests/st_term_big_pacing_test.c)
 		target_link_libraries(st_term_big_pacing_test PRIVATE st_term st_big_terminal)

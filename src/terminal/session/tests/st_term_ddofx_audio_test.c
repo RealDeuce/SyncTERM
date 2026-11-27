@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "st_term.h"
+#include "st_threads.h"
 #include "st_time.h"
 
 #define CHECK(e)                                                   \
@@ -66,6 +67,60 @@ bars_match(st_console_t *console, bool visible)
 	return ok;
 }
 
+static ssize_t
+accept_reply(void *context, const void *bytes, size_t size, int64_t timeout)
+{
+	(void)context;
+	(void)bytes;
+	(void)timeout;
+	return (ssize_t)size;
+}
+
+static int
+check_autoplay(st_term_session_t *session, st_audio_runtime_t *audio, const char *downloads, bool complete)
+{
+	uint8_t wire[8192];
+	size_t  size = fread(wire, 1, sizeof(wire), stdin);
+	CHECK(size && size < sizeof(wire) && feof(stdin));
+	struct st_transfer_config config = {.protocol = ST_TRANSFER_ZMODEM,
+	    .directory                                = downloads,
+	    .send                                     = accept_reply};
+	config.receive_completion_events = !complete;
+	st_term_session_configure_download(session, &config);
+	st_transfer_t *worker = NULL;
+	CHECK(st_transfer_create(&worker, &config) == 0);
+	CHECK(st_term_session_begin_transfer(session, worker) == 0);
+	CHECK(st_transfer_launch(worker) == 0);
+	CHECK(st_transfer_feed(worker, wire, size) == size);
+	const struct timespec poll     = {.tv_nsec = 1000000};
+	unsigned              received = 0;
+	for (unsigned i = 0; i < 3000 && !st_transfer_done(worker); ++i) {
+		struct st_transfer_receive_event event;
+		while (st_transfer_take_received(worker, &event)) {
+			CHECK(event.kind == ST_TRANSFER_RECEIVE_END && event.success);
+			if (++received == 2)
+				CHECK(st_transfer_request_abort(worker));
+		}
+		st_thread_sleep(&poll, NULL);
+	}
+	CHECK(st_transfer_done(worker));
+	CHECK(st_term_session_end_transfer(session) == 0);
+	CHECK((st_transfer_result(worker) == 0) == complete);
+	st_transfer_destroy(&worker);
+
+	int16_t pcm[10];
+	CHECK(st_audio_runtime_pull(audio, pcm, 5) == 0);
+	if (!complete) {
+		for (unsigned i = 0; i < 10; ++i)
+			CHECK(pcm[i] == 0);
+		return EXIT_SUCCESS;
+	}
+	CHECK(pcm[0] > 0 && pcm[2] > pcm[0] && pcm[4] < 0 && pcm[6] < pcm[4] && pcm[8] == 0);
+	for (unsigned i = 0; i < 5; ++i)
+		CHECK(pcm[i * 2] == pcm[i * 2 + 1]);
+	return EXIT_SUCCESS;
+}
+
 int
 main(int argc, char **argv)
 {
@@ -76,7 +131,7 @@ main(int argc, char **argv)
 	st_connection_t               *connection = NULL;
 	st_term_session_t             *session    = NULL;
 	st_audio_runtime_t            *audio      = NULL;
-	CHECK(argc == 2);
+	CHECK(argc >= 2 && argc <= 4);
 	CHECK(st_console_create(&console, &display, &geometry) == 0);
 	CHECK(st_font_catalog_create(&fonts, console) == 0);
 	CHECK(st_audio_runtime_create_pull(&audio) == 0);
@@ -96,6 +151,10 @@ main(int argc, char **argv)
 	    .ddofx_directory = argv[1],
 	};
 	CHECK(st_term_session_create(&session, &config) == 0);
+	if (argc >= 3) {
+		CHECK(check_autoplay(session, audio, argv[2], argc == 3) == EXIT_SUCCESS);
+		goto finished;
+	}
 	CHECK(wait_for_marker(session, 2) == 0);
 
 	/* The peer sends its marker only after a successful query and the play
@@ -159,6 +218,7 @@ main(int argc, char **argv)
 	CHECK(wait_for_marker(session, 4) == 0);
 	CHECK(bars_match(console, false));
 
+finished:
 	st_term_session_destroy(&session);
 	CHECK(st_connection_close(connection) == 0);
 	st_profile_dispose(&profile);

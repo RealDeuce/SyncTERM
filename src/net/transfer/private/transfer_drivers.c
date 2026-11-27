@@ -462,6 +462,12 @@ z_receive(st_transfer_t *t, zmodem_t *zm)
 			(void)fs_set_modified_time(path, zm->current_file_time);
 		if (status != 0)
 			remove_failed_receive(t, path, empty);
+		if (status == 0 && !t->config.discard && t->config.downloaded) {
+			int installed = t->config.downloaded(t->config.downloaded_context, t->current_name, path);
+			if (installed != 0)
+				st_transfer_log_message(t, LOG_WARNING, "Could not install %s (%d)",
+				    t->current_name, installed);
+		}
 		int event_status = st_transfer_received(t, ST_TRANSFER_RECEIVE_END, NULL, 0, status == 0);
 		if (status == 0)
 			status = event_status;
@@ -477,7 +483,16 @@ st_transfer_run_zmodem(st_transfer_t *t)
 {
 	zmodem_t zm;
 	init_z(t, &zm);
-	return t->config.upload ? z_send(t, &zm) : z_receive(t, &zm);
+	if (t->config.upload)
+		return z_send(t, &zm);
+	int status = z_receive(t, &zm);
+	if (t->config.finish_downloads) {
+		int installed = t->config.finish_downloads(t->config.downloaded_context, status == 0);
+		if (installed)
+			st_transfer_log_message(t, LOG_WARNING, "Download batch installation failed (%d)",
+			    installed);
+	}
+	return status;
 }
 
 int
