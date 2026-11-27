@@ -29,6 +29,7 @@ struct st_ddofx_framer {
 struct st_ddofx {
 	struct st_ddofx_graphics *graphics;
 	struct st_ddofx_vga_font *vga_font;
+	struct st_ddofx_lite_fade *lite_fade;
 	bool                      mode_prefix;
 	uint32_t                 *saved_palette;
 	FILE                     *page_files[3];
@@ -62,6 +63,7 @@ struct st_ddofx_sink {
 	bool                mouse_disabled;
 	st_audio_runtime_t *audio;
 	const struct st_cterm_config *text_config;
+	const struct cterminal *lite_terminal;
 	FILE               *(*open_asset)(void *, const char *category, const char *client, const char *name);
 	/* Owned BBSTHEME directory (NULL name) or checked loose file path. */
 	char               *(*theme_path)(void *, const char *filename);

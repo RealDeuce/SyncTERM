@@ -182,6 +182,7 @@ st_ddofx_reset(struct st_ddofx *ddo)
 {
 	st_ddofx_graphics_exit(ddo);
 	st_ddofx_release_vga_font(ddo);
+	st_ddofx_restore_lite_palette(ddo);
 	for (size_t i = 0; i < sizeof(ddo->page_files) / sizeof(ddo->page_files[0]); ++i)
 		if (ddo->page_files[i] != NULL)
 			fclose(ddo->page_files[i]);
@@ -254,6 +255,15 @@ execute(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *body)
 		st_ddofx_write_text_file(ddo, sink, body + 7);
 	else if (body[0] == 'E' && !ascii_case_ncompare(body + 1, "RTEXT,", 6))
 		st_ddofx_retrieve_text_file(ddo, sink, body + 7);
+	else if (!ddo->graphics && body[0] == '0') {
+		int32_t duration;
+		if (argument(ddo, body, "0TFADEIN", &duration))
+			st_ddofx_lite_fade(ddo, sink, true, duration);
+		else if (argument(ddo, body, "0TFADEOUT", &duration))
+			st_ddofx_lite_fade(ddo, sink, false, duration);
+	}
+	else if (!ddo->graphics && body[0] == '!')
+		st_ddofx_display_raw(ddo, sink, body + 1);
 	else if (body[0] == '*')
 		st_ddofx_run_resource(ddo, sink, st_ddofx_value(ddo, body + 1));
 	else if (body[0] == 'd' && ascii_case_ncompare(body + 1, "RESOURCE,", 9) == 0) {

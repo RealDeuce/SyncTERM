@@ -1412,6 +1412,7 @@ ddofx_sink(st_term_session_t *session)
 	    .pass_key      = ddofx_pass_key,
 	    .mouse_disabled = session->mouse_disabled,
 	    .text_config   = &session->ddofx_text_config,
+	    .lite_terminal = session->cterm,
 	    .reply         = protocol_reply,
 	    .open_asset    = ddofx_open_asset,
 	    .theme_path = ddofx_theme_path,

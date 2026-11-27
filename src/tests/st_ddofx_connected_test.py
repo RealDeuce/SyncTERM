@@ -860,6 +860,43 @@ def check_resources(t, root):
             (2, 1), [(1, 1, "K")], expected=b"NO\xff")
 
 
+def check_lite_screen(t, root):
+    marker, = root.rglob("syncterm-cache-name.txt")
+    directory = marker.parent / "DDOFX" / "BBSTHEME"
+    record = struct.Struct("<12sIIHH")
+    bank = bytearray(record.pack(b"\xff", 0, 0, 0, 0) * 33)
+    raw = bytearray(b" \x07" * 2000)
+    raw[:4] = b"\x82\x14\x1b\x8e"
+    raw[23*160-2:23*160] = b"Z\x47"
+    for slot, (name, payload) in enumerate(((b"MENU.RAW", raw), (b"SHORT.RAW", raw[:-1]))):
+        record.pack_into(bank, slot * record.size, name, len(bank), len(payload), 0, 0)
+        bank.extend(payload)
+    (directory / "Screen.M").write_bytes(bank)
+    prefix = b"\x1b[2$~\x1b[1$}STATUS\x1b[0$}TOP\x1b[11;6H"
+    frame = t.check("Lite RAW copies VGA cells below the first row and above the live status row",
+                    prefix + commands(b"2fScreen.", b"!menu.raw", b"!SHORT.RAW", b"!MISSING.RAW")
+                    + b"\x1b[6n", (6, 11), ((1, 1, "TOP"), (1, 2, "é←"), (80, 24, "Z"), (1, 25, "STATUS")),
+                    expected=b"\x1b[11;6R")
+    cell = frame.cells[80]
+    assert (cell.foreground, cell.background) == (1, 4)
+    assert frame.cells[81].flags & 2
+    frame = t.exchange(commands(b"LIGMODE", b"LIGMODE", b"!MENU.RAW", b"dVIDMODE"), b"1\xff")
+    assert not any(frame.primary)
+    t.exchange(commands(b"2GEXIT") + b"\x1b[0$~")
+    t.case("Lite palette fades preserve the text page and restore its colours")
+    initial = t.exchange(b"\x1b[31;44mA")
+    t.send(commands(b"0TFADEOUT,500"))
+    middle = t.client.wait_for(lambda f: 0 < f.palette[1] < initial.palette[1])
+    assert middle.lines == initial.lines
+    black = t.exchange(b"\x1b[HBlack")
+    assert not any(black.palette[:256]) and black.lines[0].startswith("Black")
+    restored = t.exchange(commands(b"0TFADEOUT,0", b"0TFADEIN,0"))
+    assert restored.palette[:256] == initial.palette[:256] and restored.lines == black.lines
+    ordinary = t.exchange(commands(b"0TFADEOUT,-1", b"0TFADEIN,20"))
+    assert ordinary.palette[:256] == initial.palette[:256]
+
+
+
 def check_text_files(t, root):
     t.case("write, append and retrieve BBSTHEME text in Lite and Normal")
     marker, = root.rglob("syncterm-cache-name.txt")
@@ -1395,6 +1432,7 @@ def run(args):
         check_background_download(t)
         check_cache(t, fixture[1])
         check_resources(t, fixture[1])
+        check_lite_screen(t, fixture[1])
         check_speech(t, fixture[1])
         check_info(t, fixture[1])
         check_text_files(t, fixture[1])

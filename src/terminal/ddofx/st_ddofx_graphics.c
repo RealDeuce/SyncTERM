@@ -415,6 +415,8 @@ bool
 st_ddofx_fade_step(struct st_ddofx *ddo, uint64_t now)
 {
 	struct st_ddofx_graphics *g = ddo->graphics;
+	if (!g && ddo->lite_fade)
+		return st_ddofx_lite_fade_step(ddo, now);
 	if (!g || g->fade == FADE_NONE)
 		return false;
 

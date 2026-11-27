@@ -20,6 +20,8 @@ Work, background and visual pages can load version-5, single-plane, 8-bit PCX ar
 
 Lite and Normal accept complete 4,096-byte VGA fonts from `DDOFX/FONTS` with lowercase `f`. The selected font applies to console text and all four desktop `2XT` destinations. `dGETFONT` reports its filename. SyncTERM supplies its built-in VGA font for `IBMSTD.FNT` when that file is absent.
 
+Lite accepts 4,000-byte RAW ANSI screens from the assigned M resource. `!filename` places the 80-column VGA character/attribute image starting on physical row 2 and clips it to the terminal area. Ordinary text resumes at its existing cursor. `0TFADEOUT` and `0TFADEIN` fade the 256-entry text palette over the SDK’s requested duration in milliseconds. The BBS can build the next page while the palette is black.
+
 A BBS can load legacy and four-bank BMF fonts into 32 slots with `2F` and switch between loaded fonts with `2FSELECT`. On all four desktop pages, `2X` scales a variable-width string to the specified rectangle, draws an optional one-pixel outline, and rotates it about the rectangle center.
 
 The four desktop pages support lower-left anchored image scaling, rotation between pages with a transparent index and independent pivots, palette-based anti-aliasing, and single-index outlines.
@@ -121,12 +123,12 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 3174 | DEACTIVATE BACKGROUND EVENT | DDO-LITE | Connected |
 | 3187 | DEFINE RETURN STRING | DDO-LITE | Connected |
 | 3226 | SEND RETURN STRING | DDO-LITE | Connected |
-| 3237 | TEXT FADE OUT | DDO-FX LITE | Pending |
-| 3264 | TEXT FADE IN | DDO-FX LITE | Pending |
+| 3237 | TEXT FADE OUT | DDO-FX LITE | Connected |
+| 3264 | TEXT FADE IN | DDO-FX LITE | Connected |
 | 3273 | SLIDE SCREEN UP | DDO-FX LITE | Pending |
 | 3294 | SLIDE SCREEN DOWN | DDO-FX LITE | Pending |
 | 3307 | BOUNCE SCREEN DOWN | DDO-FX LITE | Pending |
-| 3323 | DISPLAY RAW ANSI | DDO-FX LITE | Pending |
+| 3323 | DISPLAY RAW ANSI | DDO-FX LITE | Connected |
 | 3365 | SET FULL SCREEN MODE | DDO-FX LITE | Pending |
 | 3400 | RESTORE FULL SCREEN MODE | DDO-FX LITE | Pending |
 | 3416 | RUN LOCAL SCRIPT | DDO-FX LITE | Connected |
