@@ -686,7 +686,7 @@ st_ddofx_graphics_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink
 		return;
 	else if (!strcmp(verb, "2SS") || !strcmp(verb, "2SSA") || !strcmp(verb, "2CSS")
 	    || !strcmp(verb, "2ACSS") || !strcmp(verb, "2DSS"))
-		st_ddofx_simple_command(ddo, verb, args);
+		st_ddofx_simple_command(ddo, sink, verb, args);
 	else if (!ascii_case_compare(verb, "2STORES") || !ascii_case_compare(verb, "2LOADS"))
 		st_ddofx_sprite_bank(ddo, sink, args, ascii_to_upper((unsigned char)verb[1]) == 'L');
 	else if (verb[1] == 'S' || verb[1] == 's')

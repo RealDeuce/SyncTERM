@@ -32,6 +32,7 @@ struct st_ddofx_framer {
 
 	char   body[ST_DDOFX_BODY_MAX + 1];
 	size_t length;
+	bool   mode_prefix;
 };
 
 struct st_ddofx {
@@ -46,7 +47,7 @@ struct st_ddofx {
 	struct st_ddofx_graphics *graphics;
 	struct st_ddofx_vga_font *vga_font;
 	struct st_ddofx_lite_fade *lite_fade;
-	bool                       mode_prefix, abort_script;
+	bool                       abort_script;
 	uint32_t                 *saved_palette;
 	FILE                     *page_files[3];
 	struct {

@@ -1760,6 +1760,15 @@ def check_sprites(t):
                         b"2ACSS", b"2C,12", b"2aFILL", b"2DSS", b"2aG,51,49"), b"3\xff12\xff")
 
 
+def check_simple_stack_error(t):
+    t.case("clearing static sprites below an animation reports the error on draw")
+    setup = (b"LIGMODE", b"LIGMODE", b"2C,7", b"2aFILL", b"2S,0,1,0,1,A",
+             b"2C,9", b"2aFILL", b"2S,0,1,0,1,B", b"2SS,19,20,0,B,1", b"2SSA,4,20,20,0,A,A,1,1")
+    t.exchange(commands(*setup, b"2DSS", b"2CPYVP2WP", b"2aG,20,20", b"2aG,21,20",
+                        b"2CSS", b"dVIDMODE", b"2DSS", b"dVIDMODE"), b"9\xff7\xff1\xff0\xff")
+    t.exchange(commands(*setup, b"2CSS", b"2ACSS", b"2DSS", b"dVIDMODE", b"2GEXIT"), b"1\xff")
+
+
 def check_image_commands(t):
     t.case("scaled, rotated, outlined and smoothed page rectangles")
     # Source from top down is [1,2], [3,0]. Scale up against the
@@ -2384,6 +2393,9 @@ def check_resources(t, root):
         (b"INNER.FX", 2, b"\x1b[32m\x82"), (b"INNER.FX", 3, b"DUP"),
         (b"LINES.FX", 0, (commands(b":comment") + b"\r\n")*125 + commands(b"dVIDMODE")),
         (b"LIMIT.FX", 0, limit), (b"LARGE.FX", 0, limit + b"!"),
+        (b"ENTER.FX", 0, b"B" + commands(b"LIGMODE", b"LIGMODE", b"dVIDMODE") + b"C"),
+        (b"CALL.FX", 0, b"A" + commands(b"*ENTER.FX") + b"D"),
+        (b"EXIT.FX", 0, commands(b"2GEXIT") + b"E"),
         (b"REPLACE.FX", 4, commands(b"2fmissing."))]):
         start = link + slot * 24
         data[start:start+24] = record.pack(name, len(data), len(payload), 0, version)
@@ -2397,6 +2409,13 @@ def check_resources(t, root):
             b"2fPACK.", b"2FOther.", b"2fTOO-LONG-NAME", b"*outer.fx", b"4EXCM,1,1",
             b"*large.fx", b"*limit.fx", b"*replace.fx", b"*outer.fx") + b"Z",
             (7, 1), [(1, 1, "AéCéLZ")])
+    t.check("a nested local graphics entry in Lite unwinds both scripts", commands(
+            b"2fPACK.", b"*CALL.FX", b"dVIDMODE") + b"!", (4, 1), [(1, 1, "AB!")], expected=b"0\xff")
+    # A redundant local entry in Normal leaves the scene running. Local exit
+    # restores the Lite cursor before the script continues with ordinary text.
+    t.check("redundant local entry and explicit local exit", commands(
+            b"LIGMODE", b"LIGMODE", b"*CALL.FX", b"*EXIT.FX", b"dVIDMODE") + b"!",
+            (6, 1), [(1, 1, "AB!E!")], reset=False, expected=b"1\xff0\xff")
     # A malformed block link and a truncated member must leave the next
     # online command available. The latter contains a valid-looking script.
     data[link+32*24:link+33*24] = record.pack(b"\xff", link, 0, 0, 0)
@@ -3255,6 +3274,7 @@ def run(args):
         check_resources(t, fixture[1])
         check_animation_frame_sizes(t)
         check_collision_stop(t)
+        check_simple_stack_error(t)
         check_full_screen(t)
         check_lite_screen(t, fixture[1])
         check_speech(t, fixture[1])

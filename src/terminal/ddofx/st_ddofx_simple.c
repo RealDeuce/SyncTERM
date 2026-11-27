@@ -12,19 +12,20 @@ enum {
 struct profile {
 	int32_t x, y, buffer;
 	int     first, last, frame, step;
-	bool    active, mirror, oscillate;
+	bool    active, mirror, oscillate, ordinary;
 };
 
 struct st_ddofx_simple {
 	struct profile profiles[PROFILE_COUNT];
 	unsigned       animations, count;
+	bool           cleared_below_animation;
 };
 
 static void
 define(struct st_ddofx *ddo, bool animated, char *args)
 {
 	struct st_ddofx_graphics *g    = ddo->graphics;
-	struct profile            next = {.active = true};
+	struct profile            next = {.active = true, .ordinary = !animated};
 	int32_t                   slot = 0, loop = 1, mode;
 	if (animated && (!st_ddofx_field_number(ddo, &args, &slot) || slot < 1 || slot > PROFILE_COUNT))
 		return;
@@ -55,9 +56,7 @@ define(struct st_ddofx *ddo, bool animated, char *args)
 	if (!stack)
 		return;
 	unsigned index = animated ? (unsigned)slot - 1 : stack->count;
-	/* Animation slots form a sparse prefix. Keep appended static entries
-	 * in drawing order when the host redefines one of those animations. */
-	if (index >= PROFILE_COUNT || (animated && index >= stack->animations && stack->count > stack->animations))
+	if (index >= PROFILE_COUNT)
 		return;
 	stack->profiles[index] = next;
 	if (stack->count <= index)
@@ -146,11 +145,16 @@ draw_stack(struct st_ddofx_graphics *g)
 			memcpy(&g->page[WORK][y][r.left], &g->page[BACKGROUND][y][r.left],
 			    (size_t)(r.right - r.left + 1));
 	}
-	for (unsigned i = 0; i < stack->count; ++i) {
-		const struct profile         *p = &stack->profiles[i];
-		const struct st_ddofx_sprite *s = &g->sprites[p->frame];
-		if (p->active && s->pixels)
-			st_ddofx_draw_sprite(g, 0, s, WORK, p->mirror ? 'F' : 'C', p->x, p->y);
+	/* Animated frames paint below ordinary sprites, including before a
+	 * misordered stack has been cleared for the first time. */
+	for (unsigned layer = 0; layer < 2; ++layer) {
+		unsigned end = layer ? stack->count : stack->animations;
+		for (unsigned i = 0; i < end; ++i) {
+			const struct profile *p = &stack->profiles[i];
+			const struct st_ddofx_sprite *s = &g->sprites[p->frame];
+			if (p->ordinary == (layer != 0) && p->active && s->pixels)
+				st_ddofx_draw_sprite(g, 0, s, WORK, p->mirror ? 'F' : 'C', p->x, p->y);
+		}
 	}
 	(void)st_console_modify_pixels(g->display, publish, g);
 	for (unsigned i = 0; i < stack->animations; ++i)
@@ -158,7 +162,7 @@ draw_stack(struct st_ddofx_graphics *g)
 }
 
 void
-st_ddofx_simple_command(struct st_ddofx *ddo, const char *verb, char *args)
+st_ddofx_simple_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, const char *verb, char *args)
 {
 	struct st_ddofx_graphics *g = ddo->graphics;
 	if (!strcmp(verb, "2SS") || !strcmp(verb, "2SSA"))
@@ -169,11 +173,22 @@ st_ddofx_simple_command(struct st_ddofx *ddo, const char *verb, char *args)
 			g->simple = NULL;
 		}
 		else if (!strcmp(verb, "2CSS")) {
+			for (unsigned i = 0; i < g->simple->animations; ++i) {
+				if (g->simple->profiles[i].ordinary) {
+					g->simple->profiles[i] = (struct profile){0};
+					g->simple->cleared_below_animation = true;
+				}
+			}
 			memset(g->simple->profiles + g->simple->animations, 0,
 			    (g->simple->count - g->simple->animations) * sizeof(*g->simple->profiles));
 			g->simple->count = g->simple->animations;
 		}
-		else if (!strcmp(verb, "2DSS"))
-			draw_stack(g);
+		else if (!strcmp(verb, "2DSS")) {
+			if (g->simple->cleared_below_animation)
+				st_ddofx_script_error(ddo, sink,
+				    "A cleared sprite precedes an animation in the simple sprite stack. Returning to text mode.");
+			else
+				draw_stack(g);
+		}
 	}
 }

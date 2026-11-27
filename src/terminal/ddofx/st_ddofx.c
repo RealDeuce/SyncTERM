@@ -434,8 +434,7 @@ st_ddofx_parse(struct st_ddofx *ddo, struct st_ddofx_framer *frame, const struct
 	while (*consumed < size) {
 		const uint8_t *here = bytes + *consumed;
 		if (frame->phase == ST_DDO_TEXT && *here != 0x1d) {
-			if (frame == &ddo->wire)
-				ddo->mode_prefix = false;
+			frame->mode_prefix = false;
 			size_t         remaining = size - *consumed;
 			const uint8_t *gs        = memchr(here, 0x1d, remaining);
 			size_t         length    = gs == NULL ? remaining : (size_t)(gs - here);
@@ -471,15 +470,19 @@ st_ddofx_parse(struct st_ddofx *ddo, struct st_ddofx_framer *frame, const struct
 				if (byte == '}') {
 					frame->phase               = ST_DDO_TEXT;
 					frame->body[frame->length] = 0;
-					if (frame == &ddo->wire && !ddo->ignoring
-					    && matches(frame->body, "LIGMODE")) {
-						if (ddo->mode_prefix && ddo->graphics == NULL)
-							st_ddofx_graphics_enter(ddo, sink);
-						ddo->mode_prefix = ddo->graphics == NULL && !ddo->mode_prefix;
+					if (!ddo->ignoring && matches(frame->body, "LIGMODE")) {
+						bool pair = frame->mode_prefix;
+						frame->mode_prefix = !ddo->graphics && !pair;
+						if (pair && !ddo->graphics) {
+							if (frame == &ddo->wire)
+								st_ddofx_graphics_enter(ddo, sink);
+							else
+								st_ddofx_script_error(ddo, sink,
+								    "Only the host can enter DDO F/X graphics mode.");
+						}
 					}
 					else {
-						if (frame == &ddo->wire)
-							ddo->mode_prefix = false;
+						frame->mode_prefix = false;
 						execute(ddo, sink, frame->body);
 					}
 					++*consumed;
@@ -492,8 +495,7 @@ st_ddofx_parse(struct st_ddofx *ddo, struct st_ddofx_framer *frame, const struct
 				else if (byte != 0) {
 					if (frame->length == ST_DDOFX_BODY_MAX) {
 						frame->phase = ST_DDO_DISCARD;
-						if (frame == &ddo->wire)
-							ddo->mode_prefix = false;
+						frame->mode_prefix = false;
 					}
 					else
 						frame->body[frame->length++] = byte;
