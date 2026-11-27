@@ -280,12 +280,12 @@ st_ddofx_print_text_box(struct st_ddofx *ddo, enum page page, struct bounds box,
 }
 
 void
-st_ddofx_paint_vga_string(struct st_ddofx_graphics *g, const struct st_pixel_buffer *pixels, const uint8_t *bitmap,
+st_ddofx_paint_vga_string(struct st_ddofx_graphics *g, unsigned window, const struct st_pixel_buffer *pixels, const uint8_t *bitmap,
     const uint8_t *text, unsigned length, int x, int bottom, unsigned ink, unsigned paper,
     const struct bounds *clip)
 {
 	struct text_run run = {.g = g,
-	    .target               = {(uint8_t *)g->page[WORK], WIDTH, HEIGHT, {0}},
+	    .target               = st_ddofx_surface(g, window, window ? VISUAL : WORK),
 	    .clip                 = clip,
 	    .font                 = bitmap,
 	    .text                 = text,

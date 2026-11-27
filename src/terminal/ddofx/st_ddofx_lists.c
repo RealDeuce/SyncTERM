@@ -149,7 +149,7 @@ paint(void *context, const struct st_pixel_buffer *pixels, struct st_console_rec
 				paper = b->highlight_paper;
 			}
 		}
-		st_ddofx_paint_vga_string(im->g, pixels, im->font, line, b->columns, b->x,
+		st_ddofx_paint_vga_string(im->g, 0, pixels, im->font, line, b->columns, b->x,
 		    (int)b->bottom - (int)(b->rows - 1 - row) * im->g->cell_height, ink, paper, &clip);
 	}
 	if (damage)

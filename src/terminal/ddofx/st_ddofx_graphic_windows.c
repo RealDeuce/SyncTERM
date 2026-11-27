@@ -187,6 +187,9 @@ paint(void *context, const struct st_pixel_buffer *pixels, struct st_console_rec
 		for (int x = b.left; x <= b.right; ++x)
 			pixels->primary[y * WIDTH + x] = pixels->alternate[y * WIDTH + x] = g->page[HIDDEN][y][x];
 
+	struct st_console_rect desktop = {b.left, b.top, b.right - b.left + 1, b.bottom - b.top + 1};
+	st_ddofx_repaint_clocks(r->ddo, 0, pixels, &desktop);
+	st_ddofx_repaint_marquees(r->ddo, pixels, &desktop);
 	st_ddofx_repaint_desktop_bars(g, pixels, b);
 
 	/* Inactive slots paint in numeric order. The active slot paints last. */
@@ -212,7 +215,7 @@ paint(void *context, const struct st_pixel_buffer *pixels, struct st_console_rec
 		struct bounds  title = {w->frame.left + 2, w->frame.right - (w->icon && !w->no_icon ? 54 : 42), w->frame.top, view.top - 1};
 		const uint8_t *font  = st_ddofx_vga_bitmap(r->ddo);
 		if (!w->borderless && font && intersect(&title, &area))
-			st_ddofx_paint_vga_string(g, pixels, font, (const uint8_t *)w->title,
+			st_ddofx_paint_vga_string(g, 0, pixels, font, (const uint8_t *)w->title,
 			    (unsigned)strlen(w->title), w->frame.left + 2, view.top - 3, 14, title_colour, &title);
 		if (!w->borderless)
 			paint_controls(w, &area, pixels);
@@ -266,16 +269,18 @@ publish_area(struct st_ddofx *ddo, unsigned owner, const struct st_pixel_buffer 
 	}
 
 	const struct st_ddofx_graphic_window *w = &g->graphic_windows[owner];
-	const uint8_t                        *source = owner ? w->visual : (const uint8_t *)g->page[desktop_page];
-	int stride = owner ? w->width : WIDTH;
-	for (int y = b.top; y <= b.bottom; ++y) {
-		const uint8_t *src = source + (y - dy) * stride + (b.left - dx);
-		for (int x = b.left; x <= b.right; ++x)
-			pixels->primary[y * WIDTH + x] = pixels->alternate[y * WIDTH + x] = *src++;
+	if (owner || desktop_page != VISUAL) {
+		const uint8_t *source = owner ? w->visual : (const uint8_t *)g->page[desktop_page];
+		int stride = owner ? w->width : WIDTH;
+		for (int y = b.top; y <= b.bottom; ++y) {
+			const uint8_t *src = source + (y - dy) * stride + (b.left - dx);
+			for (int x = b.left; x <= b.right; ++x)
+				pixels->primary[y * WIDTH + x] = pixels->alternate[y * WIDTH + x] = *src++;
+		}
 	}
 	if (!owner) {
 		struct st_console_rect area = {b.left, b.top, b.right - b.left + 1, b.bottom - b.top + 1};
-		st_ddofx_repaint_clocks(ddo, pixels, &area);
+		st_ddofx_repaint_clocks(ddo, 0, pixels, &area);
 		st_ddofx_repaint_marquees(ddo, pixels, &area);
 		st_ddofx_repaint_desktop_bars(g, pixels, b);
 	}
@@ -290,7 +295,18 @@ st_ddofx_publish_page_area(struct st_ddofx *ddo, unsigned owner, enum page deskt
 	int dx = 0, dy = 0;
 	if (owner) {
 		const struct st_ddofx_graphic_window *w = &g->graphic_windows[owner];
-		if (!w->visual || w->hidden)
+		if (!w->visual)
+			return;
+		struct bounds backing = {0, w->width - 1, 0, w->height - 1};
+		if (!intersect(&area, &backing))
+			return;
+		if (owner == g->active_graphic_window && desktop_page != VISUAL) {
+			/* A new animation frame can replace clock pixels even outside the viewport. */
+			struct st_console_rect local = {area.left, area.top, area.right - area.left + 1,
+			    area.bottom - area.top + 1};
+			st_ddofx_repaint_clocks(ddo, owner, NULL, &local);
+		}
+		if (w->hidden)
 			return;
 		view = st_ddofx_window_interior(w);
 		dx = view.left - w->x;
@@ -304,14 +320,7 @@ st_ddofx_publish_page_area(struct st_ddofx *ddo, unsigned owner, enum page deskt
 		return;
 	unsigned first_cover = owner && owner == g->active_graphic_window ? GRAPHIC_WINDOWS + 1 : 1;
 	publish_area(ddo, owner, pixels, area, first_cover, dx, dy, desktop_page);
-	if (area.left < damage->left)
-		damage->left = area.left;
-	if (area.right > damage->right)
-		damage->right = area.right;
-	if (area.top < damage->top)
-		damage->top = area.top;
-	if (area.bottom > damage->bottom)
-		damage->bottom = area.bottom;
+	st_ddofx_extend_bounds(damage, area);
 }
 
 void

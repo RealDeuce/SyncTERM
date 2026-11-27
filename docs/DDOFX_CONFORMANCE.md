@@ -52,7 +52,7 @@ A marquee reads up to 20,000 bytes from the assigned M resource and uses the sel
 
 A BBS can open up to 300 indexed FLI/FLC profiles from the entry’s BBSTHEME directory. Each opens paused and plays the requested frame count once or continuously. The host can retain the desktop palette or apply the movie’s palette. Frames draw at the specified upper-left corner. A desktop movie continues behind graphic windows. A movie opened in an alerted window plays in its virtual page while the window is active. Sprite animations retain the latest movie frame underneath them, and desktop clocks and marquees remain visible over the movie. `2RESA` changes the rate of running and subsequently opened movies.
 
-Analog and text clocks have 30 slots each. A BBS defines each clock before showing it on the visual page. The hands and the eight-character digital display use local time with signed hour, minute and second offsets. Each text clock loads its own VGA font, defaulting to IBMSTD.FNT. Active marquees draw over clocks.
+Analog and text clocks have 30 slots each. A BBS defines each clock before showing it on the visual page. The hands and the eight-character digital display use local time with signed hour, minute and second offsets. A clock defined with a graphic window alerted uses that window’s virtual coordinates. It runs while its window is active. Scrolling reveals the corresponding part of the clock, and open windows cover desktop clocks. Each text clock loads its own VGA font, defaulting to IBMSTD.FNT. Active marquees draw over clocks.
 
 The BBS can create up to 300 push buttons with `5CPUSHB`. Creation draws the up sprite on the desktop work page or in the alert window. Window buttons keep their owner when a later command changes the alert window. A matching key or mouse combination draws the down sprite on the visual page for three clock ticks, restores the up sprite, then runs the macro and sends the return string. The pass flag controls whether a keyboard activation continues to the next binding and the connection.
 
@@ -171,8 +171,8 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 3501 | DEFINE SYSTEM VARIABLE | DDO-FX LITE | Connected |
 | 3604 | LOCK KEYS | DDO-FX LITE | Connected |
 | 3650 | UNLOCK KEYS | DDO-FX LITE | Connected |
-| 3661 | PAUSE BACKGROUND TASKS | DDO-FX LITE | Connected for timed events |
-| 3710 | UNPAUSE BACKGROUND TASKS | DDO-FX LITE | Connected for timed events |
+| 3661 | PAUSE BACKGROUND TASKS | DDO-FX LITE | Connected for timed events and background graphics, including clocks, marquees, sprite animations, tile maps, polygon objects and the raycaster |
+| 3710 | UNPAUSE BACKGROUND TASKS | DDO-FX LITE | Connected for timed events and background graphics, including clocks, marquees, sprite animations, tile maps, polygon objects and the raycaster |
 | 3720 | IGNORE COMMANDS | DDO-FX LITE | Connected |
 | 3767 | HEAR COMMANDS | DDO-FX LITE | Connected |
 | 3782 | ALL CAPS SYSTEM VARIABLE | DDO-FX LITE | Connected |
@@ -523,7 +523,7 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 15049 | RESTORE ALL GRAPHIC WINDOWS | DDO-FX (NM) | Connected |
 | 15056 | REFRESH ALL GRAPHIC WINDOWS | DDO-FX (NM) | Connected |
 | 15062 | REFRESH GRAPHIC WINDOWS INTERIOR | DDO-FX (NM) | Connected |
-| 15074 | ALERT GRAPHIC WINDOW | DDO-FX (NM) | Connected for primitives, PCX, visual/hidden page copies, sprites, mouse fields and regions, push buttons, radio buttons, checkboxes, animations, collisions, icons, bitmap and VGA text, image transforms, tile grids, music bars, and FLI/FLC playback. Other attached operations pending |
+| 15074 | ALERT GRAPHIC WINDOW | DDO-FX (NM) | Connected for primitives, PCX, visual/hidden page copies, sprites, mouse fields and regions, push buttons, radio buttons, checkboxes, animations, collisions, icons, bitmap and VGA text, image transforms, tile grids, clocks, music bars, and FLI/FLC playback. Other attached operations pending |
 | 15094 | CALM GRAPHIC WINDOW | DDO-FX (NM) | Connected |
 | 15101 | CREATE ICON | DDO-FX (NM) | Connected |
 | 15135 | ICON MOUSE POINTER | DDO-FX (NM) | Connected |

@@ -9,6 +9,19 @@ struct bounds {
 	int left, right, top, bottom;
 };
 
+static inline void
+st_ddofx_extend_bounds(struct bounds *damage, struct bounds area)
+{
+	if (area.left < damage->left)
+		damage->left = area.left;
+	if (area.right > damage->right)
+		damage->right = area.right;
+	if (area.top < damage->top)
+		damage->top = area.top;
+	if (area.bottom > damage->bottom)
+		damage->bottom = area.bottom;
+}
+
 enum {
 	WIDTH  = 640,
 	HEIGHT = 480
@@ -201,9 +214,9 @@ struct st_console_rect st_ddofx_text_area(const struct st_ddofx_graphics *, unsi
 const uint8_t *st_ddofx_vga_bitmap(const struct st_ddofx *);
 bool st_ddofx_read_vga_font(const struct st_ddofx_sink *, const char *, uint8_t bitmap[4096]);
 void st_ddofx_print_text_box(struct st_ddofx *, enum page, struct bounds, const uint8_t *);
-void st_ddofx_paint_vga_string(struct st_ddofx_graphics *g, const struct st_pixel_buffer *, const uint8_t *bitmap, const uint8_t *text,
+void st_ddofx_paint_vga_string(struct st_ddofx_graphics *g, unsigned window, const struct st_pixel_buffer *, const uint8_t *bitmap, const uint8_t *text,
     unsigned length, int x, int bottom, unsigned ink, unsigned paper, const struct bounds *clip);
-void st_ddofx_repaint_clocks(struct st_ddofx *, const struct st_pixel_buffer *, const struct st_console_rect *);
+void st_ddofx_repaint_clocks(struct st_ddofx *, unsigned window, const struct st_pixel_buffer *, const struct st_console_rect *);
 void st_ddofx_clear_movies(struct st_ddofx_graphics *);
 void st_ddofx_clear_polygons(struct st_ddofx_graphics *);
 void    st_ddofx_polygon_window_closed(struct st_ddofx_graphics *, unsigned);

@@ -170,7 +170,7 @@ paint_frame(void *context, const struct st_pixel_buffer *pixels, struct st_conso
 				clip.right = WIDTH - 1;
 			if (clip.bottom >= HEIGHT)
 				clip.bottom = HEIGHT - 1;
-			st_ddofx_paint_vga_string(frame->graphics, pixels, frame->font, &ch, 1, x,
+			st_ddofx_paint_vga_string(frame->graphics, 0, pixels, frame->font, &ch, 1, x,
 			    y + p->cell_height - 1, ink, paper, &clip);
 		}
 	}

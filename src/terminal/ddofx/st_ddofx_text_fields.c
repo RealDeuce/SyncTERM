@@ -87,7 +87,7 @@ paint(void *context, const struct st_pixel_buffer *pixels, struct st_console_rec
 	else
 		memcpy(visible, f->text, length);
 	struct bounds clip = {(int)a.x, (int)(a.x + a.width) - 1, (int)a.y, (int)(a.y + a.height) - 1};
-	st_ddofx_paint_vga_string(image->g, pixels, f->font, visible, (unsigned)length, a.x, f->bottom, f->ink,
+	st_ddofx_paint_vga_string(image->g, 0, pixels, f->font, visible, (unsigned)length, a.x, f->bottom, f->ink,
 	    paper, &clip);
 	if (pixels && image->caret >= 0) {
 		unsigned left = a.x + (unsigned)image->caret * image->g->cell_width;

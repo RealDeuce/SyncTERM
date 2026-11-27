@@ -483,6 +483,38 @@ def check_clocks(t, root):
     t.exchange(commands(b"5SOCLOCK,0", b"5SCLOCK,0", b"5KILLMQ,2", b"2CPYWP2VP"))
 
 
+def check_window_clocks(t):
+    t.case("analog and digital clocks follow their defining window and its viewport")
+    window = b"2GWIN,1,20,119,30,129,1000,750,0,0,0,0,0,0,0,0,0,0,1,Clock"
+    digital = 40 * 640 + 30
+    north = 75 * 640 + 70
+    desktop_north = 30 * 640 + 35
+    frame = t.exchange(commands(b"2C,41", b"2aFILL", b"2CPYWP2VP", window, b"2CHVGP,1,900,650",
+                                b"2ALERTGWIN,1", b"2C,23", b"2aFILL", b"2RGWINI",
+                                b"5SOCLOCK,1,910,675,12,3,0,0,0,Digits.fnt",
+                                b"5SCLOCK,1,950,710,15,60,61,62,63,64,0,0,0",
+                                b"2CALMGWIN", b"5UOCLOCK,1", b"5SHWCLK,1",
+                                b"5SCLOCK,2,35,50,20,50,51,52,53,54,0,0,0", b"5SHWCLK,2"))
+    assert all(frame.primary[i] == 23 for i in (digital, north, desktop_north))
+    t.exchange(commands(b"2AGWIN,1"))
+    frame = t.client.wait_for(lambda f: f.primary[north] == 61)
+    for plane in (frame.primary, frame.alternate):
+        assert set(plane[digital:digital+64]) == {3,12}
+        assert plane[north-15] == 23 and plane[desktop_north] == 23
+    frame = t.exchange(commands(b"~PAUSEBAK"))
+    frozen = frame.primary[digital:digital+64]
+    assert t.exchange(commands(b"w24")).primary[digital:digital+64] == frozen
+    t.send(commands(b"~UNPAUSEBAK"))
+    t.client.wait_for(lambda f: f.primary[digital:digital+64] != frozen)
+    frame = t.exchange(commands(b"2ALERTGWIN,1", b"2aG,950,695", b"2aG,910,660",
+                                b"2CHVGP,1,890,640", b"2CALMGWIN"), b"61\xff3\xff")
+    for plane in (frame.primary, frame.alternate):
+        assert plane[north+10*640+10] == 61 and plane[north] == 23
+    frame = t.exchange(commands(b"2CGWIN,1"))
+    assert frame.primary[desktop_north] == 51
+    t.exchange(commands(b"5SOCLOCK,0", b"5SCLOCK,0", b"2CPYWP2VP"))
+
+
 def check_flics(t, root):
     t.case("FLI/FLC frames, palette, desktop layering, play-once and paused playback")
     marker, = root.rglob("syncterm-cache-name.txt")
@@ -1781,6 +1813,7 @@ def check_graphics(t, root):
     check_drawing(t)
     check_marquees(t, root)
     check_clocks(t, root)
+    check_window_clocks(t)
     check_flics(t, root)
     check_text_scale(t, root)
     check_landscape(t)
