@@ -428,6 +428,42 @@ def check_marquees(t, root):
     t.exchange(commands(b"5CMARQEE,0", b"2aERASE", b"5SHOWMQ,1", b"2aG,624,464", b"fIBMSTD.FNT"), b"0\xff")
 
 
+def check_window_marquees(t):
+    t.case("marquees follow window focus, viewport and transparent sprite coverage")
+    window = b"2GWIN,1,20,119,30,129,1000,750,0,0,0,0,0,0,0,0,0,0,1,Strip"
+    start = 40*640+30
+    frame = t.exchange(commands(b"fStrip.fnt", b"2aERASE", b"2C,61", b"2aP,1,0", b"2aP,1,1",
+                                b"2S,0,1,0,1,MQMARK", b"2C,41", b"2aFILL", b"2CPYWP2VP", window,
+                                b"2CHVGP,1,900,650", b"2ALERTGWIN,1", b"2C,23", b"2aFILL", b"2CPYVP2HP",
+                                b"2RGWINI", b"5CMARQEE,1,910,675,2,12,3,12,LINE.TXT",
+                                b"2ANIM,3,910,661,0,MQMARK,MQMARK,0,0,0,1,20,0",
+                                b"5CMARQEE,2,10,25,2,14,6,1,LINE.TXT", b"2CALMGWIN", b"5SHOWMQ,2",
+                                b"2aG,10,10", b"5KILLMQ,2", b"5SHOWMQ,1", b"2PLAYA,3", b"w4"), b"14\xff")
+    assert list(frame.primary[start:start+16]) == list(frame.alternate[start:start+16]) == [23]*16
+    t.exchange(commands(b"2AGWIN,1"))
+    frame = t.client.wait_for(lambda f: f.primary[start+1] == 61 and 12 in f.primary[start+2:start+16])
+    assert frame.primary[start:start+16] == frame.alternate[start:start+16]
+    assert frame.primary[start] in (3, 12)
+    frame = t.exchange(commands(b"~PAUSEBAK", b"2STOPA,3"))
+    strip = frame.primary[start:start+16]
+    assert strip.count(12) == 1 and set(strip) == {3,12}
+    frame = t.exchange(commands(b"2CHVGP,1,890,640", b"2ALERTGWIN,1", b"2aG,910,660",
+                                b"2CALMGWIN", b"2aG,30,40"), str(strip[0]).encode()+b"\xff41\xff")
+    shifted = start+10*640+10
+    assert frame.primary[shifted:shifted+16] == frame.alternate[shifted:shifted+16] == strip
+    assert frame.primary[start] == 23
+    # A running desktop marquee is visible only up to the covering window's edge.
+    edge = 55*640+12
+    t.send(commands(b"5CMARQEE,2,12,55,2,14,6,12,LINE.TXT", b"5SHOWMQ,2", b"~UNPAUSEBAK"))
+    frame = t.client.wait_for(lambda f: f.primary[edge] in (6,14))
+    for plane in (frame.primary, frame.alternate):
+        assert set(plane[edge:edge+8]) <= {6,14} and set(plane[edge+8:edge+16]) == {23}
+    frame = t.exchange(commands(b"2CGWIN,1", b"5SHOWMQ,1", b"w3"))
+    assert set(frame.primary[edge:edge+16]) == {6,14}
+    assert frame.primary[start] == 41
+    t.exchange(commands(b"5CMARQEE,0", b"2ANIM,0", b"fIBMSTD.FNT"))
+
+
 def check_clocks(t, root):
     t.case("analog and text clocks on the visual page, local time, offsets and pause")
     marker, = root.rglob("syncterm-cache-name.txt")
@@ -1812,6 +1848,7 @@ def check_graphics(t, root):
     assert frame.primary[4 * 640 + 3] == 4 and frame.palette[4] == 0x00ffff
     check_drawing(t)
     check_marquees(t, root)
+    check_window_marquees(t)
     check_clocks(t, root)
     check_window_clocks(t)
     check_flics(t, root)

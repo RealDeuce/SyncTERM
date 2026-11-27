@@ -46,20 +46,6 @@ struct repaint {
 };
 
 static bool
-intersect(struct bounds *b, const struct bounds *area)
-{
-	if (b->left < area->left)
-		b->left = area->left;
-	if (b->right > area->right)
-		b->right = area->right;
-	if (b->top < area->top)
-		b->top = area->top;
-	if (b->bottom > area->bottom)
-		b->bottom = area->bottom;
-	return b->left <= b->right && b->top <= b->bottom;
-}
-
-static bool
 contains(const struct bounds *b, int x, int y)
 {
 	return x >= b->left && x <= b->right && y >= b->top && y <= b->bottom;
@@ -156,7 +142,7 @@ paint_controls(const struct st_ddofx_graphic_window *w, const struct bounds *dam
 	};
 	for (enum st_ddofx_frame_part part = FRAME_CLOSE; part <= FRAME_RESIZE; ++part) {
 		struct bounds b = control_bounds(w, part), area = b;
-		if (!intersect(&area, damage))
+		if (!st_ddofx_intersect_bounds(&area, damage))
 			continue;
 		const unsigned char *glyph = symbols[part == FRAME_ZOOM && w->zoomed ? FRAME_RESTORE : part];
 		int left = (b.left + b.right - 4) / 2, top = (b.top + b.bottom - 4) / 2;
@@ -189,7 +175,7 @@ paint(void *context, const struct st_pixel_buffer *pixels, struct st_console_rec
 
 	struct st_console_rect desktop = {b.left, b.top, b.right - b.left + 1, b.bottom - b.top + 1};
 	st_ddofx_repaint_clocks(r->ddo, 0, pixels, &desktop);
-	st_ddofx_repaint_marquees(r->ddo, pixels, &desktop);
+	st_ddofx_repaint_marquees(r->ddo, 0, pixels, b);
 	st_ddofx_repaint_desktop_bars(g, pixels, b);
 
 	/* Inactive slots paint in numeric order. The active slot paints last. */
@@ -200,7 +186,7 @@ paint(void *context, const struct st_pixel_buffer *pixels, struct st_console_rec
 		const struct st_ddofx_graphic_window *w =
 		    &g->graphic_windows[active ? g->active_graphic_window : i];
 		struct bounds area = w->frame;
-		if (!w->visual || w->hidden || !intersect(&area, &b))
+		if (!w->visual || w->hidden || !st_ddofx_intersect_bounds(&area, &b))
 			continue;
 		struct bounds view         = st_ddofx_window_interior(w);
 		unsigned      title_colour = active ? 4 : 1;
@@ -214,7 +200,7 @@ paint(void *context, const struct st_pixel_buffer *pixels, struct st_console_rec
 			}
 		struct bounds  title = {w->frame.left + 2, w->frame.right - (w->icon && !w->no_icon ? 54 : 42), w->frame.top, view.top - 1};
 		const uint8_t *font  = st_ddofx_vga_bitmap(r->ddo);
-		if (!w->borderless && font && intersect(&title, &area))
+		if (!w->borderless && font && st_ddofx_intersect_bounds(&title, &area))
 			st_ddofx_paint_vga_string(g, 0, pixels, font, (const uint8_t *)w->title,
 			    (unsigned)strlen(w->title), w->frame.left + 2, view.top - 3, 14, title_colour, &title);
 		if (!w->borderless)
@@ -281,7 +267,7 @@ publish_area(struct st_ddofx *ddo, unsigned owner, const struct st_pixel_buffer 
 	if (!owner) {
 		struct st_console_rect area = {b.left, b.top, b.right - b.left + 1, b.bottom - b.top + 1};
 		st_ddofx_repaint_clocks(ddo, 0, pixels, &area);
-		st_ddofx_repaint_marquees(ddo, pixels, &area);
+		st_ddofx_repaint_marquees(ddo, 0, pixels, b);
 		st_ddofx_repaint_desktop_bars(g, pixels, b);
 	}
 }
@@ -298,13 +284,14 @@ st_ddofx_publish_page_area(struct st_ddofx *ddo, unsigned owner, enum page deskt
 		if (!w->visual)
 			return;
 		struct bounds backing = {0, w->width - 1, 0, w->height - 1};
-		if (!intersect(&area, &backing))
+		if (!st_ddofx_intersect_bounds(&area, &backing))
 			return;
 		if (owner == g->active_graphic_window && desktop_page != VISUAL) {
-			/* A new animation frame can replace clock pixels even outside the viewport. */
+			/* Background frames can replace overlays even outside the viewport. */
 			struct st_console_rect local = {area.left, area.top, area.right - area.left + 1,
 			    area.bottom - area.top + 1};
 			st_ddofx_repaint_clocks(ddo, owner, NULL, &local);
+			st_ddofx_repaint_marquees(ddo, owner, NULL, area);
 		}
 		if (w->hidden)
 			return;
@@ -316,7 +303,7 @@ st_ddofx_publish_page_area(struct st_ddofx *ddo, unsigned owner, enum page deskt
 		area.top += dy;
 		area.bottom += dy;
 	}
-	if (!intersect(&area, &view))
+	if (!st_ddofx_intersect_bounds(&area, &view))
 		return;
 	unsigned first_cover = owner && owner == g->active_graphic_window ? GRAPHIC_WINDOWS + 1 : 1;
 	publish_area(ddo, owner, pixels, area, first_cover, dx, dy, desktop_page);
@@ -335,7 +322,7 @@ st_ddofx_refresh_window_area(struct st_ddofx *ddo, unsigned slot, struct bounds 
 	area.right += dx;
 	area.top += dy;
 	area.bottom += dy;
-	if (intersect(&area, &view))
+	if (st_ddofx_intersect_bounds(&area, &view))
 		refresh(ddo, area);
 }
 

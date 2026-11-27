@@ -22,6 +22,20 @@ st_ddofx_extend_bounds(struct bounds *damage, struct bounds area)
 		damage->bottom = area.bottom;
 }
 
+static inline bool
+st_ddofx_intersect_bounds(struct bounds *b, const struct bounds *area)
+{
+	if (b->left < area->left)
+		b->left = area->left;
+	if (b->right > area->right)
+		b->right = area->right;
+	if (b->top < area->top)
+		b->top = area->top;
+	if (b->bottom > area->bottom)
+		b->bottom = area->bottom;
+	return b->left <= b->right && b->top <= b->bottom;
+}
+
 enum {
 	WIDTH  = 640,
 	HEIGHT = 480
@@ -227,7 +241,7 @@ bool st_ddofx_ray_command(struct st_ddofx *, const struct st_ddofx_sink *, const
 bool st_ddofx_landscape_command(struct st_ddofx *, const struct st_ddofx_sink *, const char *, char *);
 bool st_ddofx_movie_command(struct st_ddofx *, const struct st_ddofx_sink *, const char *, char *);
 void st_ddofx_movie_resolution(struct st_ddofx_graphics *, unsigned);
-void st_ddofx_repaint_marquees(struct st_ddofx *, const struct st_pixel_buffer *, const struct st_console_rect *);
+void st_ddofx_repaint_marquees(struct st_ddofx *, unsigned owner, const struct st_pixel_buffer *, struct bounds);
 void st_ddofx_clear_clocks(struct st_ddofx_graphics *);
 bool st_ddofx_clock_command(struct st_ddofx *, const struct st_ddofx_sink *, const char *, char *);
 void st_ddofx_clear_marquees(struct st_ddofx_graphics *);
@@ -272,6 +286,10 @@ void st_ddofx_icon_cancel(struct st_ddofx_graphics *);
 void st_ddofx_close_icon(struct st_ddofx *, unsigned id);
 void    st_ddofx_animation_background(struct st_ddofx *, unsigned window, const struct st_console_rect *,
     const uint8_t *image, int transparent);
+void st_ddofx_repaint_animation_faces(struct st_ddofx_graphics *, unsigned owner, const struct st_pixel_buffer *,
+    struct bounds);
+void st_ddofx_paint_sprite_part(const struct st_ddofx_sprite *, int32_t x, int32_t bottom, char op, struct bounds,
+    const struct st_ddofx_surface *, const struct st_pixel_buffer *);
 void st_ddofx_clear_animations(struct st_ddofx_graphics *);
 bool st_ddofx_animation_command(struct st_ddofx *, const char *verb, char *args);
 void    st_ddofx_simple_command(struct st_ddofx *, const char *, char *);

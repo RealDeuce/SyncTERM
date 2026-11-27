@@ -247,6 +247,26 @@ st_ddofx_animation_background(struct st_ddofx *ddo, unsigned window, const struc
 	compose(ddo, window, frame, image, transparent);
 }
 
+void
+st_ddofx_repaint_animation_faces(struct st_ddofx_graphics *g, unsigned owner, const struct st_pixel_buffer *pixels,
+    struct bounds clip)
+{
+	const struct st_ddofx_animations *list = g->animations;
+	if (!list)
+		return;
+	struct st_ddofx_surface target = st_ddofx_surface(g, owner, VISUAL);
+	for (unsigned i = 0; i < list->count; ++i) {
+		const struct animation *a = &list->profiles[list->queue[i]];
+		if (a->window != owner || !a->painted.width)
+			continue;
+		struct st_console_rect r    = a->painted;
+		struct bounds          area = {r.x, r.x + r.width - 1, r.y, r.y + r.height - 1};
+		if (st_ddofx_intersect_bounds(&area, &clip))
+			st_ddofx_paint_sprite_part(&g->sprites[a->frame], a->x, a->y, "PCF"[a->draw], area,
+			    &target, pixels);
+	}
+}
+
 static void
 deadline(struct st_ddofx_animations *list)
 {

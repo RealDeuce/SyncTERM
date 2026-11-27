@@ -176,6 +176,35 @@ paint_visible(void *context, const struct st_pixel_buffer *pixels, struct st_con
 	return 0;
 }
 
+static bool
+sprite_part(struct sprite_draw *result, const struct st_ddofx_sprite *s, char op, int32_t x, int32_t y,
+    struct bounds b)
+{
+	int64_t left = x, right = (int64_t)x + s->width - 1, top = (int64_t)y - s->height + 1, bottom = y;
+	if (right < b.left || left > b.right || bottom < b.top || top > b.bottom)
+		return false;
+	int x1 = left < b.left ? b.left : (int)left, y1 = top < b.top ? b.top : (int)top;
+	int x2 = right > b.right ? b.right : (int)right, y2 = bottom > b.bottom ? b.bottom : (int)bottom;
+	*result = (struct sprite_draw) {
+	    .sprite = s,
+	    .area   = {x1, y1, x2 - x1 + 1, y2 - y1 + 1},
+	    .src_x  = (int)(x1 - left),
+	    .src_y  = (int)(y1 - top),
+	    .mirror = op == 'R' || op == 'F',
+	    .opaque = op == 'P'
+        };
+	return true;
+}
+
+void
+st_ddofx_paint_sprite_part(const struct st_ddofx_sprite *s, int32_t x, int32_t bottom, char op, struct bounds clip,
+    const struct st_ddofx_surface *target, const struct st_pixel_buffer *pixels)
+{
+	struct sprite_draw draw;
+	if (s->pixels && sprite_part(&draw, s, op, x, bottom, clip))
+		paint(&draw, target->data, target->width, pixels);
+}
+
 void
 st_ddofx_draw_sprite(struct st_ddofx_graphics *g, unsigned window, const struct st_ddofx_sprite *s, enum page page,
     char op, int32_t x, int32_t y)
@@ -193,18 +222,9 @@ st_ddofx_draw_sprite(struct st_ddofx_graphics *g, unsigned window, const struct 
 		return;
 	g->cx = x;
 	g->cy = y;
-	if (right < b.left || left > b.right || bottom < b.top || top > b.bottom)
+	struct sprite_draw d;
+	if (!sprite_part(&d, s, op, x, y, b))
 		return;
-	int x1 = left < b.left ? b.left : (int)left, y1 = top < b.top ? b.top : (int)top;
-	int x2 = right > b.right ? b.right : (int)right, y2 = bottom > b.bottom ? b.bottom : (int)bottom;
-	struct sprite_draw d = {
-	    .sprite = s,
-	    .area   = {x1, y1, x2 - x1 + 1, y2 - y1 + 1},
-	    .src_x  = (int)(x1 - left),
-	    .src_y  = (int)(y1 - top),
-	    .mirror = op == 'R' || op == 'F',
-	    .opaque = op == 'P'
-        };
 	if (window)
 		paint(&d, page == HIDDEN ? w->hidden_page : w->visual, width, NULL);
 	else if (page == VISUAL)

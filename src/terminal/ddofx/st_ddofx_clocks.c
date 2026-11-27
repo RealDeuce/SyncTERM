@@ -231,6 +231,7 @@ paint(void *context, const struct st_pixel_buffer *pixels, struct st_console_rec
 				clip.bottom = target.height - 1;
 			if (face->window) {
 				draw_face(g, face, NULL, g->clocks->seconds, &clip);
+				st_ddofx_repaint_marquees(ddo, face->window, NULL, clip);
 				st_ddofx_publish_page_area(ddo, face->window, VISUAL, pixels, clip, &changed);
 			}
 			else
