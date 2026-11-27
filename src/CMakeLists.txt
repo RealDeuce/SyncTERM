@@ -851,7 +851,7 @@ if(BUILD_TESTING)
 					list style theme_indicator button checkbox date palette statusbar pixels
 					terminal_cp437 terminal_utf8 cterm_reset_cp437 cterm_reset_utf8 status_cp437 status_utf8
 					rendering_cp437 rendering_utf8 art_checksums scrollback_cp437 scrollback_utf8
-					profile session_modes picker menu_exit menu_position menu_shortcuts autoload
+					profile session_modes petscii_banks picker menu_exit menu_position menu_shortcuts autoload
 					recovery recovery_close menu_error web_list bbs_setters settings_ui
 					graphics_cp437 graphics_utf8 capture_cp437 capture_utf8)
 				add_test(NAME syncterm_behavior_${_case}

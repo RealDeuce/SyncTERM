@@ -10,6 +10,12 @@ bundled font; CP437 and ASCII glyph positions are not interchangeable with
 PETSCII. Text decoding follows control recognition, so a high-bit control
 byte is not a Unicode character.
 
+C64 connections default to the upper/graphics bank. A saved lowercase
+selection sets the starting bank for that entry. On all three Commodore modes,
+`8E` and `0E` switch both the decoder and the font for subsequent bytes.
+For example, `41 CF` displays an uppercase A and a corner graphic after
+`8E`, and a lowercase a and an uppercase O after `0E`.
+
 Printable ranges are `20`–`7F` and `A0`–`FF`. Every byte in `00`–`1F` and
 `80`–`9F` is a control or a reserved byte. Reserved bytes are silently
 discarded. There is no ANSI escape-sequence interpretation in this mode.

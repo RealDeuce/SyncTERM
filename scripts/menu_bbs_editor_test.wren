@@ -22,6 +22,7 @@ class MenuTest {
     testDiscovery_()
     testSkyPixSettings_()
     testBigSettings_()
+    testC64Bank_()
     return [__pass, __fail]
   }
 
@@ -37,6 +38,7 @@ class MenuTest {
     testDiscovery_()
     testSkyPixSettings_()
     testBigSettings_()
+    testC64Bank_()
     testDefaultsRejectScripts_()
     testEditorScripts_()
     testPersistence_()
@@ -67,6 +69,17 @@ class MenuTest {
   static pane_(scripts, changes) {
     return ScriptListPane.new(FakeApp.new(), scripts,
         Fn.new { changes[0] = changes[0] + 1 })
+  }
+
+  static testC64Bank_() {
+    var d = {"graphics": 0, "screenMode": 1, "encoding": 0}
+    BbsEditor.changeScreen_(d, 17)
+    check_(d["encoding"] == 24 && d["font"] == Menu.fontsCatalog[32][1],
+        "C64 starts in uppercase/graphics")
+    BbsEditor.changeEncoding_(d, 25)
+    BbsEditor.changeScreen_(d, 17)
+    check_(d["encoding"] == 25 && d["font"] == Menu.fontsCatalog[33][1],
+        "C64 keeps an explicitly selected lowercase bank")
   }
 
   static testBigSettings_() {

@@ -420,7 +420,7 @@ test_emulations(void)
 		const char             *stream;
 	} fixtures[] = {
 	    {ST_CTERM_ATASCII,       ST_CODEPAGE_ATASCII,       "A\301\001\201\033\034\033\234\033\033\033\233B"},
-	    {ST_CTERM_PETSCII,       ST_CODEPAGE_PETSCII_UPPER, "A\022B\222C\034D"                              },
+	    {ST_CTERM_PETSCII,       ST_CODEPAGE_PETSCII_UPPER, "A\022B\222C\034D\016A\317\216A\317"            },
 	    {ST_CTERM_PRESTEL,       ST_CODEPAGE_PRESTEL,       "A\033QB\033^_\033XC"                           },
 	    {ST_CTERM_BBC,           ST_CODEPAGE_PRESTEL,       "A\033QB\177C\034\001\002"                      },
 	    {ST_CTERM_ATARI_ST_VT52, ST_CODEPAGE_ATARI_ST,
@@ -467,6 +467,12 @@ test_emulations(void)
 		if (fixtures[i].emulation == ST_CTERM_PETSCII) {
 			CHECK(expected.cells[1].foreground == expected.cells[0].background);
 			CHECK(expected.cells[1].background != expected.cells[0].background);
+			for (size_t x = 4; x < 8; ++x) {
+				CHECK(expected.cells[x].glyph == (x % 2 == 0 ? 0x41 : 0x6f));
+				CHECK(expected.cells[x].glyph_font == expected.cells[x].font);
+			}
+			CHECK(expected.cells[4].font != expected.cells[6].font);
+			CHECK(expected.state.x == 9 && expected.state.y == 1 && expected.response_size == 0);
 		}
 		if (fixtures[i].emulation == ST_CTERM_PRESTEL)
 			CHECK((expected.cells[1].flags & ST_CONSOLE_CELL_SAA5050_CONTROL_MASK) != 0);

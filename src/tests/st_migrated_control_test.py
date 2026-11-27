@@ -16,7 +16,7 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools" / "testing"))
 from syncterm_control import ProtocolError, COMMAND
-from syncterm_fixture import (SOURCE, application, cell_at, click_text, fixture,
+from syncterm_fixture import (SOURCE, application, cell_at, check_pixel_planes, click_text, fixture,
                               environment, install_suite, listener, receive, write_script)
 
 SUITES = {
@@ -389,6 +389,63 @@ Conn.sendText("PROFILE-READY")
                     assert b"Missing glyph" not in after and opened_count == 1
                 if safe:
                     assert (root / "syncterm.lst").read_text(encoding="utf-8") == value
+
+
+def petscii_banks(executable, reports):
+    reset = '''
+import "syncterm" for CTerm, Conn, Hook, Key
+Hook.onKey(Key.f10) {|event|
+  CTerm.reset()
+  Conn.sendBytes("1")
+  return true
+}
+'''
+    # Ticket 306 identifies these seven shifted bytes in the C-Net logo.
+    logo = bytes.fromhex("cf cd d0 cc ce d4 d6")
+    graphics = "\U0001fb7d╲\U0001fb7e\U0001fb7c╱\U0001fb70╳"
+    for mode, bank_options, lower in (("C64", "", False), ("C64", "Encoding=PETSCIIL\n", True),
+                                      ("C64", "Font=Commodore 64 (Lower)\n", True),
+                                      ("C128-40col", "Font=Commodore 128 (Lower)\n", True),
+                                      ("C128-80col", "Font=Commodore 128 (Lower)\n", True)):
+        options = f"ScreenMode={mode}\n" + bank_options
+        with connection(executable, reports, options=options, encoding=None,
+                        script=reset) as (client, root, peer, send):
+            initial = "aO" if lower else "A" + graphics[0]
+            send(b"A\xcf1")
+            frame = client.wait_text("1")
+            assert frame.lines[0].startswith(initial + "1"), (options, frame.lines[0])
+            assert frame.application["cterm.codepage"] == (25 if lower else 24)
+
+            send(b"\r\x8e\x15\x93BULLETIN BOARD SYSTEM\r\x05" + logo +
+                 b"\x0eAZ" + logo + b"\x8eAZ2")
+            frame = client.wait_text("2")
+            assert frame.lines[0].rstrip() == "BULLETIN BOARD SYSTEM"
+            assert frame.lines[1].rstrip() == graphics + "azOMPLNTVAZ2"
+            assert (frame.application["cterm.x"], frame.application["cterm.y"]) == (20, 2)
+            assert frame.application["cterm.codepage"] == 24
+            # $CF and $D0 are two-pixel-thick upper corners in the Commodore font.
+            for x, left in ((0, True), (2, False)):
+                cell = cell_at(frame, x, 1)
+                assert cell.font == cell.glyph_font
+                assert frame.palette[cell.foreground] == 0xffffff and cell.foreground != cell.background
+                for y in range(8):
+                    pixels = [cell.foreground if y < 2 or (i < 2 if left else i >= 6)
+                              else cell.background for i in range(8)]
+                    offset = (8 + y) * frame.metadata["plane_width"] + 8 * x
+                    check_pixel_planes(frame, pixels, start=offset, context=(mode, x, y))
+
+            # Reset from the opposite bank and print without another shift.
+            send((b"\x8e" if lower else b"\x0e") + b"3")
+            frame = client.wait_text("3")
+            assert frame.application["cterm.codepage"] == (24 if lower else 25)
+            client.text("A")
+            receive(peer, b"a" if lower else b"A")
+            client.key("f10")
+            receive(peer, b"1")
+            send(b"A\xcf4")
+            frame = client.wait_text("4")
+            assert frame.lines[0].startswith(initial + "4")
+            assert frame.application["cterm.codepage"] == (25 if lower else 24)
 
 
 def session_modes(executable, reports):
@@ -1139,7 +1196,7 @@ CASES = {"cterm_reset_cp437": lambda e, r: cterm_reset(e, "CP437", r),
          "rendering_utf8": lambda e, r: rendering(e, "UTF-8", r),
          "scrollback_cp437": lambda e, r: scrollback(e, "CP437", r),
          "scrollback_utf8": lambda e, r: scrollback(e, "UTF-8", r),
-         "profile": profile, "session_modes": session_modes, "picker": picker,
+         "profile": profile, "session_modes": session_modes, "petscii_banks": petscii_banks, "picker": picker,
          "menu_exit": menu_exit, "menu_position": menu_position, "menu_shortcuts": menu_shortcuts,
          "autoload": autoload, "recovery": recovery,
          "recovery_close": lambda e, r: recovery(e, r, True),

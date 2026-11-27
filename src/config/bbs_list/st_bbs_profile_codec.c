@@ -6,6 +6,7 @@
  */
 
 #include <limits.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -134,11 +135,18 @@ st_bbs_decode_profile(struct st_profile *profile, const ini_section_t *section, 
 	profile->telnet_no_binary         = ini_section_get_bool(section, "TelnetBrokenTextmode", false);
 	profile->defer_telnet_negotiation = ini_section_get_bool(section, "TelnetDeferNegotiate", false);
 	copy_fixed(profile->terminal_name, sizeof(profile->terminal_name), section, "TerminalType", "");
-	copy_fixed(profile->font, sizeof(profile->font), section, "Font", "Codepage 437 English");
 	{
-		const char *encoding_name = ini_section_find(section, "Encoding");
+		bool explicit_encoding = st_profile_encoding_parse(ini_section_find(section, "Encoding"), &profile->encoding);
+		const char *default_font = "Codepage 437 English";
 
-		if (encoding_name == NULL || !st_profile_encoding_parse(encoding_name, &profile->encoding))
+		if (profile->screen_mode == ST_SCREEN_MODE_C64) {
+			if (!explicit_encoding || profile->encoding == ST_CODEPAGE_PETSCII_UPPER)
+				default_font = st_builtin_font_name(32);
+			else if (profile->encoding == ST_CODEPAGE_PETSCII_LOWER)
+				default_font = st_builtin_font_name(33);
+		}
+		copy_fixed(profile->font, sizeof(profile->font), section, "Font", default_font);
+		if (!explicit_encoding)
 			profile->encoding = legacy_encoding(profile);
 	}
 	copy_fixed(profile->comment, sizeof(profile->comment), section, "Comment", "");

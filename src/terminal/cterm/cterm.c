@@ -2057,6 +2057,10 @@ cterm_reset(struct cterminal *cterm)
 	st_unicode_presentation_reset(cterm->screen.unicode);
 	int i;
 
+	if (cterm->emulation == CTERM_EMULATION_PETASCII) {
+		cterm->screen.codepage = cterm->petscii_connection_codepage;
+		cterm_render_set_font_selector(cterm, cterm_render_font_selector(cterm, 0), false, 1);
+	}
 	cterm->altfont[0] = cterm->altfont[1] = cterm->altfont[2] = cterm->altfont[3] =
 	    cterm_render_font_selector(cterm, 1);
 	cterm->top_margin        = 1;
@@ -2270,6 +2274,7 @@ cterm_init(int height, int width, int xpos, int ypos, int backlines, int backcol
 			cterm->byte_handlers = cterm_atascii_handlers;
 			break;
 		case CTERM_EMULATION_PETASCII:
+			cterm->petscii_connection_codepage = screen->codepage;
 			cterm->dispatch      = cterm_dispatch_byte;
 			cterm->ctrl_bitmap   = cterm_petscii_ctrl_bitmap;
 			cterm->byte_handlers = cterm_petscii_handlers;

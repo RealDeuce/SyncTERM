@@ -41,6 +41,12 @@ bug, not the expected behavior. Both clients return DA
 `ESC[23;80H` followed by a space before its LF; remote artwork is not used as
 an expected image.
 
+`syncterm_behavior_petscii_banks` replays the banner prefix, text and seven
+outline bytes from ticket 306 on C64 and both C128 screen modes. It checks
+the C64 startup default, explicit lowercase profiles, both bank shifts,
+retained text, white corner pixels in both bitmap phases, keyboard bytes
+and local reset. The native `cterm_text` test splits input at every byte.
+
 `syncterm_atascii_glyphs` exercises all 255 drawable ATASCII bytes and quoted
 end-of-line in Atari and Atari XEP80 sessions with the Atari font. Each capture
 checks the glyphs, cursor and both bitmap phases, including the quarter-block

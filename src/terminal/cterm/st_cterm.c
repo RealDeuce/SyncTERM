@@ -1966,6 +1966,8 @@ st_cterm_set_encoding(st_cterm_t *terminal, enum st_cterm_encoding encoding, enu
 	}
 	terminal->wire_encoding   = encoding;
 	terminal->screen.codepage = codepage;
+	if (terminal->emulation == CTERM_EMULATION_PETASCII)
+		terminal->petscii_connection_codepage = codepage;
 	if (terminal->status_sub != NULL)
 		terminal->status_sub->screen.codepage = codepage;
 	if (terminal->device.encoding != NULL)
@@ -2150,6 +2152,13 @@ cterm_mapped_key(uint16_t key, uint32_t modifiers)
 	}
 }
 
+static enum st_codepage
+keyboard_codepage(const st_cterm_t *terminal)
+{
+	return terminal->emulation == CTERM_EMULATION_PETASCII ? terminal->petscii_connection_codepage
+	                                                      : terminal->screen.codepage;
+}
+
 bool
 st_cterm_handle_key(st_cterm_t *terminal, uint16_t key_code, uint32_t modifiers)
 {
@@ -2166,7 +2175,7 @@ st_cterm_handle_key(st_cterm_t *terminal, uint16_t key_code, uint32_t modifiers)
 		/* Ordinary control keys arrive as Unicode C0 values, whereas the
 		 * reference byte-key tables expect e.g. ATASCII Return as 0x9b.
 		 * Explicit Ctrl combinations retain their control-key identity. */
-		if (st_codepage_from_unicode(&byte, terminal->screen.codepage, (uint32_t)doorway_key))
+		if (st_codepage_from_unicode(&byte, keyboard_codepage(terminal), (uint32_t)doorway_key))
 			doorway_key = byte;
 	}
 	return cterm_handle_key(terminal, doorway_key) == CTERM_KEY_HANDLED;
@@ -2193,7 +2202,7 @@ st_cterm_handle_text_key(st_cterm_t *terminal, uint32_t codepoint)
 			return false;
 		byte = (uint8_t)codepoint;
 	}
-	else if (!st_codepage_from_unicode(&byte, terminal->screen.codepage, codepoint))
+	else if (!st_codepage_from_unicode(&byte, keyboard_codepage(terminal), codepoint))
 		return false;
 	/* An encodable byte rejected by this emulation is deliberately silent,
 	 * not an invitation to bypass its keyboard policy with a raw send. */

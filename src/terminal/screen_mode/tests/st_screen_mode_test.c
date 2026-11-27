@@ -112,7 +112,7 @@ main(void)
 	CHECK(mode->font_selector == 43 && mode->palette_count == 8);
 	CHECK(mode->palette_rgb[1] == 0x0000ff);
 	mode = st_screen_mode_get(ST_SCREEN_MODE_C64);
-	CHECK(mode->default_attribute == 0x6e && mode->font_selector == 33);
+	CHECK(mode->default_attribute == 0x6e && mode->font_selector == 32);
 	CHECK(mode->palette_rgb[1] == 0xffffff);
 	st_screen_mode_console_palette(mode, console_palette);
 	CHECK(console_palette[4] == 0xffffff);

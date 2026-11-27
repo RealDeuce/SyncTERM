@@ -4016,8 +4016,9 @@ Three screen modes are supported:
 All three modes have bright backgrounds enabled and blinking disabled
 (BGBRIGHT and NOBLINK video flags).
 
-Each mode has two font variants: upper-case/graphics (the default) and
-lower-case/upper-case (selected by control codes 14 and 142).
+The C64 defaults to upper-case/graphics. Control code 14 selects
+lower-case/upper-case and 142 selects upper-case/graphics on all three
+machines. Both controls select the font and byte mapping for subsequent text.
 
 === Control Codes
 

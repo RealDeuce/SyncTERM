@@ -1,5 +1,5 @@
 import "syncterm" for ConnType, GraphicsMode, FilePickerOptions, Host, Key, KeyEvent, Mod,
-    MouseEvent, TLSVersion, Profile, Error, Text
+    MouseEvent, TLSVersion, Profile, Error, Text, ScreenMode, Codepage
 import "syncterm_menu" for Menu, DirectoryEntry
 import "menu_ui" for ChoiceViewState, MenuUi, MenuPanel
 import "ui_app" for App
@@ -1146,7 +1146,7 @@ class BbsEditor {
       return
     }
     if (family == 1 && encodingFamily_(d["encoding"]) != 1) {
-      d["encoding"] = 25
+      d["encoding"] = mode == ScreenMode.c64 ? Codepage.petsciiUpper : Codepage.petsciiLower
     } else if (family == 2) {
       d["encoding"] = 23
     } else if (family == 3) {

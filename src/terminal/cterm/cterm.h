@@ -227,6 +227,7 @@ struct cterminal {
 	/* emulation state */
 	int           started;          // Indicates that terminal output has started
 	bool          c64reversemode;   // Commodore 64 reverse mode state
+	enum st_codepage petscii_connection_codepage; /* Keyboard mapping and bank restored by local reset. */
 	bool          negative;
 	bool          lf_expand;
 	unsigned char attr;   // Current attribute

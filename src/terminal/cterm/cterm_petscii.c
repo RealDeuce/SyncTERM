@@ -241,29 +241,25 @@ petscii_down(struct cterminal *cterm) /* 17 — cursor down w/ scroll */
 }
 
 static void
+petscii_select_bank(struct cterminal *cterm, bool lower)
+{
+	int upper_font = cterm->screen.mode == CTERM_MODE_C64_40 ? 32 : 34;
+	int font = lower ? upper_font + 1 : upper_font;
+	cterm->screen.codepage = lower ? ST_CODEPAGE_PETSCII_LOWER : ST_CODEPAGE_PETSCII_UPPER;
+	cterm_render_set_font_selector(cterm, font, false, 1);
+	cterm->altfont[0] = font;
+}
+
+static void
 petscii_font_lower(struct cterminal *cterm) /* 14 */
 {
-	if (cterm->screen.mode == CTERM_MODE_C64_40) {
-		cterm_render_set_font_selector(cterm, 33, false, 1);
-		cterm->altfont[0] = 33;
-	}
-	else {
-		cterm_render_set_font_selector(cterm, 35, false, 1);
-		cterm->altfont[0] = 35;
-	}
+	petscii_select_bank(cterm, true);
 }
 
 static void
 petscii_font_upper(struct cterminal *cterm) /* 142 */
 {
-	if (cterm->screen.mode == CTERM_MODE_C64_40) {
-		cterm_render_set_font_selector(cterm, 32, false, 1);
-		cterm->altfont[0] = 32;
-	}
-	else {
-		cterm_render_set_font_selector(cterm, 34, false, 1);
-		cterm->altfont[0] = 34;
-	}
+	petscii_select_bank(cterm, false);
 }
 
 static void
