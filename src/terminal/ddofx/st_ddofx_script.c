@@ -663,7 +663,9 @@ st_ddofx_script_step(struct st_ddofx *ddo, const struct st_ddofx_sink *sink)
 			send_reply(sink, f->after_reply);
 		}
 		pop(s);
-		if (kind == DDO_MOUSE)
+		if (kind == DDO_FIELD)
+			st_ddofx_finish_field(ddo);
+		else if (kind == DDO_MOUSE)
 			st_ddofx_resume_mouse(ddo);
 		return kind == DDO_KEY ? st_ddofx_resume_key(ddo, sink) : 0;
 	}

@@ -621,6 +621,32 @@ def check_pointers(t, root, mouse):
     check(t.exchange(commands(b"3DAM", b"3MPT,A.MPT", b"3MPL,0", b"3AMP,0", b"w4")), (69,55,3))
     check(t.exchange(commands(b"3MPT,DEFAULT")), (69,55,165))
 
+    t.case("Normal hover fields and pointer selection")
+    t.exchange(commands(b"7DEFRET,1,M", b"3MPL,1,A.MPT", b"3MPL,2,B.MPT",
+                        b"3AMP,2,2,2,2", b"3MFLD,300,100,130,80,100,2,1,H~^M,\x1d(w1)\x1d(7SRET,1)",
+                        b"3MFLD,1,90,130,80,100,1,0,L,",
+                        b"3MREGN,2,100,130,80,100,1,CLICK,"))
+    mouse(100,80,0)
+    t.input(b"MH,\r")
+    t.client.wait_for(lambda f: pixel(f,102,79) == f.palette[15])
+    mouse(100,80,1)
+    mouse(100,80,0)
+    t.input(b"CLICK")
+    # Per the SDK an uncovered gap retains the remembered field.
+    mouse(60,60,0)
+    mouse(129,99,0)
+    t.exchange()
+    mouse(90,80,0)
+    t.input(b"L")
+    check(t.exchange(), (89,80,3))
+    t.send(commands(b"3MFFRS"))
+    t.input(b"L")
+    t.send(commands(b"3MFSWP,1,300"))
+    t.input(b"L")
+    check(t.exchange(commands(b"3MFLD,0", b"3MREG,0")), (89,80,3))
+    mouse(70,55,0)
+    t.exchange(commands(b"2RESET"))
+
 
 def check_mouse(t, root):
     t.case("Normal mouse region callbacks and button history")

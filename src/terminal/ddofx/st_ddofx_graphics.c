@@ -55,6 +55,7 @@ clear_graphics_objects(struct st_ddofx_graphics *g)
 	}
 	if (g->mouse.visibility_changed)
 		(void)st_console_set_pointer_visible(g->display, g->mouse.previous_visibility);
+	free(g->mouse.fields);
 	free(g->mouse.regions);
 	g->mouse = (struct st_ddofx_mouse_state){0};
 	st_ddofx_grid_destroy(g, false);

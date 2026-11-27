@@ -121,6 +121,22 @@ select_slot(struct st_ddofx *ddo, unsigned slot)
 }
 
 void
+st_ddofx_field_pointer(struct st_ddofx *ddo, unsigned slot, bool animated)
+{
+	struct st_ddofx_pointers *p = ddo->graphics->mouse.pointers;
+	if (!p || !slot || slot > POINTERS)
+		return;
+	if (!animated) {
+		p->animation = 0;
+		select_slot(ddo, slot);
+	}
+	else if (p->profiles[slot - 1].loop) {
+		p->animation = slot;
+		p->due       = 0;
+	}
+}
+
+void
 st_ddofx_pointer_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, const char *verb, char *args)
 {
 	struct st_ddofx_mouse_state *m = &ddo->graphics->mouse;
@@ -180,10 +196,8 @@ st_ddofx_pointer_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink,
 		if (p->animation == (unsigned)slot)
 			p->animation = 0;
 	}
-	else if (!ascii_case_compare(verb, "AAM") && !args && slot && p->profiles[slot - 1].loop) {
-		p->animation = (unsigned)slot;
-		p->due       = 0;
-	}
+	else if (!ascii_case_compare(verb, "AAM") && !args)
+		st_ddofx_field_pointer(ddo, (unsigned)slot, true);
 }
 
 uint32_t

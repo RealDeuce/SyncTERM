@@ -31,6 +31,7 @@ struct st_ddofx_sprite {
 };
 
 struct st_ddofx_mouse_state {
+	struct st_ddofx_fields *fields;
 	struct st_ddofx_regions *regions;
 	struct st_ddofx_pointers *pointers;
 	int x, y;
@@ -75,6 +76,7 @@ struct st_ddofx_graphics {
 	int           horizontal_thickness, vertical_thickness;
 };
 
+void st_ddofx_field_pointer(struct st_ddofx *, unsigned slot, bool animated);
 void st_ddofx_pointer_command(struct st_ddofx *, const struct st_ddofx_sink *, const char *, char *);
 void st_ddofx_pointer_refresh(struct st_ddofx *);
 void st_ddofx_print_vga_text(struct st_ddofx *, const char *, char *);

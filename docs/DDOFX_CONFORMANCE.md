@@ -22,6 +22,8 @@ The four desktop pages support lower-left anchored image scaling, rotation betwe
 
 In Normal mode the BBS can show or hide the mouse pointer, query its position and three logical buttons, and read separate press and release counts and positions for each button. Up to 300 desktop regions share one table. Overlapping regions run in slot order. Each macro finishes before its return string is sent. Held repeatable regions run at 50 ms intervals during idle input. Non-repeating regions wait for all buttons to be released.
 
+Desktop hover fields use a separate table of 300 slots. The highest matching slot runs its macro, sends its return string and selects its static or animated pointer. As specified in the SDK, leaving a field for uncovered space preserves the remembered slot. Re-entering it fires again after a different field has won or the BBS has sent `3MFFRS`.
+
 The host can load either MPT pointer format from the assigned M resource. A selected image keeps its own hotspot and AND/XOR masks when the BBS replaces or clears its list entry. The bitmap presenter applies those masks to the displayed palette indices, leaving the graphics pages available for capture and copying under the pointer. The 100 static slots and 100 animation profiles support one-shot, looping and oscillating playback.
 
 Normal mode supports a tile map of up to 150 × 150 cells. The host can fill either layer, move the viewport, move or remove foreground tiles, and animate consecutive sprite frames. Grid assignments become visible on a draw. Movement redraws immediately.
@@ -302,9 +304,9 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 8958 | MOUSE SPEED | DDO-FX (NM) | Pending |
 | 8968 | MOUSE REGION | DDO-FX (NM) | Desktop regions |
 | 9189 | MOUSE REGION NON REPEAT | DDO-FX (NM) | Desktop regions |
-| 9211 | MOUSE FIELD | DDO-FX (NM) | Pending |
-| 9292 | MOUSE FIELD SWAP | DDO-FX (NM) | Pending |
-| 9302 | MOUSE FIELD FRESHEN | DDO-FX (NM) | Pending |
+| 9211 | MOUSE FIELD | DDO-FX (NM) | Desktop hover fields |
+| 9292 | MOUSE FIELD SWAP | DDO-FX (NM) | Desktop hover fields |
+| 9302 | MOUSE FIELD FRESHEN | DDO-FX (NM) | Desktop hover fields |
 | 9317 | CREATE RADIO BUTTON | DDO-FX (NM) | Pending |
 | 9481 | EXECUTE RADIO BUTTON | DDO-FX (NM) | Pending |
 | 9548 | SWAP RADIO BUTTON | DDO-FX (NM) | Pending |
