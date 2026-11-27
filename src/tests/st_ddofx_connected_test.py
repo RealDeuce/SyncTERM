@@ -561,6 +561,30 @@ def check_graphics(t, root):
     t.exchange(commands(b"2GEXIT"))
 
 
+def check_speech(t, root):
+    t.case("MTALK assembles raw RealPlay bytes from a phoneme resource")
+    marker, = root.rglob("syncterm-cache-name.txt")
+    theme = marker.parent / "DDOFX" / "BBSTHEME"
+    record = struct.Struct("<12sIIHH")
+    bank = bytearray(record.pack(b"\xff", 0, 0, 0, 0) * 33)
+    samples = [(b"HELLO.SND", b"\x00\x80\xff"), (b"PAUSE.SND", bytes(range(11))), (b"P.SND", b"p")]
+    for slot, (name, payload) in enumerate(samples):
+        record.pack_into(bank, slot * record.size, name, len(bank), len(payload), 0, 0)
+        bank.extend(payload)
+    (theme / "Talk.The").write_bytes(bank)
+    output = theme / "SAY.SAM"
+    t.exchange(commands(b"MTALK,talk.the,SAY.SAM,hello-p1-p2-p3-p4--absent-p,1"))
+    phrase = b"\x00\x80\xff" + b"".join(bytes(range(11 // n)) for n in range(1, 5)) + b"p"
+    assert output.read_bytes() == phrase
+    t.exchange(commands(b"MTALK,TALK.THE,say.sam,HELLO-,0", b"MTALK,TALK.THE,../SAY.SAM,p1,1"))
+    assert output.read_bytes() == phrase + b"\x00\x80\xff"
+    assert not (theme.parent / "SAY.SAM").exists()
+    t.exchange(commands(b"LIGMODE", b"LIGMODE", b"MTALK,TALK.THE,say.sam,p,1", b"2GEXIT"))
+    assert output.read_bytes() == b"p"
+    t.exchange(commands(b"MTALK,TALK.THE,say.sam,,3"))
+    assert not output.exists()
+
+
 def check_resources(t, root):
     [marker] = root.rglob("syncterm-cache-name.txt")
     directory = marker.parent / "DDOFX" / "BBSTHEME"
@@ -974,13 +998,14 @@ def run(args):
         t.exchange(b"\x1d{dliterm}\x1d{DLITERM}", reply)
         t.exchange(b"\x1d{dMUSICON}\x1d{mMISSING.MOD}\x1d{dGETMUSIC}", b"NO\xffNONE\xff")
         t.exchange(b"\x1d{MGVOL}\x1d{MSVOL,20}\x1d{MMVOL,-5}\x1d{MGVOL}", b"64\xff15\xff")
-        t.exchange(commands(b"dSOUNDON", b"tABSENT.THE", b"dGETTHEME", b"6CHECKBS,150", b"6CHECKBS,151",
+        t.exchange(commands(b"dSOUNDON", b"dACARD", b"tABSENT.THE", b"dGETTHEME", b"6CHECKBS,150", b"6CHECKBS,151",
                             b"~VARCAP,10", b"6CHECKBS,1", b"~VARCAP,0", b"7DEFRET,1,DEFVAR10", b"7SRET,1"),
-                   b"NO\xffNONE\xffN/A\xffN/A")
+                   b"NO\xffNONE\xffNONE\xffN/A\xffN/A")
         check_package_downloads(t)
         check_background_download(t)
         check_cache(t, fixture[1])
         check_resources(t, fixture[1])
+        check_speech(t, fixture[1])
         check_scripts(t)
         check_events(t)
         check_lite_reset(t)

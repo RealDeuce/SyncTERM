@@ -8,7 +8,7 @@ Connected tests cover framing, detection, and ignore/hear across CP437 and UTF-8
 
 After a ZMODEM batch finishes, SyncTERM installs up to 50 Lite/Normal command ZIPs into that BBS’s DDOFX cache. The package letter selects MUSIC (M), BBSTHEME (T or R), FONTS (F), SCRIPTS (S), or THEMES (P). Stored and deflated members retain their timestamps. A successful install removes the downloaded command ZIP. Failed installs and ordinary downloads keep their files. In BBSTHEME packages, DDOFX.INI can add or delete resource members and request one RealPlay sample per batch. Component updates preserve the container timestamp and write the SDK lock marker. In Normal mode, `7ZMBKGRND,1` keeps the scene running during a ZMODEM download and shows progress on the bottom row through installation. The progress overlay leaves the underlying visual page available for animation. `7ZMSTEALTH,1` marks subsequently created keyboard macros, mouse fields and regions, desktop buttons and timed events for local use during reception. ZMODEM retains the connection until the batch ends. The remaining interactive object families are listed below.
 
-BBS sound themes, resident sound bites and big-sample profiles use signed 8-bit PCM from the entry’s `DDOFX/BBSTHEME` resources. RealPlay streams loose sample files from the same directory. The mixer advances the samples at the requested frequency alongside MOD or S3M playback. A connected peer checks `dSOUNDON` and starts RealPlay from the cache. The test reads the resulting stereo frames from a pull-only audio device.
+BBS sound themes, resident sound bites and big-sample profiles use signed 8-bit PCM from the entry’s `DDOFX/BBSTHEME` resources. `MTALK` assembles loose RealPlay files from named `.SND` members, supports the four pause lengths, and can append, replace or delete a phrase. RealPlay streams loose sample files from the same directory. `dACARD` reports the SDK’s 16-bit stereo capability `SB 16` when SyncTERM has audio output configured, and `NONE` otherwise. The mixer advances the samples at the requested frequency alongside MOD or S3M playback. A connected peer checks `dSOUNDON` and starts RealPlay from the cache. The test reads the resulting stereo frames from a pull-only audio device.
 
 An online pair of `LIGMODE` commands enters Normal mode on a pixel display. The visible page is 640×480 with 256 palette entries. The work, background and hidden pages store pixel indices. Whole-page copies, rectangular cuts anchored at the lower left, transparent cuts, work-page drawing, vertical scrolling and palette changes are available from a connection. Ordinary ANSI goes to an 80×100 virtual text page with the top 30 rows visible. `2GEXIT` restores the Lite screen, cursor and palette. Basic fade-out saves the active palette, fades to black and clears the visual and hidden pages. Advanced fade-out preserves page pixels and blends an inclusive palette range toward a selected register. Fade-in returns the palette to the saved values. Named text windows and window scrolling remain pending.
 
@@ -62,7 +62,7 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 1102 | PLAY BIG SAMPLE | DDO-LITE | Connected |
 | 1124 | CHECK BIG SAMPLE | DDO-LITE | Connected |
 | 1167 | PLAY REALPLAY SAMPLE | DDO-FX LITE | Connected |
-| 1207 | TEXT TO SPEECH | DDO-FX LITE | Pending |
+| 1207 | TEXT TO SPEECH | DDO-FX LITE | Connected |
 | 1417 | MODIFY MUSIC PATTERN | DDO-FX LITE | Connected |
 | 1447 | PAUSE RESUME MOD/S3M | DDO-FX LITE | Connected |
 | 1459 | SET VOLUME | DDO-FX LITE | Connected |
@@ -76,7 +76,7 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 1634 | DETECT USER MEMORY & REACT | DDO-FX LITE | Pending |
 | 1729 | DETECT USER DRIVE SIZE | DDO-FX LITE | Pending |
 | 1755 | DETECT GRAPHICS ADAPTER TYPE | DDO-FX LITE | Connected |
-| 1770 | DETECT AUDIO CARD | DDO-FX LITE | Pending |
+| 1770 | DETECT AUDIO CARD | DDO-FX LITE | Connected |
 | 1798 | DETECT Machine Speed | DDO-FX LITE | Pending |
 | 1851 | DETECT VIDEO MODE | DDO-FX LITE | Connected |
 | 1880 | DETECT FOR MUSIC FILE | DDO-FX LITE | Connected |

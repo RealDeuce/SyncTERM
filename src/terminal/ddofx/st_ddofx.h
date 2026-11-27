@@ -57,6 +57,7 @@ struct st_ddofx_sink {
 	st_audio_runtime_t *audio;
 	const struct st_cterm_config *text_config;
 	FILE               *(*open_asset)(void *, const char *category, const char *client, const char *name);
+	char               *(*theme_file_path)(void *, const char *filename);
 	bool                (*client_exists)(void *, const char *name);
 	int                 (*text)(void *, const uint8_t *, size_t, size_t *);
 	int                 (*resource_text)(void *, const uint8_t *, size_t, size_t *);

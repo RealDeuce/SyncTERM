@@ -106,9 +106,14 @@ st_ddofx_builtin(const struct st_ddofx *ddo, const struct st_ddofx_sink *sink, c
 		strcpy(result, *ddo->music_name ? ddo->music_name : "NONE");
 	else if (!ascii_case_compare(name, "GETTHEME"))
 		strcpy(result, st_ddofx_theme_name(ddo));
-	else if (!ascii_case_compare(name, "MUSICON") || !ascii_case_compare(name, "SOUNDON"))
-		strcpy(result,
-		    st_audio_runtime_is_pull(sink->audio) || st_audio_runtime_allowed(sink->audio) ? "YES" : "NO");
+	else if (!ascii_case_compare(name, "MUSICON") || !ascii_case_compare(name, "SOUNDON")
+	         || !ascii_case_compare(name, "ACARD")) {
+		bool available = st_audio_runtime_is_pull(sink->audio) || st_audio_runtime_allowed(sink->audio);
+		if (!ascii_case_compare(name, "ACARD"))
+			strcpy(result, available ? "SB 16" : "NONE");
+		else
+			strcpy(result, available ? "YES" : "NO");
+	}
 	else if (ascii_case_ncompare(name, "RESOURCE|", 9) == 0) {
 		char fields[ST_DDOFX_BODY_MAX + 1];
 		strcpy(fields, name + 9);

@@ -1380,6 +1380,18 @@ ddofx_open_asset(void *context, const char *category, const char *client, const 
 	return file;
 }
 
+static char *
+ddofx_theme_file_path(void *context, const char *filename)
+{
+	st_term_session_t *session = context;
+	char *directory = NULL, *path = NULL;
+	if (session->config.ddofx_directory
+	    && package_directory(&directory, session->config.ddofx_directory, "BBSTHEME") == 0)
+		(void)package_member_path(&path, directory, filename);
+	free(directory);
+	return path;
+}
+
 static int
 ddofx_text(void *context, const uint8_t *bytes, size_t size, size_t *consumed)
 {
@@ -1399,6 +1411,7 @@ ddofx_sink(st_term_session_t *session)
 	    .text_config   = &session->ddofx_text_config,
 	    .reply         = protocol_reply,
 	    .open_asset    = ddofx_open_asset,
+	    .theme_file_path = ddofx_theme_file_path,
 	    .client_exists = ddofx_client_exists,
 	    .audio         = session->config.audio,
 	};

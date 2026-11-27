@@ -449,6 +449,81 @@ big_sample(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, enum profile_
 	}
 }
 
+struct speech {
+	const struct st_ddofx_sink *sink;
+	const char *container, *output;
+	char *phrase;
+	bool append;
+};
+
+static int
+write_speech(FILE *output, void *context)
+{
+	struct speech *speech = context;
+	if (speech->append) {
+		FILE *previous;
+		int status = fs_open(&previous, speech->output, "rb");
+		if (status == 0) {
+			int64_t length = fs_stream_size(previous);
+			status = length < 0 ? IO_ERROR_IO : st_ddofx_copy_bytes(output, previous, (uint64_t)length);
+			fclose(previous);
+		}
+		if (status != 0 && status != IO_ERROR_NOT_FOUND)
+			return status;
+	}
+
+	FILE *bank = speech->sink->open_asset(speech->sink->context, "BBSTHEME", NULL, speech->container);
+	if (!bank)
+		return 0;
+	int status = 0;
+	for (char *token = speech->phrase; token && !status;) {
+		char *next = strchr(token, '-');
+		if (next)
+			*next++ = 0;
+		size_t size = strlen(token);
+		if (size && size <= 8) {
+			char member[13];
+			unsigned divisor = 1;
+			if (size == 2 && ascii_to_upper((unsigned char)token[0]) == 'P'
+			    && token[1] >= '1' && token[1] <= '4') {
+				strcpy(member, "PAUSE.SND");
+				divisor = (unsigned)(token[1] - '0');
+			}
+			else
+				snprintf(member, sizeof(member), "%s.SND", token);
+			uint32_t length;
+			if (st_ddofx_resource_find(bank, member, -1, &length, NULL) >= 0)
+				status = st_ddofx_copy_bytes(output, bank, length / divisor);
+		}
+		token = next;
+	}
+	fclose(bank);
+	return status;
+}
+
+static void
+assemble_speech(const struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *args)
+{
+	const char *container = st_ddofx_field(&args);
+	const char *name = st_ddofx_field(&args);
+	char *phrase = st_ddofx_field(&args);
+	int32_t operation;
+	if (!args || !sink->theme_file_path || !st_ddofx_dos_filename(container) || !st_ddofx_dos_filename(name)
+	    || !st_ddofx_number(ddo, args, &operation))
+		return;
+	char *path = sink->theme_file_path(sink->context, name);
+	if (!path)
+		return;
+	if (operation == 3)
+		(void)fs_remove_file(path);
+	else {
+		struct speech speech = {.sink = sink, .container = container, .output = path,
+		    .phrase = phrase, .append = operation != 1};
+		(void)fs_replace_file_with(path, write_speech, &speech);
+	}
+	free(path);
+}
+
 bool
 st_ddofx_samples_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *body)
 {
@@ -463,6 +538,10 @@ st_ddofx_samples_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink,
 			}
 		}
 		return false;
+	}
+	if (*body == 'M' && ascii_case_ncompare(body + 1, "TALK,", 5) == 0) {
+		assemble_speech(ddo, sink, body + 6);
+		return true;
 	}
 	if (*body == 'M' && ascii_case_ncompare(body + 1, "PREAL,", 6) == 0) {
 		play_file(ddo, sink, body + 7);

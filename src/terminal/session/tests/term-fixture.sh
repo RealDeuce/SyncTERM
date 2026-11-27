@@ -10,8 +10,8 @@ rip)
 	;;
 ddofx-audio)
 	stty raw -echo
-	printf '\035{dSOUNDON}'
-	test "$(dd bs=1 count=4 2>/dev/null | od -An -tx1 | tr -d ' \n')" = 594553ff
+	printf '\035{dSOUNDON}\035{dACARD}'
+	test "$(dd bs=1 count=10 2>/dev/null | od -An -tx1 | tr -d ' \n')" = 594553ff5342203136ff
 	printf '\035{MPREAL,ramp.rlp,44100}!'
 	dd bs=1 count=1 >/dev/null 2>&1
 	printf '\035{mtone.dat}\035{MICMF}'

@@ -6,6 +6,33 @@
 #include "st_ddofx_resource.h"
 #include "string_util.h"
 
+bool
+st_ddofx_dos_filename(const char *name)
+{
+	const char *dot  = strchr(name, '.');
+	size_t      stem = dot ? (size_t)(dot - name) : strlen(name);
+	if (!stem || stem > 8 || (dot && (!dot[1] || strlen(dot + 1) > 3)))
+		return false;
+	for (const char *p = name; *p; ++p)
+		if (p != dot && ((unsigned char)*p <= ' ' || *p == 127 || strchr(".\"*+,/:;<=>?[\\]|", *p)))
+			return false;
+	return true;
+}
+
+int
+st_ddofx_copy_bytes(FILE *output, FILE *input, uint64_t length)
+{
+	uint8_t bytes[16384];
+
+	while (length) {
+		size_t chunk = length < sizeof(bytes) ? (size_t)length : sizeof(bytes);
+		if (fread(bytes, 1, chunk, input) != chunk || fwrite(bytes, 1, chunk, output) != chunk)
+			return IO_ERROR_IO;
+		length -= chunk;
+	}
+	return 0;
+}
+
 static uint32_t
 little_u32(const uint8_t *p)
 {
@@ -169,15 +196,9 @@ write_entries(FILE *out, struct entry *entries, size_t count)
 		struct entry *entry = &entries[i];
 		if (fs_stream_seek(entry->source, little_u32(entry->record + 12)))
 			return IO_ERROR_IO;
-		uint32_t left = little_u32(entry->record + 16);
-		uint8_t  bytes[16384];
-		while (left) {
-			size_t chunk = left < sizeof(bytes) ? left : sizeof(bytes);
-			if (fread(bytes, 1, chunk, entry->source) != chunk
-			    || fwrite(bytes, 1, chunk, out) != chunk)
-				return IO_ERROR_IO;
-			left -= (uint32_t)chunk;
-		}
+		int status = st_ddofx_copy_bytes(out, entry->source, little_u32(entry->record + 16));
+		if (status)
+			return status;
 	}
 	const uint8_t lock[] = {0xe5, 0xff, 0xe6};
 	return fwrite(lock, 1, sizeof(lock), out) == sizeof(lock) ? 0 : IO_ERROR_IO;

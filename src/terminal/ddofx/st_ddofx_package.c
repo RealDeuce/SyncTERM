@@ -14,22 +14,13 @@
 #include "string_compat.h"
 #include "string_util.h"
 
-static bool
-dos_character(unsigned char c)
-{
-	return c > ' ' && c != 127 && !strchr(".\"*+,/:;<=>?[\\]|", c);
-}
-
 static const char *
 package_category(const char *filename)
 {
 	filename = path_untrusted_basename(filename);
-	if (strlen(filename) != 12 || ascii_case_ncompare(filename, "$LI$", 4)
+	if (strlen(filename) != 12 || !st_ddofx_dos_filename(filename) || ascii_case_ncompare(filename, "$LI$", 4)
 	    || ascii_case_compare(filename + 8, ".ZIP"))
 		return NULL;
-	for (unsigned i = 5; i < 8; ++i)
-		if (!dos_character((unsigned char)filename[i]))
-			return NULL;
 	switch (ascii_to_upper((unsigned char)filename[4])) {
 		case 'M':
 			return "MUSIC";
@@ -81,19 +72,6 @@ write_member(FILE *output, void *context)
 	return status;
 }
 
-static bool
-member_name(const char *name)
-{
-	const char *dot  = strchr(name, '.');
-	size_t      stem = dot ? (size_t)(dot - name) : strlen(name);
-	if (!stem || stem > 8 || (dot && (!dot[1] || strlen(dot + 1) > 3)))
-		return false;
-	for (const char *p = name; *p; ++p)
-		if (p != dot && !dos_character((unsigned char)*p))
-			return false;
-	return true;
-}
-
 static int
 apply_line(const char *directory, st_ddofx_member_path resolve, char *line, char **resource,
     struct st_ddofx_autoplay *play)
@@ -105,7 +83,7 @@ apply_line(const char *directory, st_ddofx_member_path resolve, char *line, char
 	if (!ascii_case_compare(line, "[RESOURCE]")) {
 		free(*resource);
 		*resource = NULL;
-		if (member_name(arg))
+		if (st_ddofx_dos_filename(arg))
 			(void)resolve(resource, directory, arg);
 		return 0;
 	}
@@ -117,7 +95,7 @@ apply_line(const char *directory, st_ddofx_member_path resolve, char *line, char
 	char *number = strchr(arg, ',');
 	if (number)
 		*number++ = 0;
-	if (!member_name(arg))
+	if (!st_ddofx_dos_filename(arg))
 		return 0;
 	char *path   = NULL;
 	int   status = resolve(&path, directory, arg);
@@ -218,7 +196,7 @@ unpack(zip_t *archive, const char *directory, st_ddofx_member_path resolve, stru
 			continue;
 		/* The SDK's installers discard archive directories. Only regular
 		 * DOS files can be installed, using the BBS cache's case lookup. */
-		if (!member_name(name))
+		if (!st_ddofx_dos_filename(name))
 			return IO_ERROR_INVALID_ARGUMENT;
 		zip_uint8_t  os;
 		zip_uint32_t attributes;
