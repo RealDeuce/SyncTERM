@@ -88,7 +88,7 @@ run(bool utf8, bool paced, unsigned kind)
 	    .fonts                                     = fonts,
 	    .connection                                = connection,
 	    .screen_mode                               = ST_SCREEN_MODE_EGA_80X25,
-	    .graphics_mode                             = ST_CTERM_GRAPHICS_BIG_103,
+	    .graphics_mode                             = ST_GRAPHICS_BIG_103,
 	    .encoding           = utf8 ? ST_CTERM_ENCODING_UTF8 : ST_CTERM_ENCODING_CODEPAGE,
 	    .codepage           = ST_CODEPAGE_CP437,
 	    .hide_status        = true,

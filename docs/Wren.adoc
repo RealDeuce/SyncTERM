@@ -6080,6 +6080,7 @@ character).
 | `skypix31` | 4 | Practical SkyPix dialect, with Kickstart 3.1 rendering.
 | `igs221` | 5 | IGS 2.21 Atari ST graphics; see link:IGS_CONFORMANCE.md[coverage].
 | `big103` | 6 | BIG 1.03 terminal graphics; see link:BIG_CONFORMANCE.md[current coverage].
+| `ddofx20` | 7 | DDO F/X 2.0. See link:DDOFX_CONFORMANCE.md[current coverage].
 |===
 
 Selecting IGS presets Atari ST 40x25 (320x200), Atari ST encoding and font.

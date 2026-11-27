@@ -4319,7 +4319,7 @@ exercise_rip_transfer(st_wren_host_t *host)
 		     * The separate RIP3 owner has its own pending block-mode path. */
 		    .codepage             = ST_CODEPAGE_CP437,
 		    .hide_status          = true,
-		    .graphics_mode        = ST_CTERM_GRAPHICS_RIP_1,
+		    .graphics_mode        = ST_GRAPHICS_RIP_1,
 		    .rip_directory        = cache,
 		    .rip_transfer         = rip_transfer_request,
 		    .rip_transfer_context = &connected,
@@ -6040,7 +6040,7 @@ exercise_menu_contract(st_wren_host_t *public_host)
 	    wrenInterpret(host->vm, "amiga_font_contract",
 		"import \"syncterm_menu\" for Menu, MenuError, AmigaFontFamily\n"
 		"import \"syncterm\" for GraphicsMode\n"
-		"if (GraphicsMode.skypix13 != 3 || GraphicsMode.skypix31 != 4 || GraphicsMode.igs221 != 5 || GraphicsMode.big103 != 6 || Menu.graphicsModes.count != 7) Fiber.abort(\"graphics modes\")\n"
+		"if (GraphicsMode.skypix13 != 3 || GraphicsMode.skypix31 != 4 || GraphicsMode.igs221 != 5 || GraphicsMode.big103 != 6 || GraphicsMode.ddofx20 != 7 || Menu.graphicsModes.count != 8) Fiber.abort(\"graphics modes\")\n"
 		"var catalog = Menu.amigaFonts\n"
 		"if (catalog.count != 11) Fiber.abort(\"compiled Amiga families\")\n"
 		"var strikes = 0\n"
@@ -6065,9 +6065,10 @@ exercise_menu_contract(st_wren_host_t *public_host)
 		"var saved = profile.graphics\n"
 		"profile.graphics = GraphicsMode.big103\n"
 		"if (profile.graphics != 6) Fiber.abort(\"BIG property\")\n"
-		"var bad = Fiber.new { profile.graphics = 7 }\n"
+		"profile.graphics = GraphicsMode.ddofx20\n"
+		"var bad = Fiber.new { profile.graphics = 8 }\n"
 		"bad.try()\n"
-		"if (bad.error == null || profile.graphics != 6) Fiber.abort(\"BIG property bounds\")\n"
+		"if (bad.error == null || profile.graphics != 7) Fiber.abort(\"BIG property bounds\")\n"
 		"profile.graphics = saved\n")
 	    == WREN_RESULT_SUCCESS);
 	CHECK(host->bbs_model.count != 0);
@@ -9486,7 +9487,7 @@ exercise_key_click_setting(struct st_wren_host *host)
 	    .connection                                = &connection,
 	    .encoding                                  = ST_CTERM_ENCODING_CODEPAGE,
 	    .codepage                                  = ST_CODEPAGE_ATARI_ST,
-	    .graphics_mode                             = ST_CTERM_GRAPHICS_IGS_221,
+	    .graphics_mode                             = ST_GRAPHICS_IGS_221,
 	    .hide_status                               = true};
 	CHECK(st_term_session_create(&session, &config) == 0);
 	terminal = st_term_session_cterm(session);
@@ -9551,7 +9552,7 @@ exercise_skypix_menu_audio(struct st_wren_host *host)
 	    .screen_mode                               = ST_SCREEN_MODE_CURRENT,
 	    .encoding                                  = ST_CTERM_ENCODING_UTF8,
 	    .codepage                                  = ST_CODEPAGE_CP437,
-	    .graphics_mode                             = ST_CTERM_GRAPHICS_SKYPIX_31,
+	    .graphics_mode                             = ST_GRAPHICS_SKYPIX_31,
 	    .hide_status                               = true};
 	CHECK(st_term_session_create(&session, &config) == 0);
 	terminal        = st_term_session_cterm(session);

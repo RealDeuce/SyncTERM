@@ -37,7 +37,7 @@ class DosTable {
     if (mode == 25 || mode == 26 || encoding == 26) terminal = "Viewdata"
     if ((mode >= 27 && mode <= 29) || encoding == 28) terminal = "VT52"
     var graphics = profile.graphics
-    if (graphics > 0 && graphics < 7) terminal = terminal + "/" + ["", "RIP1", "RIP3", "Sky1.3", "Sky3.1", "IGS", "BIG"][graphics]
+    if (graphics > 0 && graphics < 8) terminal = terminal + "/" + ["", "RIP1", "RIP3", "Sky1.3", "Sky3.1", "IGS", "BIG", "DDO"][graphics]
     return terminal
   }
 

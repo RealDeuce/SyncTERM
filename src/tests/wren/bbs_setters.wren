@@ -91,7 +91,7 @@ if (true) {
 if (true) {
   import "syncterm" for GraphicsMode
   import "syncterm_menu" for Menu
-  for (mode in [GraphicsMode.skypix13, GraphicsMode.skypix31, GraphicsMode.igs221, GraphicsMode.big103, GraphicsMode.none, GraphicsMode.v1, GraphicsMode.v3]) {
+  for (mode in [GraphicsMode.skypix13, GraphicsMode.skypix31, GraphicsMode.igs221, GraphicsMode.big103, GraphicsMode.ddofx20, GraphicsMode.none, GraphicsMode.v1, GraphicsMode.v3]) {
     var entry = Menu.entries[0]
     entry.profile.graphics = mode
     if (entry.save() != null || Menu.load(null) != null || Menu.entries[0].profile.graphics != mode) Fiber.abort("entry graphics persistence")

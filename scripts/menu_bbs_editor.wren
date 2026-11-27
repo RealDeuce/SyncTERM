@@ -1,4 +1,4 @@
-import "syncterm" for ConnType, FilePickerOptions, Host, Key, KeyEvent, Mod,
+import "syncterm" for ConnType, GraphicsMode, FilePickerOptions, Host, Key, KeyEvent, Mod,
     MouseEvent, TLSVersion, Profile, Error, Text
 import "syncterm_menu" for Menu, DirectoryEntry
 import "menu_ui" for ChoiceViewState, MenuUi, MenuPanel
@@ -956,7 +956,8 @@ class BbsEditor {
         "320x200 and Atari ST encoding. The 640x200 colour and 640x400 monochrome modes " +
         "and UTF-8 encoding are also available. BIG 1.03 starts with EGA 640x350, " +
         "CP437 and the original IBM console font. CGA 640x200, 640x480 and UTF-8 " +
-        "are also available. Commands are being implemented; see BIG conformance coverage."
+        "are also available. Commands are being implemented; see BIG conformance coverage. " +
+        "DDO F/X 2.0 recognizes DDO commands within the selected terminal emulation."
   }
 
   static logFileHelp_() {
@@ -1516,9 +1517,9 @@ class BbsEditor {
         if (value != null) changeGraphics_(d, value)
       }))
     if (ansi_(d["screenMode"]) || skyPix_(d["graphics"])) {
-      if (d["graphics"] < 3) rows.add(choiceRow_(app, d, "music", "ANSI Music", Menu.musicModes))
-      if (d["graphics"] < 3) rows.add(boolRow_(d, "forceLcf", "Force LCF Mode"))
-      if (d["graphics"] < 3) rows.add(boolRow_(d, "yellowIsYellow", "Yellow is Yellow"))
+      if (d["graphics"] < 3 || d["graphics"] == GraphicsMode.ddofx20) rows.add(choiceRow_(app, d, "music", "ANSI Music", Menu.musicModes))
+      if (d["graphics"] < 3 || d["graphics"] == GraphicsMode.ddofx20) rows.add(boolRow_(d, "forceLcf", "Force LCF Mode"))
+      if (d["graphics"] < 3 || d["graphics"] == GraphicsMode.ddofx20) rows.add(boolRow_(d, "yellowIsYellow", "Yellow is Yellow"))
     } else if (d["screenMode"] == 19) {
       rows.add(boolRow_(d, "yellowIsYellow", "Yellow is Yellow"))
     }

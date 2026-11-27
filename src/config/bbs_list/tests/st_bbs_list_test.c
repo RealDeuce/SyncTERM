@@ -206,8 +206,8 @@ static int
 check_graphics_codec(void)
 {
 	static const char *const names[] = {"Off", "RIPv1", "RIPv3", "SkyPix (Kick 1.3)", "SkyPix (Kick 3.1)",
-	    "IGS (2.21)", "BIG (1.03)"};
-	for (int mode = 0; mode <= ST_GRAPHICS_BIG_103; ++mode) {
+	    "IGS (2.21)", "BIG (1.03)", "DDO F/X 2.0"};
+	for (int mode = 0; mode <= ST_GRAPHICS_DDOFX_20; ++mode) {
 		ini_document_t   *document = NULL;
 		struct st_profile profile, decoded;
 		st_profile_init(&profile);

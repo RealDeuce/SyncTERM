@@ -434,7 +434,7 @@ class WrenTest {
     check_(GraphicsMode.none == 0 && GraphicsMode.v1 == 1 &&
            GraphicsMode.v3 == 2 && GraphicsMode.skypix13 == 3 &&
            GraphicsMode.skypix31 == 4 && GraphicsMode.igs221 == 5 &&
-           GraphicsMode.big103 == 6,
+           GraphicsMode.big103 == 6 && GraphicsMode.ddofx20 == 7,
            "GraphicsMode constants")
   }
 

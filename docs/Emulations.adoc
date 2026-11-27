@@ -23,6 +23,7 @@ ordinary text; it does not translate command bytes or binary payloads.
 |link:SkyPix.adoc[SkyPix] |SkyPix (Kick 1.3 / Kick 3.1) |Amiga graphics, native fonts, brushes, transfers and input reports
 |link:IGS.adoc[IGS 2.21] |IGS (2.21) |Atari graphics, VT52 console, images, sound and interactive scripts
 |link:BIG.adoc[BIG 1.03] |BIG (1.03) |PC graphics, BGI text, pages, sound and interactive scripts
+|link:DDOFX_CONFORMANCE.md[DDO F/X 2.0] |DDO F/X 2.0 |DDO command framing and terminal identification
 |link:OOII.adoc[Operation Overkill II] |Automatic banner detection / local OOII mode |Embedded ANSI artwork, menus, scanner and sampled sounds
 |===
 

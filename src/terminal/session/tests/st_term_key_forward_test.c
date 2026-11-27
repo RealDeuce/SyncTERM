@@ -144,9 +144,9 @@ st_term_key_forward_test_main(void)
 		    .hide_status        = true,
 		    .encoding           = utf8 ? ST_CTERM_ENCODING_UTF8 : ST_CTERM_ENCODING_CODEPAGE,
 		    .codepage           = ST_CODEPAGE_CP437,
-		    .graphics_mode      = mode >= 4 ? ST_CTERM_GRAPHICS_RIP_3
-		                          : rip     ? ST_CTERM_GRAPHICS_RIP_1
-		                                    : ST_CTERM_GRAPHICS_OFF,
+		    .graphics_mode      = mode >= 4 ? ST_GRAPHICS_RIP_3
+		                          : rip     ? ST_GRAPHICS_RIP_1
+		                                    : ST_GRAPHICS_NONE,
 		    .event_hook         = observe_event,
 		    .event_hook_context = &hook_calls,
 		    .rip_prompt         = render_prompt,

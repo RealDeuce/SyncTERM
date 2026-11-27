@@ -552,7 +552,7 @@ test_wire_capture(enum st_cterm_encoding encoding, bool rip)
 	    .fonts         = fonts,
 	    .screen_mode   = ST_SCREEN_MODE_80X25,
 	    .encoding      = encoding,
-	    .graphics_mode = rip ? ST_CTERM_GRAPHICS_RIP_1 : ST_CTERM_GRAPHICS_OFF,
+	    .graphics_mode = rip ? ST_GRAPHICS_RIP_1 : ST_GRAPHICS_NONE,
 	    .codepage      = ST_CODEPAGE_CP437,
 	    .hide_status   = true,
 	    /* Replacements and drops must never change the captured wire. */
@@ -1228,7 +1228,7 @@ test_shell_rip_cp437_boundary(void)
 	    .fonts         = fonts,
 	    .screen_mode   = ST_SCREEN_MODE_80X43,
 	    .encoding      = ST_CTERM_ENCODING_CODEPAGE,
-	    .graphics_mode = ST_CTERM_GRAPHICS_RIP_1,
+	    .graphics_mode = ST_GRAPHICS_RIP_1,
 	    .codepage      = ST_CODEPAGE_CP437,
 	    .hide_status   = true,
 	};
@@ -1304,16 +1304,20 @@ st_term_test_main(void)
 
 	CHECK(st_console_create(&console, &display, &console_config) == 0);
 	st_profile_init(&profile);
-	CHECK(st_term_profile_graphics_mode(NULL) == ST_CTERM_GRAPHICS_OFF);
-	CHECK(st_term_profile_graphics_mode(&profile) == ST_CTERM_GRAPHICS_OFF);
+	CHECK(st_term_profile_graphics_mode(NULL) == ST_GRAPHICS_NONE);
+	CHECK(st_term_profile_graphics_mode(&profile) == ST_GRAPHICS_NONE);
 	profile.graphics_mode = ST_GRAPHICS_RIP_1;
-	CHECK(st_term_profile_graphics_mode(&profile) == ST_CTERM_GRAPHICS_RIP_1);
+	CHECK(st_term_profile_graphics_mode(&profile) == ST_GRAPHICS_RIP_1);
 	profile.graphics_mode = ST_GRAPHICS_RIP_3;
-	CHECK(st_term_profile_graphics_mode(&profile) == ST_CTERM_GRAPHICS_RIP_3);
+	CHECK(st_term_profile_graphics_mode(&profile) == ST_GRAPHICS_RIP_3);
 	profile.graphics_mode = ST_GRAPHICS_IGS_221;
-	CHECK(st_term_profile_graphics_mode(&profile) == ST_CTERM_GRAPHICS_IGS_221);
+	CHECK(st_term_profile_graphics_mode(&profile) == ST_GRAPHICS_IGS_221);
 	profile.graphics_mode = ST_GRAPHICS_BIG_103;
-	CHECK(st_term_profile_graphics_mode(&profile) == ST_CTERM_GRAPHICS_BIG_103);
+	CHECK(st_term_profile_graphics_mode(&profile) == ST_GRAPHICS_BIG_103);
+	profile.graphics_mode = ST_GRAPHICS_DDOFX_20;
+	CHECK(st_term_profile_graphics_mode(&profile) == ST_GRAPHICS_DDOFX_20);
+	profile.graphics_mode = -1;
+	CHECK(st_term_profile_graphics_mode(&profile) == ST_GRAPHICS_NONE);
 	CHECK(st_term_profile_screen_mode(NULL) == ST_SCREEN_MODE_CURRENT);
 
 	const enum st_screen_mode inputs[] = {ST_SCREEN_MODE_CURRENT, ST_SCREEN_MODE_80X25,

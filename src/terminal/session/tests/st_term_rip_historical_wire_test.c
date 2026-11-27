@@ -136,7 +136,7 @@ st_term_rip_historical_wire_test_main(void)
 	    .fonts         = fonts,
 	    .screen_mode   = ST_SCREEN_MODE_80X25,
 	    .encoding      = ST_CTERM_ENCODING_CODEPAGE,
-	    .graphics_mode = ST_CTERM_GRAPHICS_RIP_1,
+	    .graphics_mode = ST_GRAPHICS_RIP_1,
 	    .codepage      = ST_CODEPAGE_CP437,
 	    .hide_status   = true,
 	};

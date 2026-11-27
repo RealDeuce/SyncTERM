@@ -1761,7 +1761,7 @@ static void
 fn_menu_graphics_modes(WrenVM *vm)
 {
 	static const char *const names[] = {"None", "RIP v1", "RIP v3", "SkyPix (Kick 1.3)", "SkyPix (Kick 3.1)",
-	    "IGS (2.21)", "BIG (1.03)"};
+	    "IGS (2.21)", "BIG (1.03)", "DDO F/X 2.0"};
 	push_rows(vm, names, sizeof(names) / sizeof(names[0]));
 }
 
@@ -4784,7 +4784,7 @@ BBS_OWNED_PROPERTY(tls_client_key, tls_client_key)
 BBS_NUM_PROPERTY(port, port, uint16_t, 0, UINT16_MAX)
 BBS_NUM_PROPERTY(conn_type, connection_type, int, ST_CONNECTION_UNKNOWN, ST_CONNECTION_MQTT)
 BBS_NUM_PROPERTY(music, music, int, ST_PROFILE_MUSIC_SYNCTERM, ST_PROFILE_MUSIC_ALL)
-BBS_NUM_PROPERTY(graphics, graphics_mode, int, ST_GRAPHICS_NONE, ST_GRAPHICS_BIG_103)
+BBS_NUM_PROPERTY(graphics, graphics_mode, int, ST_GRAPHICS_NONE, ST_GRAPHICS_DDOFX_20)
 BBS_NUM_PROPERTY(amigaFontSize, amiga_font_size, uint16_t, 1, UINT16_MAX)
 BBS_NUM_PROPERTY(address_family, address_family, int, ST_ADDRESS_FAMILY_UNSPECIFIED,
     ST_ADDRESS_FAMILY_HAPPY_EYEBALLS)

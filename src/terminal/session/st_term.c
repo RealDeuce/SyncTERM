@@ -14,6 +14,7 @@
 #include "cterm_skypix.h"
 #include "io_error.h"
 #include "st_controller.h"
+#include "st_ddofx.h"
 #include "st_graphics_input.h"
 #include "st_ooii.h"
 #include "st_rip154.h"
@@ -39,6 +40,7 @@ struct deferred_event {
 
 struct st_term_session {
 	struct st_term_config  config;
+	struct st_ddofx        ddofx;
 	st_cterm_t            *cterm;
 	struct cterm_big      *big;
 	struct cterm_skypix   *skypix;
@@ -158,6 +160,8 @@ st_term_session_finish_display(st_term_session_t *session)
 		pending = finish_wire_character(session);
 	if (pending != 0)
 		return pending;
+	if (session->config.graphics_mode == ST_GRAPHICS_DDOFX_20)
+		session->ddofx = (struct st_ddofx){0};
 	if (session->rip154 != NULL) {
 		int status = st_rip154_finish(session->rip154);
 		if (status != 0)
@@ -180,6 +184,8 @@ st_term_session_reset_display(st_term_session_t *session)
 		pending = finish_wire_character(session);
 	if (pending != 0)
 		return pending;
+	if (session->config.graphics_mode == ST_GRAPHICS_DDOFX_20)
+		session->ddofx = (struct st_ddofx){0};
 	if (session->rip154 != NULL)
 		return st_rip154_reset(session->rip154);
 	if (session->igs != NULL)
@@ -314,12 +320,19 @@ st_term_profile_encoding(const struct st_profile *profile)
 	                                                                        : ST_CTERM_ENCODING_CODEPAGE;
 }
 
-enum st_cterm_graphics_mode
+enum st_graphics_mode
 st_term_profile_graphics_mode(const struct st_profile *profile)
 {
-	if (profile == NULL)
-		return ST_CTERM_GRAPHICS_OFF;
-	switch (profile->graphics_mode) {
+	if (profile == NULL || profile->graphics_mode < ST_GRAPHICS_NONE
+	    || profile->graphics_mode > ST_GRAPHICS_DDOFX_20)
+		return ST_GRAPHICS_NONE;
+	return (enum st_graphics_mode)profile->graphics_mode;
+}
+
+static enum st_cterm_graphics_mode
+cterm_graphics_mode(enum st_graphics_mode mode)
+{
+	switch (mode) {
 		case ST_GRAPHICS_RIP_1:
 			return ST_CTERM_GRAPHICS_RIP_1;
 		case ST_GRAPHICS_RIP_3:
@@ -399,8 +412,8 @@ session_output(st_term_session_t *session, enum st_cterm_output_origin origin, c
 	if (size != 0)
 		session->did_work = true;
 	if (text
-	    && (session->config.graphics_mode == ST_CTERM_GRAPHICS_RIP_1
-	        || session->config.graphics_mode == ST_CTERM_GRAPHICS_RIP_3)
+	    && (session->config.graphics_mode == ST_GRAPHICS_RIP_1
+	        || session->config.graphics_mode == ST_GRAPHICS_RIP_3)
 	    && session->config.encoding == ST_CTERM_ENCODING_CODEPAGE)
 		session->output_error = st_term_session_send_text(session, (const char *)bytes, size);
 	else
@@ -418,7 +431,7 @@ cterm_output(void *context, enum st_cterm_output_origin origin, const uint8_t *b
 }
 
 static void
-musicomm_reply(void *context, const uint8_t *bytes, size_t size)
+protocol_reply(void *context, const uint8_t *bytes, size_t size)
 {
 	session_output(context, ST_CTERM_OUTPUT_RESPONSE, bytes, size, false);
 }
@@ -464,7 +477,7 @@ st_term_session_start_musicomm(st_term_session_t *session)
 		(void)st_music_flush(st_cterm_music_player(display, false), 0);
 	const struct st_musicomm_config config = {.audio = session->config.audio,
 	    .player                                      = st_cterm_music_player(session->cterm, true),
-	    .reply                                       = musicomm_reply,
+	    .reply                                       = protocol_reply,
 	    .warning                                     = musicomm_warning,
 	    .context                                     = session};
 	status                                 = st_musicomm_start(&session->musicomm, &config);
@@ -609,14 +622,14 @@ st_term_session_create(st_term_session_t **result, const struct st_term_config *
 	if (result == NULL || config == NULL || config->console == NULL || config->connection == NULL
 	    || config->fonts == NULL || st_console_size(config->console, &columns, &rows) != 0)
 		return IO_ERROR_INVALID_ARGUMENT;
-	reserve_status = !config->hide_status && config->graphics_mode != ST_CTERM_GRAPHICS_RIP_3;
+	reserve_status = !config->hide_status && config->graphics_mode != ST_GRAPHICS_RIP_3;
 	if (reserve_status && rows < 2)
 		return IO_ERROR_INVALID_ARGUMENT;
 	session = calloc(1, sizeof(*session));
 	if (session == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
 	session->config = *config;
-	if (config->graphics_mode == ST_CTERM_GRAPHICS_RIP_3) {
+	if (config->graphics_mode == ST_GRAPHICS_RIP_3) {
 		status = st_term_rip3_prepare_console(config->console);
 		if (status != 0) {
 			free(session);
@@ -646,17 +659,17 @@ st_term_session_create(st_term_session_t **result, const struct st_term_config *
 	    .fonts            = config->fonts,
 	    .audio            = config->audio,
 	    .hyperlinks       = config->hyperlinks,
-	    .emulation        = (config->graphics_mode == ST_CTERM_GRAPHICS_SKYPIX_13
-	                            || config->graphics_mode == ST_CTERM_GRAPHICS_SKYPIX_31
-	                            || config->graphics_mode == ST_CTERM_GRAPHICS_BIG_103)
+	    .emulation        = (config->graphics_mode == ST_GRAPHICS_SKYPIX_13
+	                            || config->graphics_mode == ST_GRAPHICS_SKYPIX_31
+	                            || config->graphics_mode == ST_GRAPHICS_BIG_103)
 	                            ? ST_CTERM_ANSI_BBS
 	                            : profile_emulation(config->screen_mode),
-	    .encoding         = (config->graphics_mode == ST_CTERM_GRAPHICS_RIP_1
-	                            || config->graphics_mode == ST_CTERM_GRAPHICS_RIP_3)
+	    .encoding         = (config->graphics_mode == ST_GRAPHICS_RIP_1
+	                            || config->graphics_mode == ST_GRAPHICS_RIP_3)
 	                            ? ST_CTERM_ENCODING_UTF8
 	                            : config->encoding,
-	    .graphics_mode    = config->graphics_mode,
-	    .escape_extension = config->graphics_mode == ST_CTERM_GRAPHICS_RIP_3 ? rip3_escape : NULL,
+	    .graphics_mode    = cterm_graphics_mode(config->graphics_mode),
+	    .escape_extension = config->graphics_mode == ST_GRAPHICS_RIP_3 ? rip3_escape : NULL,
 	    .escape_context   = session,
 
 	    .apc_directory        = config->apc_directory,
@@ -689,9 +702,9 @@ st_term_session_create(st_term_session_t **result, const struct st_term_config *
 	    .diagnostic           = config->cterm_diagnostic,
 	    .diagnostic_context   = config->cterm_diagnostic_context,
 	};
-	if (config->graphics_mode == ST_CTERM_GRAPHICS_BIG_103)
+	if (config->graphics_mode == ST_GRAPHICS_BIG_103)
 		status = cterm_big_open(&session->big, &session->cterm, &cterm_config);
-	else if (config->graphics_mode == ST_CTERM_GRAPHICS_RIP_1)
+	else if (config->graphics_mode == ST_GRAPHICS_RIP_1)
 		status = st_rip154_open(&session->rip154, &session->cterm, &cterm_config,
 		    &(struct st_rip154_services) {.rip_directory = config->rip_directory,
 			.rip_prompt                              = config->rip_prompt,
@@ -700,13 +713,13 @@ st_term_session_create(st_term_session_t **result, const struct st_term_config *
 			.rip_choice_context                      = config->rip_choice_context,
 			.rip_transfer                            = config->rip_transfer,
 			.rip_transfer_context                    = config->rip_transfer_context});
-	else if (config->graphics_mode == ST_CTERM_GRAPHICS_IGS_221)
+	else if (config->graphics_mode == ST_GRAPHICS_IGS_221)
 		status = cterm_igs_open(&session->igs, &session->cterm, &cterm_config, true,
 		    igs_loop_service_pending, session);
-	else if (config->graphics_mode == ST_CTERM_GRAPHICS_SKYPIX_13
-	         || config->graphics_mode == ST_CTERM_GRAPHICS_SKYPIX_31)
+	else if (config->graphics_mode == ST_GRAPHICS_SKYPIX_13
+	         || config->graphics_mode == ST_GRAPHICS_SKYPIX_31)
 		status = cterm_skypix_open(&session->skypix, &session->cterm, &cterm_config,
-		    &(struct st_skypix_config) {.kick13 = config->graphics_mode == ST_CTERM_GRAPHICS_SKYPIX_13,
+		    &(struct st_skypix_config) {.kick13 = config->graphics_mode == ST_GRAPHICS_SKYPIX_13,
 			.width                          = config->skypix_width,
 			.height                         = config->skypix_height,
 			.font                           = config->amiga_font,
@@ -746,7 +759,7 @@ st_term_session_create(st_term_session_t **result, const struct st_term_config *
 		free(session);
 		return status;
 	}
-	if (config->graphics_mode == ST_CTERM_GRAPHICS_RIP_3) {
+	if (config->graphics_mode == ST_GRAPHICS_RIP_3) {
 		status = st_term_rip3_create(&session->rip3, config, session->cterm, &cterm_config, session);
 		if (status != 0) {
 			st_term_session_destroy(&session);
@@ -1158,8 +1171,21 @@ local_command(st_console_t *console, const struct st_console_event *event, enum 
 }
 
 static int
+ddofx_text(void *context, const uint8_t *bytes, size_t size, size_t *consumed)
+{
+	st_term_session_t *session = context;
+	return st_cterm_write(session->cterm, bytes, size, consumed);
+}
+
+static int
 write_protocol(st_term_session_t *session, const void *bytes, size_t size, size_t *consumed)
 {
+	if (session->config.graphics_mode == ST_GRAPHICS_DDOFX_20) {
+		const struct st_ddofx_sink sink = {.context = session,
+		    .text                                   = ddofx_text,
+		    .reply                                  = protocol_reply};
+		return st_ddofx_feed(&session->ddofx, &sink, bytes, size, consumed);
+	}
 	if (session->rip3 != NULL) {
 		st_term_rip3_write(session->rip3, bytes, size);
 		*consumed = size;
@@ -1184,8 +1210,8 @@ write_terminal_wire(st_term_session_t *session, const uint8_t *bytes, size_t siz
 	size_t consumed;
 	int    status;
 
-	if ((session->config.graphics_mode != ST_CTERM_GRAPHICS_RIP_1
-	        && session->config.graphics_mode != ST_CTERM_GRAPHICS_RIP_3)
+	if ((session->config.graphics_mode != ST_GRAPHICS_RIP_1
+	        && session->config.graphics_mode != ST_GRAPHICS_RIP_3)
 	    || session->config.encoding == ST_CTERM_ENCODING_UTF8) {
 		status = write_protocol(session, bytes, size, &consumed);
 		/* An accepted asynchronous command can pause after this byte.
@@ -1273,7 +1299,7 @@ write_character(st_term_session_t *session, const struct st_utf8_decode_event *e
 	if (status != 0 || consumed)
 		return status;
 
-	if (session->config.graphics_mode == ST_CTERM_GRAPHICS_OFF
+	if (session->config.graphics_mode == ST_GRAPHICS_NONE
 	    && session->config.encoding == ST_CTERM_ENCODING_UTF8) {
 		size_t used;
 		status = st_cterm_write_decoded(session->cterm, event, original, length, &used);
@@ -1318,8 +1344,9 @@ write_graphics(st_term_session_t *session, const uint8_t *bytes, size_t size)
 		/* Once an octet grammar owns the input, even an apparent OO][
 		 * marker or an incomplete UTF-8 lead is part of its payload. */
 		if (!split
-		    && (st_rip154_owns_bytes(session->rip154) || st_term_rip3_owns_bytes(session->rip3)
-		        || cterm_big_owns_bytes(session->big) || cterm_igs_owns_bytes(session->igs)
+		    && (session->ddofx.phase != ST_DDO_TEXT || st_rip154_owns_bytes(session->rip154)
+		        || st_term_rip3_owns_bytes(session->rip3) || cterm_big_owns_bytes(session->big)
+		        || cterm_igs_owns_bytes(session->igs)
 		        || (session->skypix != NULL && cterm_skypix_parser_owns_bytes(&session->skypix->parser))
 		        || st_cterm_input_bytes_pending(st_term_session_cterm(session)))) {
 			int status = write_terminal_wire(session, bytes, 1);
@@ -1555,11 +1582,11 @@ deliver_input(st_term_session_t *session, const struct local_input *input, bool 
 			return session->output_error;
 		case ST_CONSOLE_EVENT_RESIZE:
 		{
-			if (session->config.graphics_mode == ST_CTERM_GRAPHICS_RIP_3
-			    || session->config.graphics_mode == ST_CTERM_GRAPHICS_SKYPIX_13
-			    || session->config.graphics_mode == ST_CTERM_GRAPHICS_SKYPIX_31
-			    || session->config.graphics_mode == ST_CTERM_GRAPHICS_IGS_221
-			    || session->config.graphics_mode == ST_CTERM_GRAPHICS_BIG_103)
+			if (session->config.graphics_mode == ST_GRAPHICS_RIP_3
+			    || session->config.graphics_mode == ST_GRAPHICS_SKYPIX_13
+			    || session->config.graphics_mode == ST_GRAPHICS_SKYPIX_31
+			    || session->config.graphics_mode == ST_GRAPHICS_IGS_221
+			    || session->config.graphics_mode == ST_GRAPHICS_BIG_103)
 				return 0;
 			uint32_t capabilities;
 			int      status;
@@ -1958,7 +1985,7 @@ st_term_session_service(st_term_session_t *session, enum st_term_disposition *di
 		                   && (session->config.wire_filter_active == NULL
 		                       || session->config.wire_filter_active(session->config.wire_filter_context));
 		if (!filtering && !session->config.throttle_supported && session->throttle_bps == 0
-		    && session->config.graphics_mode == ST_CTERM_GRAPHICS_OFF
+		    && session->config.graphics_mode == ST_GRAPHICS_NONE
 		    && session->config.screen_mode != ST_SCREEN_MODE_PRESTEL && st_ooii_mode(session->ooii) == 0)
 			count = size - *position;
 		if (!replay && session->config.screen_mode == ST_SCREEN_MODE_PRESTEL) {

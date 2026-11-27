@@ -342,7 +342,7 @@ int st_term_connect_profile(st_connection_t **result,
     const struct st_connection_hooks *hooks, struct st_connection_error *error);
 enum st_cterm_encoding st_term_profile_encoding(
     const struct st_profile *profile);
-enum st_cterm_graphics_mode st_term_profile_graphics_mode(
+enum st_graphics_mode st_term_profile_graphics_mode(
     const struct st_profile *profile);
 int st_term_session_create(st_term_session_t **result,
     const struct st_term_config *config);

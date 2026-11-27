@@ -103,6 +103,7 @@ enum st_graphics_mode {
 	ST_GRAPHICS_SKYPIX_31,
 	ST_GRAPHICS_IGS_221,
 	ST_GRAPHICS_BIG_103,
+	ST_GRAPHICS_DDOFX_20,
 };
 
 enum st_profile_parity {
