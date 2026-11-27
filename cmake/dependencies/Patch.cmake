@@ -53,6 +53,22 @@ if(NAME STREQUAL "BOTAN")
 		string(REPLACE "${before}" "${after}" text "${text}")
 		file(WRITE "${path}" "${text}")
 	endif()
+elseif(NAME STREQUAL "LIBZIP")
+	# MinGW-w64 13 lacks DWORD_MAX. Use the same DWORD byte-count limit
+	# as libzip's ReadFile loop when splitting large writes.
+	set(path "${SOURCE}/lib/zip_source_file_win32_named.c")
+	file(READ "${path}" text)
+	set(before "ZIP_MIN(len - offset, (zip_uint64_t)DWORD_MAX)")
+	set(after "ZIP_MIN(len - offset, ZIP_UINT32_MAX)")
+	string(FIND "${text}" "${after}" patched)
+	if(patched EQUAL -1)
+		string(FIND "${text}" "${before}" unpatched)
+		if(unpatched EQUAL -1)
+			message(FATAL_ERROR "Pinned libzip WriteFile limit patch no longer applies")
+		endif()
+		string(REPLACE "${before}" "${after}" text "${text}")
+		file(WRITE "${path}" "${text}")
+	endif()
 elseif(NAME STREQUAL "VORBIS" AND CMAKE_VERSION VERSION_LESS 4.0)
 	# Vorbis 1.3.7 requests policies older than CMake 4 supports.
 	# CMake 4 uses the external policy floor instead. Older CMake releases
