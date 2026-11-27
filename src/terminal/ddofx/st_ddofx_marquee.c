@@ -17,6 +17,7 @@ struct marquee {
 	unsigned length, ring_pixels, first_pixel, period;
 	unsigned x, top, width, ink, paper;
 	uint64_t due;
+	bool     on_visual;
 };
 
 struct st_ddofx_marquees {
@@ -102,11 +103,23 @@ define(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, unsigned slot, ch
 
 static void
 paint(const struct marquee *m, const uint8_t *font, struct st_ddofx_graphics *g,
-    const struct st_pixel_buffer *pixels)
+    const struct st_pixel_buffer *pixels, const struct st_console_rect *clip)
 {
-	for (unsigned row = 0; row < 16; ++row) {
-		unsigned position = m->first_pixel;
-		for (unsigned x = m->x; x < m->x + m->width; ++x) {
+	unsigned left = m->x, right = left + m->width, top = m->top, bottom = top + 16;
+	if (clip) {
+		if (left < clip->x)
+			left = clip->x;
+		if (right > clip->x + clip->width)
+			right = clip->x + clip->width;
+		if (top < clip->y)
+			top = clip->y;
+		if (bottom > clip->y + clip->height)
+			bottom = clip->y + clip->height;
+	}
+	for (unsigned y = top; y < bottom; ++y) {
+		unsigned row      = y - m->top;
+		unsigned position = (m->first_pixel + left - m->x) % m->ring_pixels;
+		for (unsigned x = left; x < right; ++x) {
 			unsigned col    = position / 8;
 			uint8_t  ch     = col < m->length ? m->text[col] : ' ';
 			unsigned colour = (font[ch * 16 + row] & (0x80u >> (position % 8))) ? m->ink : m->paper;
@@ -119,6 +132,23 @@ paint(const struct marquee *m, const uint8_t *font, struct st_ddofx_graphics *g,
 			if (++position == m->ring_pixels)
 				position = 0;
 		}
+	}
+}
+
+void
+st_ddofx_repaint_marquees(struct st_ddofx *ddo, const struct st_pixel_buffer *pixels,
+    const struct st_console_rect *clip)
+{
+	struct st_ddofx_marquees *mq = ddo->graphics->marquees;
+	if (!mq || !mq->next_due)
+		return;
+	const uint8_t *font = st_ddofx_vga_bitmap(ddo);
+	if (!font)
+		return;
+	for (unsigned i = 0; i < MARQUEE_COUNT; ++i) {
+		struct marquee *m = &mq->slots[i];
+		if (m->due && m->on_visual)
+			paint(m, font, ddo->graphics, pixels, clip);
 	}
 }
 
@@ -150,8 +180,9 @@ st_ddofx_marquee_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink,
 				uint64_t       now;
 				const uint8_t *font = st_ddofx_vga_bitmap(ddo);
 				if (font && st_time_monotonic_ms(&now) == 0) {
-					paint(m, font, g, NULL);
-					m->due = now + m->period;
+					paint(m, font, g, NULL, NULL);
+					m->on_visual = false;
+					m->due       = now + m->period;
 				}
 			}
 			else
@@ -191,8 +222,9 @@ scroll(void *context, const struct st_pixel_buffer *pixels, struct st_console_re
 		if (!m->due || m->due > update->now)
 			continue;
 		m->first_pixel = m->first_pixel ? m->first_pixel - 1 : m->ring_pixels - 1;
-		paint(m, update->font, update->g, pixels);
-		m->due = update->now + m->period;
+		paint(m, update->font, update->g, pixels, NULL);
+		m->on_visual = true;
+		m->due       = update->now + m->period;
 		if (m->x < left)
 			left = m->x;
 		if (m->x + m->width > right)

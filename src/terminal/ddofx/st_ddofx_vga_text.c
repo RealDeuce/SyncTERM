@@ -64,6 +64,25 @@ st_ddofx_release_vga_font(struct st_ddofx *ddo)
 	}
 }
 
+bool
+st_ddofx_read_vga_font(const struct st_ddofx_sink *sink, const char *name, uint8_t bitmap[4096])
+{
+	bool  loaded = false;
+	FILE *file   = sink->open_asset ? sink->open_asset(sink->context, "FONTS", NULL, name) : NULL;
+	if (file) {
+		loaded = fread(bitmap, 1, 4096, file) == 4096 && fgetc(file) == EOF && !ferror(file);
+		fclose(file);
+	}
+	else if (!ascii_case_compare(name, "IBMSTD.FNT")) {
+		struct st_console_font builtin;
+		if (st_builtin_font_get(0, 8, 16, &builtin)) {
+			memcpy(bitmap, builtin.bitmap, 4096);
+			loaded = true;
+		}
+	}
+	return loaded;
+}
+
 void
 st_ddofx_load_vga_font(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, const char *name)
 {
@@ -72,21 +91,8 @@ st_ddofx_load_vga_font(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, c
 	struct st_ddofx_vga_font *next = malloc(sizeof(*next));
 	if (!next)
 		return;
-	bool  loaded = false;
-	FILE *file   = sink->open_asset(sink->context, "FONTS", NULL, name);
-	if (file) {
-		loaded = fread(next->bitmap, 1, sizeof(next->bitmap), file) == sizeof(next->bitmap)
-		         && fgetc(file) == EOF && !ferror(file);
-		fclose(file);
-	}
-	else if (!ascii_case_compare(name, "IBMSTD.FNT")) {
-		struct st_console_font builtin;
-		if (st_builtin_font_get(0, 8, 16, &builtin)) {
-			memcpy(next->bitmap, builtin.bitmap, sizeof(next->bitmap));
-			loaded = true;
-		}
-	}
-	next->lite = sink->text_config->console;
+	bool loaded = st_ddofx_read_vga_font(sink, name, next->bitmap);
+	next->lite  = sink->text_config->console;
 	if (!loaded
 	    || !st_font_catalog_identifier(sink->text_config->fonts, sink->text_config->font_selector,
 		&next->lite_id)
@@ -131,6 +137,20 @@ paint(void *context, const struct st_pixel_buffer *pixels, struct st_console_rec
 	if (changed)
 		*changed = (struct st_console_rect) {run->x, run->top, 8 * run->length, 16};
 	return 0;
+}
+
+void
+st_ddofx_paint_vga_string(const struct st_pixel_buffer *pixels, const uint8_t *bitmap, const uint8_t *text,
+    unsigned length, int x, int top, unsigned ink, unsigned paper)
+{
+	struct text_run run = {.font = bitmap,
+	    .text                    = text,
+	    .length                  = (int)length,
+	    .x                       = x,
+	    .top                     = top,
+	    .ink                     = (int)ink,
+	    .paper                   = (int)paper};
+	(void)paint(&run, pixels, NULL);
 }
 
 void

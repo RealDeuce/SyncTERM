@@ -67,6 +67,7 @@ struct st_ddofx_graphics {
 	struct st_ddofx_bars   *bars;
 	struct st_ddofx_grid   *grid;
 	struct st_ddofx_marquees *marquees;
+	struct st_ddofx_clocks *clocks;
 
 	st_console_t            *display, *view;
 	st_font_catalog_t       *fonts;
@@ -104,6 +105,12 @@ void st_ddofx_mouse_defaults(struct st_ddofx_mouse_state *);
 bool st_ddofx_ensure_pointer(struct st_ddofx_mouse_state *);
 void st_ddofx_pointer_refresh(struct st_ddofx *);
 const uint8_t *st_ddofx_vga_bitmap(const struct st_ddofx *);
+bool st_ddofx_read_vga_font(const struct st_ddofx_sink *, const char *, uint8_t bitmap[4096]);
+void st_ddofx_paint_vga_string(const struct st_pixel_buffer *, const uint8_t *bitmap, const uint8_t *text,
+    unsigned length, int x, int top, unsigned ink, unsigned paper);
+void st_ddofx_repaint_marquees(struct st_ddofx *, const struct st_pixel_buffer *, const struct st_console_rect *);
+void st_ddofx_clear_clocks(struct st_ddofx_graphics *);
+bool st_ddofx_clock_command(struct st_ddofx *, const struct st_ddofx_sink *, const char *, char *);
 void st_ddofx_clear_marquees(struct st_ddofx_graphics *);
 bool st_ddofx_marquee_command(struct st_ddofx *, const struct st_ddofx_sink *, const char *, char *);
 void st_ddofx_print_vga_text(struct st_ddofx *, const char *, char *);

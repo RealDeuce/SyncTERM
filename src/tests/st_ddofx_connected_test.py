@@ -265,6 +265,61 @@ def check_marquees(t, root):
     t.exchange(commands(b"5CMARQEE,0", b"2aERASE", b"5SHOWMQ,1", b"2aG,624,464", b"fIBMSTD.FNT"), b"0\xff")
 
 
+def check_clocks(t, root):
+    t.case("analog and text clocks on the visual page, local time, offsets and pause")
+    marker, = root.rglob("syncterm-cache-name.txt")
+    fonts = marker.parent / "DDOFX" / "FONTS"
+    # Each scanline encodes the ASCII byte, so the displayed time can be read back.
+    font = bytearray(4096)
+    for c in b"0123456789:":
+        font[c*16:(c+1)*16] = bytes([c]) * 16
+    (fonts / "Digits.fnt").write_bytes(font)
+
+    def value(frame):
+        data = frame.primary[464*640+576:464*640+640]
+        assert data == frame.alternate[464*640+576:464*640+640]
+        assert set(data) == {3, 12}
+        return bytes(sum((data[i+j] == 12) << (7-j) for j in range(8))
+                     for i in range(0, 64, 8)).decode("ascii")
+
+    center = 100*640 + 100
+    frame = t.exchange(commands(b"2C,39", b"2aFILL", b"2CPYWP2VP",
+                                b"5SCLOCK,30,100,100,20,60,61,62,63,64,0,0,0",
+                                b"5SOCLOCK,30,576,479,12,3,-63,2,-5,Digits.fnt"))
+    assert frame.primary[center] == frame.primary[-1] == 39
+    started = int(time.time())
+    frame = t.exchange(commands(b"5SHWCLK,30", b"5UOCLOCK,30", b"2aG,100,100", b"2aG,639,479"),
+                       b"39\xff39\xff")
+    first = value(frame)
+    def expected(stamp):
+        local = time.localtime(stamp)
+        seconds = (3600 * (local.tm_hour-5) + 60 * (local.tm_min+2) + local.tm_sec-63) % 86400
+        return f"{seconds//3600:02}:{seconds//60%60:02}:{seconds%60:02}"
+    assert first in {expected(stamp) for stamp in range(started, int(time.time())+1)}, first
+    for plane in (frame.primary, frame.alternate):
+        assert plane[center] in (62,63,64) and plane[center-20*640] == 61
+        assert plane[center-20*640-20] == 39
+        assert any(60 in plane[center+y*640-8:center+y*640+9] for y in range(-8, 9))
+    t.client.wait_for(lambda f: value(f) != first)
+    t.exchange(commands(b"5POCLOCK,30", b"5STPCLK,30", b"2CPYWP2VP", b"w22"))
+    frame = t.exchange()
+    assert frame.primary[center] == frame.primary[-1] == 39
+    frame = t.exchange(commands(b"5SHWCLK,30", b"5UOCLOCK,30"))
+    assert frame.primary[center] != 39 and value(frame)[2] == ":"
+    frame = t.exchange(commands(b"5SCLOCK,0", b"5KOCLOCK,30", b"2CPYWP2VP", b"5SHWCLK,30", b"5UOCLOCK,30",
+                                b"5SOCLOCK,1,0,15,14,4,0,0,0,absent.fnt", b"5UOCLOCK,1"))
+    assert frame.primary[center] == frame.primary[-1] == 39 and set(frame.primary[:64]) <= {4,14}
+    assert any(14 in frame.primary[row*640:row*640+64] for row in range(16))
+    # An active marquee stays in front even when a clock is shown between scroll ticks.
+    t.send(commands(b"5CMARQEE,2,96,111,2,12,3,8,LINE.TXT", b"5SHOWMQ,2"))
+    t.client.wait_for(lambda f: f.primary[100*640+100] in (3,12))
+    frame = t.exchange(commands(b"5SCLOCK,1,100,100,20,60,61,62,63,64,0,0,0", b"5SHWCLK,1"))
+    for plane in (frame.primary, frame.alternate):
+        assert set(plane[100*640+96:100*640+112]) <= {3,12}
+        assert plane[center-20*640] == 61
+    t.exchange(commands(b"5SOCLOCK,0", b"5SCLOCK,0", b"5KILLMQ,2", b"2CPYWP2VP"))
+
+
 def check_sprite_banks(t, root):
     t.case("sprite bank files, slot order, row orientation and erase after load")
     marker, = root.rglob("syncterm-cache-name.txt")
@@ -614,6 +669,7 @@ def check_graphics(t, root):
     assert frame.primary[4 * 640 + 3] == 4 and frame.palette[4] == 0x00ffff
     check_drawing(t)
     check_marquees(t, root)
+    check_clocks(t, root)
     check_sprite_banks(t, root)
     check_sprites(t)
     check_grid(t)

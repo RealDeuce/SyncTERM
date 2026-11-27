@@ -26,6 +26,8 @@ In Normal mode the BBS can show or hide the mouse pointer, query its position an
 
 A marquee reads up to 20,000 bytes from the assigned M resource and uses the selected VGA text font. `5SHOWMQ` paints the initial strip on the work page. Its timer scrolls the strip one pixel to the right per frame on the visual page, following the direction stated in the SDK. `5STOPMQ` preserves the current position, and `5KILLMQ` releases the slot.
 
+Analog and text clocks have 30 slots each. A BBS defines each clock before showing it on the visual page. The hands and the eight-character digital display use local time with signed hour, minute and second offsets. Each text clock loads its own VGA font, defaulting to IBMSTD.FNT. Active marquees draw over clocks.
+
 The BBS can create up to 300 desktop push buttons with `5CPUSHB`. Creation draws the up sprite on the work page. A matching key or mouse combination draws the down sprite on the visual page for three clock ticks, restores the up sprite, then runs the macro and sends the return string. The pass flag controls whether a keyboard activation continues to the next binding and the connection.
 
 Desktop radio buttons and checkboxes each have 300 slots. A key or left click changes the selection. An explicit execute command runs the selected members of the addressed exclusive or multiple-selection group in slot order. Each macro finishes before its return string is sent.
@@ -350,13 +352,13 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 10600 | PAUSE FLI/FLC | DDO-FX (NM) | Pending |
 | 10620 | UNPAUSE FLI/FLC | DDO-FX (NM) | Pending |
 | 10632 | STOP FLI/FLC | DDO-FX (NM) | Pending |
-| 10648 | START ANALOG CLOCK | DDO-FX (NM) | Pending |
-| 10703 | SHOW ANALOG CLOCK | DDO-FX (NM) | Pending |
-| 10715 | STOP ANALOG CLOCK | DDO-FX (NM) | Pending |
-| 10725 | START TEXT CLOCK | DDO-FX (NM) | Pending |
-| 10772 | PAUSE TEXT CLOCK | DDO-FX (NM) | Pending |
-| 10782 | UNPAUSE TEXT CLOCK | DDO-FX (NM) | Pending |
-| 10794 | KILL TEXT CLOCK | DDO-FX (NM) | Pending |
+| 10648 | START ANALOG CLOCK | DDO-FX (NM) | Connected |
+| 10703 | SHOW ANALOG CLOCK | DDO-FX (NM) | Connected |
+| 10715 | STOP ANALOG CLOCK | DDO-FX (NM) | Connected |
+| 10725 | START TEXT CLOCK | DDO-FX (NM) | Connected |
+| 10772 | PAUSE TEXT CLOCK | DDO-FX (NM) | Connected |
+| 10782 | UNPAUSE TEXT CLOCK | DDO-FX (NM) | Connected |
+| 10794 | KILL TEXT CLOCK | DDO-FX (NM) | Connected |
 | 10806 | CREATE VIRTUAL LANDSCAPE | DDO-FX (NM) | Pending |
 | 10890 | VR CLOUDS | DDO-FX (NM) | Pending |
 | 10911 | VR SKY | DDO-FX (NM) | Pending |
