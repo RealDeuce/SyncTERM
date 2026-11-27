@@ -6,6 +6,7 @@
 
 #include "st_ddofx_resource.h"
 #include "st_ddofx_script.h"
+#include "st_time.h"
 #include "string_util.h"
 
 enum {
@@ -46,6 +47,7 @@ struct macro_frame {
 	enum st_ddofx_callback_kind callback;
 	bool saved_in_event;
 	uint64_t               saved_wait;
+	unsigned                    pressed_button;
 };
 
 struct st_ddofx_script {
@@ -372,6 +374,18 @@ st_ddofx_callback_start(struct st_ddofx *ddo, const struct st_ddofx_callback *cb
 	return f != NULL;
 }
 
+bool
+st_ddofx_button_callback(struct st_ddofx *ddo, const struct st_ddofx_callback *cb,
+    enum st_ddofx_callback_kind kind, unsigned index)
+{
+	uint64_t now;
+	if (st_time_monotonic_ms(&now) != 0 || !st_ddofx_callback_start(ddo, cb, kind))
+		return false;
+	ddo->script->top->pressed_button = index + 1;
+	ddo->wait_until                  = now + (3 * 1000 + 17) / 18;
+	return true;
+}
+
 static void
 named_return(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, const char *verb, char *args)
 {
@@ -631,6 +645,10 @@ st_ddofx_script_step(struct st_ddofx *ddo, const struct st_ddofx_sink *sink)
 {
 	struct st_ddofx_script *s = ddo->script;
 	struct macro_frame     *f = s->top;
+	if (f->pressed_button) {
+		st_ddofx_button_up(ddo, f->pressed_button - 1);
+		f->pressed_button = 0;
+	}
 	if (f->position < f->length) {
 		size_t               used;
 		const uint8_t       *source      = f->resource != NULL ? f->resource : (const uint8_t *)f->source;

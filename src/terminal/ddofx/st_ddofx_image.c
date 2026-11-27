@@ -254,6 +254,10 @@ st_ddofx_gadget_command(struct st_ddofx *ddo, char *body)
 	    .g      = ddo->graphics,
 	    .damage = {WIDTH, -1, HEIGHT, -1}
         };
+	if (!ascii_case_compare(verb, "5CPUSHB")) {
+		st_ddofx_define_button(ddo, args);
+		return;
+	}
 	if (!ascii_case_compare(verb, "5SCALE"))
 		im.op = SCALE;
 	else if (!ascii_case_compare(verb, "5ROTATE"))

@@ -9,7 +9,15 @@ struct st_ddofx_callback {
 	bool resource_text;
 };
 
-enum st_ddofx_callback_kind { DDO_EVENT = 1, DDO_KEY, DDO_MOUSE, DDO_FIELD };
+enum st_ddofx_callback_kind { DDO_EVENT = 1, DDO_KEY, DDO_MOUSE, DDO_FIELD
+};
+
+unsigned st_ddofx_button_count(const struct st_ddofx *);
+bool     st_ddofx_button_key(struct st_ddofx *, unsigned, uint16_t);
+bool     st_ddofx_button_pass(const struct st_ddofx *, unsigned);
+bool     st_ddofx_button_callback(struct st_ddofx *, const struct st_ddofx_callback *, enum st_ddofx_callback_kind,
+    unsigned);
+void     st_ddofx_button_up(struct st_ddofx *, unsigned);
 void st_ddofx_finish_field(struct st_ddofx *);
 void st_ddofx_resume_mouse(struct st_ddofx *);
 void     st_ddofx_callback_define(const struct st_ddofx *, struct st_ddofx_callback *, const char *, const char *);

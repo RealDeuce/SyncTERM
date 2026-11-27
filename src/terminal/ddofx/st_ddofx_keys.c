@@ -19,7 +19,8 @@ struct binding {
 struct st_ddofx_keys {
 	struct binding          bindings[KEY_COUNT];
 	struct st_console_event event;
-	unsigned                next, count;
+	unsigned                next, count, active_slot;
+	bool                    checked_button, active_button;
 	uint16_t                word;
 	unsigned                physical_scan;
 	uint16_t                alt_echo;
@@ -199,10 +200,25 @@ static bool
 next_binding(struct st_ddofx *ddo)
 {
 	struct st_ddofx_keys *keys = ddo->keys;
-	while (keys->next < keys->count) {
-		struct binding *b = &keys->bindings[keys->next++];
-		if (b->word && (b->word == keys->word || b->word == UINT16_MAX))
-			return st_ddofx_callback_start(ddo, &b->callback, DDO_KEY);
+	while (keys->next < keys->count || keys->next < st_ddofx_button_count(ddo)) {
+		unsigned slot = keys->next;
+		if (!keys->checked_button) {
+			keys->checked_button = true;
+			if (st_ddofx_button_key(ddo, slot, keys->word)) {
+				keys->active_button = true;
+				keys->active_slot   = slot;
+				return true;
+			}
+		}
+		keys->checked_button = false;
+		++keys->next;
+		struct binding *b = &keys->bindings[slot];
+		if (b->word && (b->word == keys->word || b->word == UINT16_MAX)
+		    && st_ddofx_callback_start(ddo, &b->callback, DDO_KEY)) {
+			keys->active_button = false;
+			keys->active_slot   = slot;
+			return true;
+		}
 	}
 	return false;
 }
@@ -211,7 +227,8 @@ int
 st_ddofx_resume_key(struct st_ddofx *ddo, const struct st_ddofx_sink *sink)
 {
 	struct st_ddofx_keys *keys = ddo->keys;
-	bool                  pass = keys->bindings[keys->next - 1].pass;
+	bool                  pass = keys->active_button ? st_ddofx_button_pass(ddo, keys->active_slot)
+	                                                 : keys->bindings[keys->active_slot].pass;
 	if (pass && next_binding(ddo))
 		return 0;
 	ddo->in_key = false;
@@ -225,6 +242,10 @@ bool
 st_ddofx_key(struct st_ddofx *ddo, const struct st_console_event *e)
 {
 	struct st_ddofx_keys *keys = ddo->keys;
+	if (!keys && st_ddofx_button_count(ddo)) {
+		ddo->keys = calloc(1, sizeof(*ddo->keys));
+		keys      = ddo->keys;
+	}
 	if (!keys)
 		return ddo->keys_locked;
 	uint16_t word;
@@ -261,6 +282,7 @@ st_ddofx_key(struct st_ddofx *ddo, const struct st_console_event *e)
 		return ddo->keys_locked;
 	keys->word = word;
 	keys->next = 0;
+	keys->checked_button = false;
 	if (!next_binding(ddo))
 		return ddo->keys_locked;
 	keys->event = *e;

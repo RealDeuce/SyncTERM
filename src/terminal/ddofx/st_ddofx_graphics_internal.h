@@ -30,7 +30,15 @@ struct st_ddofx_sprite {
 	uint8_t *pixels;
 };
 
+struct st_ddofx_mouse_scan {
+	unsigned next, buttons;
+	int      x, y;
+	bool     checked_button, waiting, repeating;
+	uint64_t repeat_due;
+};
+
 struct st_ddofx_mouse_state {
+	struct st_ddofx_mouse_scan scan;
 	struct st_ddofx_fields *fields;
 	struct st_ddofx_regions *regions;
 	struct st_ddofx_pointers *pointers;
@@ -48,6 +56,7 @@ struct st_ddofx_mouse_state {
 };
 
 struct st_ddofx_graphics {
+	struct st_ddofx_buttons    *buttons;
 	struct st_ddofx_mouse_state mouse;
 	struct st_ddofx_sprite  sprites[SPRITE_COUNT];
 	struct st_ddofx_bmf    *bitmap_fonts[32];
@@ -81,6 +90,8 @@ struct st_ddofx_graphics {
 };
 
 void st_ddofx_field_pointer(struct st_ddofx *, unsigned slot, bool animated);
+void    st_ddofx_define_button(struct st_ddofx *, char *args);
+bool    st_ddofx_button_mouse(struct st_ddofx *, unsigned, int x, int y, unsigned buttons);
 void st_ddofx_pointer_command(struct st_ddofx *, const struct st_ddofx_sink *, const char *, char *);
 void st_ddofx_mouse_defaults(struct st_ddofx_mouse_state *);
 bool st_ddofx_ensure_pointer(struct st_ddofx_mouse_state *);

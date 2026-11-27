@@ -22,11 +22,7 @@ struct region {
 
 struct st_ddofx_regions {
 	struct region slots[REGION_COUNT];
-	unsigned      count, next, waiting;
-	int           x, y;
-	unsigned      buttons;
-	uint64_t      repeat_due;
-	bool          repeating;
+	unsigned      count;
 };
 
 struct field {
@@ -72,8 +68,9 @@ move_to(struct st_ddofx *ddo, int x, int y)
 	m->controlled                  = true;
 	if (moved && m->fields)
 		m->fields->dirty = true;
-	if (moved && m->regions && m->buttons && !m->regions->waiting && !m->ignore_hold)
-		m->regions->repeat_due = 1;
+	if (moved && (m->regions || st_ddofx_button_count(ddo)) && m->buttons && !m->scan.waiting
+	    && !m->ignore_hold)
+		m->scan.repeat_due = 1;
 	st_ddofx_pointer_refresh(ddo);
 }
 
@@ -133,8 +130,8 @@ define_region(struct st_ddofx *ddo, char *args, bool on_release)
 	st_ddofx_callback_define(ddo, &r->callback, reply, args);
 	if ((unsigned)slot > mouse->regions->count)
 		mouse->regions->count = (unsigned)slot;
-	if (mouse->buttons && !mouse->ignore_hold && !mouse->regions->waiting && !ddo->in_mouse)
-		mouse->regions->repeat_due = 1;
+	if (mouse->buttons && !mouse->ignore_hold && !mouse->scan.waiting && !ddo->in_mouse)
+		mouse->scan.repeat_due = 1;
 }
 
 static void
@@ -174,8 +171,7 @@ field_ready(const struct st_ddofx *ddo)
 	if (!ddo->graphics || ddo->pointer_paused || ddo->in_event || ddo->in_mouse || ddo->fade_due)
 		return false;
 	const struct st_ddofx_mouse_state *m = &ddo->graphics->mouse;
-	return m->fields && m->fields->dirty && !m->outside && !m->ignore_hold
-	       && (!m->regions || !m->regions->waiting);
+	return m->fields && m->fields->dirty && !m->outside && !m->ignore_hold && !m->scan.waiting;
 }
 
 static void
@@ -299,30 +295,46 @@ void
 st_ddofx_resume_mouse(struct st_ddofx *ddo)
 {
 	ddo->in_mouse = false;
-	if (!ddo->graphics || !ddo->graphics->mouse.regions)
+	if (!ddo->graphics)
 		return;
 	struct st_ddofx_mouse_state *mouse = &ddo->graphics->mouse;
-	struct st_ddofx_regions     *table = mouse->regions;
-	/* A macro can redefine a later slot. Keep the initiating sample, but
-	 * read the region when its turn comes, after the previous macro. */
-	while (table->buttons && table->next < table->count) {
-		struct region *r = &table->slots[table->next++];
-		if (r->buttons != table->buttons || !inside(&r->area, table->x, table->y))
-			continue;
-		if (r->on_release && mouse->buttons) {
-			table->waiting = table->next;
+	struct st_ddofx_mouse_scan  *scan  = &mouse->scan;
+	if (scan->waiting && mouse->buttons)
+		return;
+	scan->waiting = false;
+	/* A callback may edit later slots. Preserve the initiating sample
+	 * across waits and read each control when its turn comes. */
+	unsigned regions = mouse->regions ? mouse->regions->count : 0;
+	while (scan->buttons && (scan->next < regions || scan->next < st_ddofx_button_count(ddo))) {
+		unsigned slot = scan->next;
+		if (!scan->checked_button) {
+			scan->checked_button = true;
+			if (st_ddofx_button_mouse(ddo, slot, scan->x, scan->y, scan->buttons)) {
+				scan->waiting = mouse->buttons != 0;
+				ddo->in_mouse = true;
+				return;
+			}
+		}
+		struct region *r   = slot < regions ? &mouse->regions->slots[slot] : NULL;
+		bool           hit = r && r->buttons == scan->buttons && inside(&r->area, scan->x, scan->y);
+		if (hit && r->on_release && mouse->buttons) {
+			scan->waiting = true;
 			return;
 		}
+		++scan->next;
+		scan->checked_button = false;
+		if (!hit)
+			continue;
 		if (!r->on_release)
-			table->repeating = true;
+			scan->repeating = true;
 		if (st_ddofx_callback_start(ddo, &r->callback, DDO_MOUSE)) {
 			ddo->in_mouse = true;
 			return;
 		}
 	}
 	uint64_t now;
-	if (table->repeating && mouse->buttons && st_time_monotonic_ms(&now) == 0)
-		table->repeat_due = now + REPEAT_MS;
+	if (scan->repeating && mouse->buttons && st_time_monotonic_ms(&now) == 0)
+		scan->repeat_due = now + REPEAT_MS;
 	hover(ddo);
 }
 
@@ -330,13 +342,9 @@ static void
 scan(struct st_ddofx *ddo)
 {
 	struct st_ddofx_mouse_state *mouse = &ddo->graphics->mouse;
-	struct st_ddofx_regions     *table = mouse->regions;
-	table->x                           = mouse->x;
-	table->y                           = mouse->y;
-	table->buttons                     = mouse->outside ? 0 : mouse->buttons;
-	table->next                        = 0;
-	table->repeating                   = false;
-	table->repeat_due                  = 0;
+	mouse->scan                        = (struct st_ddofx_mouse_scan) {.x = mouse->x,
+	    .y                                         = mouse->y,
+	    .buttons                                   = mouse->outside ? 0 : mouse->buttons};
 	st_ddofx_resume_mouse(ddo);
 }
 
@@ -414,22 +422,16 @@ st_ddofx_mouse(struct st_ddofx *ddo, const struct st_console_event *event)
 		mouse->history[i][release].x = mouse->x;
 		mouse->history[i][release].y = mouse->y;
 	}
-	struct st_ddofx_regions *table = mouse->regions;
 	if (moved && mouse->fields)
 		mouse->fields->dirty = true;
-	if (!table) {
+	if (!mouse->regions && !st_ddofx_button_count(ddo) && !mouse->scan.waiting) {
 		hover(ddo);
 		return;
 	}
 	if (!moved && !changed)
 		return;
-	if (table->waiting) {
-		if (buttons)
-			return;
-		table->next    = table->waiting - 1;
-		table->waiting = 0;
+	if (mouse->scan.waiting)
 		st_ddofx_resume_mouse(ddo);
-	}
 	else
 		scan(ddo);
 }
@@ -442,20 +444,15 @@ st_ddofx_mouse_cancel(struct st_ddofx *ddo, uint32_t buttons)
 	struct st_ddofx_mouse_state *mouse = &ddo->graphics->mouse;
 	mouse->buttons                     = button_mask(buttons);
 	mouse->ignore_hold                 = mouse->buttons != 0;
-	if (mouse->regions) {
-		mouse->regions->repeat_due = 0;
-		mouse->regions->buttons    = 0;
-		mouse->regions->waiting    = 0;
-		mouse->regions->repeating  = false;
-	}
+	mouse->scan                        = (struct st_ddofx_mouse_scan) {0};
 }
 
 static uint32_t
 repeat_wait_ms(const struct st_ddofx *ddo)
 {
-	if (!ddo->graphics || !ddo->graphics->mouse.regions || ddo->in_key || ddo->in_event || ddo->fade_due)
+	if (!ddo->graphics || ddo->in_key || ddo->in_event || ddo->fade_due)
 		return UINT32_MAX;
-	uint64_t due = ddo->graphics->mouse.regions->repeat_due, now;
+	uint64_t due = ddo->graphics->mouse.scan.repeat_due, now;
 	if (!due || st_time_monotonic_ms(&now) != 0)
 		return UINT32_MAX;
 	return now < due ? (uint32_t)(due - now) : 0;

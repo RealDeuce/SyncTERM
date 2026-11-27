@@ -22,6 +22,8 @@ The four desktop pages support lower-left anchored image scaling, rotation betwe
 
 In Normal mode the BBS can show or hide the mouse pointer, query its position and three logical buttons, and read separate press and release counts and positions for each button. The BBS can position the DDO pointer with `3MMOV` and confine it to a rectangle with `3MLIM`. SyncTERM accepts both the SDK spelling `MSPD` and the mouse-family spelling `3MSPD`. Relative to the default rates of 8 horizontally and 16 vertically, doubling an axis rate halves its travel. Motion is measured in desktop raster pixels, with fractional movement carried between samples. Up to 300 desktop regions share one table. Overlapping regions run in slot order. Each macro finishes before its return string is sent. Held repeatable regions run at 50 ms intervals during idle input. Non-repeating regions wait for all buttons to be released.
 
+The BBS can create up to 300 desktop push buttons with `5CPUSHB`. Creation draws the up sprite on the work page. A matching key or mouse combination draws the down sprite on the visual page for three clock ticks, restores the up sprite, then runs the macro and sends the return string. The pass flag controls whether a keyboard activation continues to the next binding and the connection.
+
 Desktop hover fields use a separate table of 300 slots. The highest matching slot runs its macro, sends its return string and selects its static or animated pointer. As specified in the SDK, leaving a field for uncovered space preserves the remembered slot. Re-entering it fires again after a different field has won or the BBS has sent `3MFFRS`.
 
 The host can load either MPT pointer format from the assigned M resource. A selected image keeps its own hotspot and AND/XOR masks when the BBS replaces or clears its list entry. The bitmap presenter applies those masks to the displayed palette indices, leaving the graphics pages available for capture and copying under the pointer. The 100 static slots and 100 animation profiles support one-shot, looping and oscillating playback.
@@ -315,7 +317,7 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 9679 | EXECUTE CHECK BOX | DDO-FX (NM) | Pending |
 | 9688 | SWAP CHECK BOX | DDO-FX (NM) | Pending |
 | 9697 | DISABLE/ENABLE CHECK BOX | DDO-FX (NM) | Pending |
-| 9706 | CREATE PUSH BUTTON | DDO-FX (NM) | Pending |
+| 9706 | CREATE PUSH BUTTON | DDO-FX (NM) | Desktop mouse and keyboard |
 | 9792 | CREATE TEXT FIELD | DDO-FX (NM) | Pending |
 | 9973 | SHOW TEXT FIELD | DDO-FX (NM) | Pending |
 | 9981 | ACTIVATE TEXT FIELD | DDO-FX (NM) | Pending |

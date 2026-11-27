@@ -648,6 +648,38 @@ def check_pointers(t, root, mouse):
     t.exchange(commands(b"2RESET"))
 
 
+def check_push_buttons(t, mouse):
+    t.case("Normal push buttons from keyboard and mouse")
+    make = b"5CPUSHB,300,up,down,80,60,46,99,1,3,P~^M,\x1d(7SRET,1)"
+    frame = t.exchange(commands(b"2C,6", b"2aFILL", b"2S,0,4,0,2,UP", b"2C,7", b"2aFILL",
+                                b"2S,0,4,0,2,DOWN", b"2aERASE", b"7DEFRET,1,M", make, b"2aG,80,58"),
+                       b"6\xff")
+    pos = 58*640+80
+    assert frame.primary[pos] == 0
+    frame = t.exchange(commands(b"2CPYWP2VP", b"4MKEY,300,46,99,1,K,"))
+    assert frame.primary[pos] == 6
+    t.client.text("c")
+    t.client.wait_for(lambda f: f.primary[pos] == 7)
+    t.input(b"MP,\rKc")
+    assert t.exchange().primary[pos] == 6
+    t.exchange(commands(b"3MREGN,300,80,84,58,60,3,R,"))
+    mouse(84,60,1)
+    t.exchange()
+    mouse(84,60,5)
+    t.input(b"MP,\r")
+    mouse(0,0,0)
+    t.input(b"R")
+    t.exchange(commands(make.replace(b",1,3,P~^M",b",0,3,Q")))
+    t.client.text("c")
+    t.input(b"MQ")
+    t.exchange(commands(make.replace(b",up,",b",absent,")))
+    t.client.text("c")
+    t.input(b"Kc")
+    t.exchange(commands(make, b"2RESET"))
+    t.client.text("c")
+    t.input(b"c")
+
+
 def check_mouse(t, root):
     t.case("Normal mouse region callbacks and button history")
     frame = t.exchange(commands(b"LIGMODE", b"LIGMODE", b"3MACT", b"dMOUSE"), b"Y\xff3\xff")
@@ -703,6 +735,7 @@ def check_mouse(t, root):
     t.exchange(commands(b"3MINF", b"3MPT,DEFAULT"), b"109,72,0\xff")
     mouse(301, 90, 0)
     t.exchange(commands(b"3MINF", b"2RESET"), b"112,90,0\xff")
+    check_push_buttons(t, mouse)
     check_pointers(t, root, mouse)
     t.exchange(commands(b"3MREGN,300,70,85,40,55,3,B,", b"7DEFRET,1,M",
                         b"3MREGN,1,70,85,40,55,3,A~^M,\x1d(w1)\x1d(7SRET,1)",
