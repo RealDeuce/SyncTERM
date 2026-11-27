@@ -417,34 +417,43 @@ struct scroll {
 	bool                   circular;
 };
 
+/* Rotate columns in strips so even a wide virtual page uses bounded scratch space. */
 static void
-scroll_rows(void *plane, size_t pixel_size, const struct scroll *s)
+rotate_rows(uint8_t *top, size_t stride, size_t bytes, int height, int jump)
 {
-	const int    height = (int)s->area.height;
-	const size_t stride = WIDTH * pixel_size, bytes = s->area.width * pixel_size;
-	uint8_t     *top = (uint8_t *)plane + s->area.y * stride + s->area.x * pixel_size;
-	if (s->circular) {
-		int jump = s->jump % height;
-		if (jump < 0)
-			jump += height;
-		if (jump == 0)
-			return;
-		/* Rotate each cycle using just one scanline of scratch space. */
-		uint32_t saved[WIDTH];
+	uint8_t saved[WIDTH * sizeof(uint32_t)];
+	for (size_t offset = 0; offset < bytes; offset += sizeof(saved)) {
+		size_t   count = bytes - offset < sizeof(saved) ? bytes - offset : sizeof(saved);
+		uint8_t *strip = top + offset;
 		int      moved = 0;
 		for (int first = 0; moved < height; ++first) {
-			memcpy(saved, top + first * stride, bytes);
+			memcpy(saved, strip + first * stride, count);
 			int dest = first;
 			for (;;) {
 				int src = (dest + height - jump) % height;
 				++moved;
 				if (src == first)
 					break;
-				memcpy(top + dest * stride, top + src * stride, bytes);
+				memcpy(strip + dest * stride, strip + src * stride, count);
 				dest = src;
 			}
-			memcpy(top + dest * stride, saved, bytes);
+			memcpy(strip + dest * stride, saved, count);
 		}
+	}
+}
+
+static void
+scroll_rows(void *plane, unsigned width, size_t pixel_size, const struct scroll *s)
+{
+	const int    height = (int)s->area.height;
+	const size_t stride = width * pixel_size, bytes = s->area.width * pixel_size;
+	uint8_t     *top = (uint8_t *)plane + s->area.y * stride + s->area.x * pixel_size;
+	if (s->circular) {
+		int jump = s->jump % height;
+		if (jump < 0)
+			jump += height;
+		if (jump)
+			rotate_rows(top, stride, bytes, height, jump);
 		return;
 	}
 	for (int i = 0; i < height; ++i) {
@@ -468,8 +477,8 @@ scroll_visible(void *context, const struct st_pixel_buffer *pixels, struct st_co
 {
 	const struct scroll *s = context;
 	if (pixels->width == WIDTH && pixels->height == HEIGHT) {
-		scroll_rows(pixels->primary, sizeof(*pixels->primary), s);
-		scroll_rows(pixels->alternate, sizeof(*pixels->alternate), s);
+		scroll_rows(pixels->primary, pixels->width, sizeof(*pixels->primary), s);
+		scroll_rows(pixels->alternate, pixels->width, sizeof(*pixels->alternate), s);
 		*changed = s->area;
 	}
 	return 0;
@@ -486,20 +495,29 @@ scroll_page(struct st_ddofx *ddo, char *args)
 	if (!args)
 		return;
 	const char *name = st_ddofx_value(ddo, args);
-	if (strlen(name) != 2 || !st_ddofx_page_name(name, &page) || n[0] < 0 || n[1] < n[0] || n[1] >= WIDTH || n[2] < 0
-	    || n[3] < n[2] || n[3] >= HEIGHT || n[4] == 0 || (n[5] != 0 && n[5] != 1))
+	if (strlen(name) != 2 || !st_ddofx_page_name(name, &page))
 		return;
 	struct st_ddofx_graphics *g = ddo->graphics;
+	unsigned                  owner = g->alert_graphic_window;
+	if (owner && page != VISUAL && page != HIDDEN)
+		return;
+	struct st_ddofx_surface target = st_ddofx_surface(g, owner, page);
+	if (n[0] < 0 || n[1] < n[0] || n[1] >= target.width || n[2] < 0 || n[3] < n[2] || n[3] >= target.height
+	    || n[4] == 0 || (n[5] != 0 && n[5] != 1))
+		return;
 	struct scroll             s = {
 	    .area     = {n[0], n[2], n[1] - n[0] + 1, n[3] - n[2] + 1},
 	    .jump     = n[4],
 	    .fill     = g->colour,
 	    .circular = n[5] == 0
         };
-	if (page == VISUAL)
+	if (!target.data)
 		(void)st_console_modify_pixels(g->display, scroll_visible, &s);
-	else
-		scroll_rows(&g->page[page], 1, &s);
+	else {
+		scroll_rows(target.data, target.width, 1, &s);
+		if (page == VISUAL)
+			st_ddofx_refresh_window_area(ddo, owner, (struct bounds) {n[0], n[1], n[2], n[3]});
+	}
 }
 
 static uint32_t

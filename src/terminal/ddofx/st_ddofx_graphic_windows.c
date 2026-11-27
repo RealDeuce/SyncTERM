@@ -353,7 +353,7 @@ st_ddofx_publish_page_area(struct st_ddofx *ddo, unsigned owner, enum page deskt
 	st_ddofx_extend_bounds(damage, area);
 }
 
-struct text_control {
+struct visual_update {
 	struct st_ddofx         *ddo;
 	unsigned                 owner;
 	struct bounds            area;
@@ -362,9 +362,9 @@ struct text_control {
 };
 
 static int
-show_text_control(void *context, const struct st_pixel_buffer *pixels, struct st_console_rect *changed)
+paint_visible_area(void *context, const struct st_pixel_buffer *pixels, struct st_console_rect *changed)
 {
-	const struct text_control *control = context;
+	const struct visual_update *control = context;
 	if (pixels->width != WIDTH || pixels->height != HEIGHT)
 		return 0;
 	struct bounds damage = control->area;
@@ -391,8 +391,8 @@ st_ddofx_draw_text_control(struct st_ddofx *ddo, unsigned owner, bool work, stru
 	if (owner || work)
 		painter(context, NULL, area);
 	if (owner ? !w->hidden : !work) {
-		struct text_control control = {ddo, owner, area, painter, context};
-		(void)st_console_modify_pixels(ddo->graphics->display, show_text_control, &control);
+		struct visual_update control = {ddo, owner, area, painter, context};
+		(void)st_console_modify_pixels(ddo->graphics->display, paint_visible_area, &control);
 	}
 }
 
@@ -400,16 +400,11 @@ void
 st_ddofx_refresh_window_area(struct st_ddofx *ddo, unsigned slot, struct bounds area)
 {
 	const struct st_ddofx_graphic_window *w = &ddo->graphics->graphic_windows[slot];
-	if (!w->visual || w->hidden)
+	if (!slot || !w->visual || w->hidden)
 		return;
-	struct bounds view = st_ddofx_window_interior(w);
-	int           dx = view.left - w->x, dy = view.top - w->y;
-	area.left += dx;
-	area.right += dx;
-	area.top += dy;
-	area.bottom += dy;
-	if (st_ddofx_intersect_bounds(&area, &view))
-		refresh(ddo, area);
+	struct visual_update update = {.ddo = ddo, .owner = slot, .area = area};
+	st_ddofx_mouse_view_changed(ddo->graphics);
+	(void)st_console_modify_pixels(ddo->graphics->display, paint_visible_area, &update);
 }
 
 void
@@ -417,8 +412,8 @@ st_ddofx_refresh_graphic_interior(struct st_ddofx *ddo)
 {
 	struct st_ddofx_graphics       *g = ddo->graphics;
 	struct st_ddofx_graphic_window *w = &g->graphic_windows[g->alert_graphic_window];
-	if (w->visual && !w->hidden)
-		refresh(ddo, st_ddofx_window_interior(w));
+	st_ddofx_refresh_window_area(ddo, g->alert_graphic_window,
+	    (struct bounds) {0, w->width - 1, 0, w->height - 1});
 }
 
 static void

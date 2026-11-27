@@ -666,6 +666,45 @@ def check_drawing(t):
     scene([b"2CPYHP2WP"], {(1,1):5,(1,2):2,(1,3):2,(1,4):5})
 
 
+def check_window_scroll(t):
+    t.case("scroll the alerted virtual pages without changing the desktop")
+    # A row wider than the physical screen and a viewport near its right edge.
+    window = b"2GWIN,1,30,129,40,139,3001,600,0,1,0,0,0,0,0,0,0,0,1,Scroll"
+    scene = [b"2C,11", b"2aFILL", b"2CPYWP2VP", b"2CPYWP2BP", window, b"2CHVGP,1,2901,500",
+             b"2ALERTGWIN,1", b"2C,21", b"2aFILL", b"2C,39", b"2aM,0,520", b"2aDRAW,3000,520",
+             b"2CPYVP2HP", b"2RGWINI", b"2C,47"]
+    def row(frame, ys, colours):
+        for plane in (frame.primary, frame.alternate):
+            assert [plane[y*640+129] for y in ys] == colours
+    # Positive fill-scroll moves the stripe down. The immediately adjacent guard rows survive.
+    frame = t.exchange(commands(*scene, b"2aSCROLL,0,3000,519,523,2,1,VP",
+                                b"2aG,0,522", b"2aG,3000,522"), b"39\xff39\xff")
+    row(frame, range(58,65), [21,47,47,21,39,21,21])
+    frame = t.exchange(commands(b"2aSCROLL,0,3000,519,523,-2,0,HP"))
+    row(frame, range(59,64), [47,47,21,39,21])
+    frame = t.exchange(commands(b"2CPYHP2VP", b"2aG,0,523", b"2aG,3000,523"), b"39\xff39\xff")
+    row(frame, range(59,64), [21,21,21,21,39])
+
+    # A circular scroll of three rows across a five-row interval wraps the stripe to row 521.
+    frame = t.exchange(commands(b"2aSCROLL,0,3000,519,523,3,0,VP", b"2aG,2560,521"), b"39\xff")
+    row(frame, range(59,64), [21,21,39,21,21])
+    # Even a completely offscreen scroll modifies the virtual pixels for later viewing.
+    frame = t.exchange(commands(b"2aSCROLL,0,5,0,3,-2147483648,1,VP", b"2aG,5,3",
+                                b"2aSCROLL,0,5,0,3,1,1,WP", b"2aSCROLL,0,5,0,3,1,1,BP",
+                                b"2CALMGWIN", b"2aG,0,0", b"2CPYBP2WP", b"2aG,0,0"),
+                       b"47\xff11\xff11\xff")
+    row(frame, [61], [39])
+    frame = t.exchange(commands(b"2CHVGP,1,0,0"))
+    assert frame.primary[40*640+30] == frame.alternate[40*640+30] == 47
+    cover = b"2GWIN,2,80,179,40,139,100,100,0,1,0,0,0,0,0,0,0,0,1,Cover"
+    frame = t.exchange(commands(cover, b"2ALERTGWIN,2", b"2C,84", b"2aFILL", b"2RGWINI",
+                                b"2C,99", b"2aFILL", b"2ALERTGWIN,1", b"2C,62",
+                                b"2aSCROLL,0,99,0,3,4,1,VP"))
+    for plane in (frame.primary, frame.alternate):
+        assert list(plane[40*640+79:40*640+82]) == [62,84,84]
+    t.exchange(commands(b"2CGWIN,2", b"2CGWIN,1"))
+
+
 def check_fades(t):
     t.case("default ANSI palette restores exactly the first sixteen VGA registers")
     # The SDK names the colours. The palette reference records their DAC values,
@@ -2213,6 +2252,7 @@ def check_graphics(t, root):
     assert frame.primary[4 * 640 + 3] == 4 and frame.palette[4] == 0x00ffff
     t.exchange(commands(b"1CLOSE"))
     check_drawing(t)
+    check_window_scroll(t)
     check_marquees(t, root)
     check_window_marquees(t)
     check_clocks(t, root)
