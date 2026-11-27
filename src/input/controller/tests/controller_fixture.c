@@ -94,7 +94,7 @@ int
 st_controller_fixture_request(void *context, const uint8_t *bytes, size_t size)
 {
 	struct st_controllers *hub = context;
-	if (!hub || !hub->interfaces || size < 2 || size > 4098 || bytes[0] < 1 || bytes[0] > 5 || bytes[1] >= 4
+	if (!st_controllers_available(hub) || size < 2 || size > 4098 || bytes[0] < 1 || bytes[0] > 5 || bytes[1] >= 4
 	    || (bytes[0] == 4 && size != 6) || (bytes[0] == 5 && size != 2))
 		return IO_ERROR_INVALID_ARGUMENT;
 	struct fixture *f = hub->interfaces;

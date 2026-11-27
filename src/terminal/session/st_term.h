@@ -25,6 +25,8 @@
 typedef struct st_term_session st_term_session_t;
 /* Owner-thread keep-alive for side-band work after terminal EOF. */
 void st_term_session_set_auxiliary_active(st_term_session_t *session, bool active);
+/* A local controller hook subscribes independently of remote reports. */
+void st_term_session_set_controller_hook(st_term_session_t *session, bool active);
 
 /* Serialized owner-only read. A false result means there is no transfer. */
 bool st_term_session_inspect_transfer(st_term_session_t *session, struct st_transfer_inspection *state,

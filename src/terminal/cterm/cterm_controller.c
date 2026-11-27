@@ -61,12 +61,24 @@ announce(st_cterm_t *t, struct st_cterm_pad *p)
 	values(t, p, true);
 }
 
+bool
+cterm_pads_available(const st_cterm_t *t)
+{
+	return t->pads && (!t->pads->available || t->pads->available(t->pads->context));
+}
+
 void
 cterm_pad_mode(st_cterm_t *t, bool enabled)
 {
 	struct st_cterm_pads *s = t->pads;
 	if (!s || s->enabled == enabled)
 		return;
+	if (enabled) {
+		if (!cterm_pads_available(t))
+			return;
+		if (!s->paused && s->sample)
+			s->sample(s->context);
+	}
 	s->enabled = enabled;
 	for (struct st_cterm_pad *p = s->devices; p; p = p->next) {
 		p->wire = 0;

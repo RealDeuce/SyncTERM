@@ -123,6 +123,11 @@ def connected(executable, encoding, reports):
                 exact(peer, records((5,9)))
                 peer.sendall(b"\x1bc\x1b[=6$p")
                 exact(peer, b"\x1b[=6;2$y")
+                # The local hook receives input after the remote mode is reset.
+                client.request(7, b"\x01\x02" + DESCRIPTOR)
+                report(client, 2, axis=0)
+                exact(peer, b"left")
+                client.request(7, b"\x03\x02")
                 peer.shutdown(socket.SHUT_RDWR)
 
 
@@ -241,12 +246,14 @@ def mapper(executable, reports):
                 with server.accept()[0] as peer:
                     peer.settimeout(5)
                     session.wait_for(lambda s: s.application.get("connected") == 1)
-                    peer.sendall(b"\x1b[=6h")
-                    exact(peer, records((6,)))
+                    # First-packet enable must include a device already present even
+                    # though this session has no Wren controller subscription.
                     session.request(7, b"\x01\x00" + DESCRIPTOR)
+                    peer.sendall(b"\x1b[=6h\x1b[=6$p")
                     caps = [(1,312,0,1), (1,304,0,1), (3,2,0,65534), (3,16,1,2),
                             (3,17,1,2), (1,544,0,1), (1,547,0,1), (1,545,0,1)]
-                    exact(peer, records((1,1,2,1), *((2,1,*cap) for cap in caps), (4,1)))
+                    exact(peer, records((1,1,2,1), *((2,1,*cap) for cap in caps), (4,1), (6,))
+                          + b"\x1b[=6;1$y")
                     report(session, 0, axis=0)
                     exact(peer, records(*((3,1,t,code,0) for t,code,_,_ in caps), (4,1)))
                     report(session, 0, button=2, axis=128, hat=3)

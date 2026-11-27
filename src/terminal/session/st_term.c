@@ -71,7 +71,7 @@ struct st_term_session {
 	bool                   remote_closed;
 	bool                   history_finalized;
 	bool                   auxiliary_active;
-	bool                   unfocused, controllers_started, controller_refresh;
+	bool                   unfocused, controller_hook, controller_refresh;
 	struct st_cterm_pads   pads;
 	bool                   suspended;
 	bool                   mouse_disabled;
@@ -740,6 +740,15 @@ st_term_connect_profile(st_connection_t **result, const struct st_profile *profi
 	}
 }
 
+static bool
+controller_available(void *context)
+{
+	st_term_session_t *session = context;
+	return st_controllers_available(session->config.controllers);
+}
+
+static void sample_controllers(void *context);
+
 int
 st_term_session_create(st_term_session_t **result, const struct st_term_config *config)
 {
@@ -788,9 +797,13 @@ st_term_session_create(st_term_session_t **result, const struct st_term_config *
 		return IO_ERROR_INVALID_ARGUMENT;
 	}
 	st_screen_mode_profile_palette(mode, config->palette, config->palette_size, palette_override);
-	session->pads.next_id                     = 1;
+	session->pads = (struct st_cterm_pads) {
+	    .next_id = 1, .context = session, .available = controller_available, .sample = sample_controllers};
+	session->controller_refresh = true;
+	session->ddofx.sample_controllers = sample_controllers;
+	session->ddofx.controller_context = session;
 	const struct st_cterm_config cterm_config = {
-	    .pads             = st_controllers_available(config->controllers) ? &session->pads : NULL,
+	    .pads             = config->controllers ? &session->pads : NULL,
 	    .console          = config->console,
 	    .fonts            = config->fonts,
 	    .audio            = config->audio,
@@ -1902,6 +1915,14 @@ sync_buttons(st_term_session_t *session, uint32_t buttons)
 	st_graphics_sync_mouse_buttons(st_term_session_cterm(session), buttons);
 }
 
+static void
+deliver_controller(st_term_session_t *session, const struct st_controller_event *event, bool consumed)
+{
+	if (session->config.graphics_mode == ST_GRAPHICS_DDOFX_20)
+		st_ddofx_controller(&session->ddofx, event, consumed);
+	st_graphics_handle_controller(st_term_session_cterm(session), event, consumed);
+}
+
 static int
 deliver_input(st_term_session_t *session, const struct local_input *input, bool *handled)
 {
@@ -1937,10 +1958,7 @@ deliver_input(st_term_session_t *session, const struct local_input *input, bool 
 				sync_buttons(session, event->data.mouse.buttons);
 			return session->output_error;
 		case ST_CONSOLE_EVENT_CONTROLLER:
-			if (session->config.graphics_mode == ST_GRAPHICS_DDOFX_20)
-				st_ddofx_controller(&session->ddofx, &event->data.controller, input->controller_consumed);
-			st_graphics_handle_controller(st_term_session_cterm(session), &event->data.controller,
-			    input->controller_consumed);
+			deliver_controller(session, &event->data.controller, input->controller_consumed);
 			return session->output_error;
 		case ST_CONSOLE_EVENT_FOCUS:
 			session->unfocused = !event->data.focus.focused;
@@ -1948,6 +1966,7 @@ deliver_input(st_term_session_t *session, const struct local_input *input, bool 
 			st_ddofx_pointer_pause(&session->ddofx,
 			    session->suspended || session->unfocused || session->mouse_disabled);
 			if (session->unfocused) {
+				session->controller_refresh = true;
 				st_ddofx_mouse_cancel(&session->ddofx, 0);
 				st_cterm_pad_pause(st_term_session_cterm(session), true);
 				st_term_rip3_mouse_cancel(session->rip3, true);
@@ -2146,15 +2165,42 @@ collect_controller(void *context, const struct st_controller_event *record)
 	batch->records[batch->count++] = *record;
 }
 
+static bool
+controller_input_owned(const st_term_session_t *session)
+{
+	return !session->suspended && !session->unfocused && !session->wire_owner
+	       && (!session->transfer || session->ddofx.background_download) && !session->transfer_reserved
+	       && !session->musicomm && st_connection_is_connected(session->config.connection);
+}
+
+static bool
+controller_subscribed(const st_term_session_t *session)
+{
+	return session->pads.enabled || session->controller_hook || st_ddofx_joystick_active(&session->ddofx);
+}
+
+static void
+controller_snapshot_event(void *context, const struct st_controller_event *event)
+{
+	deliver_controller(context, event, false);
+}
+
+static void
+sample_controllers(void *context)
+{
+	st_term_session_t *session = context;
+	/* A subscribed session already maintains filtered state. Never call into
+	 * Wren from the parser, or bypass a hook by delivering its pending values. */
+	if (!controller_input_owned(session) || controller_subscribed(session))
+		return;
+	st_controllers_poll(session->config.controllers, NULL, NULL);
+	st_controllers_poll(session->config.controllers, controller_snapshot_event, session);
+}
+
 static int
 poll_controllers(st_term_session_t *session, enum st_term_disposition *disposition, bool *finished)
 {
-	if (session->unfocused) {
-		st_controllers_poll(session->config.controllers, NULL, NULL);
-		session->controller_refresh = true;
-		return 0;
-	}
-	if (session->controller_refresh || !session->controllers_started) {
+	if (session->controller_refresh) {
 		/* Coalesce local activity while the session did not own input. */
 		st_controllers_poll(session->config.controllers, NULL, NULL);
 		session->controller_refresh = false;
@@ -2195,11 +2241,10 @@ st_term_session_service(st_term_session_t *session, enum st_term_disposition *di
 		*finished    = true;
 		return 0;
 	}
-	/* Establish the local inventory before processing a BBS enable in its
-	 * first packet, including when the connection already has input. */
-	if (!session->controllers_started) {
-		status                       = poll_controllers(session, disposition, finished);
-		session->controllers_started = true;
+	/* Apply a newly installed local hook to held values before the first
+	 * remote request can inspect the inventory. */
+	if (session->controller_refresh && session->controller_hook && controller_input_owned(session)) {
+		status = poll_controllers(session, disposition, finished);
 		if (status || *finished)
 			return status;
 	}
@@ -2454,14 +2499,16 @@ st_term_session_service(st_term_session_t *session, enum st_term_disposition *di
 	}
 	if (status != IO_ERROR_WOULD_BLOCK)
 		return status;
-	if (!session->suspended && !session->wire_owner && (!session->transfer || session->ddofx.background_download)
-	    && !session->transfer_reserved && !session->musicomm && st_connection_is_connected(session->config.connection)) {
+	if (controller_subscribed(session) && controller_input_owned(session)) {
 		status = poll_controllers(session, disposition, finished);
 		if (status || *finished)
 			return status;
 	}
-	else
+	else {
 		session->controller_refresh = true;
+		if (session->pads.paused && controller_input_owned(session) && !session->deferred_head)
+			st_cterm_pad_pause(st_term_session_cterm(session), false);
+	}
 	if (!session->suspended && session->returned_position == session->returned_size
 	    && !st_connection_is_connected(session->config.connection)
 	    && session->wire_position == session->wire_size
@@ -2520,9 +2567,11 @@ st_term_session_wait(st_term_session_t *session, uint32_t timeout_ms)
 		if (timeout_ms > ddofx_wait)
 			timeout_ms = ddofx_wait;
 	}
-	uint32_t controller_wait = st_controllers_wait_ms(session->config.controllers);
-	if (timeout_ms > controller_wait)
-		timeout_ms = controller_wait;
+	if (controller_subscribed(session) && controller_input_owned(session)) {
+		uint32_t controller_wait = st_controllers_wait_ms(session->config.controllers);
+		if (timeout_ms > controller_wait)
+			timeout_ms = controller_wait;
+	}
 	struct timespec deadline;
 	int status = timeout_ms == UINT32_MAX ? 0 : st_time_utc_deadline_after_ms(&deadline, timeout_ms);
 	if (status == 0)
@@ -2539,6 +2588,13 @@ st_term_session_pump(st_term_session_t *session, enum st_term_disposition *dispo
 	if (status == 0 && !*finished)
 		status = st_term_session_wait(session, 1);
 	return status;
+}
+
+void
+st_term_session_set_controller_hook(st_term_session_t *session, bool active)
+{
+	if (session)
+		session->controller_hook = active;
 }
 
 void

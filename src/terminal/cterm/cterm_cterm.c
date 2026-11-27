@@ -421,7 +421,7 @@ cterm_handle_decrqm_syncterm(struct cterminal *cterm, int *speed) /* CSI = $ p *
 			pm = (cterm->last_column_flag & CTERM_LCF_FORCED) ? 3 : 2;
 			break;
 		case 6:
-			pm = cterm->pads ? (cterm->pads->enabled ? 1 : 2) : 0;
+			pm = cterm_pads_available(cterm) ? (cterm->pads->enabled ? 1 : 2) : 0;
 			break;
 		case 255:
 			pm = cterm->doorway_mode ? 1 : 2;
@@ -455,7 +455,7 @@ cterm_handle_syncterm_ext_da(struct cterminal *cterm, int *speed) /* CSI < c */
 	if (true)
 		strcat(tmp, ";7");
 	strcat(tmp, ";8");
-	if (cterm->pads)
+	if (cterm_pads_available(cterm))
 		strcat(tmp, ";9");
 	strcat(tmp, "c");
 	cterm_respond(cterm, tmp, strlen(tmp));

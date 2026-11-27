@@ -40,7 +40,8 @@ typedef bool (*st_port_next)(struct st_port_sample *);
 
 struct st_controllers *st_controllers_create(const char *settings_path, st_port_next ports);
 void                   st_controllers_destroy(struct st_controllers *);
-bool                   st_controllers_available(const struct st_controllers *);
+/* The first availability query or poll initializes the native providers. */
+bool                   st_controllers_available(struct st_controllers *);
 uint32_t               st_controllers_wait_ms(const struct st_controllers *);
 void                   st_controllers_poll(struct st_controllers *, st_controller_emit, void *);
 void                   st_controllers_forget_listener(struct st_controllers *);

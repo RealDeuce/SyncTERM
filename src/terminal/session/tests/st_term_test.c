@@ -12,6 +12,7 @@
 #include "cterm.h"
 #include "cterm_apc.h"
 #include "io_error.h"
+#include "st_controller.h"
 #include "st_pixels.h"
 #include "st_rip154.h"
 #include "st_term.h"
@@ -165,6 +166,68 @@ test_ooii_session(enum st_cterm_encoding encoding, bool suppress)
 	CHECK(strstr(text, "55AFTER") != NULL);
 	st_term_session_destroy(&session);
 	CHECK(st_connection_close(connection) == 0);
+	st_profile_dispose(&profile);
+	st_font_catalog_destroy(fonts);
+	st_console_destroy(console);
+	return 0;
+}
+
+static unsigned controller_polls;
+
+static bool
+count_controller_poll(struct st_port_sample *sample)
+{
+	(void)sample;
+	++controller_polls;
+	return false;
+}
+
+static int
+test_controller_demand(void)
+{
+	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_config geometry = {.columns = 40, .rows = 4, .cell_width = 8, .cell_height = 16};
+	st_console_t *console = NULL;
+	st_font_catalog_t *fonts = NULL;
+	st_connection_t *connection = NULL;
+	st_term_session_t *session = NULL;
+	struct st_profile profile;
+	enum st_term_disposition disposition;
+	bool finished;
+	struct st_controllers *hub = st_controllers_create(NULL, count_controller_poll);
+	CHECK(hub != NULL);
+	CHECK(st_console_create(&console, &display, &geometry) == 0);
+	CHECK(st_font_catalog_create(&fonts, console) == 0);
+	st_profile_init(&profile);
+	profile.connection_type = ST_CONNECTION_SHELL;
+	strcpy(profile.address, "sh term-fixture.sh responses");
+	CHECK(st_term_connect_profile(&connection, &profile, console, NULL, NULL) == 0);
+	const struct st_term_config config = {.console = console, .connection = connection, .fonts = fonts,
+	    .controllers = hub, .encoding = ST_CTERM_ENCODING_UTF8, .suppress_responses = true};
+	CHECK(st_term_session_create(&session, &config) == 0);
+	st_cterm_t *term = st_term_session_cterm(session);
+	size_t used;
+	const char *commands[] = {"text\x1b[<0c\x1b[=6$p", "\x1b[=6h", "\x1b[=6l", "\x1b[=6h", "\033c"};
+	const bool polling[] = {false, true, false, true, false};
+	CHECK(controller_polls == 0);
+	for (size_t i = 0; i < sizeof(commands) / sizeof(commands[0]); ++i) {
+		CHECK(st_cterm_write(term, commands[i], strlen(commands[i]), &used) == 0 && used == strlen(commands[i]));
+		unsigned before = controller_polls;
+		CHECK(i != 0 || before == 0);
+		CHECK(st_term_session_service(session, &disposition, &finished) == 0 && !finished);
+		CHECK((controller_polls != before) == polling[i]);
+	}
+	st_term_session_set_controller_hook(session, true);
+	unsigned before = controller_polls;
+	CHECK(st_term_session_service(session, &disposition, &finished) == 0 && !finished);
+	CHECK(controller_polls > before);
+	st_term_session_set_controller_hook(session, false);
+	before = controller_polls;
+	CHECK(st_term_session_service(session, &disposition, &finished) == 0 && !finished);
+	CHECK(controller_polls == before);
+	st_term_session_destroy(&session);
+	CHECK(st_connection_close(connection) == 0);
+	st_controllers_destroy(hub);
 	st_profile_dispose(&profile);
 	st_font_catalog_destroy(fonts);
 	st_console_destroy(console);
@@ -1391,6 +1454,7 @@ st_term_test_main(void)
 	CHECK(test_remote_disconnect(false, true) == 0);
 	CHECK(test_remote_disconnect(true, true) == 0);
 	CHECK(test_shell_rip_cp437_boundary() == 0);
+	CHECK(test_controller_demand() == 0);
 	CHECK(test_response_policy() == 0);
 	CHECK(test_ooii_session(ST_CTERM_ENCODING_UTF8, false) == 0);
 	CHECK(test_ooii_session(ST_CTERM_ENCODING_CODEPAGE, false) == 0);

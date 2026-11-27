@@ -255,6 +255,8 @@ step(struct st_ddofx *ddo, struct rc_profiles *p)
 			p->link = 0;
 			break;
 		}
+		if (r->action && r->joystick && !ddo->controller_paused && ddo->sample_controllers)
+			ddo->sample_controllers(ddo->controller_context);
 		unsigned direction = 1 + (w->angle + 22) / 45 % 8;
 		bool     match =
 		    (!r->key || r->key == p->key) && (!r->mouse || r->mouse == ddo->graphics->mouse.buttons)

@@ -1745,6 +1745,8 @@ wire-byte replacement, or `onInput` for Unicode text replacement.
   and `"value"` (decoded button, axis, or hat value). Return true to consume.
   A neutral transition clears a previously delivered held value. Reporting
   to the BBS can be disabled while local scripts observe controllers.
+  Registering the first controller hook starts polling for the focused session.
+  Removing the last hook releases its request for polling.
 | C1
 
 | `Hook.onPhysicalKey { \|ev\| ... }`

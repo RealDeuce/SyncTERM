@@ -312,7 +312,7 @@ pad_create(const char *settings, st_port_next ports, const struct pad_driver *dr
 	}
 	hub->next_id = 1;
 	hub->ports   = ports;
-	hub->driver  = driver && driver->init(hub) ? driver : NULL;
+	hub->driver  = driver;
 	return hub;
 }
 
@@ -328,7 +328,7 @@ st_controllers_destroy(struct st_controllers *hub)
 {
 	if (!hub)
 		return;
-	if (hub->driver)
+	if (hub->driver && hub->initialized)
 		hub->driver->close(hub);
 	while (hub->pads) {
 		struct st_pad *next = hub->pads->next;
@@ -340,15 +340,20 @@ st_controllers_destroy(struct st_controllers *hub)
 }
 
 bool
-st_controllers_available(const struct st_controllers *hub)
+st_controllers_available(struct st_controllers *hub)
 {
+	if (hub && hub->driver && !hub->initialized) {
+		hub->initialized = true;
+		if (!hub->driver->init(hub))
+			hub->driver = NULL;
+	}
 	return hub && (hub->ports || hub->driver);
 }
 
 uint32_t
 st_controllers_wait_ms(const struct st_controllers *hub)
 {
-	if (!st_controllers_available(hub))
+	if (!hub || (!hub->ports && !hub->driver))
 		return UINT32_MAX;
 	if (hub->pads || hub->ports || !hub->next_scan)
 		return 10;
@@ -415,7 +420,7 @@ st_controllers_poll(struct st_controllers *hub, st_controller_emit emit, void *c
 {
 	if (!hub)
 		return;
-	if (hub->driver)
+	if (st_controllers_available(hub) && hub->driver)
 		hub->driver->poll(hub, emit, ctx);
 	if (hub->ports) {
 		struct st_port_sample sample;

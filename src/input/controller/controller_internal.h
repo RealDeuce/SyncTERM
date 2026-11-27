@@ -49,7 +49,7 @@ struct st_controllers {
 	void                    *interfaces;
 	struct usb_provider     *usb;
 	struct evdev_provider   *evdev;
-	bool                     hid_ready;
+	bool                     initialized, hid_ready;
 	uint64_t                 next_scan;
 	st_port_next             ports;
 };

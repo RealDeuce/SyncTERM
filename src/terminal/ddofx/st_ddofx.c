@@ -224,6 +224,8 @@ st_ddofx_reset(struct st_ddofx *ddo)
 	    .slide.suspended     = ddo->slide.suspended,
 	    .sleeper.suspended   = ddo->sleeper.suspended,
 	    .controller_paused   = ddo->controller_paused,
+	    .sample_controllers  = ddo->sample_controllers,
+	    .controller_context  = ddo->controller_context,
 	    .sticks              = {ddo->sticks[0], ddo->sticks[1]}
         };
 }

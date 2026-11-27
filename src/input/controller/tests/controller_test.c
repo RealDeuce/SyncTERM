@@ -224,6 +224,44 @@ xusb(void)
 	return 0;
 }
 
+static unsigned init_calls, close_calls;
+static bool provider_present;
+
+static bool
+provider_init(struct st_controllers *hub)
+{
+	(void)hub;
+	++init_calls;
+	return provider_present;
+}
+
+static void
+provider_close(struct st_controllers *hub)
+{
+	(void)hub;
+	++close_calls;
+}
+
+static int
+provider_lifetime(void)
+{
+	const struct pad_driver driver = {.init = provider_init, .close = provider_close};
+	struct st_controllers *hub = pad_create(NULL, NULL, &driver);
+	CHECK(hub);
+	st_controllers_destroy(hub);
+	CHECK(init_calls == 0 && close_calls == 0);
+	for (unsigned i = 0; i < 2; ++i) {
+		provider_present = i != 0;
+		hub = pad_create(NULL, NULL, &driver);
+		CHECK(hub && init_calls == i);
+		CHECK(st_controllers_available(hub) == provider_present);
+		CHECK(st_controllers_available(hub) == provider_present && init_calls == i + 1);
+		st_controllers_destroy(hub);
+		CHECK(close_calls == i);
+	}
+	return 0;
+}
+
 static struct st_port_sample next_sample;
 static bool                  pending;
 
@@ -268,5 +306,5 @@ int
 main(void)
 {
 	return scaling() || mapping() || composite() || repeated_vendor_usage() || button_array() || xusb()
-	       || ports();
+	       || provider_lifetime() || ports();
 }

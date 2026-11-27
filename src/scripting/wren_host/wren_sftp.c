@@ -80,7 +80,7 @@ struct st_wren_connected {
 	struct foreign_remote  *resources;
 	struct pending_timer   *timers;
 	struct connected_hook  *hooks;
-	size_t                  hook_dispatch_depth;
+	size_t                  hook_dispatch_depth, controller_hooks;
 	FILE                   *capture_stream;
 	bool                    capture_raw;
 	bool                    capture_paused;
@@ -253,6 +253,11 @@ fn_hook_remove(WrenVM *vm)
 	if (removed) {
 		wrenReleaseHandle(vm, hook->function);
 		hook->function = NULL;
+		if (hook->kind == ST_WREN_HOOK_CONTROLLER) {
+			struct st_wren_connected *connected = connected_from_vm(vm);
+			if (--connected->controller_hooks == 0)
+				st_term_session_set_controller_hook(connected->context.session, false);
+		}
 	}
 	wrenSetSlotBool(vm, 0, removed);
 }
@@ -1372,7 +1377,11 @@ fn_hook_on_mouse_value(WrenVM *vm)
 static void
 fn_hook_on_controller(WrenVM *vm)
 {
-	register_hook(vm, 1, ST_WREN_HOOK_CONTROLLER, -1);
+	if (register_hook(vm, 1, ST_WREN_HOOK_CONTROLLER, -1)) {
+		struct st_wren_connected *connected = connected_from_vm(vm);
+		++connected->controller_hooks;
+		st_term_session_set_controller_hook(connected->context.session, true);
+	}
 }
 
 static void
@@ -2361,6 +2370,8 @@ st_wren_connected_destroy(st_wren_connected_t *connected)
 	}
 	if (connected->vm != NULL)
 		(void)run_hooks(connected, 3);
+	if (connected->controller_hooks)
+		st_term_session_set_controller_hook(connected->context.session, false);
 	while (connected->hooks != NULL) {
 		struct connected_hook *next = connected->hooks->next;
 		free_regex_hook(connected->hooks);

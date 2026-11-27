@@ -519,6 +519,7 @@ bool cterm_atascii_inverse(const struct cterminal *cterm);
 /* Emit a response back to the connected host via cterm's registered
  * response callback (set by the terminal app).  Silently drops if no
  * callback has been registered. */
+bool cterm_pads_available(const struct cterminal *);
 void cterm_pad_mode(struct cterminal *, bool enabled);
 void cterm_respond(struct cterminal *cterm, const char *data, size_t len);
 /* ================================================================

@@ -74,6 +74,8 @@ struct st_ddofx {
 	struct st_ddofx_script  *script;
 	struct st_ddofx_keys    *keys;
 	struct st_ddofx_stick    sticks[2];
+	void                   (*sample_controllers)(void *);
+	void                    *controller_context;
 	struct st_ddofx_joystick *joystick;
 	struct st_ddofx_events  *events;
 	struct st_ddofx_samples *samples;
@@ -122,6 +124,7 @@ struct st_ddofx_sink {
 int32_t  st_ddofx_speed_index(void);
 int32_t  st_ddofx_available_memory(void);
 int32_t  st_ddofx_available_drive(const char *directory);
+bool st_ddofx_joystick_active(const struct st_ddofx *);
 void st_ddofx_controller(struct st_ddofx *, const struct st_controller_event *, bool consumed);
 void st_ddofx_pointer_pause(struct st_ddofx *, bool);
 void st_ddofx_mouse(struct st_ddofx *, const struct st_console_event *);

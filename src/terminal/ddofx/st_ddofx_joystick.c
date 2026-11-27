@@ -18,6 +18,12 @@ struct st_ddofx_joystick {
 	struct stick_config slots[2];
 };
 
+bool
+st_ddofx_joystick_active(const struct st_ddofx *ddo)
+{
+	return ddo->joystick && (ddo->joystick->slots[0].active || ddo->joystick->slots[1].active);
+}
+
 void
 st_ddofx_controller(struct st_ddofx *ddo, const struct st_controller_event *e, bool consumed)
 {
@@ -119,6 +125,8 @@ st_ddofx_joystick_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink
 	int32_t num;
 	if (!st_ddofx_field_number(ddo, &args, &num) || num < 1 || num > 2)
 		return true;
+	if (ddo->sample_controllers)
+		ddo->sample_controllers(ddo->controller_context);
 	struct st_ddofx_stick *s = &ddo->sticks[num - 1];
 	if (test) {
 		if (!args)

@@ -97,6 +97,10 @@ struct st_cterm_pads {
 	struct st_cterm_pad *devices;
 	uint32_t             next_id;
 	bool                 enabled, paused;
+	/* Session-owner callbacks. Sample before emitting the initial inventory. */
+	void                *context;
+	bool               (*available)(void *);
+	void               (*sample)(void *);
 };
 
 void st_cterm_pad_event(st_cterm_t *, const struct st_controller_event *, bool consumed);

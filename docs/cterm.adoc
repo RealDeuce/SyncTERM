@@ -947,6 +947,8 @@ and a terminal reset disables it. Query with `CSI = 6 $ p`. The reply is
 `CSI = 6 ; Pm $ y`, where 0 means unavailable, 1 enabled, and 2 disabled.
 Repeated enable is idempotent. Disable has no acknowledgement. Discard the
 inventory on disable or reset. Enable again to request a fresh inventory.
+SyncTERM discovers devices when reporting is enabled and monitors hotplug
+while reports are requested. A mode query only reads the reporting state.
 
 A controller report begins with ESC (0x1b), `[`, and `=`, and ends with
 uppercase `J`. All fields are unsigned ASCII decimal integers separated by
