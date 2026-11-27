@@ -3057,7 +3057,7 @@ multi_pointer_shape(st_console_display_t *display, enum st_console_pointer_shape
 	CHECK(atomic_load(&display->active)->pointer_shape == shape);
 	++state->pointer_shapes;
 	state->pointer_shape = shape;
-	return 0;
+	return multi_fail(state, atomic_load(&display->active), 7);
 }
 
 static const struct st_console_backend_ops multi_ops = {
@@ -3185,6 +3185,14 @@ test_multiple_consoles_one_display(void)
 	CHECK(state.titles == 1 && strcmp(state.title, "Second") == 0);
 	CHECK(state.pointers == 1 && !state.pointer_visible);
 	CHECK(state.pointer_shapes == 1 && state.pointer_shape == ST_CONSOLE_POINTER_LINK);
+	for (unsigned i = 0; i < 100; ++i)
+		CHECK(st_console_set_pointer_shape(second, ST_CONSOLE_POINTER_LINK) == 0);
+	CHECK(state.pointer_shapes == 1);
+	state.fail_stage    = 7;
+	state.failures_left = 1;
+	CHECK(st_console_set_pointer_shape(second, ST_CONSOLE_POINTER_TEXT) == IO_ERROR_IO);
+	CHECK(st_console_set_pointer_shape(second, ST_CONSOLE_POINTER_TEXT) == 0);
+	CHECK(state.pointer_shapes == 3);
 	{
 		const uint32_t colours[3] = {1, 0, 2};
 		unsigned int   before     = state.palettes;

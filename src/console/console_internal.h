@@ -238,6 +238,7 @@ struct st_console {
 	char                         *title;
 	bool                          pointer_visible;
 	enum st_console_pointer_shape pointer_shape;
+	bool                          pointer_shape_applied;
 };
 
 #if ST_CONSOLE_TEST

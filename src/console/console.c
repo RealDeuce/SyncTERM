@@ -979,6 +979,8 @@ apply_console(st_console_display_t *display, st_console_t *console, bool setup)
 {
 	int status = 0;
 
+	if (setup)
+		console->pointer_shape_applied = false;
 	if (setup && display->backend_ops != NULL && display->backend_ops->activate != NULL)
 		status = display->backend_ops->activate(console);
 	if (status != 0)
@@ -1001,7 +1003,8 @@ apply_console(st_console_display_t *display, st_console_t *console, bool setup)
 		status = display->backend_ops->set_pointer_visible(display, console->pointer_visible);
 	if (status == 0 && setup && display->backend_ops != NULL
 	    && display->backend_ops->set_pointer_shape != NULL) {
-		status = display->backend_ops->set_pointer_shape(display, console->pointer_shape);
+		status                         = display->backend_ops->set_pointer_shape(display, console->pointer_shape);
+		console->pointer_shape_applied = status == 0;
 		if (status == IO_ERROR_NOT_SUPPORTED)
 			status = 0;
 	}
@@ -1013,6 +1016,8 @@ apply_console(st_console_display_t *display, st_console_t *console, bool setup)
 		}
 		status = present_locked(console, true, true, NULL);
 	}
+	if (status != 0)
+		console->pointer_shape_applied = false;
 	return status;
 }
 
@@ -4352,16 +4357,25 @@ st_console_set_pointer_shape(st_console_t *console, enum st_console_pointer_shap
 	result = st_rwlock_write_lock(st_console_state_lock(console));
 	if (result != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
-	console->pointer_shape = shape;
+	if (console->pointer_shape != shape) {
+		console->pointer_shape = shape;
+		console->pointer_shape_applied = false;
+	}
 	result = console->display->backend_ops == NULL || console->display->backend_ops->set_pointer_shape == NULL
 	             ? IO_ERROR_NOT_SUPPORTED
 	             : 0;
-	if (result == 0) {
+	/* Mouse hover requests the same shape at input-device frequency. A
+	 * frame swap may hold the backend mutex until the next refresh. */
+	if (result == 0 && !console->pointer_shape_applied) {
 		(void)st_mutex_lock(&console->display->backend_mutex);
-		if (atomic_load_explicit(&console->display->active, memory_order_acquire) == console)
-			result = console->display->backend_failed
-			             ? IO_ERROR_IO
-			             : console->display->backend_ops->set_pointer_shape(console->display, shape);
+		if (atomic_load_explicit(&console->display->active, memory_order_acquire) == console) {
+			if (console->display->backend_failed)
+				result = IO_ERROR_IO;
+			else {
+				result = console->display->backend_ops->set_pointer_shape(console->display, shape);
+				console->pointer_shape_applied = result == 0;
+			}
+		}
 		(void)st_mutex_unlock(&console->display->backend_mutex);
 	}
 	(void)st_rwlock_unlock(st_console_state_lock(console));
