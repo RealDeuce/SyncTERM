@@ -6,6 +6,23 @@
 #include "st_ddofx_script.h"
 #include "string_util.h"
 
+/* Local selection starts and ends on whole displayed cells. */
+static bool
+visible_cells(int first, int last, int position, int size, uint32_t *origin, uint32_t *count, uint64_t *offset)
+{
+	unsigned skip = position < first ? (unsigned)(first - position + size - 1) / size : 0;
+	position += (int)skip * size;
+	if (skip >= *count || position + size - 1 > last)
+		return false;
+	unsigned fit = (unsigned)(last - position + 1) / size;
+	*origin += skip;
+	*count -= skip;
+	if (*count > fit)
+		*count = fit;
+	*offset = (unsigned)position;
+	return true;
+}
+
 st_console_t *
 st_ddofx_graphics_view(struct st_ddofx_graphics *g, uint64_t *x, uint64_t *y, uint32_t *width, uint32_t *height,
     struct st_console_rect *source)
@@ -20,6 +37,29 @@ st_ddofx_graphics_view(struct st_ddofx_graphics *g, uint64_t *x, uint64_t *y, ui
 	*source = (struct st_console_rect) {page->origin_x, page->origin_y, page->columns, page->rows};
 	if (page->track_x || page->track_y)
 		(void)st_console_raster_view_origin(page->view, &source->x, &source->y);
+	if (page->owner) {
+		const struct st_ddofx_graphic_window *w = &g->graphic_windows[page->owner];
+		if (!w->visual || w->hidden)
+			return NULL;
+		struct bounds port = st_ddofx_window_interior(w);
+		if (!visible_cells(port.left, port.right, port.left + page->x - w->x, page->cell_width,
+		        &source->x, &source->width, x)
+		    || !visible_cells(port.top, port.bottom, port.top + page->y - w->y, page->cell_height,
+		        &source->y, &source->height, y))
+			return NULL;
+		/* Local selection has one rectangular aperture. When another window
+		 * covers it, focusing this graphic window exposes the text for selection. */
+		if (g->active_graphic_window != page->owner) {
+			for (unsigned id = 1; id <= GRAPHIC_WINDOWS; ++id) {
+				const struct st_ddofx_graphic_window *cover = &g->graphic_windows[id];
+				struct bounds cells = {(int)*x, (int)(*x + source->width * *width) - 1,
+				    (int)*y, (int)(*y + source->height * *height) - 1};
+				if ((id > page->owner || id == g->active_graphic_window) && cover->visual
+				    && !cover->hidden && st_ddofx_intersect_bounds(&cells, &cover->frame))
+					return NULL;
+			}
+		}
+	}
 	return page->view;
 }
 
@@ -32,10 +72,14 @@ st_ddofx_graphics_text(struct st_ddofx_graphics *g)
 void
 st_ddofx_destroy_text_page(struct st_ddofx_text_page *page)
 {
+	if (page->backing && page->view)
+		(void)st_console_set_view_output(page->view, NULL, NULL);
 	st_cterm_destroy(&page->text);
 	st_font_catalog_destroy(page->fonts);
 	if (page->view)
 		st_console_destroy(page->view);
+	if (page->backing)
+		st_console_destroy(page->backing);
 	*page = (struct st_ddofx_text_page) {0};
 }
 
@@ -46,8 +90,23 @@ st_ddofx_create_text_page(struct st_ddofx_graphics *g, struct st_ddofx_text_page
 	struct st_cterm_config config = *base;
 	page->cell_width              = g->cell_width;
 	page->cell_height             = g->cell_height;
-	if (st_console_create_clipped_raster_view(&page->view, g->display, 80, 100, 8, 16, page->x, page->y,
-		page->hidden ? 0 : page->columns, page->hidden ? 0 : page->rows)
+	st_console_t *parent          = g->display;
+	if (page->owner) {
+		/* CHANGE and SCALE can expose any part of the 80 x 100 text page.
+		 * Size the native text raster independently of the owner's virtual graphics page. */
+		const struct st_console_display_config headless = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+		const struct st_console_config         geometry = {.columns = 1,
+		    .rows                                                   = 1,
+		    .cell_width                                             = 8,
+		    .cell_height                                            = 16,
+		    .pixel_width                                            = 80 * 8,
+		    .pixel_height                                           = 100 * 16};
+		if (st_console_create(&page->backing, &headless, &geometry))
+			goto failed;
+		parent = page->backing;
+	}
+	if (st_console_create_clipped_raster_view(&page->view, parent, 80, 100, 8, 16, page->owner ? 0 : page->x,
+		page->owner ? 0 : page->y, page->hidden ? 0 : page->columns, page->hidden ? 0 : page->rows)
 	    || st_font_catalog_create(&page->fonts, page->view))
 		goto failed;
 	static const uint16_t pc_indices[16] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
@@ -80,47 +139,108 @@ st_ddofx_close_text_windows(struct st_ddofx_graphics *g)
 	g->active_window = 0;
 }
 
-struct desktop_repair {
-	const struct st_ddofx_graphics *g;
-	struct st_console_rect          area;
+struct window_text_output {
+	struct st_ddofx_graphics *g;
+	unsigned                  owner;
+	struct bounds             area;
+	const uint32_t           *source, *palette;
+	uint32_t                  stride;
 };
 
-static int
-restore_desktop(void *context, const struct st_pixel_buffer *pixels, struct st_console_rect *changed)
+static void
+copy_text_pixels(void *context, const struct st_pixel_buffer *unused, struct bounds area)
 {
-	const struct desktop_repair *repair = context;
-	const struct st_console_rect area   = repair->area;
-	for (uint32_t y = area.y; y < area.y + area.height; ++y) {
-		for (uint32_t x = area.x; x < area.x + area.width; ++x) {
-			size_t i           = (size_t)y * pixels->width + x;
-			pixels->primary[i] = pixels->alternate[i] = repair->g->page[HIDDEN][y][x];
+	const struct window_text_output *output = context;
+	struct st_ddofx_graphic_window  *w      = &output->g->graphic_windows[output->owner];
+	for (int y = area.top; y <= area.bottom; ++y) {
+		const uint32_t *src = output->source + (size_t)(y - output->area.top) * output->stride
+		                      + (area.left - output->area.left);
+		uint8_t        *dst = w->visual + (size_t)y * w->width + area.left;
+		for (int x = area.left; x <= area.right; ++x) {
+			uint32_t ink = *src++;
+			if (ink > 255 && !ST_CONSOLE_COLOR_IS_RGB(ink))
+				ink = ST_CONSOLE_COLOR_RGB_TAG | output->palette[(uint16_t)ink];
+			*dst++ = st_console_palette_index256(output->g->palette, ink);
 		}
 	}
-	*changed = area;
-	return 0;
-}
-
-static struct st_console_rect
-outer_area(const struct st_ddofx_text_page *page)
-{
-	unsigned inset = page->border ? 1 : 0;
-	return (struct st_console_rect) {page->x - inset * page->cell_width, page->y - inset * page->cell_height,
-	    (page->columns + 2 * inset) * page->cell_width, (page->rows + 2 * inset) * page->cell_height};
+	(void)unused;
 }
 
 static void
-uncover_page(struct st_ddofx_graphics *g, const struct st_ddofx_text_page *page)
+output_text(void *context, st_console_t *view, struct st_console_rect local, const uint32_t *source,
+    uint32_t stride, const uint32_t *palette)
+{
+	struct st_ddofx          *ddo = context;
+	struct st_ddofx_graphics *g   = ddo->graphics;
+	/* SWAP moves complete page records. The view keeps its identity. */
+	for (unsigned id = 1; id <= 10; ++id) {
+		const struct st_ddofx_text_page *p = &g->windows[id];
+		if (p->view != view)
+			continue;
+		const struct st_ddofx_graphic_window *w = &g->graphic_windows[p->owner];
+		int                                   x = p->x + (int)local.x, y = p->y + (int)local.y;
+		struct bounds             area   = {x, x + (int)local.width - 1, y, y + (int)local.height - 1};
+		struct window_text_output output = {g, p->owner, area, source, palette, stride};
+		struct bounds             limits = {0, w->width - 1, 0, w->height - 1};
+		if (!p->hidden && w->visual && st_ddofx_intersect_bounds(&area, &limits))
+			st_ddofx_draw_text_control(ddo, p->owner, false, area, copy_text_pixels, &output);
+		break;
+	}
+}
+
+struct page_repair {
+	struct st_ddofx_graphics *g;
+	unsigned                  owner;
+};
+
+static void
+restore_page(void *context, const struct st_pixel_buffer *pixels, struct bounds area)
+{
+	const struct page_repair       *repair = context;
+	struct st_ddofx_graphic_window *w      = &repair->g->graphic_windows[repair->owner];
+	for (int y = area.top; y <= area.bottom; ++y) {
+		if (repair->owner) {
+			size_t start = (size_t)y * w->width + area.left;
+			memcpy(w->visual + start, w->hidden_page + start, area.right - area.left + 1);
+		}
+		else {
+			for (int x = area.left; x <= area.right; ++x) {
+				size_t i           = (size_t)y * WIDTH + x;
+				pixels->primary[i] = pixels->alternate[i] = repair->g->page[HIDDEN][y][x];
+			}
+		}
+	}
+}
+
+static struct bounds
+outer_area(const struct st_ddofx_text_page *page)
+{
+	int inset = page->border ? 1 : 0;
+	int left  = page->x - inset * page->cell_width;
+	int top   = page->y - inset * page->cell_height;
+	return (struct bounds) {left, left + ((int)page->columns + 2 * inset) * page->cell_width - 1, top,
+	    top + ((int)page->rows + 2 * inset) * page->cell_height - 1};
+}
+
+static void
+paint_outer_area(struct st_ddofx *ddo, const struct st_ddofx_text_page *page, st_ddofx_region_painter *paint,
+    void *context)
+{
+	const struct st_ddofx_graphic_window *w      = &ddo->graphics->graphic_windows[page->owner];
+	struct bounds                         limits = {0, (page->owner ? w->width : WIDTH) - 1, 0,
+	    (page->owner ? w->height : HEIGHT) - 1};
+	struct bounds                         area   = outer_area(page);
+	if (st_ddofx_intersect_bounds(&area, &limits))
+		st_ddofx_draw_text_control(ddo, page->owner, false, area, paint, context);
+}
+
+static void
+uncover_page(struct st_ddofx *ddo, const struct st_ddofx_text_page *page)
 {
 	if (!page->view || page->hidden)
 		return;
-	struct desktop_repair repair = {.g = g, .area = outer_area(page)};
-	if (repair.area.x >= WIDTH || repair.area.y >= HEIGHT)
-		return;
-	if (repair.area.width > WIDTH - repair.area.x)
-		repair.area.width = WIDTH - repair.area.x;
-	if (repair.area.height > HEIGHT - repair.area.y)
-		repair.area.height = HEIGHT - repair.area.y;
-	(void)st_console_modify_pixels(g->display, restore_desktop, &repair);
+	struct page_repair repair = {ddo->graphics, page->owner};
+	paint_outer_area(ddo, page, restore_page, &repair);
 }
 
 struct window_frame {
@@ -130,14 +250,12 @@ struct window_frame {
 	bool                             active;
 };
 
-static int
-paint_frame(void *context, const struct st_pixel_buffer *pixels, struct st_console_rect *changed)
+static void
+paint_frame(void *context, const struct st_pixel_buffer *pixels, struct bounds visible)
 {
 	const struct window_frame       *frame = context;
 	const struct st_ddofx_text_page *p     = frame->page;
-	struct st_console_rect           area  = outer_area(p);
-	if (area.x >= pixels->width || area.y >= pixels->height)
-		return 0;
+	struct bounds                    area  = outer_area(p);
 	/* The SDK describes a double-line ANSI frame. Position its title and
 	 * help in character space, so cropping either label retains whole glyphs. */
 	for (unsigned row = 0; row < p->rows + 2; ++row) {
@@ -161,25 +279,15 @@ paint_frame(void *context, const struct st_pixel_buffer *pixels, struct st_conso
 				ch = left ? 201 : right ? 187 : 205;
 			else if (bottom)
 				ch = left ? 200 : right ? 188 : 205;
-			int x = (int)area.x + (int)col * p->cell_width;
-			int y = (int)area.y + (int)row * p->cell_height;
-			if (x >= WIDTH || y >= HEIGHT)
-				continue;
+			int           x    = area.left + (int)col * p->cell_width;
+			int           y    = area.top + (int)row * p->cell_height;
 			struct bounds clip = {x, x + p->cell_width - 1, y, y + p->cell_height - 1};
-			if (clip.right >= WIDTH)
-				clip.right = WIDTH - 1;
-			if (clip.bottom >= HEIGHT)
-				clip.bottom = HEIGHT - 1;
-			st_ddofx_paint_vga_string(frame->graphics, 0, pixels, frame->font, &ch, 1, x,
+			if (!st_ddofx_intersect_bounds(&clip, &visible))
+				continue;
+			st_ddofx_paint_vga_string(frame->graphics, p->owner, pixels, frame->font, &ch, 1, x,
 			    y + p->cell_height - 1, ink, paper, &clip);
 		}
 	}
-	if (area.width > pixels->width - area.x)
-		area.width = pixels->width - area.x;
-	if (area.height > pixels->height - area.y)
-		area.height = pixels->height - area.y;
-	*changed = area;
-	return 0;
 }
 
 static void
@@ -193,7 +301,7 @@ draw_window(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, unsigned id,
 	if (page->border) {
 		struct window_frame frame = {g, page, st_ddofx_vga_bitmap(ddo), id == g->active_window};
 		if (frame.font)
-			(void)st_console_modify_pixels(g->display, paint_frame, &frame);
+			paint_outer_area(ddo, page, paint_frame, &frame);
 	}
 	(void)st_console_redraw_raster_view(page->view);
 }
@@ -220,7 +328,8 @@ place_page(const struct st_ddofx_text_page *page, bool hidden)
 	    .follow_x = page->track_x,
 	    .follow_y = page->track_y
         };
-	return st_console_place_raster_view(page->view, page->x, page->y, &port);
+	return st_console_place_raster_view(page->view, page->owner ? 0 : page->x, page->owner ? 0 : page->y,
+	    &port);
 }
 
 /* Origins here are zero-based. Each axis is validated independently. */
@@ -313,7 +422,7 @@ st_ddofx_text_scale(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char
 		if (!page->view)
 			continue;
 		if (i)
-			uncover_page(g, page);
+			uncover_page(ddo, page);
 		sync_origin(page);
 		page->x           = page->x / page->cell_width * n[0];
 		page->y           = page->y / page->cell_height * n[1];
@@ -337,12 +446,16 @@ configure_window(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *a
 	struct st_ddofx_text_page *old  = &g->windows[id];
 	struct st_ddofx_text_page  page = create ? (struct st_ddofx_text_page) {0} : *old;
 	int32_t                    n[6];
+	if (create)
+		page.owner = g->alert_graphic_window;
+	struct st_ddofx_surface target = st_ddofx_surface(g, page.owner, HIDDEN);
 	for (unsigned i = 0; i < 6; ++i)
 		if (!st_ddofx_field_number(ddo, &args, &n[i]))
 			return false;
-	if (n[0] < 1 || n[1] < n[0] || (n[0] == n[1] && g->text_columns != 1) || n[1] > WIDTH / g->cell_width
-	    || (unsigned)(n[1] - n[0]) >= g->text_columns || n[2] < 1 || n[3] <= n[2]
-	    || n[3] > HEIGHT / g->cell_height || n[3] - n[2] >= 100 || (unsigned)n[4] > 15 || (unsigned)n[5] > 15)
+	if (n[0] < 1 || n[1] < n[0] || (n[0] == n[1] && g->text_columns != 1)
+	    || n[1] > target.width / g->cell_width || (unsigned)(n[1] - n[0]) >= g->text_columns || n[2] < 1
+	    || n[3] <= n[2] || n[3] > target.height / g->cell_height || n[3] - n[2] >= 100 || (unsigned)n[4] > 15
+	    || (unsigned)n[5] > 15)
 		return false;
 	const char *border = st_ddofx_field(&args), *hidden = st_ddofx_field(&args);
 	const char *track_x = st_ddofx_field(&args), *track_y = st_ddofx_field(&args),
@@ -381,12 +494,13 @@ configure_window(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *a
 		if (!st_ddofx_create_text_page(g, &page, sink->text_config))
 			return false;
 	}
-	if (place_page(&page, page.hidden)) {
+	if (place_page(&page, page.hidden)
+	    || (create && page.owner && st_console_set_view_output(page.view, output_text, ddo))) {
 		if (create)
 			st_ddofx_destroy_text_page(&page);
 		return false;
 	}
-	uncover_page(g, old);
+	uncover_page(ddo, old);
 	if (create)
 		st_ddofx_destroy_text_page(old);
 	*old             = page;
@@ -410,7 +524,7 @@ set_columns(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, unsigned wid
 		sync_origin(page);
 		if (st_cterm_resize(page->text, width, rows))
 			continue;
-		uncover_page(g, page);
+		uncover_page(ddo, page);
 		changed = true;
 		/* Preserve the outer position when the new limit cannot hold a frame. */
 		if (page->border && width < 3) {
@@ -492,7 +606,7 @@ st_ddofx_text_window_command(struct st_ddofx *ddo, const struct st_ddofx_sink *s
 			return;
 	}
 	else if (!ascii_case_compare(op, "1CLOSE") && !args) {
-		uncover_page(g, page);
+		uncover_page(ddo, page);
 		st_ddofx_destroy_text_page(page);
 		g->active_window = 0;
 		for (unsigned i = 1; i < 10; ++i) {
@@ -509,7 +623,7 @@ st_ddofx_text_window_command(struct st_ddofx *ddo, const struct st_ddofx_sink *s
 			if (place_page(page, hidden))
 				return;
 			if (hidden)
-				uncover_page(g, page);
+				uncover_page(ddo, page);
 			page->hidden = hidden;
 		}
 	}

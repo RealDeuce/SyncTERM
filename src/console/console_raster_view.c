@@ -132,6 +132,19 @@ st_console_raster_view_origin(st_console_t *console, uint32_t *x, uint32_t *y)
 }
 
 int
+st_console_set_view_output(st_console_t *console, st_console_view_output *output, void *context)
+{
+	if (!console || !console->raster_parent)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (st_rwlock_write_lock(st_console_state_lock(console)) != ST_THREAD_SUCCESS)
+		return IO_ERROR_IO;
+	console->view_output         = output;
+	console->view_output_context = context;
+	(void)st_rwlock_unlock(st_console_state_lock(console));
+	return 0;
+}
+
+int
 st_console_redraw_raster_view(st_console_t *console)
 {
 	if (!console || !console->raster_parent)

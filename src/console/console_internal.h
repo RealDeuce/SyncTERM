@@ -157,6 +157,8 @@ struct st_console {
 	uint32_t      view_cursor_x, view_cursor_y;
 	bool          raster_transient;
 	bool          raster_parent_palette;
+	st_console_view_output *view_output;
+	void                   *view_output_context;
 	bool          view_pixels_written;
 	/* Only text painted since adoption can be recomposited on this shared surface. */
 	uint32_t              view_batch;

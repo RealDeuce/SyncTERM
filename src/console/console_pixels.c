@@ -1149,6 +1149,21 @@ st_console_view_pixels_written_locked(st_console_t *console, uint32_t x, uint32_
 	    (uint32_t)console->raster_y + (top - v.y), width, height};
 	damage_pixel_cells(parent, area.x, area.y, (int64_t)area.x + width, (int64_t)area.y + height,
 	    !console->raster_transient);
+	if (console->view_output) {
+		uint32_t stride = parent->pixels->width;
+		uint32_t end    = area.y + area.height;
+		while (area.y < end) {
+			size_t first = st_console_pixel_position_locked(parent, area.x, area.y);
+			area.height  = 1;
+			while (area.y + area.height < end
+			       && st_console_pixel_position_locked(parent, area.x, area.y + area.height)
+			              == first + (size_t)area.height * stride)
+				++area.height;
+			console->view_output(console->view_output_context, console, area,
+			    parent->pixels->primary + first, stride, console->palette);
+			area.y += area.height;
+		}
+	}
 	console->view_pixels_written = true;
 }
 

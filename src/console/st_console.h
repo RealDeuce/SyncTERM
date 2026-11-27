@@ -575,6 +575,13 @@ struct st_console_viewport {
 
 int st_console_place_raster_view(st_console_t *, uint64_t x, uint64_t y, const struct st_console_viewport *);
 int st_console_raster_view_origin(st_console_t *, uint32_t *x, uint32_t *y);
+/* Mirror the pixels written by this view, in parent coordinates. Each rectangle
+ * has contiguous scanlines at the supplied pixel stride. The pointers are
+ * borrowed under the parent lock; the observer must not re-enter this console
+ * or its parent. Set a null observer to detach. */
+typedef void st_console_view_output(void *, st_console_t *, struct st_console_rect, const uint32_t *, uint32_t,
+    const uint32_t *palette);
+int          st_console_set_view_output(st_console_t *, st_console_view_output *, void *);
 int st_console_redraw_raster_view(st_console_t *);
 int st_console_raster_view_adopt(st_console_t *console);
 /* The view and graphics page use the same palette. Preserve native pixel

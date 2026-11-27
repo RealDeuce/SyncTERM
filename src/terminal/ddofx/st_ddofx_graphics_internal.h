@@ -95,6 +95,8 @@ struct st_ddofx_mouse_state {
 };
 
 struct st_ddofx_text_page {
+	unsigned           owner;
+	st_console_t      *backing;
 	st_console_t      *view;
 	st_font_catalog_t *fonts;
 	st_cterm_t        *text;

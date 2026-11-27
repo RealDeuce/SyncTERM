@@ -48,6 +48,8 @@ In Lite and Normal, `EEDTEXT` opens a full-screen editor for a CP437 message of 
 
 In Lite and Normal, `~INFSAV` and `~INFLOD` use the assigned resource prefix plus `T` in the entry’s BBSTHEME directory. Slot numbers and signed 32-bit passwords follow the SDK. A successful load sends the saved bytes verbatim, including embedded control bytes. Variable capture keeps the first 50 bytes and preserves the destination variable’s type.
 
+In Normal mode, `1OPEN` attaches its text page to the currently alerted graphic window or to the desktop. Characters, the border and both labels use that owner's coordinates. Scrolling the graphic window reveals text drawn outside its original viewport. Changing the alert target leaves subsequent text and VTP scrolling on the original owner. Hiding, moving or closing the text window restores the exposed area from its owner's hidden page.
+
 A marquee reads up to 20,000 bytes from the assigned M resource and uses the selected VGA text font. `5SHOWMQ` paints the initial strip on the work page. Its timer scrolls the strip one pixel to the right per frame on the visual page. A marquee defined in an alerted graphic window scrolls on that window’s virtual page while it is active. The viewport clips the strip. Opaque sprite pixels cover the scrolling text and transparent pixels reveal it. `5STOPMQ` preserves the current position, and `5KILLMQ` releases the slot.
 
 A BBS can open up to 300 indexed FLI/FLC profiles from the entry’s BBSTHEME directory. Each opens paused and plays the requested frame count once or continuously. The host can retain the desktop palette or apply the movie’s palette. Frames draw at the specified upper-left corner. A desktop movie continues behind graphic windows. A movie opened in an alerted window plays in its virtual page while the window is active. Sprite animations retain the latest movie frame underneath them, and desktop clocks and marquees remain visible over the movie. `2RESA` changes the rate of running and subsequently opened movies.
@@ -207,19 +209,19 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 4940 | LABEL | DDO-FX LITE | Connected |
 | 4955 | RESET ENVIRONMENT | DDO-FX LITE | Connected for implemented scene objects |
 | 5436 | DETECT MOUSE | DDO-FX (NM) | Connected |
-| 5457 | OPEN GRAPHIC TEXT WINDOW | DDO-FX (NM) | Connected on the desktop |
-| 5780 | GOTO CURSOR | DDO-FX (NM) | Connected on the desktop |
-| 5819 | CLOSE WINDOW | DDO-FX (NM) | Desktop text windows |
-| 5855 | HIDE WINDOW | DDO-FX (NM) | Desktop text windows |
-| 5866 | UNHIDE WINDOW | DDO-FX (NM) | Desktop text windows |
-| 5874 | ACTIVATE WINDOW | DDO-FX (NM) | Desktop text windows |
-| 5884 | SWAP WINDOWS | DDO-FX (NM) | Desktop text windows |
-| 5924 | POSITION VTP ORIGIN | DDO-FX (NM) | Connected on the desktop |
-| 5956 | POSITION VTP ORIGIN RELATIVE | DDO-FX (NM) | Connected on the desktop |
-| 5982 | GETPOS OF GRAPHIC TEXT WINDOW | DDO-FX (NM) | Connected on the desktop |
-| 6006 | CHANGE GRAPHIC TEXT WINDOW | DDO-FX (NM) | Connected on the desktop |
-| 6035 | SCALE GRAPHIC TEXT FONTS | DDO-FX (NM) | Connected on the desktop and named text windows |
-| 6100 | SET GRAPHIC TEXT WINDOW COLUMNS | DDO-FX (NM) | Connected on the desktop |
+| 5457 | OPEN GRAPHIC TEXT WINDOW | DDO-FX (NM) | Desktop and attached text windows |
+| 5780 | GOTO CURSOR | DDO-FX (NM) | Desktop and attached text windows |
+| 5819 | CLOSE WINDOW | DDO-FX (NM) | Desktop and attached text windows |
+| 5855 | HIDE WINDOW | DDO-FX (NM) | Desktop and attached text windows |
+| 5866 | UNHIDE WINDOW | DDO-FX (NM) | Desktop and attached text windows |
+| 5874 | ACTIVATE WINDOW | DDO-FX (NM) | Desktop and attached text windows |
+| 5884 | SWAP WINDOWS | DDO-FX (NM) | Desktop and attached text windows |
+| 5924 | POSITION VTP ORIGIN | DDO-FX (NM) | Desktop and attached text windows |
+| 5956 | POSITION VTP ORIGIN RELATIVE | DDO-FX (NM) | Desktop and attached text windows |
+| 5982 | GETPOS OF GRAPHIC TEXT WINDOW | DDO-FX (NM) | Desktop and attached text windows |
+| 6006 | CHANGE GRAPHIC TEXT WINDOW | DDO-FX (NM) | Desktop and attached text windows |
+| 6035 | SCALE GRAPHIC TEXT FONTS | DDO-FX (NM) | Desktop and attached text windows |
+| 6100 | SET GRAPHIC TEXT WINDOW COLUMNS | DDO-FX (NM) | Desktop and attached text windows |
 | 6131 | LOAD PCX TO BACKGROUND PAGE | DDO-FX (NM) | Connected |
 | 6163 | LOAD PCX TO WORK PAGE | DDO-FX (NM) | Connected |
 | 6179 | LOAD PCX TO VISUAL PAGE | DDO-FX (NM) | Connected on the desktop and alert visual page |
@@ -523,7 +525,7 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 15049 | RESTORE ALL GRAPHIC WINDOWS | DDO-FX (NM) | Connected |
 | 15056 | REFRESH ALL GRAPHIC WINDOWS | DDO-FX (NM) | Connected |
 | 15062 | REFRESH GRAPHIC WINDOWS INTERIOR | DDO-FX (NM) | Connected |
-| 15074 | ALERT GRAPHIC WINDOW | DDO-FX (NM) | Connected for primitives, PCX, visual/hidden page copies, sprites, mouse fields and regions, push buttons, radio buttons, checkboxes, animations, collisions, icons, bitmap and VGA text, image transforms, tile grids, clocks, marquees, music bars, FLI/FLC playback, list boxes and editable text fields. Graphic text window attachment pending |
+| 15074 | ALERT GRAPHIC WINDOW | DDO-FX (NM) | Connected for primitives, PCX, visual/hidden page copies, sprites, mouse fields and regions, push buttons, radio buttons, checkboxes, animations, collisions, icons, bitmap and VGA text, image transforms, tile grids, clocks, marquees, music bars, FLI/FLC playback, list boxes, editable text fields and graphic text windows |
 | 15094 | CALM GRAPHIC WINDOW | DDO-FX (NM) | Connected |
 | 15101 | CREATE ICON | DDO-FX (NM) | Connected |
 | 15135 | ICON MOUSE POINTER | DDO-FX (NM) | Connected |

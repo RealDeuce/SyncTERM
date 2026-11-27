@@ -145,11 +145,11 @@ def check_background_download(t):
 def scene_mouse(t, frame):
     m = frame.metadata
 
-    def mouse(x, y, buttons):
+    def mouse(x, y, buttons, action=1):
         px = m["destination_x"] + (2*x+1)*m["destination_width"]//(2*m["plane_width"])
         py = m["destination_y"] + (2*y+1)*m["destination_height"]//(2*m["plane_height"])
         before = t.client.capture().metadata["events_dequeued"]
-        t.client.mouse(px, py, action=1, buttons=buttons)
+        t.client.mouse(px, py, action=action, buttons=buttons)
         t.client.wait_for(lambda f: f.metadata["events_dequeued"] > before)
 
     return mouse
@@ -362,6 +362,59 @@ def check_text_windows(t):
             {(24,16):0}, b"1,3,1,1\xff")
     t.exchange(commands(b"2RESET", FULL_TEXT_WINDOW) + b"123456" + commands(b"1GETPOS", b"1CLOSE"),
                b"7,1,1,1\xff")
+
+
+def check_attached_text(t):
+    t.case("a graphic text window writes its owner's virtual page across viewport and focus changes")
+    owner = b"2GWIN,1,20,119,30,129,1000,750,0,0,0,0,0,0,0,0,0,0,1,Text"
+    window = b"1OPEN,1,111,116,41,44,9,14,Y,N,N,N,N,,,"
+    frame = t.exchange(commands(b"2C,37", b"2aFILL", b"2CPYWP2VP", owner, b"2ALERTGWIN,1",
+                                b"2C,23", b"2aFILL", b"2CPYVP2HP", window, b"2CALMGWIN") +
+                       b"\x1b[41m  " + commands(b"2ALERTGWIN,1", b"2aG,888,656", b"2aG,896,656",
+                                               b"2aG,904,656", b"2CHVGP,1,880,640"), b"4\xff4\xff0\xff")
+    for plane in (frame.primary, frame.alternate):
+        assert list(plane[46*640+28:46*640+52]) == [4]*16 + [0]*8
+        assert any(9 in plane[y*640+20:y*640+68] for y in range(30, 46))
+        assert plane[5*640+5] == 37
+    t.exchange(commands(b"1HIDE", b"2aG,888,656", b"2aG,880,640") + b"\x1b[42m " +
+               commands(b"1UNHIDE", b"2aG,904,656", b"2CALMGWIN",
+                        b"1CHANGE,111,116,42,45,9,14,Y,N,N,N,N,,,", b"2ALERTGWIN,1",
+                        b"2aG,888,672", b"2aG,904,672", b"2aG,880,640"),
+               b"23\xff23\xff2\xff4\xff2\xff23\xff")
+    # A covering window receives its own pixels. Writes behind it still update
+    # the first window's VGP, including cells reached by scrolling the VTP.
+    cover = b"2GWIN,2,20,119,30,129,100,100,0,1,0,0,0,0,0,0,0,0,1,Cover"
+    frame = t.exchange(commands(cover, b"2ALERTGWIN,2", b"2C,53", b"2aFILL", b"2RGWINI") +
+                       b"\x1b[10;21H\x1b[45m " + commands(b"1POS,21,10", b"2ALERTGWIN,1", b"2aG,888,672"),
+                       b"5\xff")
+    assert frame.primary[62*640+28] == frame.alternate[62*640+28] == 53
+    frame = t.exchange(commands(b"2CGWIN,2", b"1GETPOS"), b"22,10,21,10\xff")
+    assert frame.primary[62*640+28] == frame.alternate[62*640+28] == 5
+    # Three pixels of the first text column are left of the viewport. The
+    # first whole visible cell contains a link on virtual text column 22.
+    frame = t.exchange(b"\x1b[10;22H\x1b]8;;https://example.invalid/window\x1b\\X\x1b]8;;\x1b\\" +
+                       commands(b"2CHVGP,1,891,640", b"2AGWIN,1"))
+    mouse = scene_mouse(t, frame)
+    t.client.command_key(24)
+    mouse(26, 63, 0, action=0)
+    t.client.wait_for(lambda f: f.metadata["pointer_shape"] == 2)
+    mouse(34, 63, 0, action=0)
+    t.client.wait_for(lambda f: f.metadata["pointer_shape"] != 2)
+    t.client.command_key(24)
+    # Swapping slot numbers keeps the VTP, cursor and graphic owner together.
+    t.exchange(commands(b"2CALMGWIN", b"1OPEN,2,2,4,2,4,7,15,N,Y,N,N,N,,,", b"1SWAP,1,2",
+                        b"1WIN,2", b"1GETPOS", b"2ALERTGWIN,1", b"1CLOSE", b"2aG,888,672",
+                        b"2CGWIN,1", b"1CLOSE"), b"23,10,21,10\xff23\xff")
+
+    # Closing and reusing the graphic slot preserves its attached logical text.
+    # Only four pixels of its last character fit in the replacement VGP.
+    smaller = b"2GWIN,1,20,119,30,129,100,100,0,1,0,0,0,0,0,0,0,0,1,Small"
+    wide = b"1OPEN,1,12,14,5,7,7,15,N,N,N,N,N,,,"
+    t.exchange(commands(owner, b"2ALERTGWIN,1", wide) + b"\x1b[41m   " +
+               commands(b"2CGWIN,1") + b"\x1b[2;1H\x1b[42m   " +
+               commands(smaller, b"1HIDE", b"1UNHIDE", b"2ALERTGWIN,1",
+                        b"2aG,99,64", b"2aG,99,80", b"2aG,0,81", b"1GETPOS",
+                        b"2CGWIN,1", b"1CLOSE"), b"4\xff2\xff0\xff4,2,1,1\xff")
 
 
 def check_desktop_text(t):
@@ -1908,6 +1961,7 @@ def check_graphics(t, root):
                         b"2CUTBP2WP,0,1,0,1,639,479", b"2aG,639,479"), b"8\xff3\xff3\xff")
     check_text_windows(t)
     check_desktop_text(t)
+    check_attached_text(t)
     frame = t.exchange(commands(FULL_TEXT_WINDOW) + b"\x1b[H\x1b[41m " + commands(b"2CPYVP2WP", b"2aG,3,4",
                                                        b"2aSRGB,4,0,63,63"), b"4\xff")
     assert frame.primary[4 * 640 + 3] == 4 and frame.palette[4] == 0x00ffff
