@@ -40,7 +40,7 @@ struct rc_world {
 	struct rc_recording   *motion;
 	struct rc_profiles    *profiles;
 	struct rc_cell         cells[RC_HEIGHT][RC_WIDTH];
-	unsigned               layer;
+	unsigned               layer, owner, map_owner;
 	double                 x, y;
 	int                    angle;
 	uint32_t               seed;
@@ -52,6 +52,7 @@ struct rc_world {
 	int                    left, bottom, width, height;
 	uint8_t flats[23][RC_TILE][RC_TILE], walls[2][8][RC_TILE][RC_TILE], objects[2][15][RC_TILE][RC_TILE];
 	uint8_t frame[160][320];
+	uint8_t scaled_frame[64000];
 };
 
 struct rc_saved_profile {

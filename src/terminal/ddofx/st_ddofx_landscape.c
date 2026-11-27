@@ -27,6 +27,7 @@ enum setting {
 };
 
 struct st_ddofx_landscape {
+	unsigned owner;
 	int      camera[SETTINGS];
 	int      land_x, land_top, cloud_x, cloud_top;
 	uint8_t  sky;
@@ -120,8 +121,9 @@ terrain_colour(uint8_t height)
 }
 
 struct map_io {
-	struct st_ddofx_graphics *g;
-	int                       left, bottom;
+	struct st_ddofx_landscape *landscape;
+	struct st_ddofx_surface    target;
+	int                        left, bottom;
 	bool                      acquire;
 };
 
@@ -130,8 +132,8 @@ map_io(void *context, const struct st_pixel_buffer *pixels, const uint32_t *pale
     struct st_console_rect *damage)
 {
 	struct map_io             *io = context;
-	struct st_ddofx_graphics  *g  = io->g;
-	struct st_ddofx_landscape *l  = g->landscape;
+	struct st_ddofx_landscape     *l      = io->landscape;
+	const struct st_ddofx_surface *target = &io->target;
 	if (pixels && (pixels->width != WIDTH || pixels->height != HEIGHT))
 		return 0;
 
@@ -139,19 +141,19 @@ map_io(void *context, const struct st_pixel_buffer *pixels, const uint32_t *pale
 		int sy = io->bottom - y;
 		for (int x = 0; x < MAP; ++x) {
 			int sx = io->left + x;
-			int at = sy * WIDTH + sx;
+			size_t at = (size_t)sy * target->width + sx;
 			if (io->acquire) {
 				uint8_t colour = pixels ? st_console_palette_index256(palette, pixels->primary[at])
-				                        : g->page[WORK][sy][sx];
+				                        : target->data[at];
 				l->height[y][x] = colour > WATER_OFFSET && colour <= WATER_OFFSET + 15
 				                      ? colour - WATER_OFFSET
 				                      : colour;
 			}
 			else if (pixels)
 				pixels->primary[at] = pixels->alternate[at] = terrain_colour(l->height[y][x]);
-			else if (sx >= g->clip.left && sx <= g->clip.right && sy >= g->clip.top
-			         && sy <= g->clip.bottom)
-				g->page[WORK][sy][sx] = terrain_colour(l->height[y][x]);
+			else if (sx >= target->clip.left && sx <= target->clip.right && sy >= target->clip.top
+			         && sy <= target->clip.bottom)
+				target->data[at] = terrain_colour(l->height[y][x]);
 		}
 		if (io->acquire)
 			l->height[y][MAP] = l->height[y][0];
@@ -195,40 +197,37 @@ render(struct st_ddofx_landscape *l)
 	}
 }
 
-static int
-present(void *context, const struct st_pixel_buffer *pixels, struct st_console_rect *damage)
+static uint8_t
+cloud_colour(uint8_t colour, uint8_t sky)
 {
-	struct st_ddofx           *ddo = context;
-	struct st_ddofx_landscape *l   = ddo->graphics->landscape;
-	if (pixels->width != WIDTH || pixels->height != HEIGHT)
-		return 0;
+	if (colour == sky)
+		return 255;
+	if (colour > WATER_OFFSET)
+		colour -= WATER_OFFSET;
+	return 121 + colour / 9;
+}
 
-	for (int y = 0; y < VIEW_H; ++y) {
-		size_t at = (l->land_top + y) * WIDTH + l->land_x;
-		for (int x = 0; x < VIEW_W; ++x)
-			pixels->primary[at + x] = pixels->alternate[at + x] = l->frame[y][x];
+static void
+present(struct st_ddofx *ddo, struct st_ddofx_landscape *l)
+{
+	struct st_ddofx_surface target = st_ddofx_surface(ddo->graphics, l->owner, VISUAL);
+	struct st_console_rect  land   = {l->land_x, l->land_top, VIEW_W, VIEW_H};
+	uint8_t                *frame  = (uint8_t *)l->frame;
+	if (l->land_x <= target.width - VIEW_W && l->land_top <= target.height - VIEW_H)
+		st_ddofx_animation_background(ddo, l->owner, &land, frame, -1);
+	if (!l->clouds || l->cloud_x > target.width - VIEW_W || l->cloud_top > target.height - VIEW_H)
+		return;
+
+	/* The clouds are the terrain reflected about both axes. The next
+	 * terrain render replaces the complete frame before it is used again. */
+	for (size_t i = 0; i < sizeof(l->frame) / 2; ++i) {
+		size_t  opposite = sizeof(l->frame) - 1 - i;
+		uint8_t colour   = frame[i];
+		frame[i]         = cloud_colour(frame[opposite], l->sky);
+		frame[opposite]  = cloud_colour(colour, l->sky);
 	}
-	*damage = (struct st_console_rect) {l->land_x, l->land_top, VIEW_W, VIEW_H};
-	if (l->clouds) {
-		for (int y = 0; y < VIEW_H; ++y) {
-			size_t at = (l->cloud_top + y) * WIDTH + l->cloud_x;
-			for (int x = 0; x < VIEW_W; ++x) {
-				unsigned colour = l->frame[VIEW_H - 1 - y][VIEW_W - 1 - x];
-				if (colour == l->sky)
-					continue;
-				if (colour > WATER_OFFSET)
-					colour -= WATER_OFFSET;
-				pixels->primary[at + x] = pixels->alternate[at + x] = 121 + colour / 9;
-			}
-		}
-		damage->x = l->land_x < l->cloud_x ? l->land_x : l->cloud_x;
-		damage->y = l->land_top < l->cloud_top ? l->land_top : l->cloud_top;
-		damage->width += abs(l->land_x - l->cloud_x);
-		damage->height += abs(l->land_top - l->cloud_top);
-	}
-	st_ddofx_repaint_clocks(ddo, pixels, damage);
-	st_ddofx_repaint_marquees(ddo, pixels, damage);
-	return 0;
+	struct st_console_rect clouds = {l->cloud_x, l->cloud_top, VIEW_W, VIEW_H};
+	st_ddofx_animation_background(ddo, l->owner, &clouds, frame, 255);
 }
 
 uint32_t
@@ -236,7 +235,8 @@ st_ddofx_landscape_wait_ms(const struct st_ddofx *ddo)
 {
 	const struct st_ddofx_landscape *l = ddo->graphics ? ddo->graphics->landscape : NULL;
 	uint64_t                         now;
-	if (!l || !l->active || !l->ready || ddo->background_paused || st_time_monotonic_ms(&now))
+	if (!l || !l->active || !l->ready || ddo->background_paused
+	    || (l->owner && l->owner != ddo->graphics->active_graphic_window) || st_time_monotonic_ms(&now))
 		return UINT32_MAX;
 	return now < l->due ? (uint32_t)(l->due - now) : 0;
 }
@@ -251,7 +251,7 @@ st_ddofx_landscape_poll(struct st_ddofx *ddo)
 	if (st_time_monotonic_ms(&now))
 		return;
 	render(g->landscape);
-	(void)st_console_modify_pixels(g->display, present, ddo);
+	present(ddo, g->landscape);
 	g->landscape->due = now + 55 * g->animator_divisor;
 }
 
@@ -331,8 +331,10 @@ st_ddofx_landscape_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sin
 			return true;
 		switch (i) {
 			case CREATE:
-				if (n[0] >= 0 && n[0] <= 2000000000)
+				if (n[0] >= 0 && n[0] <= 2000000000) {
+					l->owner = ddo->graphics->alert_graphic_window;
 					generate(l, (uint32_t)n[0]);
+				}
 				break;
 			case SKY:
 				if ((unsigned)n[0] <= 255)
@@ -347,7 +349,10 @@ st_ddofx_landscape_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sin
 				break;
 			case LAND_POS:
 			case CLOUD_POS:
-				if (n[0] >= 0 && n[0] <= WIDTH - VIEW_W && n[1] >= VIEW_H - 1 && n[1] < HEIGHT) {
+			{
+				struct st_ddofx_surface target = st_ddofx_surface(ddo->graphics, l->owner, VISUAL);
+				if (n[0] >= 0 && n[0] <= target.width - VIEW_W && n[1] >= VIEW_H - 1
+				    && n[1] < target.height) {
 					if (i == LAND_POS) {
 						l->land_x   = n[0];
 						l->land_top = n[1] - VIEW_H + 1;
@@ -358,13 +363,17 @@ st_ddofx_landscape_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sin
 					}
 				}
 				break;
+			}
 			default:
 			{
-				struct map_io io = {ddo->graphics, n[0], n[1], i == GET_WP || i == GET_VP};
-				if ((!io.acquire && !l->ready) || n[0] < 0 || n[0] > WIDTH - MAP || n[1] < MAP - 1
-				    || n[1] >= HEIGHT)
+				enum page     page = i == GET_WP || i == DRAW_WP ? WORK : VISUAL;
+				struct map_io io   = {l,
+				    st_ddofx_surface(ddo->graphics, ddo->graphics->alert_graphic_window, page),
+				    n[0], n[1], i == GET_WP || i == GET_VP};
+				if ((!io.acquire && !l->ready) || n[0] < 0 || n[0] > io.target.width - MAP
+				    || n[1] < MAP - 1 || n[1] >= io.target.height)
 					break;
-				if (i == GET_WP || i == DRAW_WP)
+				if (io.target.data)
 					(void)map_io(&io, NULL, NULL, NULL);
 				else
 					(void)st_console_modify_pixels_with_palette(ddo->graphics->display, map_io,

@@ -202,14 +202,20 @@ enum overview_action {
 
 struct overview {
 	struct rc_world     *w;
+	struct st_ddofx_surface target;
 	enum overview_action action;
 	int                  x, y, colour, other;
 };
 
 static void
-xor_marker(const struct st_pixel_buffer *pixels, const uint32_t *palette, struct rc_world *w, int x, int y)
+xor_marker(const struct overview *o, const struct st_pixel_buffer *pixels, const uint32_t *palette, int x, int y)
 {
-	size_t at             = (w->map_top + y - 1) * WIDTH + w->map_left + RC_WIDTH - x;
+	const struct rc_world *w  = o->w;
+	size_t                 at = (size_t)(w->map_top + y - 1) * o->target.width + w->map_left + RC_WIDTH - x;
+	if (o->target.data) {
+		o->target.data[at] ^= 15;
+		return;
+	}
 	pixels->primary[at]   = st_console_palette_index256(palette, pixels->primary[at]) ^ 15;
 	pixels->alternate[at] = st_console_palette_index256(palette, pixels->alternate[at]) ^ 15;
 }
@@ -220,11 +226,12 @@ paint_map(void *context, const struct st_pixel_buffer *pixels, const uint32_t *p
 {
 	struct overview *o = context;
 	struct rc_world *w = o->w;
-	if (pixels->width != WIDTH || pixels->height != HEIGHT)
+	if (pixels && (pixels->width != WIDTH || pixels->height != HEIGHT))
 		return 0;
-	*damage = (struct st_console_rect) {w->map_left, w->map_top, RC_WIDTH, RC_HEIGHT};
+	if (damage)
+		*damage = (struct st_console_rect) {w->map_left, w->map_top, RC_WIDTH, RC_HEIGHT};
 	if (o->action == MARK)
-		xor_marker(pixels, palette, w, o->x, o->y);
+		xor_marker(o, pixels, palette, o->x, o->y);
 	else {
 		for (int y = 1; y <= RC_HEIGHT; ++y) {
 			for (int x = 1; x <= RC_WIDTH; ++x) {
@@ -236,14 +243,33 @@ paint_map(void *context, const struct st_pixel_buffer *pixels, const uint32_t *p
 					if (dx * dx + dy * dy > (int64_t)o->other * o->other)
 						continue;
 				}
-				size_t at           = (w->map_top + y - 1) * WIDTH + w->map_left + RC_WIDTH - x;
-				pixels->primary[at] = pixels->alternate[at] = colour;
+				size_t at =
+				    (size_t)(w->map_top + y - 1) * o->target.width + w->map_left + RC_WIDTH - x;
+				if (o->target.data)
+					o->target.data[at] = (uint8_t)colour;
+				else
+					pixels->primary[at] = pixels->alternate[at] = colour;
 			}
 		}
 	}
 	if (o->action != ANNOTATE)
-		xor_marker(pixels, palette, w, (int)w->x, (int)w->y);
+		xor_marker(o, pixels, palette, (int)w->x, (int)w->y);
 	return 0;
+}
+
+static void
+update_overview(struct st_ddofx_graphics *g, struct overview *o)
+{
+	struct rc_world *w = o->w;
+	if (w->map_owner && !g->graphic_windows[w->map_owner].visual)
+		return;
+	o->target = st_ddofx_surface(g, w->map_owner, VISUAL);
+	if (w->map_left > o->target.width - RC_WIDTH || w->map_top > o->target.height - RC_HEIGHT)
+		return;
+	if (o->target.data)
+		(void)paint_map(o, NULL, NULL, NULL);
+	else
+		(void)st_console_modify_pixels_with_palette(g->display, paint_map, o);
 }
 
 void
@@ -252,7 +278,7 @@ st_ddofx_ray_marker(struct st_ddofx_graphics *g, int old_x, int old_y)
 	if (!g->ray->overview || (old_x == (int)g->ray->x && old_y == (int)g->ray->y))
 		return;
 	struct overview o = {.w = g->ray, .action = MARK, .x = old_x, .y = old_y};
-	(void)st_console_modify_pixels_with_palette(g->display, paint_map, &o);
+	update_overview(g, &o);
 }
 
 bool
@@ -380,8 +406,13 @@ st_ddofx_ray_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, con
 			if ((unsigned)o.colour > 255)
 				break;
 			if (op == DUMP) {
-				if ((unsigned)n[0] > 395 || (unsigned)n[1] > 412 || (unsigned)n[3] > 255)
+				unsigned                owner  = ddo->graphics->alert_graphic_window;
+				struct st_ddofx_surface target = st_ddofx_surface(ddo->graphics, owner, VISUAL);
+				if (n[0] < 0 || n[1] < 0 || n[0] > target.width - RC_WIDTH
+				    || n[1] > target.height - RC_HEIGHT || (unsigned)n[3] > 255
+				    || (!owner && (n[0] > 395 || n[1] > 412)))
 					break;
+				w->map_owner = owner;
 				w->map_left = n[0];
 				w->map_top  = n[1];
 				w->overview = true;
@@ -393,7 +424,7 @@ st_ddofx_ray_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, con
 				o.action = ANNOTATE;
 				o.other  = n[3] <= 1 ? 0 : n[3];
 			}
-			(void)st_console_modify_pixels_with_palette(ddo->graphics->display, paint_map, &o);
+			update_overview(ddo->graphics, &o);
 			break;
 		}
 		case XPOS:

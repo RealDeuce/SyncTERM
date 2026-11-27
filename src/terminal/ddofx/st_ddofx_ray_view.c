@@ -213,24 +213,21 @@ render(struct rc_world *w)
 	w->dirty = false;
 }
 
-static int
-present(void *context, const struct st_pixel_buffer *pixels, struct st_console_rect *damage)
+static void
+present(struct st_ddofx *ddo, struct rc_world *w)
 {
-	struct st_ddofx *ddo = context;
-	struct rc_world *w   = ddo->graphics->ray;
-	if (pixels->width != WIDTH || pixels->height != HEIGHT)
-		return 0;
 	int top = w->bottom - w->height + 1;
-	for (int y = 0; y < w->height; ++y) {
-		size_t         at  = (top + y) * WIDTH + w->left;
-		const uint8_t *row = w->frame[y * 160 / w->height];
-		for (int x = 0; x < w->width; ++x)
-			pixels->primary[at + x] = pixels->alternate[at + x] = row[x * 320 / w->width];
+	struct st_console_rect area  = {w->left, top, w->width, w->height};
+	const uint8_t         *image = (const uint8_t *)w->frame;
+	if (w->width != 320 || w->height != 160) {
+		for (int y = 0; y < w->height; ++y) {
+			const uint8_t *row = w->frame[y * 160 / w->height];
+			for (int x = 0; x < w->width; ++x)
+				w->scaled_frame[y * w->width + x] = row[x * 320 / w->width];
+		}
+		image = w->scaled_frame;
 	}
-	*damage = (struct st_console_rect) {w->left, top, w->width, w->height};
-	st_ddofx_repaint_clocks(ddo, pixels, damage);
-	st_ddofx_repaint_marquees(ddo, pixels, damage);
-	return 0;
+	st_ddofx_animation_background(ddo, w->owner, &area, image, -1);
 }
 
 static void
@@ -278,10 +275,12 @@ st_ddofx_ray_wait_ms(const struct st_ddofx *ddo)
 	if (!w || ddo->background_paused)
 		return UINT32_MAX;
 	uint64_t due = st_ddofx_ray_profile_due(ddo);
-	if (w->active && w->next_frame < due)
-		due = w->next_frame;
-	if (w->next_animation && w->next_animation < due)
-		due = w->next_animation;
+	if (!w->owner || w->owner == ddo->graphics->active_graphic_window) {
+		if (w->active && w->next_frame < due)
+			due = w->next_frame;
+		if (w->next_animation && w->next_animation < due)
+			due = w->next_animation;
+	}
 	if (due == UINT64_MAX || st_time_monotonic_ms(&now))
 		return UINT32_MAX;
 	return due <= now ? 0 : (uint32_t)(due - now);
@@ -297,20 +296,22 @@ st_ddofx_ray_poll(struct st_ddofx *ddo)
 	uint64_t                  now;
 	if (st_time_monotonic_ms(&now))
 		return;
-	if (w->next_animation && now >= w->next_animation)
+	bool focused = !w->owner || w->owner == g->active_graphic_window;
+	if (focused && w->next_animation && now >= w->next_animation)
 		animate(g, now);
-	bool frame = w->active && now >= w->next_frame;
+	bool frame = focused && w->active && now >= w->next_frame;
 	if (frame)
 		st_ddofx_ray_motion_frame(w);
 	st_ddofx_ray_profile_poll(ddo, frame, now);
 	if (!frame)
 		return;
 	w->next_frame = now + 55 * g->animator_divisor;
-	if (w->left > WIDTH - w->width || w->bottom < w->height - 1)
+	struct st_ddofx_surface target = st_ddofx_surface(g, w->owner, VISUAL);
+	if (w->left > target.width - w->width || w->bottom >= target.height || w->bottom < w->height - 1)
 		return;
 	if (w->dirty)
 		render(w);
-	(void)st_console_modify_pixels(g->display, present, ddo);
+	present(ddo, w);
 }
 
 static void
@@ -427,19 +428,32 @@ st_ddofx_ray_view_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink
 		return true;
 	switch (op) {
 		case START:
-			if (n[0] >= 0 && n[0] < WIDTH && n[1] >= 0 && n[1] < HEIGHT && (unsigned)n[2] <= 1) {
+		{
+			unsigned                owner  = n[2] ? ddo->graphics->alert_graphic_window : w->owner;
+			struct st_ddofx_surface target = st_ddofx_surface(ddo->graphics, owner, VISUAL);
+			if (n[2] == 0 && owner && !ddo->graphics->graphic_windows[owner].visual)
+				w->active = false;
+			else if (n[0] >= 0 && n[0] < target.width && n[1] >= 0 && n[1] < target.height
+			         && (unsigned)n[2] <= 1) {
+				w->owner      = owner;
 				w->left       = n[0];
 				w->bottom     = n[1];
 				w->active     = n[2] != 0;
 				w->next_frame = 0;
 			}
 			break;
+		}
 		case SCALE:
-			if (n[0] > 0 && n[0] <= WIDTH && n[1] > 0 && n[1] <= HEIGHT && n[0] * n[1] <= 64000) {
+		{
+			unsigned                owner = w->active ? w->owner : ddo->graphics->alert_graphic_window;
+			struct st_ddofx_surface target = st_ddofx_surface(ddo->graphics, owner, VISUAL);
+			if (n[0] > 0 && n[0] <= target.width && n[1] > 0 && n[1] <= target.height
+			    && n[0] <= (int)sizeof(w->scaled_frame) / n[1]) {
 				w->width  = n[0];
 				w->height = n[1];
 			}
 			break;
+		}
 		case ROTATE:
 			if (w->active && n[0] >= -10 && n[0] <= 10) {
 				w->angle = (w->angle + n[0] + 359) % 360 + 1;

@@ -189,7 +189,7 @@ st_ddofx_movie_poll(struct st_ddofx *ddo)
 			memcpy(g->palette, palette, sizeof(palette));
 			st_ddofx_set_palette(g, 0, 256);
 		}
-		st_ddofx_animation_background(ddo, m->owner, &m->area, m->flic.image);
+		st_ddofx_animation_background(ddo, m->owner, &m->area, m->flic.image, -1);
 		if (++m->played == m->limit) {
 			if (m->once || fs_stream_seek(m->flic.file, 128)) {
 				close_movie(m);

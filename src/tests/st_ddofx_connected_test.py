@@ -645,6 +645,47 @@ def check_landscape(t):
     t.exchange(commands(b"2RESET", *queries), b"0\xff0\xff100\xff0\xff")
 
 
+def check_window_worlds(t):
+    t.case("landscape, raycaster and map overviews on graphic window pages")
+    window = b"2GWIN,1,20,119,30,129,1200,900,0,0,0,0,0,0,0,0,0,0,1,World"
+    top = 30 * 640 + 20
+    frame = t.exchange(commands(b"2RESET", b"2C,41", b"2aFILL", b"2CPYWP2VP",
+                                b"2S,0,1,0,1,Landmark", window,
+                                b"2CHVGP,1,700,500", b"2ALERTGWIN,1", b"2C,63", b"2aFILL", b"2RGWINI",
+                                b"5CLAND,123", b"5LGMAPWP,0,254", b"5LDMAP,700,754", b"2aG,700,500"),
+                       b"41\xff")
+    assert frame.primary[top] == 63  # Map writes wait for an interior refresh.
+    frame = t.exchange(commands(b"2RGWINI", b"2ANIM,1,710,511,0,Landmark,Landmark,0,0,0,0,30,0",
+                                b"2CALMGWIN", b"2PLAYA,1", b"5LSKY,75", b"5LLPOS,700,699",
+                                b"5LANIM,1", b"5LCSPD,1", b"w3", b"5LGY"), b"0\xff")
+    assert frame.primary[top] == 41
+    t.send(commands(b"2AGWIN,1"))
+    mark = top + 10*640 + 10
+    f = t.client.wait_for(lambda f: f.primary[top] == 75 and f.primary[mark] == 41)
+    assert f.alternate[top] == 75 and f.primary[top-1] == 41
+    frame = t.exchange(commands(b"2STOPA,1"))
+    assert frame.primary[mark] == frame.alternate[mark] == 75
+    # Read the active window's terrain back, then write it to the work page.
+    t.exchange(commands(b"5LANIM,0", b"2ALERTGWIN,1", b"2C,32", b"2aFILL", b"5LGMAP,700,754",
+                        b"5LDMAPWP,0,254", b"2CALMGWIN", b"2aG,0,0"), b"32\xff")
+
+    # Bind the overview independently of the raycaster, then move its marker
+    # while the desktop is alerted. The map fits beyond the physical raster.
+    t.exchange(commands(b"2ALERTGWIN,1", b"5CLSMAP,1", b"5SETXPOS,5,0", b"5SETYPOS,5,0",
+                        b"52DMAP,700,500,13,27", b"2aG,939,504", b"2CALMGWIN",
+                        b"5SETXPOS,6,1", b"52DMMAP,5,5,88,0", b"2ALERTGWIN,1",
+                        b"2aG,938,504", b"2aG,939,504"), b"20\xff20\xff88\xff")
+    frame = t.exchange(commands(b"2C,63", b"2aFILL", b"2RGWINI", b"2AGWIN,0",
+                                b"5DSCALE,40,20", b"5DANIM,710,529,1", b"2CALMGWIN", b"w3"))
+    idx = top + 10*640 + 10
+    assert frame.primary[idx] == 63
+    t.send(commands(b"2AGWIN,1"))
+    frame = t.client.wait_for(lambda f: f.primary[idx] in (18, 19))
+    assert frame.alternate[idx] == frame.primary[idx] and frame.primary[idx-1] == 63
+    assert frame.primary[idx+40] == 63 and frame.primary[idx+20*640] == 63
+    t.exchange(commands(b"5DANIM,710,529,0", b"2RESET"))
+
+
 def check_polygon_objects(t, root):
     t.case("polygon objects, projection, animation and background restoration")
 
@@ -1669,6 +1710,7 @@ def check_graphics(t, root):
     check_flics(t, root)
     check_text_scale(t, root)
     check_landscape(t)
+    check_window_worlds(t)
     check_polygon_objects(t, root)
     check_raycast_world(t, root)
     check_raycast_view(t)

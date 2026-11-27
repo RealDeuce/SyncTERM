@@ -181,13 +181,18 @@ save(struct rc_world *w, struct rc_environment *e)
 }
 
 static bool
-load(struct rc_world *w, struct rc_environment *e)
+load(struct st_ddofx_graphics *g, struct rc_environment *e)
 {
+	struct rc_world        *w      = g->ray;
+	struct st_ddofx_surface target = st_ddofx_surface(g, w->owner, VISUAL);
+	struct st_ddofx_surface map    = st_ddofx_surface(g, w->map_owner, VISUAL);
 	unsigned width  = e->scaled ? rc_word(e->width) : 320;
 	unsigned height = e->scaled ? rc_word(e->height) : 160;
-	if (rc_word(e->left) >= WIDTH || rc_word(e->bottom) >= HEIGHT || rc_word(e->map_left) > WIDTH - RC_WIDTH
-	    || rc_word(e->map_top) > HEIGHT - RC_HEIGHT || rc_word(e->angle) >= 512 || !width || width > WIDTH
-	    || !height || height > HEIGHT || width * height > 64000
+	if ((int)rc_word(e->left) >= target.width || (int)rc_word(e->bottom) >= target.height
+	    || (rc_word(e->map_left) && (int)rc_word(e->map_left) > map.width - RC_WIDTH)
+	    || (rc_word(e->map_top) && (int)rc_word(e->map_top) > map.height - RC_HEIGHT)
+	    || rc_word(e->angle) >= 512 || !width || (int)width > target.width || !height
+	    || (int)height > target.height || width * height > 64000
 	    || !st_ddofx_ray_profiles_load(w, e->profile_map, e->profiles))
 		return false;
 	load_cells(w, e);
@@ -234,7 +239,7 @@ st_ddofx_ray_environment_command(struct st_ddofx *ddo, const struct st_ddofx_sin
 		if (f) {
 			if (fs_stream_size(f) == (int64_t)sizeof(struct rc_environment)) {
 				struct rc_environment *e = malloc(sizeof(*e));
-				if (e && fread(e, 1, sizeof(*e), f) == sizeof(*e) && load(w, e)) {
+				if (e && fread(e, 1, sizeof(*e), f) == sizeof(*e) && load(ddo->graphics, e)) {
 					free(w->environment);
 					w->environment = e;
 				}

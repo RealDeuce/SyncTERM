@@ -54,7 +54,7 @@ Desktop and graphic-window hover fields share a table of 300 slots. Graphic-wind
 
 The host can load either MPT pointer format from the assigned M resource. A selected image keeps its own hotspot and AND/XOR masks when the BBS replaces or clears its list entry. The bitmap presenter applies those masks to the displayed palette indices, leaving the graphics pages available for capture and copying under the pointer. The 100 static slots and 100 animation profiles support one-shot, looping and oscillating playback.
 
-The desktop raycaster renders a 244 × 64 world with textured walls, floors, ceilings and three transparent object layers. The BBS can generate a seeded maze, edit individual cells or import the two map sections specified by the SDK’s DEFMAP.TXT from the assigned M resource. The overview and the player marker share the same map coordinates. A new maze starts the player at (5,5) and returns a reachable endpoint. Map queries report the SDK texture numbers. The initial textures are generated locally. Hosts can replace them with copies of 32 × 32 sprites or animate them from a live range of sprite slots. Movement checks walls and object characteristics, and an interactive encounter stops rendering and reports the object coordinates to the host or capture variable.
+The raycaster renders a 244 × 64 world with textured walls, floors, ceilings and three transparent object layers. The BBS can generate a seeded maze, edit individual cells or import the two map sections specified by the SDK’s DEFMAP.TXT from the assigned M resource. The overview uses the visual page alerted at the time of the dump. Later annotations and player marker moves use that same page. Starting the engine binds its viewport to the alerted window or the desktop. A window viewport advances while its owner has focus. A new maze starts the player at (5,5) and returns a reachable endpoint. Map queries report the SDK texture numbers. The initial textures are generated locally. Hosts can replace them with copies of 32 × 32 sprites or animate them from a live range of sprite slots. Movement checks walls and object characteristics, and an interactive encounter stops rendering and reports the object coordinates to the host or capture variable.
 
 Raycaster cells can share any of 3,600 profiles. Instant profiles run on cell entry. Action profiles can require a DOS key, a mouse or joystick button combination, and a facing direction. Each link runs its macro and sends its return before selecting the next link. A macro can change that link or delete the profile. Ordinary keys reach the host before the matching profile's return.
 
@@ -62,7 +62,7 @@ Raycaster cells can share any of 3,600 profiles. Instant profiles run on cell en
 
 The raycaster records changed camera positions and headings as six-byte REC records in BBSTHEME. Playback applies one recorded pose per frame through the final record. A recording played from the assigned M resource is limited to 60,000 bytes. Its extracted file is removed on completion, replacement or reset.
 
-The Normal-mode desktop landscape accepts a seed or a 255 × 255 indexed map from the visual or work page. The lower-left map pixel is world coordinate (0,0). The camera has 256 positions on each axis, so an imported map wraps its extra row and column to the opposite edge. The BBS can set or adjust the camera, query its position and direction, and fly over the terrain in a 320 × 200 viewport. Clouds have their own placement. The last frame stays visible when flight stops. Window ownership and sprite animation profiles are tracked separately below.
+The Normal-mode landscape accepts a seed or a 255 × 255 indexed map from the visual or work page. The lower-left map pixel is world coordinate (0,0). The camera has 256 positions on each axis, so an imported map wraps its extra row and column to the opposite edge. The BBS can set or adjust the camera, query its position and direction, and fly over the terrain in a 320 × 200 viewport. Clouds have their own placement. The last frame stays visible when flight stops. Creating the landscape binds it to the current graphic window or desktop. Flight pauses while its owning window is inactive. Sprites can animate over the terrain. The map commands use the currently alerted visual page or the shared work page.
 
 Normal mode supports a tile map of up to 150 × 150 cells. The host can fill either layer, move the viewport, move or remove foreground tiles, and animate consecutive sprite frames. Grid assignments become visible on a draw. Movement redraws immediately. A grid created in an alerted window retains that window as its owner. Its tiles animate while the owner is active, and removing the grid restores the underlying page.
 
@@ -391,55 +391,55 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 10772 | PAUSE TEXT CLOCK | DDO-FX (NM) | Connected |
 | 10782 | UNPAUSE TEXT CLOCK | DDO-FX (NM) | Connected |
 | 10794 | KILL TEXT CLOCK | DDO-FX (NM) | Connected |
-| 10806 | CREATE VIRTUAL LANDSCAPE | DDO-FX (NM) | Connected on the desktop |
-| 10890 | VR CLOUDS | DDO-FX (NM) | Connected on the desktop |
-| 10911 | VR SKY | DDO-FX (NM) | Connected on the desktop |
-| 10925 | VR LAND POSITION | DDO-FX (NM) | Connected on the desktop |
-| 10935 | VR CLOUD POSITION | DDO-FX (NM) | Connected on the desktop |
-| 10942 | VR DRAW MAP | DDO-FX (NM) | Connected on the desktop |
-| 10976 | VR DRAW MAP ON WORK PAGE | DDO-FX (NM) | Connected on the desktop |
-| 10984 | VR GET MAP | DDO-FX (NM) | Connected on the desktop |
-| 11005 | VR GET MAP ON WORK PAGE | DDO-FX (NM) | Connected on the desktop |
-| 11012 | VR CHANGE SPEED | DDO-FX (NM) | Connected on the desktop |
-| 11026 | VR CHANGE DIRECTION | DDO-FX (NM) | Connected on the desktop |
-| 11036 | VR CHANGE X | DDO-FX (NM) | Connected on the desktop |
-| 11046 | VR CHANGE Y | DDO-FX (NM) | Connected on the desktop |
-| 11056 | VR CHANGE Z | DDO-FX (NM) | Connected on the desktop |
-| 11066 | VR CHANGE DETAIL | DDO-FX (NM) | Connected on the desktop |
-| 11079 | VR MODIFY SPEED | DDO-FX (NM) | Connected on the desktop |
-| 11093 | VR MODIFY DIRECTION | DDO-FX (NM) | Connected on the desktop |
-| 11100 | VR MODIFY X | DDO-FX (NM) | Connected on the desktop |
-| 11107 | VR MODIFY Y | DDO-FX (NM) | Connected on the desktop |
-| 11114 | VR MODIFY Z | DDO-FX (NM) | Connected on the desktop |
-| 11121 | VR MODIFY DETAIL | DDO-FX (NM) | Connected on the desktop |
-| 11128 | VR GET USER X | DDO-FX (NM) | Connected on the desktop |
-| 11138 | VR GET USER Y | DDO-FX (NM) | Connected on the desktop |
-| 11148 | VR GET USER Z | DDO-FX (NM) | Connected on the desktop |
-| 11158 | VR GET USER DIRECTION | DDO-FX (NM) | Connected on the desktop |
-| 11167 | VR ANIMATE | DDO-FX (NM) | Connected on the desktop |
-| 11176 | RC 3D RAYCASTING ENGINE | DDO-FX (NM) | Connected on the desktop |
-| 11262 | RC 3D SCALE | DDO-FX (NM) | Connected on the desktop |
-| 11291 | RC 3D MAZE GENERATOR | DDO-FX (NM) | Connected on the desktop |
-| 11331 | RC LOAD 3D MAP DEFINITION | DDO-FX (NM) | Connected on the desktop |
-| 11351 | RC ROTATE PERSPECTIVE | DDO-FX (NM) | Connected on the desktop |
-| 11381 | RC MOVE 3D FORWARD/BACKWARDS | DDO-FX (NM) | Connected on the desktop |
-| 11409 | RC DUMP MAP | DDO-FX (NM) | Connected on the desktop |
-| 11440 | RC MODIFY DUMP MAP | DDO-FX (NM) | Connected on the desktop |
-| 11466 | RC CHANGE TEXTURE LIBRARY | DDO-FX (NM) | Connected on the desktop |
-| 11516 | RC CHANGE OBJ TEXTURE LIBRARY | DDO-FX (NM) | Connected on the desktop |
-| 11574 | RC SET USER X POSITION | DDO-FX (NM) | Connected on the desktop |
-| 11595 | RC SET USER Y POSITION | DDO-FX (NM) | Connected on the desktop |
-| 11613 | RC SET USER ANGLE | DDO-FX (NM) | Connected on the desktop |
-| 11635 | RC GET USER ANGLE | DDO-FX (NM) | Connected on the desktop |
-| 11657 | RC GET USER X POSITION | DDO-FX (NM) | Connected on the desktop |
-| 11671 | RC GET USER Y POSITION | DDO-FX (NM) | Connected on the desktop |
-| 11685 | RC DEFINE ANIMATED TEXTURE | DDO-FX (NM) | Connected on the desktop |
-| 11761 | RC PLAY ANIMATED TEXTURE | DDO-FX (NM) | Connected on the desktop |
-| 11776 | RC STOP ANIMATED TEXTURE | DDO-FX (NM) | Connected on the desktop |
-| 11792 | RC CLEAR MAP | DDO-FX (NM) | Connected on the desktop |
-| 11811 | RC CHANGE MAP | DDO-FX (NM) | Connected on the desktop |
-| 11901 | RC CHANGE OBJECT MAP | DDO-FX (NM) | Connected on the desktop |
-| 12046 | RC GET MAP INFO | DDO-FX (NM) | Connected on the desktop |
+| 10806 | CREATE VIRTUAL LANDSCAPE | DDO-FX (NM) | Connected |
+| 10890 | VR CLOUDS | DDO-FX (NM) | Connected |
+| 10911 | VR SKY | DDO-FX (NM) | Connected |
+| 10925 | VR LAND POSITION | DDO-FX (NM) | Connected |
+| 10935 | VR CLOUD POSITION | DDO-FX (NM) | Connected |
+| 10942 | VR DRAW MAP | DDO-FX (NM) | Connected |
+| 10976 | VR DRAW MAP ON WORK PAGE | DDO-FX (NM) | Connected |
+| 10984 | VR GET MAP | DDO-FX (NM) | Connected |
+| 11005 | VR GET MAP ON WORK PAGE | DDO-FX (NM) | Connected |
+| 11012 | VR CHANGE SPEED | DDO-FX (NM) | Connected |
+| 11026 | VR CHANGE DIRECTION | DDO-FX (NM) | Connected |
+| 11036 | VR CHANGE X | DDO-FX (NM) | Connected |
+| 11046 | VR CHANGE Y | DDO-FX (NM) | Connected |
+| 11056 | VR CHANGE Z | DDO-FX (NM) | Connected |
+| 11066 | VR CHANGE DETAIL | DDO-FX (NM) | Connected |
+| 11079 | VR MODIFY SPEED | DDO-FX (NM) | Connected |
+| 11093 | VR MODIFY DIRECTION | DDO-FX (NM) | Connected |
+| 11100 | VR MODIFY X | DDO-FX (NM) | Connected |
+| 11107 | VR MODIFY Y | DDO-FX (NM) | Connected |
+| 11114 | VR MODIFY Z | DDO-FX (NM) | Connected |
+| 11121 | VR MODIFY DETAIL | DDO-FX (NM) | Connected |
+| 11128 | VR GET USER X | DDO-FX (NM) | Connected |
+| 11138 | VR GET USER Y | DDO-FX (NM) | Connected |
+| 11148 | VR GET USER Z | DDO-FX (NM) | Connected |
+| 11158 | VR GET USER DIRECTION | DDO-FX (NM) | Connected |
+| 11167 | VR ANIMATE | DDO-FX (NM) | Connected |
+| 11176 | RC 3D RAYCASTING ENGINE | DDO-FX (NM) | Connected |
+| 11262 | RC 3D SCALE | DDO-FX (NM) | Connected |
+| 11291 | RC 3D MAZE GENERATOR | DDO-FX (NM) | Connected |
+| 11331 | RC LOAD 3D MAP DEFINITION | DDO-FX (NM) | Connected |
+| 11351 | RC ROTATE PERSPECTIVE | DDO-FX (NM) | Connected |
+| 11381 | RC MOVE 3D FORWARD/BACKWARDS | DDO-FX (NM) | Connected |
+| 11409 | RC DUMP MAP | DDO-FX (NM) | Connected |
+| 11440 | RC MODIFY DUMP MAP | DDO-FX (NM) | Connected |
+| 11466 | RC CHANGE TEXTURE LIBRARY | DDO-FX (NM) | Connected |
+| 11516 | RC CHANGE OBJ TEXTURE LIBRARY | DDO-FX (NM) | Connected |
+| 11574 | RC SET USER X POSITION | DDO-FX (NM) | Connected |
+| 11595 | RC SET USER Y POSITION | DDO-FX (NM) | Connected |
+| 11613 | RC SET USER ANGLE | DDO-FX (NM) | Connected |
+| 11635 | RC GET USER ANGLE | DDO-FX (NM) | Connected |
+| 11657 | RC GET USER X POSITION | DDO-FX (NM) | Connected |
+| 11671 | RC GET USER Y POSITION | DDO-FX (NM) | Connected |
+| 11685 | RC DEFINE ANIMATED TEXTURE | DDO-FX (NM) | Connected |
+| 11761 | RC PLAY ANIMATED TEXTURE | DDO-FX (NM) | Connected |
+| 11776 | RC STOP ANIMATED TEXTURE | DDO-FX (NM) | Connected |
+| 11792 | RC CLEAR MAP | DDO-FX (NM) | Connected |
+| 11811 | RC CHANGE MAP | DDO-FX (NM) | Connected |
+| 11901 | RC CHANGE OBJECT MAP | DDO-FX (NM) | Connected |
+| 12046 | RC GET MAP INFO | DDO-FX (NM) | Connected |
 | 12101 | RC SET MAP PROFILE | DDO-FX (NM) | Connected |
 | 12392 | RC COPY MAP PROFILE | DDO-FX (NM) | Connected |
 | 12404 | RC FILL MAP PROFILE | DDO-FX (NM) | Connected |
