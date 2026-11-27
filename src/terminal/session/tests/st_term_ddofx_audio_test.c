@@ -67,6 +67,18 @@ bars_match(st_console_t *console, bool visible)
 	return ok;
 }
 
+static bool
+pixel_is(st_console_t *console, unsigned x, unsigned y, unsigned colour)
+{
+	struct st_console_rect area = {x, y, 1, 1};
+	struct st_pixel_buffer *pixels = NULL;
+	if (st_console_get_pixels(&pixels, console, &area, false) != 0)
+		return false;
+	bool matches = pixels->primary[0] == colour && pixels->alternate[0] == colour;
+	st_pixel_buffer_destroy(pixels);
+	return matches;
+}
+
 static ssize_t
 accept_reply(void *context, const void *bytes, size_t size, int64_t timeout)
 {
@@ -217,6 +229,15 @@ main(int argc, char **argv)
 	CHECK(st_term_session_send_text(session, ".", 1) == 0);
 	CHECK(wait_for_marker(session, 4) == 0);
 	CHECK(bars_match(console, false));
+	CHECK(st_term_session_send_text(session, ".", 1) == 0);
+	CHECK(wait_for_marker(session, 5) == 0);
+	CHECK(pixel_is(console, 150, 100, 80) && pixel_is(console, 40, 60, 9));
+	CHECK(st_term_session_send_text(session, ".", 1) == 0);
+	CHECK(wait_for_marker(session, 6) == 0);
+	CHECK(pixel_is(console, 140, 90, 81) && pixel_is(console, 139, 90, 27));
+	CHECK(st_term_session_send_text(session, ".", 1) == 0);
+	CHECK(wait_for_marker(session, 7) == 0);
+	CHECK(pixel_is(console, 140, 90, 18) && pixel_is(console, 139, 90, 27));
 
 finished:
 	st_term_session_destroy(&session);

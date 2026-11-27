@@ -1,5 +1,6 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include <stdlib.h>
+#include <string.h>
 
 #include "st_ddofx_graphics_internal.h"
 #include "st_time.h"
@@ -8,6 +9,7 @@
 struct bar {
 	int                    x, y, length, thickness, direction;
 	int                    colour, first, last, step;
+	uint8_t                painted_colour;
 	bool                   cycle, wrap;
 	struct st_console_rect painted;
 };
@@ -15,12 +17,14 @@ struct bar {
 struct st_ddofx_bars {
 	struct bar tracks[ST_TRACKER_METER_CHANNELS];
 	uint64_t   next_due;
+	unsigned   owner;
 	bool       enabled;
 };
 
 struct bar_frame {
-	struct st_ddofx_graphics *graphics;
-	struct st_console_rect    next[ST_TRACKER_METER_CHANNELS];
+	struct st_ddofx       *ddo;
+	struct st_console_rect next[ST_TRACKER_METER_CHANNELS];
+	unsigned               count;
 };
 
 static struct st_console_rect
@@ -58,48 +62,105 @@ next_colour(struct bar *bar)
 	bar->colour = next;
 }
 
+/* The desktop's visual page is the console itself. Composite its bars
+ * after restoring HP and before painting any covering graphic windows. */
+void
+st_ddofx_repaint_desktop_bars(const struct st_ddofx_graphics *g, const struct st_pixel_buffer *pixels,
+    struct bounds clip)
+{
+	if (!g->bars || g->bars->owner)
+		return;
+	for (unsigned i = 0; i < ST_TRACKER_METER_CHANNELS; ++i) {
+		const struct bar      *bar = &g->bars->tracks[i];
+		struct st_console_rect r   = bar->painted;
+		if (!r.width)
+			continue;
+		int left = (int)r.x, right = left + (int)r.width - 1;
+		int top = (int)r.y, bottom = top + (int)r.height - 1;
+		if (left < clip.left)
+			left = clip.left;
+		if (right > clip.right)
+			right = clip.right;
+		if (top < clip.top)
+			top = clip.top;
+		if (bottom > clip.bottom)
+			bottom = clip.bottom;
+		for (int y = top; y <= bottom; ++y)
+			for (int x = left; x <= right; ++x)
+				pixels->primary[y * WIDTH + x] = pixels->alternate[y * WIDTH + x] =
+				    bar->painted_colour;
+	}
+}
+
+static bool
+fits(struct st_console_rect r, unsigned width, unsigned height)
+{
+	return r.x && r.x < width && r.width <= width - r.x && r.y && r.y < height && r.height <= height - r.y;
+}
+
 static int
 paint(void *context, const struct st_pixel_buffer *pixels, struct st_console_rect *changed)
 {
-	struct bar_frame         *frame = context;
-	struct st_ddofx_graphics *g     = frame->graphics;
-	if (pixels->width != WIDTH || pixels->height != HEIGHT)
-		return -1;
-	unsigned left = WIDTH, right = 0, top = HEIGHT, bottom = 0;
-	/* Restore exposed background from HP before painting any track, so
-	 * shrinking or redefining a bar cannot erase an overlapping track. */
-	for (unsigned pass = 0; pass < 2; ++pass) {
-		for (unsigned i = 0; i < ST_TRACKER_METER_CHANNELS; ++i) {
-			struct bar            *bar  = &g->bars->tracks[i];
-			struct st_console_rect next = frame->next[i];
-			struct st_console_rect r    = pass ? next : bar->painted;
+	struct bar_frame               *frame = context;
+	struct st_ddofx_graphics       *g     = frame->ddo->graphics;
+	struct st_ddofx_bars           *bars  = g->bars;
+	struct st_ddofx_graphic_window *w     = &g->graphic_windows[bars->owner];
+	if (pixels->width != WIDTH || pixels->height != HEIGHT || (bars->owner && !w->visual))
+		return 0;
+	struct st_console_rect previous[ST_TRACKER_METER_CHANNELS];
+	struct bounds          damage = {WIDTH, -1, HEIGHT, -1};
+	/* Restore every previous footprint before drawing overlapping bars.
+	 * A closed window discards its painted rectangles along with its VGP. */
+	for (unsigned i = 0; i < ST_TRACKER_METER_CHANNELS; ++i) {
+		struct bar            *bar = &bars->tracks[i];
+		struct st_console_rect r = previous[i] = bar->painted;
+		if (w->visual && r.width) {
 			for (unsigned y = r.y; y < r.y + r.height; ++y) {
-				for (unsigned x = r.x; x < r.x + r.width; ++x) {
-					if (!pass && x >= next.x && x < next.x + next.width && y >= next.y
-					    && y < next.y + next.height)
-						continue;
-					size_t   pos    = y * WIDTH + x;
-					uint32_t colour = pass ? (uint32_t)bar->colour : g->page[HIDDEN][y][x];
-					if (pixels->primary[pos] == colour && pixels->alternate[pos] == colour)
-						continue;
-					pixels->primary[pos] = pixels->alternate[pos] = colour;
-					if (x < left)
-						left = x;
-					if (x > right)
-						right = x;
-					if (y < top)
-						top = y;
-					if (y > bottom)
-						bottom = y;
-				}
+				size_t at = (size_t)y * w->width + r.x;
+				memcpy(w->visual + at, w->hidden_page + at, r.width);
 			}
-			if (pass)
-				bar->painted = next;
+		}
+		bar->painted = frame->next[i];
+		if (i < frame->count)
+			bar->painted_colour = bar->colour;
+	}
+	for (unsigned i = 0; i < ST_TRACKER_METER_CHANNELS && w->visual; ++i) {
+		const struct bar      *bar = &bars->tracks[i];
+		struct st_console_rect r   = bar->painted;
+		for (unsigned y = r.y; y < r.y + r.height; ++y)
+			memset(w->visual + (size_t)y * w->width + r.x, bar->painted_colour, r.width);
+	}
+	for (unsigned i = 0; i < ST_TRACKER_METER_CHANNELS; ++i) {
+		struct st_console_rect rects[] = {previous[i], frame->next[i]};
+		for (unsigned j = 0; j < 2; ++j) {
+			struct st_console_rect r = rects[j];
+			if (!r.width
+			    || (!j && r.x == rects[1].x && r.y == rects[1].y && r.width == rects[1].width
+			        && r.height == rects[1].height))
+				continue;
+			struct bounds b = {r.x, r.x + r.width - 1, r.y, r.y + r.height - 1};
+			st_ddofx_publish_page_area(frame->ddo, bars->owner, pixels, b, &damage);
 		}
 	}
-	if (left <= right)
-		*changed = (struct st_console_rect) {left, top, right - left + 1, bottom - top + 1};
+	if (damage.left <= damage.right)
+		*changed = (struct st_console_rect) {damage.left, damage.top, damage.right - damage.left + 1,
+		    damage.bottom - damage.top + 1};
 	return 0;
+}
+
+void
+st_ddofx_bar_window_closed(struct st_ddofx_graphics *g, unsigned owner)
+{
+	if (g->bars && g->bars->owner == owner)
+		for (unsigned i = 0; i < ST_TRACKER_METER_CHANNELS; ++i)
+			g->bars->tracks[i].painted = (struct st_console_rect) {0};
+}
+
+static void
+clear(struct st_ddofx *ddo)
+{
+	struct bar_frame frame = {.ddo = ddo};
+	(void)st_console_modify_pixels(ddo->graphics->display, paint, &frame);
 }
 
 bool
@@ -115,31 +176,40 @@ st_ddofx_bar_command(struct st_ddofx *ddo, char *body)
 	if (!g->bars)
 		return true;
 	if (define) {
-		int32_t n[11];
+		unsigned                owner  = g->alert_graphic_window;
+		struct st_ddofx_surface target = st_ddofx_surface(g, owner, VISUAL);
+		int32_t                 n[11];
 		if (!st_ddofx_numbers(ddo, body + 8, n, 11) || n[0] < 1 || n[0] > ST_TRACKER_METER_CHANNELS
-		    || n[1] <= 0 || n[1] >= WIDTH || n[2] <= 0 || n[2] >= HEIGHT || n[3] < 1 || n[3] > WIDTH / 4
-		    || n[4] < 1 || n[4] > WIDTH || (unsigned)n[5] > 255 || (unsigned)n[6] > 1 || n[10] < 1
-		    || n[10] > 4)
+		    || n[1] <= 0 || n[1] >= target.width || n[2] <= 0 || n[2] >= target.height || n[3] < 1
+		    || n[3] > (n[10] <= 2 ? target.height : target.width) / 4 || n[4] < 1
+		    || n[4] > (n[10] <= 2 ? target.width : target.height) || (unsigned)n[5] > 255
+		    || (unsigned)n[6] > 1 || n[10] < 1 || n[10] > 4)
 			return true;
 		if (n[6] && ((unsigned)n[7] > 255 || (unsigned)n[8] > 255 || n[7] > n[8] || (unsigned)n[9] > 1))
 			return true;
-		struct bar            *slot = &g->bars->tracks[n[0] - 1];
-		struct bar             bar  = {.x = n[1],
-		    .y                           = n[2],
-		    .length                      = n[3],
-		    .thickness                   = n[4],
-		    .colour                      = n[5],
-		    .cycle                       = n[6],
-		    .first                       = n[7],
-		    .last                        = n[8],
-		    .wrap                        = n[9] == 1,
-		    .step                        = 1,
-		    .direction                   = n[10],
-		    .painted                     = slot->painted};
-		struct st_console_rect r    = rectangle(&bar, (unsigned)bar.length * 4);
-		if (!r.x || r.x >= WIDTH || !r.y || r.y >= HEIGHT || r.width > WIDTH - r.x
-		    || r.height > HEIGHT - r.y)
+		struct bar *slot = &g->bars->tracks[n[0] - 1];
+		struct bar  bar  = {
+		    .x         = n[1],
+		    .y         = n[2],
+		    .length    = n[3],
+		    .thickness = n[4],
+		    .colour    = n[5],
+		    .cycle     = n[6],
+		    .first     = n[7],
+		    .last      = n[8],
+		    .wrap      = n[9] == 1,
+		    .step      = 1,
+		    .direction = n[10],
+		};
+		struct st_console_rect r = rectangle(&bar, (unsigned)bar.length * 4);
+		if (!fits(r, target.width, target.height))
 			return true;
+		if (g->bars->owner != owner) {
+			clear(ddo);
+			g->bars->owner = owner;
+		}
+		bar.painted        = slot->painted;
+		bar.painted_colour = slot->painted_colour;
 		if (bar.cycle && (bar.colour < bar.first || bar.colour > bar.last))
 			bar.colour = bar.first;
 		*slot = bar;
@@ -151,10 +221,8 @@ st_ddofx_bar_command(struct st_ddofx *ddo, char *body)
 			g->bars->next_due = 0;
 		}
 	}
-	else {
-		struct bar_frame frame = {.graphics = g};
-		(void)st_console_modify_pixels(g->display, paint, &frame);
-	}
+	else
+		clear(ddo);
 	return true;
 }
 
@@ -162,7 +230,8 @@ uint32_t
 st_ddofx_bar_wait_ms(const struct st_ddofx *ddo)
 {
 	const struct st_ddofx_bars *bars = ddo->graphics ? ddo->graphics->bars : NULL;
-	if (!bars || !bars->enabled || !ddo->player || ddo->background_paused)
+	if (!bars || !bars->enabled || !ddo->player || ddo->background_paused
+	    || (bars->owner && bars->owner != ddo->graphics->active_graphic_window))
 		return UINT32_MAX;
 	uint64_t now;
 	if (st_time_monotonic_ms(&now) != 0)
@@ -179,13 +248,17 @@ st_ddofx_bar_poll(struct st_ddofx *ddo)
 	uint64_t              now;
 	if (st_time_monotonic_ms(&now) != 0)
 		return;
-	bars->next_due         = now + 50;
-	struct bar_frame frame = {.graphics = ddo->graphics};
-	uint8_t          levels[ST_TRACKER_METER_CHANNELS];
-	unsigned         count = st_tracker_levels(ddo->player, levels);
+	bars->next_due                 = now + 50;
+	struct bar_frame        frame  = {.ddo = ddo};
+	struct st_ddofx_surface target = st_ddofx_surface(ddo->graphics, bars->owner, VISUAL);
+	uint8_t                 levels[ST_TRACKER_METER_CHANNELS];
+	unsigned                count = st_tracker_levels(ddo->player, levels);
+	frame.count                   = count;
+	for (unsigned i = count; i < ST_TRACKER_METER_CHANNELS; ++i)
+		frame.next[i] = bars->tracks[i].painted;
 	for (unsigned i = 0; i < count; ++i) {
 		struct bar *bar = &bars->tracks[i];
-		if (bar->length == 0)
+		if (!bar->length || !fits(rectangle(bar, (unsigned)bar->length * 4), target.width, target.height))
 			continue;
 		unsigned steps = ((unsigned)bar->length * levels[i] + 127) / 255;
 		frame.next[i]  = rectangle(bar, 4 * steps);

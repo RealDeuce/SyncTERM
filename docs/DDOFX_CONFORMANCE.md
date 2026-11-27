@@ -4,7 +4,7 @@ Select **DDO F/X 2.0** under **Graphics** in the BBS entry. The session starts i
 
 The inventory follows the 439 host-to-client command definitions in the 2.00 SDK. Line numbers refer to physical lines of `SDK20/docs/DDOFX.DOC` (SHA-256 `8ef566f37ee14cd4e7b349fccca23fd0d05cd5d63dda9f378ec7471a8b1c1e98`). The SDK also describes 45 UHS host commands.
 
-Connected tests cover framing, detection, and ignore/hear across CP437 and UTF-8 sessions. Place MOD, S3M and CMF files in the entry’s `DDOFX/MUSIC` cache directory. The `m` command selects the decoder by file content and plays through SyncTERM’s stereo mixer. A missing file leaves the previous song playing. MOD and S3M use libopenmpt. CMF 1.0 and 1.1 files with an embedded instrument bank use the OPL2 synthesizer and the file’s tick rate. The SDK query `MICMF` reports whether CMF is playing. Tests cover melodic and rhythm playback, loop timing, song replacement, and a connected BBS selecting a CMF by content. In Normal mode, `7DEFBAR` maps each of the first 16 module tracks to a directional volume bar. The bars use libopenmpt’s per-channel level and update at 20 Hz during idle connections and script waits. Disabling the bars freezes them. Clearing restores the exposed areas from the hidden graphics page.
+Connected tests cover framing, detection, and ignore/hear across CP437 and UTF-8 sessions. Place MOD, S3M and CMF files in the entry’s `DDOFX/MUSIC` cache directory. The `m` command selects the decoder by file content and plays through SyncTERM’s stereo mixer. A missing file leaves the previous song playing. MOD and S3M use libopenmpt. CMF 1.0 and 1.1 files with an embedded instrument bank use the OPL2 synthesizer and the file’s tick rate. The SDK query `MICMF` reports whether CMF is playing. Tests cover melodic and rhythm playback, loop timing, song replacement, and a connected BBS selecting a CMF by content. In Normal mode, `7DEFBAR` maps each of the first 16 module tracks to a directional volume bar. The bars use libopenmpt’s per-channel level and update at 20 Hz during idle connections and script waits. Disabling the bars freezes them. Clearing restores the exposed areas from the hidden graphics page. The most recent valid bar definition assigns the group to the desktop or the alerted window. Window bars use virtual-page coordinates and pause while that window is inactive.
 
 After a ZMODEM batch finishes, SyncTERM installs up to 50 Lite/Normal command ZIPs into that BBS’s DDOFX cache. The package letter selects MUSIC (M), BBSTHEME (T or R), FONTS (F), SCRIPTS (S), or THEMES (P). Stored and deflated members retain their timestamps. After an automatic foreground download, SyncTERM closes the progress display as soon as the batch is processed so the door can immediately verify its resources. A successful install removes the downloaded command ZIP. Failed installs and ordinary downloads keep their files. In BBSTHEME packages, DDOFX.INI can add or delete resource members and request one RealPlay sample per batch. Component updates preserve the container timestamp and write the SDK lock marker. In Normal mode, `7ZMBKGRND,1` keeps the scene running during a ZMODEM download and shows progress on the bottom row through installation. The progress overlay leaves the underlying visual page available for animation. `7ZMSTEALTH,1` marks subsequently created keyboard macros, mouse fields and regions, desktop buttons and timed events for local use during reception. ZMODEM retains the connection until the batch ends. The remaining interactive object families are listed below.
 
@@ -483,9 +483,9 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 13917 | OUTLINE IMAGE | DDO-FX (NM) | Connected on desktop and window pages |
 | 13975 | ZMODEM BACKGROUND TRANSFERS | DDO-FX (NM) | Implemented |
 | 14035 | ZMODEM STEALTH MODE | DDO-FX (NM) | Partial: keyboard macros, fields, regions, push/radio/check buttons, text fields, list boxes, timed events, joysticks, animation collisions and raycaster cell profiles. Window close callbacks and icons connected |
-| 14120 | DEFINE MUSIC BAR | DDO-FX (NM) | Desktop pages; virtual windows pending |
-| 14292 | ACTIVATE/DEACTIVATE MUSIC BAR | DDO-FX (NM) | Desktop pages; virtual windows pending |
-| 14308 | CLEAR MUSIC BAR | DDO-FX (NM) | Desktop pages; virtual windows pending |
+| 14120 | DEFINE MUSIC BAR | DDO-FX (NM) | Connected on desktop and window pages |
+| 14292 | ACTIVATE/DEACTIVATE MUSIC BAR | DDO-FX (NM) | Connected on desktop and window pages |
+| 14308 | CLEAR MUSIC BAR | DDO-FX (NM) | Connected on desktop and window pages |
 | 14318 | EXIT TO TEXT MODE | DDO-FX (NM) | Connected |
 | 14638 | CREATE GRAPHIC WINDOW | DDO-FX (NM) | Scripted creation, frames, pages and stacking connected. Frame controls and linked icons connected |
 | 14837 | DEFINE CLOSE GRAPHIC WINDOW | DDO-FX (NM) | Connected |
@@ -505,7 +505,7 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 15049 | RESTORE ALL GRAPHIC WINDOWS | DDO-FX (NM) | Connected |
 | 15056 | REFRESH ALL GRAPHIC WINDOWS | DDO-FX (NM) | Connected |
 | 15062 | REFRESH GRAPHIC WINDOWS INTERIOR | DDO-FX (NM) | Connected |
-| 15074 | ALERT GRAPHIC WINDOW | DDO-FX (NM) | Connected for primitives, PCX, visual/hidden page copies, sprites, mouse fields and regions, push buttons, radio buttons, checkboxes, animations, collisions, icons, bitmap and VGA text, image transforms, tile grids, and FLI/FLC playback. Other attached operations pending |
+| 15074 | ALERT GRAPHIC WINDOW | DDO-FX (NM) | Connected for primitives, PCX, visual/hidden page copies, sprites, mouse fields and regions, push buttons, radio buttons, checkboxes, animations, collisions, icons, bitmap and VGA text, image transforms, tile grids, music bars, and FLI/FLC playback. Other attached operations pending |
 | 15094 | CALM GRAPHIC WINDOW | DDO-FX (NM) | Connected |
 | 15101 | CREATE ICON | DDO-FX (NM) | Connected |
 | 15135 | ICON MOUSE POINTER | DDO-FX (NM) | Connected |

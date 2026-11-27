@@ -27,6 +27,17 @@ ddofx-audio)
 	dd bs=1 count=1 >/dev/null 2>&1
 	printf '\035{7MUSBAR,0}\035{7CLRBAR}!'
 	dd bs=1 count=1 >/dev/null 2>&1
+	# Define the audible track on the desktop, then assign the meter group
+	# to window 1 by defining an unused track in the alerted window.
+	printf '\035{7DEFBAR,1,40,60,4,3,80,0,0,0,0,2}\035{2GWIN,1,130,229,80,179,1000,750,0,1,0,0,0,0,0,0,0,0,1,Meters}'
+	printf '\035{2CHVGP,1,20,40}\035{2ALERTGWIN,1}\035{2C,18}\035{2aFILL}\035{2CPYVP2HP}\035{2C,27}\035{2aFILL}\035{2RGWINI}'
+	printf '\035{7DEFBAR,16,910,660,4,2,60,0,0,0,0,2}\035{2CALMGWIN}\035{7MUSBAR,1}\035{w8}\035{7MUSBAR,0}!'
+	dd bs=1 count=1 >/dev/null 2>&1
+	printf '\035{2ALERTGWIN,1}\035{7DEFBAR,1,910,660,4,3,81,0,0,0,0,2}\035{2CHVGP,1,900,650}\035{2CALMGWIN}'
+	printf '\035{7MUSBAR,1}\035{w8}\035{7MUSBAR,0}!'
+	dd bs=1 count=1 >/dev/null 2>&1
+	printf '\035{7CLRBAR}!'
+	dd bs=1 count=1 >/dev/null 2>&1
 	;;
 auto-transfer)
 	stty raw -echo

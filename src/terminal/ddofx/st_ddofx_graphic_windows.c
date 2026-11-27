@@ -187,6 +187,8 @@ paint(void *context, const struct st_pixel_buffer *pixels, struct st_console_rec
 		for (int x = b.left; x <= b.right; ++x)
 			pixels->primary[y * WIDTH + x] = pixels->alternate[y * WIDTH + x] = g->page[HIDDEN][y][x];
 
+	st_ddofx_repaint_desktop_bars(g, pixels, b);
+
 	/* Inactive slots paint in numeric order. The active slot paints last. */
 	for (unsigned i = 1; i <= GRAPHIC_WINDOWS + 1; ++i) {
 		bool active = i > GRAPHIC_WINDOWS;
@@ -271,6 +273,7 @@ publish_area(struct st_ddofx *ddo, unsigned owner, const struct st_pixel_buffer 
 		struct st_console_rect area = {b.left, b.top, b.right - b.left + 1, b.bottom - b.top + 1};
 		st_ddofx_repaint_clocks(ddo, pixels, &area);
 		st_ddofx_repaint_marquees(ddo, pixels, &area);
+		st_ddofx_repaint_desktop_bars(g, pixels, b);
 	}
 }
 
@@ -341,6 +344,7 @@ dispose(struct st_ddofx_graphics *g, unsigned slot)
 	if (w->visual) {
 		st_ddofx_animation_window_closed(g, slot);
 		st_ddofx_grid_window_closed(g, slot);
+		st_ddofx_bar_window_closed(g, slot);
 	}
 	free(w->visual);
 	free(w->hidden_page);

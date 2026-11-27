@@ -169,6 +169,8 @@ struct bounds st_ddofx_window_interior(const struct st_ddofx_graphic_window *);
 void st_ddofx_animation_window_closed(struct st_ddofx_graphics *, unsigned);
 void st_ddofx_publish_page_area(struct st_ddofx *, unsigned owner, const struct st_pixel_buffer *,
     struct bounds area, struct bounds *damage);
+void st_ddofx_bar_window_closed(struct st_ddofx_graphics *, unsigned owner);
+void st_ddofx_repaint_desktop_bars(const struct st_ddofx_graphics *, const struct st_pixel_buffer *, struct bounds);
 void st_ddofx_grid_window_closed(struct st_ddofx_graphics *, unsigned slot);
 void st_ddofx_refresh_window_area(struct st_ddofx *, unsigned slot, struct bounds area);
 void st_ddofx_refresh_graphic_interior(struct st_ddofx *);
