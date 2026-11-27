@@ -481,6 +481,88 @@ def check_landscape(t):
     t.exchange(commands(b"2RESET", *queries), b"0\xff0\xff100\xff0\xff")
 
 
+def check_raycast_world(t, root):
+    t.case("raycaster world, layered objects, SDK map definitions and overview")
+    t.exchange(commands(b"2RESET", b"5CLSMAP,6", b"5CHMAP,1,1,1,8", b"5GETMAP,1,1",
+                        b"5GETMAP,244,64", b"5GETMAP,0,1", b"5GETMAP,243,63"),
+               b"1,1,0,0,0,0\xff1,1,0,0,0,0\xff0,0,6,6,0,0\xff")
+    t.exchange(commands(b"5CHOBJ,1,243,2,1,4", b"5DLYR,3", b"5CHOBJ,3,243,2,2,15",
+                        b"5CHMAP,3,243,2,8", b"5GETMAP,243,2", b"5DLYR,1", b"5GETMAP,243,2",
+                        b"5CHOBJ,1,243,2,0,0", b"5CHMAP,6,243,2,5", b"5GETMAP,243,2"),
+               b"3,8,0,0,3,15\xff3,8,0,0,1,4\xff0,0,6,5,0,0\xff")
+    rows = ([b"header"]*9 + [b"002-4321wc", b"003-b"] + [b""]*60 + [b"header"]*8
+            + [b"002-#-|0aw", b"003-aa"] + [b""]*60)
+    contents = b"\r\n".join(rows)
+    record = struct.Struct("<12sIIHH")
+    bank = bytearray(record.pack(b"\xff", 0, 0, 0, 0) * 33)
+    record.pack_into(bank, 0, b"DUNGEON.MAP", len(bank), len(contents), 0, 0)
+    marker, = root.rglob("syncterm-cache-name.txt")
+    (marker.parent / "DDOFX" / "BBSTHEME" / "World.M").write_bytes(bank + contents)
+    expected = (b"1,4,0,0,0,0", b"2,3,0,0,0,0", b"3,2,0,0,0,0", b"4,1,0,0,0,0",
+                b"0,0,23,1,0,0", b"0,0,3,23,0,0", b"0,0,6,6,0,0")
+    t.exchange(commands(b"2fWorld.", b"5LOADMAP,dungeon.map",
+                        *(f"5GETMAP,{x},2".encode() for x in range(243,237,-1)), b"5GETMAP,243,3"),
+               b"\xff".join(expected) + b"\xff")
+    frame = t.exchange(commands(b"5SETXPOS,44,0", b"5SETYPOS,33,0", b"5SETANGL,90",
+                                b"5GETXPOS", b"5GETYPOS", b"5GETANGL", b"52DMAP,10,70,11,5"),
+                       b"44\xff33\xff90,EAST\xff")
+    for plane in (frame.primary, frame.alternate):
+        assert list(plane[71*640+10:71*640+17]) == [11]*5 + [5,5]
+        assert plane[102*640+210] == 5 ^ 15
+    frame = t.exchange(commands(b"5SETXPOS,45,1", b"52DMMAP,100,20,12,1", b"5GETMAP,100,20",
+                                b"5DLYR,3", b"5GETMAP,243,2"), b"0,0,6,6,0,0\xff1,4,0,0,3,15\xff")
+    for plane in (frame.primary, frame.alternate):
+        assert list(plane[102*640+209:102*640+211]) == [5 ^ 15,5]
+        assert plane[89*640+154] == 12
+
+    def maze(seed):
+        frame = t.exchange(commands(b"5CMAZE,7,19,20,"+seed, b"5GETXPOS", b"5GETYPOS",
+                                    b"52DMAP,0,0,11,5"), re.compile(rb"[0-9]+,[0-9]+\xff5\xff5\xff"))
+        return b"".join(bytes(list(frame.primary[y*640:y*640+244])) for y in range(64))
+
+    first = maze(b"81000")
+    assert first.count(5) > 4000 and first == maze(b"81000") and first != maze(b"81001")
+    assert first[239+4*244] == 5 ^ 15
+    t.exchange(commands(b"2RESET"))
+
+
+def check_raycast_view(t):
+    t.case("raycaster perspective, textured layers, animation and movement")
+    sprites = []
+    for name, colour in [(b"Floor", 23), (b"Roof", 26), (b"Upper", 42), (b"Lower", 56),
+                         (b"Clear", 0), (b"Banner", 77), (b"FrameA", 81), (b"FrameB", 82)]:
+        sprites.extend([b"2C," + str(colour).encode(), b"2aFILL", b"2S,0,31,0,31," + name])
+    t.exchange(commands(*sprites, b"2C,39", b"2aFILL", b"2CPYWP2VP",
+                        b"5CTEXTURE,FLCL,1,Floor", b"5CTEXTURE,FLCL,2,Roof",
+                        b"5CTEXTURE,HIWALL,3,Upper", b"5CTEXTURE,LOWALL,3,Lower",
+                        b"5COBJECT,HIOBJ,1,Clear", b"5COBJECT,LOOBJ,1,Banner",
+                        b"5CLSMAP,1", *(f"5CHMAP,6,100,{y},2".encode() for y in range(19,26)),
+                        b"5CHMAP,2,100,19,3", b"5SETXPOS,100,0", b"5SETYPOS,25,0",
+                        b"5SETANGL,360", b"5CTEXTURE", b"5VANIM,0,1,1", b"5DANIM,10,169,1"))
+    def pixel(x,y):
+        return (10+y)*640 + 10+x
+    f = t.client.wait_for(lambda f: f.primary[pixel(160,75)] == 42)
+    for plane in (f.primary, f.alternate):
+        assert [plane[pixel(160,y)] for y in (0,75,85,159)] == [26,42,56,23]
+        assert plane[pixel(320,80)] == 39
+    t.send(commands(b"5CHOBJ,3,100,22,0,1"))
+    f = t.client.wait_for(lambda f: f.primary[pixel(160,85)] == 77)
+    assert f.primary[pixel(160,75)] == 42  # transparent upper half
+    t.send(commands(b"5VANIM,3,1,2,FrameA,FrameB,20", b"5PLAYV,3,1"))
+    t.client.wait_for(lambda f: f.primary[pixel(160,85)] == 82)
+    t.exchange(commands(b"5STOPV,3,1", b"5DSCALE,160,80", b"5DANIM,480,479,1"))
+    f = t.client.wait_for(lambda f: f.primary[440*640+560] == 82)
+    assert f.primary[439*640+560] == 42 and f.primary[399*640+560] == 39
+    # Passable objects allow movement. An interactive object stops the
+    # engine and emits the encounter once, even with another step queued.
+    t.exchange(commands(b"5CHOBJ,3,100,24,0,1", b"5VM,0,10", b"5GETYPOS",
+                        b"5CHOBJ,2,100,23,2,1", b"5VM,0,10", b"5VM,0,10", b"5GETYPOS"),
+               b"24\xff\x15100,23\xff24\xff")
+    t.exchange(commands(b"5CHOBJ,2,100,23,0,0", b"5CHMAP,4,100,23,3", b"5DANIM,480,479,1",
+                        b"5VM,0,10", b"5GETYPOS", b"5VD,5", b"5GETANGL"), b"24\xff5,NORTH\xff")
+    t.exchange(commands(b"2RESET"))
+
+
 def check_sprite_banks(t, root):
     t.case("sprite bank files, slot order, row orientation and erase after load")
     marker, = root.rglob("syncterm-cache-name.txt")
@@ -834,6 +916,8 @@ def check_graphics(t, root):
     check_flics(t, root)
     check_text_scale(t, root)
     check_landscape(t)
+    check_raycast_world(t, root)
+    check_raycast_view(t)
     check_sprite_banks(t, root)
     check_sprites(t)
     check_grid(t)

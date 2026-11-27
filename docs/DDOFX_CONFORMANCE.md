@@ -48,6 +48,8 @@ Desktop hover fields use a separate table of 300 slots. The highest matching slo
 
 The host can load either MPT pointer format from the assigned M resource. A selected image keeps its own hotspot and AND/XOR masks when the BBS replaces or clears its list entry. The bitmap presenter applies those masks to the displayed palette indices, leaving the graphics pages available for capture and copying under the pointer. The 100 static slots and 100 animation profiles support one-shot, looping and oscillating playback.
 
+The desktop raycaster renders a 244 × 64 world with textured walls, floors, ceilings and three transparent object layers. The BBS can generate a seeded maze, edit individual cells or import the two map sections specified by the SDK’s DEFMAP.TXT from the assigned M resource. The overview and the player marker share the same map coordinates. A new maze starts the player at (5,5) and returns a reachable endpoint. Map queries report the SDK texture numbers. The initial textures are generated locally. Hosts can replace them with copies of 32 × 32 sprites or animate them from a live range of sprite slots. Movement checks walls and object characteristics, and an interactive encounter stops rendering and reports the object coordinates to the host or capture variable.
+
 The Normal-mode desktop landscape accepts a seed or a 255 × 255 indexed map from the visual or work page. The lower-left map pixel is world coordinate (0,0). The camera has 256 positions on each axis, so an imported map wraps its extra row and column to the opposite edge. The BBS can set or adjust the camera, query its position and direction, and fly over the terrain in a 320 × 200 viewport. Clouds have their own placement. The last frame stays visible when flight stops. Window ownership and sprite animation profiles are tracked separately below.
 
 Normal mode supports a tile map of up to 150 × 150 cells. The host can fill either layer, move the viewport, move or remove foreground tiles, and animate consecutive sprite frames. Grid assignments become visible on a draw. Movement redraws immediately.
@@ -401,29 +403,29 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 11148 | VR GET USER Z | DDO-FX (NM) | Connected on the desktop |
 | 11158 | VR GET USER DIRECTION | DDO-FX (NM) | Connected on the desktop |
 | 11167 | VR ANIMATE | DDO-FX (NM) | Connected on the desktop |
-| 11176 | RC 3D RAYCASTING ENGINE | DDO-FX (NM) | Pending |
-| 11262 | RC 3D SCALE | DDO-FX (NM) | Pending |
-| 11291 | RC 3D MAZE GENERATOR | DDO-FX (NM) | Pending |
-| 11331 | RC LOAD 3D MAP DEFINITION | DDO-FX (NM) | Pending |
-| 11351 | RC ROTATE PERSPECTIVE | DDO-FX (NM) | Pending |
-| 11381 | RC MOVE 3D FORWARD/BACKWARDS | DDO-FX (NM) | Pending |
-| 11409 | RC DUMP MAP | DDO-FX (NM) | Pending |
-| 11440 | RC MODIFY DUMP MAP | DDO-FX (NM) | Pending |
-| 11466 | RC CHANGE TEXTURE LIBRARY | DDO-FX (NM) | Pending |
-| 11516 | RC CHANGE OBJ TEXTURE LIBRARY | DDO-FX (NM) | Pending |
-| 11574 | RC SET USER X POSITION | DDO-FX (NM) | Pending |
-| 11595 | RC SET USER Y POSITION | DDO-FX (NM) | Pending |
-| 11613 | RC SET USER ANGLE | DDO-FX (NM) | Pending |
-| 11635 | RC GET USER ANGLE | DDO-FX (NM) | Pending |
-| 11657 | RC GET USER X POSITION | DDO-FX (NM) | Pending |
-| 11671 | RC GET USER Y POSITION | DDO-FX (NM) | Pending |
-| 11685 | RC DEFINE ANIMATED TEXTURE | DDO-FX (NM) | Pending |
-| 11761 | RC PLAY ANIMATED TEXTURE | DDO-FX (NM) | Pending |
-| 11776 | RC STOP ANIMATED TEXTURE | DDO-FX (NM) | Pending |
-| 11792 | RC CLEAR MAP | DDO-FX (NM) | Pending |
-| 11811 | RC CHANGE MAP | DDO-FX (NM) | Pending |
-| 11901 | RC CHANGE OBJECT MAP | DDO-FX (NM) | Pending |
-| 12046 | RC GET MAP INFO | DDO-FX (NM) | Pending |
+| 11176 | RC 3D RAYCASTING ENGINE | DDO-FX (NM) | Connected on the desktop |
+| 11262 | RC 3D SCALE | DDO-FX (NM) | Connected on the desktop |
+| 11291 | RC 3D MAZE GENERATOR | DDO-FX (NM) | Connected on the desktop |
+| 11331 | RC LOAD 3D MAP DEFINITION | DDO-FX (NM) | Connected on the desktop |
+| 11351 | RC ROTATE PERSPECTIVE | DDO-FX (NM) | Connected on the desktop |
+| 11381 | RC MOVE 3D FORWARD/BACKWARDS | DDO-FX (NM) | Connected on the desktop |
+| 11409 | RC DUMP MAP | DDO-FX (NM) | Connected on the desktop |
+| 11440 | RC MODIFY DUMP MAP | DDO-FX (NM) | Connected on the desktop |
+| 11466 | RC CHANGE TEXTURE LIBRARY | DDO-FX (NM) | Connected on the desktop |
+| 11516 | RC CHANGE OBJ TEXTURE LIBRARY | DDO-FX (NM) | Connected on the desktop |
+| 11574 | RC SET USER X POSITION | DDO-FX (NM) | Connected on the desktop |
+| 11595 | RC SET USER Y POSITION | DDO-FX (NM) | Connected on the desktop |
+| 11613 | RC SET USER ANGLE | DDO-FX (NM) | Connected on the desktop |
+| 11635 | RC GET USER ANGLE | DDO-FX (NM) | Connected on the desktop |
+| 11657 | RC GET USER X POSITION | DDO-FX (NM) | Connected on the desktop |
+| 11671 | RC GET USER Y POSITION | DDO-FX (NM) | Connected on the desktop |
+| 11685 | RC DEFINE ANIMATED TEXTURE | DDO-FX (NM) | Connected on the desktop |
+| 11761 | RC PLAY ANIMATED TEXTURE | DDO-FX (NM) | Connected on the desktop |
+| 11776 | RC STOP ANIMATED TEXTURE | DDO-FX (NM) | Connected on the desktop |
+| 11792 | RC CLEAR MAP | DDO-FX (NM) | Connected on the desktop |
+| 11811 | RC CHANGE MAP | DDO-FX (NM) | Connected on the desktop |
+| 11901 | RC CHANGE OBJECT MAP | DDO-FX (NM) | Connected on the desktop |
+| 12046 | RC GET MAP INFO | DDO-FX (NM) | Connected on the desktop |
 | 12101 | RC SET MAP PROFILE | DDO-FX (NM) | Pending |
 | 12392 | RC COPY MAP PROFILE | DDO-FX (NM) | Pending |
 | 12404 | RC FILL MAP PROFILE | DDO-FX (NM) | Pending |
@@ -433,7 +435,7 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 12466 | RC RECORD 3D MOVEMENTS | DDO-FX (NM) | Pending |
 | 12510 | RC PLAY 3D MOVEMENTS | DDO-FX (NM) | Pending |
 | 12521 | RC PLAY 3D MOVEMENTS FROM RESOURCE | DDO-FX (NM) | Pending |
-| 12539 | RC DEFINE OBJECTS LAYER | DDO-FX (NM) | Pending |
+| 12539 | RC DEFINE OBJECTS LAYER | DDO-FX (NM) | Connected on the desktop |
 | 12570 | 3D OBJECT INIT | DDO-FX (NM) | Pending |
 | 12829 | 3D OBJECT INIT LITE | DDO-FX (NM) | Pending |
 | 12844 | 3D DELETE OBJECT | DDO-FX (NM) | Pending |

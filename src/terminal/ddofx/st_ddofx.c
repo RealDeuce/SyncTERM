@@ -438,6 +438,9 @@ st_ddofx_wait_ms(const struct st_ddofx *ddo)
 	uint32_t mouse = st_ddofx_mouse_wait_ms(ddo);
 	uint32_t pointer = st_ddofx_pointer_wait_ms(ddo);
 	uint32_t marquee = st_ddofx_marquee_wait_ms(ddo);
+	uint32_t ray = st_ddofx_ray_wait_ms(ddo);
+	if (ray < wait)
+		wait = ray;
 	uint32_t land = st_ddofx_landscape_wait_ms(ddo);
 	if (land < wait)
 		wait = land;
@@ -465,6 +468,7 @@ st_ddofx_poll(struct st_ddofx *ddo, const struct st_ddofx_sink *sink)
 	st_ddofx_bar_poll(ddo);
 	st_ddofx_grid_poll(ddo);
 	st_ddofx_landscape_poll(ddo);
+	st_ddofx_ray_poll(ddo);
 	st_ddofx_movie_poll(ddo);
 	st_ddofx_clock_poll(ddo);
 	st_ddofx_marquee_poll(ddo);
