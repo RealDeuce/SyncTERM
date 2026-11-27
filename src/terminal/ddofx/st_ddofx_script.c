@@ -223,6 +223,23 @@ st_ddofx_script_destroy(struct st_ddofx *ddo)
 	ddo->script = NULL;
 }
 
+void
+st_ddofx_script_clear(struct st_ddofx *ddo)
+{
+	if (!st_ddofx_script_active(ddo)) {
+		st_ddofx_script_destroy(ddo);
+		return;
+	}
+	/* The current line and any calling scripts own their instruction
+	 * bytes. RESET can run inside them and must allow them to return. */
+	struct st_ddofx_script *s = ddo->script;
+	memset(s->variables, 0, sizeof(s->variables));
+	memset(s->returns, 0, sizeof(s->returns));
+	memset(s->macros, 0, sizeof(s->macros));
+	memset(s->macro_resource_text, 0, sizeof(s->macro_resource_text));
+	s->capture = 0;
+}
+
 static bool
 script_ready(struct st_ddofx *ddo)
 {

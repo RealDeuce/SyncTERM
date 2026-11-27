@@ -292,6 +292,18 @@ check_samples(struct st_ddofx *ddo, struct st_ddofx_sink *sink)
 	LEVEL(4, 32);
 	CHECK(st_ddofx_poll(ddo, sink) == 0);
 	LEVEL(1, 0);
+	CMD("tBANK.THE");
+	CMD("6LBSOUND,1,SEG");
+	QUERY("6CHECKBS,1", "0");
+	CMD("mB");
+	CMD("MSVOL,0");
+	CMD("2RESET");
+	QUERY("dGETMUSIC", "B");
+	QUERY("dGETTHEME", "BANK.THE");
+	QUERY("6CHECKBS,1", "N/A");
+	CMD("P1,44100");
+	LEVEL(4, 32);
+	CMD("mNONE");
 	CMD("tNONE");
 	QUERY("dGETTHEME", "NONE");
 #undef CMD

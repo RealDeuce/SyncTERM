@@ -221,6 +221,14 @@ clear_profile(struct st_ddofx_samples *s, struct profile *profile)
 }
 
 void
+st_ddofx_clear_sample_profiles(struct st_ddofx *ddo)
+{
+	if (ddo->samples != NULL)
+		for (unsigned i = 0; i < PROFILE_COUNT; ++i)
+			clear_profile(ddo->samples, &ddo->samples->profiles[i]);
+}
+
+void
 st_ddofx_samples_destroy(struct st_ddofx *ddo)
 {
 	struct st_ddofx_samples *s = ddo->samples;
@@ -229,8 +237,7 @@ st_ddofx_samples_destroy(struct st_ddofx *ddo)
 	stop(s);
 	clear_bank(s, &s->theme);
 	clear_bank(s, &s->bites);
-	for (unsigned i = 0; i < PROFILE_COUNT; ++i)
-		clear_profile(s, &s->profiles[i]);
+	st_ddofx_clear_sample_profiles(ddo);
 	free(s);
 	ddo->samples = NULL;
 }
@@ -391,8 +398,7 @@ big_sample(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, enum profile_
 	s = ddo->samples;
 	if (!id) {
 		if (cmd != PLAY)
-			for (unsigned i = 0; i < PROFILE_COUNT; ++i)
-				clear_profile(s, &s->profiles[i]);
+			st_ddofx_clear_sample_profiles(ddo);
 		return;
 	}
 	struct profile *p = &s->profiles[id - 1];

@@ -46,17 +46,28 @@ st_ddofx_svga(const struct st_ddofx_sink *sink)
 	       && (caps & ST_CONSOLE_CAP_PIXELS);
 }
 
+static void
+clear_graphics_objects(struct st_ddofx_graphics *g)
+{
+	free(g->simple);
+	g->simple = NULL;
+	free(g->bars);
+	g->bars = NULL;
+	for (unsigned i = 0; i < 32; ++i) {
+		free(g->bitmap_fonts[i]);
+		g->bitmap_fonts[i] = NULL;
+	}
+	g->bitmap_slot = 0;
+	st_ddofx_free_sprites(g);
+}
+
 void
 st_ddofx_graphics_exit(struct st_ddofx *ddo)
 {
 	struct st_ddofx_graphics *g = ddo->graphics;
 	if (!g)
 		return;
-	free(g->simple);
-	free(g->bars);
-	for (unsigned i = 0; i < 32; ++i)
-		free(g->bitmap_fonts[i]);
-	st_ddofx_free_sprites(g);
+	clear_graphics_objects(g);
 	st_cterm_destroy(&g->text);
 	st_font_catalog_destroy(g->fonts);
 	if (g->view)
@@ -79,6 +90,17 @@ blank(void *context, const struct st_pixel_buffer *pixels, struct st_console_rec
 	memset(pixels->alternate, 0, size);
 	*changed = (struct st_console_rect) {0, 0, pixels->width, pixels->height};
 	return 0;
+}
+
+void
+st_ddofx_graphics_reset(struct st_ddofx_graphics *g)
+{
+	if (!g)
+		return;
+	clear_graphics_objects(g);
+	memset(g->page, 0, sizeof(g->page));
+	(void)st_console_modify_pixels(g->display, blank, NULL);
+	(void)st_console_raster_view_adopt_indexed(g->view);
 }
 
 void

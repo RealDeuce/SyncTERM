@@ -20,6 +20,8 @@ Loose-file queries read the entry’s `DDOFX/MUSIC`, `DDOFX/FONTS`, and `DDOFX/B
 
 Resource assignment selects the M container in `DDOFX/BBSTHEME` for local scripts and bitmap fonts and the S container for indexed PCX artwork. Scripts up to 40,000 bytes can call other scripts and render DOS text. A resource entry query tests the member name and component ID. Conditional scripts can also read that ID.
 
+In Lite and Normal mode, `2RESET` clears macro definitions, variables, return strings, query capture, timed events and big-sample profiles. The current script continues after the command. In Normal mode it also clears all four graphics pages and releases sprites, simple animations, bitmap fonts and music bars. The assigned resource prefix, music, theme sounds, palette and saved page files survive a scene reset.
+
 Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed variables. Local macro calls, repeats and waits preserve the order of the wire stream. Variable capture redirects automatic query results. Configured return strings can send binary bytes. Conditional macros can compare user variables, identity, music state and loose-file metadata. Additional predefined system operands await their respective query implementations.
 
 | SDK line | Definition | Domain | Coverage |
@@ -126,8 +128,8 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 4821 | RETRIEVE TEXT FILE | DDO-FX LITE | Pending |
 | 4847 | WRITE TEXT FILE | DDO-FX LITE | Pending |
 | 4886 | PRINT TEXT FILE | DDO-FX LITE | Pending |
-| 4940 | LABEL | DDO-FX LITE | Pending |
-| 4955 | RESET ENVIRONMENT | DDO-FX LITE | Pending |
+| 4940 | LABEL | DDO-FX LITE | Connected |
+| 4955 | RESET ENVIRONMENT | DDO-FX LITE | Connected for implemented scene objects |
 | 5436 | DETECT MOUSE | DDO-FX (NM) | Pending |
 | 5457 | OPEN GRAPHIC TEXT WINDOW | DDO-FX (NM) | Pending |
 | 5780 | GOTO CURSOR | DDO-FX (NM) | Pending |

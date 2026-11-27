@@ -197,8 +197,16 @@ execute(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *body)
 		return;
 	else if (body[0] == '~' || (!ddo->ignoring && (body[0] == '7' || body[0] == '4')))
 		st_ddofx_script_command(ddo, sink, body);
-	else if (ddo->ignoring)
+	else if (ddo->ignoring || body[0] == ':')
 		return;
+	else if (matches(body, "2RESET")) {
+		st_ddofx_graphics_reset(ddo->graphics);
+		st_ddofx_script_clear(ddo);
+		st_ddofx_clear_sample_profiles(ddo);
+		free(ddo->events);
+		ddo->events = NULL;
+		ddo->background_paused = false;
+	}
 	else if (matches(body, "dVIDMODE"))
 		st_ddofx_query_reply(ddo, sink, ddo->graphics ? "1" : "0", true);
 	else if (!strncmp(body, "2f", 2)) {

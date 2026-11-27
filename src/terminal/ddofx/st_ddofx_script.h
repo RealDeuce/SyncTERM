@@ -25,6 +25,7 @@ int  st_ddofx_parse(struct st_ddofx *, struct st_ddofx_framer *, const struct st
 bool st_ddofx_script_active(const struct st_ddofx *);
 int  st_ddofx_script_step(struct st_ddofx *, const struct st_ddofx_sink *);
 void st_ddofx_run_resource(struct st_ddofx *, const struct st_ddofx_sink *, const char *);
+void st_ddofx_script_clear(struct st_ddofx *);
 void st_ddofx_script_destroy(struct st_ddofx *);
 void st_ddofx_script_command(struct st_ddofx *, const struct st_ddofx_sink *, char *);
 bool st_ddofx_number(const struct st_ddofx *, const char *, int32_t *);

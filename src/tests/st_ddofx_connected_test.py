@@ -98,6 +98,23 @@ def check_fades(t):
     assert frame.primary[-1] == 18 and frame.palette[18] == 0x00ff00
 
 
+def check_graphics_reset(t):
+    t.case("scene reset on a live graphics connection")
+    frame = t.exchange(commands(b"2C,23", b"2aFILL", b"2CPYWP2BP", b"2CPYWP2VP", b"2WP2PCX",
+                                b"2S,1,2,1,2,S", b"2SS,10,10,1,S,1", b"2FSELECT,32", b"2aSRGB,23,12,34,56",
+                                b"2RESET", b"dVIDMODE", b"2aG,100,100", b"2CPYBP2WP", b"2aG,100,100",
+                                b"2CPYHP2WP", b"2aG,100,100", b"2aGRGB,23", b"2sP,10,10,S", b"2aG,10,10",
+                                b"2X,40,43,20,23,11,0,0,VP,A", b"2DSS"),
+                       b"1\xff0\xff0\xff0\xff12,34,56\xff0\xff")
+    for plane in (frame.primary, frame.alternate):
+        assert not any(plane)
+    # Both the saved page and assigned M resource remain accessible.
+    frame = t.exchange(commands(b"2LWPPCX,WP", b"2aG,100,100", b"2S,1,2,1,2,S", b"2DSS",
+                                b"2F,A.BMF,1", b"2X,40,43,20,23,11,0,0,VP,A"),
+                       b"23\xff")
+    assert frame.primary[10*640+10] == 0 and frame.primary[20*640+41] == 11
+
+
 def check_sprites(t):
     t.case("sprite capture and drawing across the four graphics pages")
     # A 3x2 sprite with distinguishable rows and a transparent top-left pixel.
@@ -286,6 +303,7 @@ def check_graphics(t, root):
                b"63,21,0\xff0\xff193\xff")
     check_fades(t)
     check_bitmap_fonts(t, root)
+    check_graphics_reset(t)
     t.exchange(commands(b"2GEXIT"))
 
 
@@ -366,6 +384,19 @@ def check_scripts(t):
     assert time.monotonic() - start >= 0.15
 
 
+def check_lite_reset(t):
+    # RESET executes inside a snapshotted macro line. It erases the
+    # definitions and capture, then execution continues with that line.
+    t.check("reset within a macro", commands(b"~DEFVAR,43,1,OLD", b"7DEFRET,1,OLD", b"~VARCAP,4",
+            b"4DEFM,2,1,A\x1d(2RESET)B", b"4DEFM,2,2,LOST", b"4RUNM,2", b"4RUNM,2", b"7SRET,1",
+            b"7DEFRET,3,DEFVAR43", b"7SRET,3", b":a comment", b"dVIDMODE") + b"C",
+            (4, 1), [(1, 1, "ABC")], expected=b"0\xff")
+    t.exchange(commands(b"~PAUSEBAK", b"7CEVENT,2,1,0,1,1,2000,0,0,0,0,OLD,", b"7AEVENT,2",
+                        b"2RESET", b"7AEVENT,2", b"dVIDMODE"), b"0\xff")
+    t.send(commands(b"7CEVENT,2,1,0,1,1,2000,0,0,0,0,NEW,", b"7AEVENT,2"))
+    t.input(b"NEW")
+
+
 def check_events(t):
     # A repeating event counts to two and then deactivates itself. No more
     # bytes arrive from the BBS while the callbacks run.
@@ -420,6 +451,7 @@ def run(args):
         check_resources(t, fixture[1])
         check_scripts(t)
         check_events(t)
+        check_lite_reset(t)
         check_graphics(t, fixture[1])
         glyph = "é".encode("utf-8" if args.encoding == "UTF-8" else "cp437")
         t.check("framing amid ANSI", b"\x1b[2;" + ident + b"3H" + glyph + ident + ident + b"B",
