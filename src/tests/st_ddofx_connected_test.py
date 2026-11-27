@@ -1878,6 +1878,52 @@ def check_resources(t, root):
             (2, 1), [(1, 1, "K")], expected=b"NO\xff")
 
 
+def check_full_screen(t):
+    t.case("Lite full-screen selection, clearing, usable rows and restoration")
+
+    def layout(frame, status, rows):
+        assert frame.application["cterm.status_display"] == status
+        assert frame.application["cterm.bottom_margin"] == rows
+
+    # The fixture starts with the status row hidden. Inactive restoration,
+    # an invalid choice and selecting the current layout all preserve text.
+    frame = t.exchange(b"KEEP" + commands(b"0RSETFUL", b"0SETFUL,0", b"0SETFUL,2"))
+    layout(frame, 0, 25)
+    assert "KEEP" in frame.text
+    frame = t.exchange(commands(b"0setful,1"))
+    layout(frame, 1, 24)
+    assert "KEEP" not in frame.text
+    assert frame.application["cterm.x"] == frame.application["cterm.y"] == 1
+    t.client.wait_for(lambda f: "Connected:" in f.lines[24])
+    frame = t.exchange(b"\x1b[99;1HROW24" + commands(b"0SETFUL,1"))
+    assert frame.lines[23].startswith("ROW24")
+    frame = t.exchange(commands(b"0RSETFUL") + b"\x1b[99;1HROW25")
+    layout(frame, 0, 25)
+    assert frame.lines[24].startswith("ROW25")
+    assert "ROW24" not in frame.text
+
+    # Start from a visible indicator and change layouts several times before
+    # restoring. Split a real CSI around the graphics command.
+    frame = t.exchange(b"\x1b[1$~\x1b[25;" + commands(b"0SETFUL,2") + b"1HEND")
+    layout(frame, 0, 25)
+    assert frame.lines[24].startswith("END")
+    frame = t.exchange(commands(b"0SETFUL,1", b"0SETFUL,2", b"0RSETFUL") + b"TOP")
+    layout(frame, 1, 24)
+    assert frame.lines[0].startswith("TOP")
+    frame = t.exchange(commands(b"LIGMODE", b"LIGMODE", b"0SETFUL,2", b"2GEXIT"))
+    layout(frame, 1, 24)
+    assert frame.lines[0].startswith("TOP")
+
+    # A host-writable DEC status display can also precede the door.
+    frame = t.exchange(b"\x1b[2$~\x1b[1$}HOST" + commands(b"0SETFUL,2") + b"MAIN")
+    layout(frame, 0, 25)
+    assert frame.lines[0].startswith("MAIN")
+    frame = t.exchange(commands(b"0RSETFUL") + b"\x1b[1$}ROW\x1b[0$}")
+    layout(frame, 2, 24)
+    assert frame.lines[24].startswith("ROW")
+    t.exchange(b"\x1b[0$~")
+
+
 def check_lite_screen(t, root):
     marker, = root.rglob("syncterm-cache-name.txt")
     directory = marker.parent / "DDOFX" / "BBSTHEME"
@@ -2519,6 +2565,7 @@ def run(args):
         check_background_download(t)
         check_cache(t, fixture[1])
         check_resources(t, fixture[1])
+        check_full_screen(t)
         check_lite_screen(t, fixture[1])
         check_speech(t, fixture[1])
         check_info(t, fixture[1])

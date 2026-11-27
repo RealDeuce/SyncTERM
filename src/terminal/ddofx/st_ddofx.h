@@ -96,6 +96,7 @@ struct st_ddofx_sink {
 	int32_t                       (*available_memory)(void);
 	void                          (*alert)(void *, const char *title, const char *message);
 	void                         *alert_context;
+	void                          (*lite_screen_mode)(void *, unsigned mode);
 	bool                mouse_disabled;
 	st_audio_runtime_t *audio;
 	const struct st_cterm_config *text_config;

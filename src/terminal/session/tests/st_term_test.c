@@ -1082,7 +1082,7 @@ test_shell_utf8_boundary(void)
 }
 
 static int
-test_remote_disconnect(bool hide_status)
+test_remote_disconnect(bool hide_status, bool ddofx)
 {
 	const struct st_console_display_config display  = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
 	const struct st_console_config         geometry = {
@@ -1102,17 +1102,22 @@ test_remote_disconnect(bool hide_status)
 	CHECK(st_session_history_create(&history, 20) == 0);
 	st_profile_init(&profile);
 	profile.connection_type = ST_CONNECTION_SHELL;
-	strcpy(profile.address, "printf 'completed session'");
+	if (ddofx)
+		snprintf(profile.address, sizeof(profile.address), "printf '\\035{0SETFUL,%d}completed session'",
+		    hide_status ? 1 : 2);
+	else
+		strcpy(profile.address, "printf 'completed session'");
 	CHECK(st_term_connect_profile(&connection, &profile, console, NULL, NULL) == 0);
 	const struct st_term_config config = {
-	    .console     = console,
-	    .connection  = connection,
-	    .fonts       = fonts,
-	    .history     = history,
-	    .screen_mode = ST_SCREEN_MODE_80X25,
-	    .encoding    = ST_CTERM_ENCODING_UTF8,
-	    .codepage    = ST_CODEPAGE_CP437,
-	    .hide_status = hide_status,
+	    .console       = console,
+	    .connection    = connection,
+	    .fonts         = fonts,
+	    .history       = history,
+	    .screen_mode   = ST_SCREEN_MODE_80X25,
+	    .encoding      = ST_CTERM_ENCODING_UTF8,
+	    .codepage      = ST_CODEPAGE_CP437,
+	    .hide_status   = hide_status,
+	    .graphics_mode = ddofx ? ST_GRAPHICS_DDOFX_20 : ST_GRAPHICS_NONE,
 	};
 	CHECK(st_term_session_create(&session, &config) == 0);
 	enum st_term_disposition disposition;
@@ -1135,6 +1140,7 @@ test_remote_disconnect(bool hide_status)
 	uint32_t                before_columns;
 	size_t                  before_rows;
 	CHECK(st_cterm_copy_history(st_term_session_cterm(session), &before, &before_columns, &before_rows) == 0);
+	CHECK(st_term_session_status_visible(session) == (ddofx ? hide_status : !hide_status));
 	CHECK(st_connection_close(connection) == 0);
 	/* Preparation and history publication must not touch the freed connection. */
 	CHECK(st_term_session_prepare_disconnect(session) == 0);
@@ -1143,7 +1149,9 @@ test_remote_disconnect(bool hide_status)
 	enum st_screen_mode mode;
 	bool                has_status;
 	CHECK(st_session_history_copy(history, &after, &columns, &rows, &mode, &has_status) == 0);
-	CHECK(columns == before_columns && rows == before_rows && has_status == !hide_status);
+	CHECK(st_term_session_status_visible(session) == !hide_status);
+	CHECK(columns == before_columns && rows == before_rows
+	      && has_status == (ddofx ? hide_status : !hide_status));
 	CHECK(memcmp(before, after, before_rows * columns * sizeof(*before)) == 0);
 	/* The notice and its viewer may draw on the console, but must not enter
 	 * the completed session's history when the terminal is finally destroyed. */
@@ -1328,6 +1336,7 @@ st_term_test_main(void)
 	    ST_SCREEN_MODE_CGA_80X25, ST_SCREEN_MODE_EGA_80X25, ST_SCREEN_MODE_80X30, ST_SCREEN_MODE_EGA_80X25,
 	    ST_SCREEN_MODE_EGA_80X25, ST_SCREEN_MODE_EGA_80X25};
 
+	profile.graphics_mode = ST_GRAPHICS_BIG_103;
 	for (size_t i = 0; i < sizeof(inputs) / sizeof(*inputs); ++i) {
 		profile.screen_mode = inputs[i];
 		CHECK(st_term_profile_screen_mode(&profile) == expected[i]);
@@ -1377,8 +1386,10 @@ st_term_test_main(void)
 	CHECK(test_remote_speed_transition(ST_CTERM_ENCODING_UTF8, true) == 0);
 	CHECK(test_remote_speed_transition(ST_CTERM_ENCODING_CODEPAGE, true) == 0);
 	CHECK(test_shell_utf8_boundary() == 0);
-	CHECK(test_remote_disconnect(false) == 0);
-	CHECK(test_remote_disconnect(true) == 0);
+	CHECK(test_remote_disconnect(false, false) == 0);
+	CHECK(test_remote_disconnect(true, false) == 0);
+	CHECK(test_remote_disconnect(false, true) == 0);
+	CHECK(test_remote_disconnect(true, true) == 0);
 	CHECK(test_shell_rip_cp437_boundary() == 0);
 	CHECK(test_response_policy() == 0);
 	CHECK(test_ooii_session(ST_CTERM_ENCODING_UTF8, false) == 0);

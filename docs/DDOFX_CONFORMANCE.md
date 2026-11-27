@@ -28,6 +28,8 @@ Work, background and visual pages can load version-5, single-plane, 8-bit PCX ar
 
 Lite and Normal accept complete 4,096-byte VGA fonts from `DDOFX/FONTS` with lowercase `f`. The selected font applies to console text and all four desktop `2XT` destinations and an alerted window’s visual and hidden pages. `dGETFONT` reports its filename. SyncTERM supplies its built-in VGA font for `IBMSTD.FNT` when that file is absent.
 
+Lite uses the SyncTERM status row for its full-screen commands. `0SETFUL,1` shows the row and `0SETFUL,2` releases it for terminal output. Switching clears the text area and homes the cursor. `0RSETFUL` and disconnect restore the layout in effect before the first switch.
+
 Lite slides and bounces move the displayed text page vertically. ANSI output, cursor reports and scrollback continue to use the original coordinates while the page is out of sight. Bitmap backends display scanline offsets and text backends use whole rows. Moving down works from either starting position. A bounce makes successively smaller rebounds and can be interrupted with a key. Normal mode ignores all three commands.
 
 Uppercase `Tfilename` loads terminal effects from `DDOFX/THEMES`. Each BBS starts with `DEFAULT.THE` when present. The last successfully selected filename is saved in that BBS’s cache and used on later connections. `TNONE` releases the current effects. Lowercase `tfilename` still controls the separate BBS sample bank. The SDK assigns terminal samples 20, 19 and 15 to slide up, slide down and bounce impact respectively. Playback requires enabled sound and the corresponding sample in the selected pack.
@@ -159,8 +161,8 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 3294 | SLIDE SCREEN DOWN | DDO-FX LITE | Connected |
 | 3307 | BOUNCE SCREEN DOWN | DDO-FX LITE | Connected |
 | 3323 | DISPLAY RAW ANSI | DDO-FX LITE | Connected |
-| 3365 | SET FULL SCREEN MODE | DDO-FX LITE | Pending |
-| 3400 | RESTORE FULL SCREEN MODE | DDO-FX LITE | Pending |
+| 3365 | SET FULL SCREEN MODE | DDO-FX LITE | Connected |
+| 3400 | RESTORE FULL SCREEN MODE | DDO-FX LITE | Connected |
 | 3416 | RUN LOCAL SCRIPT | DDO-FX LITE | Connected |
 | 3501 | DEFINE SYSTEM VARIABLE | DDO-FX LITE | Connected |
 | 3604 | LOCK KEYS | DDO-FX LITE | Connected |

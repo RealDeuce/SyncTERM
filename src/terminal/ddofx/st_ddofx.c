@@ -316,15 +316,23 @@ execute(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *body)
 	else if (body[0] == 'E' && !ascii_case_ncompare(body + 1, "RTEXT,", 6))
 		st_ddofx_retrieve_text_file(ddo, sink, body + 7);
 	else if (!ddo->graphics && body[0] == '0') {
-		int32_t duration;
-		if (matches(body, "0SLIDEU"))
+		int32_t value;
+		if (argument(ddo, body, "0SETFUL", &value)) {
+			if ((value == 1 || value == 2) && sink->lite_screen_mode)
+				sink->lite_screen_mode(sink->context, (unsigned)value);
+		}
+		else if (matches(body, "0RSETFUL")) {
+			if (sink->lite_screen_mode)
+				sink->lite_screen_mode(sink->context, 0);
+		}
+		else if (matches(body, "0SLIDEU"))
 			st_ddofx_slide(ddo, sink, true, false);
 		else if (matches(body, "0SLIDED") || matches(body, "0BOUNCED"))
 			st_ddofx_slide(ddo, sink, false, matches(body, "0BOUNCED"));
-		else if (argument(ddo, body, "0TFADEIN", &duration))
-			st_ddofx_lite_fade(ddo, sink, true, duration);
-		else if (argument(ddo, body, "0TFADEOUT", &duration))
-			st_ddofx_lite_fade(ddo, sink, false, duration);
+		else if (argument(ddo, body, "0TFADEIN", &value))
+			st_ddofx_lite_fade(ddo, sink, true, value);
+		else if (argument(ddo, body, "0TFADEOUT", &value))
+			st_ddofx_lite_fade(ddo, sink, false, value);
 	}
 	else if (!ddo->graphics && body[0] == '!')
 		st_ddofx_display_raw(ddo, sink, body + 1);

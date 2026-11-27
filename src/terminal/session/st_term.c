@@ -10,6 +10,7 @@
 #include <string.h>
 
 #include "audio.h"
+#include "cterm.h"
 #include "cterm_big.h"
 #include "cterm_igs.h"
 #include "cterm_rip_asset.h"
@@ -49,6 +50,7 @@ struct deferred_event {
 struct st_term_session {
 	struct st_term_config  config;
 	struct st_ddofx        ddofx;
+	int                           ddofx_saved_status;
 	struct st_ddofx_package_batch packages;
 	struct st_cterm_config ddofx_text_config;
 	st_cterm_t            *cterm;
@@ -230,6 +232,54 @@ release_musicomm(st_term_session_t *session)
 	return st_connection_set_binary_mode(session->config.connection, session->musicomm_was_binary);
 }
 
+/* Lite uses the same indicator row and resize notification as DECSSDT.
+ * Keep the first displaced layout, including a host-writable status row. */
+static void
+ddofx_lite_layout(st_term_session_t *session, unsigned mode, bool clear)
+{
+	st_cterm_t *term   = session->cterm;
+	int         wanted = mode == 0 ? session->ddofx_saved_status : mode == 1 ? 1 : 0;
+	if (wanted < 0 || !term)
+		return;
+	int old = st_cterm_status_display(term);
+	if (old != wanted) {
+		if ((!old && wanted && term->height < 2) || st_cterm_start_text(term)
+		    || st_cterm_text_boundary(term))
+			return;
+		int active                  = term->status_display_active;
+		term->status_display_active = 0;
+		term->status_display_type   = wanted;
+		term->status_display_cb(term, old, wanted, term->status_display_cbdata);
+		(void)cterm_render_take_error(term);
+		if (term->status_display_type != wanted) {
+			term->status_display_active = active;
+			return;
+		}
+		if (mode && session->ddofx_saved_status < 0)
+			session->ddofx_saved_status = old;
+		if (clear) {
+			struct st_console_cell blank;
+			uint32_t               fg, bg;
+			cterm_render_attribute_colours(term, 0x0f, &fg, &bg);
+			if (!cterm_render_make_cell(term, &blank, ' ', 0x0f, fg, bg,
+				cterm_render_attribute_font(term, 0x0f), 0, 0)) {
+				struct st_console_rect area = {term->x - 1, term->y - 1, term->width,
+				    term->height};
+				(void)st_console_fill(session->config.console, &area, &blank);
+			}
+			(void)st_cterm_position_text(term, 0, 0);
+		}
+	}
+	if (!mode)
+		session->ddofx_saved_status = -1;
+}
+
+static void
+ddofx_lite_screen_mode(void *context, unsigned mode)
+{
+	ddofx_lite_layout(context, mode, true);
+}
+
 int
 st_term_session_finish_display(st_term_session_t *session)
 {
@@ -264,8 +314,10 @@ st_term_session_reset_display(st_term_session_t *session)
 		pending = finish_wire_character(session);
 	if (pending != 0)
 		return pending;
-	if (session->config.graphics_mode == ST_GRAPHICS_DDOFX_20)
+	if (session->config.graphics_mode == ST_GRAPHICS_DDOFX_20) {
 		st_ddofx_reset(&session->ddofx);
+		ddofx_lite_layout(session, 0, false);
+	}
 	if (session->rip154 != NULL)
 		return st_rip154_reset(session->rip154);
 	if (session->igs != NULL)
@@ -606,7 +658,8 @@ cterm_size(void *context, uint32_t columns, uint32_t rows, uint32_t pixel_width,
 	    .pixel_height = pixel_height,
 	};
 
-	if (session->output_error == 0 && st_connection_is_connected(session->config.connection)) {
+	if (!session->history_finalized && session->output_error == 0
+	    && st_connection_is_connected(session->config.connection)) {
 		session->output_error = st_connection_update_terminal_size(session->config.connection, &geometry);
 		if (!st_connection_is_connected(session->config.connection))
 			session->output_error = 0;
@@ -709,6 +762,7 @@ st_term_session_create(st_term_session_t **result, const struct st_term_config *
 	if (session == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
 	session->config = *config;
+	session->ddofx_saved_status = -1;
 	if (config->graphics_mode == ST_GRAPHICS_DDOFX_20)
 		st_ddofx_reset(&session->ddofx);
 	if (config->graphics_mode == ST_GRAPHICS_RIP_3) {
@@ -867,10 +921,12 @@ publish_history(st_term_session_t *session)
 	uint32_t                 columns;
 	size_t                   rows = 0;
 
-	if (session->config.history == NULL || session->history_finalized)
+	if (session->history_finalized)
 		return;
 	/* Freeze the session before disconnected UI can draw on its console. */
 	session->history_finalized = true;
+	if (!session->config.history)
+		return;
 	st_session_history_clear(session->config.history);
 	int status = st_cterm_copy_history(session->cterm, &cells, &columns, &rows);
 	for (size_t row = 0; status == 0 && row < rows; ++row) {
@@ -889,8 +945,10 @@ publish_history(st_term_session_t *session)
 		status = st_cterm_copy_history_pixels(session->cterm, row, &pixels[row]);
 	}
 	if (status == 0 && rows <= UINT32_MAX) {
-		status = st_session_history_publish(session->config.history, cells, columns, rows,
-		    session->config.screen_mode, !session->config.hide_status, pixels);
+		bool has_status = session->ddofx_saved_status >= 0 ? st_cterm_status_display(session->cterm) != 0
+		                                                   : !session->config.hide_status;
+		status          = st_session_history_publish(session->config.history, cells, columns, rows,
+		    session->config.screen_mode, has_status, pixels);
 		if (status == 0)
 			pixels = NULL;
 	}
@@ -906,6 +964,7 @@ st_term_session_destroy(st_term_session_t **session)
 	(void)st_term_session_end_transfer(*session);
 	(void)finish(*session);
 	publish_history(*session);
+	ddofx_lite_layout(*session, 0, false);
 	st_ddofx_reset(&(*session)->ddofx);
 	st_ooii_destroy((*session)->ooii);
 	st_term_rip3_destroy((*session)->rip3);
@@ -1011,6 +1070,7 @@ st_term_session_prepare_disconnect(st_term_session_t *session)
 		return status;
 	/* Retain the completed screen before making room for the notice. */
 	publish_history(session);
+	ddofx_lite_layout(session, 0, false);
 	/* The disconnected viewer may reconfigure the display. Release all
 	 * borrowed RIP raster views once the last live frame is archived. */
 	st_term_rip3_destroy(session->rip3);
@@ -1432,6 +1492,7 @@ ddofx_sink(st_term_session_t *session)
 	    .mouse_disabled   = session->mouse_disabled,
 	    .text_config      = &session->ddofx_text_config,
 	    .lite_terminal    = session->cterm,
+	    .lite_screen_mode = ddofx_lite_screen_mode,
 	    .reply            = protocol_reply,
 	    .open_asset       = ddofx_open_asset,
 	    .theme_path       = ddofx_theme_path,
