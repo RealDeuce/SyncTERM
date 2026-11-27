@@ -12,6 +12,7 @@ from pathlib import Path
 
 from st_ddofx_package_test import header, subpacket, package
 from st_migrated_control_test import connection
+from syncterm_fixture import click_text
 from st_terminal_conformance_test import Terminal
 
 
@@ -2038,6 +2039,48 @@ def check_text_editor(t, root):
     assert path.read_bytes() == original + b"!"
 
 
+def check_print_file(t, root):
+    t.case("saving a DDO print file from Lite and Normal")
+    marker, = root.rglob("syncterm-cache-name.txt")
+    theme = marker.parent / "DDOFX" / "BBSTHEME"
+    theme.mkdir(parents=True, exist_ok=True)
+    source = theme / "PRINT.BIN"
+    output = root / "downloads" / "OUT.PRN"
+    original = bytes(range(256)) * 100
+    source.write_bytes(original)
+    request = commands(b"EPTEXT,PRINT.BIN,D:\\REMOTE\\OUT.PRN,^@done,^M", b"dVIDMODE")
+    t.send(request)
+    frame = t.client.wait_text("Save DDO F/X file")
+    assert "OUT.PRN" in frame.text
+    assert not output.exists()
+    click_text(t.client, frame, "[ New ]")
+    t.client.key("enter")
+    t.input(b"\0done,\r0\xff")
+    assert output.read_bytes() == b" " + original
+
+    t.exchange(commands(b"LIGMODE", b"LIGMODE", b"2C,33", b"2aFILL", b"2CPYWP2VP"))
+    source.write_bytes(b"")
+    t.send(request)
+    t.client.wait_text("Save DDO F/X file")
+    t.client.key("escape")
+    restored = t.input(b"\0done,\r1\xff")
+    assert restored.primary[0] == restored.primary[-1] == 33
+    assert output.read_bytes() == b" " + original
+
+    t.send(commands(b"~DEFVAR,51,1,PRINT.BIN", b"~DEFVAR,52,1,OUT.PRN", b"~VARCAP,4",
+                    b"EPTEXT,DEFVAR51,DEFVAR52,SAVED", b"~VARCAP,0"))
+    t.client.wait_text("Save DDO F/X file")
+    t.client.key("enter")
+    t.client.wait_text("File exists, overwrite?")
+    t.client.text("y")
+    t.input(b"SAVED")
+    assert output.read_bytes() == b" "
+    t.exchange(commands(b"EPTEXT,ABSENT.TXT,OUT.PRN,MISSING", b"EPTEXT,../PRINT.BIN,OUT.PRN,BAD",
+                        b"EPTEXT,PRINT.BIN,,EMPTY", b"EPTEXT,PRINT.BIN,LPT1,P", b"EPTEXT,PRINT.BIN,COM2,S",
+                        b"2GEXIT"), b"MISSINGBADEMPTYPS")
+    assert output.read_bytes() == b" "
+
+
 def check_info(t, root):
     t.case("persistent INFO records in Lite and Normal with binary data and typed capture")
     marker, = root.rglob("syncterm-cache-name.txt")
@@ -2628,6 +2671,7 @@ def run(args):
         check_info(t, fixture[1])
         check_text_files(t, fixture[1])
         check_text_editor(t, fixture[1])
+        check_print_file(t, fixture[1])
         check_scripts(t)
         check_events(t)
         check_lite_reset(t)

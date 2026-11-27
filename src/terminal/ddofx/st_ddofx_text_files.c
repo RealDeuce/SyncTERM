@@ -5,6 +5,7 @@
 #include "filesystem.h"
 #include "st_ddofx_resource.h"
 #include "st_ddofx_script.h"
+#include "string_util.h"
 #include "st_file_lock.h"
 
 void
@@ -179,6 +180,92 @@ st_ddofx_edit_text_file(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, 
 			    status == IO_ERROR_CONFLICT
 				? "Another session changed the message. Your edits could not be saved."
 				: "Could not open or save the message.");
+	}
+	if (reply_length)
+		sink->reply(sink->context, reply, reply_length);
+}
+
+static const char *
+print_filename(const char *device)
+{
+	if (!device)
+		return NULL;
+	/* Only suggest the leaf of the DOS path in the local file picker. */
+	if (device[0] && device[1] == ':')
+		device += 2;
+	const char *leaf = device;
+	for (const char *p = device; *p; ++p)
+		if (*p == '/' || *p == '\\')
+			leaf = p + 1;
+	if (!st_ddofx_dos_filename(leaf))
+		return NULL;
+	size_t stem = strcspn(leaf, ".");
+	if (stem == 3
+	    && (!ascii_case_ncompare(leaf, "CON", 3) || !ascii_case_ncompare(leaf, "PRN", 3)
+	        || !ascii_case_ncompare(leaf, "AUX", 3) || !ascii_case_ncompare(leaf, "NUL", 3)))
+		return NULL;
+	if (stem == 4 && leaf[3] >= '1' && leaf[3] <= '9'
+	    && (!ascii_case_ncompare(leaf, "COM", 3) || !ascii_case_ncompare(leaf, "LPT", 3)))
+		return NULL;
+	return leaf;
+}
+
+static int
+write_print_file(FILE *output, void *context)
+{
+	FILE  **source = context;
+	int64_t size   = fs_stream_size(*source);
+	int     status = IO_ERROR_IO;
+	if (size >= 0 && fputc(' ', output) != EOF)
+		status = st_ddofx_copy_bytes(output, *source, (uint64_t)size);
+	/* The user may have selected the source itself for replacement. */
+	fclose(*source);
+	*source = NULL;
+	return status;
+}
+
+static int
+save_print_file(FILE **source, const char *path, bool overwrite)
+{
+	if (overwrite)
+		return fs_replace_file_with(path, write_print_file, source);
+	FILE *output;
+	int   status = fs_open(&output, path, "wbx");
+	if (status)
+		return status;
+	status = write_print_file(output, source);
+	if (fclose(output) != 0)
+		status = IO_ERROR_IO;
+	if (status)
+		(void)fs_remove_file(path);
+	return status;
+}
+
+void
+st_ddofx_print_file(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *args)
+{
+	char *source_field = st_ddofx_field(&args);
+	char *device_field = st_ddofx_field(&args);
+	if (!args)
+		return;
+	const char *source_name = st_ddofx_value(ddo, source_field);
+	const char *suggestion  = print_filename(st_ddofx_value(ddo, device_field));
+	uint8_t     reply[ST_DDOFX_BODY_MAX];
+	size_t      reply_length = st_ddofx_control_value(ddo, args, reply, sizeof(reply));
+	if (suggestion && sink->pick_save_path && sink->open_asset && st_ddofx_dos_filename(source_name)) {
+		FILE *source = sink->open_asset(sink->context, "BBSTHEME", NULL, source_name);
+		if (source) {
+			char *path      = NULL;
+			bool  overwrite = false;
+			int   status    = sink->pick_save_path(sink->ui_context, suggestion, &path, &overwrite);
+			if (!status && path)
+				status = save_print_file(&source, path, overwrite);
+			if (source)
+				fclose(source);
+			free(path);
+			if (status && status != IO_ERROR_CANCELLED && sink->alert)
+				sink->alert(sink->ui_context, "DDO F/X", "Could not save the print file.");
+		}
 	}
 	if (reply_length)
 		sink->reply(sink->context, reply, reply_length);

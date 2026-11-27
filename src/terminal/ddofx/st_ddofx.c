@@ -315,6 +315,8 @@ execute(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *body)
 		st_ddofx_edit_text_file(ddo, sink, body + 8);
 	else if (body[0] == 'E' && !ascii_case_ncompare(body + 1, "WTEXT,", 6))
 		st_ddofx_write_text_file(ddo, sink, body + 7);
+	else if (body[0] == 'E' && !ascii_case_ncompare(body + 1, "PTEXT,", 6))
+		st_ddofx_print_file(ddo, sink, body + 7);
 	else if (body[0] == 'E' && !ascii_case_ncompare(body + 1, "RTEXT,", 6))
 		st_ddofx_retrieve_text_file(ddo, sink, body + 7);
 	else if (!ddo->graphics && body[0] == '0') {

@@ -944,6 +944,37 @@ fn_host_pick_files(WrenVM *vm)
 	st_wren_picker_call_dispose(&call);
 }
 
+int
+st_wren_host_pick_save_path(st_wren_host_t *host, const char *title, const char *directory,
+    const char *suggested_name, char **path, bool *overwrite)
+{
+	if (!host || !title || !suggested_name || !path || !overwrite)
+		return IO_ERROR_INVALID_ARGUMENT;
+	struct st_wren_picker_call call = {
+	    .mode         = ST_WREN_PICKER_SAVE,
+	    .title        = title,
+	    .initial_path = directory && *directory ? directory : host->config.paths->download_directory,
+	    .mask         = suggested_name,
+	    .options      = ST_WREN_PICKER_ALLOW_ENTRY | ST_WREN_PICKER_CONFIRM_OVERWRITE,
+	};
+	int status = 0;
+	if (!st_wren_picker_host_run(host, &call))
+		status = IO_ERROR_IO;
+	else if (!call.path_count)
+		status = IO_ERROR_CANCELLED;
+	else if (call.path_count != 1
+	         || (call.disposition != ST_WREN_PICKER_DISPOSITION_CREATE
+	             && call.disposition != ST_WREN_PICKER_DISPOSITION_OVERWRITE))
+		status = IO_ERROR_INVALID_ARGUMENT;
+	else {
+		*overwrite    = call.disposition == ST_WREN_PICKER_DISPOSITION_OVERWRITE;
+		*path         = call.paths[0];
+		call.paths[0] = NULL;
+	}
+	st_wren_picker_call_dispose(&call);
+	return status;
+}
+
 static void
 host_pick_save(WrenVM *vm, int options)
 {

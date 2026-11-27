@@ -767,6 +767,24 @@ connection_edit_text(void *context, const char *name, const char *initial, size_
 	return st_wren_host_edit_text(ui->host, name, initial, limit, result, length);
 }
 
+static int
+connection_pick_save_path(void *context, const char *name, char **path, bool *overwrite)
+{
+	struct connection_ui *ui = context;
+	/* The DDO command carries a DOS 8.3 filename in CP437. */
+	char utf8[12 * 4 + 1];
+	size_t used;
+	if (strlen(name) > 12)
+		return IO_ERROR_INVALID_ARGUMENT;
+	int status = st_term_rip_wire_to_utf8(utf8, sizeof(utf8) - 1, &used, (const uint8_t *)name, strlen(name),
+	    ST_CODEPAGE_CP437);
+	if (status)
+		return status;
+	utf8[used] = 0;
+	return st_wren_host_pick_save_path(ui->host, "Save DDO F/X file", ui->profile->download_directory,
+	    utf8, path, overwrite);
+}
+
 static void
 connection_follow_link(void *context, const char *uri, bool user_activated)
 {
@@ -1117,6 +1135,7 @@ run_session(st_wren_host_t *host, st_console_display_t *display, st_console_t *c
 	    .rip3_data_directory     = paths->rip_data_directory,
 	    .graphics_alert          = connection_alert,
 	    .graphics_edit_text      = connection_edit_text,
+	    .graphics_pick_save_path = connection_pick_save_path,
 	    .graphics_ui_context     = &connection_ui,
 	    .follow_link             = connection_follow_link,
 	    .link_context            = &connection_ui,

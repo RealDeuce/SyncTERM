@@ -109,6 +109,9 @@ int st_wren_host_rip_choice(st_wren_host_t *host, const char *title, const char 
     const char *const *choices, const uint32_t *hotkeys, size_t count, bool required);
 void st_wren_host_follow_link(st_wren_host_t *host, st_console_t *console, const struct st_profile *profile,
     const char *uri, bool user_activated);
+/* Returns an owned path and the selected disposition, or IO_ERROR_CANCELLED. */
+int st_wren_host_pick_save_path(st_wren_host_t *, const char *title, const char *directory,
+    const char *suggested_name, char **path, bool *overwrite);
 int st_wren_host_edit_text(st_wren_host_t *, const char *name, const char *initial, size_t limit, char **result,
     size_t *length);
 int st_wren_host_alert(st_wren_host_t *host, const char *title, const char *message);

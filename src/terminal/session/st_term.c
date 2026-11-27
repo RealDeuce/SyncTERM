@@ -1488,6 +1488,7 @@ ddofx_sink(st_term_session_t *session)
 	    .available_memory = st_ddofx_available_memory,
 	    .alert            = session->config.graphics_alert,
 	    .edit_text        = session->config.graphics_edit_text,
+	    .pick_save_path   = session->config.graphics_pick_save_path,
 	    .ui_context       = session->config.graphics_ui_context,
 	    .pass_key         = ddofx_pass_key,
 	    .mouse_disabled   = session->mouse_disabled,

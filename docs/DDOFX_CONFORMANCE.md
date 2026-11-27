@@ -44,6 +44,8 @@ In Normal mode the BBS can show or hide the mouse pointer, query its position an
 
 In Lite and Normal, `EEDTEXT` opens a full-screen editor for a CP437 message of up to 65,532 bytes in the entry’s BBSTHEME directory. A new message starts empty. F2 saves and exits, and Escape discards edits and exits. Both send the door’s completion string. Existing line endings are preserved, and Enter inserts a DOS CRLF. The door can then read the saved bytes with `ERTEXT`.
 
+`EPTEXT` can export a BBSTHEME file in both modes. The door supplies a suggested DOS filename and the user selects the local destination in Save As. The output starts with the SDK’s single space, followed by the complete file, including binary printer data. Success, cancellation, a missing source and an unavailable device all send the specified completion string. SyncTERM currently treats DOS printer and serial ports as unavailable.
+
 In Lite and Normal, `~INFSAV` and `~INFLOD` use the assigned resource prefix plus `T` in the entry’s BBSTHEME directory. Slot numbers and signed 32-bit passwords follow the SDK. A successful load sends the saved bytes verbatim, including embedded control bytes. Variable capture keeps the first 50 bytes and preserves the destination variable’s type.
 
 A marquee reads up to 20,000 bytes from the assigned M resource and uses the selected VGA text font. `5SHOWMQ` paints the initial strip on the work page. Its timer scrolls the strip one pixel to the right per frame on the visual page, following the direction stated in the SDK. `5STOPMQ` preserves the current position, and `5KILLMQ` releases the slot.
@@ -201,7 +203,7 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 4777 | LAUNCH TEXT EDITOR | DDO-FX LITE | Connected |
 | 4821 | RETRIEVE TEXT FILE | DDO-FX LITE | Connected |
 | 4847 | WRITE TEXT FILE | DDO-FX LITE | Connected |
-| 4886 | PRINT TEXT FILE | DDO-FX LITE | Pending |
+| 4886 | PRINT TEXT FILE | DDO-FX LITE | Connected for file output and unavailable-device completion. Printer and serial output unavailable |
 | 4940 | LABEL | DDO-FX LITE | Connected |
 | 4955 | RESET ENVIRONMENT | DDO-FX LITE | Connected for implemented scene objects |
 | 5436 | DETECT MOUSE | DDO-FX (NM) | Connected |

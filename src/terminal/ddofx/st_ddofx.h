@@ -98,6 +98,7 @@ struct st_ddofx_sink {
 	/* length counts DOS bytes on entry and save. A null result means cancel. */
 	int (*edit_text)(void *context, const char *name, const char *initial, size_t limit, char **result,
 	    size_t *length);
+	int (*pick_save_path)(void *context, const char *name, char **path, bool *overwrite);
 	void *ui_context;
 	void                          (*lite_screen_mode)(void *, unsigned mode);
 	bool                mouse_disabled;

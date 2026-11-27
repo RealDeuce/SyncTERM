@@ -73,6 +73,7 @@ struct st_term_config {
 	void        (*graphics_alert)(void *context, const char *title, const char *message);
 	int (*graphics_edit_text)(void *context, const char *name, const char *initial, size_t limit,
 	    char **result, size_t *length);
+	int (*graphics_pick_save_path)(void *context, const char *name, char **path, bool *overwrite);
 	void *graphics_ui_context;
 	void (*follow_link)(void *context, const char *uri, bool user_activated);
 	void *link_context;
