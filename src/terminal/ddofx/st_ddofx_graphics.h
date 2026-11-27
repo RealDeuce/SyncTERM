@@ -6,6 +6,9 @@
 #include "st_ddofx.h"
 
 bool st_ddofx_fade_step(struct st_ddofx *, uint64_t now);
+void st_ddofx_grid_command(struct st_ddofx *, char *body);
+uint32_t st_ddofx_grid_wait_ms(const struct st_ddofx *);
+void st_ddofx_grid_poll(struct st_ddofx *);
 bool st_ddofx_bar_command(struct st_ddofx *, char *body);
 uint32_t st_ddofx_bar_wait_ms(const struct st_ddofx *);
 void st_ddofx_bar_poll(struct st_ddofx *);

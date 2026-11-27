@@ -217,6 +217,8 @@ execute(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *body)
 		if (ddo->graphics != NULL)
 			st_ddofx_graphics_command(ddo, sink, body);
 	}
+	else if (body[0] == '5' && ddo->graphics)
+		st_ddofx_grid_command(ddo, body);
 	else if (body[0] == '*')
 		st_ddofx_run_resource(ddo, sink, st_ddofx_value(ddo, body + 1));
 	else if (body[0] == 'd' && ascii_case_ncompare(body + 1, "RESOURCE,", 9) == 0) {
@@ -385,6 +387,9 @@ st_ddofx_wait_ms(const struct st_ddofx *ddo)
 	uint32_t audio = st_ddofx_sample_wait_ms(ddo), event = st_ddofx_event_wait_ms(ddo);
 	uint32_t bars = st_ddofx_bar_wait_ms(ddo);
 	uint32_t wait = audio < event ? audio : event;
+	uint32_t grid = st_ddofx_grid_wait_ms(ddo);
+	if (grid < wait)
+		wait = grid;
 	return bars < wait ? bars : wait;
 }
 
@@ -393,6 +398,7 @@ st_ddofx_poll(struct st_ddofx *ddo, const struct st_ddofx_sink *sink)
 {
 	st_ddofx_samples_poll(ddo);
 	st_ddofx_bar_poll(ddo);
+	st_ddofx_grid_poll(ddo);
 	st_ddofx_event_poll(ddo);
 	/* Yield back to the session between slices so long or infinite scripts
 	 * cannot prevent local disconnect, redraws or transfer servicing. */

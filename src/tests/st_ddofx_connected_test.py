@@ -168,6 +168,44 @@ def check_sprites(t):
                         b"2ACSS", b"2C,12", b"2aFILL", b"2DSS", b"2aG,51,49"), b"3\xff12\xff")
 
 
+def check_grid(t):
+    t.case("one-based tile map, transparent foreground and scrolling viewport")
+
+    def row(*wire):
+        frame = t.exchange(commands(*wire))
+        start = 476 * 640 + 634
+        actual = list(frame.primary[start:start+6])
+        assert actual == list(frame.alternate[start:start+6])
+        return actual
+
+    # Two 3x2 cells in the bottom-right of VP. The first frame of the
+    # foreground has a single opaque pixel over the background.
+    assert row(b"~PAUSEBAK", b"2C,8", b"2aFILL", b"2CPYWP2VP",
+               b"2C,3", b"2aFILL", b"2S,0,2,0,1,Grass", b"2C,4", b"2aFILL",
+               b"2S,0,2,0,1,Sand", b"2aERASE", b"2C,9", b"2aP,1,0", b"2S,0,2,0,1,A",
+               b"2C,12", b"2aP,1,0", b"2S,0,2,0,1,B", b"5DEFGRID,634,476,3,3,2,2,3,2",
+               b"5FILGRID,Grass,Grass,1", b"5CHGGRID,3,2,Sand,Sand,1",
+               b"5CHGGRID,1,1,A,A,2") == [8]*6
+    assert row(b"5DRWGRID") == [3,9,3,3,3,3]
+    assert row(b"5POSTILE,1,1,3,2", b"5POSGRID,2,2") == [3,3,3,4,9,4]
+    assert row(b"5MOVTILE,3,2,-1,0") == [3,9,3,4,4,4]
+    assert row(b"5KILTILE,2,2", b"5MOVGRID,-1,-1") == [3]*6
+    assert row(b"5CHGGRID,1,1,A,B,2", b"5DRWGRID", b"5MOVGRID,2147483647,0",
+               b"5DEFGRID,1,1,151,3,2,2,3,2") == [3,9,3,3,3,3]
+
+    t.send(commands(b"2sPV,637,477,Sand", b"~UNPAUSEBAK"))
+    deadline = time.monotonic() + 3
+    while True:
+        pixels = t.client.capture().primary
+        if pixels[476*640+635] == 12:
+            assert pixels[476*640+637] == 4
+            break
+        assert time.monotonic() < deadline, "animated tile did not advance during idle input"
+        time.sleep(0.03)
+
+    assert row(b"5KILGRID", b"5DRWGRID") == [8]*6
+
+
 def check_bitmap_fonts(t, root):
     t.case("bitmap font selection, scaling, outlining and rotation")
     [marker] = root.rglob("syncterm-cache-name.txt")
@@ -293,6 +331,7 @@ def check_graphics(t, root):
     assert frame.primary[4 * 640 + 3] == 4 and frame.palette[4] == 0x00ffff
     check_drawing(t)
     check_sprites(t)
+    check_grid(t)
     check_pcx(t, root)
     t.exchange(b"\x1b[75;45H" + b"\x1b[6n", b"\x1b[75;45R")
     restored = t.check("Lite display and cursor restored", commands(b"2GEXIT", b"dVIDMODE") + b"!",

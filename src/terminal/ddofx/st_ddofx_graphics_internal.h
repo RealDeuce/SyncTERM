@@ -36,6 +36,7 @@ struct st_ddofx_graphics {
 	unsigned                bitmap_slot;
 	struct st_ddofx_simple *simple;
 	struct st_ddofx_bars   *bars;
+	struct st_ddofx_grid   *grid;
 
 	st_console_t            *display, *view;
 	st_font_catalog_t       *fonts;
@@ -61,6 +62,7 @@ struct st_ddofx_graphics {
 	int           horizontal_thickness, vertical_thickness;
 };
 
+void st_ddofx_grid_destroy(struct st_ddofx_graphics *, bool erase);
 bool    st_ddofx_page_name(const char *, enum page *);
 void    st_ddofx_bitmap_text(struct st_ddofx *, const struct st_ddofx_sink *, const char *, char *);
 void    st_ddofx_set_palette(struct st_ddofx_graphics *, unsigned, unsigned);

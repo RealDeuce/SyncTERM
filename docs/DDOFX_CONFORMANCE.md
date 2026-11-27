@@ -16,6 +16,8 @@ Work, background and visual pages can load version-5, single-plane, 8-bit PCX ar
 
 A BBS can load legacy and four-bank BMF fonts into 32 slots with `2F` and switch between loaded fonts with `2FSELECT`. On all four desktop pages, `2X` scales a variable-width string to the specified rectangle, draws an optional one-pixel outline, and rotates it about the rectangle center.
 
+Normal mode supports a tile map of up to 150 × 150 cells. The host can fill either layer, move the viewport, move or remove foreground tiles, and animate consecutive sprite frames. Grid assignments become visible on a draw. Movement redraws immediately.
+
 Loose-file queries read the entry’s `DDOFX/MUSIC`, `DDOFX/FONTS`, and `DDOFX/BBSTHEME` directories. Professional queries use `DDOFX/TERMS/<client>`. Names use DOS-style case matching. The timestamp is local modification time with DOS two-second precision. `8EXEC` consumes the command without starting a program.
 
 Resource assignment selects the M container in `DDOFX/BBSTHEME` for local scripts and bitmap fonts and the S container for indexed PCX artwork. Scripts up to 40,000 bytes can call other scripts and render DOS text. A resource entry query tests the member name and component ID. Conditional scripts can also read that ID.
@@ -407,16 +409,16 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 13094 | 3D MERGE OBJECT | DDO-FX (NM) | Pending |
 | 13111 | 3D MORPH OBJECT | DDO-FX (NM) | Pending |
 | 13144 | 3D PLAY OBJECT | DDO-FX (NM) | Pending |
-| 13158 | GD DEFINE GRID | DDO-FX (NM) | Pending |
-| 13236 | GD CHANGE GRID | DDO-FX (NM) | Pending |
-| 13286 | GD FILL GRID | DDO-FX (NM) | Pending |
-| 13322 | GD KILL GRID | DDO-FX (NM) | Pending |
-| 13330 | GD DRAW GRID | DDO-FX (NM) | Pending |
-| 13382 | GD POS GRID | DDO-FX (NM) | Pending |
-| 13410 | GD MOVE GRID | DDO-FX (NM) | Pending |
-| 13432 | GD POS TILE | DDO-FX (NM) | Pending |
-| 13451 | GD MOVE TILE | DDO-FX (NM) | Pending |
-| 13473 | GD KILL TILE | DDO-FX (NM) | Pending |
+| 13158 | GD DEFINE GRID | DDO-FX (NM) | Connected on the desktop |
+| 13236 | GD CHANGE GRID | DDO-FX (NM) | Connected on the desktop |
+| 13286 | GD FILL GRID | DDO-FX (NM) | Connected on the desktop |
+| 13322 | GD KILL GRID | DDO-FX (NM) | Connected on the desktop |
+| 13330 | GD DRAW GRID | DDO-FX (NM) | Connected on the desktop |
+| 13382 | GD POS GRID | DDO-FX (NM) | Connected on the desktop |
+| 13410 | GD MOVE GRID | DDO-FX (NM) | Connected on the desktop |
+| 13432 | GD POS TILE | DDO-FX (NM) | Connected on the desktop |
+| 13451 | GD MOVE TILE | DDO-FX (NM) | Connected on the desktop |
+| 13473 | GD KILL TILE | DDO-FX (NM) | Connected on the desktop |
 | 13488 | SET SLEEP DISCONNECT | DDO-FX (NM) | Pending |
 | 13544 | SET PING | DDO-FX (NM) | Pending |
 | 13620 | ROTATE IMAGE | DDO-FX (NM) | Pending |

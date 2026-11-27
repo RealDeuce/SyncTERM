@@ -49,6 +49,7 @@ st_ddofx_svga(const struct st_ddofx_sink *sink)
 static void
 clear_graphics_objects(struct st_ddofx_graphics *g)
 {
+	st_ddofx_grid_destroy(g, false);
 	free(g->simple);
 	g->simple = NULL;
 	free(g->bars);
