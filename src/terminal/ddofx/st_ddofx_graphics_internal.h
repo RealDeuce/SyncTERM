@@ -30,7 +30,19 @@ struct st_ddofx_sprite {
 	uint8_t *pixels;
 };
 
+struct st_ddofx_mouse_state {
+	struct st_ddofx_regions *regions;
+	int x, y;
+	unsigned buttons;
+	bool ignore_hold, visibility_changed, previous_visibility;
+	struct {
+		unsigned count;
+		int x, y;
+	} history[3][2];
+};
+
 struct st_ddofx_graphics {
+	struct st_ddofx_mouse_state mouse;
 	struct st_ddofx_sprite  sprites[SPRITE_COUNT];
 	struct st_ddofx_bmf    *bitmap_fonts[32];
 	unsigned                bitmap_slot;

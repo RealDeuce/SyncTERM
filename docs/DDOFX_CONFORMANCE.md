@@ -20,6 +20,8 @@ A BBS can load legacy and four-bank BMF fonts into 32 slots with `2F` and switch
 
 The four desktop pages support lower-left anchored image scaling, rotation between pages with a transparent index and independent pivots, palette-based anti-aliasing, and single-index outlines.
 
+In Normal mode the BBS can show or hide the mouse pointer, query its position and three logical buttons, and read separate press and release counts and positions for each button. Up to 300 desktop regions share one table. Overlapping regions run in slot order. Each macro finishes before its return string is sent. Held repeatable regions run at 50 ms intervals during idle input. Non-repeating regions wait for all buttons to be released.
+
 Normal mode supports a tile map of up to 150 × 150 cells. The host can fill either layer, move the viewport, move or remove foreground tiles, and animate consecutive sprite frames. Grid assignments become visible on a draw. Movement redraws immediately.
 
 Loose-file queries read the entry’s `DDOFX/MUSIC`, `DDOFX/FONTS`, and `DDOFX/BBSTHEME` directories. Professional queries use `DDOFX/TERMS/<client>`. Names use DOS-style case matching. The timestamp is local modification time with DOS two-second precision. `8EXEC` consumes the command without starting a program.
@@ -138,7 +140,7 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 4886 | PRINT TEXT FILE | DDO-FX LITE | Pending |
 | 4940 | LABEL | DDO-FX LITE | Connected |
 | 4955 | RESET ENVIRONMENT | DDO-FX LITE | Connected for implemented scene objects |
-| 5436 | DETECT MOUSE | DDO-FX (NM) | Pending |
+| 5436 | DETECT MOUSE | DDO-FX (NM) | Connected |
 | 5457 | OPEN GRAPHIC TEXT WINDOW | DDO-FX (NM) | Pending |
 | 5780 | GOTO CURSOR | DDO-FX (NM) | Pending |
 | 5819 | CLOSE WINDOW | DDO-FX (NM) | Pending |
@@ -283,21 +285,21 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 8624 | DRAW BEZIER CURVE | DDO-FX (NM) | Connected |
 | 8646 | DRAW BEZIER CURVE XOR | DDO-FX (NM) | Connected |
 | 8656 | VERTICAL SCROLL | DDO-FX (NM) | Connected |
-| 8694 | MOUSE ACTIVE | DDO-FX (NM) | Pending |
+| 8694 | MOUSE ACTIVE | DDO-FX (NM) | Connected |
 | 8713 | CHANGE MOUSE POINTER | DDO-FX (NM) | Pending |
 | 8750 | LOAD MOUSE POINTER | DDO-FX (NM) | Pending |
 | 8776 | SELECT MOUSE POINTER | DDO-FX (NM) | Pending |
 | 8786 | ANIMATED MOUSE POINTER | DDO-FX (NM) | Pending |
 | 8837 | ACTIVATE ANIMATED MOUSE | DDO-FX (NM) | Pending |
 | 8846 | DEACTIVATE ANIMATED MOUSE | DDO-FX (NM) | Pending |
-| 8855 | MOUSE VISIBILITY | DDO-FX (NM) | Pending |
+| 8855 | MOUSE VISIBILITY | DDO-FX (NM) | Connected |
 | 8866 | MOUSE LIMITS | DDO-FX (NM) | Pending |
 | 8875 | MOUSE MOVE | DDO-FX (NM) | Pending |
-| 8890 | MOUSE INFO | DDO-FX (NM) | Pending |
-| 8928 | MOUSE INFO OLD | DDO-FX (NM) | Pending |
+| 8890 | MOUSE INFO | DDO-FX (NM) | Connected |
+| 8928 | MOUSE INFO OLD | DDO-FX (NM) | Connected |
 | 8958 | MOUSE SPEED | DDO-FX (NM) | Pending |
-| 8968 | MOUSE REGION | DDO-FX (NM) | Pending |
-| 9189 | MOUSE REGION NON REPEAT | DDO-FX (NM) | Pending |
+| 8968 | MOUSE REGION | DDO-FX (NM) | Desktop regions |
+| 9189 | MOUSE REGION NON REPEAT | DDO-FX (NM) | Desktop regions |
 | 9211 | MOUSE FIELD | DDO-FX (NM) | Pending |
 | 9292 | MOUSE FIELD SWAP | DDO-FX (NM) | Pending |
 | 9302 | MOUSE FIELD FRESHEN | DDO-FX (NM) | Pending |

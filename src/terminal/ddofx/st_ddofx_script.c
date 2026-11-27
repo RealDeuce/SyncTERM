@@ -43,7 +43,8 @@ struct macro_frame {
 	bool                   until;
 	struct predicate       condition;
 	char                   after_reply[101];
-	bool                   callback, key, saved_in_event;
+	enum st_ddofx_callback_kind callback;
+	bool saved_in_event;
 	uint64_t               saved_wait;
 };
 
@@ -352,13 +353,14 @@ st_ddofx_callback_define(const struct st_ddofx *ddo, struct st_ddofx_callback *c
 }
 
 bool
-st_ddofx_callback_start(struct st_ddofx *ddo, const struct st_ddofx_callback *cb, bool key)
+st_ddofx_callback_start(struct st_ddofx *ddo, const struct st_ddofx_callback *cb, enum st_ddofx_callback_kind kind)
 {
+	if (!script_ready(ddo))
+		return false;
 	struct macro_frame *f = push(ddo->script);
 	if (f != NULL) {
-		f->key           = key;
 		f->saved_in_event = ddo->in_event;
-		f->callback         = true;
+		f->callback      = kind;
 		f->saved_wait    = ddo->wait_until;
 		ddo->wait_until  = 0;
 		ddo->in_event    = true;
@@ -654,14 +656,16 @@ st_ddofx_script_step(struct st_ddofx *ddo, const struct st_ddofx_sink *sink)
 		}
 	}
 	else if (--f->remaining <= 0) {
-		bool key = f->key;
+		enum st_ddofx_callback_kind kind = f->callback;
 		if (f->callback) {
 			ddo->in_event   = f->saved_in_event;
 			ddo->wait_until = f->saved_wait;
 			send_reply(sink, f->after_reply);
 		}
 		pop(s);
-		return key ? st_ddofx_resume_key(ddo, sink) : 0;
+		if (kind == DDO_MOUSE)
+			st_ddofx_resume_mouse(ddo);
+		return kind == DDO_KEY ? st_ddofx_resume_key(ddo, sink) : 0;
 	}
 	f->position = 0;
 	f->framer   = (struct st_ddofx_framer) {0};

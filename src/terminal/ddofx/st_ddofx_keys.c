@@ -202,7 +202,7 @@ next_binding(struct st_ddofx *ddo)
 	while (keys->next < keys->count) {
 		struct binding *b = &keys->bindings[keys->next++];
 		if (b->word && (b->word == keys->word || b->word == UINT16_MAX))
-			return st_ddofx_callback_start(ddo, &b->callback, true);
+			return st_ddofx_callback_start(ddo, &b->callback, DDO_KEY);
 	}
 	return false;
 }

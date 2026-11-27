@@ -9,8 +9,10 @@ struct st_ddofx_callback {
 	bool resource_text;
 };
 
+enum st_ddofx_callback_kind { DDO_EVENT = 1, DDO_KEY, DDO_MOUSE };
+void st_ddofx_resume_mouse(struct st_ddofx *);
 void     st_ddofx_callback_define(const struct st_ddofx *, struct st_ddofx_callback *, const char *, const char *);
-bool     st_ddofx_callback_start(struct st_ddofx *, const struct st_ddofx_callback *, bool key);
+bool     st_ddofx_callback_start(struct st_ddofx *, const struct st_ddofx_callback *, enum st_ddofx_callback_kind);
 void     st_ddofx_define_key(struct st_ddofx *, char *args);
 void     st_ddofx_clear_keys(struct st_ddofx *);
 int      st_ddofx_resume_key(struct st_ddofx *, const struct st_ddofx_sink *);

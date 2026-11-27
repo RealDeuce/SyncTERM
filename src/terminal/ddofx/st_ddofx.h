@@ -45,12 +45,13 @@ struct st_ddofx {
 	struct st_tracker       *player;
 	struct st_cmf           *cmf;
 	unsigned                 volume;
-	bool                     keys_locked, in_key;
+	bool                     keys_locked, in_key, in_mouse;
 	bool                     ignoring, background_paused, in_event;
 };
 
 struct st_ddofx_sink {
 	void               *context;
+	bool                mouse_disabled;
 	st_audio_runtime_t *audio;
 	const struct st_cterm_config *text_config;
 	FILE               *(*open_asset)(void *, const char *category, const char *client, const char *name);
@@ -61,6 +62,8 @@ struct st_ddofx_sink {
 	void                (*reply)(void *, const uint8_t *, size_t);
 };
 
+void st_ddofx_mouse(struct st_ddofx *, const struct st_console_event *);
+void st_ddofx_mouse_cancel(struct st_ddofx *, uint32_t buttons);
 bool st_ddofx_key(struct st_ddofx *, const struct st_console_event *);
 uint32_t st_ddofx_wait_ms(const struct st_ddofx *);
 bool     st_ddofx_busy(const struct st_ddofx *);

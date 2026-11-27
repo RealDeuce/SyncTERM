@@ -579,6 +579,44 @@ def check_key_macros(t):
             t.exchange(commands(b"2GEXIT"))
 
 
+def check_mouse(t):
+    t.case("Normal mouse region callbacks and button history")
+    frame = t.exchange(commands(b"LIGMODE", b"LIGMODE", b"3MACT", b"dMOUSE"), b"Y\xff3\xff")
+    m = frame.metadata
+    assert not t.exchange(commands(b"3MVIS,0", b"3MVIS,5")).metadata["pointer_visible"]
+    assert t.exchange(commands(b"3MVIS,1")).metadata["pointer_visible"]
+
+    def mouse(x, y, buttons):
+        px = m["destination_x"] + (2*x+1)*m["destination_width"]//(2*m["plane_width"])
+        py = m["destination_y"] + (2*y+1)*m["destination_height"]//(2*m["plane_height"])
+        before = t.client.capture().metadata["events_dequeued"]
+        t.client.mouse(px, py, action=1, buttons=buttons)
+        t.client.wait_for(lambda s: s.metadata["events_dequeued"] > before)
+
+    t.exchange(commands(b"3MREGN,300,70,85,40,55,3,B,", b"7DEFRET,1,M",
+                        b"3MREGN,1,70,85,40,55,3,A~^M,\x1d(w1)\x1d(7SRET,1)",
+                        b"3MREG,1,90,85,40,55,3,BAD,"))
+    mouse(70, 55, 5)  # Left + right, exactly on a corner
+    mouse(20, 30, 4)
+    mouse(20, 30, 0)
+    t.input(b"MA,\rB")
+    t.exchange(commands(b"3MINF", b"3MIOLD,2", b"3MIOLD,-1", b"3MIOLD,2"),
+               b"20,30,0\xff1,70,55\xff1,20,30\xff0,70,55\xff")
+
+    # A held middle button can enter a repeatable region. Its macro clears
+    # the table on the third invocation, without another local input event.
+    t.exchange(commands(b"3MREGN,0", b"~DEFVAR,1,2,0",
+                        b"3MREG,1,70,85,40,55,4,R,\x1d(~INCVAR,1)\x1d(~IFVAR,DEFVAR1,=,3,\x1d[3MREGN,0])"))
+    mouse(20, 30, 2)
+    t.exchange(commands(b"3MINF"), b"20,30,4\xff")
+    mouse(85, 40, 2)
+    t.input(b"RRR")
+    mouse(85, 40, 0)
+    end = t.exchange(commands(b"3MIOLD,-3", b"2RESET", b"3MVIS,0", b"2GEXIT", b"dVIDMODE"),
+                     b"1,85,40\xff0\xff")
+    assert end.metadata["pointer_visible"] == m["pointer_visible"]
+
+
 def check_events(t):
     # A repeating event counts to two and then deactivates itself. No more
     # bytes arrive from the BBS while the callbacks run.
@@ -635,6 +673,7 @@ def run(args):
         check_events(t)
         check_lite_reset(t)
         check_key_macros(t)
+        check_mouse(t)
         check_vga_font(t, fixture[1])
         check_graphics(t, fixture[1])
         glyph = "é".encode("utf-8" if args.encoding == "UTF-8" else "cp437")

@@ -49,6 +49,10 @@ st_ddofx_svga(const struct st_ddofx_sink *sink)
 static void
 clear_graphics_objects(struct st_ddofx_graphics *g)
 {
+	if (g->mouse.visibility_changed)
+		(void)st_console_set_pointer_visible(g->display, g->mouse.previous_visibility);
+	free(g->mouse.regions);
+	g->mouse = (struct st_ddofx_mouse_state){0};
 	st_ddofx_grid_destroy(g, false);
 	free(g->simple);
 	g->simple = NULL;

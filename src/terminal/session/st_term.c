@@ -967,6 +967,7 @@ st_term_session_set_suspended(st_term_session_t *session, bool suspended)
 			session->throttle_last_ms = 0;
 		session->suspended = suspended;
 		if (suspended) {
+			st_ddofx_mouse_cancel(&session->ddofx, 0);
 			session->controller_refresh = true;
 			st_cterm_pad_pause(st_term_session_cterm(session), true);
 		}
@@ -979,8 +980,10 @@ st_term_session_set_mouse_disabled(st_term_session_t *session, bool disabled)
 {
 	if (session != NULL) {
 		session->mouse_disabled = disabled;
-		if (disabled)
+		if (disabled) {
+			st_ddofx_mouse_cancel(&session->ddofx, 0);
 			st_term_rip3_mouse_cancel(session->rip3, false);
+		}
 	}
 }
 
@@ -989,7 +992,7 @@ st_term_session_mouse_mode(st_term_session_t *session)
 {
 	if (session == NULL)
 		return 0;
-	if (st_term_rip3_mouse_active(session->rip3))
+	if ((session->ddofx.graphics && ddofx_can_run(session)) || st_term_rip3_mouse_active(session->rip3))
 		return 1;
 	return st_cterm_mouse_mode(st_term_session_cterm(session));
 }
@@ -1276,6 +1279,7 @@ ddofx_sink(st_term_session_t *session)
 	    .text          = ddofx_text,
 	    .resource_text = render_cp437_resource,
 	    .pass_key      = ddofx_pass_key,
+	    .mouse_disabled = session->mouse_disabled,
 	    .text_config   = &session->ddofx_text_config,
 	    .reply         = protocol_reply,
 	    .open_asset    = ddofx_open_asset,
@@ -1675,6 +1679,7 @@ deliver_key(st_term_session_t *session, const struct st_console_event *event, bo
 static void
 sync_buttons(st_term_session_t *session, uint32_t buttons)
 {
+	st_ddofx_mouse_cancel(&session->ddofx, buttons);
 	st_term_rip3_sync_mouse_buttons(session->rip3, buttons);
 	st_graphics_sync_mouse_buttons(st_term_session_cterm(session), buttons);
 }
@@ -1700,7 +1705,11 @@ deliver_input(st_term_session_t *session, const struct local_input *input, bool 
 			return deliver_key(session, event, handled);
 		case ST_CONSOLE_EVENT_MOUSE:
 			if (!session->mouse_disabled) {
-				if (!st_term_rip3_mouse(session->rip3, event))
+				if (session->ddofx.graphics && ddofx_can_run(session)) {
+					st_ddofx_mouse(&session->ddofx, event);
+					st_cterm_sync_mouse_buttons(st_term_session_cterm(session), event->data.mouse.buttons);
+				}
+				else if (!st_term_rip3_mouse(session->rip3, event))
 					(void)st_graphics_handle_mouse(st_term_session_cterm(session), event);
 				else
 					st_cterm_sync_mouse_buttons(st_term_session_cterm(session),
@@ -1715,10 +1724,11 @@ deliver_input(st_term_session_t *session, const struct local_input *input, bool 
 			return session->output_error;
 		case ST_CONSOLE_EVENT_FOCUS:
 			session->unfocused = !event->data.focus.focused;
-			if (session->unfocused)
+			if (session->unfocused) {
+				st_ddofx_mouse_cancel(&session->ddofx, 0);
 				st_cterm_pad_pause(st_term_session_cterm(session), true);
-			if (!event->data.focus.focused)
 				st_term_rip3_mouse_cancel(session->rip3, true);
+			}
 			(void)st_cterm_handle_focus(st_term_session_cterm(session), event->data.focus.focused);
 			return session->output_error;
 		case ST_CONSOLE_EVENT_RESIZE:
@@ -1768,7 +1778,7 @@ deliver_deferred(st_term_session_t *session)
 static bool
 graphics_input_pending(const st_term_session_t *session)
 {
-	return session->ddofx.in_key || st_term_rip3_graphical_pending(session->rip3);
+	return session->ddofx.in_key || session->ddofx.in_mouse || st_term_rip3_graphical_pending(session->rip3);
 }
 
 static int

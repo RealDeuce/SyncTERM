@@ -96,6 +96,10 @@ st_ddofx_builtin(const struct st_ddofx *ddo, const struct st_ddofx_sink *sink, c
 		strcpy(result, "LITERM Ver. 2.00");
 	else if (!ascii_case_compare(name, "VCARD"))
 		strcpy(result, st_ddofx_svga(sink) ? "S" : "V");
+	else if (ddo->graphics && !ascii_case_compare(name, "MOUSE")) {
+		strcpy(result, sink->mouse_disabled ? "0" : "3");
+		*numeric = true;
+	}
 	else if (!ascii_case_compare(name, "GETFONT"))
 		strcpy(result, st_ddofx_vga_font_name(ddo));
 	else if (!ascii_case_compare(name, "GETMUSIC"))
@@ -227,6 +231,8 @@ execute(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *body)
 		if (ddo->graphics != NULL)
 			st_ddofx_graphics_command(ddo, sink, body);
 	}
+	else if (body[0] == '3' && ddo->graphics)
+		st_ddofx_mouse_command(ddo, sink, body + 1);
 	else if (body[0] == '5' && ddo->graphics)
 		st_ddofx_gadget_command(ddo, body);
 	else if (body[0] == '*')
@@ -400,6 +406,9 @@ st_ddofx_wait_ms(const struct st_ddofx *ddo)
 	uint32_t bars = st_ddofx_bar_wait_ms(ddo);
 	uint32_t wait = audio < event ? audio : event;
 	uint32_t grid = st_ddofx_grid_wait_ms(ddo);
+	uint32_t mouse = st_ddofx_mouse_wait_ms(ddo);
+	if (mouse < wait)
+		wait = mouse;
 	if (grid < wait)
 		wait = grid;
 	return bars < wait ? bars : wait;
@@ -412,6 +421,7 @@ st_ddofx_poll(struct st_ddofx *ddo, const struct st_ddofx_sink *sink)
 	st_ddofx_bar_poll(ddo);
 	st_ddofx_grid_poll(ddo);
 	st_ddofx_event_poll(ddo);
+	st_ddofx_mouse_poll(ddo);
 	/* Yield back to the session between slices so long or infinite scripts
 	 * cannot prevent local disconnect, redraws or transfer servicing. */
 	for (unsigned i = 0; i < 128; ++i) {
