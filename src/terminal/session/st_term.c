@@ -2224,9 +2224,9 @@ st_term_session_wait(st_term_session_t *session, uint32_t timeout_ms)
 	        || session->musicomm != NULL || st_cterm_needs_poll(st_term_session_cterm(session))))
 		timeout_ms = 1;
 	if (ddofx_can_run(session)) {
-		uint32_t event_wait = st_ddofx_event_wait_ms(&session->ddofx);
-		if (timeout_ms > event_wait)
-			timeout_ms = event_wait;
+		uint32_t ddofx_wait = st_ddofx_wait_ms(&session->ddofx);
+		if (timeout_ms > ddofx_wait)
+			timeout_ms = ddofx_wait;
 	}
 	uint32_t controller_wait = st_controllers_wait_ms(session->config.controllers);
 	if (timeout_ms > controller_wait)

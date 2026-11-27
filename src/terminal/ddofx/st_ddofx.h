@@ -25,17 +25,18 @@ struct st_ddofx_framer {
 };
 
 struct st_ddofx {
-	struct st_ddofx_framer  wire;
-	struct st_ddofx_script *script;
-	struct st_ddofx_events *events;
-	uint8_t                *queued;
-	size_t                  queued_start, queued_end;
-	uint64_t                wait_until;
-	char                    music_name[ST_DDOFX_BODY_MAX + 1];
-	char                    resource_prefix[12];
-	struct st_tracker      *player;
-	unsigned                volume;
-	bool                    ignoring, background_paused, in_event;
+	struct st_ddofx_framer   wire;
+	struct st_ddofx_script  *script;
+	struct st_ddofx_events  *events;
+	struct st_ddofx_samples *samples;
+	uint8_t                 *queued;
+	size_t                   queued_start, queued_end;
+	uint64_t                 wait_until;
+	char                     music_name[ST_DDOFX_BODY_MAX + 1];
+	char                     resource_prefix[12];
+	struct st_tracker       *player;
+	unsigned                 volume;
+	bool                     ignoring, background_paused, in_event;
 };
 
 struct st_ddofx_sink {
@@ -48,7 +49,7 @@ struct st_ddofx_sink {
 	void                (*reply)(void *, const uint8_t *, size_t);
 };
 
-uint32_t st_ddofx_event_wait_ms(const struct st_ddofx *);
+uint32_t st_ddofx_wait_ms(const struct st_ddofx *);
 bool     st_ddofx_busy(const struct st_ddofx *);
 int      st_ddofx_poll(struct st_ddofx *, const struct st_ddofx_sink *);
 void     st_ddofx_reset(struct st_ddofx *);

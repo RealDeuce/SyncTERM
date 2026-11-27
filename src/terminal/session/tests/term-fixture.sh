@@ -8,6 +8,13 @@ rip)
 	stty raw -echo
 	exec "$ST_RIP_TEST_PYTHON" "@CMAKE_CURRENT_BINARY_DIR@/../../scripting/wren_host/rip-peer.py" "$2"
 	;;
+ddofx-audio)
+	stty raw -echo
+	printf '\035{dSOUNDON}'
+	test "$(dd bs=1 count=4 2>/dev/null | od -An -tx1 | tr -d ' \n')" = 594553ff
+	printf '\035{MPREAL,ramp.rlp,44100}!'
+	dd bs=1 count=1 >/dev/null 2>&1
+	;;
 auto-transfer)
 	stty raw -echo
 	printf 'BEFORE**\030B00000000000000\r\n\021'

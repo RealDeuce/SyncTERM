@@ -15,6 +15,7 @@ int main(void) {
 }
 ]=])
 add_library(st_tracker STATIC st_tracker.c)
+syncterm_target_atomics(st_tracker)
 target_include_directories(st_tracker PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(st_tracker PUBLIC st_audio PRIVATE ${ST_DEP_OPENMPT_TARGET})
 set_target_properties(st_tracker PROPERTIES C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)

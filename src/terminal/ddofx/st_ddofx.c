@@ -8,6 +8,7 @@
 #include "filesystem.h"
 #include "io_error.h"
 #include "st_ddofx_resource.h"
+#include "st_ddofx_samples.h"
 #include "st_ddofx_script.h"
 #include "st_time.h"
 #include "string_util.h"
@@ -27,8 +28,8 @@ argument(const struct st_ddofx *ddo, const char *body, const char *name, int32_t
 	       && body[length] == ',' && st_ddofx_number(ddo, body + length + 1, value);
 }
 
-static void
-query_reply(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, const char *text, bool numeric)
+void
+st_ddofx_query_reply(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, const char *text, bool numeric)
 {
 	if (st_ddofx_capture(ddo, text, numeric))
 		return;
@@ -93,7 +94,9 @@ st_ddofx_builtin(const struct st_ddofx *ddo, const struct st_ddofx_sink *sink, c
 		strcpy(result, "LITERM Ver. 2.00");
 	else if (!ascii_case_compare(name, "GETMUSIC"))
 		strcpy(result, ddo->player == NULL ? "NONE" : ddo->music_name);
-	else if (!ascii_case_compare(name, "MUSICON"))
+	else if (!ascii_case_compare(name, "GETTHEME"))
+		strcpy(result, st_ddofx_theme_name(ddo));
+	else if (!ascii_case_compare(name, "MUSICON") || !ascii_case_compare(name, "SOUNDON"))
 		strcpy(result,
 		    st_audio_runtime_is_pull(sink->audio) || st_audio_runtime_allowed(sink->audio) ? "YES" : "NO");
 	else if (ascii_case_ncompare(name, "RESOURCE|", 9) == 0) {
@@ -145,6 +148,7 @@ st_ddofx_reset(struct st_ddofx *ddo)
 {
 	free(ddo->queued);
 	free(ddo->events);
+	st_ddofx_samples_destroy(ddo);
 	st_ddofx_script_destroy(ddo);
 	st_tracker_destroy(ddo->player);
 	*ddo = (struct st_ddofx) {.volume = 64};
@@ -178,16 +182,16 @@ execute(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *body)
 		int32_t     id;
 		bool        found = member != NULL && args != NULL && st_ddofx_number(ddo, args, &id) && id >= 0
 		                    && id <= 64000 && resource_id(ddo, sink, container, member, id) >= 0;
-		query_reply(ddo, sink, found ? "YES" : "NO", false);
+		st_ddofx_query_reply(ddo, sink, found ? "YES" : "NO", false);
 	}
 	else if (body[0] == 'd' && ascii_case_ncompare(body + 1, "RESOURCE|", 9) != 0) {
 		char result[ST_DDOFX_BODY_MAX + 1];
 		bool numeric;
 		if (st_ddofx_builtin(ddo, sink, body + 1, result, &numeric))
-			query_reply(ddo, sink, result, numeric);
+			st_ddofx_query_reply(ddo, sink, result, numeric);
 	}
 	else if (ascii_case_ncompare(body, "8CDIR,", 6) == 0)
-		query_reply(ddo, sink,
+		st_ddofx_query_reply(ddo, sink,
 		    sink->client_exists(sink->context, st_ddofx_value(ddo, body + 6)) ? "Y" : "N", false);
 	else if (ascii_case_ncompare(body, "8CFILE,", 7) == 0) {
 		char *client = (char *)body + 7;
@@ -197,11 +201,13 @@ execute(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *body)
 			char result[ST_DDOFX_BODY_MAX + 1];
 			file_record(result, sink, "TERMS", st_ddofx_value(ddo, client),
 			    st_ddofx_value(ddo, comma + 1));
-			query_reply(ddo, sink, result, false);
+			st_ddofx_query_reply(ddo, sink, result, false);
 		}
 		else
-			query_reply(ddo, sink, "N", false);
+			st_ddofx_query_reply(ddo, sink, "N", false);
 	}
+	else if (st_ddofx_samples_command(ddo, sink, body))
+		return;
 	else if (body[0] == 'm')
 		music(ddo, sink, st_ddofx_value(ddo, body + 1));
 	else if (body[0] == 'w') {
@@ -215,7 +221,7 @@ execute(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *body)
 	else if (matches(body, "MGVOL")) {
 		char volume[4];
 		snprintf(volume, sizeof(volume), "%u", ddo->volume);
-		query_reply(ddo, sink, volume, true);
+		st_ddofx_query_reply(ddo, sink, volume, true);
 	}
 	else {
 		int32_t value;
@@ -311,9 +317,17 @@ st_ddofx_busy(const struct st_ddofx *ddo)
 	return ddo->wait_until != 0 || st_ddofx_script_active(ddo) || ddo->queued_start != ddo->queued_end;
 }
 
+uint32_t
+st_ddofx_wait_ms(const struct st_ddofx *ddo)
+{
+	uint32_t audio = st_ddofx_sample_wait_ms(ddo), event = st_ddofx_event_wait_ms(ddo);
+	return audio < event ? audio : event;
+}
+
 int
 st_ddofx_poll(struct st_ddofx *ddo, const struct st_ddofx_sink *sink)
 {
+	st_ddofx_samples_poll(ddo);
 	st_ddofx_event_poll(ddo);
 	/* Yield back to the session between slices so long or infinite scripts
 	 * cannot prevent local disconnect, redraws or transfer servicing. */

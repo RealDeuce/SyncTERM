@@ -1,4 +1,5 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
+#include <math.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -57,9 +58,66 @@ make_s3m(uint8_t *bytes)
 }
 
 static FILE *
+sample_asset(const char *name)
+{
+	static const struct {
+		const char *name;
+		uint8_t     sample;
+	} entries[] = {
+	    {"SAM2.SAM", 40 },
+            {"SAM1.SAM", 32 },
+            {"SAM8.SAM", 224},
+            {"SEG1.SAM", 2  },
+            {"SEG2.SAM", 254}
+        };
+
+	if (strcmp(name, "BANK.THE") && strcmp(name, "LONG.RLP"))
+		return NULL;
+	FILE *file = tmpfile();
+	if (file == NULL)
+		return NULL;
+	if (!strcmp(name, "LONG.RLP")) {
+		uint8_t block[2048];
+		for (int i = 1; i <= 8; ++i) {
+			memset(block, i, sizeof(block));
+			if (fwrite(block, 1, sizeof(block), file) != sizeof(block))
+				goto failed;
+		}
+	}
+	else {
+		uint8_t directory[792] = {0};
+		for (unsigned i = 0; i < 33; ++i)
+			directory[24 * i] = 0xff;
+		for (unsigned i = 0; i < sizeof(entries) / sizeof(entries[0]); ++i) {
+			uint8_t *record = directory + i * 24;
+			memcpy(record, entries[i].name, strlen(entries[i].name));
+			size_t offset = sizeof(directory) + i * 4;
+			record[12]    = (uint8_t)offset;
+			record[13]    = (uint8_t)(offset >> 8);
+			record[16]    = 4;
+		}
+		if (fwrite(directory, 1, sizeof(directory), file) != sizeof(directory))
+			goto failed;
+		for (unsigned i = 0; i < sizeof(entries) / sizeof(entries[0]); ++i) {
+			uint8_t data[4];
+			memset(data, entries[i].sample, sizeof(data));
+			if (fwrite(data, 1, sizeof(data), file) != sizeof(data))
+				goto failed;
+		}
+	}
+	rewind(file);
+	return file;
+failed:
+	fclose(file);
+	return NULL;
+}
+
+static FILE *
 open_music(void *context, const char *category, const char *client, const char *name)
 {
 	(void)context;
+	if (client == NULL && !strcmp(category, "BBSTHEME"))
+		return sample_asset(name);
 	if (client != NULL || strcmp(category, "MUSIC") != 0)
 		return NULL;
 	uint8_t data[2172] = {0};
@@ -124,6 +182,104 @@ has_signal(st_audio_runtime_t *audio)
 	return false;
 }
 
+static bool
+pull_level(st_audio_runtime_t *audio, size_t frames, int expected)
+{
+	int16_t pcm[4096];
+	if (frames > 2048 || st_audio_runtime_pull(audio, pcm, frames) != 0)
+		return false;
+	/* Unity envelope is Q15 32767. The final mix soft-clips both channels. */
+	double scaled = floor(expected * 256.0 * 32767.0 / 32768.0);
+	int    level  = (int)(32767.0 * tanh(scaled / 32767.0));
+	for (size_t i = 0; i < frames * 2; ++i)
+		if (pcm[i] != level) {
+			fprintf(stderr, "PCM index %zu: %d expected %d\n", i, (int)pcm[i], level);
+			return false;
+		}
+	return true;
+}
+
+static int
+check_samples(struct st_ddofx *ddo, struct st_ddofx_sink *sink)
+{
+#define CMD(body)             CHECK(command_reply(ddo, sink, body, ""))
+#define QUERY(body, expected) CHECK(command_reply(ddo, sink, body, expected "\xff"))
+#define LEVEL(frames, v)      CHECK(pull_level(sink->audio, frames, v))
+	QUERY("dSOUNDON", "YES");
+	QUERY("dGETTHEME", "NONE");
+	CMD("tBANK.THE");
+	CMD("tMISSING");
+	QUERY("dGETTHEME", "BANK.THE");
+	CMD("p1");
+	LEVEL(21, 32); /* ceil(4 * 44100 / 8500) */
+	LEVEL(2, 0);
+	CMD("P2,22050");
+	LEVEL(8, 40);
+	LEVEL(1, 0);
+	CMD("p8"); /* Whole-theme loading stopped at the missing SAM3.SAM. */
+	LEVEL(1, 0);
+	CMD("tb,BANK.THE");
+	CMD("tb8");
+	CMD("tb1");
+	CMD("pb1");
+	LEVEL(1, -32);
+	CMD("PB2,44100");
+	LEVEL(4, 32);
+	LEVEL(1, 0);
+	CMD("tbLOAD");
+	CMD("PB2,44100");
+	LEVEL(3, 40);
+	CMD("tbNONE");
+	LEVEL(2, 0);
+
+	QUERY("6CHECKBS,150", "N/A");
+	CMD("6DEFBSND,150,2");
+	CMD("6ADDBSND,150,SAM8.SAM");
+	CMD("6ADDBSND,150,MISSING");
+	CMD("6PLAYBS,150,44100");
+	QUERY("6CHECKBS,150", "N/A");
+	LEVEL(1, 0);
+	CMD("6ADDBSND,150,SAM2.SAM");
+	QUERY("6CHECKBS,150", "0");
+	CMD("6PLAYBS,150,44100");
+	QUERY("6CHECKBS,150", "1");
+	LEVEL(4, -32);
+	LEVEL(4, 40);
+	QUERY("6CHECKBS,150", "0");
+	CMD("6LBSOUND,1,SEG");
+	CMD("6PLAYBS,1,44100");
+	LEVEL(4, 2);
+	LEVEL(1, -2);
+	CMD("P1,44100");
+	QUERY("6CHECKBS,1", "0");
+	LEVEL(4, 32);
+	CMD("6PLAYBS,1,1");
+	CMD("6UNLOADBS,1");
+	LEVEL(4, 0);
+	QUERY("6CHECKBS,1", "N/A");
+	CMD("6UNLOADBS,0");
+	QUERY("6CHECKBS,150", "N/A");
+
+	CMD("MPREAL,LONG.RLP,44100");
+	for (int i = 1; i <= 8; ++i) {
+		LEVEL(2048, i);
+		CHECK(st_ddofx_poll(ddo, sink) == 0);
+	}
+	LEVEL(1, 0);
+	CMD("MPREAL,LONG.RLP,44100");
+	LEVEL(5, 1);
+	CMD("P1,44100");
+	LEVEL(4, 32);
+	CHECK(st_ddofx_poll(ddo, sink) == 0);
+	LEVEL(1, 0);
+	CMD("tNONE");
+	QUERY("dGETTHEME", "NONE");
+#undef CMD
+#undef QUERY
+#undef LEVEL
+	return 0;
+}
+
 int
 main(void)
 {
@@ -153,6 +309,8 @@ main(void)
 	CHECK(command_reply(&ddo, &sink, "mNONE", ""));
 	CHECK(!has_signal(sink.audio));
 	CHECK(command_reply(&ddo, &sink, "dGETMUSIC", "NONE\xff"));
+	CHECK(check_samples(&ddo, &sink) == 0);
+	CHECK(command_reply(&ddo, &sink, "MPREAL,LONG.RLP,8000", ""));
 	CHECK(command_reply(&ddo, &sink, "mB", ""));
 	st_audio_runtime_close_device(sink.audio);
 	st_ddofx_reset(&ddo);

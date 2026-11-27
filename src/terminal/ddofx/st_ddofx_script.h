@@ -9,13 +9,15 @@ struct st_ddofx_callback {
 	bool resource_text;
 };
 
-void  st_ddofx_callback_define(const struct st_ddofx *, struct st_ddofx_callback *, const char *, const char *);
-void  st_ddofx_callback_start(struct st_ddofx *, const struct st_ddofx_callback *);
-char *st_ddofx_field(char **);
-bool  st_ddofx_field_number(const struct st_ddofx *, char **, int32_t *);
-void  st_ddofx_event_command(struct st_ddofx *, const char *, char *);
-void  st_ddofx_event_poll(struct st_ddofx *);
+void     st_ddofx_callback_define(const struct st_ddofx *, struct st_ddofx_callback *, const char *, const char *);
+void     st_ddofx_callback_start(struct st_ddofx *, const struct st_ddofx_callback *);
+char    *st_ddofx_field(char **);
+bool     st_ddofx_field_number(const struct st_ddofx *, char **, int32_t *);
+void     st_ddofx_event_command(struct st_ddofx *, const char *, char *);
+uint32_t st_ddofx_event_wait_ms(const struct st_ddofx *);
+void     st_ddofx_event_poll(struct st_ddofx *);
 
+void st_ddofx_query_reply(struct st_ddofx *, const struct st_ddofx_sink *, const char *, bool numeric);
 bool st_ddofx_builtin(const struct st_ddofx *, const struct st_ddofx_sink *, const char *,
     char result[ST_DDOFX_BODY_MAX + 1], bool *numeric);
 int  st_ddofx_parse(struct st_ddofx *, struct st_ddofx_framer *, const struct st_ddofx_sink *, const uint8_t *,

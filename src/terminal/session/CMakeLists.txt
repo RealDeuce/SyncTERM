@@ -34,6 +34,13 @@ if(BUILD_TESTING)
 	endif()
 	add_test(NAME term_rip3_view COMMAND st_term_rip3_view_test)
 	if(NOT WIN32)
+		add_executable(st_term_ddofx_audio_test tests/st_term_ddofx_audio_test.c)
+		target_link_libraries(st_term_ddofx_audio_test PRIVATE st_term st_audio st_time)
+		set_target_properties(st_term_ddofx_audio_test PROPERTIES C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		target_compile_options(st_term_ddofx_audio_test PRIVATE -Wall -Wextra -Wpedantic)
+		add_test(NAME ddofx_session_audio COMMAND st_term_ddofx_audio_test "${CMAKE_CURRENT_SOURCE_DIR}/../ddofx/tests")
+		set_tests_properties(ddofx_session_audio PROPERTIES TIMEOUT 15)
+
 		add_executable(st_term_big_pacing_test tests/st_term_big_pacing_test.c)
 		target_link_libraries(st_term_big_pacing_test PRIVATE st_term st_big_terminal)
 		set_target_properties(st_term_big_pacing_test PROPERTIES

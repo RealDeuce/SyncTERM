@@ -6,6 +6,8 @@ The inventory follows the 439 host-to-client command definitions in the 2.00 SDK
 
 Connected tests cover framing, detection, and ignore/hear across CP437 and UTF-8 sessions. Place MOD and S3M files in the entry’s `DDOFX/MUSIC` cache directory. The `m` command selects the decoder by file content and plays through SyncTERM’s stereo mixer. A missing file leaves the previous song playing. The headless music test drives DDO commands and checks PCM from both formats. Music bars, CMF, and ZIP installation are pending.
 
+BBS sound themes, resident sound bites and big-sample profiles use signed 8-bit PCM from the entry’s `DDOFX/BBSTHEME` resources. RealPlay streams loose sample files from the same directory. The mixer advances the samples at the requested frequency alongside MOD or S3M playback. A connected peer checks `dSOUNDON` and starts RealPlay from the cache. The test reads the resulting stereo frames from a pull-only audio device.
+
 Loose-file queries read the entry’s `DDOFX/MUSIC`, `DDOFX/FONTS`, and `DDOFX/BBSTHEME` directories. Professional queries use `DDOFX/TERMS/<client>`. Names use DOS-style case matching. The timestamp is local modification time with DOS two-second precision. `8EXEC` consumes the command without starting a program.
 
 Resource assignment selects the M container in `DDOFX/BBSTHEME` for local scripts. Scripts up to 40,000 bytes can call other scripts and render DOS text. A resource entry query tests the member name and component ID. Conditional scripts can also read that ID.
@@ -16,20 +18,20 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | ---: | --- | --- | --- |
 | 575 | LOAD FONT | DDO-FX LITE | Pending |
 | 616 | LOAD MUSIC | DDO-FX LITE | MOD and S3M |
-| 635 | LOAD BBS THEME | DDO-FX LITE | Pending |
-| 693 | LOAD SOUND BITES LIBRARY | DDO-FX LITE | Pending |
+| 635 | LOAD BBS THEME | DDO-FX LITE | Connected |
+| 693 | LOAD SOUND BITES LIBRARY | DDO-FX LITE | Connected |
 | 767 | LOAD TERM THEME | DDO-FX LITE | Pending |
-| 828 | PLAY SAMPLE | DDO-FX LITE | Pending |
-| 858 | PLAY SOUND BITE SAMPLE | DDO-FX LITE | Pending |
-| 868 | PLAY SAMPLE At FREQUENCY | DDO-FX LITE | Pending |
-| 882 | PLAY SOUND BITE SAMPLE At FREQUENCY | DDO-FX LITE | Pending |
-| 894 | LOAD BIG SAMPLE | DDO-LITE | Pending |
-| 993 | DEFINE BIG SAMPLE | DDO-LITE | Pending |
-| 1055 | ADD BIG SAMPLE PART | DDO-LITE | Pending |
-| 1086 | UNLOAD BIG SAMPLE | DDO-LITE | Pending |
-| 1102 | PLAY BIG SAMPLE | DDO-LITE | Pending |
-| 1124 | CHECK BIG SAMPLE | DDO-LITE | Pending |
-| 1167 | PLAY REALPLAY SAMPLE | DDO-FX LITE | Pending |
+| 828 | PLAY SAMPLE | DDO-FX LITE | Connected |
+| 858 | PLAY SOUND BITE SAMPLE | DDO-FX LITE | Connected |
+| 868 | PLAY SAMPLE At FREQUENCY | DDO-FX LITE | Connected |
+| 882 | PLAY SOUND BITE SAMPLE At FREQUENCY | DDO-FX LITE | Connected |
+| 894 | LOAD BIG SAMPLE | DDO-LITE | Connected |
+| 993 | DEFINE BIG SAMPLE | DDO-LITE | Connected |
+| 1055 | ADD BIG SAMPLE PART | DDO-LITE | Connected |
+| 1086 | UNLOAD BIG SAMPLE | DDO-LITE | Connected |
+| 1102 | PLAY BIG SAMPLE | DDO-LITE | Connected |
+| 1124 | CHECK BIG SAMPLE | DDO-LITE | Connected |
+| 1167 | PLAY REALPLAY SAMPLE | DDO-FX LITE | Connected |
 | 1207 | TEXT TO SPEECH | DDO-FX LITE | Pending |
 | 1417 | MODIFY MUSIC PATTERN | DDO-FX LITE | Connected |
 | 1447 | PAUSE RESUME MOD/S3M | DDO-FX LITE | Connected |
@@ -54,9 +56,9 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 2262 | DETECT FOR RESOURCE ENTRY | DDO-FX LITE | Connected |
 | 2320 | DETECT FOR FONT FILE | DDO-FX LITE | Connected |
 | 2328 | DETECT MUSIC ON/OFF | DDO-FX LITE | Connected |
-| 2345 | DETECT SOUND F/X ON/OFF | DDO-FX LITE | Pending |
+| 2345 | DETECT SOUND F/X ON/OFF | DDO-FX LITE | Connected |
 | 2367 | DETECT MUSIC PLAYING | DDO-FX LITE | MOD and S3M |
-| 2389 | DETECT THEME LOADED | DDO-FX LITE | Pending |
+| 2389 | DETECT THEME LOADED | DDO-FX LITE | Connected |
 | 2411 | DETECT FONT LOADED | DDO-FX LITE | Pending |
 | 2431 | DEFINE A MACRO | DDO-FX LITE | Connected |
 | 2590 | CLEAR A MACRO | DDO-FX LITE | Connected |

@@ -163,6 +163,9 @@ def run(args):
         t.exchange(b"\x1d{dliterm}\x1d{DLITERM}", reply)
         t.exchange(b"\x1d{dMUSICON}\x1d{mMISSING.MOD}\x1d{dGETMUSIC}", b"NO\xffNONE\xff")
         t.exchange(b"\x1d{MGVOL}\x1d{MSVOL,20}\x1d{MMVOL,-5}\x1d{MGVOL}", b"64\xff15\xff")
+        t.exchange(commands(b"dSOUNDON", b"tABSENT.THE", b"dGETTHEME", b"6CHECKBS,150", b"6CHECKBS,151",
+                            b"~VARCAP,10", b"6CHECKBS,1", b"~VARCAP,0", b"7DEFRET,1,DEFVAR10", b"7SRET,1"),
+                   b"NO\xffNONE\xffN/A\xffN/A")
         check_cache(t, fixture[1])
         check_resources(t, fixture[1])
         check_scripts(t)
