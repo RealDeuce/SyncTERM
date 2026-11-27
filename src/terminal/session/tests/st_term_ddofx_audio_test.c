@@ -298,6 +298,8 @@ main(int argc, char **argv)
 			++cycles;
 	}
 	CHECK(cycles >= 43 && cycles <= 45);
+	if (!ST_TEST_OPENMPT)
+		goto finished;
 
 	CHECK(st_term_session_send_text(session, ".", 1) == 0);
 	/* Normal mode starts a fresh text page. */

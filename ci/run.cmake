@@ -139,6 +139,14 @@ elseif(CI_PROFILE MATCHES "^mingw(32|64)-cross$")
 elseif(NOT CI_PROFILE STREQUAL native)
 	message(FATAL_ERROR "Unknown CI_PROFILE: ${CI_PROFILE}")
 endif()
+if((CMAKE_HOST_WIN32 OR CMAKE_HOST_APPLE OR _cross) AND NOT CI_PROFILE STREQUAL minimal)
+	# Distribution builds include these adapters even on a clean SDK.
+	list(APPEND _options -DST_TRACKER_OPENMPT=ON -DST_DDOFX_LIBZIP=ON -DST_CONTROLLER_USE_HIDAPI=ON
+		-DST_AUDIO_FILE_SNDFILE=ON -DST_PIXEL_IMAGE_JPEG=ON -DST_PIXEL_IMAGE_JXL=ON)
+	if(CMAKE_HOST_APPLE AND NOT _cross)
+		list(APPEND _options -DST_CONTROLLER_USE_LIBUSB=ON)
+	endif()
+endif()
 list(APPEND _options "-DCMAKE_BUILD_TYPE=${CI_BUILD_TYPE}")
 # Absolute compiler filenames may contain spaces on Windows. Pass those as
 # individual CMake arguments; leave command-with-flags CC/CXX values alone.

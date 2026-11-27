@@ -1487,11 +1487,11 @@ st_console_bitmap_presenter_frame(struct st_console_bitmap_presenter *presenter,
 			int selected       = st_gl_select(presenter->gl, display->gl_preset);
 			display->gl_status = selected;
 			if (selected) {
-				fprintf(stderr, "OpenGL preset %s could not be loaded (%d)\n", display->gl_preset,
-				    selected);
+				fprintf(stderr, "OpenGL preset %s could not be loaded (%d)%s\n", display->gl_preset,
+				    selected, display->gl_preview ? "" : ", using built-in OpenGL Blocky");
 				if (display->gl_preview)
 					return selected;
-				(void)st_gl_select(presenter->gl, NULL);
+				status = st_gl_select(presenter->gl, NULL);
 			}
 		}
 		if (!status)
@@ -1501,7 +1501,7 @@ st_console_bitmap_presenter_frame(struct st_console_bitmap_presenter *presenter,
 			status = st_gl_draw(presenter->gl, &frame->destination, output_width, output_height, now,
 			    presenter->reset_history);
 			if (status && !display->gl_preview && st_gl_animated(presenter->gl)) {
-				fprintf(stderr, "OpenGL preset failed to render (%d), using SyncTERM Blocky\n",
+				fprintf(stderr, "OpenGL preset failed to render (%d), using built-in OpenGL Blocky\n",
 				    status);
 				status = st_gl_select(presenter->gl, NULL);
 				if (!status)

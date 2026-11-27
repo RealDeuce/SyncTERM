@@ -5,7 +5,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <zip.h>
+#include "ddofx_config.h"
+#if ST_DDO_HAVE_LIBZIP
+ #include <zip.h>
+#endif
 
 #include "filesystem.h"
 #include "path.h"
@@ -14,6 +17,23 @@
 #include "st_file_lock.h"
 #include "string_compat.h"
 #include "string_util.h"
+
+#if ST_DDO_HAVE_LIBZIP
+#define ST_API_NAME zip
+#define ST_API_PREFIX zip_
+#define ST_API_LINKED ST_DEP_LIBZIP_LINKED
+#define ST_API_NAMES "zip", "libzip"
+#define ST_API_MAJOR 5
+#define ST_API_FUNCTIONS(X) \
+	X(void, discard, (zip_t *)) \
+	X(int, fclose, (zip_file_t *)) \
+	X(int, file_get_external_attributes, (zip_t *, zip_uint64_t, zip_flags_t, zip_uint8_t *, zip_uint32_t *)) \
+	X(zip_file_t *, fopen_index, (zip_t *, zip_uint64_t, zip_flags_t)) \
+	X(zip_int64_t, fread, (zip_file_t *, void *, zip_uint64_t)) \
+	X(zip_int64_t, get_num_entries, (zip_t *, zip_flags_t)) \
+	X(zip_t *, open, (const char *, int, int *)) \
+	X(int, stat_index, (zip_t *, zip_uint64_t, zip_flags_t, zip_stat_t *))
+#include "dynamic_library_api.inc"
 
 static const char *
 package_category(const char *filename)
@@ -48,14 +68,14 @@ static int
 write_member(FILE *output, void *context)
 {
 	const struct member *member = context;
-	zip_file_t          *file   = zip_fopen_index(member->archive, member->index, 0);
+	zip_file_t          *file   = zip.fopen_index(member->archive, member->index, 0);
 	if (!file)
 		return IO_ERROR_PROTOCOL;
 	uint8_t      bytes[16384];
 	zip_uint64_t total  = 0;
 	int          status = 0;
 	for (;;) {
-		zip_int64_t count = zip_fread(file, bytes, sizeof(bytes));
+		zip_int64_t count = zip.fread(file, bytes, sizeof(bytes));
 		if (count < 0 || (zip_uint64_t)count > member->size - total) {
 			status = IO_ERROR_PROTOCOL;
 			break;
@@ -68,7 +88,7 @@ write_member(FILE *output, void *context)
 		}
 		total += (zip_uint64_t)count;
 	}
-	if (zip_fclose(file) || total != member->size)
+	if (zip.fclose(file) || total != member->size)
 		status = IO_ERROR_PROTOCOL;
 	return status;
 }
@@ -137,7 +157,7 @@ static int
 apply_ini(zip_t *archive, zip_uint64_t index, const char *directory, st_ddofx_member_path resolve,
     struct st_ddofx_autoplay *play)
 {
-	zip_file_t *file = zip_fopen_index(archive, index, 0);
+	zip_file_t *file = zip.fopen_index(archive, index, 0);
 	if (!file)
 		return IO_ERROR_PROTOCOL;
 	char   line[256], *resource = NULL;
@@ -146,7 +166,7 @@ apply_ini(zip_t *archive, zip_uint64_t index, const char *directory, st_ddofx_me
 	int    status   = 0;
 	char   bytes[1024];
 	for (;;) {
-		zip_int64_t count = zip_fread(file, bytes, sizeof(bytes));
+		zip_int64_t count = zip.fread(file, bytes, sizeof(bytes));
 		if (count < 0) {
 			status = IO_ERROR_PROTOCOL;
 			break;
@@ -175,7 +195,7 @@ apply_ini(zip_t *archive, zip_uint64_t index, const char *directory, st_ddofx_me
 		status     = apply_line(directory, resolve, line, &resource, play);
 	}
 	free(resource);
-	if (zip_fclose(file))
+	if (zip.fclose(file))
 		status = IO_ERROR_PROTOCOL;
 	return status;
 }
@@ -184,13 +204,13 @@ static int
 unpack(zip_t *archive, const char *directory, st_ddofx_member_path resolve, struct st_ddofx_autoplay *play)
 {
 	zip_int64_t  ini   = -1;
-	zip_int64_t  count = zip_get_num_entries(archive, 0);
+	zip_int64_t  count = zip.get_num_entries(archive, 0);
 	zip_uint64_t total = 0;
 	if (count < 0)
 		return IO_ERROR_PROTOCOL;
 	for (zip_int64_t i = 0; i < count; ++i) {
 		zip_stat_t st;
-		if (zip_stat_index(archive, (zip_uint64_t)i, 0, &st) < 0)
+		if (zip.stat_index(archive, (zip_uint64_t)i, 0, &st) < 0)
 			return IO_ERROR_PROTOCOL;
 		const char *name = path_untrusted_basename(st.name);
 		if (!name[0])
@@ -201,7 +221,7 @@ unpack(zip_t *archive, const char *directory, st_ddofx_member_path resolve, stru
 			return IO_ERROR_INVALID_ARGUMENT;
 		zip_uint8_t  os;
 		zip_uint32_t attributes;
-		if (zip_file_get_external_attributes(archive, (zip_uint64_t)i, 0, &os, &attributes) < 0)
+		if (zip.file_get_external_attributes(archive, (zip_uint64_t)i, 0, &os, &attributes) < 0)
 			return IO_ERROR_PROTOCOL;
 		unsigned type = (attributes >> 16) & 0170000;
 		if (os == ZIP_OPSYS_UNIX && type != 0 && type != 0100000)
@@ -245,17 +265,19 @@ static int
 unpack_package(const char *path, const char *directory, st_ddofx_member_path resolve,
     struct st_ddofx_autoplay *play)
 {
-	zip_t *archive = zip_open(path, ZIP_RDONLY | ZIP_CHECKCONS, NULL);
+	zip_t *archive = zip.open(path, ZIP_RDONLY | ZIP_CHECKCONS, NULL);
 	if (!archive)
 		return IO_ERROR_PROTOCOL;
 	int status = unpack(archive, directory, resolve, play);
-	zip_discard(archive);
+	zip.discard(archive);
 	return status;
 }
 
 int
 st_ddofx_remember_package(void *context, const char *filename, const char *path)
 {
+	if (!zip_available())
+		return 0;
 	struct st_ddofx_package_batch *batch    = context;
 	const char                    *category = package_category(filename);
 	unsigned                       slot     = batch->count;
@@ -316,3 +338,21 @@ st_ddofx_install_packages(void *context, bool complete)
 	batch->count = 0;
 	return first_error;
 }
+#else
+int
+st_ddofx_remember_package(void *context, const char *filename, const char *path)
+{
+	(void)context;
+	(void)filename;
+	(void)path;
+	return 0;
+}
+
+int
+st_ddofx_install_packages(void *context, bool complete)
+{
+	(void)context;
+	(void)complete;
+	return 0;
+}
+#endif

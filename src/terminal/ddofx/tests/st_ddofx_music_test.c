@@ -310,7 +310,10 @@ check_samples(struct st_ddofx *ddo, struct st_ddofx_sink *sink)
 	CMD("mB");
 	CMD("MSVOL,0");
 	CMD("2RESET");
-	QUERY("dGETMUSIC", "B");
+	if (st_tracker_available())
+		QUERY("dGETMUSIC", "B");
+	else
+		QUERY("dGETMUSIC", "NONE");
 	QUERY("dGETTHEME", "BANK.THE");
 	QUERY("6CHECKBS,1", "N/A");
 	CMD("P1,44100");
@@ -384,7 +387,7 @@ check_cmf(struct st_ddofx *ddo, struct st_ddofx_sink *sink)
 	CHECK(command_reply(ddo, sink, "dGETMUSIC", "DRUM\xff"));
 	CHECK(has_signal(sink->audio));
 	CHECK(command_reply(ddo, sink, "mA", ""));
-	CHECK(command_reply(ddo, sink, "MICMF", "N\xff"));
+	CHECK(command_reply(ddo, sink, "MICMF", st_tracker_available() ? "N\xff" : "Y\xff"));
 	CHECK(command_reply(ddo, sink, "mNONE", ""));
 	CHECK(!has_signal(sink->audio));
 	return 0;
@@ -433,38 +436,49 @@ check_normal_theme(struct st_ddofx *ddo, struct st_ddofx_sink *sink)
 }
 
 int
-main(void)
+main(int argc, char **argv)
 {
 	struct st_ddofx      ddo      = {0};
 	struct response      response = {0};
 	struct st_ddofx_sink sink     = {.context = &response, .open_asset = open_music, .reply = reply};
+	bool expect_modules = ST_TEST_OPENMPT && !(argc == 2 && !strcmp(argv[1], "--without-openmpt"));
+	CHECK(st_tracker_available() == expect_modules);
 	CHECK(st_audio_runtime_create_pull(&sink.audio) == 0);
 	st_ddofx_reset(&ddo);
-	CHECK(command_reply(&ddo, &sink, "mA", ""));
-	CHECK(command_reply(&ddo, &sink, "dGETMUSIC", "A\xff"));
-	CHECK(has_signal(sink.audio));
-	uint8_t levels[ST_TRACKER_METER_CHANNELS];
-	CHECK(st_tracker_levels(ddo.player, levels) == 4 && levels[0] > 0 && !levels[1] && !levels[2] && !levels[3]);
-	CHECK(command_reply(&ddo, &sink, "mMISSING", ""));
-	CHECK(command_reply(&ddo, &sink, "dGETMUSIC", "A\xff"));
-	CHECK(command_reply(&ddo, &sink, "MMPR", ""));
-	CHECK(!has_signal(sink.audio));
-	CHECK(st_tracker_levels(ddo.player, levels) == 4 && levels[0] == 0);
-	CHECK(command_reply(&ddo, &sink, "MMPAT,1", ""));
-	CHECK(!has_signal(sink.audio));
-	CHECK(command_reply(&ddo, &sink, "MMPR", ""));
-	CHECK(has_signal(sink.audio));
-	CHECK(command_reply(&ddo, &sink, "mB", ""));
-	CHECK(command_reply(&ddo, &sink, "dGETMUSIC", "B\xff"));
-	CHECK(has_signal(sink.audio));
-	CHECK(st_tracker_levels(ddo.player, levels) >= 1 && levels[0] > 0);
-	CHECK(command_reply(&ddo, &sink, "MSVOL,0", ""));
-	CHECK(!has_signal(sink.audio));
-	CHECK(command_reply(&ddo, &sink, "MMVOL,99", ""));
-	CHECK(has_signal(sink.audio));
-	CHECK(command_reply(&ddo, &sink, "mNONE", ""));
-	CHECK(!has_signal(sink.audio));
-	CHECK(command_reply(&ddo, &sink, "dGETMUSIC", "NONE\xff"));
+	if (st_tracker_available()) {
+		CHECK(command_reply(&ddo, &sink, "dMUSICON", "YES\xff"));
+		CHECK(command_reply(&ddo, &sink, "mA", ""));
+		CHECK(command_reply(&ddo, &sink, "dGETMUSIC", "A\xff"));
+		CHECK(has_signal(sink.audio));
+		uint8_t levels[ST_TRACKER_METER_CHANNELS];
+		CHECK(st_tracker_levels(ddo.player, levels) == 4 && levels[0] > 0 && !levels[1] && !levels[2] && !levels[3]);
+		CHECK(command_reply(&ddo, &sink, "mMISSING", ""));
+		CHECK(command_reply(&ddo, &sink, "dGETMUSIC", "A\xff"));
+		CHECK(command_reply(&ddo, &sink, "MMPR", ""));
+		CHECK(!has_signal(sink.audio));
+		CHECK(st_tracker_levels(ddo.player, levels) == 4 && levels[0] == 0);
+		CHECK(command_reply(&ddo, &sink, "MMPAT,1", ""));
+		CHECK(!has_signal(sink.audio));
+		CHECK(command_reply(&ddo, &sink, "MMPR", ""));
+		CHECK(has_signal(sink.audio));
+		CHECK(command_reply(&ddo, &sink, "mB", ""));
+		CHECK(command_reply(&ddo, &sink, "dGETMUSIC", "B\xff"));
+		CHECK(has_signal(sink.audio));
+		CHECK(st_tracker_levels(ddo.player, levels) >= 1 && levels[0] > 0);
+		CHECK(command_reply(&ddo, &sink, "MSVOL,0", ""));
+		CHECK(!has_signal(sink.audio));
+		CHECK(command_reply(&ddo, &sink, "MMVOL,99", ""));
+		CHECK(has_signal(sink.audio));
+		CHECK(command_reply(&ddo, &sink, "mNONE", ""));
+		CHECK(!has_signal(sink.audio));
+		CHECK(command_reply(&ddo, &sink, "dGETMUSIC", "NONE\xff"));
+	}
+	else {
+		CHECK(command_reply(&ddo, &sink, "dMUSICON", "NO\xff"));
+		CHECK(command_reply(&ddo, &sink, "mA", ""));
+		CHECK(command_reply(&ddo, &sink, "dGETMUSIC", "NONE\xff"));
+		CHECK(!has_signal(sink.audio));
+	}
 	CHECK(check_cmf(&ddo, &sink) == 0);
 	CHECK(check_normal_theme(&ddo, &sink) == 0);
 	CHECK(check_samples(&ddo, &sink) == 0);

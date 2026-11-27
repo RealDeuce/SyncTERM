@@ -1,11 +1,13 @@
 # Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
 include("${CMAKE_CURRENT_LIST_DIR}/../../../cmake/SynctermDependencies.cmake")
-syncterm_dependency(NAME LIBZIP PACKAGE libzip HEADER zip.h LIBRARIES zip DEFAULT SHARED REQUIRED LINK_REQUIRED PROBE [=[
+syncterm_dependency(NAME LIBZIP PACKAGE libzip HEADER zip.h LIBRARIES zip DEFAULT RUNTIME FEATURE ST_DDOFX_LIBZIP PROBE [=[
 #include <zip.h>
 int main(void) {
 	zip_t *zip = zip_open("test.zip", ZIP_RDONLY | ZIP_CHECKCONS, 0);
+	int (*volatile attributes)(zip_t *, zip_uint64_t, zip_flags_t, zip_uint8_t *, zip_uint32_t *)
+		= zip_file_get_external_attributes;
 	if (zip) zip_discard(zip);
-	return 0;
+	return attributes == 0;
 }
 ]=])
 include("${CMAKE_CURRENT_LIST_DIR}/../../../cmake/SynctermCheckC17Source.cmake")
@@ -54,10 +56,12 @@ int main(void) {
 }
 ]=] ST_DDO_MEMORY_HAIKU)
 endif()
+set(ST_DDO_HAVE_LIBZIP ${ST_DEP_LIBZIP_TARGET})
 configure_file(ddofx_config.h.in ddofx_config.h)
 
 add_library(st_ddofx STATIC st_ddofx_sleeper.c st_ddofx_capacity.c st_ddofx_package.c st_ddofx.c st_ddofx_graphics.c st_ddofx_graphic_windows.c st_ddofx_text_windows.c st_ddofx_drawing.c st_ddofx_bitmap_text.c st_ddofx_vga_text.c st_ddofx_lite_screen.c st_ddofx_sprites.c st_ddofx_sprite_bank.c st_ddofx_collision.c st_ddofx_animation.c st_ddofx_icons.c st_ddofx_simple.c st_ddofx_grid.c st_ddofx_image.c st_ddofx_bars.c st_ddofx_marquee.c st_ddofx_clocks.c st_ddofx_flic.c st_ddofx_movies.c st_ddofx_landscape.c st_ddofx_mesh.c st_ddofx_polygon.c st_ddofx_polygon_view.c st_ddofx_ray_world.c st_ddofx_ray_view.c st_ddofx_ray_environment.c st_ddofx_ray_record.c st_ddofx_ray_profiles.c st_ddofx_joystick.c st_ddofx_pcx.c st_ddofx_script.c st_ddofx_info.c st_ddofx_text_files.c st_ddofx_events.c st_ddofx_keys.c st_ddofx_mouse.c st_ddofx_pointer.c st_ddofx_buttons.c st_ddofx_text_fields.c st_ddofx_lists.c st_ddofx_choices.c st_ddofx_resource.c st_ddofx_samples.c)
-target_link_libraries(st_ddofx PUBLIC st_tracker PRIVATE syncterm_threads st_file_lock ${ST_DEP_LIBZIP_TARGET} st_cterm st_fonts st_cmf st_time syncterm_string_util syncterm_string_compat syncterm_filesystem syncterm_path syncterm_value_convert)
+target_link_libraries(st_ddofx PUBLIC st_tracker PRIVATE syncterm_dynamic_library syncterm_threads st_file_lock ${ST_DEP_LIBZIP_TARGET} st_cterm st_fonts st_cmf st_time syncterm_string_util syncterm_string_compat syncterm_filesystem syncterm_path syncterm_value_convert)
+target_compile_definitions(st_ddofx PRIVATE ST_DEP_LIBZIP_LINKED=$<NOT:$<STREQUAL:${ST_DEP_LIBZIP_MODE},RUNTIME>>)
 syncterm_dependency_math(st_ddofx)
 syncterm_target_atomics(st_ddofx)
 target_include_directories(st_ddofx PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
@@ -77,9 +81,23 @@ if(BUILD_TESTING)
 	set_target_properties(st_ddofx_pcx_test PROPERTIES C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	add_test(NAME ddofx_pcx COMMAND st_ddofx_pcx_test)
 	add_executable(st_ddofx_music_test tests/st_ddofx_music_test.c)
+	target_compile_definitions(st_ddofx_music_test PRIVATE ST_TEST_OPENMPT=$<TARGET_EXISTS:st_dep_openmpt>)
 	target_link_libraries(st_ddofx_music_test PRIVATE st_ddofx st_cterm)
 	set_target_properties(st_ddofx_music_test PROPERTIES C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	add_test(NAME ddofx_music COMMAND st_ddofx_music_test)
+	if(TARGET st_dep_openmpt)
+		get_property(openmpt_linkage TARGET st_dep_openmpt PROPERTY ST_DEP_LINKAGE)
+		if(openmpt_linkage STREQUAL "RUNTIME" AND CMAKE_EXECUTABLE_FORMAT STREQUAL "ELF")
+			add_library(st_ddofx_incomplete_openmpt SHARED ../../base/dynamic_library/tests/dynamic_library_fixture.c)
+			set_target_properties(st_ddofx_incomplete_openmpt PROPERTIES OUTPUT_NAME openmpt SOVERSION 0
+				LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/incomplete"
+				C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+			add_dependencies(st_ddofx_music_test st_ddofx_incomplete_openmpt)
+			add_test(NAME ddofx_music_unavailable COMMAND st_ddofx_music_test --without-openmpt)
+			set_tests_properties(ddofx_music_unavailable PROPERTIES ENVIRONMENT_MODIFICATION
+				"LD_LIBRARY_PATH=path_list_prepend:$<TARGET_FILE_DIR:st_ddofx_incomplete_openmpt>")
+		endif()
+	endif()
 	add_executable(st_ddofx_script_test tests/st_ddofx_script_test.c)
 	target_link_libraries(st_ddofx_script_test PRIVATE st_ddofx st_cterm)
 	set_target_properties(st_ddofx_script_test PROPERTIES C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)

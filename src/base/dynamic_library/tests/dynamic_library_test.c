@@ -139,6 +139,22 @@ test_rejected_resolution(void)
 }
 
 static int
+test_bindings(void)
+{
+	const char *names[] = {"dynamic_library_provider_fixture", "dynamic_library_fixture"};
+	binary_function_t add = NULL;
+	const struct dynamic_library_import imports[] = {
+	    {"dynamic_library_fixture_add", &add, sizeof(add)},
+	    {"missing_required_symbol", &add, sizeof(add)},
+	};
+
+	CHECK(!dynamic_library_bind(names, 2, 0, imports, 2));
+	CHECK(dynamic_library_bind(names, 2, 0, imports, 1));
+	CHECK(add(19, 23) == 42);
+	return 0;
+}
+
+static int
 test_filename_fallbacks(void)
 {
 	const char        *versioned[] = {"dynamic_library_versioned_fixture"};
@@ -197,6 +213,7 @@ main(void)
 	CHECK(test_symbols_and_names() == 0);
 	CHECK(test_retained_loads() == 0);
 	CHECK(test_rejected_resolution() == 0);
+	CHECK(test_bindings() == 0);
 	CHECK(test_filename_fallbacks() == 0);
 	CHECK(test_missing_library() == 0);
 #if defined(SYNCTERM_DYNAMIC_LIBRARY_TEST_POSIX)

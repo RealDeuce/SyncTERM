@@ -35,7 +35,7 @@ def receive_header(t, kind):
         assert fields[0] == 1 and kind in (5, 8, 9), data
 
 
-def check_package_downloads(t):
+def check_package_downloads(t, with_libzip):
     t.case("ZMODEM command packages install before the next DDO query")
 
     def transfer(name, contents):
@@ -74,6 +74,10 @@ def check_package_downloads(t):
     # It retries at two seconds and consumes one reply for each subsequent query.
     t.send(b"OO" + commands(b"dLITERM"))
     t.input(b"LITERM Ver. 2.00\xff", timeout=2)
+    if not with_libzip:
+        assert (t.root / "downloads" / "$li$mA-0.zip").read_bytes() == music
+        t.exchange(commands(b"dmTUNE.MOD"), b"NO\xff")
+        return
     t.exchange(commands(b"dmTUNE.MOD", b"dmDRUM.S3M", b"dtMARK.THE"),
                b"5,2024,2,29,12,34,18\xff6,2024,2,29,12,34,18\xff5,2024,2,29,12,34,18\xff")
     cache, = (t.root / "cache").glob("*/DDOFX")
@@ -3424,7 +3428,7 @@ def run(args):
         check_capacity(t)
         check_predicates(t)
         check_joysticks(t)
-        check_package_downloads(t)
+        check_package_downloads(t, not args.without_libzip)
         check_background_download(t)
         check_stealth_controls(t)
         check_cache(t, fixture[1])
@@ -3467,5 +3471,6 @@ if __name__ == "__main__":
     parser.add_argument("encoding", choices=("CP437", "UTF-8"))
     parser.add_argument("--reports", type=Path, required=True)
     parser.add_argument("--ping", action="store_true")
+    parser.add_argument("--without-libzip", action="store_true")
     args = parser.parse_args()
     (check_ping if args.ping else run)(args)

@@ -5483,9 +5483,10 @@ duplicate platform-dependent enum tables:
 
 | `buildOptions`
 | List of `[category, displayName, enabled]` rows describing this
-  executable's fonts, crypto, terminal, video, audio and MIDI build features. `enabled`
-  reports compiled support without probing runtime libraries or devices.
-  The Video rows include the optional testing bitmap backend. MIDI labels
+  executable's fonts, crypto, terminal, video, input, audio and MIDI build features. For optional
+  libraries, `enabled` reports compiled support without opening the library or a device.
+  Rows cover DDO F/X module playback and package extraction, controller input
+  libraries, GLX, Wayland EGL, Slang presets and the testing bitmap backend. MIDI labels
   include runtime-loaded, static, shared or system linkage when compiled; each row
   retains exactly three elements.
   For decoder availability, use `PixelBuffer.jxlSupported` instead.

@@ -139,6 +139,33 @@ else()
 endif()
 
 if(BUILD_TESTING)
+	if(CMAKE_EXECUTABLE_FORMAT STREQUAL "ELF" AND CMAKE_READELF)
+		get_property(dependencies GLOBAL PROPERTY SYNCTERM_RESOLVED_DEPENDENCIES)
+		set(runtime_names)
+		foreach(dep IN LISTS dependencies)
+			if(dep MATCHES "^(OPENSSL|BOTAN)$")
+				continue()
+			endif()
+			string(TOLOWER "${dep}" lower)
+			get_property(linkage TARGET st_dep_${lower} PROPERTY ST_DEP_LINKAGE)
+			if(NOT linkage STREQUAL "RUNTIME")
+				# A directly linked adapter can require other libraries at startup.
+				set(runtime_names)
+				break()
+			endif()
+			get_property(names TARGET st_dep_${lower} PROPERTY ST_DEP_RUNTIME_NAMES)
+			list(APPEND runtime_names ${names})
+			if(dep STREQUAL "GLX")
+				list(APPEND runtime_names GLX OpenGL)
+			endif()
+		endforeach()
+		if(runtime_names)
+			add_test(NAME optional_startup_dependencies COMMAND "${CMAKE_COMMAND}"
+				"-DREADELF=${CMAKE_READELF}" "-DLIBRARIES=${runtime_names}"
+				"-DPRODUCTS=$<TARGET_FILE:syncterm_app>;$<TARGET_FILE:syncterm_core>"
+				-P "${CMAKE_CURRENT_SOURCE_DIR}/../cmake/tests/startup_dependencies.cmake")
+		endif()
+	endif()
 	if(ST_CONSOLE_TEST)
 		find_package(Python3 REQUIRED COMPONENTS Interpreter)
 		if(Python3_Interpreter_FOUND)
@@ -377,9 +404,13 @@ if(BUILD_TESTING)
 					--reports ${CMAKE_BINARY_DIR}/reports/test-control)
 				set_tests_properties(syncterm_rip3_metric_${_encoding}
 					PROPERTIES TIMEOUT 90 LABELS "terminal;conformance;rip3")
+				if(NOT TARGET st_dep_libzip)
+					set(_ddo_package_test_args --without-libzip)
+				endif()
 				add_test(NAME syncterm_ddofx_${_encoding}
 					COMMAND ${Python3_EXECUTABLE} -B ${CMAKE_CURRENT_SOURCE_DIR}/tests/st_ddofx_connected_test.py
 					$<TARGET_FILE:syncterm_app> ${_encoding}
+					${_ddo_package_test_args}
 					--reports ${CMAKE_BINARY_DIR}/reports/test-control)
 				set_tests_properties(syncterm_ddofx_${_encoding}
 					PROPERTIES TIMEOUT 90 LABELS "terminal;conformance;ddofx")

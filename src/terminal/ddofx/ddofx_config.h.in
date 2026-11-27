@@ -4,3 +4,4 @@
 #cmakedefine01 ST_DDO_MEMORY_MACH
 #cmakedefine01 ST_DDO_MEMORY_SYSCTL
 #cmakedefine01 ST_DDO_MEMORY_HAIKU
+#cmakedefine01 ST_DDO_HAVE_LIBZIP

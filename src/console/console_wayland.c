@@ -435,50 +435,87 @@ update_buffers(void *context, const struct st_rgb_buffer *pixels, const struct s
 }
 
 #if ST_CONSOLE_HAVE_WAYLAND_EGL
+#define ST_API_NAME egl_api
+#define ST_API_PREFIX egl
+#define ST_API_LINKED ST_DEP_EGL_LINKED
+#define ST_API_NAMES "EGL"
+#define ST_API_MAJOR 1
+#define ST_API_CALL EGLAPIENTRY
+#define ST_API_FUNCTIONS(X) \
+	X(EGLBoolean, BindAPI, (EGLenum)) \
+	X(EGLBoolean, ChooseConfig, (EGLDisplay, const EGLint *, EGLConfig *, EGLint, EGLint *)) \
+	X(EGLContext, CreateContext, (EGLDisplay, EGLConfig, EGLContext, const EGLint *)) \
+	X(EGLSurface, CreatePlatformWindowSurface, (EGLDisplay, EGLConfig, void *, const EGLAttrib *)) \
+	X(EGLBoolean, DestroyContext, (EGLDisplay, EGLContext)) \
+	X(EGLBoolean, DestroySurface, (EGLDisplay, EGLSurface)) \
+	X(EGLDisplay, GetPlatformDisplay, (EGLenum, void *, const EGLAttrib *)) \
+	X(__eglMustCastToProperFunctionPointerType, GetProcAddress, (const char *)) \
+	X(EGLBoolean, Initialize, (EGLDisplay, EGLint *, EGLint *)) \
+	X(EGLBoolean, MakeCurrent, (EGLDisplay, EGLSurface, EGLSurface, EGLContext)) \
+	X(EGLBoolean, SwapBuffers, (EGLDisplay, EGLSurface)) \
+	X(EGLBoolean, SwapInterval, (EGLDisplay, EGLint)) \
+	X(EGLBoolean, Terminate, (EGLDisplay))
+#include "dynamic_library_api.inc"
+
+#define ST_API_NAME egl_window
+#define ST_API_PREFIX wl_egl_window_
+#define ST_API_LINKED ST_DEP_WAYLAND_EGL_LINKED
+#define ST_API_NAMES "wayland-egl"
+#define ST_API_MAJOR 1
+#define ST_API_FUNCTIONS(X) \
+	X(struct wl_egl_window *, create, (struct wl_surface *, int, int)) \
+	X(void, destroy, (struct wl_egl_window *)) \
+	X(void, resize, (struct wl_egl_window *, int, int, int, int))
+#include "dynamic_library_api.inc"
+
 static int
 wayland_gl_current(void *window, uint32_t width, uint32_t height)
 {
 	struct state *s      = window;
 	bool          create = !s->gl_context;
+	if (!egl_api_available())
+		return IO_ERROR_NOT_SUPPORTED;
+	if (!egl_window_available())
+		return IO_ERROR_NOT_SUPPORTED;
 	if (create) {
-		s->egl = eglGetPlatformDisplay(EGL_PLATFORM_WAYLAND_KHR, s->display, NULL);
-		if (!s->egl || !eglInitialize(s->egl, NULL, NULL) || !eglBindAPI(EGL_OPENGL_API))
+		s->egl = egl_api.GetPlatformDisplay(EGL_PLATFORM_WAYLAND_KHR, s->display, NULL);
+		if (!s->egl || !egl_api.Initialize(s->egl, NULL, NULL) || !egl_api.BindAPI(EGL_OPENGL_API))
 			return IO_ERROR_NOT_SUPPORTED;
 		const EGLint attrs[] = {EGL_SURFACE_TYPE, EGL_WINDOW_BIT, EGL_RENDERABLE_TYPE, EGL_OPENGL_BIT,
 		    EGL_RED_SIZE, 8, EGL_GREEN_SIZE, 8, EGL_BLUE_SIZE, 8, EGL_NONE};
 		EGLConfig    config;
 		EGLint       count;
-		if (!eglChooseConfig(s->egl, attrs, &config, 1, &count) || !count)
+		if (!egl_api.ChooseConfig(s->egl, attrs, &config, 1, &count) || !count)
 			return IO_ERROR_NOT_SUPPORTED;
 		const EGLint version[] = {EGL_CONTEXT_MAJOR_VERSION, 3, EGL_CONTEXT_MINOR_VERSION, 3, EGL_NONE};
-		s->gl_context          = eglCreateContext(s->egl, config, EGL_NO_CONTEXT, version);
-		s->gl_window           = wl_egl_window_create(s->surface, (int)width, (int)height);
+		s->gl_context          = egl_api.CreateContext(s->egl, config, EGL_NO_CONTEXT, version);
+		s->gl_window           = egl_window.create(s->surface, (int)width, (int)height);
 		if (!s->gl_context || !s->gl_window)
 			return IO_ERROR_NOT_SUPPORTED;
-		s->gl_surface = eglCreatePlatformWindowSurface(s->egl, config, s->gl_window, NULL);
+		s->gl_surface = egl_api.CreatePlatformWindowSurface(s->egl, config, s->gl_window, NULL);
 		if (!s->gl_surface)
 			return IO_ERROR_NOT_SUPPORTED;
 		wl_surface_attach(s->video_surface, NULL, 0, 0);
 		wl_surface_commit(s->video_surface);
 	}
 	if (s->gl_width != width || s->gl_height != height) {
-		wl_egl_window_resize(s->gl_window, (int)width, (int)height, 0, 0);
+		egl_window.resize(s->gl_window, (int)width, (int)height, 0, 0);
 		s->gl_width  = width;
 		s->gl_height = height;
 	}
-	if (!eglMakeCurrent(s->egl, s->gl_surface, s->gl_surface, s->gl_context))
+	if (!egl_api.MakeCurrent(s->egl, s->gl_surface, s->gl_surface, s->gl_context))
 		return IO_ERROR_IO;
 	/* The presentation worker supplies the clock even when the compositor
 	 * stops sending frame callbacks for an obscured window. */
 	if (create)
-		(void)eglSwapInterval(s->egl, 0);
+		(void)egl_api.SwapInterval(s->egl, 0);
 	return 0;
 }
 
 static const void *
 wayland_gl_symbol(const char *name)
 {
-	__eglMustCastToProperFunctionPointerType fn = eglGetProcAddress(name);
+	__eglMustCastToProperFunctionPointerType fn = egl_api.GetProcAddress(name);
 	const void                              *symbol;
 	_Static_assert(sizeof(fn) == sizeof(symbol), "EGL procedure size");
 	memcpy(&symbol, &fn, sizeof(symbol));
@@ -489,7 +526,7 @@ static int
 wayland_gl_swap(void *window)
 {
 	struct state *s = window;
-	return eglSwapBuffers(s->egl, s->gl_surface) ? 0 : IO_ERROR_IO;
+	return egl_api.SwapBuffers(s->egl, s->gl_surface) ? 0 : IO_ERROR_IO;
 }
 
 static void
@@ -497,15 +534,15 @@ wayland_gl_close(void *window)
 {
 	struct state *s = window;
 	if (s->egl) {
-		eglMakeCurrent(s->egl, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+		egl_api.MakeCurrent(s->egl, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 		if (s->gl_surface)
-			eglDestroySurface(s->egl, s->gl_surface);
+			egl_api.DestroySurface(s->egl, s->gl_surface);
 		if (s->gl_context)
-			eglDestroyContext(s->egl, s->gl_context);
-		eglTerminate(s->egl);
+			egl_api.DestroyContext(s->egl, s->gl_context);
+		egl_api.Terminate(s->egl);
 	}
 	if (s->gl_window)
-		wl_egl_window_destroy(s->gl_window);
+		egl_window.destroy(s->gl_window);
 	s->gl_window  = NULL;
 	s->gl_surface = EGL_NO_SURFACE;
 	s->gl_context = EGL_NO_CONTEXT;

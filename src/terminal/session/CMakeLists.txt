@@ -39,14 +39,20 @@ if(BUILD_TESTING)
 		set_target_properties(st_term_ddofx_audio_test PROPERTIES C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 		target_compile_options(st_term_ddofx_audio_test PRIVATE -Wall -Wextra -Wpedantic)
 		add_test(NAME ddofx_session_audio COMMAND st_term_ddofx_audio_test "${CMAKE_CURRENT_SOURCE_DIR}/../ddofx/tests")
-		add_test(NAME ddofx_tracker_orders COMMAND st_term_ddofx_audio_test "${CMAKE_CURRENT_SOURCE_DIR}/../ddofx/tests" orders)
-		set_tests_properties(ddofx_session_audio ddofx_tracker_orders PROPERTIES TIMEOUT 15)
+		set_tests_properties(ddofx_session_audio PROPERTIES TIMEOUT 15)
+		if(TARGET st_dep_openmpt)
+			add_test(NAME ddofx_tracker_orders COMMAND st_term_ddofx_audio_test "${CMAKE_CURRENT_SOURCE_DIR}/../ddofx/tests" orders)
+			set_tests_properties(ddofx_tracker_orders PROPERTIES TIMEOUT 15)
+		endif()
+		target_compile_definitions(st_term_ddofx_audio_test PRIVATE ST_TEST_OPENMPT=$<TARGET_EXISTS:st_dep_openmpt>)
 		find_package(Python3 QUIET COMPONENTS Interpreter)
 		if(Python3_Interpreter_FOUND)
-			add_test(NAME ddofx_package_audio COMMAND "${Python3_EXECUTABLE}" -B
-				"${CMAKE_CURRENT_SOURCE_DIR}/../../tests/st_ddofx_package_test.py"
-				"$<TARGET_FILE:st_term_ddofx_audio_test>")
-			set_tests_properties(ddofx_package_audio PROPERTIES TIMEOUT 15)
+			if(TARGET st_dep_libzip)
+				add_test(NAME ddofx_package_audio COMMAND "${Python3_EXECUTABLE}" -B
+					"${CMAKE_CURRENT_SOURCE_DIR}/../../tests/st_ddofx_package_test.py"
+					"$<TARGET_FILE:st_term_ddofx_audio_test>")
+				set_tests_properties(ddofx_package_audio PROPERTIES TIMEOUT 15)
+			endif()
 			add_test(NAME ddofx_term_theme COMMAND "${Python3_EXECUTABLE}" -B
 				"${CMAKE_CURRENT_SOURCE_DIR}/../../tests/st_ddofx_package_test.py"
 				"$<TARGET_FILE:st_term_ddofx_audio_test>" --theme)

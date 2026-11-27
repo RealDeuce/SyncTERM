@@ -2,12 +2,15 @@
 #ifndef ST_TRACKER_H_
 #define ST_TRACKER_H_
 
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 
 #include "st_audio_runtime.h"
 
 struct st_tracker;
+
+bool st_tracker_available(void);
 
 enum {
 	ST_TRACKER_METER_CHANNELS = 16

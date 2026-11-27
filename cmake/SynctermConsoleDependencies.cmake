@@ -1,6 +1,7 @@
 # Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
 include("${CMAKE_CURRENT_LIST_DIR}/SynctermDependencies.cmake")
 
+set(ST_CONSOLE_HAVE_SDL 0)
 set(ST_DEP_SDL2_LINKED 0)
 if(NOT ST_CONSOLE_SDL STREQUAL "OFF" AND NOT ((WIN32 OR APPLE) AND ST_CONSOLE_SDL STREQUAL "AUTO"))
 	syncterm_dependency_options(SDL2 RUNTIME)
@@ -26,11 +27,10 @@ if(NOT ST_CONSOLE_SDL STREQUAL "OFF" AND NOT ((WIN32 OR APPLE) AND ST_CONSOLE_SD
 	if(ST_DEP_SDL2_TARGET)
 		set(ST_CONSOLE_HAVE_SDL 1)
 	endif()
-else()
-	set(ST_CONSOLE_HAVE_SDL 0)
 endif()
 
 foreach(dep X11 XRENDER XRANDR XINERAMA)
+	set(ST_CONSOLE_HAVE_${dep} 0)
 	set(ST_DEP_${dep}_LINKED 0)
 endforeach()
 if(NOT WIN32 AND NOT ST_CONSOLE_X11 STREQUAL "OFF" AND NOT (APPLE AND ST_CONSOLE_X11 STREQUAL "AUTO"))
@@ -73,11 +73,6 @@ if(NOT WIN32 AND NOT ST_CONSOLE_X11 STREQUAL "OFF" AND NOT (APPLE AND ST_CONSOLE
 			endif()
 		endforeach()
 	endif()
-else()
-	set(ST_CONSOLE_HAVE_X11 0)
-	set(ST_CONSOLE_HAVE_XRENDER 0)
-	set(ST_CONSOLE_HAVE_XRANDR 0)
-	set(ST_CONSOLE_HAVE_XINERAMA 0)
 endif()
 
 
@@ -169,6 +164,12 @@ endif()
 
 st_console_dependency(TERMINFO tinfo curses.h "tinfo;ncursesw;ncurses;curses" ${default}
 	HEADERS term.h SYMBOLS setupterm tigetnum tigetflag)
+
+# The ANSI adapter can use its narrow terminfo ABI without an installed SDK.
+syncterm_dependency_options(TERMINFO ${default})
+if(ST_DEP_TERMINFO_TARGET OR ST_DEP_TERMINFO_MODE STREQUAL "RUNTIME")
+	set(ST_CONSOLE_HAVE_TERMINFO 1)
+endif()
 
 # Legacy header discovery above decides whether native build tools/protocols
 # exist. Compilation must use the installation selected by the resolver.

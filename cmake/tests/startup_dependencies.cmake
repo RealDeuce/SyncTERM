@@ -1,0 +1,13 @@
+# Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
+cmake_minimum_required(VERSION 3.22)
+foreach(product IN LISTS PRODUCTS)
+	execute_process(COMMAND "${READELF}" -d "${product}" OUTPUT_VARIABLE dynamic COMMAND_ERROR_IS_FATAL ANY)
+	string(REGEX MATCHALL "NEEDED[^\n]*" needed "${dynamic}")
+	foreach(entry IN LISTS needed)
+		if(entry MATCHES "\\[lib([^]]+)\\.so(\\.[^]]+)?\\]")
+			if(CMAKE_MATCH_1 IN_LIST LIBRARIES)
+				message(FATAL_ERROR "${product} requires the runtime-loaded library ${CMAKE_MATCH_1} at startup")
+			endif()
+		endif()
+	endforeach()
+endforeach()

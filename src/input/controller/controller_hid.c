@@ -12,6 +12,30 @@
 
 #include "st_utf8.h"
 
+#if ST_CONTROLLER_DARWIN_HID
+ #define ST_HID_DARWIN_FUNCTIONS(X) X(void, darwin_set_open_exclusive, (int))
+#else
+ #define ST_HID_DARWIN_FUNCTIONS(X)
+#endif
+#define ST_API_NAME hid
+#define ST_API_PREFIX hid_
+#define ST_API_LINKED ST_DEP_HIDAPI_LINKED
+#define ST_API_NAMES ST_CONTROLLER_HID_NAMES
+#define ST_API_MAJOR 0
+#define ST_API_CALL HID_API_CALL
+#define ST_API_FUNCTIONS(X) \
+	X(void, close, (hid_device *)) \
+	X(struct hid_device_info *, enumerate, (unsigned short, unsigned short)) \
+	X(int, exit, (void)) \
+	X(void, free_enumeration, (struct hid_device_info *)) \
+	X(int, get_report_descriptor, (hid_device *, unsigned char *, size_t)) \
+	X(int, init, (void)) \
+	X(hid_device *, open_path, (const char *)) \
+	X(int, read_timeout, (hid_device *, unsigned char *, size_t, int)) \
+	X(int, set_nonblocking, (hid_device *, int)) \
+	ST_HID_DARWIN_FUNCTIONS(X)
+#include "dynamic_library_api.inc"
+
 struct hid_interface {
 	struct hid_interface  *next;
 	hid_device            *handle;
@@ -25,10 +49,12 @@ bool
 pad_hid_init(struct st_controllers *hub)
 {
 	(void)hub;
-	if (hid_init() != 0)
+	if (!hid_available())
+		return false;
+	if (hid.init() != 0)
 		return false;
 #if ST_CONTROLLER_DARWIN_HID
-	hid_darwin_set_open_exclusive(0);
+	hid.darwin_set_open_exclusive(0);
 #endif
 	return true;
 }
@@ -39,7 +65,7 @@ close_interface(struct hid_interface *dev)
 	pad_detach_collections(&dev->collections);
 	free(dev->path);
 	if (dev->handle)
-		hid_close(dev->handle);
+		hid.close(dev->handle);
 	free(dev->report);
 	free(dev);
 }
@@ -71,11 +97,11 @@ open_interface(struct st_controllers *hub, const struct hid_device_info *info)
 	if (!dev->path)
 		goto fail;
 	strcpy(dev->path, info->path);
-	dev->handle = hid_open_path(info->path);
-	if (!dev->handle || hid_set_nonblocking(dev->handle, 1) != 0)
+	dev->handle = hid.open_path(info->path);
+	if (!dev->handle || hid.set_nonblocking(dev->handle, 1) != 0)
 		goto fail;
 	unsigned char descriptor[HID_API_MAX_REPORT_DESCRIPTOR_SIZE];
-	int           size = hid_get_report_descriptor(dev->handle, descriptor, sizeof descriptor);
+	int           size = hid.get_report_descriptor(dev->handle, descriptor, sizeof descriptor);
 	if (size <= 0)
 		goto fail;
 	char product[96];
@@ -99,7 +125,7 @@ scan(struct st_controllers *hub)
 	struct hid_interface *devices = hub->interfaces;
 	for (struct hid_interface *d = devices; d; d = d->next)
 		d->seen = false;
-	struct hid_device_info *list = hid_enumerate(0, 0);
+	struct hid_device_info *list = hid.enumerate(0, 0);
 	for (struct hid_device_info *i = list; i; i = i->next) {
 		if (!i->path || i->bus_type != HID_API_BUS_USB
 		    || (i->usage_page != 1 || (i->usage != 4 && i->usage != 5)))
@@ -119,7 +145,7 @@ scan(struct st_controllers *hub)
 			devices = d;
 		}
 	}
-	hid_free_enumeration(list);
+	hid.free_enumeration(list);
 	hub->interfaces = devices;
 }
 
@@ -133,7 +159,7 @@ pad_hid_poll(struct st_controllers *hub, bool discover, st_controller_emit emit,
 		struct hid_interface *d = *link;
 		/* Bound work per interface so a busy controller cannot starve terminal I/O. */
 		for (int n = 0; d->seen && n < 64; n++) {
-			int size = hid_read_timeout(d->handle, d->report, d->collections.report_size, 0);
+			int size = hid.read_timeout(d->handle, d->report, d->collections.report_size, 0);
 			if (size < 0)
 				d->seen = false;
 			if (size <= 0)
@@ -158,5 +184,5 @@ pad_hid_close(struct st_controllers *hub)
 		hub->interfaces         = d->next;
 		close_interface(d);
 	}
-	hid_exit();
+	hid.exit();
 }

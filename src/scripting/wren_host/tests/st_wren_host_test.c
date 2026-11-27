@@ -6594,7 +6594,7 @@ exercise_build_options_contract(st_wren_host_t *public_host)
 	    "var rows = Menu.buildOptions\n"
 	    "var options = {}\n"
 	    "for (row in Menu.buildOptions) options[row[1]] = row[2]\n"
-	    "if (Menu.buildOptions.count != 40 "
+	    "if (Menu.buildOptions.count != 50 "
 	    "|| !options.containsKey(\"DeuceSSH (SSH)\") "
 	    "|| !options.containsKey(\"OpenSSL (TLS, symmetric ciphers)\") "
 	    "|| !options.containsKey(\"Operation Overkill ][ Terminal\") "
@@ -6630,15 +6630,16 @@ exercise_build_options_contract(st_wren_host_t *public_host)
 	    {"Crypto", "Botan 3 (TLS, symmetric ciphers)", strcmp(crypto, "Botan") == 0},
 	    {"Crypto", "Encrypted BBS lists", st_list_crypto_encryption_available()},
 	    {"Terminal", "Operation Overkill ][ Terminal", true},
-	    {"Terminal", "Baseline JPEG support", st_pixel_image_jpeg_supported()},
+	    {"Terminal", "Baseline JPEG support", st_pixel_image_jpeg_compiled()},
 	    {"Terminal", "JPEG XL support", st_pixel_image_jxl_compiled()},
+	    {"Terminal", "DDO F/X packages (libzip)", ST_WREN_TEST_LIBZIP},
 	    {"Video", "SDL", (console & ST_CONSOLE_BUILD_SDL) != 0},
 	    {"Video", "X11 Support", (console & ST_CONSOLE_BUILD_X11) != 0},
 	    {"Video", "Xinerama", (console & ST_CONSOLE_BUILD_XINERAMA) != 0},
 	    {"Video", "XRandR", (console & ST_CONSOLE_BUILD_XRANDR) != 0},
 	    {"Video", "XRender", (console & ST_CONSOLE_BUILD_XRENDER) != 0},
 	    {"Video", "OpenGL scaling", (console & ST_CONSOLE_BUILD_OPENGL) != 0},
-	    {"Video", "Slang presets", (console & ST_CONSOLE_BUILD_SLANG) != 0},
+	    {"Video", "Slang presets (librashader)", (console & ST_CONSOLE_BUILD_SLANG) != 0},
 	    {"Video", "GDI", (console & ST_CONSOLE_BUILD_GDI) != 0},
 	    {"Video", "Wayland", (console & ST_CONSOLE_BUILD_WAYLAND) != 0},
 	    {"Video", "Quartz", (console & ST_CONSOLE_BUILD_QUARTZ) != 0},
@@ -6647,6 +6648,14 @@ exercise_build_options_contract(st_wren_host_t *public_host)
 	    {"Video", "ANSI", true},
 	    {"Video", "libretro", true},
 	    {"Video", "Testing bitmap backend", (console & ST_CONSOLE_BUILD_TEST) != 0},
+	    {"Video", "GLX", ST_WREN_TEST_GLX},
+	    {"Video", "Wayland EGL (EGL and wayland-egl)", ST_WREN_TEST_EGL},
+	    {"Video", "Wayland keyboard (xkbcommon)", ST_WREN_TEST_XKBCOMMON},
+	    {"Video", "ANSI terminfo", ST_WREN_TEST_TERMINFO},
+	    {"Input", "XInput", ST_WREN_TEST_XINPUT},
+	    {"Input", "HIDAPI", ST_WREN_TEST_HIDAPI},
+	    {"Input", "libusb", ST_WREN_TEST_LIBUSB},
+	    {"Input", "Kernel controllers (libudev and libevdev)", ST_WREN_TEST_EVDEV},
 	    {"Audio", "OSS", (audio & AUDIO_BACKEND_OSS) != 0},
 	    {"Audio", "SDL", (audio & AUDIO_BACKEND_SDL) != 0},
 	    {"Audio", "ALSA", (audio & AUDIO_BACKEND_ALSA) != 0},
@@ -6656,6 +6665,7 @@ exercise_build_options_contract(st_wren_host_t *public_host)
 	    {"Audio", "PulseAudio", (audio & AUDIO_BACKEND_PULSE_AUDIO) != 0},
 	    {"Audio", "Core Audio", (audio & AUDIO_BACKEND_CORE_AUDIO) != 0},
 	    {"Audio", "libsndfile", st_audio_file_supported()},
+	    {"Audio", "MOD and S3M (libopenmpt)", ST_WREN_TEST_OPENMPT},
 	};
 
 	wrenEnsureSlots(host->vm, 3);

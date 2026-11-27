@@ -9,32 +9,27 @@ foreach(feature OPENGL SLANG)
 endforeach()
 
 if(NOT ST_CONSOLE_OPENGL STREQUAL "OFF")
-	find_package(OpenGL QUIET)
+	if(ST_CONSOLE_HAVE_GDI OR ST_CONSOLE_HAVE_QUARTZ)
+		find_package(OpenGL QUIET)
+	endif()
 	cmake_push_check_state(RESET)
-	if(ST_CONSOLE_HAVE_X11 AND TARGET OpenGL::GL)
-		set(CMAKE_REQUIRED_LIBRARIES OpenGL::GL)
-		syncterm_check_c17_source("#include <GL/glx.h>
-			int main(void) { int n; GLXFBConfig *c = glXChooseFBConfig(0,0,0,&n);
-			return !glXCreateNewContext(0,*c,GLX_RGBA_TYPE,0,1) || !glXGetProcAddressARB((const GLubyte*)\"glViewport\"); }"
-			ST_GLX_API)
-		if(ST_GLX_API)
+	if(ST_CONSOLE_HAVE_X11)
+		st_console_dependency(GLX gl GL/glx.h GL RUNTIME INSTALLED_ONLY
+			SYMBOLS glXChooseFBConfig glXCreateNewContext glXGetProcAddressARB glXMakeCurrent
+			glXQueryVersion glXSwapBuffers glXDestroyContext)
+		if(ST_DEP_GLX_TARGET)
 			set(ST_CONSOLE_HAVE_GLX 1)
-			list(APPEND _st_console_dependencies OpenGL::GL)
 		endif()
 	endif()
-	if(ST_CONSOLE_HAVE_WAYLAND AND PkgConfig_FOUND)
-		pkg_check_modules(ST_GL_EGL QUIET IMPORTED_TARGET egl wayland-egl)
-		if(TARGET PkgConfig::ST_GL_EGL)
-			set(CMAKE_REQUIRED_LIBRARIES PkgConfig::ST_GL_EGL)
-			syncterm_check_c17_source("#include <EGL/egl.h>
-				#include <EGL/eglext.h>
-				#include <wayland-egl-core.h>
-				int main(void) { return !eglGetPlatformDisplay(EGL_PLATFORM_WAYLAND_KHR,0,0)
-				|| !eglCreatePlatformWindowSurface(0,0,wl_egl_window_create(0,1,1),0); }" ST_WAYLAND_EGL_API)
-			if(ST_WAYLAND_EGL_API)
-				set(ST_CONSOLE_HAVE_WAYLAND_EGL 1)
-				list(APPEND _st_console_dependencies PkgConfig::ST_GL_EGL)
-			endif()
+	if(ST_CONSOLE_HAVE_WAYLAND)
+		st_console_dependency(EGL egl EGL/egl.h EGL RUNTIME INSTALLED_ONLY HEADERS EGL/eglext.h
+			SYMBOLS eglGetPlatformDisplay eglCreatePlatformWindowSurface eglGetProcAddress eglChooseConfig
+			eglInitialize eglBindAPI eglCreateContext eglMakeCurrent eglSwapBuffers eglSwapInterval
+			eglDestroyContext eglDestroySurface eglTerminate)
+		st_console_dependency(WAYLAND_EGL wayland-egl wayland-egl-core.h wayland-egl RUNTIME INSTALLED_ONLY
+			SYMBOLS wl_egl_window_create wl_egl_window_resize wl_egl_window_destroy)
+		if(ST_DEP_EGL_TARGET AND ST_DEP_WAYLAND_EGL_TARGET)
+			set(ST_CONSOLE_HAVE_WAYLAND_EGL 1)
 		endif()
 	endif()
 	if(ST_CONSOLE_HAVE_GDI AND TARGET OpenGL::GL)

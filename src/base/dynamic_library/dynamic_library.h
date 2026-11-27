@@ -8,6 +8,7 @@
 #ifndef SYNCTERM_DYNAMIC_LIBRARY_H_
 #define SYNCTERM_DYNAMIC_LIBRARY_H_
 
+#include <stdbool.h>
 #include <stddef.h>
 
 #include "io_error.h"
@@ -29,6 +30,16 @@ enum dynamic_library_visibility {
  */
 int dynamic_library_open(dynamic_library_t **result, const char *const names[], size_t name_count,
     unsigned preferred_major, enum dynamic_library_visibility visibility);
+
+struct dynamic_library_import {
+	const char *name;
+	void       *destination;
+	size_t      size;
+};
+
+/* Destinations are usable only after all required imports resolve. */
+bool dynamic_library_bind(const char *const names[], size_t name_count, unsigned preferred_major,
+    const struct dynamic_library_import imports[], size_t count);
 
 /* The caller casts a successful result to the symbol's declared type. */
 void *dynamic_library_symbol(const dynamic_library_t *library, const char *name);

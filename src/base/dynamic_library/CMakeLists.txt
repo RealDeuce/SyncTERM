@@ -55,7 +55,7 @@ if(NOT SYNCTERM_DYNAMIC_LIBRARY_PLATFORM_BASELINE)
 		"The selected platform does not provide the required dynamic-library APIs")
 endif()
 
-add_library(syncterm_dynamic_library STATIC
+add_library(syncterm_dynamic_library STATIC dynamic_library_bind.c
 	${SYNCTERM_DYNAMIC_LIBRARY_PLATFORM_SOURCE})
 if(CMAKE_C_COMPILER_ID STREQUAL "GNU" AND WIN32)
 	set_source_files_properties(dynamic_library_windows.c PROPERTIES

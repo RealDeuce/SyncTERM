@@ -493,7 +493,8 @@ check_gl_scaler(st_console_t *console, Display *display, Window window, Visual *
 }
 
 static int
-check_resize_pixels(enum st_console_scaling_mode mode, const char *preset, bool check_effect, bool animated)
+check_resize_pixels(enum st_console_scaling_mode mode, const char *preset, bool check_effect, bool animated,
+    bool fallback)
 {
 	const char                            *title          = "st_console X11 resize pixels";
 	const struct st_console_display_config display_config = {
@@ -506,6 +507,7 @@ check_resize_pixels(enum st_console_scaling_mode mode, const char *preset, bool 
 	    .cell_height          = 16,
 	    .wrap                 = true,
 	    .scaling_mode         = mode,
+	    .scaling_policy       = fallback ? ST_PIXEL_SCALING_POINTY : ST_PIXEL_SCALING_BLOCKY,
 	    .preserve_window_size = mode == ST_CONSOLE_SCALING_OPENGL,
 	    .blink_mode           = ST_CONSOLE_BLINK_ATARI,
 	};
@@ -548,7 +550,9 @@ check_resize_pixels(enum st_console_scaling_mode mode, const char *preset, bool 
 		}
 		CHECK(status == 0);
 	}
-	if (mode == ST_CONSOLE_SCALING_OPENGL) {
+	if (fallback)
+		CHECK(st_console_display_set_gl_preset(console->display, preset, false) == 0);
+	else if (mode == ST_CONSOLE_SCALING_OPENGL) {
 		int status = st_console_display_set_gl_preset(console->display, NULL, true);
 		if (status == IO_ERROR_NOT_SUPPORTED) {
 			st_console_destroy(console);
@@ -643,9 +647,9 @@ check_resize_pixels(enum st_console_scaling_mode mode, const char *preset, bool 
 	CHECK(wait_window_pixel(display, window, 256, 192, 200, 100, first_pixel) == 0);
 
 	if (mode == ST_CONSOLE_SCALING_OPENGL) {
-		if (!preset || !strcmp(preset, "Pointy"))
+		if (fallback || !preset || !strcmp(preset, "Pointy"))
 			CHECK(check_gl_scaler(console, display, window, attributes.visual,
-				  preset ? ST_PIXEL_SCALING_POINTY : ST_PIXEL_SCALING_BLOCKY)
+				  preset && !fallback ? ST_PIXEL_SCALING_POINTY : ST_PIXEL_SCALING_BLOCKY)
 			      == 0);
 		else {
 			CHECK(st_console_display_set_gl_preset(console->display, "/missing/shader.slangp", true)
@@ -1397,17 +1401,19 @@ main(int argc, char **argv)
 	if (argc == 2 && strcmp(argv[1], "--mode-changes") == 0)
 		return check_mode_changes();
 	if (argc == 2 && strcmp(argv[1], "--xrender-pixels") == 0)
-		return check_resize_pixels(ST_CONSOLE_SCALING_EXTERNAL, NULL, false, false);
+		return check_resize_pixels(ST_CONSOLE_SCALING_EXTERNAL, NULL, false, false, false);
 	if (argc == 3 && strcmp(argv[1], "--gl-preset") == 0)
-		return check_resize_pixels(ST_CONSOLE_SCALING_OPENGL, argv[2], false, false);
+		return check_resize_pixels(ST_CONSOLE_SCALING_OPENGL, argv[2], false, false, false);
 	if (argc == 3 && strcmp(argv[1], "--gl-animate") == 0)
-		return check_resize_pixels(ST_CONSOLE_SCALING_OPENGL, argv[2], false, true);
+		return check_resize_pixels(ST_CONSOLE_SCALING_OPENGL, argv[2], false, true, false);
 	if (argc == 3 && strcmp(argv[1], "--gl-crt") == 0)
-		return check_resize_pixels(ST_CONSOLE_SCALING_OPENGL, argv[2], true, false);
+		return check_resize_pixels(ST_CONSOLE_SCALING_OPENGL, argv[2], true, false, false);
+	if (argc == 2 && strcmp(argv[1], "--gl-fallback") == 0)
+		return check_resize_pixels(ST_CONSOLE_SCALING_OPENGL, "/missing/shader.slangp", false, false, true);
 	if (argc == 2 && strcmp(argv[1], "--gl-pixels") == 0)
-		return check_resize_pixels(ST_CONSOLE_SCALING_OPENGL, NULL, false, false);
+		return check_resize_pixels(ST_CONSOLE_SCALING_OPENGL, NULL, false, false, false);
 	if (argc == 2 && strcmp(argv[1], "--resize-pixels") == 0)
-		return check_resize_pixels(ST_CONSOLE_SCALING_INTERNAL, NULL, false, false);
+		return check_resize_pixels(ST_CONSOLE_SCALING_INTERNAL, NULL, false, false, false);
 	status = st_console_create(&first, &config_display, &config);
 	if (status == IO_ERROR_NOT_FOUND || status == IO_ERROR_NOT_SUPPORTED)
 		return 77;

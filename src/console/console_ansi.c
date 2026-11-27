@@ -139,6 +139,15 @@ struct ansi_colour_capabilities {
 static struct ansi_colour_capabilities
 terminal_colour_capabilities(void)
 {
+	const char                     *colorterm = getenv("COLORTERM");
+	struct ansi_colour_capabilities result    = {.indexed_colours = 16};
+
+	if (colorterm != NULL
+	    && (ascii_equal_case_insensitive(colorterm, "truecolor")
+	        || ascii_equal_case_insensitive(colorterm, "24bit")))
+		result.direct_colour = true;
+#if ST_CONSOLE_HAVE_TERMINFO
+	int error = 0;
 #if !ST_DEP_TERMINFO_LINKED
 	static const char *const names[] = {
 	    "ncursesw",
@@ -154,14 +163,6 @@ terminal_colour_capabilities(void)
 	setupterm_fn                    call_setupterm;
 	tigetnum_fn                     call_tigetnum;
 	tigetflag_fn                    call_tigetflag;
-	const char                     *colorterm = getenv("COLORTERM");
-	struct ansi_colour_capabilities result    = {.indexed_colours = 16};
-	int                             error     = 0;
-
-	if (colorterm != NULL
-	    && (ascii_equal_case_insensitive(colorterm, "truecolor")
-	        || ascii_equal_case_insensitive(colorterm, "24bit")))
-		result.direct_colour = true;
 #if ST_DEP_TERMINFO_LINKED
 	call_setupterm = (setupterm_fn)setupterm;
 	call_tigetnum  = (tigetnum_fn)tigetnum;
@@ -186,6 +187,7 @@ terminal_colour_capabilities(void)
 		if (call_tigetflag != NULL && call_tigetflag("RGB") > 0)
 			result.direct_colour = true;
 	}
+#endif
 	return result;
 }
 

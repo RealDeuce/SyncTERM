@@ -121,6 +121,8 @@ st_ddofx_builtin(const struct st_ddofx *ddo, const struct st_ddofx_sink *sink, c
 	else if (!ascii_case_compare(name, "MUSICON") || !ascii_case_compare(name, "SOUNDON")
 	         || !ascii_case_compare(name, "ACARD")) {
 		bool available = st_audio_runtime_is_pull(sink->audio) || st_audio_runtime_allowed(sink->audio);
+		if (!ascii_case_compare(name, "MUSICON"))
+			available = available && st_tracker_available();
 		if (!ascii_case_compare(name, "ACARD"))
 			strcpy(result, available ? "SB 16" : "NONE");
 		else

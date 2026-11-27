@@ -16,7 +16,7 @@ find_package(PkgConfig QUIET)
 include("${CMAKE_CURRENT_LIST_DIR}/../../cmake/SynctermDependencies.cmake")
 
 function(st_console_dependency name package header libraries default)
-	cmake_parse_arguments(PARSE_ARGV 5 API "REQUIRED" "" "SYMBOLS;HEADERS")
+	cmake_parse_arguments(PARSE_ARGV 5 API "REQUIRED;INSTALLED_ONLY" "" "SYMBOLS;HEADERS")
 	syncterm_dependency_options(${name} ${default})
 	set(probe "#include <${header}>\n")
 	foreach(extra IN LISTS API_HEADERS)
@@ -37,7 +37,11 @@ function(st_console_dependency name package header libraries default)
 	if(name STREQUAL "CURSES" OR name STREQUAL "TERMINFO")
 		set(alternatives ALTERNATIVES)
 	endif()
-	syncterm_dependency(NAME ${name} PACKAGE "${package}" HEADER "${header}"
+	set(installed_only)
+	if(API_INSTALLED_ONLY)
+		set(installed_only INSTALLED_ONLY)
+	endif()
+	syncterm_dependency(NAME ${name} ${installed_only} PACKAGE "${package}" HEADER "${header}"
 		LIBRARIES ${libraries} DEFAULT ${default} ${required} ${alternatives} PROBE "${probe}")
 	set(ST_DEP_${name}_LINKED 0 PARENT_SCOPE)
 	set(ST_DEP_${name}_TARGET "${ST_DEP_${name}_TARGET}" PARENT_SCOPE)
@@ -332,58 +336,6 @@ int main(void)
 	return 0;
 }
 ]=] ST_CONSOLE_HAVE_THREAD_LOCALE)
-
-set(ST_CONSOLE_HAVE_SDL 0)
-set(ST_CONSOLE_SDL_INCLUDE_DIRS)
-if(NOT ST_CONSOLE_SDL STREQUAL "OFF")
-	if(PkgConfig_FOUND)
-		pkg_check_modules(ST_CONSOLE_SDL_PC QUIET sdl2)
-	endif()
-	find_path(ST_CONSOLE_SDL_INCLUDE_DIR SDL.h
-		HINTS ${ST_CONSOLE_SDL_PC_INCLUDE_DIRS}
-		PATH_SUFFIXES SDL2)
-	if(ST_CONSOLE_SDL_INCLUDE_DIR)
-		set(ST_CONSOLE_SDL_INCLUDE_DIRS
-			${ST_CONSOLE_SDL_PC_INCLUDE_DIRS}
-			${ST_CONSOLE_SDL_INCLUDE_DIR})
-		list(REMOVE_DUPLICATES ST_CONSOLE_SDL_INCLUDE_DIRS)
-		set(_st_console_saved_required_includes ${CMAKE_REQUIRED_INCLUDES})
-		set(CMAKE_REQUIRED_INCLUDES ${ST_CONSOLE_SDL_INCLUDE_DIRS})
-		syncterm_check_c17_source("#include <SDL.h>\nint main(void) { SDL_Event event; (void)event; return 0; }"
-			ST_CONSOLE_SDL_HEADERS_USABLE)
-		set(CMAKE_REQUIRED_INCLUDES ${_st_console_saved_required_includes})
-	endif()
-	if(ST_CONSOLE_SDL_INCLUDE_DIR AND ST_CONSOLE_SDL_HEADERS_USABLE)
-		set(ST_CONSOLE_HAVE_SDL 1)
-	endif()
-endif()
-
-set(ST_CONSOLE_HAVE_X11 0)
-set(ST_CONSOLE_HAVE_XRENDER 0)
-set(ST_CONSOLE_HAVE_XRANDR 0)
-set(ST_CONSOLE_HAVE_XINERAMA 0)
-set(ST_CONSOLE_X11_INCLUDE_DIRS)
-if(NOT WIN32 AND NOT ST_CONSOLE_X11 STREQUAL "OFF")
-	find_package(X11 QUIET)
-	if(X11_FOUND AND X11_X11_INCLUDE_PATH AND X11_Xutil_FOUND
-	    AND X11_Xkb_FOUND)
-		set(ST_CONSOLE_HAVE_X11 1)
-		set(ST_CONSOLE_X11_INCLUDE_DIRS ${X11_INCLUDE_DIR})
-		if(X11_Xrender_FOUND)
-			set(ST_CONSOLE_HAVE_XRENDER 1)
-		endif()
-		if(X11_Xrandr_FOUND)
-			set(ST_CONSOLE_HAVE_XRANDR 1)
-			list(APPEND ST_CONSOLE_X11_INCLUDE_DIRS
-				${X11_Xrandr_INCLUDE_PATH})
-		endif()
-		if(X11_Xinerama_FOUND)
-			set(ST_CONSOLE_HAVE_XINERAMA 1)
-			list(APPEND ST_CONSOLE_X11_INCLUDE_DIRS
-				${X11_Xinerama_INCLUDE_PATH})
-		endif()
-	endif()
-endif()
 
 set(ST_CONSOLE_HAVE_POSIX_URL 0)
 if(NOT WIN32)
@@ -961,6 +913,8 @@ if(BUILD_TESTING)
 		set_target_properties(st_console_x11_test PROPERTIES
 			C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 		st_console_warnings(st_console_x11_test)
+		add_test(NAME st_console_x11_scaler_fallback COMMAND st_console_x11_test --gl-fallback)
+		set_tests_properties(st_console_x11_scaler_fallback PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 30)
 		add_test(NAME st_console_x11 COMMAND st_console_x11_test)
 		add_test(NAME st_console_x11_resize COMMAND st_console_x11_test --resize-pixels)
 		set_tests_properties(st_console_x11_resize PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 20)
@@ -1001,7 +955,7 @@ if(BUILD_TESTING)
 			st_console syncterm_array_list syncterm_dynamic_library
 			st_time)
 		if(ST_CONSOLE_HAVE_WAYLAND_EGL)
-			target_link_libraries(st_console_wayland_internal_test PRIVATE PkgConfig::ST_GL_EGL)
+			target_link_libraries(st_console_wayland_internal_test PRIVATE ${ST_DEP_EGL_TARGET} ${ST_DEP_WAYLAND_EGL_TARGET})
 		endif()
 		syncterm_target_atomics(st_console_wayland_internal_test)
 		set_target_properties(st_console_wayland_internal_test PROPERTIES
@@ -1085,6 +1039,9 @@ include("${CMAKE_CURRENT_LIST_DIR}/../../cmake/SynctermBuildFeatures.cmake")
 syncterm_export_configuration(st_console
 	ST_CONSOLE_TEST
 	ST_CONSOLE_HAVE_OPENGL
+	ST_CONSOLE_HAVE_GLX
+	ST_CONSOLE_HAVE_WAYLAND_EGL
+	ST_CONSOLE_HAVE_TERMINFO
 	ST_CONSOLE_HAVE_SLANG
 	ST_CONSOLE_HAVE_SDL
 	ST_CONSOLE_HAVE_X11

@@ -3,16 +3,25 @@ file(READ "${BUILD_DIR}/syncterm-configuration.txt" report)
 file(STRINGS "${BUILD_DIR}/syncterm-generated/st_build_options.inc" rows
 	REGEX "^ST_BUILD_OPTION")
 list(LENGTH rows count)
-if(NOT count EQUAL 40)
+if(NOT count EQUAL 50)
 	message(FATAL_ERROR "Incomplete Build Options inventory: ${count}")
 endif()
 foreach(item "Unifont (SyncTERM Unicode)" UNSCII "Noto Emoji" "Noto Color Emoji"
 	"DeuceSSH (SSH)" "OpenSSL (TLS, symmetric ciphers)" "Botan 3 (TLS, symmetric ciphers)"
 	"Encrypted BBS lists" "Operation Overkill ][ Terminal" "JPEG XL support"
-	SDL "X11 Support" Xinerama XRandR XRender "OpenGL scaling" "Slang presets" GDI Wayland Quartz "Win32 Console"
+	SDL "X11 Support" Xinerama XRandR XRender "OpenGL scaling" "Slang presets (librashader)" GDI Wayland Quartz "Win32 Console"
 	ncurses ANSI libretro "Testing bitmap backend" OSS ALSA WASAPI PortAudio
 	PipeWire PulseAudio "Core Audio" libsndfile WinMM "Apple DLS" "ALSA Sequencer"
-	FluidSynth libADLMIDI)
+	FluidSynth libADLMIDI
+	"DDO F/X packages (libzip)"
+	"MOD and S3M (libopenmpt)"
+	"GLX"
+	"Wayland EGL (EGL and wayland-egl)"
+	"Wayland keyboard (xkbcommon)"
+	"ANSI terminfo"
+	"XInput" "HIDAPI"
+	"libusb"
+	"Kernel controllers (libudev and libevdev)")
 	string(FIND "${report}" "${item}" present)
 	if(present EQUAL -1)
 		message(FATAL_ERROR "Configuration report omitted ${item}")

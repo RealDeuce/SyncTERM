@@ -39,6 +39,12 @@ churn, and speculative abstractions.
   target. Avoid directory-wide flags and global include/link state.
 - Use imported targets from `find_package()` where available. Do not pass raw
   dependency flags around globally.
+- Optional third-party libraries default to static archives on Windows and
+  macOS and load on demand on other targets. Keep a static linkage option.
+  Crypto providers and native OS libraries use their own linkage policy.
+  An unavailable optional library disables only its dependent feature.
+  Report compiled support in Build Options and check availability when the
+  feature is used.
 - Options express user policy; probes establish platform capabilities. Keep
   detected values internal unless users genuinely need to select behavior.
 - Configuration must also work when cross-compiling. Prefer compile or link

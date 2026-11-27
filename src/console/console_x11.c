@@ -1087,31 +1087,48 @@ clear_window(struct x11_state *state)
 }
 
 #if ST_CONSOLE_HAVE_GLX
+#define ST_API_NAME glx
+#define ST_API_PREFIX glX
+#define ST_API_LINKED ST_DEP_GLX_LINKED
+#define ST_API_NAMES "GL", "GLX"
+#define ST_API_MAJOR 1
+#define ST_API_FUNCTIONS(X) \
+	X(GLXFBConfig *, ChooseFBConfig, (Display *, int, const int *, int *)) \
+	X(GLXContext, CreateNewContext, (Display *, GLXFBConfig, int, GLXContext, int)) \
+	X(void, DestroyContext, (Display *, GLXContext)) \
+	X(__GLXextFuncPtr, GetProcAddressARB, (const GLubyte *)) \
+	X(int, MakeCurrent, (Display *, GLXDrawable, GLXContext)) \
+	X(int, QueryVersion, (Display *, int *, int *)) \
+	X(void, SwapBuffers, (Display *, GLXDrawable))
+#include "dynamic_library_api.inc"
+
 static int
 x11_gl_current(void *window, uint32_t width, uint32_t height)
 {
 	struct x11_state *s = window;
 	(void)width;
 	(void)height;
+	if (!glx_available())
+		return IO_ERROR_NOT_SUPPORTED;
 	if (!s->gl_context) {
 		int major = 0, minor = 0, count = 0;
-		if (!glXQueryVersion(s->display, &major, &minor) || (major == 1 && minor < 3))
+		if (!glx.QueryVersion(s->display, &major, &minor) || (major == 1 && minor < 3))
 			return IO_ERROR_NOT_SUPPORTED;
 		const int    attributes[] = {GLX_RENDER_TYPE, GLX_RGBA_BIT, GLX_DRAWABLE_TYPE, GLX_WINDOW_BIT,
 		    GLX_DOUBLEBUFFER, True, GLX_VISUAL_ID, (int)s->visual->visualid, None};
-		GLXFBConfig *configs      = glXChooseFBConfig(s->display, s->screen, attributes, &count);
+		GLXFBConfig *configs      = glx.ChooseFBConfig(s->display, s->screen, attributes, &count);
 		if (configs && count)
-			s->gl_context = glXCreateNewContext(s->display, configs[0], GLX_RGBA_TYPE, NULL, True);
+			s->gl_context = glx.CreateNewContext(s->display, configs[0], GLX_RGBA_TYPE, NULL, True);
 		if (configs)
 			s->api.free_memory(configs);
 	}
-	return s->gl_context && glXMakeCurrent(s->display, s->window, s->gl_context) ? 0 : IO_ERROR_NOT_SUPPORTED;
+	return s->gl_context && glx.MakeCurrent(s->display, s->window, s->gl_context) ? 0 : IO_ERROR_NOT_SUPPORTED;
 }
 
 static const void *
 x11_gl_symbol(const char *name)
 {
-	__GLXextFuncPtr fn = glXGetProcAddressARB((const GLubyte *)name);
+	__GLXextFuncPtr fn = glx.GetProcAddressARB((const GLubyte *)name);
 	const void     *symbol;
 	_Static_assert(sizeof(fn) == sizeof(symbol), "GLX procedure size");
 	memcpy(&symbol, &fn, sizeof(symbol));
@@ -1122,7 +1139,7 @@ static int
 x11_gl_swap(void *window)
 {
 	struct x11_state *s = window;
-	glXSwapBuffers(s->display, s->window);
+	glx.SwapBuffers(s->display, s->window);
 	return 0;
 }
 
@@ -1131,8 +1148,8 @@ x11_gl_close(void *window)
 {
 	struct x11_state *s = window;
 	if (s->gl_context) {
-		glXMakeCurrent(s->display, None, NULL);
-		glXDestroyContext(s->display, s->gl_context);
+		glx.MakeCurrent(s->display, None, NULL);
+		glx.DestroyContext(s->display, s->gl_context);
 		s->gl_context        = NULL;
 		s->destination_valid = false;
 	}
