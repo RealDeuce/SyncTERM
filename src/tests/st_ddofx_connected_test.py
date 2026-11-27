@@ -75,6 +75,41 @@ def check_scripts(t):
     assert time.monotonic() - start >= 0.15
 
 
+def check_events(t):
+    # A repeating event counts to two and then deactivates itself. No more
+    # bytes arrive from the BBS while the callbacks run.
+    t.exchange(commands(b"~DEFVAR,1,2,0", b"7DEFRET,1,M",
+                        b"7CEVENT,200,0,20,0,0,0,0,0,0,1,R~^M,"
+                        b"\x1d(~INCVAR,1)\x1d(7SRET,1)\x1d(~IFVAR,DEFVAR1,=,2,\x1d[7DEVENT,200])"))
+    t.send(commands(b"7AEVENT,200"))
+    t.input(b"MR,\rMR,\r")
+
+    # Calendar events use local time and are one-shot. The first callback
+    # clears all definitions while running and still sends its own return.
+    t.exchange(commands(b"~PAUSEBAK", b"7CEVENT,2,1,0,1,1,2000,0,0,0,1,D,\x1d(7CEVENT,0)",
+                        b"7AEVENT,2", b"7AEVENT,200", b"dLITERM"), b"LITERM Ver. 2.00\xff")
+    t.send(commands(b"~UNPAUSEBAK"))
+    t.input(b"D")
+
+    # An armed seconds timer interrupts a foreground wait. Its own shorter
+    # wait completes before its reply, then the original wire stream resumes.
+    t.case("seconds timer during a foreground wait")
+    start = time.monotonic()
+    t.send(commands(b"7CEVENT,1,2,1,0,0,0,0,0,0,0,E,\x1d(w1)\x1d(7SRET,1)",
+                    b"7AEVENT,1", b"w30", b"7SRET,1"))
+    t.input(b"MEM")
+    assert time.monotonic() - start >= 1.6
+
+    # Redefinition discards the old arming. A later activation uses only
+    # the replacement record. The following query also detects stray replies.
+    t.exchange(commands(b"~PAUSEBAK", b"7AEVENT,1",
+                        b"7CEVENT,1,1,0,1,1,2000,0,0,0,0,N,",
+                        b"7CEVENT,3,1,0,1,1,2099,0,0,0,0,F,", b"7AEVENT,3", b"~UNPAUSEBAK"))
+    t.send(commands(b"7AEVENT,1"))
+    t.input(b"N")
+    t.exchange(commands(b"7CEVENT,0", b"7AEVENT,1", b"dLITERM"), b"LITERM Ver. 2.00\xff")
+
+
 def run(args):
     ident = b"\x1d{dLITERM}"
     reply = b"LITERM Ver. 2.00\xff"
@@ -89,6 +124,7 @@ def run(args):
         t.exchange(b"\x1d{MGVOL}\x1d{MSVOL,20}\x1d{MMVOL,-5}\x1d{MGVOL}", b"64\xff15\xff")
         check_cache(t, fixture[1])
         check_scripts(t)
+        check_events(t)
         glyph = "é".encode("utf-8" if args.encoding == "UTF-8" else "cp437")
         t.check("framing amid ANSI", b"\x1b[2;" + ident + b"3H" + glyph + ident + ident + b"B",
                 (5, 2), [(3, 2, "éB")], expected=reply * 3)

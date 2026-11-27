@@ -110,6 +110,7 @@ void
 st_ddofx_reset(struct st_ddofx *ddo)
 {
 	free(ddo->queued);
+	free(ddo->events);
 	st_ddofx_script_destroy(ddo);
 	st_tracker_destroy(ddo->player);
 	*ddo = (struct st_ddofx) {.volume = 64};
@@ -122,6 +123,10 @@ execute(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *body)
 		ddo->ignoring = false;
 	else if (matches(body, "~IGNORCMD"))
 		ddo->ignoring = true;
+	else if (matches(body, "~PAUSEBAK"))
+		ddo->background_paused = true;
+	else if (matches(body, "~UNPAUSEBAK"))
+		ddo->background_paused = false;
 	else if (body[0] == '~' || (!ddo->ignoring && (body[0] == '7' || body[0] == '4')))
 		st_ddofx_script_command(ddo, sink, body);
 	else if (ddo->ignoring)
@@ -260,6 +265,7 @@ st_ddofx_busy(const struct st_ddofx *ddo)
 int
 st_ddofx_poll(struct st_ddofx *ddo, const struct st_ddofx_sink *sink)
 {
+	st_ddofx_event_poll(ddo);
 	/* Yield back to the session between slices so long or infinite scripts
 	 * cannot prevent local disconnect, redraws or transfer servicing. */
 	for (unsigned i = 0; i < 128; ++i) {

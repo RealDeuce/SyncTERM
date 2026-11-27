@@ -39,6 +39,9 @@ struct macro_frame {
 	int                    remaining;
 	bool                   until;
 	struct predicate       condition;
+	char                   after_reply[101];
+	bool                   event;
+	uint64_t               saved_wait;
 };
 
 struct st_ddofx_script {
@@ -130,8 +133,8 @@ set_number(struct variable *v, int64_t n)
 	snprintf(v->text, sizeof(v->text), "%" PRId64, n);
 }
 
-static char *
-field(char **remaining)
+char *
+st_ddofx_field(char **remaining)
 {
 	char *start = *remaining;
 	if (start == NULL)
@@ -143,10 +146,10 @@ field(char **remaining)
 	return start;
 }
 
-static bool
-field_number(const struct st_ddofx *ddo, char **args, int32_t *n)
+bool
+st_ddofx_field_number(const struct st_ddofx *ddo, char **args, int32_t *n)
 {
-	const char *s = field(args);
+	const char *s = st_ddofx_field(args);
 	return s != NULL && st_ddofx_number(ddo, s, n);
 }
 
@@ -220,7 +223,7 @@ named_macro(struct st_ddofx *ddo, const char *verb, char *args)
 {
 	struct st_ddofx_script *s = ddo->script;
 	int32_t                 id, line = 1;
-	if (!field_number(ddo, &args, &id))
+	if (!st_ddofx_field_number(ddo, &args, &id))
 		return;
 	if (id == 0 && !strcmp(verb, "DEFM")) {
 		memset(s->macros, 0, sizeof(s->macros));
@@ -234,7 +237,7 @@ named_macro(struct st_ddofx *ddo, const char *verb, char *args)
 	}
 	int last = MACRO_LINES;
 	if (strcmp(verb, "RUNM")) {
-		if (!field_number(ddo, &args, &line) || line < 1 || line > MACRO_LINES)
+		if (!st_ddofx_field_number(ddo, &args, &line) || line < 1 || line > MACRO_LINES)
 			return;
 		if (!strcmp(verb, "DEFM")) {
 			macro_text(s->macros[id - 1][line - 1], st_ddofx_value(ddo, args ? args : ""),
@@ -254,36 +257,68 @@ named_macro(struct st_ddofx *ddo, const char *verb, char *args)
 }
 
 static void
+define_reply(char *out, const char *source, size_t limit)
+{
+	copy(out, source, limit);
+	for (; *out; ++out)
+		if (*out == '~')
+			*out = ',';
+}
+
+static void
+send_reply(const struct st_ddofx_sink *sink, const char *encoded)
+{
+	const uint8_t *p = (const uint8_t *)encoded;
+	uint8_t        bytes[LINE_LENGTH];
+	size_t         n = 0;
+	while (*p) {
+		uint8_t c = *p++;
+		if (c == '^' && *p)
+			c = (uint8_t)(ascii_to_upper(*p++) - 64);
+		bytes[n++] = c;
+	}
+	if (n)
+		sink->reply(sink->context, bytes, n);
+}
+
+void
+st_ddofx_callback_define(const struct st_ddofx *ddo, struct st_ddofx_callback *cb, const char *reply,
+    const char *macro)
+{
+	define_reply(cb->reply, st_ddofx_value(ddo, reply), sizeof(cb->reply) - 1);
+	macro_text(cb->macro, st_ddofx_value(ddo, macro), sizeof(cb->macro) - 1);
+}
+
+void
+st_ddofx_callback_start(struct st_ddofx *ddo, const struct st_ddofx_callback *cb)
+{
+	struct macro_frame *f = push(ddo->script);
+	if (f != NULL) {
+		f->event        = true;
+		f->saved_wait   = ddo->wait_until;
+		ddo->wait_until = 0;
+		ddo->in_event   = true;
+		copy(f->source, cb->macro, sizeof(cb->macro) - 1);
+		f->length = strlen(f->source);
+		copy(f->after_reply, cb->reply, sizeof(cb->reply) - 1);
+	}
+}
+
+static void
 named_return(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, const char *verb, char *args)
 {
 	struct st_ddofx_script *s = ddo->script;
 	int32_t                 id;
-	if (!field_number(ddo, &args, &id) || id < 0 || id > RETURN_COUNT)
+	if (!st_ddofx_field_number(ddo, &args, &id) || id < 0 || id > RETURN_COUNT)
 		return;
 	if (!strcmp(verb, "DEFRET")) {
 		if (id == 0)
 			memset(s->returns, 0, sizeof(s->returns));
-		else {
-			char *out = s->returns[id - 1];
-			copy(out, st_ddofx_value(ddo, args ? args : ""), LINE_LENGTH);
-			for (; *out; ++out)
-				if (*out == '~')
-					*out = ',';
-		}
+		else
+			define_reply(s->returns[id - 1], st_ddofx_value(ddo, args ? args : ""), LINE_LENGTH);
 	}
-	else if (id && !strcmp(verb, "SRET")) {
-		const uint8_t *p = (const uint8_t *)s->returns[id - 1];
-		uint8_t        bytes[LINE_LENGTH];
-		size_t         n = 0;
-		while (*p) {
-			uint8_t c = *p++;
-			if (c == '^' && *p)
-				c = (uint8_t)(ascii_to_upper(*p++) - 64);
-			bytes[n++] = c;
-		}
-		if (n)
-			sink->reply(sink->context, bytes, n);
-	}
+	else if (id && !strcmp(verb, "SRET"))
+		send_reply(sink, s->returns[id - 1]);
 }
 
 static void
@@ -338,7 +373,7 @@ edit_variables(struct st_ddofx *ddo, struct variable *v, const char *verb, char 
 		return;
 	}
 	if (!strcmp(verb, "VARDEL")) {
-		if (!field_number(ddo, &args, &count) || count <= 0 || n <= 0 || n > (int32_t)len)
+		if (!st_ddofx_field_number(ddo, &args, &count) || count <= 0 || n <= 0 || n > (int32_t)len)
 			return;
 		size_t start   = (size_t)n - 1;
 		size_t removed = (size_t)count < len - start ? (size_t)count : len - start;
@@ -360,13 +395,14 @@ edit_variables(struct st_ddofx *ddo, struct variable *v, const char *verb, char 
 		other->type = NUMERIC;
 		set_number(other, (int64_t)result);
 	}
-	else if (!strcmp(verb, "VARCPY") && field_number(ddo, &args, &index) && field_number(ddo, &args, &count)) {
+	else if (!strcmp(verb, "VARCPY") && st_ddofx_field_number(ddo, &args, &index)
+	         && st_ddofx_field_number(ddo, &args, &count)) {
 		size_t start = index <= 1 ? 0 : (size_t)index - 1;
 		if (start > len)
 			start = len;
 		copy(other->text, v->text + start, count < 0 ? 0 : (size_t)count);
 	}
-	else if (!strcmp(verb, "VARINS") && field_number(ddo, &args, &index)) {
+	else if (!strcmp(verb, "VARINS") && st_ddofx_field_number(ddo, &args, &index)) {
 		char   joined[2 * VARIABLE_LENGTH + 1];
 		size_t start  = index <= 1 ? 0 : (size_t)index - 1;
 		size_t length = strlen(other->text);
@@ -384,7 +420,7 @@ variable_command(struct st_ddofx *ddo, const char *verb, char *args)
 {
 	struct st_ddofx_script *s = ddo->script;
 	int32_t                 id, n;
-	if (!field_number(ddo, &args, &id))
+	if (!st_ddofx_field_number(ddo, &args, &id))
 		return;
 	if (!strcmp(verb, "VARCAP")) {
 		if (id >= 0 && id <= VARIABLE_COUNT)
@@ -417,7 +453,7 @@ variable_command(struct st_ddofx *ddo, const char *verb, char *args)
 			arithmetic(s, v, verb, 1);
 		return;
 	}
-	if (!field_number(ddo, &args, &n))
+	if (!st_ddofx_field_number(ddo, &args, &n))
 		return;
 	if (!strcmp(verb, "DEFVAR") || !strcmp(verb, "VARTYP")) {
 		if (n != TEXT && n != NUMERIC)
@@ -488,11 +524,11 @@ repeat_macro(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, const char 
 	bool             until = !strcmp(verb, "REPVAR");
 	int32_t          count = 1;
 	if (!strcmp(verb, "REPMAC")) {
-		if (!field_number(ddo, &args, &count) || count < 1 || count > 32000)
+		if (!st_ddofx_field_number(ddo, &args, &count) || count < 1 || count > 32000)
 			return;
 	}
 	else {
-		char *master = field(&args), *op = field(&args), *slave = field(&args);
+		char *master = st_ddofx_field(&args), *op = st_ddofx_field(&args), *slave = st_ddofx_field(&args);
 		if (master == NULL || op == NULL || slave == NULL)
 			return;
 		const char *operation = st_ddofx_value(ddo, op);
@@ -546,6 +582,11 @@ st_ddofx_script_step(struct st_ddofx *ddo, const struct st_ddofx_sink *sink)
 		}
 	}
 	else if (--f->remaining <= 0) {
+		if (f->event) {
+			ddo->in_event   = false;
+			ddo->wait_until = f->saved_wait;
+			send_reply(sink, f->after_reply);
+		}
 		pop(s);
 		return 0;
 	}
@@ -559,7 +600,7 @@ st_ddofx_script_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, 
 {
 	char  root = *body++;
 	char *args = body;
-	char *verb = field(&args);
+	char *verb = st_ddofx_field(&args);
 	if (args == NULL)
 		return;
 	if (ddo->script == NULL) {
@@ -571,6 +612,8 @@ st_ddofx_script_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, 
 		*p = (char)ascii_to_upper((unsigned char)*p);
 	if (root == '4')
 		named_macro(ddo, verb, args);
+	else if (root == '7' && (!strcmp(verb, "CEVENT") || !strcmp(verb, "AEVENT") || !strcmp(verb, "DEVENT")))
+		st_ddofx_event_command(ddo, verb, args);
 	else if (root == '7')
 		named_return(ddo, sink, verb, args);
 	else if (!strcmp(verb, "IFVAR") || !strcmp(verb, "REPVAR") || !strcmp(verb, "REPMAC"))

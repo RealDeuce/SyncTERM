@@ -116,6 +116,13 @@ st_term_session_device_paused(st_term_session_t *session)
 	           || cterm_igs_paused(session->igs));
 }
 
+static bool
+ddofx_can_run(const st_term_session_t *session)
+{
+	return session->config.graphics_mode == ST_GRAPHICS_DDOFX_20 && session->transfer == NULL
+	       && !session->transfer_reserved && session->wire_owner == NULL;
+}
+
 int
 st_term_session_poll_display(st_term_session_t *session)
 {
@@ -126,7 +133,7 @@ st_term_session_poll_display(st_term_session_t *session)
 		return 0;
 	}
 	int status = st_cterm_poll(st_term_session_cterm(session));
-	if (status == 0 && st_ddofx_busy(&session->ddofx)) {
+	if (status == 0 && ddofx_can_run(session)) {
 		const struct st_ddofx_sink sink = ddofx_sink(session);
 		status = st_ddofx_poll(&session->ddofx, &sink);
 	}
@@ -2196,6 +2203,11 @@ st_term_session_wait(st_term_session_t *session, uint32_t timeout_ms)
 	        || cterm_big_needs_poll(session->big) || cterm_igs_needs_poll(session->igs)
 	        || session->musicomm != NULL || st_cterm_needs_poll(st_term_session_cterm(session))))
 		timeout_ms = 1;
+	if (ddofx_can_run(session)) {
+		uint32_t event_wait = st_ddofx_event_wait_ms(&session->ddofx);
+		if (timeout_ms > event_wait)
+			timeout_ms = event_wait;
+	}
 	uint32_t controller_wait = st_controllers_wait_ms(session->config.controllers);
 	if (timeout_ms > controller_wait)
 		timeout_ms = controller_wait;

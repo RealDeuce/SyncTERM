@@ -64,9 +64,9 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 2874 | TEST FOR JOYSTICK | DDO-LITE | Pending |
 | 2893 | CALIBRATE JOYSTICK | DDO-LITE | Pending |
 | 2913 | DEFINE JOYSTICK | DDO-LITE | Pending |
-| 3067 | CREATE BACKGROUND EVENT | DDO-LITE | Pending |
-| 3161 | ACTIVATE BACKGROUND EVENT | DDO-LITE | Pending |
-| 3174 | DEACTIVATE BACKGROUND EVENT | DDO-LITE | Pending |
+| 3067 | CREATE BACKGROUND EVENT | DDO-LITE | Connected |
+| 3161 | ACTIVATE BACKGROUND EVENT | DDO-LITE | Connected |
+| 3174 | DEACTIVATE BACKGROUND EVENT | DDO-LITE | Connected |
 | 3187 | DEFINE RETURN STRING | DDO-LITE | Connected |
 | 3226 | SEND RETURN STRING | DDO-LITE | Connected |
 | 3237 | TEXT FADE OUT | DDO-FX LITE | Pending |
@@ -81,8 +81,8 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 3501 | DEFINE SYSTEM VARIABLE | DDO-FX LITE | Connected |
 | 3604 | LOCK KEYS | DDO-FX LITE | Pending |
 | 3650 | UNLOCK KEYS | DDO-FX LITE | Pending |
-| 3661 | PAUSE BACKGROUND TASKS | DDO-FX LITE | Pending |
-| 3710 | UNPAUSE BACKGROUND TASKS | DDO-FX LITE | Pending |
+| 3661 | PAUSE BACKGROUND TASKS | DDO-FX LITE | Connected for timed events |
+| 3710 | UNPAUSE BACKGROUND TASKS | DDO-FX LITE | Connected for timed events |
 | 3720 | IGNORE COMMANDS | DDO-FX LITE | Connected |
 | 3767 | HEAR COMMANDS | DDO-FX LITE | Connected |
 | 3782 | ALL CAPS SYSTEM VARIABLE | DDO-FX LITE | Connected |
