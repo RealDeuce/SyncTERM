@@ -95,7 +95,10 @@ struct st_ddofx_sink {
 	const char                   *cache_directory;
 	int32_t                       (*available_memory)(void);
 	void                          (*alert)(void *, const char *title, const char *message);
-	void                         *alert_context;
+	/* length counts DOS bytes on entry and save. A null result means cancel. */
+	int (*edit_text)(void *context, const char *name, const char *initial, size_t limit, char **result,
+	    size_t *length);
+	void *ui_context;
 	void                          (*lite_screen_mode)(void *, unsigned mode);
 	bool                mouse_disabled;
 	st_audio_runtime_t *audio;

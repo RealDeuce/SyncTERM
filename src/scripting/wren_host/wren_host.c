@@ -1124,11 +1124,32 @@ struct variable_dialog {
 	const int32_t *position;
 };
 
+struct custom_dialog {
+	const char *method;
+	size_t     *byte_count;
+};
+
+static int
+read_dialog_bytes(WrenVM *vm, size_t limit, size_t *size, char **result)
+{
+	int         length;
+	const char *bytes = wrenGetSlotBytes(vm, 0, &length);
+	if ((size_t)length > limit)
+		return IO_ERROR_OUT_OF_RANGE;
+	*result = malloc((size_t)length + 1);
+	if (!*result)
+		return IO_ERROR_OUT_OF_MEMORY;
+	memcpy(*result, bytes, (size_t)length);
+	(*result)[length] = 0;
+	*size             = (size_t)length;
+	return 0;
+}
+
 static int
 host_dialog(st_wren_host_t *host, const char *title, const char *question, const char *initial, size_t max_length,
-    bool masked, char **result, const char *const *choices, size_t count, int *selected, const char *method,
-    const uint32_t *hotkeys, bool required, struct definition_dialog *definition,
-    const struct variable_dialog *variable)
+    bool masked, char **result, const char *const *choices, size_t count, int *selected,
+    const struct custom_dialog *custom, const uint32_t *hotkeys, bool required,
+    struct definition_dialog *definition, const struct variable_dialog *variable)
 {
 	st_console_snapshot_t        *snapshot = NULL;
 	struct st_console_event       resize   = {0};
@@ -1159,9 +1180,14 @@ host_dialog(st_wren_host_t *host, const char *title, const char *question, const
 	wrenEnsureSlots(host->vm, variable != NULL ? 10 : definition != NULL ? 8 : 7);
 	wrenSetSlotHandle(host->vm, 0, host->menu_ui_class);
 	wrenSetSlotString(host->vm, 1, title);
-	wrenSetSlotString(host->vm, 2, question);
-	if (method != NULL)
-		dialog_call = wrenMakeCallHandle(host->vm, method);
+	if (custom && custom->byte_count) {
+		wrenSetSlotBytes(host->vm, 2, initial, *custom->byte_count);
+		wrenSetSlotDouble(host->vm, 3, (double)max_length);
+	}
+	else
+		wrenSetSlotString(host->vm, 2, question);
+	if (custom != NULL)
+		dialog_call = wrenMakeCallHandle(host->vm, custom->method);
 	else if (choices != NULL) {
 		dialog_call =
 		    wrenMakeCallHandle(host->vm, hotkeys == NULL ? "choice(_,_,_,_)" : "ripChoice(_,_,_,_,_)");
@@ -1224,8 +1250,9 @@ host_dialog(st_wren_host_t *host, const char *title, const char *question, const
 		status = read_definition_response(host->vm, result, &accepted_confirmation);
 	}
 	else if (choices == NULL && definition == NULL && wrenGetSlotType(host->vm, 0) == WREN_TYPE_STRING) {
-		*result = strdup(wrenGetSlotString(host->vm, 0));
-		if (*result == NULL)
+		if (custom && custom->byte_count)
+			status = read_dialog_bytes(host->vm, max_length, custom->byte_count, result);
+		else if ((*result = strdup(wrenGetSlotString(host->vm, 0))) == NULL)
 			status = IO_ERROR_OUT_OF_MEMORY;
 	}
 	else if (wrenGetSlotType(host->vm, 0) != WREN_TYPE_NULL)
@@ -1339,11 +1366,23 @@ st_wren_host_rip_choice(st_wren_host_t *host, const char *title, const char *que
 }
 
 int
+st_wren_host_edit_text(st_wren_host_t *host, const char *name, const char *initial, size_t limit, char **result,
+    size_t *length)
+{
+	const struct custom_dialog dialog = {.method = "editText(_,_,_)", .byte_count = length};
+	if (length == NULL || *length > limit)
+		return IO_ERROR_INVALID_ARGUMENT;
+	return host_dialog(host, name, "", initial, limit, false, result, NULL, 0, NULL, &dialog, NULL, false,
+	    NULL, NULL);
+}
+
+int
 st_wren_host_alert(st_wren_host_t *host, const char *title, const char *message)
 {
-	char *unused = NULL;
-	int   status = host_dialog(host, title, message, "", 0, false, &unused, NULL, 0, NULL, "alert(_,_)", NULL,
-	    false, NULL, NULL);
+	const struct custom_dialog dialog = {.method = "alert(_,_)"};
+	char                      *unused = NULL;
+	int status = host_dialog(host, title, message, "", 0, false, &unused, NULL, 0, NULL, &dialog, NULL, false,
+	    NULL, NULL);
 	free(unused);
 	return status;
 }
@@ -1351,9 +1390,10 @@ st_wren_host_alert(st_wren_host_t *host, const char *title, const char *message)
 int
 st_wren_host_help(st_wren_host_t *host, const char *title, const char *body)
 {
-	char *unused = NULL;
-	int status = host_dialog(host, title, body, "", 0, false, &unused, NULL, 0, NULL, "help(_,_)", NULL, false,
-	    NULL, NULL);
+	const struct custom_dialog dialog = {.method = "help(_,_)"};
+	char                      *unused = NULL;
+	int                        status =
+	    host_dialog(host, title, body, "", 0, false, &unused, NULL, 0, NULL, &dialog, NULL, false, NULL, NULL);
 	free(unused);
 	return status;
 }
@@ -1361,9 +1401,10 @@ st_wren_host_help(st_wren_host_t *host, const char *title, const char *body)
 int
 st_wren_host_disconnected(st_wren_host_t *host, const char *details)
 {
-	char *unused = NULL;
-	int   status = host_dialog(host, "Disconnected", details, "", 0, false, &unused, NULL, 0, NULL,
-	    "disconnected(_,_)", NULL, false, NULL, NULL);
+	const struct custom_dialog dialog = {.method = "disconnected(_,_)"};
+	char                      *unused = NULL;
+	int status = host_dialog(host, "Disconnected", details, "", 0, false, &unused, NULL, 0, NULL, &dialog,
+	    NULL, false, NULL, NULL);
 	free(unused);
 	return status;
 }

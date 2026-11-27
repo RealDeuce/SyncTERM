@@ -528,7 +528,7 @@ notice(void *context, const char *title, const char *message)
 {
 	struct st_term_rip3 *rip = context;
 	st_term_rip3_flush(rip);
-	rip->config.graphics_alert(rip->config.graphics_alert_context, title, message);
+	rip->config.graphics_alert(rip->config.graphics_ui_context, title, message);
 }
 
 int

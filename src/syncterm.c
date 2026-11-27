@@ -759,6 +759,14 @@ connection_alert(void *context, const char *title, const char *message)
 		(void)st_wren_host_alert(ui->host, title, message);
 }
 
+static int
+connection_edit_text(void *context, const char *name, const char *initial, size_t limit, char **result,
+    size_t *length)
+{
+	struct connection_ui *ui = context;
+	return st_wren_host_edit_text(ui->host, name, initial, limit, result, length);
+}
+
 static void
 connection_follow_link(void *context, const char *uri, bool user_activated)
 {
@@ -1108,7 +1116,8 @@ run_session(st_wren_host_t *host, st_console_display_t *display, st_console_t *c
 	    .ddofx_directory         = ddofx_directory,
 	    .rip3_data_directory     = paths->rip_data_directory,
 	    .graphics_alert          = connection_alert,
-	    .graphics_alert_context  = &connection_ui,
+	    .graphics_edit_text      = connection_edit_text,
+	    .graphics_ui_context     = &connection_ui,
 	    .follow_link             = connection_follow_link,
 	    .link_context            = &connection_ui,
 	    .amiga_font_directory    = amiga_font_directory,

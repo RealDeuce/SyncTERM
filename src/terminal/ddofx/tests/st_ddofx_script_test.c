@@ -98,7 +98,7 @@ main(void)
 	out                       = (struct output) {0};
 	sink.available_memory     = memory_available;
 	sink.alert                = warning;
-	sink.alert_context        = &out;
+	sink.ui_context           = &out;
 	static const char guard[] = DDO("dVMEM,1200000") "A" DDO("4DEFM,1,1,B\x1d(dVMEM,1400000)C")
 	    DDO("4DEFM,2,1,D\x1d(4EXCM,1,1)E") DDO("4EXCM,2,1") "F";
 	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};

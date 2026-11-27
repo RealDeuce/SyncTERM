@@ -1,5 +1,6 @@
 import "syncterm" for Cleanup_, CustomCursor, Screen, Surface, Input, Key, KeyEvent,
     PhysicalKeyEvent, Mod
+import "ddofx_editor" for DdoTextEditor
 import "menu_scrollback" for OfflineScrollbackView
 import "menu_ui" for MenuUi
 import "ui_app" for App
@@ -36,6 +37,10 @@ class MenuHostUI {
     p.onDismiss = Fn.new { |v| app.quit() }
     app.pushModal(p)
     app.runSync()
+  }
+
+  static editText(name, contents, limit) {
+    return DdoTextEditor.edit(name, contents, limit)
   }
 
   static disconnected(title, details) {

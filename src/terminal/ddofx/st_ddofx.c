@@ -234,7 +234,7 @@ check_memory(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, const char 
 		char message[192];
 		snprintf(message, sizeof(message), "This script needs %" PRId32 " bytes more memory.%s",
 		    requested - available, ddo->graphics ? " Returning to text mode." : "");
-		sink->alert(sink->alert_context, "DDO F/X", message);
+		sink->alert(sink->ui_context, "DDO F/X", message);
 	}
 	st_ddofx_graphics_exit(ddo);
 	ddo->keys_locked  = false;
@@ -311,6 +311,8 @@ execute(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *body)
 		st_ddofx_define_ping(ddo, body + 6);
 	else if (body[0] == '5' && ddo->graphics)
 		st_ddofx_gadget_command(ddo, sink, body);
+	else if (body[0] == 'E' && !ascii_case_ncompare(body + 1, "EDTEXT,", 7))
+		st_ddofx_edit_text_file(ddo, sink, body + 8);
 	else if (body[0] == 'E' && !ascii_case_ncompare(body + 1, "WTEXT,", 6))
 		st_ddofx_write_text_file(ddo, sink, body + 7);
 	else if (body[0] == 'E' && !ascii_case_ncompare(body + 1, "RTEXT,", 6))

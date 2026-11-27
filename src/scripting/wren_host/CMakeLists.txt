@@ -13,6 +13,7 @@ if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 endif()
 
 set(_st_wren_scripts
+	${CMAKE_CURRENT_SOURCE_DIR}/../../../scripts/ddofx_editor.wren
 	${CMAKE_CURRENT_SOURCE_DIR}/../../../scripts/syncterm.wren
 	${CMAKE_CURRENT_SOURCE_DIR}/../../../scripts/syncterm_menu.wren
 	${CMAKE_CURRENT_SOURCE_DIR}/../../../scripts/syncterm_picker.wren

@@ -1981,6 +1981,63 @@ def check_text_files(t, root):
     assert not (theme.parent / "bad.txt").exists()
 
 
+def check_text_editor(t, root):
+    t.case("door edits a multiline CP437 message, cancels, and retrieves the result")
+    marker, = root.rglob("syncterm-cache-name.txt")
+    theme = marker.parent / "DDOFX" / "BBSTHEME"
+    t.send(commands(b"EEDTEXT,MAIL.TXT,^@ok^M,", b"ERTEXT,MAIL.TXT,DONE"))
+    t.client.wait_text("Editing MAIL.TXT")
+    path, = (p for p in theme.iterdir() if p.name.upper() == "MAIL.TXT")
+    assert path.read_bytes() == b""
+    t.client.text("ABC")
+    t.client.key("left")
+    t.client.key("enter")
+    t.client.text("é")
+    t.client.wait_text("éC")
+    t.client.key("f2")
+    t.input(b"\0ok\r,AB\r\n\x82CDONE")
+    assert path.read_bytes() == b"AB\r\n\x82C"
+
+    original = b"one\rTWO\nthree\r\nend\0\xff"
+    path.write_bytes(original)
+    t.exchange(commands(b"LIGMODE", b"LIGMODE", b"2C,33", b"2aFILL", b"2CPYWP2VP"))
+    for key, expected in (("escape", original), ("f2", b"!"+original)):
+        t.send(commands(b"~VARCAP,3", b"EEDTEXT,MAIL.TXT,exit", b"~VARCAP,0",
+                        b"ERTEXT,MAIL.TXT,DONE"))
+        t.client.wait_text("Editing MAIL.TXT")
+        t.client.text("!")
+        t.client.wait_text("!one")
+        t.client.key(key)
+        frame = t.input(b"exit"+expected+b"DONE")
+        assert path.read_bytes() == expected
+        assert frame.primary[0] == frame.primary[-1] == 33
+    t.send(commands(b"EEDTEXT,MAIL.TXT,CLOSED"))
+    t.client.wait_text("Editing MAIL.TXT")
+    t.client.key("down")
+    t.client.key("home")
+    t.client.key("backspace")
+    t.client.wait_text("!oneTWO")
+    path.write_bytes(b"a different session's message")
+    t.client.key("f2")
+    t.input(b"CLOSED")
+    assert path.read_bytes() == b"a different session's message"
+
+    original = b"X" * 65532
+    path.write_bytes(original)
+    t.send(commands(b"EEDTEXT,MAIL.TXT,LIMIT"))
+    t.client.wait_text("Editing MAIL.TXT")
+    t.client.text("A")
+    t.client.key("delete")
+    t.client.text("B")
+    t.client.wait_text("BXXX")
+    t.client.key("f2")
+    t.input(b"LIMIT")
+    assert path.read_bytes() == b"B" + original[1:]
+    path.write_bytes(original + b"!")
+    t.exchange(commands(b"EEDTEXT,MAIL.TXT,LARGE", b"EEDTEXT,../bad.txt,SKIP", b"2GEXIT"), b"LARGESKIP")
+    assert path.read_bytes() == original + b"!"
+
+
 def check_info(t, root):
     t.case("persistent INFO records in Lite and Normal with binary data and typed capture")
     marker, = root.rglob("syncterm-cache-name.txt")
@@ -2570,6 +2627,7 @@ def run(args):
         check_speech(t, fixture[1])
         check_info(t, fixture[1])
         check_text_files(t, fixture[1])
+        check_text_editor(t, fixture[1])
         check_scripts(t)
         check_events(t)
         check_lite_reset(t)

@@ -71,7 +71,9 @@ struct st_term_config {
 	/* Read-only fallback for RIPv3 resources. Named directories stay under rip_directory. */
 	const char *rip3_data_directory;
 	void        (*graphics_alert)(void *context, const char *title, const char *message);
-	void       *graphics_alert_context;
+	int (*graphics_edit_text)(void *context, const char *name, const char *initial, size_t limit,
+	    char **result, size_t *length);
+	void *graphics_ui_context;
 	void (*follow_link)(void *context, const char *uri, bool user_activated);
 	void *link_context;
 	const char *amiga_font_directory;

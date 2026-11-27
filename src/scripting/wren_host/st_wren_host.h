@@ -109,6 +109,8 @@ int st_wren_host_rip_choice(st_wren_host_t *host, const char *title, const char 
     const char *const *choices, const uint32_t *hotkeys, size_t count, bool required);
 void st_wren_host_follow_link(st_wren_host_t *host, st_console_t *console, const struct st_profile *profile,
     const char *uri, bool user_activated);
+int st_wren_host_edit_text(st_wren_host_t *, const char *name, const char *initial, size_t limit, char **result,
+    size_t *length);
 int st_wren_host_alert(st_wren_host_t *host, const char *title, const char *message);
 int st_wren_host_help(st_wren_host_t *host, const char *title, const char *body);
 /* Enter/close exits; F1 opens details/log, Alt-B (Cmd-B on macOS) opens history.
