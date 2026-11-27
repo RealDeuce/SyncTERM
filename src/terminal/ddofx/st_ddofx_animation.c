@@ -33,7 +33,7 @@ struct animation {
 	struct sound_slot      sounds[19];
 	int                    x, y, first, last, frame, direction, loop, draw, fps;
 	int                    first_path, last_path, path, path_frame, path_direction, path_loop;
-	bool                   sound, queued, shown, advance, completed;
+	bool                   sound, queued, shown, advance, completed, frozen;
 	uint64_t               due;
 	uint8_t               *background;
 	size_t                 capacity;
@@ -299,6 +299,83 @@ stop(struct st_ddofx *ddo, unsigned slot)
 	deadline(list);
 }
 
+const struct st_ddofx_sprite *
+st_ddofx_animation_face(const struct st_ddofx_graphics *g, unsigned id, bool *visible)
+{
+	if (!g->animations || !id || id > ANIMATIONS)
+		return NULL;
+	const struct animation *a = &g->animations->profiles[id - 1];
+	if (visible)
+		*visible = a->queued && a->shown;
+	return a->fps && g->sprites[a->first].pixels ? &g->sprites[a->first] : NULL;
+}
+
+void
+st_ddofx_stop_animation(struct st_ddofx *ddo, unsigned id)
+{
+	if (ddo->graphics->animations && id && id <= ANIMATIONS)
+		stop(ddo, id - 1);
+}
+
+void
+st_ddofx_play_animation(struct st_ddofx *ddo, unsigned id)
+{
+	if (!st_ddofx_animation_face(ddo->graphics, id, NULL))
+		return;
+	struct st_ddofx_animations *list = ddo->graphics->animations;
+	struct animation *a = &list->profiles[id - 1];
+	if (a->completed) {
+		stop(ddo, id - 1);
+		a->frame = a->first;
+		a->direction = a->path_direction = 1;
+		a->path = a->first_path;
+		a->path_frame = 1;
+	}
+	if (a->queued && !a->frozen)
+		return;
+	if (!a->queued)
+		list->queue[list->count++] = id - 1;
+	a->frozen = false;
+	a->queued = true;
+	list->due[a->window] = a->due = 1;
+}
+
+void
+st_ddofx_freeze_animation(struct st_ddofx_graphics *g, unsigned id)
+{
+	if (st_ddofx_animation_face(g, id, NULL)) {
+		struct animation *a = &g->animations->profiles[id - 1];
+		a->frozen = true;
+		a->due = 0;
+		deadline(g->animations);
+	}
+}
+
+void
+st_ddofx_place_animation(struct st_ddofx *ddo, unsigned id, unsigned owner, int x, int y, bool bind)
+{
+	if (!st_ddofx_animation_face(ddo->graphics, id, NULL))
+		return;
+	struct animation *a = &ddo->graphics->animations->profiles[id - 1];
+	if (bind) {
+		if (a->window != owner && a->shown) {
+			a->shown = false;
+			compose(ddo, a->window);
+			a->shown = true;
+		}
+		a->first_path = a->last_path = a->path = a->path_loop = 0;
+		a->window = owner;
+		if (a->frozen && a->queued)
+			a->due = 1;
+		a->frozen = false;
+		deadline(ddo->graphics->animations);
+	}
+	a->x = x;
+	a->y = y;
+	if (a->shown)
+		compose(ddo, a->window);
+}
+
 static bool
 frame_range(struct st_ddofx *ddo, char **args, int *first, int *last)
 {
@@ -371,7 +448,7 @@ st_ddofx_animation_command(struct st_ddofx *ddo, const char *verb, char *args)
 		if (list && st_ddofx_collision_active(ddo->graphics)) {
 			for (unsigned i = 0; i < list->count; ++i) {
 				struct animation *a = &list->profiles[list->queue[i]];
-				if (!a->due)
+				if (!a->due && !a->frozen)
 					a->due = 1;
 			}
 			deadline(list);
@@ -447,18 +524,8 @@ st_ddofx_animation_command(struct st_ddofx *ddo, const char *verb, char *args)
 		define(ddo, slot, args, op == FLY);
 	else if (!args && op == STOP)
 		stop(ddo, slot);
-	else if (!args && op == PLAY && a->fps && (!a->queued || a->completed)) {
-		if (a->completed) {
-			stop(ddo, slot);
-			a->frame     = a->first;
-			a->direction = a->path_direction = 1;
-			a->path                          = a->first_path;
-			a->path_frame                    = 1;
-		}
-		list->queue[list->count++] = slot;
-		a->queued                  = true;
-		list->due[a->window] = a->due = 1;
-	}
+	else if (!args && op == PLAY)
+		st_ddofx_play_animation(ddo, id);
 	return true;
 }
 

@@ -1008,6 +1008,65 @@ def check_window_animations(t):
     check([b"2STOPA,4", b"2STOPA,1", b"2GWIN,0", b"2RESET"], [(20,32,0)])
 
 
+def check_icons(t):
+    t.case("animated icons, pointer input, shared hosted window and procedure order")
+    def pixel(frame, x, y, value):
+        assert frame.primary[y*640+x] == frame.alternate[y*640+x] == value, (x, y, value)
+    frame = t.exchange(commands(b"2RESET", b"2C,23", b"2aFILL", b"2S,0,8,0,8,FACE",
+                                b"2C,4", b"2aFILL", b"2CPYWP2VP",
+                                b"2MOTION,1,600,400,500,400,560,400,540,400,5",
+                                b"2ANIM,1,0,0,1,FACE,FACE,1,1,1,1,60,0",
+                                b"2ANIM,2,0,0,0,FACE,FACE,0,0,0,1,60,0",
+                                b"2ICON,1,100,110,2,1", b"2ICON,300,150,110,2,2",
+                                b"2GICON?,1", b"2GICON?,300", b"2GICON?,301", b"2PLAYA,1", b"2PLAYA,2", b"w3"),
+                       b"100,108,102,110\xff150,158,102,110\xff")
+    pixel(frame, 100, 110, 23)
+    pixel(frame, 150, 110, 23)
+    t.exchange(commands(b"4DEFM,1,1,\x1d(2GWIN,2,280,479,80,229,400,300,1,1,0,0,0,0,0,0,0,0,0,Host)",
+                        b"2ICONO,1,First,\x1d(4RUNM,1)", b"2ICONC,1,Closed,\x1d(2CGWIN,2)",
+                        b"2ICONO,300,Second,", b"2ICONC,300,Again,", b"2ICOND,300,Drop,\x1d(2GICON?,300)"))
+    m = frame.metadata
+    def mouse(x, y, buttons):
+        px = m["destination_x"] + (2*x+1)*m["destination_width"]//1280
+        py = m["destination_y"] + (2*y+1)*m["destination_height"]//960
+        n = t.client.capture().metadata["events_dequeued"]
+        t.client.mouse(px, py, action=1, buttons=buttons)
+        t.client.wait_for(lambda f: f.metadata["events_dequeued"] > n)
+    mouse(152,105,1)
+    mouse(172,125,1)
+    mouse(172,125,0)
+    t.input(b"170,178,122,130\xffDrop")
+    frame = t.exchange(commands(b"2RAICON", b"2GICON?,300"), b"150,158,102,110\xff")
+    pixel(frame, 170, 130, 4)
+    pixel(frame, 150, 110, 23)
+    mouse(104,106,1)
+    mouse(104,106,0)
+    t.input(b"First")
+    frame = t.exchange(commands(b"2VGWIN?,2", b"2OICON,1"), b"Y\xff")
+    pixel(frame, 100, 110, 4)
+    mouse(433,90,1)  # Return-to-icon frame button.
+    mouse(433,90,0)
+    t.input(b"Closed")
+    t.exchange(commands(b"2VGWIN?,2", b"2OICON,1", b"2OICON,300", b"2DICON,300", b"2CICON,300", b"2CICON,300"),
+               b"N\xffFirstClosedSecondAgain")
+    frame = t.exchange(commands(b"2MICON,1,400,450", b"2RICON,1", b"2GICON?,1", b"2DICON,300",
+                                b"2KICON,300", b"2GICON?,300", b"2ICON,0", b"2GICON?,1"),
+                       b"100,108,102,110\xff150,158,102,110\xffDrop")
+    pixel(frame, 100, 110, 23)
+    pixel(frame, 150, 110, 4)
+
+    # The anchor and stats stay in virtual-page coordinates during a drag.
+    frame = t.exchange(commands(b"2GWIN,1,20,119,30,129,1000,750,0,1,0,0,0,0,0,0,0,0,1,Scene",
+                                b"2CHVGP,1,700,500", b"2ALERTGWIN,1", b"2ICON,8,710,515,0,2",
+                                b"2PLAYA,2", b"w2", b"2CALMGWIN"))
+    pixel(frame, 30, 45, 23)
+    mouse(33, 40, 1)
+    mouse(45, 54, 0)
+    frame = t.exchange(commands(b"2GICON?,8", b"2KICON,8"), b"722,730,521,529\xff")
+    pixel(frame, 42, 59, 0)
+    t.exchange(commands(b"2RESET"))
+
+
 def check_sprite_banks(t, root):
     t.case("sprite bank files, slot order, row orientation and erase after load")
     marker, = root.rglob("syncterm-cache-name.txt")
@@ -1541,6 +1600,7 @@ def check_graphics(t, root):
     check_raycast_profiles(t)
     check_animation_profiles(t)
     check_window_animations(t)
+    check_icons(t)
     check_sprite_banks(t, root)
     check_sprites(t)
     check_grid(t)
@@ -1842,6 +1902,16 @@ def check_pointers(t, root, mouse):
     mouse(70, 55, 0)
     t.exchange(commands(b"3MPL,99,A.MPT", b"3AMP,100,99,100,1", b"3AAM,100", b"w5"))
     check(t.client.wait_for(lambda f: pixel(f,72,54) == f.palette[15]), (70,54,170))
+    t.exchange(commands(b"2S,0,8,0,8,ICON", b"2ANIM,1,0,0,0,ICON,ICON,0,0,0,1,20,0",
+                        b"2ICON,100,80,65,0,1", b"2MPICON,100,0,99", b"2MPICON,100,0,0",
+                        b"2PLAYA,1", b"w3"))
+    mouse(81, 60, 0)
+    check(t.exchange(), (80,60,3))
+    t.exchange(commands(b"2MPICON,100,1,100"))
+    mouse(82, 60, 0)
+    t.client.wait_for(lambda f: pixel(f,84,59) == f.palette[15])
+    t.exchange(commands(b"2KICON,100"))
+    mouse(70, 55, 0)
     t.exchange(commands(b"3AMP,1,99,100,3", b"3AMP,2,99,100,2", b"3AAM,1", b"3AAM,2"))
     t.client.wait_for(lambda f: pixel(f,69,55) == f.palette[3])
     t.client.wait_for(lambda f: pixel(f,72,54) == f.palette[15])

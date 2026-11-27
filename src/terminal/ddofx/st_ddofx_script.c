@@ -784,6 +784,11 @@ st_ddofx_script_step(struct st_ddofx *ddo, const struct st_ddofx_sink *sink)
 	if (f->group_anchor) {
 		bool started;
 		switch (f->group_kind) {
+			case DDO_ICON_OPEN:
+			case DDO_ICON_RESTORE:
+			case DDO_ICON_RESTORE_ALL:
+				started = st_ddofx_next_icon(ddo, f->group_kind, f->group_anchor, &f->group_next);
+				break;
 			case DDO_LIST_BOX:
 				started = st_ddofx_next_list_item(ddo, f->group_anchor, &f->group_next);
 				break;

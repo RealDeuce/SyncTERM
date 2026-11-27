@@ -72,7 +72,7 @@ struct st_ddofx_text_page {
 enum { GRAPHIC_WINDOWS = 10 };
 
 enum st_ddofx_frame_part {
-	FRAME_NONE, FRAME_DRAG, FRAME_CLOSE, FRAME_ZOOM, FRAME_RESTORE, FRAME_SCROLL_X, FRAME_SCROLL_Y,
+	FRAME_NONE, FRAME_DRAG, FRAME_CLOSE, FRAME_ICON, FRAME_ZOOM, FRAME_RESTORE, FRAME_SCROLL_X, FRAME_SCROLL_Y,
 	FRAME_LEFT, FRAME_RIGHT, FRAME_UP, FRAME_DOWN, FRAME_RESIZE
 };
 
@@ -110,6 +110,7 @@ struct st_ddofx_graphics {
 	unsigned                bitmap_slot;
 	struct st_ddofx_collisions *collisions;
 	struct st_ddofx_animations *animations;
+	struct st_ddofx_icons *icons;
 	struct st_ddofx_simple *simple;
 	struct st_ddofx_bars   *bars;
 	struct st_ddofx_grid   *grid;
@@ -226,6 +227,15 @@ bool st_ddofx_collision_pending(const struct st_ddofx *);
 void st_ddofx_collision_poll(struct st_ddofx *);
 int32_t st_ddofx_bezier_coordinate(const int32_t *points, double t);
 void st_ddofx_animation_resolution(struct st_ddofx_graphics *);
+const struct st_ddofx_sprite *st_ddofx_animation_face(const struct st_ddofx_graphics *, unsigned id, bool *visible);
+void st_ddofx_place_animation(struct st_ddofx *, unsigned id, unsigned owner, int x, int y, bool bind);
+void st_ddofx_stop_animation(struct st_ddofx *, unsigned id);
+void st_ddofx_play_animation(struct st_ddofx *, unsigned id);
+void st_ddofx_freeze_animation(struct st_ddofx_graphics *, unsigned id);
+bool st_ddofx_icon_command(struct st_ddofx *, const struct st_ddofx_sink *, const char *, char *);
+bool st_ddofx_icon_mouse(struct st_ddofx *, unsigned changed);
+void st_ddofx_icon_cancel(struct st_ddofx_graphics *);
+void st_ddofx_close_icon(struct st_ddofx *, unsigned id);
 void st_ddofx_clear_animations(struct st_ddofx_graphics *);
 bool st_ddofx_animation_command(struct st_ddofx *, const char *verb, char *args);
 void    st_ddofx_simple_command(struct st_ddofx *, const char *, char *);

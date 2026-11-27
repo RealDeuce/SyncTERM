@@ -448,7 +448,7 @@ st_ddofx_mouse(struct st_ddofx *ddo, const struct st_console_event *event)
 		mouse->history[i][release].x = mouse->x;
 		mouse->history[i][release].y = mouse->y;
 	}
-	if (st_ddofx_graphic_window_mouse(ddo, changed)) {
+	if (st_ddofx_graphic_window_mouse(ddo, changed) || st_ddofx_icon_mouse(ddo, changed)) {
 		mouse->scan.repeat_due = 0;
 		return;
 	}
@@ -482,6 +482,7 @@ st_ddofx_mouse_cancel(struct st_ddofx *ddo, uint32_t buttons)
 	struct st_ddofx_mouse_state *mouse = &ddo->graphics->mouse;
 	mouse->buttons                     = button_mask(buttons);
 	mouse->ignore_hold                 = mouse->buttons != 0;
+	st_ddofx_icon_cancel(ddo->graphics);
 	ddo->graphics->frame_drag = (struct st_ddofx_frame_drag){0};
 	mouse->scan                        = (struct st_ddofx_mouse_scan) {0};
 }
@@ -493,6 +494,7 @@ st_ddofx_background_download(struct st_ddofx *ddo, bool active)
 	if (ddo->graphics) {
 		struct st_ddofx_mouse_state *m = &ddo->graphics->mouse;
 		m->ignore_hold = m->buttons != 0;
+		st_ddofx_icon_cancel(ddo->graphics);
 		ddo->graphics->frame_drag = (struct st_ddofx_frame_drag){0};
 		m->scan = (struct st_ddofx_mouse_scan){0};
 		if (m->fields)

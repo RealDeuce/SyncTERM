@@ -73,6 +73,8 @@ clear_graphics_objects(struct st_ddofx_graphics *g)
 	st_ddofx_clear_marquees(g);
 	free(g->collisions);
 	g->collisions = NULL;
+	free(g->icons);
+	g->icons = NULL;
 	st_ddofx_clear_animations(g);
 	free(g->simple);
 	g->simple = NULL;
@@ -520,6 +522,8 @@ st_ddofx_graphics_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink
 	char       *args = body;
 	const char *verb = st_ddofx_field(&args);
 	int32_t     n[4];
+	if (st_ddofx_icon_command(ddo, sink, verb, args))
+		return;
 	if (st_ddofx_graphic_window_command(ddo, sink, verb, args))
 		return;
 	if (!ascii_case_ncompare(verb, "23D", 3))

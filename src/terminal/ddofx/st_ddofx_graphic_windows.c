@@ -95,7 +95,11 @@ control_bounds(const struct st_ddofx_graphic_window *w, enum st_ddofx_frame_part
 	switch (part) {
 		case FRAME_DRAG:
 			if (!w->no_drag)
-				return (struct bounds){f.left, f.right - 50, f.top, f.top + 16};
+				return (struct bounds){f.left, f.right - (w->icon && !w->no_icon ? 53 : 50), f.top, f.top + 16};
+			break;
+		case FRAME_ICON:
+			if (w->icon && !w->no_icon)
+				return (struct bounds){f.right - 52, f.right - 41, f.top + 2, f.top + 16};
 			break;
 		case FRAME_CLOSE:
 			if (*w->close.macro || *w->close.reply)
@@ -145,7 +149,7 @@ static void
 paint_controls(const struct st_ddofx_graphic_window *w, const struct bounds *damage, const struct st_pixel_buffer *p)
 {
 	static const unsigned char symbols[][5] = {
-		[FRAME_CLOSE] = {17,10,4,10,17}, [FRAME_ZOOM] = {31,31,17,17,31},
+		[FRAME_ICON] = {0,0,0,31,31}, [FRAME_CLOSE] = {17,10,4,10,17}, [FRAME_ZOOM] = {31,31,17,17,31},
 		[FRAME_RESTORE] = {28,20,31,5,7}, [FRAME_LEFT] = {4,8,31,8,4},
 		[FRAME_RIGHT] = {4,2,31,2,4}, [FRAME_UP] = {4,14,21,4,4},
 		[FRAME_DOWN] = {4,4,21,14,4}, [FRAME_RESIZE] = {1,2,5,10,21}
@@ -203,7 +207,7 @@ paint(void *context, const struct st_pixel_buffer *pixels, struct st_console_rec
 					    w->visual[(w->y + y - view.top) * w->width + w->x + x - view.left];
 				pixels->primary[y * WIDTH + x] = pixels->alternate[y * WIDTH + x] = colour;
 			}
-		struct bounds  title = {w->frame.left + 2, w->frame.right - 42, w->frame.top, view.top - 1};
+		struct bounds  title = {w->frame.left + 2, w->frame.right - (w->icon && !w->no_icon ? 54 : 42), w->frame.top, view.top - 1};
 		const uint8_t *font  = st_ddofx_vga_bitmap(r->ddo);
 		if (!w->borderless && font && intersect(&title, &area))
 			st_ddofx_paint_vga_string(g, pixels, font, (const uint8_t *)w->title,
@@ -594,6 +598,8 @@ st_ddofx_graphic_window_mouse(struct st_ddofx *ddo, unsigned changed)
 		    .mouse_x = m->x, .mouse_y = m->y, .origin_x = w->x, .origin_y = w->y};
 		if (part == FRAME_CLOSE)
 			(void)st_ddofx_callback_start(ddo, &w->close, DDO_EVENT);
+		else if (part == FRAME_ICON)
+			st_ddofx_close_icon(ddo, w->icon);
 		else if (part == FRAME_ZOOM || part == FRAME_RESTORE)
 			restore(ddo, w, part == FRAME_ZOOM);
 		else if (part >= FRAME_LEFT && part <= FRAME_DOWN)
