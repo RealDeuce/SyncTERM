@@ -8465,7 +8465,7 @@ static int
 exercise_repl_contract(struct st_wren_host *host)
 {
 	static const char source[] =
-	    "import \"syncterm\" for Console, Host, REPL, LogSource\n"
+	    "import \"syncterm\" for Console, Host, REPL, LogSource, Screen\n"
 	    "Console.clear()\nConsole.markSeen()\n"
 	    "if (Host.logUnread || Host.logUnreadError) Fiber.abort(\"seen\")\n"
 	    "System.write(\"log marker\")\n"
@@ -8482,6 +8482,11 @@ exercise_repl_contract(struct st_wren_host *host)
 	    "failed.try()\n"
 	    "if (failed.error != \"caught repl error\") Fiber.abort(\"catch\")\n"
 	    "REPL.printTrace_(failed)\n"
+	    "var badRect = Fiber.new { Screen.checked_(Screen.readRect(0, 1, 1, 1)) }\n"
+	    "badRect.try()\n"
+	    "var firstError = Console.total\n"
+	    "REPL.printTrace_(badRect)\n"
+	    "if (Console[firstError][2] != badRect.error.toString || !Console[firstError][2].contains(\"ScreenError\")) Fiber.abort(\"typed diagnostic\")\n"
 	    "if (REPL.eval(\"repl_contract\", \"replValue\")[0] != 21) Fiber.abort(\"recovery\")\n"
 	    "REPL.captureStart_()\n"
 	    "REPL.compile_(\"repl_contract\", \"unknownCapturedName\", true, true)\n"

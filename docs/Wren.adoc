@@ -450,7 +450,8 @@ Static-only namespace for I/O and timing.
 NOTE: In SyncTERM, `System.print` / `System.write` are routed to the
 Wren console log buffer (visible via the Wren Console pane), not to
 the process's stdout.  Use `<<host,Host.print(s)>>` when you need
-output to reach the launching shell.
+output to reach the launching shell. Compile errors, reported runtime errors and
+stack traces go to both the Wren console and the process's stderr.
 
 === Object
 

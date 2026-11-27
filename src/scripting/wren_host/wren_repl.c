@@ -50,6 +50,13 @@ st_wren_log_append(WrenVM *vm, int source, const char *text)
 	char                     *copy;
 	struct st_wren_log_entry *entry;
 
+	if (source != 0 && !context->capturing) {
+		const char *owner = context->connected               ? "connected"
+		                    : vm == context->host->picker_vm ? "picker"
+		                                                     : "menu";
+		const char *kind  = source == 1 ? "compile" : source == 2 ? "runtime" : "stack";
+		fprintf(stderr, "[wren-%s] %s %s\n", owner, kind, text);
+	}
 	copy = strndup(text, 8192);
 	if (copy == NULL)
 		return;
@@ -297,7 +304,7 @@ repl_trace(WrenVM *vm)
 	 * state. In particular it must not poison the menu/picker run result. */
 	if (!IS_NULL(fiber->error)) {
 		st_wren_log_error(vm, WREN_ERROR_RUNTIME, NULL, -1,
-		    IS_STRING(fiber->error) ? AS_CSTRING(fiber->error) : "[error object]");
+		    wrenGetSlotType(vm, 2) == WREN_TYPE_STRING ? wrenGetSlotString(vm, 2) : "[error object]");
 		for (int i = fiber->numFrames - 1; i >= 0; --i) {
 			CallFrame *frame = &fiber->frames[i];
 			ObjFn     *fn    = frame->closure->fn;
@@ -330,7 +337,7 @@ st_wren_repl_bind_method(const char *class_name, bool is_static, const char *sig
 	    {"REPL",    "compile_(_,_,_,_)",   repl_compile    },
 	    {"REPL",    "hasModule(_)",        repl_has_module },
 	    {"REPL",    "modules",             repl_modules    },
-	    {"REPL",    "printTrace_(_)",      repl_trace      },
+	    {"REPL",    "trace_(_,_)",         repl_trace      },
 	    {"REPL",    "captureStart_()",     capture_start   },
 	    {"REPL",    "captureClear_()",     capture_clear   },
 	    {"REPL",    "captureCommit_()",    capture_commit  },

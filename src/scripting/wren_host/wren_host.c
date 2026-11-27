@@ -921,8 +921,6 @@ st_wren_report_error(WrenVM *vm, WrenErrorType type, const char *module, int lin
 	if (type != WREN_ERROR_STACK_TRACE)
 		(void)snprintf(host->last_error, sizeof(host->last_error), "%s %s:%d: %s", kind,
 		    module == NULL ? "?" : module, line, message == NULL ? "" : message);
-	fprintf(stderr, "[%s] %s %s:%d: %s\n", vm == host->picker_vm ? "wren-picker" : "wren-menu", kind,
-	    module == NULL ? "?" : module, line, message == NULL ? "" : message);
 }
 
 int

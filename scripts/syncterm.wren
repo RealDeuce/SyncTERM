@@ -864,7 +864,14 @@ class REPL {
   }
 
   foreign static compile_(module, src, isExpression, printErrors)
-  foreign static printTrace_(fiber)
+  static printTrace_(fiber) {
+    var message = null
+    if (fiber is Fiber && fiber.error != null) {
+      Fiber.new { message = fiber.error.toString }.try()
+    }
+    trace_(fiber, message)
+  }
+  foreign static trace_(fiber, message)
   foreign static hasModule(name)
   foreign static modules
   foreign static captureStart_()

@@ -1782,11 +1782,11 @@ connected_report_error(WrenVM *vm, WrenErrorType type, const char *module, int l
 	                                                                   : "stack";
 
 	st_wren_log_error(vm, type, module, line, message);
+	if (st_wren_context_from_vm(vm)->capturing)
+		return;
 	if (type != WREN_ERROR_STACK_TRACE)
 		(void)snprintf(connected->last_error, sizeof(connected->last_error), "%s %s:%d: %s", kind,
 		    module == NULL ? "?" : module, line, message == NULL ? "" : message);
-	fprintf(stderr, "[wren-connected] %s %s:%d: %s\n", kind, module == NULL ? "?" : module, line,
-	    message == NULL ? "" : message);
 }
 
 void
