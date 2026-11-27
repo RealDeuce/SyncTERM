@@ -8,6 +8,8 @@ Connected tests cover framing, detection, and ignore/hear across CP437 and UTF-8
 
 BBS sound themes, resident sound bites and big-sample profiles use signed 8-bit PCM from the entry’s `DDOFX/BBSTHEME` resources. RealPlay streams loose sample files from the same directory. The mixer advances the samples at the requested frequency alongside MOD or S3M playback. A connected peer checks `dSOUNDON` and starts RealPlay from the cache. The test reads the resulting stereo frames from a pull-only audio device.
 
+An online pair of `LIGMODE` commands enters Normal mode on a pixel display. The visible page is 640×480 with 256 palette entries. The work, background and hidden pages store pixel indices. Whole-page copies, rectangular cuts anchored at the lower left, transparent cuts, work-page points, fills and palette changes are available from a connection. Ordinary ANSI goes to an 80×100 virtual text page with the top 30 rows visible. `2GEXIT` restores the Lite screen, cursor and palette. Named text windows and window scrolling remain pending.
+
 Loose-file queries read the entry’s `DDOFX/MUSIC`, `DDOFX/FONTS`, and `DDOFX/BBSTHEME` directories. Professional queries use `DDOFX/TERMS/<client>`. Names use DOS-style case matching. The timestamp is local modification time with DOS two-second precision. `8EXEC` consumes the command without starting a program.
 
 Resource assignment selects the M container in `DDOFX/BBSTHEME` for local scripts. Scripts up to 40,000 bytes can call other scripts and render DOS text. A resource entry query tests the member name and component ID. Conditional scripts can also read that ID.
@@ -40,15 +42,15 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 1491 | GET VOLUME | DDO-FX LITE | Connected |
 | 1509 | IS CMF PLAYING | DDO-FX LITE | Connected |
 | 1528 | WAIT | DDO-FX LITE | Connected |
-| 1544 | GOTO DDO-FX (NORMAL MODE) | DDO-FX LITE | Pending |
+| 1544 | GOTO DDO-FX (NORMAL MODE) | DDO-FX LITE | Connected |
 | 1573 | DETECT LITERM | DDO-FX LITE | Connected |
 | 1611 | DETECT USER MEMORY | DDO-FX LITE | Pending |
 | 1634 | DETECT USER MEMORY & REACT | DDO-FX LITE | Pending |
 | 1729 | DETECT USER DRIVE SIZE | DDO-FX LITE | Pending |
-| 1755 | DETECT GRAPHICS ADAPTER TYPE | DDO-FX LITE | Pending |
+| 1755 | DETECT GRAPHICS ADAPTER TYPE | DDO-FX LITE | Connected |
 | 1770 | DETECT AUDIO CARD | DDO-FX LITE | Pending |
 | 1798 | DETECT Machine Speed | DDO-FX LITE | Pending |
-| 1851 | DETECT VIDEO MODE | DDO-FX LITE | Pending |
+| 1851 | DETECT VIDEO MODE | DDO-FX LITE | Connected |
 | 1880 | DETECT FOR MUSIC FILE | DDO-FX LITE | Connected |
 | 1921 | DETECT FOR THEME FILE | DDO-FX LITE | Connected |
 | 1929 | ASSIGN RESOURCE FILE | DDO-FX LITE | Connected |
@@ -139,28 +141,28 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 6179 | LOAD PCX TO VISUAL PAGE | DDO-FX (NM) | Pending |
 | 6199 | LOAD A BITMAP FONT | DDO-FX (NM) | Pending |
 | 6237 | BITMAP FONT SELECT | DDO-FX (NM) | Pending |
-| 6246 | COPY BACKGROUND PAGE TO WORK PAGE | DDO-FX (NM) | Pending |
-| 6254 | COPY BACKGROUND PAGE TO VISUAL PAGE | DDO-FX (NM) | Pending |
-| 6261 | COPY WORK PAGE TO BACKGROUND PAGE | DDO-FX (NM) | Pending |
-| 6268 | COPY WORK PAGE TO VISUAL PAGE | DDO-FX (NM) | Pending |
-| 6275 | COPY VISUAL PAGE TO BACKGROUND PAGE | DDO-FX (NM) | Pending |
-| 6282 | COPY VISUAL PAGE TO WORK PAGE | DDO-FX (NM) | Pending |
-| 6289 | CUT BACKGROUND PAGE TO WORK PAGE | DDO-FX (NM) | Pending |
-| 6320 | CUT BACKGROUND PAGE TO VISUAL PAGE | DDO-FX (NM) | Pending |
-| 6328 | CUT WORK PAGE TO BACKGROUND PAGE | DDO-FX (NM) | Pending |
-| 6336 | CUT WORK PAGE TO VISUAL PAGE | DDO-FX (NM) | Pending |
-| 6344 | CUT HIDDEN PAGE TO VISUAL PAGE (T) | DDO-FX (NM) | Pending |
-| 6355 | CUT HIDDEN PAGE TO WORK PAGE (T) | DDO-FX (NM) | Pending |
-| 6366 | CUT HIDDEN PAGE TO BACKGROUND PAGE (T) | DDO-FX (NM) | Pending |
-| 6377 | CUT WORK PAGE TO VISUAL PAGE (T) | DDO-FX (NM) | Pending |
-| 6388 | CUT WORK PAGE TO HIDDEN PAGE (T) | DDO-FX (NM) | Pending |
-| 6399 | CUT WORK PAGE TO BACKGROUND PAGE (T) | DDO-FX (NM) | Pending |
-| 6410 | CUT BACKGROUND PAGE TO HIDDEN PAGE (T) | DDO-FX (NM) | Pending |
-| 6421 | CUT BACKGROUND PAGE TO WORK PAGE (T) | DDO-FX (NM) | Pending |
-| 6432 | CUT BACKGROUND PAGE TO VISUAL PAGE (T) | DDO-FX (NM) | Pending |
-| 6443 | CUT VISUAL PAGE TO BACKGROUND PAGE | DDO-FX (NM) | Pending |
-| 6453 | CUT VISUAL PAGE TO WORK PAGE | DDO-FX (NM) | Pending |
-| 6463 | DEFINE TRANSPARENT COLORS | DDO-FX (NM) | Pending |
+| 6246 | COPY BACKGROUND PAGE TO WORK PAGE | DDO-FX (NM) | Connected |
+| 6254 | COPY BACKGROUND PAGE TO VISUAL PAGE | DDO-FX (NM) | Connected |
+| 6261 | COPY WORK PAGE TO BACKGROUND PAGE | DDO-FX (NM) | Connected |
+| 6268 | COPY WORK PAGE TO VISUAL PAGE | DDO-FX (NM) | Connected |
+| 6275 | COPY VISUAL PAGE TO BACKGROUND PAGE | DDO-FX (NM) | Connected |
+| 6282 | COPY VISUAL PAGE TO WORK PAGE | DDO-FX (NM) | Connected |
+| 6289 | CUT BACKGROUND PAGE TO WORK PAGE | DDO-FX (NM) | Connected |
+| 6320 | CUT BACKGROUND PAGE TO VISUAL PAGE | DDO-FX (NM) | Connected |
+| 6328 | CUT WORK PAGE TO BACKGROUND PAGE | DDO-FX (NM) | Connected |
+| 6336 | CUT WORK PAGE TO VISUAL PAGE | DDO-FX (NM) | Connected |
+| 6344 | CUT HIDDEN PAGE TO VISUAL PAGE (T) | DDO-FX (NM) | Connected |
+| 6355 | CUT HIDDEN PAGE TO WORK PAGE (T) | DDO-FX (NM) | Connected |
+| 6366 | CUT HIDDEN PAGE TO BACKGROUND PAGE (T) | DDO-FX (NM) | Connected |
+| 6377 | CUT WORK PAGE TO VISUAL PAGE (T) | DDO-FX (NM) | Connected |
+| 6388 | CUT WORK PAGE TO HIDDEN PAGE (T) | DDO-FX (NM) | Connected |
+| 6399 | CUT WORK PAGE TO BACKGROUND PAGE (T) | DDO-FX (NM) | Connected |
+| 6410 | CUT BACKGROUND PAGE TO HIDDEN PAGE (T) | DDO-FX (NM) | Connected |
+| 6421 | CUT BACKGROUND PAGE TO WORK PAGE (T) | DDO-FX (NM) | Connected |
+| 6432 | CUT BACKGROUND PAGE TO VISUAL PAGE (T) | DDO-FX (NM) | Connected |
+| 6443 | CUT VISUAL PAGE TO BACKGROUND PAGE | DDO-FX (NM) | Connected |
+| 6453 | CUT VISUAL PAGE TO WORK PAGE | DDO-FX (NM) | Connected |
+| 6463 | DEFINE TRANSPARENT COLORS | DDO-FX (NM) | Connected |
 | 6514 | SAVE BACKGROUND PAGE TO PCX | DDO-FX (NM) | Pending |
 | 6528 | SAVE WORK PAGE TO PCX | DDO-FX (NM) | Pending |
 | 6536 | SAVE VISUAL PAGE TO PCX | DDO-FX (NM) | Pending |
@@ -209,35 +211,35 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 7733 | CLEAR SIMPLE SPRITES | DDO-FX (NM) | Pending |
 | 7747 | CLEAR ALL SIMPLE SPRITES | DDO-FX (NM) | Pending |
 | 7754 | DRAW SIMPLE SPRITES | DDO-FX (NM) | Pending |
-| 7765 | COPY BACKGROUND PAGE TO HIDDEN PAGE | DDO-FX (NM) | Pending |
-| 7824 | COPY HIDDEN PAGE TO BACKGROUND PAGE | DDO-FX (NM) | Pending |
-| 7831 | COPY WORK PAGE TO HIDDEN PAGE | DDO-FX (NM) | Pending |
-| 7838 | COPY HIDDEN PAGE TO WORK PAGE | DDO-FX (NM) | Pending |
-| 7845 | COPY VISUAL PAGE TO HIDDEN PAGE | DDO-FX (NM) | Pending |
-| 7852 | COPY HIDDEN PAGE TO VISUAL PAGE | DDO-FX (NM) | Pending |
-| 7859 | CUT BACKGROUND PAGE TO HIDDEN PAGE | DDO-FX (NM) | Pending |
-| 7869 | CUT HIDDEN PAGE TO BACKGROUND PAGE | DDO-FX (NM) | Pending |
-| 7879 | CUT WORK PAGE TO HIDDEN PAGE | DDO-FX (NM) | Pending |
-| 7889 | CUT HIDDEN PAGE TO WORK PAGE | DDO-FX (NM) | Pending |
-| 7899 | CUT VISUAL PAGE TO HIDDEN PAGE | DDO-FX (NM) | Pending |
-| 7909 | CUT HIDDEN PAGE TO VISUAL PAGE | DDO-FX (NM) | Pending |
+| 7765 | COPY BACKGROUND PAGE TO HIDDEN PAGE | DDO-FX (NM) | Connected |
+| 7824 | COPY HIDDEN PAGE TO BACKGROUND PAGE | DDO-FX (NM) | Connected |
+| 7831 | COPY WORK PAGE TO HIDDEN PAGE | DDO-FX (NM) | Connected |
+| 7838 | COPY HIDDEN PAGE TO WORK PAGE | DDO-FX (NM) | Connected |
+| 7845 | COPY VISUAL PAGE TO HIDDEN PAGE | DDO-FX (NM) | Connected |
+| 7852 | COPY HIDDEN PAGE TO VISUAL PAGE | DDO-FX (NM) | Connected |
+| 7859 | CUT BACKGROUND PAGE TO HIDDEN PAGE | DDO-FX (NM) | Connected |
+| 7869 | CUT HIDDEN PAGE TO BACKGROUND PAGE | DDO-FX (NM) | Connected |
+| 7879 | CUT WORK PAGE TO HIDDEN PAGE | DDO-FX (NM) | Connected |
+| 7889 | CUT HIDDEN PAGE TO WORK PAGE | DDO-FX (NM) | Connected |
+| 7899 | CUT VISUAL PAGE TO HIDDEN PAGE | DDO-FX (NM) | Connected |
+| 7909 | CUT HIDDEN PAGE TO VISUAL PAGE | DDO-FX (NM) | Connected |
 | 7919 | DO PRINT | DDO-FX (NM) | Pending |
 | 8058 | DO PRINT TEXT FONT | DDO-FX (NM) | Pending |
 | 8110 | DO PRINT TEXT FONT WP | DDO-FX (NM) | Pending |
 | 8118 | DO PRINT TEXT FONT BP | DDO-FX (NM) | Pending |
 | 8127 | DO PRINT TEXT FONT HP | DDO-FX (NM) | Pending |
-| 8136 | SET COLOR | DDO-FX (NM) | Pending |
-| 8146 | DRAW POINT | DDO-FX (NM) | Pending |
-| 8156 | DRAW POINT XOR | DDO-FX (NM) | Pending |
-| 8163 | ERASE PAGE | DDO-FX (NM) | Pending |
-| 8172 | Get Pixel | DDO-FX (NM) | Pending |
+| 8136 | SET COLOR | DDO-FX (NM) | Connected |
+| 8146 | DRAW POINT | DDO-FX (NM) | Connected |
+| 8156 | DRAW POINT XOR | DDO-FX (NM) | Connected |
+| 8163 | ERASE PAGE | DDO-FX (NM) | Connected |
+| 8172 | Get Pixel | DDO-FX (NM) | Connected |
 | 8182 | MOVE GRAPHICS CURSOR | DDO-FX (NM) | Pending |
 | 8192 | PAINT | DDO-FX (NM) | Pending |
-| 8209 | SET RGB | DDO-FX (NM) | Pending |
-| 8221 | GET RGB | DDO-FX (NM) | Pending |
-| 8234 | STORE PALETTE | DDO-FX (NM) | Pending |
-| 8245 | RESTORE PALETTE | DDO-FX (NM) | Pending |
-| 8253 | ZERO PALETTE | DDO-FX (NM) | Pending |
+| 8209 | SET RGB | DDO-FX (NM) | Connected |
+| 8221 | GET RGB | DDO-FX (NM) | Connected |
+| 8234 | STORE PALETTE | DDO-FX (NM) | Connected |
+| 8245 | RESTORE PALETTE | DDO-FX (NM) | Connected |
+| 8253 | ZERO PALETTE | DDO-FX (NM) | Connected |
 | 8260 | FADE PALETTE OUT | DDO-FX (NM) | Pending |
 | 8299 | FADE PALETTE OUT ADVANCED | DDO-FX (NM) | Pending |
 | 8350 | FADE PALETTE IN | DDO-FX (NM) | Pending |
@@ -250,7 +252,7 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 8451 | DRAW FILLED CIRCLE | DDO-FX (NM) | Pending |
 | 8463 | DRAW LINE | DDO-FX (NM) | Pending |
 | 8474 | DRAW LINE XOR | DDO-FX (NM) | Pending |
-| 8481 | DEFAULT 16 COLOR PALETTE | DDO-FX (NM) | Pending |
+| 8481 | DEFAULT 16 COLOR PALETTE | DDO-FX (NM) | Connected |
 | 8492 | DRAW BOX | DDO-FX (NM) | Pending |
 | 8508 | DRAW BOX XOR | DDO-FX (NM) | Pending |
 | 8524 | EDIT BOX LINES | DDO-FX (NM) | Pending |
@@ -259,7 +261,7 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 8564 | DRAW DASHED LINE RELATIVE | DDO-FX (NM) | Pending |
 | 8580 | DRAW ELLIPSE | DDO-FX (NM) | Pending |
 | 8592 | DRAW FILLED ELLIPSE | DDO-FX (NM) | Pending |
-| 8599 | FILL PAGE | DDO-FX (NM) | Pending |
+| 8599 | FILL PAGE | DDO-FX (NM) | Connected |
 | 8607 | FLOOD | DDO-FX (NM) | Pending |
 | 8616 | MOVEIT RELATIVE | DDO-FX (NM) | Pending |
 | 8624 | DRAW BEZIER CURVE | DDO-FX (NM) | Pending |
@@ -418,7 +420,7 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 14120 | DEFINE MUSIC BAR | DDO-FX (NM) | Pending |
 | 14292 | ACTIVATE/DEACTIVATE MUSIC BAR | DDO-FX (NM) | Pending |
 | 14308 | CLEAR MUSIC BAR | DDO-FX (NM) | Pending |
-| 14318 | EXIT TO TEXT MODE | DDO-FX (NM) | Pending |
+| 14318 | EXIT TO TEXT MODE | DDO-FX (NM) | Connected |
 | 14638 | CREATE GRAPHIC WINDOW | DDO-FX (NM) | Pending |
 | 14837 | DEFINE CLOSE GRAPHIC WINDOW | DDO-FX (NM) | Pending |
 | 14898 | CLOSE GRAPHIC WINDOW | DDO-FX (NM) | Pending |

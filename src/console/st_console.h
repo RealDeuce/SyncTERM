@@ -531,6 +531,7 @@ int st_console_display_active(st_console_display_t *display, st_console_t **cons
  */
 void st_console_destroy(st_console_t *console);
 
+int st_console_get_config(st_console_t *console, struct st_console_config *config);
 int st_console_size(st_console_t *console, uint32_t *columns, uint32_t *rows);
 int st_console_cell_pixel_size(st_console_t *console, uint32_t *width, uint32_t *height);
 int st_console_capabilities(st_console_t *console, uint32_t *capabilities);
@@ -556,6 +557,9 @@ int st_console_reconfigure(st_console_t *console, const struct st_console_config
 int st_console_create_raster_view(st_console_t **result, st_console_t *parent, uint32_t columns, uint32_t rows,
     uint32_t cell_width, uint32_t cell_height, uint64_t x, uint64_t y);
 int st_console_raster_view_adopt(st_console_t *console);
+/* The view and graphics page use the same palette. Preserve native pixel
+ * indices so palette edits recolour text already painted on the page. */
+int st_console_raster_view_adopt_indexed(st_console_t *console);
 /* For a modal view on a paused parent. Report pixel damage while preserving
  * the parent's cell ownership. Restore the two
  * planes from the capture of the view rectangle before resuming the parent. */

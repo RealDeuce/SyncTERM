@@ -79,7 +79,7 @@ st_console_create_raster_view(st_console_t **result, st_console_t *parent, uint3
 }
 
 static int
-adopt(st_console_t *console, bool transient)
+adopt(st_console_t *console, bool transient, bool parent_palette)
 {
 	if (console == NULL || console->raster_parent == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -107,6 +107,7 @@ adopt(st_console_t *console, bool transient)
 	console->raster_current      = true;
 	console->raster_enabled      = true;
 	console->raster_transient    = transient;
+	console->raster_parent_palette = parent_palette;
 	console->changed             = false;
 	console->dirty_row_end       = 0;
 	console->pixel_surface_dirty = false;
@@ -117,11 +118,17 @@ adopt(st_console_t *console, bool transient)
 int
 st_console_raster_view_adopt(st_console_t *console)
 {
-	return adopt(console, false);
+	return adopt(console, false, false);
 }
 
 int
 st_console_raster_view_adopt_transient(st_console_t *console)
 {
-	return adopt(console, true);
+	return adopt(console, true, false);
+}
+
+int
+st_console_raster_view_adopt_indexed(st_console_t *console)
+{
+	return adopt(console, false, true);
 }

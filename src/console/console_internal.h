@@ -148,6 +148,7 @@ struct st_console {
 	size_t        raster_children;
 	bool          raster_enabled;
 	bool          raster_transient;
+	bool          raster_parent_palette;
 	bool          view_pixels_written;
 	/* Only text painted since adoption can be recomposited on this shared surface. */
 	uint32_t              view_batch;
@@ -297,7 +298,7 @@ st_console_raster_visible_height(const st_console_t *console)
 static inline uint32_t
 st_console_raster_colour(const st_console_t *console, uint32_t colour)
 {
-	if (console->raster_parent == NULL)
+	if (console->raster_parent == NULL || console->raster_parent_palette)
 		return colour;
 	uint32_t rgb = ST_CONSOLE_COLOR_IS_RGB(colour) ? colour & UINT32_C(0xffffff)
 	               : colour <= UINT16_MAX          ? console->palette[colour]

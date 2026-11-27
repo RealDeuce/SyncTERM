@@ -25,6 +25,9 @@ struct st_ddofx_framer {
 };
 
 struct st_ddofx {
+	struct st_ddofx_graphics *graphics;
+	bool                      mode_prefix;
+	uint32_t                 *saved_palette;
 	struct st_ddofx_framer   wire;
 	struct st_ddofx_script  *script;
 	struct st_ddofx_events  *events;
@@ -43,6 +46,7 @@ struct st_ddofx {
 struct st_ddofx_sink {
 	void               *context;
 	st_audio_runtime_t *audio;
+	const struct st_cterm_config *text_config;
 	FILE               *(*open_asset)(void *, const char *category, const char *client, const char *name);
 	bool                (*client_exists)(void *, const char *name);
 	int                 (*text)(void *, const uint8_t *, size_t, size_t *);

@@ -13,12 +13,12 @@
 #include "cterm_igs.h"
 #include "cterm_rip_asset.h"
 #include "cterm_rip_asset_lookup.h"
-#include "filesystem.h"
-#include "path.h"
 #include "cterm_skypix.h"
+#include "filesystem.h"
 #include "io_error.h"
+#include "path.h"
 #include "st_controller.h"
-#include "st_ddofx.h"
+#include "st_ddofx_graphics.h"
 #include "st_graphics_input.h"
 #include "st_ooii.h"
 #include "st_rip154.h"
@@ -45,6 +45,7 @@ struct deferred_event {
 struct st_term_session {
 	struct st_term_config  config;
 	struct st_ddofx        ddofx;
+	struct st_cterm_config ddofx_text_config;
 	st_cterm_t            *cterm;
 	struct cterm_big      *big;
 	struct cterm_skypix   *skypix;
@@ -722,6 +723,12 @@ st_term_session_create(st_term_session_t **result, const struct st_term_config *
 	    .diagnostic           = config->cterm_diagnostic,
 	    .diagnostic_context   = config->cterm_diagnostic_context,
 	};
+	if (config->graphics_mode == ST_GRAPHICS_DDOFX_20) {
+		session->ddofx_text_config = cterm_config;
+		/* Both overrides above are stack arrays belonging to the Lite mode. */
+		session->ddofx_text_config.palette_mapping  = NULL;
+		session->ddofx_text_config.palette_override = NULL;
+	}
 	if (config->graphics_mode == ST_GRAPHICS_BIG_103)
 		status = cterm_big_open(&session->big, &session->cterm, &cterm_config);
 	else if (config->graphics_mode == ST_GRAPHICS_RIP_1)
@@ -861,6 +868,8 @@ st_term_session_destroy(st_term_session_t **session)
 st_cterm_t *
 st_term_session_cterm(st_term_session_t *session)
 {
+	if (session != NULL && session->ddofx.graphics != NULL)
+		return st_ddofx_graphics_text(session->ddofx.graphics);
 	return session == NULL ? NULL : session->rip3 == NULL ? session->cterm : st_term_rip3_text(session->rip3);
 }
 
@@ -879,7 +888,7 @@ st_term_session_has_status_overlay(const st_term_session_t *session)
 bool
 st_term_session_status_visible(const st_term_session_t *session)
 {
-	if (session == NULL)
+	if (session == NULL || session->ddofx.graphics != NULL)
 		return false;
 	return session->rip3 != NULL ? st_term_rip3_status_visible(session->rip3)
 	                             : st_cterm_status_display(session->cterm) == 1;
@@ -888,6 +897,13 @@ st_term_session_status_visible(const st_term_session_t *session)
 bool
 st_term_session_text_view(st_term_session_t *session, st_console_t *display, struct st_term_text_view *view)
 {
+	if (session != NULL && session->config.console == display && view != NULL
+	    && session->ddofx.graphics != NULL) {
+		*view = (struct st_term_text_view) {.console = st_ddofx_graphics_view(session->ddofx.graphics),
+		    .cell_width                              = 8,
+		    .cell_height                             = 16};
+		return true;
+	}
 	return session != NULL && session->config.console == display
 	       && st_term_rip3_text_view(session->rip3, view);
 }
@@ -1248,21 +1264,22 @@ static int
 ddofx_text(void *context, const uint8_t *bytes, size_t size, size_t *consumed)
 {
 	st_term_session_t *session = context;
-	return st_cterm_write(session->cterm, bytes, size, consumed);
+	return st_cterm_write(st_term_session_cterm(session), bytes, size, consumed);
 }
 
 static struct st_ddofx_sink
 ddofx_sink(st_term_session_t *session)
 {
-	return (struct st_ddofx_sink){
-		    .context       = session,
-		    .text          = ddofx_text,
-		    .resource_text = render_cp437_resource,
-		    .reply         = protocol_reply,
-		    .open_asset    = ddofx_open_asset,
-		    .client_exists = ddofx_client_exists,
-		    .audio         = session->config.audio,
-		};
+	return (struct st_ddofx_sink) {
+	    .context       = session,
+	    .text          = ddofx_text,
+	    .resource_text = render_cp437_resource,
+	    .text_config   = &session->ddofx_text_config,
+	    .reply         = protocol_reply,
+	    .open_asset    = ddofx_open_asset,
+	    .client_exists = ddofx_client_exists,
+	    .audio         = session->config.audio,
+	};
 }
 
 static int
@@ -1330,7 +1347,10 @@ render_cp437_resource(void *context, const uint8_t *bytes, size_t size, size_t *
 		    ST_CODEPAGE_CP437);
 		if (status != 0)
 			return status;
-		status = st_cterm_write_utf8_input(session->cterm, unicode, converted, &consumed);
+		status = st_cterm_write_utf8_input(session->ddofx.graphics
+		                                       ? st_ddofx_graphics_text(session->ddofx.graphics)
+		                                       : session->cterm,
+		    unicode, converted, &consumed);
 		if (consumed == converted)
 			*used += chunk;
 		else {
@@ -1686,7 +1706,7 @@ deliver_input(st_term_session_t *session, const struct local_input *input, bool 
 			return session->output_error;
 		case ST_CONSOLE_EVENT_RESIZE:
 		{
-			if (session->config.graphics_mode == ST_GRAPHICS_RIP_3
+			if (session->ddofx.graphics != NULL || session->config.graphics_mode == ST_GRAPHICS_RIP_3
 			    || session->config.graphics_mode == ST_GRAPHICS_SKYPIX_13
 			    || session->config.graphics_mode == ST_GRAPHICS_SKYPIX_31
 			    || session->config.graphics_mode == ST_GRAPHICS_IGS_221

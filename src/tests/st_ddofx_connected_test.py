@@ -39,6 +39,44 @@ def commands(*bodies):
     return b"".join(b"\x1d{" + body + b"}" for body in bodies)
 
 
+def check_graphics(t):
+    lite = t.check("Lite screen before graphics", b"Before", (7, 1), [(1, 1, "Before")])
+    enter = commands(b"LIGMODE", b"LIGMODE")
+    t.exchange(commands(b"dVCARD", b"LIGMODE", b"dVIDMODE",
+                        b"4DEFM,1,1,\x1d(LIGMODE)\x1d(LIGMODE)", b"4RUNM,1", b"dVIDMODE"),
+               b"S\xff0\xff0\xff")
+    frame = t.exchange(enter + commands(b"dVIDMODE", b"2C,37", b"2aP,639,479", b"2aG,639,479"),
+                       b"1\xff37\xff")
+    assert (frame.metadata["plane_width"], frame.metadata["plane_height"]) == (640, 480)
+    assert frame.primary[-1] == 0
+    # The work, background and hidden pages are offscreen. The second
+    # entry pair leaves the current scene intact. G uses decimal indexes.
+    frame = t.exchange(enter + commands(b"2CPYWP2BP", b"2aERASE", b"2CPYBP2VP", b"2CPYHP2WP",
+                                        b"2aG,639,479", b"2aPX,639,479", b"2aG,639,479"),
+                       b"37\xff0\xff")
+    assert frame.primary[-1] == frame.alternate[-1] == 37
+    t.exchange(commands(b"2C,8", b"2aFILL", b"2CPYWP2HP", b"2C,3", b"2aFILL", b"2aSRGB,3,63,21,0",
+                        b"2aSTOREPAL", b"2aZEROPAL", b"2aGRGB,3", b"2aRESTOREPAL", b"2aGRGB,3",
+                        b"2CCOL,3,1", b"2CUTWP2HPT,0,1,0,1,638,479", b"2CPYHP2BP"),
+               b"0,0,0\xff63,21,0\xff")
+    frame = t.exchange(commands(b"2CCOL,3,0", b"2CUTWP2HPT,0,1,0,1,638,479", b"2CPYHP2VP"))
+    for plane in (frame.primary, frame.alternate):
+        assert list(plane[-3:]) == [8, 3, 3]
+        assert list(plane[-643:-640]) == [8, 3, 3]
+    assert frame.palette[3] == 0xff5500
+    t.exchange(commands(b"2CPYBP2WP", b"2aG,639,479", b"2CPYVP2WP", b"2aG,639,479",
+                        b"2CUTBP2WP,0,1,0,1,639,479", b"2aG,639,479"), b"8\xff3\xff3\xff")
+    frame = t.exchange(b"\x1b[H\x1b[41m " + commands(b"2CPYVP2WP", b"2aG,3,4",
+                                                       b"2aSRGB,4,0,63,63"), b"4\xff")
+    assert frame.primary[4 * 640 + 3] == 4 and frame.palette[4] == 0x00ffff
+    t.exchange(b"\x1b[75;45H" + b"\x1b[6n", b"\x1b[75;45R")
+    restored = t.check("Lite display and cursor restored", commands(b"2GEXIT", b"dVIDMODE") + b"!",
+                       (8, 1), [(1, 1, "Before!")], reset=False, expected=b"0\xff")
+    assert restored.metadata["plane_height"] == lite.metadata["plane_height"]
+    assert restored.palette[3] == lite.palette[3]
+    t.exchange(enter + commands(b"2aGRGB,3", b"2aG,639,479", b"2GEXIT"), b"63,21,0\xff0\xff")
+
+
 def check_resources(t, root):
     [marker] = root.rglob("syncterm-cache-name.txt")
     directory = marker.parent / "DDOFX" / "BBSTHEME"
@@ -170,6 +208,7 @@ def run(args):
         check_resources(t, fixture[1])
         check_scripts(t)
         check_events(t)
+        check_graphics(t)
         glyph = "é".encode("utf-8" if args.encoding == "UTF-8" else "cp437")
         t.check("framing amid ANSI", b"\x1b[2;" + ident + b"3H" + glyph + ident + ident + b"B",
                 (5, 2), [(3, 2, "éB")], expected=reply * 3)

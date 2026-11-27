@@ -8,6 +8,7 @@
 #include "filesystem.h"
 #include "io_error.h"
 #include "st_cmf.h"
+#include "st_ddofx_graphics.h"
 #include "st_ddofx_resource.h"
 #include "st_ddofx_samples.h"
 #include "st_ddofx_script.h"
@@ -93,6 +94,8 @@ st_ddofx_builtin(const struct st_ddofx *ddo, const struct st_ddofx_sink *sink, c
 	*numeric = false;
 	if (!ascii_case_compare(name, "LITERM"))
 		strcpy(result, "LITERM Ver. 2.00");
+	else if (!ascii_case_compare(name, "VCARD"))
+		strcpy(result, st_ddofx_svga(sink) ? "S" : "V");
 	else if (!ascii_case_compare(name, "GETMUSIC"))
 		strcpy(result, *ddo->music_name ? ddo->music_name : "NONE");
 	else if (!ascii_case_compare(name, "GETTHEME"))
@@ -166,6 +169,8 @@ music(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, const char *filena
 void
 st_ddofx_reset(struct st_ddofx *ddo)
 {
+	st_ddofx_graphics_exit(ddo);
+	free(ddo->saved_palette);
 	free(ddo->queued);
 	free(ddo->events);
 	st_ddofx_samples_destroy(ddo);
@@ -189,9 +194,15 @@ execute(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *body)
 		st_ddofx_script_command(ddo, sink, body);
 	else if (ddo->ignoring)
 		return;
+	else if (matches(body, "dVIDMODE"))
+		st_ddofx_query_reply(ddo, sink, ddo->graphics ? "1" : "0", true);
 	else if (!strncmp(body, "2f", 2)) {
 		if (strlen(body + 2) < sizeof(ddo->resource_prefix))
 			strcpy(ddo->resource_prefix, body + 2);
+	}
+	else if (body[0] == '2') {
+		if (ddo->graphics != NULL)
+			st_ddofx_graphics_command(ddo, sink, body);
 	}
 	else if (body[0] == '*')
 		st_ddofx_run_resource(ddo, sink, st_ddofx_value(ddo, body + 1));
@@ -273,6 +284,8 @@ st_ddofx_parse(struct st_ddofx *ddo, struct st_ddofx_framer *frame, const struct
 	while (*consumed < size) {
 		const uint8_t *here = bytes + *consumed;
 		if (frame->phase == ST_DDO_TEXT && *here != 0x1d) {
+			if (frame == &ddo->wire)
+				ddo->mode_prefix = false;
 			size_t         remaining = size - *consumed;
 			const uint8_t *gs        = memchr(here, 0x1d, remaining);
 			size_t         length    = gs == NULL ? remaining : (size_t)(gs - here);
@@ -302,7 +315,17 @@ st_ddofx_parse(struct st_ddofx *ddo, struct st_ddofx_framer *frame, const struct
 				if (byte == '}') {
 					frame->phase               = ST_DDO_TEXT;
 					frame->body[frame->length] = 0;
-					execute(ddo, sink, frame->body);
+					if (frame == &ddo->wire && !ddo->ignoring
+					    && matches(frame->body, "LIGMODE")) {
+						if (ddo->mode_prefix && ddo->graphics == NULL)
+							st_ddofx_graphics_enter(ddo, sink);
+						ddo->mode_prefix = ddo->graphics == NULL && !ddo->mode_prefix;
+					}
+					else {
+						if (frame == &ddo->wire)
+							ddo->mode_prefix = false;
+						execute(ddo, sink, frame->body);
+					}
 					++*consumed;
 					return 0;
 				}
@@ -311,8 +334,11 @@ st_ddofx_parse(struct st_ddofx *ddo, struct st_ddofx_framer *frame, const struct
 					continue;
 				}
 				else if (byte != 0) {
-					if (frame->length == ST_DDOFX_BODY_MAX)
+					if (frame->length == ST_DDOFX_BODY_MAX) {
 						frame->phase = ST_DDO_DISCARD;
+						if (frame == &ddo->wire)
+							ddo->mode_prefix = false;
+					}
 					else
 						frame->body[frame->length++] = byte;
 				}

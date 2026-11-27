@@ -1619,6 +1619,35 @@ st_console_finish_change_locked(st_console_t *console)
 }
 
 int
+st_console_get_config(st_console_t *console, struct st_console_config *config)
+{
+	if (console == NULL || config == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (st_rwlock_read_lock(st_console_state_lock(console)) != ST_THREAD_SUCCESS)
+		return IO_ERROR_IO;
+	*config = (struct st_console_config) {
+	    .columns              = console->columns,
+	    .rows                 = console->rows,
+	    .cell_width           = console->cell_width,
+	    .cell_height          = console->cell_height,
+	    .pixel_width          = console->pixels ? console->pixels->width : 0,
+	    .pixel_height         = console->pixels ? console->pixels->height : 0,
+	    .default_cursor       = console->default_cursor,
+	    .wrap                 = console->wrap,
+	    .blink_mode           = console->blink_mode,
+	    .video_flags          = console->video_flags,
+	    .scaling_mode         = console->scaling_mode,
+	    .scaling_policy       = console->blocky_scaling ? ST_PIXEL_SCALING_BLOCKY : ST_PIXEL_SCALING_POINTY,
+	    .color_emoji          = console->color_emoji,
+	    .aspect_width         = console->aspect_width,
+	    .aspect_height        = console->aspect_height,
+	    .preserve_window_size = console->preserve_window_size,
+	};
+	(void)st_rwlock_unlock(st_console_state_lock(console));
+	return 0;
+}
+
+int
 st_console_size(st_console_t *console, uint32_t *columns, uint32_t *rows)
 {
 	int status;
