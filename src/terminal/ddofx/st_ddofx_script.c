@@ -53,6 +53,7 @@ struct macro_frame {
 	bool saved_in_event;
 	uint64_t               saved_wait;
 	unsigned                    pressed_button;
+	unsigned                    collision_animation;
 	enum st_ddofx_group_kind   group_kind;
 	unsigned group_anchor, group_next; /* Anchor is one-based, zero for ordinary macro frames. */
 };
@@ -479,6 +480,25 @@ st_ddofx_callback_start(struct st_ddofx *ddo, const struct st_ddofx_callback *cb
 		copy(f->after_reply, cb->reply, sizeof(cb->reply) - 1);
 	}
 	return f != NULL;
+}
+
+bool
+st_ddofx_collision_callback(struct st_ddofx *ddo, const struct st_ddofx_callback *cb, unsigned animation)
+{
+	if (!st_ddofx_callback_start(ddo, cb, DDO_EVENT))
+		return false;
+	ddo->script->top->collision_animation = animation;
+	return true;
+}
+
+bool
+st_ddofx_stopping_collision(const struct st_ddofx *ddo, unsigned animation)
+{
+	/* A collision macro may call a named macro or a local resource script. */
+	for (const struct macro_frame *f = ddo->script ? ddo->script->top : NULL; f; f = f->parent)
+		if (f->collision_animation && (!animation || f->collision_animation == animation))
+			return true;
+	return false;
 }
 
 bool

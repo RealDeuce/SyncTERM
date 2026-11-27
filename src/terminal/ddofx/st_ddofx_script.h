@@ -32,6 +32,8 @@ bool st_ddofx_next_list_item(struct st_ddofx *, unsigned id, unsigned *next);
 bool st_ddofx_next_text_field(struct st_ddofx *, unsigned anchor, unsigned *next);
 bool st_ddofx_text_field_value(const struct st_ddofx *, int32_t id, bool full, char out[ST_DDOFX_FIELD_REPLY_MAX+1]);
 bool st_ddofx_field_callback(struct st_ddofx *, const struct st_ddofx_callback *, const char *reply);
+bool st_ddofx_collision_callback(struct st_ddofx *, const struct st_ddofx_callback *, unsigned animation);
+bool st_ddofx_stopping_collision(const struct st_ddofx *, unsigned animation);
 unsigned st_ddofx_control_count(const struct st_ddofx *);
 bool st_ddofx_choice_mouse(struct st_ddofx *, enum st_ddofx_group_kind, unsigned slot, int owner, int x, int y);
 bool     st_ddofx_choices_consume_key(struct st_ddofx *, unsigned slot, uint16_t word);
@@ -74,6 +76,7 @@ bool st_ddofx_builtin(const struct st_ddofx *, const struct st_ddofx_sink *, con
 int  st_ddofx_parse(struct st_ddofx *, struct st_ddofx_framer *, const struct st_ddofx_sink *, const uint8_t *,
     size_t, size_t *);
 bool st_ddofx_script_active(const struct st_ddofx *);
+void st_ddofx_script_error(struct st_ddofx *, const struct st_ddofx_sink *, const char *message);
 int  st_ddofx_script_step(struct st_ddofx *, const struct st_ddofx_sink *);
 void st_ddofx_run_resource(struct st_ddofx *, const struct st_ddofx_sink *, const char *);
 void st_ddofx_script_clear(struct st_ddofx *);

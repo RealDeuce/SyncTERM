@@ -1556,6 +1556,31 @@ def check_animation_profiles(t):
     check(commands(b"2RESET"), {(41,27):0})
 
 
+def check_animation_frame_sizes(t):
+    setup = (b"LIGMODE", b"LIGMODE", b"2S,0,1,0,1,A", b"2S,0,2,0,1,WIDE", b"2S,0,1,0,1,B")
+    define = b"2ANIM,1,20,20,1,A,B,0,0,0,1,20,0"
+    # The endpoints match, but the middle frame is wider. The macro must unwind
+    # and leave the next host byte available on the restored Lite display.
+    t.check("unequal animation frames return to Lite and resume host text",
+            b"Before" + commands(*setup, b"4DEFM,1,1,\x1d(" + define + b")LOST", b"4RUNM,1", b"dVIDMODE") + b"!",
+            (8, 1), [(1, 1, "Before!")], expected=b"0\xff")
+    change = b"2AFLY,1,20,20,A,B,1"
+    t.exchange(commands(*setup, change, b"dVIDMODE", b"2ANIM,1,20,20,1,A,A,0,0,0,1,20,0",
+                        b"2PLAYA,1", change, b"dVIDMODE"), b"1\xff0\xff")
+
+
+def check_collision_stop(t):
+    t.case("only stopping the colliding animation inside its macro returns to Lite")
+    setup = (b"LIGMODE", b"LIGMODE", b"2S,0,1,0,1,A", b"2ANIM,1,20,20,0,A,A,0,0,0,1,20,0",
+             b"2ANIM,2,30,30,0,A,A,0,0,0,1,20,0", b"2PLAYA,2")
+    box = b"2COLL,1,20,21,19,20,1,0,1,"
+    t.exchange(commands(*setup, box + b"OK,\x1d(2STOPA,2)", b"2PLAYA,1", b"w3",
+                        b"2STOPA,1", b"dVIDMODE", b"2GEXIT"), b"OK1\xff")
+    for stop in (b"2STOPA,1", b"2STOPA,0"):
+        t.exchange(commands(*setup, b"4DEFM,1,1,\x1d(" + stop + b")", box + b"LOST,\x1d(4RUNM,1)",
+                            b"2PLAYA,1", b"w3", b"dVIDMODE"), b"0\xff")
+
+
 def check_window_animations(t):
     t.case("animation frames and collisions follow window focus, backing and viewport")
     window = b"2GWIN,1,20,119,30,129,1000,750,0,0,0,0,0,0,0,0,0,0,1,Scene"
@@ -3228,6 +3253,8 @@ def run(args):
         check_stealth_controls(t)
         check_cache(t, fixture[1])
         check_resources(t, fixture[1])
+        check_animation_frame_sizes(t)
+        check_collision_stop(t)
         check_full_screen(t)
         check_lite_screen(t, fixture[1])
         check_speech(t, fixture[1])

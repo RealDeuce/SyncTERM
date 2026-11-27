@@ -122,8 +122,9 @@ st_ddofx_collision_poll(struct st_ddofx *ddo)
 			c->hits[j] &= ~(UINT64_C(1) << bit);
 			--list->pending;
 			list->next = (i + 1) % COLLISIONS;
-			if (st_ddofx_callback_start(ddo, &c->callback, DDO_EVENT) && c->variable)
-				st_ddofx_set_numeric_variable(ddo, c->variable, j * 64 + bit + 1);
+			unsigned animation = j * 64 + bit + 1;
+			if (st_ddofx_collision_callback(ddo, &c->callback, animation) && c->variable)
+				st_ddofx_set_numeric_variable(ddo, c->variable, animation);
 			return;
 		}
 	}

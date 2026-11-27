@@ -682,7 +682,7 @@ st_ddofx_graphics_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink
 	}
 	else if (!ascii_case_compare(verb, "2C") && st_ddofx_numbers(ddo, args, n, 1) && (unsigned)n[0] <= 255)
 		g->colour = (uint8_t)n[0];
-	else if (st_ddofx_animation_command(ddo, verb, args))
+	else if (st_ddofx_animation_command(ddo, sink, verb, args))
 		return;
 	else if (!strcmp(verb, "2SS") || !strcmp(verb, "2SSA") || !strcmp(verb, "2CSS")
 	    || !strcmp(verb, "2ACSS") || !strcmp(verb, "2DSS"))

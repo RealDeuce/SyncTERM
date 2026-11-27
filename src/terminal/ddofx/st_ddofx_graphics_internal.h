@@ -304,7 +304,7 @@ void st_ddofx_repaint_animation_faces(struct st_ddofx_graphics *, unsigned owner
 void st_ddofx_paint_sprite_part(const struct st_ddofx_sprite *, int32_t x, int32_t bottom, char op, struct bounds,
     const struct st_ddofx_surface *, const struct st_pixel_buffer *);
 void st_ddofx_clear_animations(struct st_ddofx_graphics *);
-bool st_ddofx_animation_command(struct st_ddofx *, const char *verb, char *args);
+bool st_ddofx_animation_command(struct st_ddofx *, const struct st_ddofx_sink *, const char *verb, char *args);
 void    st_ddofx_simple_command(struct st_ddofx *, const char *, char *);
 void    st_ddofx_sprite_command(struct st_ddofx *, const char *, char *);
 bool    st_ddofx_numbers(struct st_ddofx *, char *, int32_t *, unsigned);

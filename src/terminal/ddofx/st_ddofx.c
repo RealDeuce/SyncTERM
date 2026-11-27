@@ -221,6 +221,16 @@ st_ddofx_reset(struct st_ddofx *ddo)
         };
 }
 
+void
+st_ddofx_script_error(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, const char *message)
+{
+	if (sink->alert)
+		sink->alert(sink->ui_context, "DDO F/X", message);
+	st_ddofx_graphics_exit(ddo);
+	ddo->keys_locked  = false;
+	ddo->abort_script = st_ddofx_script_active(ddo);
+}
+
 static void
 check_memory(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, const char *amount)
 {
@@ -230,15 +240,10 @@ check_memory(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, const char 
 	int32_t available = sink->available_memory();
 	if (available < 0 || available >= requested)
 		return;
-	if (sink->alert) {
-		char message[192];
-		snprintf(message, sizeof(message), "This script needs %" PRId32 " bytes more memory.%s",
-		    requested - available, ddo->graphics ? " Returning to text mode." : "");
-		sink->alert(sink->ui_context, "DDO F/X", message);
-	}
-	st_ddofx_graphics_exit(ddo);
-	ddo->keys_locked  = false;
-	ddo->abort_script = st_ddofx_script_active(ddo);
+	char message[192];
+	snprintf(message, sizeof(message), "This script needs %" PRId32 " bytes more memory.%s",
+	    requested - available, ddo->graphics ? " Returning to text mode." : "");
+	st_ddofx_script_error(ddo, sink, message);
 }
 
 static void

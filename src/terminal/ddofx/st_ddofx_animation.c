@@ -408,48 +408,46 @@ st_ddofx_place_animation(struct st_ddofx *ddo, unsigned id, unsigned owner, int 
 		compose(ddo, a->window, NULL, NULL, -1);
 }
 
-static bool
-frame_range(struct st_ddofx *ddo, char **args, int *first, int *last)
-{
-	char *start = st_ddofx_field(args), *end = st_ddofx_field(args);
-	if (!end)
-		return false;
-	struct st_ddofx_graphics *g = ddo->graphics;
-	*first                      = st_ddofx_sprite_slot(g, st_ddofx_value(ddo, start), false);
-	*last                       = st_ddofx_sprite_slot(g, st_ddofx_value(ddo, end), false);
-	if (*first < 0 || *last < *first)
-		return false;
-	const struct st_ddofx_sprite *s = &g->sprites[*first];
-	for (int slot = *first; slot <= *last; ++slot)
-		if (!g->sprites[slot].pixels || g->sprites[slot].width != s->width
-		    || g->sprites[slot].height != s->height)
-			return false;
-	return true;
-}
-
 static void
-define(struct st_ddofx *ddo, int slot, char *args, bool fly)
+define(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, int slot, char *args, bool fly)
 {
-	struct animation *a = &ddo->graphics->animations->profiles[slot];
-	int32_t           x, y, loop = 0, fields[6];
-	int               first, last;
+	struct st_ddofx_graphics *g = ddo->graphics;
+	struct animation         *a = &g->animations->profiles[slot];
+	int32_t                   x, y, loop = 0, fields[6];
 	if (!st_ddofx_field_number(ddo, &args, &x) || !st_ddofx_field_number(ddo, &args, &y)
-	    || (!fly && (!st_ddofx_field_number(ddo, &args, &loop) || (unsigned)loop > 4))
-	    || !frame_range(ddo, &args, &first, &last))
+	    || (!fly && (!st_ddofx_field_number(ddo, &args, &loop) || (unsigned)loop > 4)))
 		return;
-	if (fly) {
-		if (!a->queued || a->completed || !st_ddofx_numbers(ddo, args, fields, 1)
-		    || (unsigned)fields[0] > 2)
+	char *start = st_ddofx_field(&args), *end = st_ddofx_field(&args);
+	if (!end || !st_ddofx_numbers(ddo, args, fields, fly ? 1 : 6))
+		return;
+	if (fly && (!a->queued || a->completed || (unsigned)fields[0] > 2))
+		return;
+	if (!fly && ((unsigned)fields[0] > MOTIONS || fields[1] < fields[0] || fields[1] > MOTIONS
+	                || (unsigned)fields[2] > 3 || (unsigned)fields[3] > 2 || fields[4] < 1
+	                || fields[4] > 100 || (unsigned)fields[5] > 1))
+		return;
+
+	int first = st_ddofx_sprite_slot(g, st_ddofx_value(ddo, start), false);
+	int last = st_ddofx_sprite_slot(g, st_ddofx_value(ddo, end), false);
+	if (first < 0 || last < first)
+		return;
+	const struct st_ddofx_sprite *base = &g->sprites[first];
+	for (int i = first; i <= last; ++i) {
+		const struct st_ddofx_sprite *s = &g->sprites[i];
+		if (!s->pixels)
 			return;
+		if (s->width != base->width || s->height != base->height) {
+			st_ddofx_script_error(ddo, sink, "Animation frames differ in size. Returning to text mode.");
+			return;
+		}
+	}
+
+	if (fly) {
 		a->draw    = fields[0];
 		a->advance = false;
 		a->due     = 1;
 	}
 	else {
-		if (!st_ddofx_numbers(ddo, args, fields, 6) || (unsigned)fields[0] > MOTIONS
-		    || fields[1] < fields[0] || fields[1] > MOTIONS || (unsigned)fields[2] > 3
-		    || (unsigned)fields[3] > 2 || fields[4] < 1 || fields[4] > 100 || (unsigned)fields[5] > 1)
-			return;
 		stop(ddo, slot);
 		*a = (struct animation) {.window = ddo->graphics->alert_graphic_window, .first_path = fields[0],
 		    .last_path                       = fields[1],
@@ -472,7 +470,7 @@ define(struct st_ddofx *ddo, int slot, char *args, bool fly)
 }
 
 bool
-st_ddofx_animation_command(struct st_ddofx *ddo, const char *verb, char *args)
+st_ddofx_animation_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, const char *verb, char *args)
 {
 	if (!ascii_case_compare(verb, "2COLL")) {
 		st_ddofx_collision_command(ddo, args);
@@ -514,6 +512,10 @@ st_ddofx_animation_command(struct st_ddofx *ddo, const char *verb, char *args)
 	struct st_ddofx_animations *list = g->animations;
 	if (!list)
 		return true;
+	if (op == STOP && !args && st_ddofx_stopping_collision(ddo, (unsigned)id)) {
+		st_ddofx_script_error(ddo, sink, "A collision macro stopped its own animation. Returning to text mode.");
+		return true;
+	}
 	if (!id) {
 		if (op == MOTION)
 			memset(list->paths, 0, sizeof(list->paths));
@@ -553,7 +555,7 @@ st_ddofx_animation_command(struct st_ddofx *ddo, const char *verb, char *args)
 			a->sounds[n[0] - 1] = (struct sound_slot) {a->first + n[3] - 1, n[1], n[2]};
 	}
 	else if (op == DEFINE || op == FLY)
-		define(ddo, slot, args, op == FLY);
+		define(ddo, sink, slot, args, op == FLY);
 	else if (!args && op == STOP)
 		stop(ddo, slot);
 	else if (!args && op == PLAY)
