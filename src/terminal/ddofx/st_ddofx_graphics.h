@@ -14,7 +14,9 @@ void st_ddofx_mouse_command(struct st_ddofx *, const struct st_ddofx_sink *, cha
 uint32_t st_ddofx_mouse_wait_ms(const struct st_ddofx *);
 void st_ddofx_mouse_poll(struct st_ddofx *);
 bool st_ddofx_fade_step(struct st_ddofx *, uint64_t now);
-void st_ddofx_gadget_command(struct st_ddofx *, char *body);
+void st_ddofx_gadget_command(struct st_ddofx *, const struct st_ddofx_sink *, char *body);
+uint32_t st_ddofx_marquee_wait_ms(const struct st_ddofx *);
+void st_ddofx_marquee_poll(struct st_ddofx *);
 uint32_t st_ddofx_grid_wait_ms(const struct st_ddofx *);
 void st_ddofx_grid_poll(struct st_ddofx *);
 bool st_ddofx_bar_command(struct st_ddofx *, char *body);

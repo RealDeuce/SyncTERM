@@ -230,6 +230,41 @@ def check_graphics_reset(t):
     assert frame.primary[10*640+10] == 0 and frame.primary[20*640+41] == 11
 
 
+def check_marquees(t, root):
+    t.case("marquees draw the initial text on WP and scroll a pixel at a time on VP")
+    marker, = root.rglob("syncterm-cache-name.txt")
+    cache = marker.parent / "DDOFX"
+    font = bytearray(4096)
+    font[0x82 * 16:0x83 * 16] = bytes([0x80]) * 16
+    (cache / "FONTS" / "Strip.fnt").write_bytes(font)
+    record = struct.Struct("<12sIIHH")
+    bank = bytearray(record.pack(b"\xff", 0, 0, 0, 0) * 33)
+    for slot, (name, length) in enumerate([(b"LINE.TXT", 20000), (b"LARGE.TXT", 20001)]):
+        record.pack_into(bank, slot*24, name, len(bank), length, 0, 0)
+        bank.extend((b"\x82 " * ((length + 1) // 2))[:length])
+    (cache / "BBSTHEME" / "Scroll.M").write_bytes(bank)
+    off = 464 * 640 + 624
+    wire = commands(b"2fScroll.", b"fStrip.fnt", b"2C,39", b"2aFILL", b"2CPYWP2VP", b"~PAUSEBAK",
+                    b"5CMARQEE,1,624,479,2,12,3,5,LINE.TXT", b"2aG,624,464",
+                    b"5CMARQEE,300,20,80,1,14,4,10,LINE.TXT", b"5SHOWMQ,1", b"5SHOWMQ,300",
+                    b"2aG,624,464", b"2aG,625,479", b"2aG,639,479", b"2aG,20,65",
+                    b"5CMARQEE,2,12,159,2,9,5,10,LARGE.TXT", b"5SHOWMQ,2", b"2aG,12,144")
+    frame = t.exchange(wire, b"39\xff12\xff3\xff3\xff14\xff39\xff")
+    assert list(frame.primary[off:off+16]) == [39] * 16
+    frame = t.exchange(commands(b"2CPYWP2VP"))
+    assert list(frame.primary[off:off+16]) == [12] + [3] * 15
+    t.send(commands(b"~UNPAUSEBAK"))
+    frame = t.client.wait_for(lambda f: f.primary[off+1] == 12)
+    assert list(frame.primary[off:off+16]) == list(frame.alternate[off:off+16]) == [3,12] + [3] * 14
+    t.exchange(commands(b"5STOPMQ,1", b"5KILLMQ,300", b"2aERASE", b"2CPYWP2VP", b"w6",
+                        b"5SHOWMQ,300", b"2aG,20,65"), b"0\xff")
+    frame = t.exchange()
+    assert not any(frame.primary[off:off+16])
+    t.send(commands(b"5SHOWMQ,1"))
+    t.client.wait_for(lambda f: 12 in f.primary[off:off+16])
+    t.exchange(commands(b"5CMARQEE,0", b"2aERASE", b"5SHOWMQ,1", b"2aG,624,464", b"fIBMSTD.FNT"), b"0\xff")
+
+
 def check_sprite_banks(t, root):
     t.case("sprite bank files, slot order, row orientation and erase after load")
     marker, = root.rglob("syncterm-cache-name.txt")
@@ -578,6 +613,7 @@ def check_graphics(t, root):
                                                        b"2aSRGB,4,0,63,63"), b"4\xff")
     assert frame.primary[4 * 640 + 3] == 4 and frame.palette[4] == 0x00ffff
     check_drawing(t)
+    check_marquees(t, root)
     check_sprite_banks(t, root)
     check_sprites(t)
     check_grid(t)

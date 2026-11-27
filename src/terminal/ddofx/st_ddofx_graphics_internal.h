@@ -66,6 +66,7 @@ struct st_ddofx_graphics {
 	struct st_ddofx_simple *simple;
 	struct st_ddofx_bars   *bars;
 	struct st_ddofx_grid   *grid;
+	struct st_ddofx_marquees *marquees;
 
 	st_console_t            *display, *view;
 	st_font_catalog_t       *fonts;
@@ -102,6 +103,9 @@ void st_ddofx_pointer_command(struct st_ddofx *, const struct st_ddofx_sink *, c
 void st_ddofx_mouse_defaults(struct st_ddofx_mouse_state *);
 bool st_ddofx_ensure_pointer(struct st_ddofx_mouse_state *);
 void st_ddofx_pointer_refresh(struct st_ddofx *);
+const uint8_t *st_ddofx_vga_bitmap(const struct st_ddofx *);
+void st_ddofx_clear_marquees(struct st_ddofx_graphics *);
+bool st_ddofx_marquee_command(struct st_ddofx *, const struct st_ddofx_sink *, const char *, char *);
 void st_ddofx_print_vga_text(struct st_ddofx *, const char *, char *);
 void st_ddofx_apply_vga_font(struct st_ddofx *);
 void st_ddofx_grid_command(struct st_ddofx *, const char *, char *);

@@ -246,7 +246,7 @@ page_field(struct st_ddofx *ddo, char **args, enum page *page)
 }
 
 void
-st_ddofx_gadget_command(struct st_ddofx *ddo, char *body)
+st_ddofx_gadget_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *body)
 {
 	char           *args = body;
 	const char     *verb = st_ddofx_field(&args);
@@ -254,7 +254,7 @@ st_ddofx_gadget_command(struct st_ddofx *ddo, char *body)
 	    .g      = ddo->graphics,
 	    .damage = {WIDTH, -1, HEIGHT, -1}
         };
-	if (st_ddofx_choice_command(ddo, verb, args))
+	if (st_ddofx_choice_command(ddo, verb, args) || st_ddofx_marquee_command(ddo, sink, verb, args))
 		return;
 	if (!ascii_case_compare(verb, "5CPUSHB")) {
 		st_ddofx_define_button(ddo, args);

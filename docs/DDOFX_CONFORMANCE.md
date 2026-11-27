@@ -24,6 +24,8 @@ The four desktop pages support lower-left anchored image scaling, rotation betwe
 
 In Normal mode the BBS can show or hide the mouse pointer, query its position and three logical buttons, and read separate press and release counts and positions for each button. The BBS can position the DDO pointer with `3MMOV` and confine it to a rectangle with `3MLIM`. SyncTERM accepts both the SDK spelling `MSPD` and the mouse-family spelling `3MSPD`. Relative to the default rates of 8 horizontally and 16 vertically, doubling an axis rate halves its travel. Motion is measured in desktop raster pixels, with fractional movement carried between samples. Up to 300 desktop regions share one table. Overlapping regions run in slot order. Each macro finishes before its return string is sent. Held repeatable regions run at 50 ms intervals during idle input. Non-repeating regions wait for all buttons to be released.
 
+A marquee reads up to 20,000 bytes from the assigned M resource and uses the selected VGA text font. `5SHOWMQ` paints the initial strip on the work page. Its timer scrolls the strip one pixel to the right per frame on the visual page, following the direction stated in the SDK. `5STOPMQ` preserves the current position, and `5KILLMQ` releases the slot.
+
 The BBS can create up to 300 desktop push buttons with `5CPUSHB`. Creation draws the up sprite on the work page. A matching key or mouse combination draws the down sprite on the visual page for three clock ticks, restores the up sprite, then runs the macro and sends the return string. The pass flag controls whether a keyboard activation continues to the next binding and the connection.
 
 Desktop radio buttons and checkboxes each have 300 slots. A key or left click changes the selection. An explicit execute command runs the selected members of the addressed exclusive or multiple-selection group in slot order. Each macro finishes before its return string is sent.
@@ -340,10 +342,10 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 10274 | ADJUST LIST | DDO-FX (NM) | Pending |
 | 10341 | ADJUST HIGHLIGHT | DDO-FX (NM) | Pending |
 | 10378 | TOGGLE SELECTION | DDO-FX (NM) | Pending |
-| 10399 | CREATE MARQUEE | DDO-FX (NM) | Pending |
-| 10471 | SHOW MARQUEE | DDO-FX (NM) | Pending |
-| 10485 | STOP MARQUEE | DDO-FX (NM) | Pending |
-| 10498 | KILL MARQUEE | DDO-FX (NM) | Pending |
+| 10399 | CREATE MARQUEE | DDO-FX (NM) | Connected |
+| 10471 | SHOW MARQUEE | DDO-FX (NM) | Connected |
+| 10485 | STOP MARQUEE | DDO-FX (NM) | Connected |
+| 10498 | KILL MARQUEE | DDO-FX (NM) | Connected |
 | 10511 | OPEN FLI/FLC | DDO-FX (NM) | Pending |
 | 10600 | PAUSE FLI/FLC | DDO-FX (NM) | Pending |
 | 10620 | UNPAUSE FLI/FLC | DDO-FX (NM) | Pending |

@@ -20,6 +20,15 @@ st_ddofx_vga_font_name(const struct st_ddofx *ddo)
 	return ddo->vga_font ? ddo->vga_font->name : "IBMSTD.FNT";
 }
 
+const uint8_t *
+st_ddofx_vga_bitmap(const struct st_ddofx *ddo)
+{
+	struct st_console_font builtin;
+	if (ddo->vga_font)
+		return ddo->vga_font->bitmap;
+	return st_builtin_font_get(0, 8, 16, &builtin) ? builtin.bitmap : NULL;
+}
+
 static bool
 install(const struct st_ddofx_graphics *g, const struct st_ddofx_vga_font *font)
 {
@@ -141,12 +150,8 @@ st_ddofx_print_vga_text(struct st_ddofx *ddo, const char *suffix, char *args)
 	size_t length = strlen((const char *)run.text);
 	if (!length || length > (size_t)(WIDTH - n[0]) / 8)
 		return;
-	struct st_console_font builtin;
-	if (ddo->vga_font)
-		run.font = ddo->vga_font->bitmap;
-	else if (st_builtin_font_get(0, 8, 16, &builtin))
-		run.font = builtin.bitmap;
-	else
+	run.font = st_ddofx_vga_bitmap(ddo);
+	if (!run.font)
 		return;
 	run.x      = n[0];
 	run.top    = n[1] - 15;

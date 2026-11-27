@@ -245,7 +245,7 @@ execute(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *body)
 	else if (body[0] == '3' && ddo->graphics)
 		st_ddofx_mouse_command(ddo, sink, body + 1);
 	else if (body[0] == '5' && ddo->graphics)
-		st_ddofx_gadget_command(ddo, body);
+		st_ddofx_gadget_command(ddo, sink, body);
 	else if (body[0] == '*')
 		st_ddofx_run_resource(ddo, sink, st_ddofx_value(ddo, body + 1));
 	else if (body[0] == 'd' && ascii_case_ncompare(body + 1, "RESOURCE,", 9) == 0) {
@@ -419,6 +419,9 @@ st_ddofx_wait_ms(const struct st_ddofx *ddo)
 	uint32_t grid = st_ddofx_grid_wait_ms(ddo);
 	uint32_t mouse = st_ddofx_mouse_wait_ms(ddo);
 	uint32_t pointer = st_ddofx_pointer_wait_ms(ddo);
+	uint32_t marquee = st_ddofx_marquee_wait_ms(ddo);
+	if (marquee < wait)
+		wait = marquee;
 	if (pointer < wait)
 		wait = pointer;
 	if (mouse < wait)
@@ -434,6 +437,7 @@ st_ddofx_poll(struct st_ddofx *ddo, const struct st_ddofx_sink *sink)
 	st_ddofx_samples_poll(ddo);
 	st_ddofx_bar_poll(ddo);
 	st_ddofx_grid_poll(ddo);
+	st_ddofx_marquee_poll(ddo);
 	st_ddofx_event_poll(ddo);
 	st_ddofx_mouse_poll(ddo);
 	st_ddofx_pointer_poll(ddo);
