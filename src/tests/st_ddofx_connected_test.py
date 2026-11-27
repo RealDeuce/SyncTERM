@@ -2654,6 +2654,12 @@ def check_info(t, root):
                         b"~INFLOD,0,1"), b"6A\0,~\r\xff")
     t.exchange(commands(b"~INFSAV,3,2147483647,27", b"~DEFVAR,10,2,0", b"~VARCAP,10", b"~INFLOD,2147483647,3",
                         b"~VARCAP,0", b"~INCVAR,10", b"7DEFRET,2,DEFVAR10", b"7SRET,2"), b"28")
+    # Loading retains all bytes. A NUL after a digit still makes this a
+    # nonnumeric value in a numeric parameter, comparison, or calculation.
+    t.exchange(commands(b"~INFSAV,3,0,7^@9", b"~DEFVAR,10,2,", b"~VARCAP,10", b"~INFLOD,0,3",
+                        b"~VARCAP,0", b"MSVOL,DEFVAR10", b"MGVOL", b"7DEFRET,2,Y",
+                        b"~IFVAR,DEFVAR10,=,0,\x1d(7SRET,2)", b"~INCVAR,10",
+                        b"7DEFRET,2,DEFVAR10", b"7SRET,2"), b"0\xffY1")
     t.exchange(commands(b"~INFSAV,32000,3,"+b"B"*201, b"~VARCAP,9", b"~INFLOD,3,32000", b"~VARCAP,0",
                         b"7DEFRET,2,DEFVAR9", b"7SRET,2"), b"B"*50)
     assert path.stat().st_size == 32001*255
@@ -2665,6 +2671,20 @@ def check_info(t, root):
                bytes(range(250)) + bytes(range(50)))
     t.exchange(commands(b"LIGMODE", b"LIGMODE", b"~INFLOD,3,32000", b"2fOTHER.", b"~INFLOD,0,3",
                         b"2GEXIT"), b"B"*200 + b"NO FILE\xff")
+
+
+def check_numeric_variables(t):
+    t.case("typed script variables as integer command parameters")
+    t.exchange(commands(b"~DEFVAR,91,1,words", b"~DEFVAR,92,1,  +17", b"~DEFVAR,93,1,",
+                        b"MSVOL,DEFVAR92", b"MGVOL", b"MSVOL,DEFVAR91", b"MGVOL",
+                        b"7DEFRET,91,DEFVAR91", b"7SRET,91", b"MSVOL,17", b"MSVOL,DEFVAR93", b"MGVOL"),
+               b"17\xff0\xffwords0\xff")
+    t.exchange(commands(b"MSVOL,19", b"MSVOL,words", b"MSVOL,DEFVAR1001", b"MGVOL"), b"19\xff")
+    t.exchange(commands(b"LIGMODE", b"LIGMODE", b"2C,19", b"2aFILL", b"2C,-$ffffffff",
+                        b"2aP,DEFVAR91,DEFVAR92", b"2aG,0,17", b"2aG,1,17", b"2GEXIT"), b"1\xff19\xff")
+    t.exchange(commands(b"~DEFVAR,93,2,$80000000", b"~INCVAR,93", b"7DEFRET,93,DEFVAR93", b"7SRET,93",
+                        b"~DEFVAR,93,2,2147483647", b"~INCVAR,93", b"7DEFRET,93,DEFVAR93", b"7SRET,93"),
+               b"-2147483647-2147483648")
 
 
 def check_scripts(t):
@@ -2682,7 +2702,7 @@ def check_scripts(t):
     t.exchange(commands(b"~VAREQU,1,4", b"~VARTYP,1,2", b"~VARADD,1,7", b"~VARMLT,1,-3",
                         b"~VARSUB,1,2", b"~VARDIV,1,2") + read_variable(1), b"-20")
     t.exchange(commands(b"~RNDVAR,1,1") + read_variable(1), b"1")
-    t.exchange(commands(b"~VARCAP,1000", b"MGVOL", b"7SRET,2", b"~VARCAP,0", b"~INCVAR,1000",
+    t.exchange(commands(b"MSVOL,15", b"~VARCAP,1000", b"MGVOL", b"7SRET,2", b"~VARCAP,0", b"~INCVAR,1000",
                         b"MSVOL,DEFVAR1000", b"MGVOL"), b"a,b16\xff")
     t.exchange(commands(b"~VARCAP,3", b"dLITERM", b"~VARCAP,0", b"~DECVAR,3") + read_variable(3),
                b"LITERM Ver. 2.0")
@@ -3292,6 +3312,7 @@ def run(args):
         check_text_files(t, fixture[1])
         check_text_editor(t, fixture[1])
         check_print_file(t, fixture[1])
+        check_numeric_variables(t)
         check_scripts(t)
         check_events(t)
         check_lite_reset(t)

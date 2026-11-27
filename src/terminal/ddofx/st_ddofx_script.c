@@ -91,21 +91,45 @@ set_value(struct variable *v, const void *data, size_t size)
 	v->text[v->length] = 0;
 }
 
+/* Interpret a DOS long's 32 bits without an out-of-range signed conversion. */
+static int32_t
+signed_long(uint32_t bits)
+{
+	return bits > INT32_MAX ? (int64_t)bits - INT64_C(4294967296) : (int64_t)bits;
+}
+
 static bool
 integer(const char *s, int32_t *result)
 {
 	while (*s == ' ')
 		++s;
-	int base = *s == '$' ? 16 : 10;
-	if (base == 16)
+	bool negative = *s == '-';
+	if (negative || *s == '+')
 		++s;
-	char *end;
-	errno      = 0;
-	intmax_t n = strtoimax(s, &end, base);
-	if (s == end || *end || errno == ERANGE || n < INT32_MIN || n > INT32_MAX)
+	bool hex = *s == '$';
+	if (hex)
+		++s;
+	size_t digits = strspn(s, hex ? "0123456789abcdefABCDEF" : "0123456789");
+	if (!digits || s[digits])
 		return false;
-	*result = (int32_t)n;
+
+	errno = 0;
+	uintmax_t magnitude = strtoumax(s, NULL, hex ? 16 : 10);
+	uintmax_t limit = hex ? UINT32_MAX : (uintmax_t)INT32_MAX + negative;
+	if (errno == ERANGE || magnitude > limit)
+		return false;
+	uint32_t bits = (uint32_t)magnitude;
+	*result = signed_long(negative ? 0u - bits : bits);
 	return true;
+}
+
+static int32_t
+variable_integer(const struct variable *v)
+{
+	int32_t n = 0;
+	if (!memchr(v->text, 0, v->length))
+		integer(v->text, &n);
+	return n;
 }
 
 static struct variable *
@@ -150,7 +174,13 @@ st_ddofx_value(const struct st_ddofx *ddo, const char *s)
 bool
 st_ddofx_number(const struct st_ddofx *ddo, const char *s, int32_t *value)
 {
-	return integer(st_ddofx_value(ddo, s), value);
+	if (ascii_case_ncompare(s, "DEFVAR", 6))
+		return integer(s, value);
+	const struct variable *v = reference(ddo, s);
+	if (!v || (v->type == UNDEFINED && !v->length))
+		return false;
+	*value = variable_integer(v);
+	return true;
 }
 
 bool
@@ -168,11 +198,7 @@ st_ddofx_capture(struct st_ddofx *ddo, const char *text, bool numeric)
 static void
 set_number(struct variable *v, int64_t n)
 {
-	/* DOS long integers wrap at 32 bits. Spell the result without a signed overflow. */
-	n = (uint32_t)n;
-	if (n > INT32_MAX)
-		n -= INT64_C(4294967296);
-	v->length = (size_t)snprintf(v->text, sizeof(v->text), "%" PRId64, n);
+	v->length = (size_t)snprintf(v->text, sizeof(v->text), "%" PRId32, signed_long((uint32_t)n));
 }
 
 void
@@ -582,8 +608,7 @@ named_return(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, const char 
 static void
 arithmetic(struct st_ddofx_script *s, struct variable *v, const char *verb, int32_t amount)
 {
-	int32_t n = 0;
-	integer(v->text, &n);
+	int32_t n = variable_integer(v);
 	if (!strcmp(verb, "RNDVAR")) {
 		if (amount > 0) {
 			s->random = s->random * UINT32_C(1664525) + UINT32_C(1013904223);
@@ -779,8 +804,11 @@ compare(const struct st_ddofx *ddo, const struct st_ddofx_sink *sink, const stru
 	int         relation;
 	if (numeric) {
 		int32_t a = 0, b = 0;
-		integer(master, &a);
-		integer(slave, &b);
+		if (v)
+			a = variable_integer(v);
+		else
+			integer(master, &a);
+		st_ddofx_number(ddo, p->slave, &b);
 		relation = (a > b) - (a < b);
 	}
 	else {

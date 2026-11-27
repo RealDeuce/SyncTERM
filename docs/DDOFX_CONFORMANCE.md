@@ -106,6 +106,8 @@ Lite and Normal expose two DOS joystick slots through SyncTERM’s controller ma
 
 Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed variables. Local macro calls, repeats and waits preserve the order of the wire stream. Variable capture redirects automatic query results. Configured return strings can send binary bytes. Conditional macros compare literal text, typed user variables and the SDK’s predefined master operands. These cover identity, memory, storage, speed, graphics and audio capabilities, the mouse, the current music, theme and font, loose-file metadata and resource member IDs. `~REPVAR` runs its body before testing, including when the body defines the variable being tested.
 
+Integer parameters accept signed decimal and `$`-prefixed hexadecimal values. When a parameter reads a defined variable, empty or nonnumeric content supplies zero. The stored bytes remain available to text commands. Numeric comparisons and arithmetic use the full variable value, including any embedded NUL.
+
 | SDK line | Definition | Domain | Coverage |
 | ---: | --- | --- | --- |
 | 575 | LOAD FONT | DDO-FX LITE | Connected |
