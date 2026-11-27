@@ -3,13 +3,13 @@ file(READ "${BUILD_DIR}/syncterm-configuration.txt" report)
 file(STRINGS "${BUILD_DIR}/syncterm-generated/st_build_options.inc" rows
 	REGEX "^ST_BUILD_OPTION")
 list(LENGTH rows count)
-if(NOT count EQUAL 37)
+if(NOT count EQUAL 40)
 	message(FATAL_ERROR "Incomplete Build Options inventory: ${count}")
 endif()
 foreach(item "Unifont (SyncTERM Unicode)" UNSCII "Noto Emoji" "Noto Color Emoji"
 	"DeuceSSH (SSH)" "OpenSSL (TLS, symmetric ciphers)" "Botan 3 (TLS, symmetric ciphers)"
 	"Encrypted BBS lists" "Operation Overkill ][ Terminal" "JPEG XL support"
-	SDL "X11 Support" Xinerama XRandR XRender GDI Wayland Quartz "Win32 Console"
+	SDL "X11 Support" Xinerama XRandR XRender "OpenGL scaling" "Slang presets" GDI Wayland Quartz "Win32 Console"
 	ncurses ANSI libretro "Testing bitmap backend" OSS ALSA WASAPI PortAudio
 	PipeWire PulseAudio "Core Audio" libsndfile WinMM "Apple DLS" "ALSA Sequencer"
 	FluidSynth libADLMIDI)

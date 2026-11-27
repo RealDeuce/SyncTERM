@@ -323,6 +323,7 @@ st_settings_dispose(struct st_settings *settings)
 	free(settings->stored_list_path);
 	free(settings->tls_client_certificate);
 	free(settings->tls_client_key);
+	free(settings->gl_preset);
 	free(settings->theme_file);
 	free(settings->theme_package);
 	free(settings->sort_order);
@@ -348,6 +349,7 @@ st_settings_copy(struct st_settings *result, const struct st_settings *source)
 	copy.stored_list_path       = NULL;
 	copy.tls_client_certificate = NULL;
 	copy.tls_client_key         = NULL;
+	copy.gl_preset              = NULL;
 	copy.theme_file             = NULL;
 	copy.theme_package          = NULL;
 	copy.sort_order             = NULL;
@@ -363,7 +365,7 @@ st_settings_copy(struct st_settings *result, const struct st_settings *source)
 	    || !copy_path(&copy.stored_list_path, source->stored_list_path)
 	    || !copy_path(&copy.tls_client_certificate, source->tls_client_certificate)
 	    || !copy_path(&copy.tls_client_key, source->tls_client_key)
-	    || !copy_path(&copy.theme_file, source->theme_file)
+	    || !copy_path(&copy.gl_preset, source->gl_preset) || !copy_path(&copy.theme_file, source->theme_file)
 	    || !copy_path(&copy.theme_package, source->theme_package)
 	    || !copy_path(&copy.sort_order, source->sort_order)
 	    || !copy_path(&copy.active_sort_profile, source->active_sort_profile)) {
@@ -504,4 +506,22 @@ const struct st_settings_font *
 st_settings_font_at(size_t index)
 {
 	return index < st_settings_font_count() ? st_settings.custom_fonts[index] : NULL;
+}
+
+enum st_settings_scaler
+st_settings_scaler(const struct st_settings *settings)
+{
+	if (settings->opengl_scaling)
+		return ST_SCALER_OPENGL;
+	if (settings->external_scaling)
+		return ST_SCALER_EXTERNAL;
+	return settings->blocky_scaling ? ST_SCALER_BLOCKY : ST_SCALER_POINTY;
+}
+
+void
+st_settings_set_scaler(struct st_settings *settings, enum st_settings_scaler scaler)
+{
+	settings->opengl_scaling   = scaler == ST_SCALER_OPENGL;
+	settings->external_scaling = scaler == ST_SCALER_EXTERNAL;
+	settings->blocky_scaling   = scaler == ST_SCALER_BLOCKY || scaler == ST_SCALER_OPENGL;
 }

@@ -13,7 +13,11 @@
 #include <X11/cursorfont.h>
 
 #include "console_config.h"
+#include "console_gl.h"
 #include "console_internal.h"
+#if ST_CONSOLE_HAVE_GLX
+ #include <GL/glx.h>
+#endif
 #include "console_pointer_pixels.h"
 #include "console_posix_url.h"
 #include "console_x11_keys.h"
@@ -248,6 +252,9 @@ struct x11_command {
 };
 
 struct x11_state {
+#if ST_CONSOLE_HAVE_GLX
+	GLXContext gl_context;
+#endif
 	/* Only the backend thread changes or dereferences this pointer. */
 	st_console_t                     *console;
 	st_console_display_t             *console_display;
@@ -1079,6 +1086,59 @@ clear_window(struct x11_state *state)
 	    state->window_height);
 }
 
+#if ST_CONSOLE_HAVE_GLX
+static int
+x11_gl_current(void *window, uint32_t width, uint32_t height)
+{
+	struct x11_state *s = window;
+	(void)width;
+	(void)height;
+	if (!s->gl_context) {
+		int major = 0, minor = 0, count = 0;
+		if (!glXQueryVersion(s->display, &major, &minor) || (major == 1 && minor < 3))
+			return IO_ERROR_NOT_SUPPORTED;
+		const int    attributes[] = {GLX_RENDER_TYPE, GLX_RGBA_BIT, GLX_DRAWABLE_TYPE, GLX_WINDOW_BIT,
+		    GLX_DOUBLEBUFFER, True, GLX_VISUAL_ID, (int)s->visual->visualid, None};
+		GLXFBConfig *configs      = glXChooseFBConfig(s->display, s->screen, attributes, &count);
+		if (configs && count)
+			s->gl_context = glXCreateNewContext(s->display, configs[0], GLX_RGBA_TYPE, NULL, True);
+		if (configs)
+			s->api.free_memory(configs);
+	}
+	return s->gl_context && glXMakeCurrent(s->display, s->window, s->gl_context) ? 0 : IO_ERROR_NOT_SUPPORTED;
+}
+
+static const void *
+x11_gl_symbol(const char *name)
+{
+	__GLXextFuncPtr fn = glXGetProcAddressARB((const GLubyte *)name);
+	const void     *symbol;
+	_Static_assert(sizeof(fn) == sizeof(symbol), "GLX procedure size");
+	memcpy(&symbol, &fn, sizeof(symbol));
+	return symbol;
+}
+
+static int
+x11_gl_swap(void *window)
+{
+	struct x11_state *s = window;
+	glXSwapBuffers(s->display, s->window);
+	return 0;
+}
+
+static void
+x11_gl_close(void *window)
+{
+	struct x11_state *s = window;
+	if (s->gl_context) {
+		glXMakeCurrent(s->display, None, NULL);
+		glXDestroyContext(s->display, s->gl_context);
+		s->gl_context        = NULL;
+		s->destination_valid = false;
+	}
+}
+#endif
+
 static int
 draw_state(struct x11_state *state, const st_console_t *console, bool repaint)
 {
@@ -1090,6 +1150,8 @@ draw_state(struct x11_state *state, const st_console_t *console, bool repaint)
 	    state->window_height, milliseconds_now(), upload_pixels, state, &state->frame);
 	if (status != 0)
 		return status;
+	if (state->frame.scaling_mode == ST_CONSOLE_SCALING_OPENGL)
+		return 0;
 	repaint = repaint || !state->destination_valid
 	          || !st_console_rects_equal(&state->old_destination, &state->frame.destination);
 	if (repaint && !state->damage_valid && state->image == NULL) {
@@ -1800,6 +1862,10 @@ handle_event(struct x11_state *state, XEvent *event)
 	struct st_console_event output = {0};
 
 	switch (event->type) {
+		case UnmapNotify:
+		case MapNotify:
+			st_console_display_set_window_hidden(state->console_display, event->type == UnmapNotify);
+			break;
 		case Expose:
 			st_console_display_request_repaint(state->console_display);
 			break;
@@ -2216,6 +2282,7 @@ process_pending_command(struct x11_state *state)
 static void
 destroy_x11_objects(struct x11_state *state)
 {
+	st_console_bitmap_gl_close(state->presenter);
 	if (state->hidden_cursor != None)
 		(void)state->api.free_cursor(state->display, state->hidden_cursor);
 	for (size_t i = 0; i < sizeof(state->pointer_cursors) / sizeof(state->pointer_cursors[0]); ++i) {
@@ -2353,6 +2420,10 @@ create_x11_objects(struct x11_state *state)
 	state->pointer_visible = true;
 	state->pointer_shape   = ST_CONSOLE_POINTER_DEFAULT;
 	(void)set_pointer_shape(state, state->pointer_shape);
+#if ST_CONSOLE_HAVE_GLX
+	st_console_bitmap_gl_host(state->presenter,
+	    (struct st_gl_host) {state, x11_gl_current, x11_gl_symbol, x11_gl_swap, x11_gl_close});
+#endif
 	return draw_state(state, state->console, true);
 }
 

@@ -200,7 +200,7 @@ wait_window_pixel(Display *display, Window window, int width, int height, int x,
 	XWindowAttributes attributes;
 	unsigned long     actual = 0;
 
-	for (unsigned int attempt = 0; attempt < 100; ++attempt) {
+	for (unsigned int attempt = 0; attempt < 500; ++attempt) {
 		XImage *image;
 
 		CHECK(XGetWindowAttributes(display, window, &attributes) != 0);
@@ -428,21 +428,86 @@ check_mode_changes(void)
 }
 
 static int
-check_resize_pixels(enum st_console_scaling_mode mode)
+check_gl_scaler(st_console_t *console, Display *display, Window window, Visual *visual,
+    enum st_pixel_scaling_policy policy)
 {
-	const char *title = mode == ST_CONSOLE_SCALING_EXTERNAL ? "st_console X11 XRender resize"
-	                                                        : "st_console X11 software resize";
+	struct st_pixel_buffer    *input  = NULL;
+	struct st_rgb_buffer      *rgb    = NULL;
+	st_pixel_scaler_t         *scaler = NULL;
+	const struct st_pixel_blit blit   = {.width = 64, .height = 64, .scale_x = 1, .scale_y = 1};
+	CHECK(st_pixel_buffer_create(&input, 64, 64, true) == 0);
+	CHECK(st_rgb_buffer_create(&rgb, 64, 64) == 0);
+	CHECK(st_pixel_scaler_create(&scaler) == 0);
+	for (uint32_t i = 0; i < 64 * 64; ++i) {
+		uint32_t colour   = (i * UINT32_C(0x315739)) & UINT32_C(0xffffff);
+		if ((i / 64) >= 16)
+			colour = ((i % 64 + i / 64) % 7 < 3) ? UINT32_C(0x4273ef) : UINT32_C(0xe7b249);
+		rgb->pixels[i]    = colour;
+		input->primary[i] = input->alternate[i] = colour | ST_PIXEL_COLOR_RGB_TAG;
+	}
+	CHECK(st_console_set_cursor(console, false, ST_CONSOLE_CURSOR_BLOCK) == 0);
+	CHECK(st_console_blit_pixels(console, input, NULL, &blit) == 0);
+	CHECK(st_console_present(console) == 0);
+	const unsigned sizes[][2] = {
+	    {117, 117},
+            {128, 128},
+            {193, 193},
+            {256, 256},
+            {321, 321},
+            {391, 391},
+            {448, 448},
+            {55,  55 },
+	    {263, 133},
+            {129, 301}
+        };
+	for (size_t i = 0; i < sizeof(sizes) / sizeof(*sizes); ++i) {
+		unsigned                    w = sizes[i][0], h = sizes[i][1];
+		const struct st_rgb_buffer *expected;
+		CHECK(st_pixel_scaler_scale(scaler, &expected, rgb, w, h, policy) == 0);
+		if (w != h)
+			CHECK(st_console_set_aspect_ratio(console, w, h) == 0);
+		XResizeWindow(display, window, w, h);
+		XSync(display, False);
+		CHECK(wait_window_pixel(display, window, (int)w, (int)h, 5, 7,
+			  visual_pixel(visual, expected->pixels[7 * w + 5]))
+		      == 0);
+		XImage *image = XGetImage(display, window, 0, 0, w, h, AllPlanes, ZPixmap);
+		CHECK(image != NULL);
+		for (unsigned y = 0; y < h; ++y) {
+			for (unsigned x = 0; x < w; ++x) {
+				unsigned long want = visual_pixel(visual, expected->pixels[y * w + x]);
+				if (XGetPixel(image, (int)x, (int)y) != want) {
+					fprintf(stderr, "%ux%u mismatch at %u,%u: got %#lx, expected %#lx\n", w, h,
+					    x, y, XGetPixel(image, (int)x, (int)y), want);
+					XDestroyImage(image);
+					return 1;
+				}
+			}
+		}
+		XDestroyImage(image);
+	}
+	st_pixel_scaler_destroy(scaler);
+	st_pixel_buffer_destroy(input);
+	st_rgb_buffer_destroy(rgb);
+	return 0;
+}
+
+static int
+check_resize_pixels(enum st_console_scaling_mode mode, const char *preset, bool check_effect, bool animated)
+{
+	const char                            *title          = "st_console X11 resize pixels";
 	const struct st_console_display_config display_config = {
 	    .backend = ST_CONSOLE_BACKEND_X11,
 	};
 	const struct st_console_config config = {
-	    .columns      = 8,
-	    .rows         = 4,
-	    .cell_width   = 8,
-	    .cell_height  = 16,
-	    .wrap         = true,
-	    .scaling_mode = mode,
-	    .blink_mode   = ST_CONSOLE_BLINK_ATARI,
+	    .columns              = check_effect ? 80 : 8,
+	    .rows                 = check_effect ? 25 : 4,
+	    .cell_width           = 8,
+	    .cell_height          = 16,
+	    .wrap                 = true,
+	    .scaling_mode         = mode,
+	    .preserve_window_size = mode == ST_CONSOLE_SCALING_OPENGL,
+	    .blink_mode           = ST_CONSOLE_BLINK_ATARI,
 	};
 	const uint32_t             first_colour  = ST_PIXEL_COLOR_RGB_VALUE(0x20, 0x80, 0xe0);
 	const uint32_t             second_colour = ST_PIXEL_COLOR_RGB_VALUE(0xe0, 0x40, 0x20);
@@ -483,6 +548,24 @@ check_resize_pixels(enum st_console_scaling_mode mode)
 		}
 		CHECK(status == 0);
 	}
+	if (mode == ST_CONSOLE_SCALING_OPENGL) {
+		int status = st_console_display_set_gl_preset(console->display, NULL, true);
+		if (status == IO_ERROR_NOT_SUPPORTED) {
+			st_console_destroy(console);
+			XCloseDisplay(display);
+			return 77;
+		}
+		CHECK(status == 0);
+		if (preset) {
+			status = st_console_display_set_gl_preset(console->display, preset, true);
+			if (status == IO_ERROR_NOT_SUPPORTED && strcmp(preset, "Pointy") != 0) {
+				st_console_destroy(console);
+				XCloseDisplay(display);
+				return 77;
+			}
+			CHECK(status == 0);
+		}
+	}
 	CHECK(st_console_set_title(console, title) == 0);
 	CHECK(fill_pixels(console, first_colour) == 0);
 	CHECK(st_console_present(console) == 0);
@@ -492,6 +575,33 @@ check_resize_pixels(enum st_console_scaling_mode mode)
 	first_pixel  = visual_pixel(attributes.visual, first_colour);
 	second_pixel = visual_pixel(attributes.visual, second_colour);
 	region_pixel = visual_pixel(attributes.visual, region_colour);
+
+	if (animated) {
+		/* With Atari blink disabled, the shader clock alone drives these frames. */
+		CHECK(wait_window_pixel(display, window, 64, 64, 32, 32, first_pixel) == 0);
+		CHECK(wait_window_pixel(display, window, 64, 64, 32, 32, visual_pixel(attributes.visual, 0xe08020))
+		      == 0);
+		st_console_destroy(console);
+		XCloseDisplay(display);
+		return 0;
+	}
+	/* A CRT mask applied to a flat field must produce spatial variation. */
+	if (check_effect) {
+		XImage *image = XGetImage(display, window, attributes.width / 2, attributes.height / 2, 64, 64,
+		    AllPlanes, ZPixmap);
+		CHECK(image != NULL);
+		unsigned long first  = XGetPixel(image, 0, 0);
+		bool          varied = false;
+		for (int y = 0; y < image->height; ++y)
+			for (int x = 0; x < image->width; ++x)
+				if (XGetPixel(image, x, y) != first)
+					varied = true;
+		XDestroyImage(image);
+		CHECK(varied);
+		st_console_destroy(console);
+		XCloseDisplay(display);
+		return 0;
+	}
 
 	CHECK(wait_window_pixel(display, window, 64, 64, 32, 32, first_pixel) == 0);
 	/* The first scaled repaint must initialize its new XRender source. */
@@ -532,6 +642,19 @@ check_resize_pixels(enum st_console_scaling_mode mode)
 	CHECK(st_console_end_update(console) == 0);
 	CHECK(wait_window_pixel(display, window, 256, 192, 200, 100, first_pixel) == 0);
 
+	if (mode == ST_CONSOLE_SCALING_OPENGL) {
+		if (!preset || !strcmp(preset, "Pointy"))
+			CHECK(check_gl_scaler(console, display, window, attributes.visual,
+				  preset ? ST_PIXEL_SCALING_POINTY : ST_PIXEL_SCALING_BLOCKY)
+			      == 0);
+		else {
+			CHECK(st_console_display_set_gl_preset(console->display, "/missing/shader.slangp", true)
+			      != 0);
+			CHECK(fill_pixels(console, second_colour) == 0);
+			CHECK(st_console_present(console) == 0);
+			CHECK(wait_window_pixel(display, window, 256, 192, 200, 100, second_pixel) == 0);
+		}
+	}
 	st_pixel_buffer_destroy(region);
 	st_console_destroy(console);
 	(void)XCloseDisplay(display);
@@ -1274,9 +1397,17 @@ main(int argc, char **argv)
 	if (argc == 2 && strcmp(argv[1], "--mode-changes") == 0)
 		return check_mode_changes();
 	if (argc == 2 && strcmp(argv[1], "--xrender-pixels") == 0)
-		return check_resize_pixels(ST_CONSOLE_SCALING_EXTERNAL);
+		return check_resize_pixels(ST_CONSOLE_SCALING_EXTERNAL, NULL, false, false);
+	if (argc == 3 && strcmp(argv[1], "--gl-preset") == 0)
+		return check_resize_pixels(ST_CONSOLE_SCALING_OPENGL, argv[2], false, false);
+	if (argc == 3 && strcmp(argv[1], "--gl-animate") == 0)
+		return check_resize_pixels(ST_CONSOLE_SCALING_OPENGL, argv[2], false, true);
+	if (argc == 3 && strcmp(argv[1], "--gl-crt") == 0)
+		return check_resize_pixels(ST_CONSOLE_SCALING_OPENGL, argv[2], true, false);
+	if (argc == 2 && strcmp(argv[1], "--gl-pixels") == 0)
+		return check_resize_pixels(ST_CONSOLE_SCALING_OPENGL, NULL, false, false);
 	if (argc == 2 && strcmp(argv[1], "--resize-pixels") == 0)
-		return check_resize_pixels(ST_CONSOLE_SCALING_INTERNAL);
+		return check_resize_pixels(ST_CONSOLE_SCALING_INTERNAL, NULL, false, false);
 	status = st_console_create(&first, &config_display, &config);
 	if (status == IO_ERROR_NOT_FOUND || status == IO_ERROR_NOT_SUPPORTED)
 		return 77;

@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#define GL_SILENCE_DEPRECATION
 #import <AppKit/AppKit.h>
 #import <Carbon/Carbon.h>
 #include <stdatomic.h>
@@ -14,7 +15,11 @@
 #include <time.h>
 
 #include "console_config.h"
+#include "console_gl.h"
 #include "console_internal.h"
+#if ST_CONSOLE_HAVE_NSOPENGL
+ #include <dlfcn.h>
+#endif
 #include "io_error.h"
 #include "st_time.h"
 #include "st_utf8.h"
@@ -38,6 +43,9 @@ struct quartz_state;
 @end
 
 struct quartz_state {
+#if ST_CONSOLE_HAVE_NSOPENGL
+	NSOpenGLContext *gl_context;
+#endif
 	/* Only the backend thread changes or dereferences this pointer. */
 	st_console_t                       *console;
 	st_console_display_t               *console_display;
@@ -537,6 +545,10 @@ post_mouse(struct quartz_state *state, NSEvent *source, enum st_console_mouse_ac
 	(void)dirtyRect;
 	if (state == NULL)
 		return;
+	if (state->frame.scaling_mode == ST_CONSOLE_SCALING_OPENGL) {
+		st_console_display_request_repaint(state->console_display);
+		return;
+	}
 	context = NSGraphicsContext.currentContext.CGContext;
 	CGContextSetRGBFillColor(context, 0, 0, 0, 1);
 	CGContextFillRect(context, NSRectToCGRect(self.bounds));
@@ -744,6 +756,14 @@ post_mouse(struct quartz_state *state, NSEvent *source, enum st_console_mouse_ac
 	[consoleState->view setNeedsDisplay:YES];
 }
 
+- (void)windowDidChangeOcclusionState:(NSNotification *)notification
+{
+	(void)notification;
+	if (consoleState)
+		st_console_display_set_window_hidden(consoleState->console_display,
+		    (consoleState->window.occlusionState & NSWindowOcclusionStateVisible) == 0);
+}
+
 - (void)windowDidEnterFullScreen:(NSNotification *)notification
 {
 	(void)notification;
@@ -894,6 +914,61 @@ invalidate_damage(struct quartz_state *state, bool forced)
 	state->have_damage = false;
 }
 
+#if ST_CONSOLE_HAVE_NSOPENGL
+ #pragma clang diagnostic push
+ #pragma clang diagnostic ignored "-Wdeprecated-declarations"
+
+static int
+quartz_gl_current(void *window, uint32_t width, uint32_t height)
+{
+	struct quartz_state *s = window;
+	(void)width;
+	(void)height;
+	if (!s->gl_context) {
+		NSOpenGLPixelFormatAttribute attributes[] = {NSOpenGLPFAOpenGLProfile,
+		    NSOpenGLProfileVersion4_1Core, NSOpenGLPFADoubleBuffer, NSOpenGLPFAColorSize, 24, 0};
+		NSOpenGLPixelFormat         *format = [[NSOpenGLPixelFormat alloc] initWithAttributes:attributes];
+		if (!format)
+			return IO_ERROR_NOT_SUPPORTED;
+		s->gl_context = [[NSOpenGLContext alloc] initWithFormat:format shareContext:nil];
+		[format release];
+		if (!s->gl_context)
+			return IO_ERROR_NOT_SUPPORTED;
+		[s->view setWantsBestResolutionOpenGLSurface:YES];
+		[s->gl_context setView:s->view];
+	}
+	[s->gl_context makeCurrentContext];
+	[s->gl_context update];
+	return 0;
+}
+
+static const void *
+quartz_gl_symbol(const char *name)
+{
+	return dlsym(RTLD_DEFAULT, name);
+}
+
+static int
+quartz_gl_swap(void *window)
+{
+	struct quartz_state *s = window;
+	[s->gl_context flushBuffer];
+	return 0;
+}
+
+static void
+quartz_gl_close(void *window)
+{
+	struct quartz_state *s = window;
+	[NSOpenGLContext clearCurrentContext];
+	[s->gl_context clearDrawable];
+	[s->gl_context release];
+	s->gl_context = nil;
+}
+
+ #pragma clang diagnostic pop
+#endif
+
 static int
 render(struct quartz_state *state, const st_console_t *console, bool forced)
 {
@@ -912,7 +987,8 @@ render(struct quartz_state *state, const st_console_t *console, bool forced)
 	height = (uint32_t)(size.height * scale);
 	status = st_console_bitmap_presenter_frame(state->presenter, console, width, height, now_ms(), upload,
 	    state, &state->frame);
-	if (status == 0 && (state->frame.changed || forced))
+	if (status == 0 && state->frame.scaling_mode != ST_CONSOLE_SCALING_OPENGL
+	    && (state->frame.changed || forced))
 		invalidate_damage(state, forced || !st_console_rects_equal(&previous, &state->frame.destination));
 	return status;
 }
@@ -1018,6 +1094,10 @@ create_state(struct quartz_state *state, uint32_t width, uint32_t height, uint32
 
 	if (!runner_active)
 		return IO_ERROR_NOT_SUPPORTED;
+#if ST_CONSOLE_HAVE_NSOPENGL
+	st_console_bitmap_gl_host(state->presenter,
+	    (struct st_gl_host) {state, quartz_gl_current, quartz_gl_symbol, quartz_gl_swap, quartz_gl_close});
+#endif
 	if (scale <= 0)
 		scale = 1;
 	content         = NSMakeRect(0, 0, width / scale, height / scale);
@@ -1071,6 +1151,7 @@ create_state(struct quartz_state *state, uint32_t width, uint32_t height, uint32
 static void
 destroy_state(struct quartz_state *state)
 {
+	st_console_bitmap_gl_close(state->presenter);
 	state->view->consoleState     = NULL;
 	state->delegate->consoleState = NULL;
 	state->window.delegate        = nil;

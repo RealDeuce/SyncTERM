@@ -221,11 +221,6 @@ st_console_startup_configure(struct st_console_startup *result, const struct st_
 	if (screen_mode(&startup.config, settings) != 0)
 		return IO_ERROR_INVALID_ARGUMENT;
 	startup.config.wrap = true;
-	startup.config.scaling_mode =
-	    settings->external_scaling ? ST_CONSOLE_SCALING_EXTERNAL : ST_CONSOLE_SCALING_INTERNAL;
-	startup.config.color_emoji = settings->color_emoji;
-	startup.config.scaling_policy =
-	    settings->blocky_scaling ? ST_PIXEL_SCALING_BLOCKY : ST_PIXEL_SCALING_POINTY;
 	startup.display_config.initial_scaling   = settings->scaling_factor;
 	startup.display_config.text_left_justify = settings->left_justify;
 	startup.display_config.text_margin_colour =
@@ -247,6 +242,12 @@ st_console_startup_configure(struct st_console_startup *result, const struct st_
 			return IO_ERROR_INVALID_ARGUMENT;
 		startup.config = *lines;
 	}
+	startup.config.scaling_mode = settings->opengl_scaling     ? ST_CONSOLE_SCALING_OPENGL
+	                              : settings->external_scaling ? ST_CONSOLE_SCALING_EXTERNAL
+	                                                           : ST_CONSOLE_SCALING_INTERNAL;
+	startup.config.color_emoji  = settings->color_emoji;
+	startup.config.scaling_policy =
+	    settings->blocky_scaling ? ST_PIXEL_SCALING_BLOCKY : ST_PIXEL_SCALING_POINTY;
 	configure_default_cursor(&startup.config, settings->default_cursor);
 	*result = startup;
 	return 0;

@@ -156,8 +156,10 @@ static const struct setting_key known_keys[] = {
     {"SyncTERM",     "ListPath"                      },
     {"SyncTERM",     "TLSClientCertificate"          },
     {"SyncTERM",     "TLSClientKey"                  },
-    {"SyncTERM",     "TERM"                          },
+    {"SyncTERM",     "TERM"			  },
     {"SyncTERM",     "ScalingFactor"                 },
+    {"SyncTERM",     "ScalingMode"                   },
+    {"SyncTERM",     "OpenGLPreset"                  },
     {"SyncTERM",     "BlockyScaling"                 },
     {"SyncTERM",     "ExternalScaling"               },
     {"SyncTERM",     "InvertMouseWheel"              },
@@ -368,6 +370,10 @@ decode_settings(struct st_settings *value, ini_document_t *document, const char 
 			value->scaling_factor = 0.0;
 		value->blocky_scaling   = ini_section_get_bool(section, "BlockyScaling", true);
 		value->external_scaling = ini_section_get_bool(section, "ExternalScaling", false);
+		int scaler = bounded_int(section, "ScalingMode", st_settings_scaler(value), ST_SCALER_BLOCKY,
+		    ST_SCALER_OPENGL);
+		if (scaler != (int)st_settings_scaler(value))
+			st_settings_set_scaler(value, (enum st_settings_scaler)scaler);
 		value->color_emoji      = ini_section_get_bool(section, "ColorEmoji", value->color_emoji);
 		value->invert_wheel     = ini_section_get_bool(section, "InvertMouseWheel", false);
 		value->left_justify     = ini_section_get_bool(section, "LeftJustify", false);
@@ -384,6 +390,8 @@ decode_settings(struct st_settings *value, ini_document_t *document, const char 
 			status = copy_ini_string(&value->tls_client_certificate, section, "TLSClientCertificate");
 		if (status == 0)
 			status = copy_ini_string(&value->tls_client_key, section, "TLSClientKey");
+		if (status == 0)
+			status = copy_ini_string(&value->gl_preset, section, "OpenGLPreset");
 		if (status == 0)
 			status = copy_ini_string(&value->theme_file, section, "ThemeFile");
 		if (status == 0)
@@ -653,6 +661,8 @@ encode_settings(ini_document_t *document, const struct st_settings *value)
 	SET_STRING("ListPath", stored_list_path);
 	SET_STRING("TLSClientCertificate", tls_client_certificate);
 	SET_STRING("TLSClientKey", tls_client_key);
+	SET(ini_section_set_int64(section, "ScalingMode", st_settings_scaler(value), &ini_default_style));
+	SET_STRING("OpenGLPreset", gl_preset);
 	SET_STRING("ThemeFile", theme_file);
 	SET_STRING("ThemePackage", theme_package);
 	SET_STRING("SortOrder", sort_order);

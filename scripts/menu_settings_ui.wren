@@ -843,6 +843,33 @@ class SettingsMenu {
     return MenuUi.choice(app, title, rows, current, settingHelp_(title))
   }
 
+  static scalerLabel(s) { s.openGLPreset == "" ? "SyncTERM Blocky" : s.openGLPreset }
+
+  static pickScaler(app, s) {
+    var root = Menu.fileLocations["scalers"].replace("\\", "/")
+    var choices = ["SyncTERM Blocky", "Pointy", "Nearest", "Browse Slang presets…"]
+    var initial = s.openGLPreset == "" ? 0 : choices.indexOf(s.openGLPreset)
+    if (initial < 0) initial = 3
+    var pick = MenuUi.choice(app, "OpenGL scaler", choices, initial,
+        "Install .slangp packs with all their shader and texture directories under %(root).")
+    if (pick == null) return
+    if (pick < 3) {
+      s.openGLPreset = pick == 0 ? "" : choices[pick]
+      return
+    }
+    app.releaseFocus()
+    var file = Host.pickFile(root + "/", "*.slangp",
+        FilePickerOptions.fileMustExist | FilePickerOptions.maskLocked, "OpenGL presets — %(root)")
+    app.restoreFocus()
+    if (file == null) return
+    var path = file.path.replace("\\", "/")
+    if (!path.startsWith(root + "/")) {
+      Alert.show(app, "OpenGL scaler", "Select a preset inside %(root).")
+      return
+    }
+    s.openGLPreset = path[(root.bytes.count + 1)..-1]
+  }
+
   static pickTlsFile_(app, title, current) {
     var initial = current.count > 0 ? current :
         Menu.fileLocations["configuration"]
@@ -1098,6 +1125,7 @@ class SettingsMenu {
       rows.add([12, settingsLine_("List Path", s.listPath)])
       rows.add([13, settingsLine_("TERM For Shell", s.shellTerm)])
       rows.add([14, settingsLine_("Scaling", Menu.scalingModes[s.scalingMode])])
+      if (s.scalingMode == 3) rows.add([32, settingsLine_("OpenGL scaler", scalerLabel(s))])
       rows.add([15, settingsLine_("Invert Mouse Wheel", yesNo_(s.invertWheel))])
       rows.add([25, "Controller Mapping"])
       rows.add([21, settingsLine_("Colour Emoji", yesNo_(s.colorEmoji))])
@@ -1175,6 +1203,8 @@ class SettingsMenu {
           var next = MenuUi.promptBytes(app, "TERM For Shell", "Terminal name",
               s.shellTerm, 30, false, shellTermHelp_())
           if (next != null) s.shellTerm = next
+        } else if (value == 32) {
+          pickScaler(app, s)
         } else if (value == 14) {
           s.scalingMode = (s.scalingMode + 1) % Menu.scalingModes.count
         } else if (value == 15) {

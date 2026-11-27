@@ -2009,7 +2009,7 @@ fn_menu_cursor_styles(WrenVM *vm)
 static void
 fn_menu_scaling_modes(WrenVM *vm)
 {
-	static const char *const names[] = {"Blocky", "Pointy", "External"};
+	static const char *const names[] = {"Blocky", "Pointy", "External", "OpenGL"};
 	wrenEnsureSlots(vm, 2);
 	wrenSetSlotNewList(vm, 0);
 	for (size_t i = 0; i < sizeof(names) / sizeof(names[0]); ++i) {
@@ -3139,6 +3139,7 @@ fn_menu_file_locations(WrenVM *vm)
 	map_string(vm, "globalRip", paths->rip_data_directory);
 	map_string(vm, "keys", paths->keys_file);
 	map_string(vm, "scripts", paths->scripts_directory);
+	map_string(vm, "scalers", paths->scalers_directory);
 	map_string(vm, "themes", paths->themes_directory);
 }
 
@@ -4242,16 +4243,15 @@ SETTINGS_NUM_PROPERTY(inverse_color, theme_inverse_color, unsigned, 0, 8)
 SETTINGS_NUM_PROPERTY(lightbar_color, theme_lightbar_color, unsigned, 0, 16)
 SETTINGS_NUM_PROPERTY(lightbar_background_color, theme_lightbar_background_color, unsigned, 0, 8)
 
+SETTINGS_OWNED_PROPERTY(gl_preset, gl_preset)
+
 static void
 fn_settings_scaling_mode(WrenVM *vm)
 {
 	struct foreign_settings *settings = settings_value(vm);
 
 	if (settings != NULL)
-		wrenSetSlotDouble(vm, 0,
-		    settings->settings.external_scaling ? 2
-		    : settings->settings.blocky_scaling ? 0
-		                                        : 1);
+		wrenSetSlotDouble(vm, 0, st_settings_scaler(&settings->settings));
 }
 
 static void
@@ -4260,9 +4260,8 @@ fn_settings_scaling_mode_set(WrenVM *vm)
 	struct foreign_settings *settings = settings_value(vm);
 	int64_t                  value;
 
-	if (settings != NULL && slot_integer(vm, 1, 0, 2, &value)) {
-		settings->settings.blocky_scaling   = value == 0;
-		settings->settings.external_scaling = value == 2;
+	if (settings != NULL && slot_integer(vm, 1, ST_SCALER_BLOCKY, ST_SCALER_OPENGL, &value)) {
+		st_settings_set_scaler(&settings->settings, (enum st_settings_scaler)value);
 		settings->dirty                     = true;
 	}
 }
@@ -4341,8 +4340,9 @@ apply_console_settings(st_console_t *console, const struct st_settings *settings
 	result = st_console_set_blocky_scaling(console, settings->blocky_scaling != 0);
 	if (status == 0)
 		status = result;
-	result = st_console_set_scaling_mode(console,
-	    settings->external_scaling ? ST_CONSOLE_SCALING_EXTERNAL : ST_CONSOLE_SCALING_INTERNAL);
+	result = st_console_set_scaling_mode(console, settings->opengl_scaling     ? ST_CONSOLE_SCALING_OPENGL
+						      : settings->external_scaling ? ST_CONSOLE_SCALING_EXTERNAL
+										   : ST_CONSOLE_SCALING_INTERNAL);
 	if (status == 0)
 		status = result;
 	return status;
@@ -4577,7 +4577,39 @@ settings_change(WrenVM *vm, struct foreign_settings *settings, bool save)
 		menu_error(vm, failure.portable ? failure.status : 0, failure.status, failure.message);
 		return;
 	}
-	int status = rewrite_settings_kdf(host, &prepared);
+	bool  changing_gl     = prepared.installed.opengl_scaling
+	                        && (!st_settings.opengl_scaling
+				    || strcmp(prepared.installed.gl_preset ? prepared.installed.gl_preset : "",
+					   st_settings.gl_preset ? st_settings.gl_preset : "")
+					   != 0);
+	char *previous_preset = NULL;
+	int   status          = 0;
+	if (changing_gl && host->config.display) {
+		char *preset = NULL;
+		status       = st_app_paths_gl_preset(&preset, host->config.paths, prepared.installed.gl_preset);
+		if (!status && st_settings.opengl_scaling)
+			(void)st_app_paths_gl_preset(&previous_preset, host->config.paths, st_settings.gl_preset);
+		if (!status)
+			status = st_console_display_set_gl_preset(host->config.display, preset, true);
+		if (status) {
+			char message[512];
+			snprintf(message, sizeof(message), "Could not apply OpenGL scaler %s (error %d).%s",
+			    prepared.installed.gl_preset && *prepared.installed.gl_preset
+				? prepared.installed.gl_preset
+				: "SyncTERM Blocky",
+			    status,
+			    status == IO_ERROR_NOT_SUPPORTED && preset && strcmp(preset, "Nearest") && strcmp(preset, "Pointy")
+				? " Slang presets require OpenGL and a compatible librashader runtime."
+				: "");
+			menu_error(vm, status, status, message);
+			free(preset);
+			free(previous_preset);
+			prepared_settings_dispose(&prepared);
+			return;
+		}
+		free(preset);
+	}
+	status = rewrite_settings_kdf(host, &prepared);
 	if (status != 0) {
 		if (host->config.safe_mode)
 			menu_error(vm, IO_ERROR_READ_ONLY, 0, "The list KDF cannot be rewritten in safe mode.");
@@ -4599,6 +4631,9 @@ settings_change(WrenVM *vm, struct foreign_settings *settings, bool save)
 			         : "The settings were installed, but runtime application failed.");
 		}
 	}
+	if (status && changing_gl && host->config.display && settings->dirty)
+		(void)st_console_display_set_gl_preset(host->config.display, previous_preset, false);
+	free(previous_preset);
 	prepared_settings_dispose(&prepared);
 }
 
@@ -5630,6 +5665,7 @@ static const struct binding bindings[] = {
     BIND_GETSET("Settings", "transferSuccessKeypressTimeout", settings_transfer_success_keypress_timeout),
     BIND_GETSET("Settings", "transferFailureKeypressTimeout", settings_transfer_failure_keypress_timeout),
     BIND_GETSET("Settings", "modemRate", settings_modem_rate),
+    BIND_GETSET("Settings", "openGLPreset", settings_gl_preset),
     BIND_GETSET("Settings", "scalingMode", settings_scaling_mode),
     BIND_GETSET("Settings", "kdfShift", settings_kdf_shift),
     BIND_GETSET("Settings", "customRows", settings_custom_rows),

@@ -1308,11 +1308,20 @@ together.  An entry with its own client-certificate pair overrides these
 global values.  Press Delete on either menu item to clear that path.
 
 Scaling::
-Select to cycle through the values "Blocky", "Pointy", and
-"External".  Blocky scales each pixel to a rectangle, and Pointy
-will use 45° angles.  External will use hardware scaling if possible.
-The quality of External scaling varies wildly based on OS, device
-drivers, and output mode.
+Blocky scales pixels to rectangles. Pointy uses 45° angles. External uses the
+window backend's scaler. OpenGL uploads the terminal bitmap at its native
+resolution and scales it to the window using the selected OpenGL scaler.
+
+OpenGL scaler::
+Choose SyncTERM Blocky, Pointy, Nearest, or browse for a RetroArch Slang preset
+(`.slangp`). Install each pack in a folder under the SyncTERM data directory's
+`scalers/` directory (normally `~/.local/share/syncterm/scalers/` on XDG
+systems). Preserve directory names and relative paths. For example, CRT Royale
+uses `crt/crt-royale.slangp`, masks and pass sources in `crt/shaders/crt-royale/`,
+blur passes in `blurs/shaders/royale/`, and headers in `include/`.
+Select the preset in Program Settings after choosing OpenGL. Custom presets
+require librashader. If a saved preset cannot load at startup, SyncTERM keeps
+the preference and uses its built-in scaler.
 
 Invert Mouse Wheel::
 Toggles the direction the mouse wheel moves.

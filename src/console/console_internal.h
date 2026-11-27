@@ -90,6 +90,13 @@ struct st_console_display {
 	/* Borrowed from the window backend, accessed under backend_mutex.
 	 * Native event handlers use their uploaded pixels and copied geometry. */
 	struct st_console_bitmap_presenter *window_presenter;
+	/* Preset requests are serialized by backend_mutex through frame handoff. */
+	char    *gl_preset;
+	uint64_t gl_revision;
+	bool     gl_preview;
+	int      gl_status;
+	/* Protected by presentation_mutex. */
+	bool                                gl_animation, window_hidden;
 	enum st_console_backend             backend;
 	uint8_t                             physical_keys[(UINT16_MAX + 1U) / 8U];
 	/* Alt+Keypad composition and physical state are protected by input_mutex. */
@@ -501,6 +508,7 @@ int           st_console_pull_frame(st_console_display_t *display);
 int           st_console_present_locked(st_console_t *console, bool forced);
 st_console_t *st_console_display_active_console(st_console_t *console);
 int           st_console_start_presentation_worker(st_console_t *console);
+void          st_console_display_set_window_hidden(st_console_display_t *display, bool hidden);
 void          st_console_display_request_repaint(st_console_display_t *display);
 void          st_console_display_reset_animation(st_console_display_t *display, enum st_console_blink_mode mode,
     bool restart);
@@ -595,6 +603,7 @@ void st_console_bitmap_presenter_set_external_scaling_available(struct st_consol
     bool                                                                                            available);
 void st_console_bitmap_presenter_set_local_animation_clock(struct st_console_bitmap_presenter *presenter,
     bool                                                                                       local);
+void st_console_bitmap_new_screen(struct st_console_bitmap_presenter *presenter);
 int  st_console_bitmap_prepare_window(st_console_t *console);
 bool st_console_bitmap_retained_frame(struct st_console_bitmap_presenter *presenter, bool repaint);
 int  st_console_bitmap_prepare_frame(struct st_console_bitmap_presenter *presenter, const st_console_t *console,

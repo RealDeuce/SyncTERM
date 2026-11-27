@@ -5758,7 +5758,7 @@ exercise_menu_contract(st_wren_host_t *public_host)
 	    "if (Menu.fileLocations[\"configuration\"].count == 0) Fiber.abort(\"paths\")\n"
 	    "if (Menu.paletteDefaults(1)[1].count != 16) Fiber.abort(\"palette\")\n"
 	    "var scalers = Menu.scalingModes\n"
-	    "if (scalers.count != 3 || scalers[0] != \"Blocky\" || scalers[1] != \"Pointy\" || scalers[2] != \"External\") Fiber.abort(\"scaling catalog\")\n"
+	    "if (scalers.count != 4 || scalers[0] != \"Blocky\" || scalers[1] != \"Pointy\" || scalers[2] != \"External\" || scalers[3] != \"OpenGL\") Fiber.abort(\"scaling catalog\")\n"
 	    "if (Menu.fontsCatalog.count == 0) Fiber.abort(\"fonts\")\n"
 	    "if (Menu.wrenScriptsMaxLength < 1 || Menu.maxPathLength < 1) Fiber.abort(\"limits\")\n"
 	    "if (Menu.addWebList(\"Test\", \"invalid\", 0) == null || Menu.webListsDirty || Menu.webLists.count != 0) Fiber.abort(\"web add failure\")\n"
@@ -6594,7 +6594,7 @@ exercise_build_options_contract(st_wren_host_t *public_host)
 	    "var rows = Menu.buildOptions\n"
 	    "var options = {}\n"
 	    "for (row in Menu.buildOptions) options[row[1]] = row[2]\n"
-	    "if (Menu.buildOptions.count != 38 "
+	    "if (Menu.buildOptions.count != 40 "
 	    "|| !options.containsKey(\"DeuceSSH (SSH)\") "
 	    "|| !options.containsKey(\"OpenSSL (TLS, symmetric ciphers)\") "
 	    "|| !options.containsKey(\"Operation Overkill ][ Terminal\") "
@@ -6637,6 +6637,8 @@ exercise_build_options_contract(st_wren_host_t *public_host)
 	    {"Video", "Xinerama", (console & ST_CONSOLE_BUILD_XINERAMA) != 0},
 	    {"Video", "XRandR", (console & ST_CONSOLE_BUILD_XRANDR) != 0},
 	    {"Video", "XRender", (console & ST_CONSOLE_BUILD_XRENDER) != 0},
+	    {"Video", "OpenGL scaling", (console & ST_CONSOLE_BUILD_OPENGL) != 0},
+	    {"Video", "Slang presets", (console & ST_CONSOLE_BUILD_SLANG) != 0},
 	    {"Video", "GDI", (console & ST_CONSOLE_BUILD_GDI) != 0},
 	    {"Video", "Wayland", (console & ST_CONSOLE_BUILD_WAYLAND) != 0},
 	    {"Video", "Quartz", (console & ST_CONSOLE_BUILD_QUARTZ) != 0},

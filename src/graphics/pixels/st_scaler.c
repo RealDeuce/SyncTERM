@@ -407,6 +407,33 @@ update_exact_blocky_damage(st_pixel_scaler_t *scaler, const uint32_t *source, co
 	}
 }
 
+struct st_pointy_plan
+st_pixel_pointy_plan(uint32_t x_multiplier, uint32_t y_multiplier)
+{
+	struct st_pointy_plan plan = {
+	    .repeat_x = x_multiplier ? x_multiplier : 1,
+	    .repeat_y = y_multiplier ? y_multiplier : 1,
+	};
+	uint32_t common = plan.repeat_x < plan.repeat_y ? plan.repeat_x : plan.repeat_y;
+	if ((common & 1U) && common > 5) {
+		plan.factors[plan.count++] = common;
+		plan.repeat_x /= common;
+		plan.repeat_y /= common;
+		return plan;
+	}
+	const uint32_t factors[] = {5, 3, 4, 2};
+	for (size_t i = 0; i < sizeof(factors) / sizeof(*factors); ++i) {
+		uint32_t factor = factors[i];
+		while (common % factor == 0) {
+			plan.factors[plan.count++] = factor;
+			plan.repeat_x /= factor;
+			plan.repeat_y /= factor;
+			common /= factor;
+		}
+	}
+	return plan;
+}
+
 int
 st_pixel_scaler_scale(st_pixel_scaler_t *scaler, const struct st_rgb_buffer **result,
     const struct st_rgb_buffer *source, uint32_t width, uint32_t height, enum st_pixel_scaling_policy policy)
@@ -416,12 +443,6 @@ st_pixel_scaler_scale(st_pixel_scaler_t *scaler, const struct st_rgb_buffer **re
 	uint32_t        source_height;
 	uint32_t        x_integer;
 	uint32_t        y_integer;
-	uint32_t        common;
-	uint32_t        pointy_odd    = 1;
-	unsigned int    pointy_fives  = 0;
-	unsigned int    pointy_threes = 0;
-	unsigned int    xbr_fours     = 0;
-	unsigned int    xbr_twos      = 0;
 	uint32_t        current_width;
 	uint32_t        current_height;
 	uint32_t        repeated_rows = 1;
@@ -467,43 +488,9 @@ st_pixel_scaler_scale(st_pixel_scaler_t *scaler, const struct st_rgb_buffer **re
 		*result       = &scaler->output;
 		return 0;
 	}
-	x_integer = width / source_width;
-	y_integer = height / source_height;
-	if (x_integer == 0)
-		x_integer = 1;
-	if (y_integer == 0)
-		y_integer = 1;
-	common = x_integer < y_integer ? x_integer : y_integer;
-	if ((common & 1U) != 0 && common > 5) {
-		pointy_odd = common;
-		x_integer /= common;
-		y_integer /= common;
-		common = 1;
-	}
-	while (common > 1 && common % 5 == 0) {
-		++pointy_fives;
-		x_integer /= 5;
-		y_integer /= 5;
-		common /= 5;
-	}
-	while (common > 1 && common % 3 == 0) {
-		++pointy_threes;
-		x_integer /= 3;
-		y_integer /= 3;
-		common /= 3;
-	}
-	while (common > 1 && common % 4 == 0) {
-		++xbr_fours;
-		x_integer /= 4;
-		y_integer /= 4;
-		common /= 4;
-	}
-	while (common > 1 && common % 2 == 0) {
-		++xbr_twos;
-		x_integer /= 2;
-		y_integer /= 2;
-		common /= 2;
-	}
+	struct st_pointy_plan plan = st_pixel_pointy_plan(width / source_width, height / source_height);
+	x_integer                  = plan.repeat_x;
+	y_integer                  = plan.repeat_y;
 	scaler->stage_count = 0;
 	if (x_integer != 1 || y_integer != 1) {
 		status = append_stage(scaler, SCALER_STAGE_MULTIPLY, current_width, current_height,
@@ -514,31 +501,36 @@ st_pixel_scaler_scale(st_pixel_scaler_t *scaler, const struct st_rgb_buffer **re
 		current_height *= y_integer;
 		repeated_rows = y_integer;
 	}
-#define ADD_SQUARE(kind, multiplier)                                                                 \
-	do {                                                                                         \
-		status = append_stage(scaler, (kind), current_width, current_height,                 \
-		    current_width * (uint32_t)(multiplier), current_height * (uint32_t)(multiplier), \
-		    (multiplier), (multiplier), 1);                                                  \
-		if (status != 0)                                                                     \
-			return status;                                                               \
-		current_width *= (uint32_t)(multiplier);                                             \
-		current_height *= (uint32_t)(multiplier);                                            \
-		repeated_rows = 1;                                                                   \
-	} while (false)
-	if ((pointy_odd > 1 || pointy_fives != 0 || pointy_threes != 0 || xbr_fours != 0 || xbr_twos != 0)
-	    && (width > INT_MAX || height > INT_MAX || pointy_odd > INT_MAX))
+	if (plan.count && (width > INT_MAX || height > INT_MAX))
 		return IO_ERROR_OUT_OF_RANGE;
-	if (pointy_odd > 1)
-		ADD_SQUARE(SCALER_STAGE_POINTY_ODD, pointy_odd);
-	while (pointy_fives-- > 0)
-		ADD_SQUARE(SCALER_STAGE_POINTY5, 5);
-	while (pointy_threes-- > 0)
-		ADD_SQUARE(SCALER_STAGE_POINTY3, 3);
-	while (xbr_fours-- > 0)
-		ADD_SQUARE(SCALER_STAGE_XBR4, 4);
-	while (xbr_twos-- > 0)
-		ADD_SQUARE(SCALER_STAGE_XBR2, 2);
-#undef ADD_SQUARE
+	for (size_t i = 0; i < plan.count; ++i) {
+		uint32_t               factor = plan.factors[i];
+		enum scaler_stage_kind kind;
+		switch (factor) {
+			case 2:
+				kind = SCALER_STAGE_XBR2;
+				break;
+			case 3:
+				kind = SCALER_STAGE_POINTY3;
+				break;
+			case 4:
+				kind = SCALER_STAGE_XBR4;
+				break;
+			case 5:
+				kind = SCALER_STAGE_POINTY5;
+				break;
+			default:
+				kind = SCALER_STAGE_POINTY_ODD;
+				break;
+		}
+		status = append_stage(scaler, kind, current_width, current_height, current_width * factor,
+		    current_height * factor, factor, factor, 1);
+		if (status)
+			return status;
+		current_width *= factor;
+		current_height *= factor;
+		repeated_rows = 1;
+	}
 	if (current_height != height) {
 		status = append_stage(scaler, SCALER_STAGE_HEIGHT, current_width, current_height, current_width,
 		    height, 1, 1, repeated_rows);

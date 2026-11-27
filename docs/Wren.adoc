@@ -5326,6 +5326,11 @@ when `Menu.encryptionAvailable` is false.
   persists as `MidiModes` under `[SyncTERM]`; zero disables MIDI. Its default
   is all bits enabled. Both masks accept 0 through `UINT32_MAX`.
 
+| `openGLPreset`
+| OpenGL scaler selection when `scalingMode` is 3. An empty string selects
+  SyncTERM Blocky, `Pointy` selects the edge-aware scaler, `Nearest` selects nearest-neighbor scaling, and a relative
+  `.slangp` path selects a local preset under `Menu.fileLocations["scalers"]`.
+
 | `scrollbackLines`, `modemRate`
 | Scrollback capacity is 1 through `INT_MAX`.  Modem DTE rate is 0 through
   `UINT32_MAX`; zero means the current or default communications-port rate.
@@ -5511,7 +5516,7 @@ duplicate platform-dependent enum tables:
 
 | `fileLocations`
 | Map containing `globalList`, `personalList`, `configuration`,
-  `download`, `cache`, `globalRip`, `keys`, `scripts`, and `themes` paths for display.  These
+  `download`, `cache`, `globalRip`, `keys`, `scripts`, `scalers`, and `themes` paths for display.  These
   Strings do not confer file-open authority.
 |===
 

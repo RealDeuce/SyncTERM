@@ -399,7 +399,7 @@ st_console_set_scaling_mode(st_console_t *console, enum st_console_scaling_mode 
 {
 	int result;
 
-	if (console == NULL || mode < ST_CONSOLE_SCALING_INTERNAL || mode > ST_CONSOLE_SCALING_EXTERNAL)
+	if (console == NULL || mode < ST_CONSOLE_SCALING_INTERNAL || mode > ST_CONSOLE_SCALING_OPENGL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	result = st_rwlock_write_lock(st_console_state_lock(console));
 	if (result != ST_THREAD_SUCCESS)

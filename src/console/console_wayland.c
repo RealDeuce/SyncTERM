@@ -6,7 +6,13 @@
  */
 
 #include "console_config.h"
+#include "console_gl.h"
 #include "console_internal.h"
+#if ST_CONSOLE_HAVE_WAYLAND_EGL
+ #include <EGL/egl.h>
+ #include <EGL/eglext.h>
+ #include <wayland-egl-core.h>
+#endif
 #include "console_pointer_pixels.h"
 #include "console_posix_url.h"
 #include "console_wayland_loader.h"
@@ -129,6 +135,13 @@ struct clipboard_send {
 };
 
 struct state {
+#if ST_CONSOLE_HAVE_WAYLAND_EGL
+	EGLDisplay            egl;
+	EGLContext            gl_context;
+	EGLSurface            gl_surface;
+	struct wl_egl_window *gl_window;
+	uint32_t              gl_width, gl_height;
+#endif
 	/* Only the backend thread changes or dereferences this pointer. */
 	st_console_t                     *console;
 	st_console_display_t             *console_display;
@@ -421,6 +434,86 @@ update_buffers(void *context, const struct st_rgb_buffer *pixels, const struct s
 	return 0;
 }
 
+#if ST_CONSOLE_HAVE_WAYLAND_EGL
+static int
+wayland_gl_current(void *window, uint32_t width, uint32_t height)
+{
+	struct state *s      = window;
+	bool          create = !s->gl_context;
+	if (create) {
+		s->egl = eglGetPlatformDisplay(EGL_PLATFORM_WAYLAND_KHR, s->display, NULL);
+		if (!s->egl || !eglInitialize(s->egl, NULL, NULL) || !eglBindAPI(EGL_OPENGL_API))
+			return IO_ERROR_NOT_SUPPORTED;
+		const EGLint attrs[] = {EGL_SURFACE_TYPE, EGL_WINDOW_BIT, EGL_RENDERABLE_TYPE, EGL_OPENGL_BIT,
+		    EGL_RED_SIZE, 8, EGL_GREEN_SIZE, 8, EGL_BLUE_SIZE, 8, EGL_NONE};
+		EGLConfig    config;
+		EGLint       count;
+		if (!eglChooseConfig(s->egl, attrs, &config, 1, &count) || !count)
+			return IO_ERROR_NOT_SUPPORTED;
+		const EGLint version[] = {EGL_CONTEXT_MAJOR_VERSION, 3, EGL_CONTEXT_MINOR_VERSION, 3, EGL_NONE};
+		s->gl_context          = eglCreateContext(s->egl, config, EGL_NO_CONTEXT, version);
+		s->gl_window           = wl_egl_window_create(s->surface, (int)width, (int)height);
+		if (!s->gl_context || !s->gl_window)
+			return IO_ERROR_NOT_SUPPORTED;
+		s->gl_surface = eglCreatePlatformWindowSurface(s->egl, config, s->gl_window, NULL);
+		if (!s->gl_surface)
+			return IO_ERROR_NOT_SUPPORTED;
+		wl_surface_attach(s->video_surface, NULL, 0, 0);
+		wl_surface_commit(s->video_surface);
+	}
+	if (s->gl_width != width || s->gl_height != height) {
+		wl_egl_window_resize(s->gl_window, (int)width, (int)height, 0, 0);
+		s->gl_width  = width;
+		s->gl_height = height;
+	}
+	if (!eglMakeCurrent(s->egl, s->gl_surface, s->gl_surface, s->gl_context))
+		return IO_ERROR_IO;
+	/* The presentation worker supplies the clock even when the compositor
+	 * stops sending frame callbacks for an obscured window. */
+	if (create)
+		(void)eglSwapInterval(s->egl, 0);
+	return 0;
+}
+
+static const void *
+wayland_gl_symbol(const char *name)
+{
+	__eglMustCastToProperFunctionPointerType fn = eglGetProcAddress(name);
+	const void                              *symbol;
+	_Static_assert(sizeof(fn) == sizeof(symbol), "EGL procedure size");
+	memcpy(&symbol, &fn, sizeof(symbol));
+	return symbol;
+}
+
+static int
+wayland_gl_swap(void *window)
+{
+	struct state *s = window;
+	return eglSwapBuffers(s->egl, s->gl_surface) ? 0 : IO_ERROR_IO;
+}
+
+static void
+wayland_gl_close(void *window)
+{
+	struct state *s = window;
+	if (s->egl) {
+		eglMakeCurrent(s->egl, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+		if (s->gl_surface)
+			eglDestroySurface(s->egl, s->gl_surface);
+		if (s->gl_context)
+			eglDestroyContext(s->egl, s->gl_context);
+		eglTerminate(s->egl);
+	}
+	if (s->gl_window)
+		wl_egl_window_destroy(s->gl_window);
+	s->gl_window  = NULL;
+	s->gl_surface = EGL_NO_SURFACE;
+	s->gl_context = EGL_NO_CONTEXT;
+	s->egl        = EGL_NO_DISPLAY;
+	s->gl_width = s->gl_height = s->background_width = s->background_height = 0;
+}
+#endif
+
 static int
 draw(struct state *state, const st_console_t *console, bool forced)
 {
@@ -432,7 +525,7 @@ draw(struct state *state, const st_console_t *console, bool forced)
 	    state->window_height, now_ms(), update_buffers, state, &state->frame);
 	if (status != 0)
 		return status;
-	if (!state->frame.changed && !forced)
+	if (state->frame.scaling_mode == ST_CONSOLE_SCALING_OPENGL || (!state->frame.changed && !forced))
 		return 0;
 	status = get_buffer(state, state->frame.pixels->width, state->frame.pixels->height, &buffer);
 	if (status == IO_ERROR_WOULD_BLOCK) {
@@ -1369,6 +1462,11 @@ top_configure(void *data, struct xdg_toplevel *top, int32_t w, int32_t h, struct
 	(void)top;
 	wl_array_for_each(value, states) if (*value == XDG_TOPLEVEL_STATE_FULLSCREEN) fullscreen = true;
 	else if (*value == XDG_TOPLEVEL_STATE_MAXIMIZED) maximized                               = true;
+#ifdef XDG_TOPLEVEL_STATE_SUSPENDED_SINCE_VERSION
+	bool suspended                                                                         = false;
+	wl_array_for_each(value, states) if (*value == XDG_TOPLEVEL_STATE_SUSPENDED) suspended = true;
+	st_console_display_set_window_hidden(s->console_display, suspended);
+#endif
 	if ((fullscreen && !s->fullscreen) || (maximized && !s->maximized)) {
 		s->windowed_width  = s->window_width;
 		s->windowed_height = s->window_height;
@@ -1539,6 +1637,7 @@ objects_destroy(struct state *s)
 		wl_data_source_destroy(s->selection_source);
 	if (s->data_device)
 		wl_data_device_destroy(s->data_device);
+	st_console_bitmap_gl_close(s->presenter);
 	if (s->cursor_surface)
 		wl_surface_destroy(s->cursor_surface);
 	if (s->viewport)
@@ -1655,6 +1754,10 @@ objects_create(struct state *s)
 	while (!s->configured)
 		if (wl_display_dispatch(s->display) < 0)
 			return IO_ERROR_IO;
+#if ST_CONSOLE_HAVE_WAYLAND_EGL
+	st_console_bitmap_gl_host(s->presenter,
+	    (struct st_gl_host) {s, wayland_gl_current, wayland_gl_symbol, wayland_gl_swap, wayland_gl_close});
+#endif
 	return draw(s, s->console, true);
 }
 

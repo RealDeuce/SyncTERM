@@ -55,12 +55,13 @@ st_app_paths_platform_init(struct st_app_paths *paths)
 	paths->personal_list      = st_app_path_join(personal_base, "SyncTERM.lst");
 	paths->keys_file          = st_app_path_join(personal_base, "SyncTERM.ssh");
 	paths->scripts_directory  = st_app_path_join(personal_base, "scripts");
+	paths->scalers_directory  = st_app_path_join(personal_base, "scalers");
 	paths->themes_directory   = st_app_path_join(personal_base, "themes");
 	paths->rip_data_directory = st_app_path_join(personal_base, "RIP");
 	paths->shared_list        = st_app_path_join(shared_base, "SyncTERM.lst");
 	if (paths->settings_file == NULL || paths->personal_list == NULL || paths->shared_list == NULL
-	    || paths->keys_file == NULL || paths->scripts_directory == NULL || paths->themes_directory == NULL
-	    || paths->rip_data_directory == NULL)
+	    || paths->keys_file == NULL || paths->scripts_directory == NULL || paths->scalers_directory == NULL
+	    || paths->themes_directory == NULL || paths->rip_data_directory == NULL)
 		goto done;
 	status = 0;
 

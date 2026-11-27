@@ -745,6 +745,7 @@ class DosForms {
       [Fn.new { s.startupMode }, Fn.new {|value| s.startupMode = value }],
       [Fn.new { s.outputMode }, Fn.new {|value| s.outputMode = value }],
       [Fn.new { s.cursorStyle }, Fn.new {|value| s.cursorStyle = value }],
+      [Fn.new { s.openGLPreset }, Fn.new {|value| s.openGLPreset = value }],
       [Fn.new { s.scalingMode }, Fn.new {|value| s.scalingMode = value }],
       [Fn.new { s.customColumns }, Fn.new {|value| s.customColumns = value }],
       [Fn.new { s.customRows }, Fn.new {|value| s.customRows = value }],
@@ -949,6 +950,11 @@ class DosForms {
         if (value != null && value != s.scalingMode) s.scalingMode = value
       }
       fields.add(field_("Scaling", "enum", get, set, null, false, choose, null, null, settingHelp_("Scaling"), Menu.scalingModes))
+      if (s.scalingMode == 3) {
+        fields.add(field_("OpenGL scaler", "action", Fn.new { SettingsMenu.scalerLabel(s) },
+            null, null, false, Fn.new { SettingsMenu.pickScaler(app, s) }, null, null,
+            "Select a built-in scaler or a local RetroArch Slang preset."))
+      }
     }
     if (page == 1 && !connected) {
       var get = Fn.new { s.customColumns }

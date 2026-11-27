@@ -294,6 +294,14 @@ multiply the rectangle, pointy and xBR stages expand it by their one- and
 two-pixel dependency radii, and interpolation stages use precomputed inverse
 coordinate maps.  The upload callback receives stable image identity and
 generation values so a backend may retain matching host resources.
+With `ST_CONSOLE_SCALING_OPENGL`, the window thread uploads native bitmap
+damage into a texture and draws the fitted viewport. Native windows own their
+GL contexts. The built-in Blocky, Pointy and Nearest scalers require OpenGL 3.3.
+`st_console_display_set_gl_preset()` selects a Slang preset by absolute path.
+Pass `validate=true` to try a live selection and receive a loading error.
+Slang presets receive animation frames even while bitmap content stays still.
+The libretro frontend receives native pixels and owns its shader pipeline.
+
 The zero-initialized and traditional SyncTERM policy is blocky scaling;
 `ST_PIXEL_SCALING_POINTY` explicitly selects the old Pointy pipeline.
 

@@ -61,6 +61,7 @@ main(void)
 	CHECK(st_console_display_libretro_map_pointer(display, 3, 2, &pointer) == 0);
 	CHECK(pointer.data.mouse.x == 1 && pointer.data.mouse.y == 1 && pointer.data.mouse.pixel_x == 3
 	      && pointer.data.mouse.pixel_y == 2);
+	CHECK(st_console_set_scaling_mode(console, ST_CONSOLE_SCALING_OPENGL) == 0);
 	CHECK(st_console_set_pixel(console, 1, 2, ST_CONSOLE_COLOR_RGB_VALUE(0x12, 0x34, 0x56)) == 0);
 	CHECK(st_console_display_libretro_frame_copy(display, pixels, 6, 8) == 0);
 	CHECK(pixels[2 * 6 + 1] == UINT32_C(0x123456));

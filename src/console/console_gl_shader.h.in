@@ -1,0 +1,2 @@
+static const char *const fragment_source[] = {"@ST_gl_SOURCE@"};
+static const char *const pointy_source[] = {"@ST_pointy_SOURCE@"};

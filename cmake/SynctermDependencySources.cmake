@@ -100,7 +100,7 @@ function(syncterm_dependency_source name mode requested_libraries)
 	endif()
 	add_library(${target} INTERFACE)
 	syncterm_dependency_math(${target})
-	if(name MATCHES "^(BOTAN|JXL|HIGHWAY|FLUIDSYNTH|ADLMIDI)$")
+	if(name MATCHES "^(LIBRASHADER|BOTAN|JXL|HIGHWAY|FLUIDSYNTH|ADLMIDI)$")
 		target_link_libraries(${target} INTERFACE ${CMAKE_CXX_IMPLICIT_LINK_LIBRARIES})
 		target_link_directories(${target} INTERFACE ${CMAKE_CXX_IMPLICIT_LINK_DIRECTORIES})
 	endif()
@@ -164,7 +164,8 @@ function(syncterm_dependency_source name mode requested_libraries)
 			CMAKE_GENERATOR CMAKE_GENERATOR_PLATFORM CMAKE_GENERATOR_TOOLSET WIN32 APPLE MSVC)
 			string(APPEND settings "set(${key} [==[${${key}}]==])\n")
 		endforeach()
-		foreach(key name mode kind prefix binary config libraries options dep_prefixes dep_definitions include_suffix dep_job_server)
+		foreach(key name mode kind prefix binary config libraries options dep_prefixes dep_definitions include_suffix dep_job_server
+			SYNCTERM_DEPENDENCY_DOWNLOADS SYNCTERM_DEPENDENCY_CACHE ST_DEP_LIBRASHADER_RUST_TARGET)
 			string(APPEND settings "set(${key} [==[${${key}}]==])\n")
 		endforeach()
 		if(CMAKE_CONFIGURATION_TYPES)
@@ -280,9 +281,13 @@ function(syncterm_dependency_source name mode requested_libraries)
 		${job_server_options}
 		LOG_DOWNLOAD ON LOG_CONFIGURE ON LOG_BUILD ON LOG_INSTALL ON
 		LOG_OUTPUT_ON_FAILURE ON EXCLUDE_FROM_ALL TRUE)
+	set(recipe_inputs)
+	if(kind STREQUAL "cargo")
+		list(APPEND recipe_inputs "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/dependencies/Librashader.cmake")
+	endif()
 	ExternalProject_Add_Step(${build_target} configuration_inputs
 		COMMAND "${CMAKE_COMMAND}" -E true DEPENDEES patch DEPENDERS configure
-		DEPENDS "${active_settings}" "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/dependencies/Build.cmake"
+		DEPENDS ${recipe_inputs} "${active_settings}" "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/dependencies/Build.cmake"
 			"${CMAKE_CURRENT_FUNCTION_LIST_DIR}/dependencies/Recipes.cmake"
 			"${CMAKE_CURRENT_FUNCTION_LIST_DIR}/dependencies/Parallel.cmake"
 			"${CMAKE_CURRENT_FUNCTION_LIST_DIR}/dependencies/Patch.cmake"
@@ -317,6 +322,15 @@ function(syncterm_dependency_source name mode requested_libraries)
 		find_library(st_hidapi_iokit IOKit REQUIRED)
 		find_library(st_hidapi_cf CoreFoundation REQUIRED)
 		target_link_libraries(${target} INTERFACE "${st_hidapi_iokit}" "${st_hidapi_cf}")
+	endif()
+	if(name STREQUAL "LIBRASHADER" AND mode STREQUAL "STATIC")
+		find_package(Threads REQUIRED)
+		target_link_libraries(${target} INTERFACE Threads::Threads ${CMAKE_DL_LIBS})
+		if(WIN32)
+			target_link_libraries(${target} INTERFACE ws2_32 userenv bcrypt advapi32 ntdll synchronization)
+		elseif(APPLE)
+			target_link_libraries(${target} INTERFACE "-Wl,-framework,CoreFoundation" "-Wl,-framework,Security")
+		endif()
 	endif()
 	if(name STREQUAL "OPENSSL" AND WIN32)
 		target_link_libraries(${target} INTERFACE ws2_32 crypt32 bcrypt)

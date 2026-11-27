@@ -37,6 +37,19 @@ main(void)
 	CHECK(strcmp(paths.cache_directory, ST_APP_PATHS_XDG_TEST_HOME "/.cache/syncterm") == 0);
 	CHECK(strcmp(paths.keys_file, ST_APP_PATHS_XDG_TEST_HOME "/.local/share/syncterm/syncterm.ssh") == 0);
 	CHECK(strcmp(paths.rip_data_directory, ST_APP_PATHS_XDG_TEST_HOME "/.local/share/syncterm/RIP") == 0);
+	CHECK(strcmp(paths.scalers_directory, ST_APP_PATHS_XDG_TEST_HOME "/.local/share/syncterm/scalers") == 0);
+	char *preset = NULL;
+	CHECK(st_app_paths_gl_preset(&preset, &paths, "crt/crt-royale.slangp") == 0);
+	CHECK(strcmp(preset, ST_APP_PATHS_XDG_TEST_HOME "/.local/share/syncterm/scalers/crt/crt-royale.slangp")
+	      == 0);
+	free(preset);
+	preset = NULL;
+	CHECK(st_app_paths_gl_preset(&preset, &paths, "../outside.slangp") < 0);
+	CHECK(st_app_paths_gl_preset(&preset, &paths, "/outside.slangp") < 0);
+	CHECK(st_app_paths_gl_preset(&preset, &paths, "") == 0 && preset == NULL);
+	CHECK(st_app_paths_gl_preset(&preset, &paths, "Pointy") == 0);
+	CHECK(strcmp(preset, "Pointy") == 0);
+	free(preset);
 	CHECK(strcmp(paths.download_directory, "relative-download") == 0);
 	st_app_paths_dispose(&paths);
 

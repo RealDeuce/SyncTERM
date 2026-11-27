@@ -19,6 +19,7 @@ struct st_app_path_overrides {
 	const char *download_directory;
 	const char *keys_file;
 	const char *scripts_directory;
+	const char *scalers_directory;
 	const char *themes_directory;
 };
 
@@ -33,6 +34,7 @@ struct st_app_paths {
 	char *download_directory;
 	char *keys_file;
 	char *scripts_directory;
+	char *scalers_directory;
 	char *themes_directory;
 };
 
@@ -45,6 +47,8 @@ int st_app_paths_prepare_personal_list(const struct st_app_paths *paths);
 int st_app_paths_prepare_cache(const struct st_app_paths *paths);
 int st_app_paths_prepare_keys(const struct st_app_paths *paths);
 int st_app_paths_prepare_scripts(const struct st_app_paths *paths);
+/* Resolve a profile-relative .slangp filename or one of the built-in selections. */
+int st_app_paths_gl_preset(char **result, const struct st_app_paths *paths, const char *selection);
 int st_app_paths_prepare_themes(const struct st_app_paths *paths);
 
 #endif

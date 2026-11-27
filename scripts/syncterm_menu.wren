@@ -338,6 +338,8 @@ foreign class Settings {
   foreign transferFailureKeypressTimeout=(value)
   foreign modemRate
   foreign modemRate=(value)
+  foreign openGLPreset
+  foreign openGLPreset=(value)
   foreign scalingMode
   foreign scalingMode=(value)
   foreign kdfShift

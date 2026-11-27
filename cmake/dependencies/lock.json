@@ -2,6 +2,12 @@
   "schema_version": 1,
   "provenance": "Upstream release archives; initial checksums from Homebrew formula metadata or upstream release metadata. ADLMIDI tag archive hash verified locally.",
   "dependencies": {
+    "LIBRASHADER": {
+      "version": "0.12.1",
+      "url": "https://codeload.github.com/SnowflakePowered/librashader/tar.gz/07ac790cdb9826f37cf8e1daf5011f03e3c4daa7",
+      "sha256": "156f681b288d5ffe83b7c341bd969553b42935dfb22fd0a4610d54eab60ea536",
+      "license": "MPL-2.0 OR GPL-3.0-only"
+    },
     "HIDAPI": {
       "version": "0.15.0",
       "url": "https://codeload.github.com/libusb/hidapi/tar.gz/refs/tags/hidapi-0.15.0",

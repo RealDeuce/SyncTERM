@@ -17,7 +17,12 @@
 #include <wchar.h>
 #include <windowsx.h>
 
+#include "console_config.h"
+#include "console_gl.h"
 #include "console_internal.h"
+#if ST_CONSOLE_HAVE_WGL
+ #include <GL/gl.h>
+#endif
 #include "console_pointer_pixels.h"
 #include "io_error.h"
 #include "st_time.h"
@@ -69,6 +74,10 @@ struct command {
 };
 
 struct gdi_state {
+#if ST_CONSOLE_HAVE_WGL
+	HDC   gl_device;
+	HGLRC gl_context;
+#endif
 	bool numeric_key; /* Skip native Windows Alt-numpad text synthesis. */
 	/* Only the backend thread changes or dereferences this pointer. */
 	st_console_t                       *console;
@@ -432,6 +441,68 @@ invalidate_damage(struct gdi_state *state, bool forced)
 	state->have_damage = false;
 }
 
+#if ST_CONSOLE_HAVE_WGL
+static int
+gdi_gl_current(void *window, uint32_t width, uint32_t height)
+{
+	struct gdi_state *s = window;
+	(void)width;
+	(void)height;
+	if (!s->gl_device) {
+		s->gl_device = GetDC(s->window);
+		if (!s->gl_device)
+			return IO_ERROR_IO;
+		if (!GetPixelFormat(s->gl_device)) {
+			PIXELFORMATDESCRIPTOR format = {.nSize = sizeof(format),
+			    .nVersion                          = 1,
+			    .dwFlags    = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER,
+			    .iPixelType = PFD_TYPE_RGBA,
+			    .cColorBits = 24,
+			    .iLayerType = PFD_MAIN_PLANE};
+			int                   index  = ChoosePixelFormat(s->gl_device, &format);
+			if (!index || !SetPixelFormat(s->gl_device, index, &format))
+				return IO_ERROR_NOT_SUPPORTED;
+		}
+		s->gl_context = wglCreateContext(s->gl_device);
+	}
+	return s->gl_context && wglMakeCurrent(s->gl_device, s->gl_context) ? 0 : IO_ERROR_NOT_SUPPORTED;
+}
+
+static const void *
+gdi_gl_symbol(const char *name)
+{
+	PROC fn = wglGetProcAddress(name);
+	if ((uintptr_t)fn <= 3 || (uintptr_t)fn == UINTPTR_MAX)
+		fn = GetProcAddress(GetModuleHandleW(L"opengl32.dll"), name);
+	const void *symbol;
+	_Static_assert(sizeof(fn) == sizeof(symbol), "WGL procedure size");
+	memcpy(&symbol, &fn, sizeof(symbol));
+	return symbol;
+}
+
+static int
+gdi_gl_swap(void *window)
+{
+	struct gdi_state *s = window;
+	return SwapBuffers(s->gl_device) ? 0 : IO_ERROR_IO;
+}
+
+static void
+gdi_gl_close(void *window)
+{
+	struct gdi_state *s = window;
+	if (s->gl_context) {
+		wglMakeCurrent(NULL, NULL);
+		wglDeleteContext(s->gl_context);
+		s->gl_context = NULL;
+	}
+	if (s->gl_device) {
+		ReleaseDC(s->window, s->gl_device);
+		s->gl_device = NULL;
+	}
+}
+#endif
+
 static int
 render(struct gdi_state *state)
 {
@@ -443,7 +514,7 @@ render(struct gdi_state *state)
 	status = st_console_bitmap_presenter_frame(state->presenter, NULL, state->client_width,
 	    state->client_height, now_ms(), upload, state, &state->frame);
 
-	if (status == 0 && state->frame.changed)
+	if (status == 0 && state->frame.scaling_mode != ST_CONSOLE_SCALING_OPENGL && state->frame.changed)
 		invalidate_damage(state, !st_console_rects_equal(&previous, &state->frame.destination));
 	return status;
 }
@@ -455,6 +526,11 @@ paint(struct gdi_state *state)
 	HDC         device = BeginPaint(state->window, &paint);
 	RECT        client;
 
+	if (state->frame.scaling_mode == ST_CONSOLE_SCALING_OPENGL) {
+		(void)EndPaint(state->window, &paint);
+		st_console_display_request_repaint(state->console_display);
+		return;
+	}
 	(void)GetClientRect(state->window, &client);
 	(void)FillRect(device, &client, (HBRUSH)GetStockObject(BLACK_BRUSH));
 	if (state->pixels != NULL) {
@@ -961,6 +1037,7 @@ process_command(struct gdi_state *state, struct command *command)
 			command->result = set_fullscreen(state, command->data.enabled) ? 0 : IO_ERROR_IO;
 			break;
 		case COMMAND_DESTROY:
+			st_console_bitmap_gl_close(state->presenter);
 			command->result = DestroyWindow(state->window) ? 0 : IO_ERROR_IO;
 			break;
 	}
@@ -1003,6 +1080,7 @@ window_proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
 		case WM_SIZE:
 		{
 			RECT client;
+			st_console_display_set_window_hidden(state->console_display, wparam == SIZE_MINIMIZED);
 
 			if (!state->fullscreen) {
 				if (wparam == SIZE_MAXIMIZED)
@@ -1104,7 +1182,7 @@ register_class(void)
 {
 	WNDCLASSEXW definition = {
 	    .cbSize        = sizeof(definition),
-	    .style         = CS_HREDRAW | CS_VREDRAW,
+	    .style         = CS_OWNDC | CS_HREDRAW | CS_VREDRAW,
 	    .lpfnWndProc   = window_proc,
 	    .hInstance     = GetModuleHandleW(NULL),
 	    .hCursor       = LoadCursorW(NULL, MAKEINTRESOURCEW(GDI_CURSOR_ARROW)),
@@ -1147,6 +1225,10 @@ worker(void *argument)
 	st_call_once(&class_once, register_class);
 	if (window_class != 0) {
 		(void)AdjustWindowRect(&rectangle, WS_OVERLAPPEDWINDOW, FALSE);
+#if ST_CONSOLE_HAVE_WGL
+		st_console_bitmap_gl_host(state->presenter,
+		    (struct st_gl_host) {state, gdi_gl_current, gdi_gl_symbol, gdi_gl_swap, gdi_gl_close});
+#endif
 		state->window = CreateWindowExW(0, L"STConsoleGDI", L"SyncTERM", WS_OVERLAPPEDWINDOW | WS_VISIBLE,
 		    CW_USEDEFAULT, CW_USEDEFAULT, rectangle.right - rectangle.left,
 		    rectangle.bottom - rectangle.top, NULL, NULL, GetModuleHandleW(NULL), state);

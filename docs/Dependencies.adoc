@@ -66,7 +66,7 @@ linkage option, rather than the feature enablement switch.
 
 Library names are `HIDAPI`, `LIBUSB`, `OPENSSL`, `BOTAN`, `SNDFILE`, `OPENMPT`, `LIBZIP`, `JPEG`, `JXL`, `SDL2`, `PORTAUDIO`,
 `ALSA`, `PULSEAUDIO`, `PIPEWIRE`, `FLUIDSYNTH`, `ADLMIDI`, `CURSES`, `TERMINFO`,
-`X11`, `XRENDER`, `XRANDR`, `XINERAMA`, `WAYLAND`, and `XKBCOMMON`.
+`X11`, `XRENDER`, `XRANDR`, `XINERAMA`, `WAYLAND`, `XKBCOMMON`, and `LIBRASHADER`.
 Transitive libraries have the same controls: `ZLIB`, `FLAC`, `OGG`, `VORBIS`, `OPUS`,
 `MPG123`, `LAME`, `BROTLI`, `HIGHWAY`, `LCMS2`, `FFI`, `EXPAT`, `XCB`,
 `XEXT`, `XAU`, `XDMCP`, `XORGPROTO`, `XTRANS`, `PTHREAD_STUBS`, and the
@@ -99,6 +99,18 @@ cmake -S . -B build \
 cmake --build build
 ctest --test-dir build --output-on-failure
 ----
+
+== OpenGL scalers
+
+`ST_CONSOLE_OPENGL` and `ST_CONSOLE_SLANG` accept `AUTO`, `ON`, or `OFF`.
+Built-in OpenGL scaling requires a window context supporting desktop OpenGL 3.3.
+Slang presets additionally use librashader's OpenGL C API. For a self-contained
+source build, select `-DST_CONSOLE_SLANG=ON`, `-DST_DEP_LIBRASHADER_SOURCE=BUNDLED`,
+and `-DST_DEP_LIBRASHADER_LINKAGE=STATIC`. The pinned recipe requires Cargo, Rust,
+and a C++ compiler. Cargo verifies dependencies against the upstream lockfile.
+Offline builds use the populated `cargo/` registry cache under
+`SYNCTERM_DEPENDENCY_CACHE`. For a cross target with a nonstandard Rust triple,
+set `ST_DEP_LIBRASHADER_RUST_TARGET`.
 
 == Source builds and offline operation
 

@@ -60,6 +60,7 @@ struct st_settings {
 	char                   *stored_list_path;
 	char                   *tls_client_certificate;
 	char                   *tls_client_key;
+	char                   *gl_preset;
 	char                   *theme_file;
 	char                   *theme_package;
 	char                   *sort_order;
@@ -98,6 +99,7 @@ struct st_settings {
 	int      left_justify;
 	int      blocky_scaling;
 	int      external_scaling;
+	bool     opengl_scaling;
 	int      default_cursor;
 	char     modem_init_string[ST_SETTINGS_VALUE_MAX + 1];
 	char     modem_dial_string[ST_SETTINGS_VALUE_MAX + 1];
@@ -112,6 +114,15 @@ struct st_settings {
 extern struct st_settings st_settings;
 
 struct st_app_paths;
+
+enum st_settings_scaler {
+	ST_SCALER_BLOCKY,
+	ST_SCALER_POINTY,
+	ST_SCALER_EXTERNAL,
+	ST_SCALER_OPENGL
+};
+enum st_settings_scaler st_settings_scaler(const struct st_settings *settings);
+void                    st_settings_set_scaler(struct st_settings *settings, enum st_settings_scaler scaler);
 
 void st_settings_init(struct st_settings *settings);
 void st_settings_dispose(struct st_settings *settings);

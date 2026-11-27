@@ -16,6 +16,7 @@
 #include <SDL.h>
 
 #include "console_config.h"
+#include "console_gl.h"
 #include "console_internal.h"
 #include "console_pointer_pixels.h"
 #include "dynamic_library.h"
@@ -71,7 +72,32 @@ typedef char *(SDLCALL *sdl_get_clipboard_text_fn)(void);
 typedef void(SDLCALL *sdl_free_memory_fn)(void *);
 typedef int(SDLCALL *sdl_open_url_fn)(const char *);
 
+#if ST_CONSOLE_HAVE_SDL_GL
+typedef SDL_GLContext(SDLCALL *sdl_gl_create_fn)(SDL_Window *);
+typedef void(SDLCALL *sdl_gl_delete_fn)(SDL_GLContext);
+typedef int(SDLCALL *sdl_gl_make_current_fn)(SDL_Window *, SDL_GLContext);
+typedef SDL_Window *(SDLCALL *sdl_gl_get_window_fn)(void);
+typedef SDL_GLContext(SDLCALL *sdl_gl_get_context_fn)(void);
+typedef void *(SDLCALL *sdl_gl_symbol_fn)(const char *);
+typedef void(SDLCALL *sdl_gl_swap_fn)(SDL_Window *);
+typedef int(SDLCALL *sdl_gl_get_attr_fn)(SDL_GLattr, int *);
+typedef int(SDLCALL *sdl_gl_set_attr_fn)(SDL_GLattr, int);
+typedef void(SDLCALL *sdl_gl_drawable_size_fn)(SDL_Window *, int *, int *);
+#endif
+
 struct sdl_api {
+#if ST_CONSOLE_HAVE_SDL_GL
+	sdl_gl_create_fn        gl_create;
+	sdl_gl_delete_fn        gl_delete;
+	sdl_gl_make_current_fn  gl_make_current;
+	sdl_gl_get_window_fn    gl_get_window;
+	sdl_gl_get_context_fn   gl_get_context;
+	sdl_gl_symbol_fn        gl_symbol;
+	sdl_gl_swap_fn          gl_swap;
+	sdl_gl_get_attr_fn      gl_get_attr;
+	sdl_gl_set_attr_fn      gl_set_attr;
+	sdl_gl_drawable_size_fn gl_drawable_size;
+#endif
 	void(SDLCALL *set_main_ready)(void);
 	int(SDLCALL *init_subsystem)(Uint32);
 	void(SDLCALL *quit_subsystem)(Uint32);
@@ -122,6 +148,10 @@ struct sdl_api {
 };
 
 struct sdl_state {
+#if ST_CONSOLE_HAVE_SDL_GL
+	SDL_GLContext gl_context, previous_gl;
+	SDL_Window   *previous_window;
+#endif
 	/* One in-flight command per display, serialized by the console core. */
 	st_condition_t completed;
 	/* Only the backend thread changes or dereferences this pointer. */
@@ -244,6 +274,18 @@ load_sdl(void)
 #if ST_DEP_SDL2_LINKED
 	if (manager.initialized)
 		return 0;
+ #if ST_CONSOLE_HAVE_SDL_GL
+	manager.api.gl_create        = SDL_GL_CreateContext;
+	manager.api.gl_delete        = SDL_GL_DeleteContext;
+	manager.api.gl_make_current  = SDL_GL_MakeCurrent;
+	manager.api.gl_get_window    = SDL_GL_GetCurrentWindow;
+	manager.api.gl_get_context   = SDL_GL_GetCurrentContext;
+	manager.api.gl_symbol        = SDL_GL_GetProcAddress;
+	manager.api.gl_swap          = SDL_GL_SwapWindow;
+	manager.api.gl_get_attr      = SDL_GL_GetAttribute;
+	manager.api.gl_set_attr      = SDL_GL_SetAttribute;
+	manager.api.gl_drawable_size = SDL_GL_GetDrawableSize;
+ #endif
 	manager.api.set_main_ready            = SDL_SetMainReady;
 	manager.api.init_subsystem            = SDL_InitSubSystem;
 	manager.api.quit_subsystem            = SDL_QuitSubSystem;
@@ -347,6 +389,24 @@ load_sdl(void)
 		memset(&manager.api, 0, sizeof(manager.api));
 		return IO_ERROR_NOT_SUPPORTED;
 	}
+ #if ST_CONSOLE_HAVE_SDL_GL
+	manager.api.gl_create = (sdl_gl_create_fn)dynamic_library_symbol(manager.library, "SDL_GL_CreateContext");
+	manager.api.gl_delete = (sdl_gl_delete_fn)dynamic_library_symbol(manager.library, "SDL_GL_DeleteContext");
+	manager.api.gl_make_current =
+	    (sdl_gl_make_current_fn)dynamic_library_symbol(manager.library, "SDL_GL_MakeCurrent");
+	manager.api.gl_get_window =
+	    (sdl_gl_get_window_fn)dynamic_library_symbol(manager.library, "SDL_GL_GetCurrentWindow");
+	manager.api.gl_get_context =
+	    (sdl_gl_get_context_fn)dynamic_library_symbol(manager.library, "SDL_GL_GetCurrentContext");
+	manager.api.gl_symbol = (sdl_gl_symbol_fn)dynamic_library_symbol(manager.library, "SDL_GL_GetProcAddress");
+	manager.api.gl_swap   = (sdl_gl_swap_fn)dynamic_library_symbol(manager.library, "SDL_GL_SwapWindow");
+	manager.api.gl_get_attr =
+	    (sdl_gl_get_attr_fn)dynamic_library_symbol(manager.library, "SDL_GL_GetAttribute");
+	manager.api.gl_set_attr =
+	    (sdl_gl_set_attr_fn)dynamic_library_symbol(manager.library, "SDL_GL_SetAttribute");
+	manager.api.gl_drawable_size =
+	    (sdl_gl_drawable_size_fn)dynamic_library_symbol(manager.library, "SDL_GL_GetDrawableSize");
+ #endif
 	manager.api.open_url = (sdl_open_url_fn)dynamic_library_symbol(manager.library, "SDL_OpenURL");
 	manager.api.get_display_usable_bounds =
 	    (sdl_get_display_usable_bounds_fn)dynamic_library_symbol(manager.library,
@@ -363,6 +423,18 @@ load_sdl(void)
 	manager.api.start_text_input();
 	manager.initialized = true;
 	return 0;
+}
+
+static int
+sdl_output_size(struct sdl_state *state, int *width, int *height)
+{
+#if ST_CONSOLE_HAVE_SDL_GL
+	if (state->gl_context) {
+		manager.api.gl_drawable_size(state->window, width, height);
+		return 0;
+	}
+#endif
+	return manager.api.get_renderer_output_size(state->renderer, width, height);
 }
 
 static int
@@ -397,8 +469,8 @@ window_units(struct sdl_state *state, uint32_t pixel_width, uint32_t pixel_heigh
 	uint64_t converted_height;
 
 	manager.api.get_window_size(state->window, &window_width, &window_height);
-	if (manager.api.get_renderer_output_size(state->renderer, &output_width, &output_height) != 0
-	    || window_width <= 0 || window_height <= 0 || output_width <= 0 || output_height <= 0)
+	if (sdl_output_size(state, &output_width, &output_height) != 0 || window_width <= 0 || window_height <= 0
+	    || output_width <= 0 || output_height <= 0)
 		return IO_ERROR_IO;
 	converted_width  = ((uint64_t)pixel_width * (uint32_t)window_width + (uint32_t)output_width - 1U)
 	                   / (uint32_t)output_width;
@@ -444,8 +516,7 @@ set_fullscreen_state(struct sdl_state *state, bool enabled)
 		int width;
 		int height;
 
-		if (manager.api.get_renderer_output_size(state->renderer, &width, &height) == 0 && width > 0
-		    && height > 0) {
+		if (sdl_output_size(state, &width, &height) == 0 && width > 0 && height > 0) {
 			state->windowed_width  = (uint32_t)width;
 			state->windowed_height = (uint32_t)height;
 		}
@@ -486,8 +557,8 @@ display_pixel_bounds(struct sdl_state *state, uint32_t *width, uint32_t *height,
 	        && manager.api.get_display_bounds(index, &bounds) != 0))
 		return;
 	manager.api.get_window_size(state->window, &window_width, &window_height);
-	if (manager.api.get_renderer_output_size(state->renderer, &output_width, &output_height) != 0
-	    || window_width <= 0 || window_height <= 0 || output_width <= 0 || output_height <= 0)
+	if (sdl_output_size(state, &output_width, &output_height) != 0 || window_width <= 0 || window_height <= 0
+	    || output_width <= 0 || output_height <= 0)
 		return;
 	if (manager.api.get_window_borders_size != NULL)
 		(void)manager.api.get_window_borders_size(state->window, &top, &left, &bottom, &right);
@@ -519,8 +590,8 @@ snap_window(struct sdl_state *state, bool larger)
 		current_width    = (int)state->windowed_width;
 		current_height   = (int)state->windowed_height;
 	}
-	else if (manager.api.get_renderer_output_size(state->renderer, &current_width, &current_height) != 0
-	         || current_width <= 0 || current_height <= 0)
+	else if (sdl_output_size(state, &current_width, &current_height) != 0 || current_width <= 0
+		 || current_height <= 0)
 		return;
 	display_pixel_bounds(state, &maximum_width, &maximum_height, NULL);
 	if (st_console_snap_geometry_size(&state->window_geometry, (uint32_t)current_width,
@@ -532,6 +603,67 @@ snap_window(struct sdl_state *state, bool larger)
 	state->windowed_height = height;
 	(void)set_window_pixel_geometry(state, width, height, state->minimum_width, state->minimum_height, true);
 }
+
+#if ST_CONSOLE_HAVE_SDL_GL
+static void
+restore_sdl_gl(struct sdl_state *s)
+{
+	(void)manager.api.gl_make_current(s->previous_window, s->previous_gl);
+}
+
+static int
+sdl_gl_current(void *window, uint32_t width, uint32_t height)
+{
+	struct sdl_state *s = window;
+	(void)width;
+	(void)height;
+	SDL_GLContext previous = manager.api.gl_get_context();
+	if (!s->gl_context || previous != s->gl_context) {
+		s->previous_gl     = previous;
+		s->previous_window = manager.api.gl_get_window();
+	}
+	if (!s->gl_context) {
+		const SDL_GLattr attributes[] = {SDL_GL_CONTEXT_MAJOR_VERSION, SDL_GL_CONTEXT_MINOR_VERSION,
+		    SDL_GL_CONTEXT_PROFILE_MASK};
+		const int        values[]     = {3, 3, SDL_GL_CONTEXT_PROFILE_CORE};
+		int              saved[]      = {0, 0, 0};
+		for (size_t i = 0; i < 3; ++i) {
+			(void)manager.api.gl_get_attr(attributes[i], &saved[i]);
+			(void)manager.api.gl_set_attr(attributes[i], values[i]);
+		}
+		s->gl_context = manager.api.gl_create(s->window);
+		for (size_t i = 0; i < 3; ++i)
+			(void)manager.api.gl_set_attr(attributes[i], saved[i]);
+	}
+	return s->gl_context && manager.api.gl_make_current(s->window, s->gl_context) == 0
+	           ? 0
+	           : IO_ERROR_NOT_SUPPORTED;
+}
+
+static const void *
+sdl_gl_symbol(const char *name)
+{
+	return manager.api.gl_symbol(name);
+}
+
+static int
+sdl_gl_swap(void *window)
+{
+	struct sdl_state *s = window;
+	manager.api.gl_swap(s->window);
+	return 0;
+}
+
+static void
+sdl_gl_close(void *window)
+{
+	struct sdl_state *s = window;
+	restore_sdl_gl(s);
+	if (s->gl_context)
+		manager.api.gl_delete(s->gl_context);
+	s->gl_context = NULL;
+}
+#endif
 
 static int
 create_state(struct sdl_state *state, uint32_t width, uint32_t height, uint32_t minimum_width,
@@ -545,8 +677,22 @@ create_state(struct sdl_state *state, uint32_t width, uint32_t height, uint32_t 
 		return status;
 	if (width == 0 || height == 0 || width > INT_MAX || height > INT_MAX)
 		return IO_ERROR_OUT_OF_RANGE;
-	state->window = manager.api.create_window("SyncTERM", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-	    (int)width, (int)height, SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
+	Uint32 flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI;
+#if ST_CONSOLE_HAVE_SDL_GL
+	if (manager.api.gl_create && manager.api.gl_delete && manager.api.gl_make_current
+	    && manager.api.gl_get_window && manager.api.gl_get_context && manager.api.gl_symbol
+	    && manager.api.gl_swap && manager.api.gl_get_attr && manager.api.gl_set_attr
+	    && manager.api.gl_drawable_size) {
+		state->window = manager.api.create_window("SyncTERM", SDL_WINDOWPOS_UNDEFINED,
+		    SDL_WINDOWPOS_UNDEFINED, (int)width, (int)height, flags | SDL_WINDOW_OPENGL);
+		if (state->window)
+			st_console_bitmap_gl_host(state->presenter,
+			    (struct st_gl_host) {state, sdl_gl_current, sdl_gl_symbol, sdl_gl_swap, sdl_gl_close});
+	}
+#endif
+	if (!state->window)
+		state->window = manager.api.create_window("SyncTERM", SDL_WINDOWPOS_UNDEFINED,
+		    SDL_WINDOWPOS_UNDEFINED, (int)width, (int)height, flags);
 	if (state->window == NULL)
 		return IO_ERROR_NOT_SUPPORTED;
 	if (icon != NULL && icon->width <= INT_MAX && icon->height <= INT_MAX && icon->stride <= INT_MAX) {
@@ -608,6 +754,7 @@ destroy_state(struct sdl_state *state)
 		if (state->pointer_cursors[i] != NULL)
 			manager.api.free_cursor(state->pointer_cursors[i]);
 	}
+	st_console_bitmap_gl_close(state->presenter);
 	manager.api.destroy_texture(state->texture);
 	manager.api.destroy_renderer(state->renderer);
 	manager.api.destroy_window(state->window);
@@ -663,15 +810,20 @@ draw_state(struct sdl_state *state)
 	uint64_t now = 0;
 
 	(void)st_time_monotonic_ms(&now);
-	if (manager.api.get_renderer_output_size(state->renderer, &output_width, &output_height) != 0)
+	if (sdl_output_size(state, &output_width, &output_height) != 0)
 		return IO_ERROR_IO;
 	if (output_width <= 0 || output_height <= 0)
 		return 0;
 	status = st_console_bitmap_presenter_frame(state->presenter, NULL, (uint32_t)output_width,
 	    (uint32_t)output_height, (uint32_t)now, upload_pixels, state, &state->frame);
+#if ST_CONSOLE_HAVE_SDL_GL
+	if (state->gl_context)
+		restore_sdl_gl(state);
+#endif
 	if (status != 0)
 		return status;
-	if (!state->texture_valid || !state->frame.changed)
+	if (state->frame.scaling_mode == ST_CONSOLE_SCALING_OPENGL || !state->texture_valid
+	    || !state->frame.changed)
 		return 0;
 	destination = (SDL_Rect) {(int)state->frame.destination.x, (int)state->frame.destination.y,
 	    (int)state->frame.destination.width, (int)state->frame.destination.height};
@@ -1054,8 +1206,8 @@ logical_mouse(struct sdl_state *state, int x, int y, struct st_console_event *ev
 	int64_t output_y;
 
 	manager.api.get_window_size(state->window, &window_width, &window_height);
-	if (manager.api.get_renderer_output_size(state->renderer, &output_width, &output_height) != 0
-	    || window_width <= 0 || window_height <= 0 || output_width <= 0 || output_height <= 0) {
+	if (sdl_output_size(state, &output_width, &output_height) != 0 || window_width <= 0 || window_height <= 0
+	    || output_width <= 0 || output_height <= 0) {
 		event->data.mouse.x       = 0;
 		event->data.mouse.y       = 0;
 		event->data.mouse.pixel_x = -1;
@@ -1121,6 +1273,12 @@ dispatch_event(const SDL_Event *source)
 		return;
 	switch (source->type) {
 		case SDL_WINDOWEVENT:
+			if (source->window.event == SDL_WINDOWEVENT_MINIMIZED
+			    || source->window.event == SDL_WINDOWEVENT_HIDDEN)
+				st_console_display_set_window_hidden(state->console_display, true);
+			else if (source->window.event == SDL_WINDOWEVENT_SHOWN
+				 || source->window.event == SDL_WINDOWEVENT_RESTORED)
+				st_console_display_set_window_hidden(state->console_display, false);
 			if (source->window.event == SDL_WINDOWEVENT_MAXIMIZED)
 				state->maximized = true;
 			else if (source->window.event == SDL_WINDOWEVENT_RESTORED) {
@@ -1156,9 +1314,8 @@ dispatch_event(const SDL_Event *source)
 					int width;
 					int height;
 
-					if (manager.api.get_renderer_output_size(state->renderer, &width, &height)
-					        == 0
-					    && width > 0 && height > 0) {
+					if (sdl_output_size(state, &width, &height) == 0 && width > 0
+					    && height > 0) {
 						state->windowed_width  = (uint32_t)width;
 						state->windowed_height = (uint32_t)height;
 					}
@@ -1361,10 +1518,8 @@ process_command(struct sdl_command *command)
 				output_width  = (int)state->windowed_width;
 				output_height = (int)state->windowed_height;
 			}
-			else if (manager.api.get_renderer_output_size(state->renderer, &output_width,
-				     &output_height)
-			             != 0
-			         || output_width <= 0 || output_height <= 0)
+			else if (sdl_output_size(state, &output_width, &output_height) != 0 || output_width <= 0
+				 || output_height <= 0)
 				return IO_ERROR_IO;
 			display_pixel_bounds(state, &maximum_width, &maximum_height, NULL);
 			if (st_console_mode_change_size(&state->window_geometry, &next, (uint32_t)output_width,
@@ -1387,8 +1542,7 @@ process_command(struct sdl_command *command)
 			int width;
 			int height;
 
-			if (manager.api.get_renderer_output_size(state->renderer, &width, &height) != 0
-			    || width <= 0 || height <= 0)
+			if (sdl_output_size(state, &width, &height) != 0 || width <= 0 || height <= 0)
 				return IO_ERROR_IO;
 			return st_console_bitmap_geometry_scaling(&state->window_geometry, (uint32_t)width,
 			    (uint32_t)height, command->data.scaling_result);

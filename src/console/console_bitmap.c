@@ -12,11 +12,17 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "console_gl.h"
 #include "console_internal.h"
 #include "io_error.h"
 #include "st_time.h"
 
 struct st_console_bitmap_presenter {
+	st_console_display_t           *display;
+	struct st_gl_host               host;
+	struct st_gl_renderer          *gl;
+	uint64_t                        gl_revision;
+	bool                            gl_failed, reset_history;
 	struct st_rgb_buffer           *images[4];
 	st_pixel_scaler_t              *scalers[4];
 	const struct st_rgb_buffer     *scaled[4];
@@ -735,6 +741,7 @@ st_console_bitmap_presenter_create(struct st_console_bitmap_presenter **result, 
 	presenter = calloc(1, sizeof(*presenter));
 	if (presenter == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
+	presenter->display = console->display;
 	status = replace_buffers(presenter, console->pixels);
 	for (size_t i = 0; i < BITMAP_IMAGE_COUNT && status == 0; ++i)
 		status = st_pixel_scaler_create(&presenter->scalers[i]);
@@ -784,7 +791,10 @@ cache_console_state(struct st_console_bitmap_presenter *presenter, const st_cons
     bool *cursor_changed)
 {
 	enum st_console_scaling_mode scaling_mode =
-	    presenter->software_scaling_only ? ST_CONSOLE_SCALING_INTERNAL : console->scaling_mode;
+	    console->scaling_mode == ST_CONSOLE_SCALING_EXTERNAL && presenter->software_scaling_only
+		? ST_CONSOLE_SCALING_INTERNAL
+		: console->scaling_mode;
+	bool                   blocky       = scaling_mode == ST_CONSOLE_SCALING_OPENGL || console->blocky_scaling;
 	struct st_console_cell cursor_style = {
 	    .foreground = console->style.foreground,
 	    .background = console->style.background,
@@ -809,7 +819,7 @@ cache_console_state(struct st_console_bitmap_presenter *presenter, const st_cons
 	changed = !presenter->initialized || presenter->aspect_width != console->aspect_width
 	          || presenter->aspect_height != console->aspect_height || presenter->scaling_mode != scaling_mode
 	          || presenter->preserve_window_size != console->preserve_window_size
-	          || presenter->blocky_scaling != console->blocky_scaling;
+	          || presenter->blocky_scaling != blocky;
 
 	(void)st_mutex_lock(&console->display->presentation_mutex);
 	bool shared_animation = !presenter->local_animation_clock
@@ -839,7 +849,7 @@ cache_console_state(struct st_console_bitmap_presenter *presenter, const st_cons
 	presenter->blink_mode           = console->blink_mode;
 	presenter->scaling_mode         = scaling_mode;
 	presenter->preserve_window_size = console->preserve_window_size;
-	presenter->blocky_scaling       = console->blocky_scaling;
+	presenter->blocky_scaling       = blocky;
 	presenter->aspect_width         = console->aspect_width;
 	presenter->aspect_height        = console->aspect_height;
 	presenter->initialized          = true;
@@ -1161,6 +1171,13 @@ st_console_bitmap_retained_frame(struct st_console_bitmap_presenter *presenter, 
 	return true;
 }
 
+void
+st_console_bitmap_new_screen(struct st_console_bitmap_presenter *presenter)
+{
+	presenter->reset_history = true;
+	presenter->upload_retry  = true;
+}
+
 int
 st_console_bitmap_prepare_window(st_console_t *console)
 {
@@ -1277,8 +1294,8 @@ st_console_bitmap_prepare_frame(struct st_console_bitmap_presenter *presenter, c
 	return 0;
 }
 
-int
-st_console_bitmap_presenter_frame(struct st_console_bitmap_presenter *presenter, const st_console_t *console,
+static int
+compose_frame(struct st_console_bitmap_presenter *presenter, enum st_console_scaling_mode mode,
     uint32_t output_width, uint32_t output_height, uint32_t now, st_console_bitmap_upload_t upload, void *context,
     struct st_console_bitmap_frame *frame)
 {
@@ -1289,15 +1306,6 @@ st_console_bitmap_presenter_frame(struct st_console_bitmap_presenter *presenter,
 	uint8_t                     identity;
 	int                         status = 0;
 
-	if (presenter == NULL || frame == NULL || output_width == 0 || output_height == 0)
-		return IO_ERROR_INVALID_ARGUMENT;
-	if (console != NULL) {
-		status = st_console_bitmap_prepare_frame(presenter, console, now);
-		if (status != 0)
-			return status;
-	}
-	if (!presenter->images_valid)
-		return IO_ERROR_INVALID_ARGUMENT;
 	animation_state(presenter->blink_mode, now - presenter->epoch, &alternate, &cursor_phase);
 	if (!presenter->planes_differ)
 		alternate = false;
@@ -1322,7 +1330,7 @@ st_console_bitmap_presenter_frame(struct st_console_bitmap_presenter *presenter,
 	presenter->output_height = output_height;
 
 	pixels                  = presenter->images[identity];
-	const bool scale_pixels = presenter->scaling_mode == ST_CONSOLE_SCALING_INTERNAL
+	const bool scale_pixels = mode == ST_CONSOLE_SCALING_INTERNAL
 	                          && (destination.width != pixels->width || destination.height != pixels->height);
 	upload_damage           = presenter->damage;
 	full_upload = presenter->upload_retry || !presenter->upload_initialized
@@ -1378,7 +1386,7 @@ st_console_bitmap_presenter_frame(struct st_console_bitmap_presenter *presenter,
 		pixels = presenter->scaled[identity];
 	}
 
-	frame->scaling_mode = presenter->scaling_mode;
+	frame->scaling_mode = mode;
 	if (status == 0 && (full_upload || presenter->pending_damage || selection_changed)) {
 		if (full_upload || selection_changed) {
 			upload_damage = (struct st_console_rect) {
@@ -1406,6 +1414,119 @@ st_console_bitmap_presenter_frame(struct st_console_bitmap_presenter *presenter,
 		presenter->pending_state  = false;
 	}
 	return status;
+}
+
+void
+st_console_bitmap_gl_host(struct st_console_bitmap_presenter *presenter, struct st_gl_host host)
+{
+	presenter->host = host;
+}
+
+static void
+animate_gl(struct st_console_bitmap_presenter *presenter, bool animate)
+{
+	st_console_display_t *display = presenter->display;
+	(void)st_mutex_lock(&display->presentation_mutex);
+	if (display->gl_animation != animate) {
+		display->gl_animation                    = animate;
+		display->presentation_animation_deadline = 0;
+		(void)st_condition_signal(&display->presentation_ready);
+	}
+	(void)st_mutex_unlock(&display->presentation_mutex);
+}
+
+void
+st_console_bitmap_gl_close(struct st_console_bitmap_presenter *presenter)
+{
+	if (presenter && presenter->gl) {
+		(void)presenter->host.current(presenter->host.window, presenter->output_width,
+		    presenter->output_height);
+		st_gl_destroy(presenter->gl);
+		presenter->gl = NULL;
+		presenter->host.close(presenter->host.window);
+		presenter->upload_retry = true;
+		animate_gl(presenter, false);
+	}
+}
+
+int
+st_console_bitmap_presenter_frame(struct st_console_bitmap_presenter *presenter, const st_console_t *console,
+    uint32_t output_width, uint32_t output_height, uint32_t now, st_console_bitmap_upload_t upload, void *context,
+    struct st_console_bitmap_frame *frame)
+{
+	if (!presenter || !frame || !output_width || !output_height)
+		return IO_ERROR_INVALID_ARGUMENT;
+	int status = 0;
+	if (console)
+		status = st_console_bitmap_prepare_frame(presenter, console, now);
+	if (status || !presenter->images_valid)
+		return status ? status : IO_ERROR_INVALID_ARGUMENT;
+	enum st_console_scaling_mode mode    = presenter->scaling_mode;
+	st_console_display_t        *display = presenter->display;
+	if (mode == ST_CONSOLE_SCALING_OPENGL && display->backend_ops && display->backend_ops->pull_present)
+		mode = ST_CONSOLE_SCALING_EXTERNAL;
+	if (display->gl_preview)
+		mode = ST_CONSOLE_SCALING_OPENGL;
+	if (mode != ST_CONSOLE_SCALING_OPENGL) {
+		st_console_bitmap_gl_close(presenter);
+		presenter->gl_failed = false;
+		return compose_frame(presenter, mode, output_width, output_height, now, upload, context, frame);
+	}
+	bool select = presenter->gl_revision != display->gl_revision;
+	if (select)
+		presenter->gl_failed = false;
+	presenter->gl_revision = display->gl_revision;
+	if (!presenter->gl_failed && presenter->host.current) {
+		status = presenter->host.current(presenter->host.window, output_width, output_height);
+		if (!status && !presenter->gl) {
+			status                  = st_gl_create(&presenter->gl, &presenter->host);
+			select                  = true;
+			presenter->upload_retry = true;
+		}
+		if (!status && select) {
+			int selected       = st_gl_select(presenter->gl, display->gl_preset);
+			display->gl_status = selected;
+			if (selected) {
+				fprintf(stderr, "OpenGL preset %s could not be loaded (%d)\n", display->gl_preset,
+				    selected);
+				if (display->gl_preview)
+					return selected;
+				(void)st_gl_select(presenter->gl, NULL);
+			}
+		}
+		if (!status)
+			status = compose_frame(presenter, mode, output_width, output_height, now, st_gl_upload,
+			    presenter->gl, frame);
+		if (!status && (frame->changed || select || st_gl_animated(presenter->gl))) {
+			status = st_gl_draw(presenter->gl, &frame->destination, output_width, output_height, now,
+			    presenter->reset_history);
+			if (status && !display->gl_preview && st_gl_animated(presenter->gl)) {
+				fprintf(stderr, "OpenGL preset failed to render (%d), using SyncTERM Blocky\n",
+				    status);
+				status = st_gl_select(presenter->gl, NULL);
+				if (!status)
+					status = st_gl_draw(presenter->gl, &frame->destination, output_width,
+					    output_height, now, false);
+			}
+		}
+		if (!status) {
+			presenter->reset_history = false;
+			animate_gl(presenter, st_gl_animated(presenter->gl));
+			return 0;
+		}
+		if (!presenter->gl)
+			presenter->host.close(presenter->host.window);
+		st_console_bitmap_gl_close(presenter);
+	}
+	if (!presenter->gl_failed) {
+		display->gl_status = status ? status : IO_ERROR_NOT_SUPPORTED;
+		fprintf(stderr, "OpenGL unavailable (%d), using software Blocky scaling\n", display->gl_status);
+	}
+	presenter->gl_failed = true;
+	if (display->gl_preview)
+		return display->gl_status;
+	return compose_frame(presenter, ST_CONSOLE_SCALING_INTERNAL, output_width, output_height, now, upload,
+	    context, frame);
 }
 
 void

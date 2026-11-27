@@ -259,6 +259,7 @@ enum st_console_scaling_mode {
 	ST_CONSOLE_SCALING_INTERNAL,
 	/* Hand the native frame to the host and let it perform final scaling. */
 	ST_CONSOLE_SCALING_EXTERNAL,
+	ST_CONSOLE_SCALING_OPENGL,
 };
 
 enum st_console_backend {
@@ -290,6 +291,8 @@ enum st_console_build_feature {
 	ST_CONSOLE_BUILD_QUARTZ   = UINT32_C(1) << 10,
 	ST_CONSOLE_BUILD_LIBRETRO = UINT32_C(1) << 11,
 	ST_CONSOLE_BUILD_TEST     = UINT32_C(1) << 12,
+	ST_CONSOLE_BUILD_OPENGL   = UINT32_C(1) << 13,
+	ST_CONSOLE_BUILD_SLANG    = UINT32_C(1) << 14,
 };
 
 /* Returns the active backend selected during console creation. */
@@ -513,6 +516,9 @@ int st_console_create(st_console_t **result, const struct st_console_display_con
  * created on it.  Its backend is opened when the first console is created.
  */
 int  st_console_display_create(st_console_display_t **result, const struct st_console_display_config *config);
+/* Select a built-in (empty string, "Pointy" or "Nearest") or an absolute Slang preset.
+ * Validation previews the selection on the window thread and reports failures. */
+int  st_console_display_set_gl_preset(st_console_display_t *display, const char *preset, bool validate);
 void st_console_display_destroy(st_console_display_t *display);
 int  st_console_create_on_display(st_console_t **result, st_console_display_t *display,
     const struct st_console_config *config);

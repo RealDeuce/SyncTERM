@@ -44,6 +44,7 @@ st_app_paths_dispose(struct st_app_paths *paths)
 	free(paths->download_directory);
 	free(paths->keys_file);
 	free(paths->scripts_directory);
+	free(paths->scalers_directory);
 	free(paths->themes_directory);
 	memset(paths, 0, sizeof(*paths));
 }
@@ -91,6 +92,8 @@ st_app_paths_init(struct st_app_paths *paths, const struct st_app_path_overrides
 		if (status == 0)
 			status = replace_path(&value.scripts_directory, overrides->scripts_directory);
 		if (status == 0)
+			status = replace_path(&value.scalers_directory, overrides->scalers_directory);
+		if (status == 0)
 			status = replace_path(&value.themes_directory, overrides->themes_directory);
 		if (status < 0)
 			goto fail;
@@ -102,7 +105,8 @@ st_app_paths_init(struct st_app_paths *paths, const struct st_app_path_overrides
 	if (value.settings_file == NULL || value.personal_list == NULL || value.cache_directory == NULL
 	    || value.rip_data_directory == NULL || value.system_cache_directory == NULL
 	    || value.cached_system_list == NULL || value.download_directory == NULL || value.keys_file == NULL
-	    || value.scripts_directory == NULL || value.themes_directory == NULL) {
+	    || value.scripts_directory == NULL || value.scalers_directory == NULL
+	    || value.themes_directory == NULL) {
 		status = IO_ERROR_OUT_OF_MEMORY;
 		goto fail;
 	}
@@ -160,4 +164,36 @@ st_app_paths_prepare_themes(const struct st_app_paths *paths)
 	if (paths == NULL || paths->themes_directory == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	return fs_create_directories(paths->themes_directory);
+}
+
+int
+st_app_paths_gl_preset(char **result, const struct st_app_paths *paths, const char *selection)
+{
+	if (!result || !paths)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (!selection || !*selection) {
+		*result = NULL;
+		return 0;
+	}
+	if (!strcmp(selection, "Nearest") || !strcmp(selection, "Pointy")) {
+		char *copy = strdup(selection);
+		if (!copy)
+			return IO_ERROR_OUT_OF_MEMORY;
+		*result = copy;
+		return 0;
+	}
+	size_t length = strlen(selection);
+	if (!paths->scalers_directory || length <= 7 || strcmp(selection + length - 7, ".slangp")
+	    || path_is_rooted(selection) || strchr(selection, ':') || strchr(selection, '\\'))
+		return IO_ERROR_INVALID_ARGUMENT;
+	for (const char *component = selection; *component;) {
+		const char *end = strchr(component, '/');
+		size_t      n   = end ? (size_t)(end - component) : strlen(component);
+		if (!n || (n == 1 && component[0] == '.') || (n == 2 && !memcmp(component, "..", 2)))
+			return IO_ERROR_INVALID_ARGUMENT;
+		if (!end)
+			break;
+		component = end + 1;
+	}
+	return path_join_alloc(result, paths->scalers_directory, selection);
 }

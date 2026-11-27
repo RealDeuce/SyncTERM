@@ -220,11 +220,17 @@ schedule_animation_locked(st_console_display_t *display, enum st_console_blink_m
 		display->presentation_blink_mode            = mode;
 		display->presentation_animation_epoch       = now;
 	}
+	elapsed = now - display->presentation_animation_epoch;
+	if (display->gl_animation) {
+		/* Round the next 60 Hz frame boundary up to a whole millisecond. */
+		uint64_t phase = ((elapsed % 1000) * 60) % 1000;
+		display->presentation_animation_deadline = now + (1000 - phase + 59) / 60;
+		return;
+	}
 	if (interval == 0) {
 		display->presentation_animation_deadline = UINT64_MAX;
 		return;
 	}
-	elapsed = now - display->presentation_animation_epoch;
 	display->presentation_animation_deadline =
 	    display->presentation_animation_epoch + (elapsed / interval + 1U) * interval;
 }
@@ -296,8 +302,9 @@ presentation_worker(void *argument)
 					    &display->presentation_mutex);
 				continue;
 			}
-			animate =
-			    display->backend_ops->animated_present && display->presentation_animation_initialized;
+			animate       = display->backend_ops->animated_present
+			                && display->presentation_animation_initialized
+			                && !(display->gl_animation && display->window_hidden);
 			animation_due = animate && now >= display->presentation_animation_deadline;
 			content_due =
 			    display->presentation_requested && now >= display->presentation_retry_deadline;
@@ -414,6 +421,17 @@ stop_presentation_worker(st_console_display_t *display)
 }
 
 void
+st_console_display_set_window_hidden(st_console_display_t *display, bool hidden)
+{
+	(void)st_mutex_lock(&display->presentation_mutex);
+	if (display->window_hidden != hidden) {
+		display->window_hidden = hidden;
+		(void)st_condition_signal(&display->presentation_ready);
+	}
+	(void)st_mutex_unlock(&display->presentation_mutex);
+}
+
+void
 st_console_display_request_repaint(st_console_display_t *display)
 {
 	(void)st_mutex_lock(&display->presentation_mutex);
@@ -472,9 +490,9 @@ create_console(st_console_t **result, st_console_display_t *display, const struc
 	    || config->blink_mode < ST_CONSOLE_BLINK_PC || config->blink_mode > ST_CONSOLE_BLINK_ATARI_ST
 	    || (config->video_flags & ~ST_CONSOLE_VIDEO_FLAGS) != 0
 	    || config->scaling_mode < ST_CONSOLE_SCALING_INTERNAL
-	    || config->scaling_mode > ST_CONSOLE_SCALING_EXTERNAL
+	    || config->scaling_mode > ST_CONSOLE_SCALING_OPENGL
 	    || (config->scaling_policy != ST_PIXEL_SCALING_BLOCKY
-	        && config->scaling_policy != ST_PIXEL_SCALING_POINTY)
+		&& config->scaling_policy != ST_PIXEL_SCALING_POINTY)
 	    || ((config->aspect_width == 0) != (config->aspect_height == 0)))
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (pixel_width != 0
@@ -845,6 +863,41 @@ st_console_display_create(st_console_display_t **result, const struct st_console
 	return 0;
 }
 
+int
+st_console_display_set_gl_preset(st_console_display_t *display, const char *preset, bool validate)
+{
+	if (!display)
+		return IO_ERROR_INVALID_ARGUMENT;
+	char *copy = preset ? strdup(preset) : NULL;
+	if (preset && !copy)
+		return IO_ERROR_OUT_OF_MEMORY;
+	(void)st_mutex_lock(&display->backend_mutex);
+	char *previous     = display->gl_preset;
+	display->gl_preset = copy;
+	++display->gl_revision;
+	int status = 0;
+	if (validate) {
+		display->gl_status  = IO_ERROR_NOT_SUPPORTED;
+		display->gl_preview = true;
+		if (display->window_presenter && display->backend_ops->show_frame)
+			status = display->backend_ops->show_frame(display);
+		display->gl_preview = false;
+		if (!status)
+			status = display->gl_status;
+	}
+	if (status) {
+		display->gl_preset = previous;
+		++display->gl_revision;
+		free(copy);
+		if (display->window_presenter)
+			(void)display->backend_ops->show_frame(display);
+	}
+	else
+		free(previous);
+	(void)st_mutex_unlock(&display->backend_mutex);
+	return status;
+}
+
 void
 st_console_display_destroy(st_console_display_t *display)
 {
@@ -854,6 +907,7 @@ st_console_display_destroy(st_console_display_t *display)
 		fprintf(stderr, "st_console_display_destroy: consoles still attached\n");
 		return;
 	}
+	free(display->gl_preset);
 	st_mutex_destroy(&display->input_mutex);
 	st_mutex_destroy(&display->backend_mutex);
 	st_condition_destroy(&display->presentation_ready);
@@ -930,8 +984,11 @@ apply_console(st_console_display_t *display, st_console_t *console, bool setup)
 	if (status != 0)
 		return status;
 	atomic_store_explicit(&display->active, console, memory_order_release);
-	if (setup)
+	if (setup) {
+		if (display->window_presenter)
+			st_console_bitmap_new_screen(display->window_presenter);
 		st_console_display_reset_animation(display, console->blink_mode, false);
+	}
 	if (setup && display->backend_ops != NULL && display->backend_ops->resize != NULL)
 		status = display->backend_ops->resize(console, console->columns, console->rows);
 	if (status == 0 && setup && display->backend_ops != NULL && display->backend_ops->palette_changed != NULL)
@@ -1050,6 +1107,12 @@ st_console_build_features(void)
 
 #if ST_CONSOLE_TEST
 	result |= ST_CONSOLE_BUILD_TEST;
+#endif
+#if ST_CONSOLE_HAVE_OPENGL
+	result |= ST_CONSOLE_BUILD_OPENGL;
+#endif
+#if ST_CONSOLE_HAVE_SLANG
+	result |= ST_CONSOLE_BUILD_SLANG;
 #endif
 
 #if ST_CONSOLE_HAVE_CURSES_H && ST_CONSOLE_HAVE_CURSES_TIMEOUT
@@ -2032,9 +2095,9 @@ st_console_reconfigure(st_console_t *console, const struct st_console_config *co
 	    || config->blink_mode < ST_CONSOLE_BLINK_PC || config->blink_mode > ST_CONSOLE_BLINK_ATARI_ST
 	    || (config->video_flags & ~ST_CONSOLE_VIDEO_FLAGS) != 0
 	    || config->scaling_mode < ST_CONSOLE_SCALING_INTERNAL
-	    || config->scaling_mode > ST_CONSOLE_SCALING_EXTERNAL
+	    || config->scaling_mode > ST_CONSOLE_SCALING_OPENGL
 	    || (config->scaling_policy != ST_PIXEL_SCALING_BLOCKY
-	        && config->scaling_policy != ST_PIXEL_SCALING_POINTY)
+		&& config->scaling_policy != ST_PIXEL_SCALING_POINTY)
 	    || ((config->aspect_width == 0) != (config->aspect_height == 0)))
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (pixel_width != 0

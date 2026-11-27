@@ -270,7 +270,7 @@ application_paths(struct st_app_paths *paths, const struct st_command_line *comm
     const struct st_application_host *frontend)
 {
 	struct st_app_path_overrides overrides = {0};
-	char                        *files[9]  = {0};
+	char                        *files[10] = {0};
 	int                          status    = 0;
 	const char                  *directory = frontend == NULL ? NULL : frontend->directory;
 #if ST_CONSOLE_TEST
@@ -279,7 +279,7 @@ application_paths(struct st_app_paths *paths, const struct st_command_line *comm
 #endif
 	if (directory != NULL) {
 		const char *names[] = {"syncterm.ini", "syncterm.lst", "shared.lst", "cache", "downloads",
-		    "keys.ini", "scripts", "themes", "RIP"};
+		    "keys.ini", "scripts", "themes", "RIP", "scalers"};
 		for (size_t i = 0; i < sizeof(names) / sizeof(*names) && status == 0; ++i)
 			status = path_join_alloc(&files[i], directory, names[i]);
 		overrides = (struct st_app_path_overrides) {
@@ -292,6 +292,7 @@ application_paths(struct st_app_paths *paths, const struct st_command_line *comm
 		    .scripts_directory  = files[6],
 		    .themes_directory   = files[7],
 		    .rip_data_directory = files[8],
+		    .scalers_directory  = files[9],
 		};
 	}
 	if (command->settings_path != NULL)
@@ -1454,6 +1455,16 @@ run_application(int argc, char **argv, const struct st_application_host *fronten
 		display_config.backend = ST_CONSOLE_BACKEND_WIN32;
 	display_config.icon = &st_syncterm_icon;
 	status              = st_console_display_create(&display, &display_config);
+	if (!status && st_settings.opengl_scaling) {
+		char *preset   = NULL;
+		int   resolved = st_app_paths_gl_preset(&preset, &paths, st_settings.gl_preset);
+		if (resolved)
+			fprintf(stderr, "Invalid OpenGL preset %s, using SyncTERM Blocky\n",
+			    st_settings.gl_preset);
+		else
+			status = st_console_display_set_gl_preset(display, preset, false);
+		free(preset);
+	}
 	if (status == 0)
 		status = st_console_create_on_display(&console, display, &startup.config);
 	if (status != 0) {

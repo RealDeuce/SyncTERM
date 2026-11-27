@@ -484,6 +484,7 @@ int main(void) { return fcntl(1, F_SETNOSIGPIPE, 1); }
 	endif()
 endif()
 include("${CMAKE_CURRENT_LIST_DIR}/../../cmake/SynctermConsoleDependencies.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/../../cmake/SynctermConsoleOpenGL.cmake")
 configure_file(console_config.h.in console_config.h @ONLY)
 configure_file(st_console_test_config.h.in include/st_console_test_config.h @ONLY)
 
@@ -555,6 +556,8 @@ set(_st_console_sources
 	console_pixels.c
 	console_raster_view.c
 	console_bitmap.c
+	console_gl.c
+	console_slang.c
 	console_libretro.c
 	console_ansi.c
 	console_curses_locale.c
@@ -864,6 +867,26 @@ if(BUILD_TESTING)
 		st_console_warnings(st_console_${test}_test)
 		add_test(NAME st_console_${test} COMMAND st_console_${test}_test)
 	endforeach()
+	if(ST_CONSOLE_HAVE_OPENGL)
+		add_executable(st_console_gl_window_test tests/st_console_gl_window_test.c)
+		if(TARGET st_console_main)
+			target_link_libraries(st_console_gl_window_test PRIVATE st_console_main)
+		else()
+			target_link_libraries(st_console_gl_window_test PRIVATE st_console)
+		endif()
+		set_target_properties(st_console_gl_window_test PROPERTIES
+			C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		st_console_warnings(st_console_gl_window_test)
+		foreach(pair "sdl|SDL_GL" "wayland|WAYLAND_EGL" "gdi|WGL" "quartz|NSOPENGL")
+			string(REPLACE "|" ";" fields "${pair}")
+			list(GET fields 0 backend)
+			list(GET fields 1 api)
+			if(ST_CONSOLE_HAVE_${api})
+				add_test(NAME st_console_${backend}_opengl COMMAND st_console_gl_window_test ${backend})
+				set_tests_properties(st_console_${backend}_opengl PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 30)
+			endif()
+		endforeach()
+	endif()
 	add_executable(st_console_libretro_test tests/st_console_libretro_test.c)
 	target_link_libraries(st_console_libretro_test PRIVATE st_console)
 	set_target_properties(st_console_libretro_test PROPERTIES
@@ -948,6 +971,18 @@ if(BUILD_TESTING)
 		set_tests_properties(st_console_x11 PROPERTIES
 			SKIP_RETURN_CODE 77
 			TIMEOUT 20)
+		if(ST_CONSOLE_HAVE_GLX)
+			add_test(NAME st_console_x11_opengl COMMAND st_console_x11_test --gl-pixels)
+			add_test(NAME st_console_x11_pointy COMMAND st_console_x11_test --gl-preset Pointy)
+			set_tests_properties(st_console_x11_opengl st_console_x11_pointy PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 30)
+			if(ST_CONSOLE_HAVE_SLANG)
+				add_test(NAME st_console_x11_slang COMMAND st_console_x11_test --gl-preset
+					"${CMAKE_CURRENT_SOURCE_DIR}/tests/slang/crt/test.slangp")
+				add_test(NAME st_console_x11_slang_animation COMMAND st_console_x11_test --gl-animate
+					"${CMAKE_CURRENT_SOURCE_DIR}/tests/slang/frame.slangp")
+				set_tests_properties(st_console_x11_slang st_console_x11_slang_animation PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 60)
+			endif()
+		endif()
 		if(ST_CONSOLE_HAVE_XRENDER)
 			add_test(NAME st_console_x11_xrender
 				COMMAND st_console_x11_test --xrender-pixels)
@@ -965,6 +1000,9 @@ if(BUILD_TESTING)
 		target_link_libraries(st_console_wayland_internal_test PRIVATE
 			st_console syncterm_array_list syncterm_dynamic_library
 			st_time)
+		if(ST_CONSOLE_HAVE_WAYLAND_EGL)
+			target_link_libraries(st_console_wayland_internal_test PRIVATE PkgConfig::ST_GL_EGL)
+		endif()
 		syncterm_target_atomics(st_console_wayland_internal_test)
 		set_target_properties(st_console_wayland_internal_test PROPERTIES
 			C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
@@ -1046,6 +1084,8 @@ endif()
 include("${CMAKE_CURRENT_LIST_DIR}/../../cmake/SynctermBuildFeatures.cmake")
 syncterm_export_configuration(st_console
 	ST_CONSOLE_TEST
+	ST_CONSOLE_HAVE_OPENGL
+	ST_CONSOLE_HAVE_SLANG
 	ST_CONSOLE_HAVE_SDL
 	ST_CONSOLE_HAVE_X11
 	ST_CONSOLE_HAVE_XINERAMA

@@ -1,0 +1,9 @@
+shaders = 2
+shader0 = blurs/swap.slang
+filter_linear0 = false
+shader1 = blurs/swap.slang
+filter_linear1 = false
+textures = TestMask
+TestMask = include/white.png
+TestMask_wrap_mode = clamp_to_edge
+TestMask_linear = false

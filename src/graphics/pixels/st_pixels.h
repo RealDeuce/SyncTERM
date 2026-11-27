@@ -9,6 +9,7 @@
 #define ST_PIXELS_H_
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 struct st_pixel_buffer {
@@ -44,6 +45,15 @@ enum st_pixel_scaling_policy {
 	ST_PIXEL_SCALING_BLOCKY,
 	ST_PIXEL_SCALING_POINTY,
 };
+
+/* Integer passes applied before Pointy's final fractional interpolation.
+ * A uint32_t scale can contain at most 31 factors of two. */
+struct st_pointy_plan {
+	uint32_t repeat_x, repeat_y;
+	uint32_t factors[32];
+	size_t   count;
+};
+struct st_pointy_plan st_pixel_pointy_plan(uint32_t x_multiplier, uint32_t y_multiplier);
 
 struct st_pixel_rect {
 	uint32_t x;
