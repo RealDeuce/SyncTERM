@@ -35,6 +35,7 @@ struct st_ddofx {
 	char                     music_name[ST_DDOFX_BODY_MAX + 1];
 	char                     resource_prefix[12];
 	struct st_tracker       *player;
+	struct st_cmf           *cmf;
 	unsigned                 volume;
 	bool                     ignoring, background_paused, in_event;
 };

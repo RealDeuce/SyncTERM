@@ -1,0 +1,10 @@
+# Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
+add_library(st_cmf STATIC st_cmf.c)
+target_include_directories(st_cmf PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(st_cmf PUBLIC st_audio PRIVATE st_music st_opl2 syncterm_filesystem)
+set_target_properties(st_cmf PROPERTIES C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+if(MSVC)
+	target_compile_options(st_cmf PRIVATE /W4)
+else()
+	target_compile_options(st_cmf PRIVATE -Wall -Wextra -Wpedantic)
+endif()

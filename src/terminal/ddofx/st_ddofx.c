@@ -7,6 +7,7 @@
 
 #include "filesystem.h"
 #include "io_error.h"
+#include "st_cmf.h"
 #include "st_ddofx_resource.h"
 #include "st_ddofx_samples.h"
 #include "st_ddofx_script.h"
@@ -93,7 +94,7 @@ st_ddofx_builtin(const struct st_ddofx *ddo, const struct st_ddofx_sink *sink, c
 	if (!ascii_case_compare(name, "LITERM"))
 		strcpy(result, "LITERM Ver. 2.00");
 	else if (!ascii_case_compare(name, "GETMUSIC"))
-		strcpy(result, ddo->player == NULL ? "NONE" : ddo->music_name);
+		strcpy(result, *ddo->music_name ? ddo->music_name : "NONE");
 	else if (!ascii_case_compare(name, "GETTHEME"))
 		strcpy(result, st_ddofx_theme_name(ddo));
 	else if (!ascii_case_compare(name, "MUSICON") || !ascii_case_compare(name, "SOUNDON"))
@@ -121,12 +122,20 @@ st_ddofx_builtin(const struct st_ddofx *ddo, const struct st_ddofx_sink *sink, c
 }
 
 static void
+stop_music(struct st_ddofx *ddo)
+{
+	st_tracker_destroy(ddo->player);
+	ddo->player = NULL;
+	st_cmf_destroy(ddo->cmf);
+	ddo->cmf           = NULL;
+	ddo->music_name[0] = 0;
+}
+
+static void
 music(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, const char *filename)
 {
 	if (ascii_case_compare(filename, "NONE") == 0) {
-		st_tracker_destroy(ddo->player);
-		ddo->player        = NULL;
-		ddo->music_name[0] = 0;
+		stop_music(ddo);
 		return;
 	}
 	if (!st_audio_runtime_is_pull(sink->audio) && st_audio_runtime_allowed(sink->audio) == 0)
@@ -134,10 +143,21 @@ music(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, const char *filena
 	FILE *file = sink->open_asset(sink->context, "MUSIC", NULL, filename);
 	if (file == NULL)
 		return;
-	struct st_tracker *next = st_tracker_play(sink->audio, file, ddo->volume);
+	uint8_t signature[4];
+	bool    cmf =
+	    fread(signature, 1, sizeof(signature), file) == sizeof(signature) && !memcmp(signature, "CTMF", 4);
+	struct st_cmf     *fm   = NULL;
+	struct st_tracker *next = NULL;
+	if (fs_stream_seek(file, 0) == 0) {
+		if (cmf)
+			fm = st_cmf_play(sink->audio, file);
+		else
+			next = st_tracker_play(sink->audio, file, ddo->volume);
+	}
 	fclose(file);
-	if (next != NULL) {
-		st_tracker_destroy(ddo->player);
+	if (next != NULL || fm != NULL) {
+		stop_music(ddo);
+		ddo->cmf    = fm;
 		ddo->player = next;
 		memcpy(ddo->music_name, filename, strlen(filename) + 1);
 	}
@@ -150,7 +170,7 @@ st_ddofx_reset(struct st_ddofx *ddo)
 	free(ddo->events);
 	st_ddofx_samples_destroy(ddo);
 	st_ddofx_script_destroy(ddo);
-	st_tracker_destroy(ddo->player);
+	stop_music(ddo);
 	*ddo = (struct st_ddofx) {.volume = 64};
 }
 
@@ -216,6 +236,8 @@ execute(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *body)
 		if (st_ddofx_number(ddo, body + 1, &ticks) && ticks > 0 && st_time_monotonic_ms(&now) == 0)
 			ddo->wait_until = now + ((uint64_t)ticks * 1000 + 17) / 18;
 	}
+	else if (matches(body, "MICMF"))
+		st_ddofx_query_reply(ddo, sink, ddo->cmf ? "Y" : "N", false);
 	else if (matches(body, "MMPR"))
 		st_tracker_toggle_pause(ddo->player);
 	else if (matches(body, "MGVOL")) {

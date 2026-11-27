@@ -14,6 +14,10 @@ ddofx-audio)
 	test "$(dd bs=1 count=4 2>/dev/null | od -An -tx1 | tr -d ' \n')" = 594553ff
 	printf '\035{MPREAL,ramp.rlp,44100}!'
 	dd bs=1 count=1 >/dev/null 2>&1
+	printf '\035{mtone.dat}\035{MICMF}'
+	test "$(dd bs=1 count=2 2>/dev/null | od -An -tx1 | tr -d ' \n')" = 59ff
+	printf '!'
+	dd bs=1 count=1 >/dev/null 2>&1
 	;;
 auto-transfer)
 	stty raw -echo

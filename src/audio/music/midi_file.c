@@ -29,7 +29,7 @@ struct st_midi_file {
 	FILE                *stream;
 	struct track        *tracks;
 	size_t              *heap, count, heap_count;
-	uint16_t             division;
+	uint16_t             division, ticks_per_second;
 	uint64_t             tick, time, remainder;
 	uint32_t             tempo;
 	uint8_t              short_bytes[3], *payload;
@@ -133,6 +133,12 @@ peek(struct st_midi_file *f, struct track *t)
 		return 0;
 	}
 	t->status = 0;
+	/* Creative tracks also use the MIDI Stop byte as an end marker. */
+	if (f->ticks_per_second && c == 0xfc) {
+		t->kind = META;
+		t->pos  = t->end;
+		return 0;
+	}
 	if (c == 0xff) {
 		int type = byte(f, t);
 		if (type < 0 || vlq(f, t, &t->length) != 0 || t->length > (uint64_t)(t->end - t->pos))
@@ -216,7 +222,11 @@ static int
 advance(struct st_midi_file *f, uint64_t tick)
 {
 	uint64_t numerator, divisor;
-	if (f->division & 0x8000) {
+	if (f->ticks_per_second) {
+		numerator = UINT64_C(1000000000);
+		divisor   = f->ticks_per_second;
+	}
+	else if (f->division & 0x8000) {
 		unsigned fps = 256 - (f->division >> 8);
 		numerator    = fps == 29 ? UINT64_C(1001000000000) : UINT64_C(1000000000);
 		divisor      = (fps == 29 ? 30000 : fps) * (f->division & 255);
@@ -337,6 +347,44 @@ st_midi_file_close(struct st_midi_file *f)
 	free(f);
 }
 
+static struct st_midi_file *
+allocate_file(FILE *stream, size_t count)
+{
+	struct st_midi_file *f = calloc(1, sizeof(*f));
+	if (f == NULL)
+		return NULL;
+	f->stream = stream;
+	f->count  = count;
+	f->budget = ST_MUSIC_STORAGE_LIMIT / 2 - count * (sizeof(*f->tracks) + sizeof(*f->heap));
+	f->tracks = calloc(count, sizeof(*f->tracks));
+	f->heap   = malloc(count * sizeof(*f->heap));
+	if (f->tracks == NULL || f->heap == NULL) {
+		st_midi_file_close(f);
+		return NULL;
+	}
+	return f;
+}
+
+int
+st_midi_track_open(struct st_midi_file **result, FILE *stream, int64_t start, int64_t end,
+    uint16_t ticks_per_second)
+{
+	if (start < 0 || end <= start || ticks_per_second == 0)
+		return IO_ERROR_INVALID_FORMAT;
+	struct st_midi_file *f = allocate_file(stream, 1);
+	if (f == NULL)
+		return IO_ERROR_OUT_OF_MEMORY;
+	f->ticks_per_second = ticks_per_second;
+	f->tracks[0].start  = start;
+	f->tracks[0].end    = end;
+	int status          = rewind_file(f);
+	if (status != 0)
+		st_midi_file_close(f);
+	else
+		*result = f;
+	return status;
+}
+
 int
 st_midi_file_open(struct st_midi_file **result, FILE *stream, bool (*cancelled)(void *), void *context)
 {
@@ -383,21 +431,12 @@ st_midi_file_open(struct st_midi_file **result, FILE *stream, bool (*cancelled)(
 		if ((division & 255) == 0 || (fps != 24 && fps != 25 && fps != 29 && fps != 30))
 			return status;
 	}
-	f = calloc(1, sizeof(*f));
+	f = allocate_file(stream, count);
 	if (f == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
-	f->count     = count;
-	f->stream    = stream;
 	f->division  = division;
 	f->cancelled = cancelled;
 	f->context   = context;
-	f->budget    = ST_MUSIC_STORAGE_LIMIT / 2 - count * (sizeof(*f->tracks) + sizeof(*f->heap));
-	f->tracks    = calloc(count, sizeof(*f->tracks));
-	f->heap      = malloc(count * sizeof(*f->heap));
-	if (f->tracks == NULL || f->heap == NULL) {
-		status = IO_ERROR_OUT_OF_MEMORY;
-		goto failed;
-	}
 	start += 8 + len;
 	for (size_t i = 0; i < count;) {
 		if (cancelled != NULL && cancelled(context)) {

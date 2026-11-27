@@ -14,6 +14,22 @@
 		}                                                  \
 	} while (0)
 
+static int
+wait_for_marker(st_term_session_t *session, int column)
+{
+	struct st_cterm_state state;
+	uint64_t              now, start;
+	CHECK(st_time_monotonic_ms(&start) == 0);
+	do {
+		enum st_term_disposition disposition;
+		bool                     finished;
+		CHECK(st_term_session_pump(session, &disposition, &finished) == 0 && !finished);
+		CHECK(st_cterm_state(st_term_session_cterm(session), &state) == 0);
+		CHECK(st_time_monotonic_ms(&now) == 0 && now - start < 5000);
+	} while (state.x != column);
+	return EXIT_SUCCESS;
+}
+
 int
 main(int argc, char **argv)
 {
@@ -44,16 +60,7 @@ main(int argc, char **argv)
 	    .ddofx_directory = argv[1],
 	};
 	CHECK(st_term_session_create(&session, &config) == 0);
-	struct st_cterm_state state;
-	uint64_t              now, start;
-	CHECK(st_time_monotonic_ms(&start) == 0);
-	do {
-		enum st_term_disposition disposition;
-		bool                     finished;
-		CHECK(st_term_session_pump(session, &disposition, &finished) == 0 && !finished);
-		CHECK(st_cterm_state(st_term_session_cterm(session), &state) == 0);
-		CHECK(st_time_monotonic_ms(&now) == 0 && now - start < 5000);
-	} while (state.x != 2);
+	CHECK(wait_for_marker(session, 2) == 0);
 
 	/* The peer sends its marker only after a successful query and the play
 	 * request. RAMP.RLP contains the ten ASCII digits followed by LF. */
@@ -66,6 +73,19 @@ main(int argc, char **argv)
 			CHECK(pcm[i * 2] > pcm[i * 2 - 2]);
 	}
 	CHECK(pcm[20] > 0 && pcm[20] < pcm[0] && pcm[22] == 0 && pcm[23] == 0);
+
+	CHECK(st_term_session_send_text(session, ".", 1) == 0);
+	CHECK(wait_for_marker(session, 3) == 0);
+	/* TONE.DAT has a CMF header and a single A4 with a 1x carrier. */
+	int16_t tone[4410 * 2];
+	CHECK(st_audio_runtime_pull(audio, tone, 4410) == 0);
+	unsigned cycles = 0;
+	for (unsigned i = 1; i < 4410; ++i) {
+		CHECK(tone[2 * i] == tone[2 * i + 1]);
+		if (tone[2 * i - 2] <= 0 && tone[2 * i] > 0)
+			++cycles;
+	}
+	CHECK(cycles >= 43 && cycles <= 45);
 
 	st_term_session_destroy(&session);
 	CHECK(st_connection_close(connection) == 0);

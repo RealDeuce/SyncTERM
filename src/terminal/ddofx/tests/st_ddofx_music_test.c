@@ -130,6 +130,26 @@ open_music(void *context, const char *category, const char *client, const char *
 		make_s3m(data);
 		size = 448;
 	}
+	else if (!strcmp(name, "FM") || !strcmp(name, "DRUM") || !strcmp(name, "DAMAGED")) {
+		bool drum = !strcmp(name, "DRUM");
+		memcpy(data, "CTMF", 4);
+		data[4]                    = !drum;
+		data[5]                    = 1;
+		data[6]                    = 40;
+		data[8]                    = 56;
+		data[10]                   = 48;
+		data[12]                   = 100;
+		data[20 + (drum ? 11 : 0)] = 1;
+		data[36]                   = 1;
+		const uint8_t patch[]      = {0x21, 0x21, 0x3f, 0, 0xf3, 0xf3, 0x05, 0x05};
+		memcpy(data + 40, patch, sizeof(patch));
+		const uint8_t melody[] = {0, 0xc0, 0, 10, 0x90, 69, 127, 5, 69, 0, 5, 0xff, 0x2f, 0};
+		const uint8_t drums[]  = {0, 0xb0, 103, 1, 0, 0xcb, 0, 0, 0x9b, 48, 110, 4, 0x8b, 48, 0, 1, 0xfc};
+		memcpy(data + 56, drum ? drums : melody, drum ? sizeof(drums) : sizeof(melody));
+		size = 56 + (drum ? sizeof(drums) : sizeof(melody));
+		if (!strcmp(name, "DAMAGED"))
+			size -= 2;
+	}
 	else
 		return NULL;
 	FILE *file = tmpfile();
@@ -280,6 +300,40 @@ check_samples(struct st_ddofx *ddo, struct st_ddofx_sink *sink)
 	return 0;
 }
 
+static int
+check_cmf(struct st_ddofx *ddo, struct st_ddofx_sink *sink)
+{
+	CHECK(command_reply(ddo, sink, "MICMF", "N\xff"));
+	CHECK(command_reply(ddo, sink, "mFM", ""));
+	CHECK(command_reply(ddo, sink, "MICMF", "Y\xff"));
+	CHECK(command_reply(ddo, sink, "dGETMUSIC", "FM\xff"));
+	CHECK(command_reply(ddo, sink, "MSVOL,0", ""));
+	CHECK(command_reply(ddo, sink, "MMPR", ""));
+	/* Ten ticks at 100 Hz before the note, then a 20-tick loop. */
+	int16_t pcm[8820 * 2], repeat[8820 * 2];
+	CHECK(st_audio_runtime_pull(sink->audio, pcm, 8820) == 0);
+	bool sounded = false;
+	for (size_t i = 0; i < 8820; ++i) {
+		CHECK(pcm[2 * i] == pcm[2 * i + 1]);
+		if (i < 4410)
+			CHECK(pcm[2 * i] == 0);
+		else if (pcm[2 * i] > 100 || pcm[2 * i] < -100)
+			sounded = true;
+	}
+	CHECK(sounded);
+	CHECK(command_reply(ddo, sink, "mDAMAGED", ""));
+	CHECK(command_reply(ddo, sink, "dGETMUSIC", "FM\xff"));
+	CHECK(st_audio_runtime_pull(sink->audio, repeat, 8820) == 0 && !memcmp(pcm, repeat, sizeof(pcm)));
+	CHECK(command_reply(ddo, sink, "mDRUM", ""));
+	CHECK(command_reply(ddo, sink, "dGETMUSIC", "DRUM\xff"));
+	CHECK(has_signal(sink->audio));
+	CHECK(command_reply(ddo, sink, "mA", ""));
+	CHECK(command_reply(ddo, sink, "MICMF", "N\xff"));
+	CHECK(command_reply(ddo, sink, "mNONE", ""));
+	CHECK(!has_signal(sink->audio));
+	return 0;
+}
+
 int
 main(void)
 {
@@ -309,6 +363,7 @@ main(void)
 	CHECK(command_reply(&ddo, &sink, "mNONE", ""));
 	CHECK(!has_signal(sink.audio));
 	CHECK(command_reply(&ddo, &sink, "dGETMUSIC", "NONE\xff"));
+	CHECK(check_cmf(&ddo, &sink) == 0);
 	CHECK(check_samples(&ddo, &sink) == 0);
 	CHECK(command_reply(&ddo, &sink, "MPREAL,LONG.RLP,8000", ""));
 	CHECK(command_reply(&ddo, &sink, "mB", ""));

@@ -18,6 +18,10 @@ struct st_midi_event {
 
 /* Borrows FILE; validates all event lengths and times before success. */
 int st_midi_file_open(struct st_midi_file **result, FILE *stream, bool (*cancelled)(void *), void *context);
+/* Borrow a single MIDI track with an external fixed tick clock (CMF).
+ * The caller consumes and checks next() through the end before playback. */
+int st_midi_track_open(struct st_midi_file **result, FILE *stream, int64_t start, int64_t end,
+    uint16_t ticks_per_second);
 /* Returns 0 for an event, 1 at the end (time_ns is the song duration),
  * or a negative IO_ERROR. Meta events are interpreted or skipped. */
 int  st_midi_file_next(struct st_midi_file *file, struct st_midi_event *event);
