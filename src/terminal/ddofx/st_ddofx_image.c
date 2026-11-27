@@ -255,7 +255,8 @@ st_ddofx_gadget_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, 
 	    .damage = {WIDTH, -1, HEIGHT, -1}
         };
 	if (st_ddofx_list_command(ddo, verb, args) || st_ddofx_text_field_command(ddo, sink, verb, args) || st_ddofx_choice_command(ddo, verb, args) || st_ddofx_marquee_command(ddo, sink, verb, args)
-	    || st_ddofx_clock_command(ddo, sink, verb, args) || st_ddofx_movie_command(ddo, sink, verb, args))
+	    || st_ddofx_clock_command(ddo, sink, verb, args) || st_ddofx_movie_command(ddo, sink, verb, args)
+	    || st_ddofx_landscape_command(ddo, sink, verb, args))
 		return;
 	if (!ascii_case_compare(verb, "5CPUSHB")) {
 		st_ddofx_define_button(ddo, args);

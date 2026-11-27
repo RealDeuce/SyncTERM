@@ -48,6 +48,8 @@ Desktop hover fields use a separate table of 300 slots. The highest matching slo
 
 The host can load either MPT pointer format from the assigned M resource. A selected image keeps its own hotspot and AND/XOR masks when the BBS replaces or clears its list entry. The bitmap presenter applies those masks to the displayed palette indices, leaving the graphics pages available for capture and copying under the pointer. The 100 static slots and 100 animation profiles support one-shot, looping and oscillating playback.
 
+The Normal-mode desktop landscape accepts a seed or a 255 × 255 indexed map from the visual or work page. The lower-left map pixel is world coordinate (0,0). The camera has 256 positions on each axis, so an imported map wraps its extra row and column to the opposite edge. The BBS can set or adjust the camera, query its position and direction, and fly over the terrain in a 320 × 200 viewport. Clouds have their own placement. The last frame stays visible when flight stops. Window ownership and sprite animation profiles are tracked separately below.
+
 Normal mode supports a tile map of up to 150 × 150 cells. The host can fill either layer, move the viewport, move or remove foreground tiles, and animate consecutive sprite frames. Grid assignments become visible on a draw. Movement redraws immediately.
 
 Loose-file queries read the entry’s `DDOFX/MUSIC`, `DDOFX/FONTS`, and `DDOFX/BBSTHEME` directories. Professional queries use `DDOFX/TERMS/<client>`. Names use DOS-style case matching. The timestamp is local modification time with DOS two-second precision. `8EXEC` consumes the command without starting a program.
@@ -373,32 +375,32 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 10772 | PAUSE TEXT CLOCK | DDO-FX (NM) | Connected |
 | 10782 | UNPAUSE TEXT CLOCK | DDO-FX (NM) | Connected |
 | 10794 | KILL TEXT CLOCK | DDO-FX (NM) | Connected |
-| 10806 | CREATE VIRTUAL LANDSCAPE | DDO-FX (NM) | Pending |
-| 10890 | VR CLOUDS | DDO-FX (NM) | Pending |
-| 10911 | VR SKY | DDO-FX (NM) | Pending |
-| 10925 | VR LAND POSITION | DDO-FX (NM) | Pending |
-| 10935 | VR CLOUD POSITION | DDO-FX (NM) | Pending |
-| 10942 | VR DRAW MAP | DDO-FX (NM) | Pending |
-| 10976 | VR DRAW MAP ON WORK PAGE | DDO-FX (NM) | Pending |
-| 10984 | VR GET MAP | DDO-FX (NM) | Pending |
-| 11005 | VR GET MAP ON WORK PAGE | DDO-FX (NM) | Pending |
-| 11012 | VR CHANGE SPEED | DDO-FX (NM) | Pending |
-| 11026 | VR CHANGE DIRECTION | DDO-FX (NM) | Pending |
-| 11036 | VR CHANGE X | DDO-FX (NM) | Pending |
-| 11046 | VR CHANGE Y | DDO-FX (NM) | Pending |
-| 11056 | VR CHANGE Z | DDO-FX (NM) | Pending |
-| 11066 | VR CHANGE DETAIL | DDO-FX (NM) | Pending |
-| 11079 | VR MODIFY SPEED | DDO-FX (NM) | Pending |
-| 11093 | VR MODIFY DIRECTION | DDO-FX (NM) | Pending |
-| 11100 | VR MODIFY X | DDO-FX (NM) | Pending |
-| 11107 | VR MODIFY Y | DDO-FX (NM) | Pending |
-| 11114 | VR MODIFY Z | DDO-FX (NM) | Pending |
-| 11121 | VR MODIFY DETAIL | DDO-FX (NM) | Pending |
-| 11128 | VR GET USER X | DDO-FX (NM) | Pending |
-| 11138 | VR GET USER Y | DDO-FX (NM) | Pending |
-| 11148 | VR GET USER Z | DDO-FX (NM) | Pending |
-| 11158 | VR GET USER DIRECTION | DDO-FX (NM) | Pending |
-| 11167 | VR ANIMATE | DDO-FX (NM) | Pending |
+| 10806 | CREATE VIRTUAL LANDSCAPE | DDO-FX (NM) | Connected on the desktop |
+| 10890 | VR CLOUDS | DDO-FX (NM) | Connected on the desktop |
+| 10911 | VR SKY | DDO-FX (NM) | Connected on the desktop |
+| 10925 | VR LAND POSITION | DDO-FX (NM) | Connected on the desktop |
+| 10935 | VR CLOUD POSITION | DDO-FX (NM) | Connected on the desktop |
+| 10942 | VR DRAW MAP | DDO-FX (NM) | Connected on the desktop |
+| 10976 | VR DRAW MAP ON WORK PAGE | DDO-FX (NM) | Connected on the desktop |
+| 10984 | VR GET MAP | DDO-FX (NM) | Connected on the desktop |
+| 11005 | VR GET MAP ON WORK PAGE | DDO-FX (NM) | Connected on the desktop |
+| 11012 | VR CHANGE SPEED | DDO-FX (NM) | Connected on the desktop |
+| 11026 | VR CHANGE DIRECTION | DDO-FX (NM) | Connected on the desktop |
+| 11036 | VR CHANGE X | DDO-FX (NM) | Connected on the desktop |
+| 11046 | VR CHANGE Y | DDO-FX (NM) | Connected on the desktop |
+| 11056 | VR CHANGE Z | DDO-FX (NM) | Connected on the desktop |
+| 11066 | VR CHANGE DETAIL | DDO-FX (NM) | Connected on the desktop |
+| 11079 | VR MODIFY SPEED | DDO-FX (NM) | Connected on the desktop |
+| 11093 | VR MODIFY DIRECTION | DDO-FX (NM) | Connected on the desktop |
+| 11100 | VR MODIFY X | DDO-FX (NM) | Connected on the desktop |
+| 11107 | VR MODIFY Y | DDO-FX (NM) | Connected on the desktop |
+| 11114 | VR MODIFY Z | DDO-FX (NM) | Connected on the desktop |
+| 11121 | VR MODIFY DETAIL | DDO-FX (NM) | Connected on the desktop |
+| 11128 | VR GET USER X | DDO-FX (NM) | Connected on the desktop |
+| 11138 | VR GET USER Y | DDO-FX (NM) | Connected on the desktop |
+| 11148 | VR GET USER Z | DDO-FX (NM) | Connected on the desktop |
+| 11158 | VR GET USER DIRECTION | DDO-FX (NM) | Connected on the desktop |
+| 11167 | VR ANIMATE | DDO-FX (NM) | Connected on the desktop |
 | 11176 | RC 3D RAYCASTING ENGINE | DDO-FX (NM) | Pending |
 | 11262 | RC 3D SCALE | DDO-FX (NM) | Pending |
 | 11291 | RC 3D MAZE GENERATOR | DDO-FX (NM) | Pending |

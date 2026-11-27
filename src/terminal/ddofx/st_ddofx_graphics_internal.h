@@ -70,6 +70,7 @@ struct st_ddofx_graphics {
 	struct st_ddofx_grid   *grid;
 	struct st_ddofx_marquees *marquees;
 	struct st_ddofx_clocks *clocks;
+	struct st_ddofx_landscape *landscape;
 	struct st_ddofx_movies *movies;
 	unsigned animator_divisor;
 	int cell_width, cell_height;
@@ -123,6 +124,7 @@ void st_ddofx_paint_vga_string(struct st_ddofx_graphics *g, const struct st_pixe
     unsigned length, int x, int bottom, unsigned ink, unsigned paper, const struct bounds *clip);
 void st_ddofx_repaint_clocks(struct st_ddofx *, const struct st_pixel_buffer *, const struct st_console_rect *);
 void st_ddofx_clear_movies(struct st_ddofx_graphics *);
+bool st_ddofx_landscape_command(struct st_ddofx *, const struct st_ddofx_sink *, const char *, char *);
 bool st_ddofx_movie_command(struct st_ddofx *, const struct st_ddofx_sink *, const char *, char *);
 void st_ddofx_movie_resolution(struct st_ddofx_graphics *, unsigned);
 void st_ddofx_repaint_marquees(struct st_ddofx *, const struct st_pixel_buffer *, const struct st_console_rect *);

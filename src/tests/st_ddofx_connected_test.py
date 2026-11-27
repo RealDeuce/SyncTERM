@@ -3,6 +3,7 @@
 import argparse
 from binascii import crc_hqx
 import os
+import re
 import struct
 import time
 import zipfile
@@ -428,6 +429,58 @@ def check_text_scale(t, root):
                         b"1SCALE,8,16", b"fIBMSTD.FNT"), b"13\xff")
 
 
+def check_landscape(t):
+    t.case("landscape camera, seeded maps, page exchange and background flight")
+    queries = (b"5LGX", b"5LGY", b"5LGZ", b"5LGD")
+    t.exchange(commands(b"2RESET", *queries), b"0\xff0\xff100\xff0\xff")
+    t.exchange(commands(b"5LCX,254", b"5LCY,1", b"5LCZ,20", b"5LCDIR,0", b"5LMX,3",
+                        b"5LMY,-3", b"5LMZ,-22", b"5LMDIR,-90", *queries), b"1\xff254\xff0\xff270\xff")
+    t.exchange(commands(b"5LCZ,98", b"5LMZ,3", b"5LCDIR,360", b"5LCX,256",
+                        b"~DEFVAR,2,2,0", b"~VARCAP,2", b"5LGZ", b"~VARCAP,0",
+                        b"5LCY,DEFVAR2", *queries), b"1\xff100\xff100\xff0\xff")
+
+    def seeded(seed):
+        frame = t.exchange(commands(b"5CLAND," + seed, b"5LDMAP,385,479"))
+        return frame.primary[225*640+385:226*640]
+
+    first = seeded(b"912345")
+    assert len(set(first)) > 8 and first == seeded(b"912345") and first != seeded(b"912346")
+    assert seeded(b"0") != seeded(b"0")
+
+    # Import with the map origin at the lower left, then export at the far edge.
+    t.exchange(commands(b"2RESET", b"2C,41", b"2aFILL", b"2C,152", b"2aP,0,254",
+                        b"2C,136", b"2aP,254,0", b"5LGMAPWP,0,254", b"2C,57", b"2aFILL",
+                        b"2CPYWP2VP", b"5LDMAP,385,479", b"5LGMAP,385,479", b"5LDMAPWP,0,254",
+                        b"2aG,0,254", b"2aG,254,0", b"2aG,100,100", b"2aG,255,100"),
+               b"152\xff136\xff41\xff57\xff")
+    # A flat map has one terrain index. Its reflected clouds cover only the
+    # upper part of a second viewport, preserving the background between them.
+    t.exchange(commands(b"2C,41", b"2aFILL", b"5LGMAPWP,0,254", b"2C,57", b"2aFILL",
+                        b"2CPYWP2VP", b"5LLPOS,0,479", b"5LCPOS,320,199", b"5LSKY,75",
+                        b"5LCLOUD,1", b"5LCD,1", b"5LMD,2", b"~PAUSEBAK", b"5LANIM,1"))
+    assert t.exchange().primary[-640] == 57
+    t.send(commands(b"~UNPAUSEBAK"))
+    frame = t.client.wait_for(lambda f: f.primary[-640] == 41)
+    for plane in (frame.primary, frame.alternate):
+        assert plane[280*640] == 75 and plane[279*640] == 57
+        assert plane[320] != 57 and plane[199*640+320] == 57
+        assert plane[-640+320] == 57
+    t.exchange(commands(b"5LCY,0", b"5LCSPD,5", b"5LMSPD,-1", b"w9", b"5LANIM,0",
+                        b"5LGY"), re.compile(rb"(?:[1-9][0-9]*)\xff"))
+    held = t.exchange().primary
+    assert t.exchange(commands(b"5LSKY,3", b"w3")).primary == held
+    # A ridge three units north must occlude the sky ahead. Turning east
+    # from the same position looks along a flat row and exposes the sky.
+    t.send(commands(b"2C,41", b"2aFILL", b"2C,136", b"2aRECT,0,254,218,219",
+                    b"5LGMAPWP,0,254", b"5LCLOUD,0", b"5LCX,32", b"5LCY,32",
+                    b"5LCZ,50", b"5LCSPD,0", b"5LCDIR,0", b"5LANIM,1"))
+    center = 305 * 640 + 160
+    t.client.wait_for(lambda f: f.primary[center] == 136)
+    t.send(commands(b"5LCDIR,90"))
+    t.client.wait_for(lambda f: f.primary[center] == 3)
+    t.exchange(commands(b"2RESET", *queries), b"0\xff0\xff100\xff0\xff")
+
+
 def check_sprite_banks(t, root):
     t.case("sprite bank files, slot order, row orientation and erase after load")
     marker, = root.rglob("syncterm-cache-name.txt")
@@ -780,6 +833,7 @@ def check_graphics(t, root):
     check_clocks(t, root)
     check_flics(t, root)
     check_text_scale(t, root)
+    check_landscape(t)
     check_sprite_banks(t, root)
     check_sprites(t)
     check_grid(t)

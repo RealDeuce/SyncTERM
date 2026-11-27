@@ -68,6 +68,8 @@ clear_graphics_objects(struct st_ddofx_graphics *g)
 	g->mouse = (struct st_ddofx_mouse_state){0};
 	st_ddofx_mouse_defaults(&g->mouse);
 	st_ddofx_grid_destroy(g, false);
+	free(g->landscape);
+	g->landscape = NULL;
 	st_ddofx_clear_movies(g);
 	st_ddofx_clear_clocks(g);
 	st_ddofx_clear_marquees(g);
