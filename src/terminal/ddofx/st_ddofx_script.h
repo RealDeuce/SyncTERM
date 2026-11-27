@@ -31,8 +31,9 @@ bool st_ddofx_text_field_edit(struct st_ddofx *, uint16_t);
 bool st_ddofx_next_icon(struct st_ddofx *, enum st_ddofx_group_kind, unsigned anchor, unsigned *next);
 bool st_ddofx_next_list_item(struct st_ddofx *, unsigned id, unsigned *next);
 bool st_ddofx_next_text_field(struct st_ddofx *, unsigned anchor, unsigned *next);
-bool st_ddofx_text_field_value(const struct st_ddofx *, int32_t id, bool full, char out[ST_DDOFX_FIELD_REPLY_MAX+1]);
-bool st_ddofx_field_callback(struct st_ddofx *, const struct st_ddofx_callback *, const char *reply);
+bool st_ddofx_text_field_value(const struct st_ddofx *, int32_t id, bool full,
+             uint8_t out[ST_DDOFX_FIELD_REPLY_MAX], size_t *length);
+bool st_ddofx_field_callback(struct st_ddofx *, const struct st_ddofx_callback *, unsigned field);
 bool st_ddofx_collision_callback(struct st_ddofx *, const struct st_ddofx_callback *, unsigned animation);
 bool st_ddofx_stopping_collision(const struct st_ddofx *, unsigned animation);
 unsigned st_ddofx_control_count(const struct st_ddofx *);
@@ -89,6 +90,7 @@ const char *st_ddofx_value(const struct st_ddofx *, const char *);
 /* The returned byte count includes embedded NULs in a captured variable. */
 const char *st_ddofx_value_bytes(const struct st_ddofx *, const char *, size_t *length);
 void st_ddofx_info(struct st_ddofx *, const struct st_ddofx_sink *, bool save, char *args);
+size_t st_ddofx_decode_controls(uint8_t *out, const char *source, size_t length, bool keep_final_caret);
 size_t st_ddofx_control_value(const struct st_ddofx *, const char *, uint8_t *, size_t limit);
 void st_ddofx_print_file(struct st_ddofx *, const struct st_ddofx_sink *, char *);
 void st_ddofx_edit_text_file(struct st_ddofx *, const struct st_ddofx_sink *, char *);

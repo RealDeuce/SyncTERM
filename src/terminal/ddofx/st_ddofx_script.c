@@ -403,8 +403,8 @@ copy_comma_field(char *out, const char *source, size_t limit)
 			*out = ',';
 }
 
-static size_t
-decode_controls(uint8_t *out, const char *source, size_t length, bool keep_final_caret)
+size_t
+st_ddofx_decode_controls(uint8_t *out, const char *source, size_t length, bool keep_final_caret)
 {
 	size_t used = 0;
 	for (size_t i = 0; i < length; ++i) {
@@ -435,7 +435,7 @@ st_ddofx_define_ping(struct st_ddofx *ddo, char *args)
 		return;
 	/* Decode in place. The SDK's ten-byte limit applies to the transmitted
 	 * string, which can contain NUL and commas. */
-	size_t length    = decode_controls((uint8_t *)args, args, strlen(args), false);
+	size_t length    = st_ddofx_decode_controls((uint8_t *)args, args, strlen(args), false);
 	ddo->ping.length = length < sizeof(ddo->ping.bytes) ? length : sizeof(ddo->ping.bytes);
 	memcpy(ddo->ping.bytes, args, ddo->ping.length);
 	ddo->ping.interval_ms = (uint64_t)minutes * 60000;
@@ -447,7 +447,7 @@ st_ddofx_control_value(const struct st_ddofx *ddo, const char *source, uint8_t *
 {
 	size_t length = strlen(source);
 	char   decoded[ST_DDOFX_BODY_MAX + 1];
-	length          = decode_controls((uint8_t *)decoded, source, length < limit ? length : limit, false);
+	length          = st_ddofx_decode_controls((uint8_t *)decoded, source, length < limit ? length : limit, false);
 	decoded[length] = 0;
 	const char *bytes = decoded;
 	if (!memchr(decoded, 0, length))
@@ -516,7 +516,7 @@ st_ddofx_callback_start(struct st_ddofx *ddo, const struct st_ddofx_callback *cb
 		f->resource_text = cb->resource_text;
 		copy(f->source, cb->macro, sizeof(cb->macro) - 1);
 		f->length = strlen(f->source);
-		f->after_reply_length = decode_controls(f->after_reply, cb->reply, cb->reply_length, true);
+		f->after_reply_length = st_ddofx_decode_controls(f->after_reply, cb->reply, cb->reply_length, true);
 	}
 	return f != NULL;
 }
@@ -541,15 +541,12 @@ st_ddofx_stopping_collision(const struct st_ddofx *ddo, unsigned animation)
 }
 
 bool
-st_ddofx_field_callback(struct st_ddofx *ddo, const struct st_ddofx_callback *cb, const char *reply)
+st_ddofx_field_callback(struct st_ddofx *ddo, const struct st_ddofx_callback *cb, unsigned field)
 {
 	if (!st_ddofx_callback_start(ddo, cb, DDO_EVENT))
 		return false;
 	struct macro_frame *f = ddo->script->top;
-	size_t length = strlen(reply);
-	if (length > sizeof(f->after_reply))
-		length = sizeof(f->after_reply);
-	f->after_reply_length = decode_controls(f->after_reply, reply, length, true);
+	(void)st_ddofx_text_field_value(ddo, field, true, f->after_reply, &f->after_reply_length);
 	return true;
 }
 
@@ -599,7 +596,7 @@ named_return(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, const char 
 			for (size_t i = 0; i < length; ++i)
 				encoded[i] = source[i] == '~' ? ',' : source[i];
 			s->returns[id - 1].length =
-			    decode_controls(s->returns[id - 1].bytes, encoded, length, true);
+			    st_ddofx_decode_controls(s->returns[id - 1].bytes, encoded, length, true);
 		}
 	}
 	else if (id && !strcmp(verb, "SRET") && s->returns[id - 1].length)
@@ -988,13 +985,10 @@ st_ddofx_script_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, 
 			return;
 		struct variable *v = variable(ddo->script, id);
 		bool full = verb[7] == '+';
-		char result[ST_DDOFX_FIELD_REPLY_MAX+1];
-		if (v && st_ddofx_text_field_value(ddo, field, full, result)) {
-			size_t len = strlen(result);
-			if (full)
-				len = decode_controls((uint8_t *)result, result, len, true);
-			set_value(v, result, len);
-		}
+		uint8_t result[ST_DDOFX_FIELD_REPLY_MAX];
+		size_t  length;
+		if (v && st_ddofx_text_field_value(ddo, field, full, result, &length))
+			set_value(v, result, length);
 	}
 	else if (!strcmp(verb, "INFSAV") || !strcmp(verb, "INFLOD"))
 		st_ddofx_info(ddo, sink, !strcmp(verb, "INFSAV"), args);

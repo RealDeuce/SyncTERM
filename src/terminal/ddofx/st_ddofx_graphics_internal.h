@@ -237,7 +237,7 @@ void           st_ddofx_draw_text_control(struct st_ddofx *, unsigned owner, boo
     st_ddofx_region_painter *, void *context);
 const uint8_t *st_ddofx_vga_bitmap(const struct st_ddofx *);
 bool st_ddofx_read_vga_font(const struct st_ddofx_sink *, const char *, uint8_t bitmap[4096]);
-void st_ddofx_print_text_box(struct st_ddofx *, enum page, struct bounds, const uint8_t *);
+void st_ddofx_print_text_box(struct st_ddofx *, enum page, struct bounds, const uint8_t *, size_t length);
 void st_ddofx_paint_vga_string(struct st_ddofx_graphics *g, unsigned window, const struct st_pixel_buffer *, const uint8_t *bitmap, const uint8_t *text,
     unsigned length, int x, int bottom, unsigned ink, unsigned paper, const struct bounds *clip);
 void st_ddofx_repaint_clocks(struct st_ddofx *, unsigned window, const struct st_pixel_buffer *, const struct st_console_rect *);

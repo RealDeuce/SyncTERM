@@ -1923,7 +1923,7 @@ def check_bitmap_fonts(t, root):
     # each select their own bank and exercise literal text after the page.
     extended = bytearray(2 + 4 * (128 + 64*3))
     extended[:2] = bytes((129, 3))
-    for code, bits in [(65, 32), (44, 64), (130, 128)]:
+    for code, bits in [(0, 128), (65, 32), (44, 64), (130, 128)]:
         bank = 2 + (code // 64) * 320
         slot = code % 64
         extended[bank + slot] = extended[bank + 64 + slot] = 3
@@ -1970,6 +1970,11 @@ def check_bitmap_fonts(t, root):
         assert list(plane[8*640+5:8*640+15]) == [7,7,7,13,7,13,7,13,7,7]
         assert list(plane[8*640+25:8*640+31]) == [7,255,0,0,255,7]
         assert list(plane[20*640+40:20*640+44]) == [7]*4
+    # Glyph zero, a following glyph, and an inline black colour selection.
+    frame = t.exchange(commands(b"~INFSAV,17,0,^@A\x7f^@A", b"~VARCAP,67", b"~INFLOD,0,17", b"~VARCAP,0",
+                                b"2FSELECT,32", b"2X,50,59,8,11,13,0,0,VP,DEFVAR67"))
+    for plane in (frame.primary, frame.alternate):
+        assert list(plane[8*640+50:8*640+60]) == [7,13,7,7,7,7,13,7,7,0]
     frame = t.exchange(commands(b"2FSELECT,32", b"2X,0,3,0,3,13,0,45,VP,\x7f\x11A",
                                 b"2X,40,43,20,23,99,0,0,VP," + b"A"*101,
                                 b"2X,40,43,20,100,99,0,0,VP,A"))
@@ -2206,6 +2211,7 @@ def check_vga_font(t, root):
     font = bytearray(4096)
     # Deliberately asymmetric first and last rows of A. Comma has its
     # own glyph so a parser that splits the text field loses visible ink.
+    font[0] = 0x20
     font[65*16] = 0x81
     font[65*16+15] = 0x40
     font[44*16+7] = 0x10
@@ -2238,6 +2244,11 @@ def check_vga_font(t, root):
                                 b"2XTWP,633,479,5,3,A", b"2aG,633,479", b"2aG,0,0"),
                        b"TEST.FNT\xff54\xff54\xff")
     glyph(frame,632,464,0,54)
+    frame = t.exchange(commands(b"~INFSAV,17,0,^@A", b"~VARCAP,67", b"~INFLOD,0,17", b"~VARCAP,0",
+                                b"2XT,256,31,19,3,DEFVAR67"))
+    glyph(frame,264,16,19,3)
+    for plane in (frame.primary, frame.alternate):
+        assert list(plane[16*640+256:16*640+264]) == [3,3,19,3,3,3,3,3]
     frame = t.exchange(commands(b"2CPYBP2VP"))
     glyph(frame,0,0,201,6)
     glyph(frame,16,0,201,6)
@@ -3027,6 +3038,33 @@ def check_text_fields(t, root, mouse):
                         b"7SRET,2", b"2RESET"), b"124")
     t.client.text("x")
     t.input(b"x")
+
+    # A captured value can supply the editable text and either return affix.
+    # Masking changes the displayed glyphs. Short queries return literal
+    # text, while submission and full queries decode the assembled reply.
+    capture_callback_return(t)
+    field = (b"5CTXTFLD,1,EDIT.FNT,DEFVAR67,DEFVAR67,DEFVAR67,30,80,7,1,4,20,1,*,"
+             b"0,0,0,0,0,1,0,0,0,")
+    t.exchange(commands(field, b"2aG,54,67", b"~GTXTFLD-,777,1", b"~INFSAV,18,0,DEFVAR777",
+                        b"~INFLOD,0,18", b"5ACTTFLD,1"), b"20\xff\0V~\xff")
+    t.client.key("home")
+    t.client.key("right")
+    t.client.key("delete")
+    t.client.text("x")
+    t.client.key("end")
+    t.client.key("backspace")
+    t.client.key("home")
+    t.client.key("right")
+    t.client.key("insert")
+    t.client.text("b")
+    t.client.key("end")
+    t.client.text("^M")
+    t.client.key("enter")
+    full_reply = b"\0V,\xff\0B~\r\0V,\xff"
+    t.input(full_reply)
+    t.exchange(commands(b"~GTXTFLD-,777,1", b"~INFSAV,18,0,DEFVAR777", b"~INFLOD,0,18",
+                        b"~GTXTFLD+,777,1", b"~INFSAV,18,0,DEFVAR777", b"~INFLOD,0,18",
+                        b"2RESET"), b"\0B~^M" + full_reply)
 
 
 def check_list_boxes(t, root, mouse):

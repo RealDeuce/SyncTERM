@@ -15,7 +15,8 @@ enum {
 struct text_field {
 	struct st_ddofx_callback callback;
 	unsigned                 owner, x, bottom;
-	char                     text[TEXT_MAX + 1], before[AFFIX_MAX + 1], after[AFFIX_MAX + 1];
+	char                     text[TEXT_MAX], before[AFFIX_MAX], after[AFFIX_MAX];
+	size_t                   text_length, before_length, after_length;
 	uint8_t                  font[4096];
 	unsigned                 limit, normal, selected, ink, filter, up, down;
 	uint8_t                  mask;
@@ -79,7 +80,7 @@ paint(void *context, const struct st_pixel_buffer *pixels, struct bounds clip)
 		else
 			memset(target.data + at, (int)paper, clip.right - clip.left + 1);
 	}
-	size_t  length = strlen(f->text);
+	size_t  length = f->text_length;
 	uint8_t visible[TEXT_MAX];
 	if (f->echo)
 		memset(visible, f->mask, length);
@@ -112,13 +113,19 @@ draw(struct st_ddofx *ddo, unsigned id, bool work)
 	st_ddofx_draw_text_control(ddo, owner, work, area, paint, &image);
 }
 
-static void
-affix(char dest[AFFIX_MAX + 1], const char *source)
+static size_t
+copy_field_value(const struct st_ddofx *ddo, const char *field, char *dest, size_t capacity, bool replace_tildes)
 {
-	size_t n = 0;
-	for (; n < AFFIX_MAX && source[n]; ++n)
-		dest[n] = source[n] == '~' ? ',' : source[n];
-	dest[n] = 0;
+	size_t      length;
+	const char *bytes = st_ddofx_value_bytes(ddo, field, &length);
+	if (length > capacity)
+		length = capacity;
+	memcpy(dest, bytes, length);
+	if (replace_tildes)
+		for (size_t i = 0; i < length; ++i)
+			if (dest[i] == '~')
+				dest[i] = ',';
+	return length;
 }
 
 static void
@@ -158,9 +165,9 @@ define(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, unsigned id, char
 		memcpy(f->font, current, sizeof(f->font));
 	}
 	st_ddofx_callback_define(ddo, &f->callback, "", args, 100);
-	affix(f->before, st_ddofx_value(ddo, before));
-	affix(f->after, st_ddofx_value(ddo, after));
-	snprintf(f->text, sizeof(f->text), "%.*s", TEXT_MAX, st_ddofx_value(ddo, text));
+	f->before_length = copy_field_value(ddo, before, f->before, sizeof(f->before), true);
+	f->after_length  = copy_field_value(ddo, after, f->after, sizeof(f->after), true);
+	f->text_length   = copy_field_value(ddo, text, f->text, sizeof(f->text), false);
 	f->limit                       = (unsigned)limit;
 	f->owner                       = owner;
 	f->x                           = (unsigned)x;
@@ -206,8 +213,8 @@ finish_edit(struct st_ddofx *ddo)
 	unsigned           id = t->active;
 	struct text_field *f  = t->slots[id - 1];
 	if (f->caps)
-		for (char *p = f->text; *p; ++p)
-			*p = (char)ascii_to_upper((uint8_t)*p);
+		for (size_t i = 0; i < f->text_length; ++i)
+			f->text[i] = (char)ascii_to_upper((uint8_t)f->text[i]);
 	t->active = 0;
 	draw(ddo, id, false);
 }
@@ -221,7 +228,7 @@ activate(struct st_ddofx *ddo, unsigned id)
 		return;
 	finish_edit(ddo);
 	t->active    = id;
-	t->cursor    = (unsigned)strlen(f->text);
+	t->cursor    = (unsigned)f->text_length;
 	t->overwrite = false;
 	draw(ddo, id, false);
 }
@@ -277,10 +284,10 @@ st_ddofx_text_field_edit(struct st_ddofx *ddo, uint16_t word)
 	unsigned                     id = t->active, ch = word & 255;
 	struct text_field           *f    = t->slots[id - 1];
 	char                        *text = f->text;
-	unsigned                     len  = (unsigned)strlen(text);
+	unsigned                     len  = (unsigned)f->text_length;
 	if (ch == 13 || ch == 27 || ch == 9 || word == 0x0f00 || word == 0x4800 || word == 0x5000) {
 		if (ch == 27)
-			*text = 0;
+			f->text_length = 0;
 		finish_edit(ddo);
 		unsigned link = word == 0x0f00 || word == 0x4800 ? f->up : f->down;
 		if (ch == 13 && f->immediate)
@@ -300,10 +307,14 @@ st_ddofx_text_field_edit(struct st_ddofx *ddo, uint16_t word)
 		++t->cursor;
 	else if (word == 0x5200)
 		t->overwrite = !t->overwrite;
-	else if (word == 0x5300 && p < len)
-		memmove(text + p, text + p + 1, len - p);
-	else if (ch == 8 && p)
-		memmove(text + (--t->cursor), text + p, len - p + 1);
+	else if (word == 0x5300 && p < len) {
+		memmove(text + p, text + p + 1, len - p - 1);
+		--f->text_length;
+	}
+	else if (ch == 8 && p) {
+		memmove(text + (--t->cursor), text + p, len - p);
+		--f->text_length;
+	}
 	else if (ch >= 32 && ch != 127) {
 		unsigned upper = ascii_to_upper((uint8_t)ch);
 		if ((f->filter == 1 && (upper < 'A' || upper > 'Z'))
@@ -312,7 +323,8 @@ st_ddofx_text_field_edit(struct st_ddofx *ddo, uint16_t word)
 		if (t->overwrite && p < len)
 			text[t->cursor++] = (char)ch;
 		else if (len < f->limit) {
-			memmove(text + p + 1, text + p, len - p + 1);
+			memmove(text + p + 1, text + p, len - p);
+			++f->text_length;
 			text[t->cursor++] = (char)ch;
 		}
 	}
@@ -322,14 +334,21 @@ st_ddofx_text_field_edit(struct st_ddofx *ddo, uint16_t word)
 
 bool
 st_ddofx_text_field_value(const struct st_ddofx *ddo, int32_t id, bool full,
-    char out[ST_DDOFX_FIELD_REPLY_MAX + 1])
+    uint8_t out[ST_DDOFX_FIELD_REPLY_MAX], size_t *length)
 {
 	const struct st_ddofx_text_fields *t = fields(ddo);
 	if (!t || id < 1 || (unsigned)id > t->highest || !t->slots[id - 1])
 		return false;
 	const struct text_field *f = t->slots[id - 1];
-	snprintf(out, ST_DDOFX_FIELD_REPLY_MAX + 1, "%s%s%s", full ? f->before : "", f->text,
-	    full ? f->after : "");
+	size_t before = full ? f->before_length : 0;
+	memcpy(out, f->before, before);
+	memcpy(out + before, f->text, f->text_length);
+	*length = before + f->text_length;
+	if (full) {
+		memcpy(out + *length, f->after, f->after_length);
+		*length += f->after_length;
+		*length = st_ddofx_decode_controls(out, (const char *)out, *length, true);
+	}
 	return true;
 }
 
@@ -344,11 +363,8 @@ st_ddofx_next_text_field(struct st_ddofx *ddo, unsigned anchor, unsigned *next)
 		unsigned                 id = t->order[(*next)++];
 		const struct text_field *f  = t->slots[id - 1];
 		if ((f == target || (f->group && f->group == target->group))
-		    && st_ddofx_callback_enabled(ddo, &f->callback)) {
-			char reply[ST_DDOFX_FIELD_REPLY_MAX + 1];
-			st_ddofx_text_field_value(ddo, id, true, reply);
-			return st_ddofx_field_callback(ddo, &f->callback, reply);
-		}
+		    && st_ddofx_callback_enabled(ddo, &f->callback))
+			return st_ddofx_field_callback(ddo, &f->callback, id);
 	}
 	return false;
 }

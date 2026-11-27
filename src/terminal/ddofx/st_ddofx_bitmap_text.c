@@ -122,17 +122,17 @@ struct text_image {
 };
 
 static bool
-scale_run(struct text_image *image, const struct st_ddofx_bmf *font, const uint8_t *text, unsigned colour)
+scale_run(struct text_image *image, const struct st_ddofx_bmf *font, const uint8_t *text, size_t length, unsigned colour)
 {
 	struct bitmap_run runs[MAX_TEXT];
 	unsigned          count = 0, width = 0, height = 0;
 	int               underline_start = -1;
-	for (; *text; ++text) {
-		if (*text == 127) {
-			if (!text[1])
+	for (size_t at = 0; at < length; ++at) {
+		if (text[at] == 127) {
+			if (++at == length)
 				break;
-			if (*++text != '_')
-				colour = *text;
+			if (text[at] != '_')
+				colour = text[at];
 			else if (underline_start < 0)
 				underline_start = (int)count;
 			else {
@@ -142,7 +142,7 @@ scale_run(struct text_image *image, const struct st_ddofx_bmf *font, const uint8
 			}
 			continue;
 		}
-		const struct glyph *g = &font->glyphs[*text];
+		const struct glyph *g = &font->glyphs[text[at]];
 		if (!g->width)
 			continue;
 		runs[count++] = (struct bitmap_run) {.glyph = g, .colour = colour};
@@ -252,13 +252,13 @@ print_text(struct st_ddofx *ddo, char *args)
 	enum page   page;
 	if (!name || !args)
 		return;
-	name                = st_ddofx_value(ddo, name);
-	const uint8_t *text = (const uint8_t *)st_ddofx_value(ddo, args);
+	name = st_ddofx_value(ddo, name);
+	size_t         length;
+	const uint8_t *text = (const uint8_t *)st_ddofx_value_bytes(ddo, args, &length);
 	if (strlen(name) != 2 || !st_ddofx_page_name(name, &page))
 		return;
 	struct st_ddofx_surface target = st_ddofx_surface(g, g->alert_graphic_window, page);
-	if (!*text
-	    || strlen((const char *)text) > MAX_TEXT || n[0] < 0 || n[1] <= n[0] || n[1] >= target.width || n[2] < 0
+	if (!length || length > MAX_TEXT || n[0] < 0 || n[1] <= n[0] || n[1] >= target.width || n[2] < 0
 	    || n[3] <= n[2] || n[3] >= target.height || (unsigned)n[4] > 254 || (unsigned)n[5] > 255
 	    || (unsigned)n[6] > 359)
 		return;
@@ -267,7 +267,7 @@ print_text(struct st_ddofx *ddo, char *args)
 		return;
 	struct text_image *image = calloc(1, sizeof(*image) + (size_t)w * h * sizeof(*image->colours));
 	if (!image) {
-		st_ddofx_print_text_box(ddo, page, (struct bounds){n[0], n[1], n[2], n[3]}, text);
+		st_ddofx_print_text_box(ddo, page, (struct bounds){n[0], n[1], n[2], n[3]}, text, length);
 		return;
 	}
 	image->target = target;
@@ -275,7 +275,7 @@ print_text(struct st_ddofx *ddo, char *args)
 	image->y        = n[2];
 	image->width    = w;
 	image->height   = h;
-	if (scale_run(image, font, text, (unsigned)n[4])) {
+	if (scale_run(image, font, text, length, (unsigned)n[4])) {
 		if (n[5])
 			outline(image, (unsigned)n[5]);
 		st_ddofx_rotation(n[6], &image->cosine, &image->sine);

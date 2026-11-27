@@ -263,11 +263,11 @@ paint_box(void *context, const struct st_pixel_buffer *pixels, struct st_console
 /* If scaling a BMF cannot allocate its scratch image, the SDK specifies
  * a colour-10 box with the current textual font. This path uses only the stack. */
 void
-st_ddofx_print_text_box(struct st_ddofx *ddo, enum page page, struct bounds box, const uint8_t *text)
+st_ddofx_print_text_box(struct st_ddofx *ddo, enum page page, struct bounds box, const uint8_t *text, size_t length)
 {
 	struct st_ddofx_graphics *g = ddo->graphics;
 	struct text_box fallback = {.box = box, .run = {.g = g, .target = st_ddofx_surface(g, g->alert_graphic_window, page),
-	    .font = st_ddofx_vga_bitmap(ddo), .text = text, .length = (int)strlen((const char *)text),
+	    .font = st_ddofx_vga_bitmap(ddo), .text = text, .length = (int)length,
 	    .ink = 15, .paper = 8}};
 	struct bounds clip = fallback.run.target.clip;
 	fallback.clip = (struct bounds){box.left > clip.left ? box.left : clip.left,
@@ -319,8 +319,8 @@ st_ddofx_print_vga_text(struct st_ddofx *ddo, const char *suffix, char *args)
 	if (!args || n[0] < 0 || n[0] >= run.target.width || n[1] < run.g->cell_height - 1 || n[1] >= run.target.height
 	    || (unsigned)n[2] > 255 || (unsigned)n[3] > 8)
 		return;
-	run.text      = (const uint8_t *)st_ddofx_value(ddo, args);
-	size_t length = strlen((const char *)run.text);
+	size_t length;
+	run.text = (const uint8_t *)st_ddofx_value_bytes(ddo, args, &length);
 	if (!length || length > (size_t)(run.target.width - n[0]) / (unsigned)run.g->cell_width)
 		return;
 	run.font = st_ddofx_vga_bitmap(ddo);

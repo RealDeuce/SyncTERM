@@ -17,8 +17,8 @@ main(void)
 	g->clip = (struct bounds){12, 31, 5, 46};
 	memset(g->page[WORK], 23, sizeof(g->page[WORK]));
 	struct bounds box = {10, 28, 8, 42};
-	const uint8_t text[] = "ABA";
-	st_ddofx_print_text_box(&ddo, WORK, box, text);
+	const uint8_t text[] = {'A', 0, 'B'};
+	st_ddofx_print_text_box(&ddo, WORK, box, text, sizeof(text));
 	const uint8_t *font = st_ddofx_vga_bitmap(&ddo);
 	bool ok = font != NULL;
 	for (int y = 0; ok && y < HEIGHT; ++y) {
