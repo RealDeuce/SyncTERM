@@ -536,6 +536,49 @@ def check_lite_reset(t):
     t.input(b"NEW")
 
 
+def check_key_macros(t):
+    for normal in (False, True):
+        t.case("Normal key macros" if normal else "Lite key macros")
+        enter = commands(b"LIGMODE", b"LIGMODE") if normal else b""
+        # The first callback waits and then sends M before its binary return.
+        # A second binding sees the same c. The original key follows both.
+        t.exchange(enter + commands(b"7DEFRET,1,M", b"4MKEY,1,46,99,1,A~^M,\x1d(w2)\x1d(7SRET,1)",
+                                    b"4MKEY,300,46,99,1,Z,", b"4MKEY,2,28,10,0,E,"))
+        t.client.text("cc")
+        t.input(b"MA,\rZcMA,\rZc")
+        t.client.key("enter", 2)
+        t.input(b"E")
+        # The lock consumes an unbound x and the passed c. Local menu and
+        # disconnect commands are serviced upstream of the graphics adapter.
+        t.exchange(commands(b"~LOCKKEYS"))
+        t.client.text("xc")
+        t.input(b"MA,\rZ")
+        t.exchange(commands(b"~UNLOCKKEYS", b"4MKEY,1,46,99,0,OLD,\x1d(4MKEY,1,46,99,1,NEW,)"))
+        t.client.text("cc")
+        t.input(b"OLDZcNEWZc")
+        t.exchange(commands(b"4MKEY,0", b"4MKEY,300,255,255,0,ANY,"))
+        t.client.key("up")
+        t.client.text("漢")
+        t.input(b"ANYANY")
+        # One physical Alt+Y may also produce a translated event. Either
+        # backend representation must produce just one callback per press.
+        t.exchange(commands(b"4MKEY,0", b"4MKEY,2,21,0,0,ALT,", b"4MKEY,3,94,0,0,FN,"))
+        t.client.physical_key(21, True, 4)
+        t.client.text("y", 4)
+        t.client.physical_key(21, False, 4)
+        t.client.key("f1", 2)
+        t.input(b"ALTFN")
+        t.exchange(commands(b"4MKEY,1,1,27,1,CLEAR,\x1d(4MKEY,0)"))
+        t.client.key("escape")
+        t.client.text("c")
+        t.input(b"CLEARc")
+        t.exchange(commands(b"~LOCKKEYS", b"2RESET"))
+        t.client.text("c")
+        t.input(b"c")
+        if normal:
+            t.exchange(commands(b"2GEXIT"))
+
+
 def check_events(t):
     # A repeating event counts to two and then deactivates itself. No more
     # bytes arrive from the BBS while the callbacks run.
@@ -591,6 +634,7 @@ def run(args):
         check_scripts(t)
         check_events(t)
         check_lite_reset(t)
+        check_key_macros(t)
         check_vga_font(t, fixture[1])
         check_graphics(t, fixture[1])
         glyph = "é".encode("utf-8" if args.encoding == "UTF-8" else "cp437")

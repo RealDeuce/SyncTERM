@@ -241,11 +241,11 @@ int st_term_session_pump(st_term_session_t *session, enum st_term_disposition *d
 /* Forward one native keyboard event through terminal keyboard policy and
  * wire encoding. Does not dispatch script hooks or local session commands.
  * handled reports whether the terminal accepted the key (including local
- * terminal actions or queuing behind a RIP3 continuation). Output errors are
+ * terminal actions or queuing behind a graphics callback). Output errors are
  * returned separately. Mouse/window events are invalid. The event's text, modifiers, and physical edge are
  * preserved; CODEPAGE_BYTE is resolved using the session wire encoding. */
 int st_term_session_send_key(st_term_session_t *session, const struct st_console_event *event, bool *handled);
-/* RIP3 scene keyboard lock for local shortcuts that submit terminal data. */
+/* Graphics protocol keyboard lock for local shortcuts that submit terminal data. */
 bool st_term_session_keyboard_locked(const st_term_session_t *session);
 
 /*

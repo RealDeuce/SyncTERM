@@ -4471,7 +4471,7 @@ assignment when selecting an existing font; loading only registers a new font.
   `CTerm.sendKey(KeyEvent.new(Key.enter))` forwards Return.
 
 | `CTerm.keyboardLocked`
-| Bool. Reports whether the RIP3 scene has locked keyboard input.
+| Bool. Reports whether the active RIP3 or DDO F/X scene has locked keyboard input.
   A shortcut that submits terminal data directly can check this before sending.
 
 | `CTerm.startMusicomm()`, `CTerm.musicomm`

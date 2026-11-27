@@ -26,7 +26,9 @@ Loose-file queries read the entry’s `DDOFX/MUSIC`, `DDOFX/FONTS`, and `DDOFX/B
 
 Resource assignment selects the M container in `DDOFX/BBSTHEME` for local scripts and bitmap fonts and the S container for indexed PCX artwork. Scripts up to 40,000 bytes can call other scripts and render DOS text. A resource entry query tests the member name and component ID. Conditional scripts can also read that ID.
 
-In Lite and Normal mode, `2RESET` clears macro definitions, variables, return strings, query capture, timed events and big-sample profiles. The current script continues after the command. In Normal mode it also clears all four graphics pages and releases sprites, simple animations, bitmap fonts and music bars. The assigned resource prefix, music, theme sounds, palette and saved page files survive a scene reset.
+In Lite and Normal mode, `2RESET` unlocks the keyboard and clears key bindings, macro definitions, variables, return strings, query capture, timed events and big-sample profiles. The current script continues after the command. In Normal mode it also clears all four graphics pages and releases sprites, simple animations, bitmap fonts and music bars. The assigned resource prefix, music, theme sounds, palette and saved page files survive a scene reset.
+
+In Lite and Normal, `4MKEY` binds DOS scan/character pairs or the all-keys wildcard. Matching slots run in order, with each macro completing before its return bytes and any passed keystroke. The DDO key lock admits programmed bindings and consumes ordinary keyboard input. SyncTERM processes its local shortcuts before graphics input.
 
 Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed variables. Local macro calls, repeats and waits preserve the order of the wire stream. Variable capture redirects automatic query results. Configured return strings can send binary bytes. Conditional macros can compare user variables, identity, music state and loose-file metadata. Additional predefined system operands await their respective query implementations.
 
@@ -80,7 +82,7 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 2590 | CLEAR A MACRO | DDO-FX LITE | Connected |
 | 2602 | RUN A MACRO | DDO-FX LITE | Connected |
 | 2615 | EXECUTE A MACRO LINE | DDO-FX LITE | Connected |
-| 2662 | CREATE KEY MACRO | DDO-FX LITE | Pending |
+| 2662 | CREATE KEY MACRO | DDO-FX LITE | Connected |
 | 2874 | TEST FOR JOYSTICK | DDO-LITE | Pending |
 | 2893 | CALIBRATE JOYSTICK | DDO-LITE | Pending |
 | 2913 | DEFINE JOYSTICK | DDO-LITE | Pending |
@@ -99,8 +101,8 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 3400 | RESTORE FULL SCREEN MODE | DDO-FX LITE | Pending |
 | 3416 | RUN LOCAL SCRIPT | DDO-FX LITE | Connected |
 | 3501 | DEFINE SYSTEM VARIABLE | DDO-FX LITE | Connected |
-| 3604 | LOCK KEYS | DDO-FX LITE | Pending |
-| 3650 | UNLOCK KEYS | DDO-FX LITE | Pending |
+| 3604 | LOCK KEYS | DDO-FX LITE | Connected |
+| 3650 | UNLOCK KEYS | DDO-FX LITE | Connected |
 | 3661 | PAUSE BACKGROUND TASKS | DDO-FX LITE | Connected for timed events |
 | 3710 | UNPAUSE BACKGROUND TASKS | DDO-FX LITE | Connected for timed events |
 | 3720 | IGNORE COMMANDS | DDO-FX LITE | Connected |

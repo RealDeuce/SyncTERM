@@ -10,7 +10,10 @@ struct st_ddofx_callback {
 };
 
 void     st_ddofx_callback_define(const struct st_ddofx *, struct st_ddofx_callback *, const char *, const char *);
-void     st_ddofx_callback_start(struct st_ddofx *, const struct st_ddofx_callback *);
+bool     st_ddofx_callback_start(struct st_ddofx *, const struct st_ddofx_callback *, bool key);
+void     st_ddofx_define_key(struct st_ddofx *, char *args);
+void     st_ddofx_clear_keys(struct st_ddofx *);
+int      st_ddofx_resume_key(struct st_ddofx *, const struct st_ddofx_sink *);
 char    *st_ddofx_field(char **);
 bool     st_ddofx_field_number(const struct st_ddofx *, char **, int32_t *);
 void     st_ddofx_event_command(struct st_ddofx *, const char *, char *);

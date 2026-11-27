@@ -43,7 +43,7 @@ struct macro_frame {
 	bool                   until;
 	struct predicate       condition;
 	char                   after_reply[101];
-	bool                   event;
+	bool                   callback, key, saved_in_event;
 	uint64_t               saved_wait;
 };
 
@@ -351,12 +351,14 @@ st_ddofx_callback_define(const struct st_ddofx *ddo, struct st_ddofx_callback *c
 	macro_text(cb->macro, st_ddofx_value(ddo, macro), sizeof(cb->macro) - 1);
 }
 
-void
-st_ddofx_callback_start(struct st_ddofx *ddo, const struct st_ddofx_callback *cb)
+bool
+st_ddofx_callback_start(struct st_ddofx *ddo, const struct st_ddofx_callback *cb, bool key)
 {
 	struct macro_frame *f = push(ddo->script);
 	if (f != NULL) {
-		f->event         = true;
+		f->key           = key;
+		f->saved_in_event = ddo->in_event;
+		f->callback         = true;
 		f->saved_wait    = ddo->wait_until;
 		ddo->wait_until  = 0;
 		ddo->in_event    = true;
@@ -365,6 +367,7 @@ st_ddofx_callback_start(struct st_ddofx *ddo, const struct st_ddofx_callback *cb
 		f->length = strlen(f->source);
 		copy(f->after_reply, cb->reply, sizeof(cb->reply) - 1);
 	}
+	return f != NULL;
 }
 
 static void
@@ -651,13 +654,14 @@ st_ddofx_script_step(struct st_ddofx *ddo, const struct st_ddofx_sink *sink)
 		}
 	}
 	else if (--f->remaining <= 0) {
-		if (f->event) {
-			ddo->in_event   = false;
+		bool key = f->key;
+		if (f->callback) {
+			ddo->in_event   = f->saved_in_event;
 			ddo->wait_until = f->saved_wait;
 			send_reply(sink, f->after_reply);
 		}
 		pop(s);
-		return 0;
+		return key ? st_ddofx_resume_key(ddo, sink) : 0;
 	}
 	f->position = 0;
 	f->framer   = (struct st_ddofx_framer) {0};
@@ -676,7 +680,9 @@ st_ddofx_script_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, 
 		return;
 	for (char *p = verb; *p; ++p)
 		*p = (char)ascii_to_upper((unsigned char)*p);
-	if (root == '4')
+	if (root == '4' && !strcmp(verb, "MKEY"))
+		st_ddofx_define_key(ddo, args);
+	else if (root == '4')
 		named_macro(ddo, verb, args);
 	else if (root == '7' && (!strcmp(verb, "CEVENT") || !strcmp(verb, "AEVENT") || !strcmp(verb, "DEVENT")))
 		st_ddofx_event_command(ddo, verb, args);

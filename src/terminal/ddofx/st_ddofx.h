@@ -12,6 +12,8 @@
 
 #define ST_DDOFX_BODY_MAX 250
 
+struct st_console_event;
+
 struct st_ddofx_framer {
 	enum {
 		ST_DDO_TEXT,
@@ -32,6 +34,7 @@ struct st_ddofx {
 	FILE                     *page_files[3];
 	struct st_ddofx_framer   wire;
 	struct st_ddofx_script  *script;
+	struct st_ddofx_keys    *keys;
 	struct st_ddofx_events  *events;
 	struct st_ddofx_samples *samples;
 	uint8_t                 *queued;
@@ -42,6 +45,7 @@ struct st_ddofx {
 	struct st_tracker       *player;
 	struct st_cmf           *cmf;
 	unsigned                 volume;
+	bool                     keys_locked, in_key;
 	bool                     ignoring, background_paused, in_event;
 };
 
@@ -53,9 +57,11 @@ struct st_ddofx_sink {
 	bool                (*client_exists)(void *, const char *name);
 	int                 (*text)(void *, const uint8_t *, size_t, size_t *);
 	int                 (*resource_text)(void *, const uint8_t *, size_t, size_t *);
+	int                 (*pass_key)(void *, const struct st_console_event *);
 	void                (*reply)(void *, const uint8_t *, size_t);
 };
 
+bool st_ddofx_key(struct st_ddofx *, const struct st_console_event *);
 uint32_t st_ddofx_wait_ms(const struct st_ddofx *);
 bool     st_ddofx_busy(const struct st_ddofx *);
 int      st_ddofx_poll(struct st_ddofx *, const struct st_ddofx_sink *);

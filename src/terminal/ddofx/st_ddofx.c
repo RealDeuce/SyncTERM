@@ -178,6 +178,7 @@ st_ddofx_reset(struct st_ddofx *ddo)
 			fclose(ddo->page_files[i]);
 	free(ddo->saved_palette);
 	free(ddo->queued);
+	free(ddo->keys);
 	free(ddo->events);
 	st_ddofx_samples_destroy(ddo);
 	st_ddofx_script_destroy(ddo);
@@ -192,6 +193,10 @@ execute(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *body)
 		ddo->ignoring = false;
 	else if (matches(body, "~IGNORCMD"))
 		ddo->ignoring = true;
+	else if (matches(body, "~LOCKKEYS"))
+		ddo->keys_locked = true;
+	else if (matches(body, "~UNLOCKKEYS"))
+		ddo->keys_locked = false;
 	else if (matches(body, "~PAUSEBAK"))
 		ddo->background_paused = true;
 	else if (matches(body, "~UNPAUSEBAK"))
@@ -205,6 +210,8 @@ execute(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *body)
 	else if (matches(body, "2RESET")) {
 		st_ddofx_graphics_reset(ddo->graphics);
 		st_ddofx_script_clear(ddo);
+		st_ddofx_clear_keys(ddo);
+		ddo->keys_locked = false;
 		st_ddofx_clear_sample_profiles(ddo);
 		free(ddo->events);
 		ddo->events = NULL;

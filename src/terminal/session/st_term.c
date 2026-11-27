@@ -106,6 +106,7 @@ st_term_session_observe_prompt_input(st_term_session_t *session, const struct st
 		st_term_rip3_observe_prompt_input(session->rip3, event);
 }
 
+static int ddofx_pass_key(void *, const struct st_console_event *);
 static struct st_ddofx_sink ddofx_sink(st_term_session_t *session);
 static int render_cp437_resource(void *, const uint8_t *, size_t, size_t *);
 
@@ -1274,6 +1275,7 @@ ddofx_sink(st_term_session_t *session)
 	    .context       = session,
 	    .text          = ddofx_text,
 	    .resource_text = render_cp437_resource,
+	    .pass_key      = ddofx_pass_key,
 	    .text_config   = &session->ddofx_text_config,
 	    .reply         = protocol_reply,
 	    .open_asset    = ddofx_open_asset,
@@ -1586,7 +1588,7 @@ st_term_rip_wire_to_utf8(char *result, size_t capacity, size_t *result_size, con
 bool
 st_term_session_keyboard_locked(const st_term_session_t *session)
 {
-	return session != NULL && st_term_rip3_keyboard_locked(session->rip3);
+	return session != NULL && (session->ddofx.keys_locked || st_term_rip3_keyboard_locked(session->rip3));
 }
 
 static bool
@@ -1600,14 +1602,10 @@ musicomm_stop_key(st_term_session_t *session, const struct st_console_event *eve
 }
 
 static int
-deliver_key(st_term_session_t *session, const struct st_console_event *event, bool *handled)
+deliver_terminal_key(st_term_session_t *session, const struct st_console_event *event, bool *handled)
 {
 	if (session->wire_owner != NULL)
 		return 0;
-	if (st_term_rip3_key(session->rip3, event)) {
-		*handled = true;
-		return session->output_error;
-	}
 	switch (event->type) {
 		case ST_CONSOLE_EVENT_CODEPAGE_BYTE:
 			if (session->config.encoding == ST_CTERM_ENCODING_CODEPAGE
@@ -1653,6 +1651,25 @@ deliver_key(st_term_session_t *session, const struct st_console_event *event, bo
 		default:
 			return IO_ERROR_INVALID_ARGUMENT;
 	}
+}
+
+static int
+ddofx_pass_key(void *context, const struct st_console_event *event)
+{
+	bool handled = false;
+	return deliver_terminal_key(context, event, &handled);
+}
+
+static int
+deliver_key(st_term_session_t *session, const struct st_console_event *event, bool *handled)
+{
+	if (session->wire_owner != NULL)
+		return 0;
+	if ((ddofx_can_run(session) && st_ddofx_key(&session->ddofx, event)) || st_term_rip3_key(session->rip3, event)) {
+		*handled = true;
+		return session->output_error;
+	}
+	return deliver_terminal_key(session, event, handled);
 }
 
 static void
@@ -1748,25 +1765,35 @@ deliver_deferred(st_term_session_t *session)
 	return deliver_input(session, &input, &handled);
 }
 
+static bool
+graphics_input_pending(const st_term_session_t *session)
+{
+	return session->ddofx.in_key || st_term_rip3_graphical_pending(session->rip3);
+}
+
 static int
 forward_input(st_term_session_t *session, const struct local_input *input, bool *handled)
 {
-	if (session->deferred_head == NULL && !st_term_rip3_graphical_pending(session->rip3))
+	if (session->deferred_head == NULL && !graphics_input_pending(session))
 		return deliver_input(session, input, handled);
 
 	struct deferred_event *saved = malloc(sizeof(*saved));
 	if (saved == NULL) {
-		/* Drop the graphical continuation under memory pressure. Deliver
-		 * earlier events first, including any new continuation they start. */
-		while (session->deferred_head != NULL) {
+		/* Preserve queued input order. A running DDO callback may be
+		 * waiting on a timer, so it cannot be drained synchronously. */
+		for (;;) {
+			if (session->ddofx.in_key) {
+				*handled = true;
+				return 0;
+			}
 			if (st_term_rip3_graphical_pending(session->rip3))
 				st_term_rip3_graphical_failure(session->rip3);
+			if (!session->deferred_head)
+				break;
 			int status = deliver_deferred(session);
 			if (status != 0)
 				return status;
 		}
-		if (st_term_rip3_graphical_pending(session->rip3))
-			st_term_rip3_graphical_failure(session->rip3);
 		return deliver_input(session, input, handled);
 	}
 	*saved = (struct deferred_event) {.input = *input};
@@ -2162,7 +2189,7 @@ st_term_session_service(st_term_session_t *session, enum st_term_disposition *di
 			session->modal_tail.capture_token = 0;
 			status                            = handle_event(session, &input, disposition, finished);
 		}
-		else if (session->deferred_head != NULL && !st_term_rip3_graphical_pending(session->rip3))
+		else if (session->deferred_head != NULL && !graphics_input_pending(session))
 			status = deliver_deferred(session);
 		else {
 			status = st_console_event_try(session->config.console, &event);

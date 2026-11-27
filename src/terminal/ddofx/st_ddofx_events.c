@@ -170,7 +170,7 @@ st_ddofx_event_poll(struct st_ddofx *ddo)
 		e->active      = e->loop && !e->calendar;
 		e->due         = now + e->interval_ms;
 		events->cursor = (i + 1) % EVENT_COUNT;
-		st_ddofx_callback_start(ddo, &e->callback);
+		st_ddofx_callback_start(ddo, &e->callback, false);
 		break;
 	}
 	next_deadline(events);
