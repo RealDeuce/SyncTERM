@@ -202,6 +202,25 @@ endif()
 		recipe_run(environment "${CMAKE_COMMAND}" "-DSETTINGS=${root}/environment/settings.cmake"
 			"-DSOURCE=${root}/environment/source" "-DWORK=${root}/environment/work" -DSTEP=configure
 			-P "${RECIPE_MODULE_DIR}/Build.cmake")
+		if(CMAKE_HOST_UNIX)
+			# Autoconf expands CFLAGS as shell words. Quotes inside the
+			# variable cannot protect an SDK path containing spaces.
+			set(sdk "${root}/environment/MacOSX SDK")
+			file(MAKE_DIRECTORY "${sdk}")
+			set(configure "${root}/environment/source/configure")
+			file(WRITE "${configure}" [=[#!/bin/sh
+test -d "$SDKROOT" && test "$SDKROOT" = "$expected_sdk" || exit 1
+for flag in $CFLAGS $CXXFLAGS; do
+	case "$flag" in -isysroot*) exit 1 ;; esac
+done
+]=])
+			file(CHMOD "${configure}" PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE)
+			file(WRITE "${root}/environment/apple.cmake"
+				"set(kind autotools)\nset(APPLE TRUE)\nset(CMAKE_OSX_SYSROOT [==[${sdk}]==])\nset(ENV{expected_sdk} [==[${sdk}]==])\n")
+			recipe_run(autotools-sdk "${CMAKE_COMMAND}" "-DSETTINGS=${root}/environment/apple.cmake"
+				"-DSOURCE=${root}/environment/source" "-DWORK=${root}/environment/apple" -DSTEP=configure
+				-P "${RECIPE_MODULE_DIR}/Build.cmake")
+		endif()
 	endif()
 	if(NOT TEST_RECIPE_CASE OR TEST_RECIPE_CASE STREQUAL "cmake_paths")
 		set(source "${root}/paths/source")

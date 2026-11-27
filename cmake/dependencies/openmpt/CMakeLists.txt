@@ -24,6 +24,11 @@ target_compile_definitions(openmpt PRIVATE LIBOPENMPT_BUILD)
 if(WIN32)
 	target_compile_definitions(openmpt PRIVATE UNICODE _UNICODE NOMINMAX)
 endif()
+if(MINGW)
+	# Establish the toolchain's Windows API level before OpenMPT includes
+	# sdkddkver.h. Its fallback can hide libstdc++'s condition variables.
+	target_compile_options(openmpt PRIVATE -include _mingw.h)
+endif()
 if(BUILD_SHARED_LIBS)
 	target_compile_definitions(openmpt PRIVATE LIBOPENMPT_BUILD_DLL)
 endif()
