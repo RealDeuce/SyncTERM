@@ -31,7 +31,8 @@ struct st_ddofx {
 struct st_ddofx_sink {
 	void               *context;
 	st_audio_runtime_t *audio;
-	FILE               *(*open_music)(void *, const char *);
+	FILE               *(*open_asset)(void *, const char *category, const char *client, const char *name);
+	bool                (*client_exists)(void *, const char *name);
 	int                 (*text)(void *, const uint8_t *, size_t, size_t *);
 	void                (*reply)(void *, const uint8_t *, size_t);
 };

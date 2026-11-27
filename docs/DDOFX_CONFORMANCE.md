@@ -6,6 +6,8 @@ The inventory follows the 439 host-to-client command definitions in the 2.00 SDK
 
 Connected tests cover framing, detection, and ignore/hear across CP437 and UTF-8 sessions. Place MOD and S3M files in the entry’s `DDOFX/MUSIC` cache directory. The `m` command selects the decoder by file content and plays through SyncTERM’s stereo mixer. A missing file leaves the previous song playing. The headless music test drives DDO commands and checks PCM from both formats. Music bars, CMF, and ZIP installation are pending.
 
+Loose-file queries read the entry’s `DDOFX/MUSIC`, `DDOFX/FONTS`, and `DDOFX/BBSTHEME` directories. Professional queries use `DDOFX/TERMS/<client>`. Names use DOS-style case matching. The timestamp is local modification time with DOS two-second precision. `8EXEC` consumes the command without starting a program.
+
 | SDK line | Definition | Domain | Coverage |
 | ---: | --- | --- | --- |
 | 575 | LOAD FONT | DDO-FX LITE | Pending |
@@ -41,12 +43,12 @@ Connected tests cover framing, detection, and ignore/hear across CP437 and UTF-8
 | 1770 | DETECT AUDIO CARD | DDO-FX LITE | Pending |
 | 1798 | DETECT Machine Speed | DDO-FX LITE | Pending |
 | 1851 | DETECT VIDEO MODE | DDO-FX LITE | Pending |
-| 1880 | DETECT FOR MUSIC FILE | DDO-FX LITE | Pending |
-| 1921 | DETECT FOR THEME FILE | DDO-FX LITE | Pending |
+| 1880 | DETECT FOR MUSIC FILE | DDO-FX LITE | Connected |
+| 1921 | DETECT FOR THEME FILE | DDO-FX LITE | Connected |
 | 1929 | ASSIGN RESOURCE FILE | DDO-FX LITE | Pending |
-| 2249 | DETECT FOR RESOURCE FILE | DDO-FX LITE | Pending |
+| 2249 | DETECT FOR RESOURCE FILE | DDO-FX LITE | Connected |
 | 2262 | DETECT FOR RESOURCE ENTRY | DDO-FX LITE | Pending |
-| 2320 | DETECT FOR FONT FILE | DDO-FX LITE | Pending |
+| 2320 | DETECT FOR FONT FILE | DDO-FX LITE | Connected |
 | 2328 | DETECT MUSIC ON/OFF | DDO-FX LITE | Connected |
 | 2345 | DETECT SOUND F/X ON/OFF | DDO-FX LITE | Pending |
 | 2367 | DETECT MUSIC PLAYING | DDO-FX LITE | MOD and S3M |
@@ -444,6 +446,6 @@ Connected tests cover framing, detection, and ignore/hear across CP437 and UTF-8
 | 15249 | GET ICON STATS | DDO-FX (NM) | Pending |
 | 15265 | RESTORE ICON | DDO-FX (NM) | Pending |
 | 15273 | RESTORE ALL ICONS | DDO-FX (NM) | Pending |
-| 15578 | CHECK FOR DIRECTORY | DDO-FX Pro. | Pending |
-| 15594 | CHECK FOR FILE | DDO-FX Pro. | Pending |
+| 15578 | CHECK FOR DIRECTORY | DDO-FX Pro. | Connected |
+| 15594 | CHECK FOR FILE | DDO-FX Pro. | Connected |
 | 15614 | EXECUTE CLIENT | DDO-FX Pro. | Consume without execution |

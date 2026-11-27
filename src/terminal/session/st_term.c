@@ -12,6 +12,7 @@
 #include "cterm_big.h"
 #include "cterm_igs.h"
 #include "cterm_rip_asset.h"
+#include "cterm_rip_asset_lookup.h"
 #include "filesystem.h"
 #include "path.h"
 #include "cterm_skypix.h"
@@ -1176,17 +1177,55 @@ local_command(st_console_t *console, const struct st_console_event *event, enum 
 	return false;
 }
 
-static FILE *
-ddofx_open_music(void *context, const char *filename)
+static char *
+ddofx_directory(const char *root, const char *name)
 {
-	st_term_session_t *session = context;
-	const char *root = session->config.ddofx_directory;
 	struct fs_info info;
-	char *directory = NULL;
-	if (root == NULL || fs_get_link_info(&info, root) != 0 || info.kind != FS_ENTRY_DIRECTORY
-	    || path_join_alloc(&directory, root, "MUSIC") != 0)
+	if (root == NULL || fs_get_link_info(&info, root) != 0 || info.kind != FS_ENTRY_DIRECTORY)
 		return NULL;
-	FILE *file = cterm_rip_asset_open_read(directory, filename, false);
+	char *path = cterm_rip_asset_path(root, name, false);
+	if (path == NULL)
+		return NULL;
+	int status = fs_get_link_info(&info, path);
+	if (status == IO_ERROR_NOT_FOUND) {
+		free(path);
+		path = cterm_rip_asset_case_path(root, name);
+		if (path == NULL)
+			return NULL;
+		status = fs_get_link_info(&info, path);
+	}
+	if (status == 0 && info.kind == FS_ENTRY_DIRECTORY)
+		return path;
+	free(path);
+	return NULL;
+}
+
+static char *
+ddofx_asset_directory(st_term_session_t *session, const char *category, const char *client)
+{
+	char *directory = ddofx_directory(session->config.ddofx_directory, category);
+	if (client == NULL || directory == NULL)
+		return directory;
+	char *subdirectory = ddofx_directory(directory, client);
+	free(directory);
+	return subdirectory;
+}
+
+static bool
+ddofx_client_exists(void *context, const char *name)
+{
+	char *directory = ddofx_asset_directory(context, "TERMS", name);
+	if (directory == NULL)
+		return false;
+	free(directory);
+	return true;
+}
+
+static FILE *
+ddofx_open_asset(void *context, const char *category, const char *client, const char *filename)
+{
+	char *directory = ddofx_asset_directory(context, category, client);
+	FILE *file      = cterm_rip_asset_open_read(directory, filename, false);
 	free(directory);
 	return file;
 }
@@ -1203,11 +1242,12 @@ write_protocol(st_term_session_t *session, const void *bytes, size_t size, size_
 {
 	if (session->config.graphics_mode == ST_GRAPHICS_DDOFX_20) {
 		const struct st_ddofx_sink sink = {
-		    .context = session,
-		    .text = ddofx_text,
-		    .reply = protocol_reply,
-		    .open_music = ddofx_open_music,
-		    .audio = session->config.audio,
+		    .context       = session,
+		    .text          = ddofx_text,
+		    .reply         = protocol_reply,
+		    .open_asset    = ddofx_open_asset,
+		    .client_exists = ddofx_client_exists,
+		    .audio         = session->config.audio,
 		};
 		return st_ddofx_feed(&session->ddofx, &sink, bytes, size, consumed);
 	}

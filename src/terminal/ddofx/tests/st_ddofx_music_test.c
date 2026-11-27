@@ -57,9 +57,11 @@ make_s3m(uint8_t *bytes)
 }
 
 static FILE *
-open_music(void *context, const char *name)
+open_music(void *context, const char *category, const char *client, const char *name)
 {
 	(void)context;
+	if (client != NULL || strcmp(category, "MUSIC") != 0)
+		return NULL;
 	uint8_t data[2172] = {0};
 	size_t  size;
 	if (strcmp(name, "A") == 0) {
@@ -127,7 +129,7 @@ main(void)
 {
 	struct st_ddofx      ddo      = {0};
 	struct response      response = {0};
-	struct st_ddofx_sink sink     = {.context = &response, .open_music = open_music, .reply = reply};
+	struct st_ddofx_sink sink     = {.context = &response, .open_asset = open_music, .reply = reply};
 	CHECK(st_audio_runtime_create_pull(&sink.audio) == 0);
 	st_ddofx_reset(&ddo);
 	CHECK(command_reply(&ddo, &sink, "mA", ""));

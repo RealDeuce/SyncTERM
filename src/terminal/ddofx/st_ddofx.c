@@ -1,10 +1,14 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include <errno.h>
+#include <inttypes.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
+#include "filesystem.h"
 #include "st_ddofx.h"
 #include "string_util.h"
+#include "value_convert_time.h"
 
 static bool
 verb(const struct st_ddofx *ddo, const char *name, size_t length)
@@ -47,6 +51,30 @@ query_reply(const struct st_ddofx_sink *sink, const char *text)
 }
 
 static void
+file_query(const struct st_ddofx_sink *sink, const char *category, const char *client, const char *name)
+{
+	FILE          *file = sink->open_asset(sink->context, category, client, name);
+	struct fs_info info;
+	bool           found = file != NULL && fs_get_stream_info(&info, file) == 0 && info.kind == FS_ENTRY_FILE;
+	if (file != NULL)
+		fclose(file);
+	struct tm local;
+	if (found) {
+		time_t stamp = (time_t)info.modified_time;
+		found        = (int64_t)stamp == info.modified_time && value_convert_localtime(stamp, &local);
+	}
+	if (!found) {
+		query_reply(sink, client == NULL ? "NO" : "N");
+		return;
+	}
+	char record[100];
+	/* The SDK's timestamp comes from DOS file time, in two-second units. */
+	snprintf(record, sizeof(record), "%" PRIu64 ",%d,%d,%d,%d,%d,%d", info.size, local.tm_year + 1900,
+	    local.tm_mon + 1, local.tm_mday, local.tm_hour, local.tm_min, local.tm_sec & ~1);
+	query_reply(sink, record);
+}
+
+static void
 music(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, const char *filename)
 {
 	if (ascii_case_compare(filename, "NONE") == 0) {
@@ -57,7 +85,7 @@ music(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, const char *filena
 	}
 	if (!st_audio_runtime_is_pull(sink->audio) && st_audio_runtime_allowed(sink->audio) == 0)
 		return;
-	FILE *file = sink->open_music(sink->context, filename);
+	FILE *file = sink->open_asset(sink->context, "MUSIC", NULL, filename);
 	if (file == NULL)
 		return;
 	struct st_tracker *next = st_tracker_play(sink->audio, file, ddo->volume);
@@ -92,6 +120,22 @@ execute(struct st_ddofx *ddo, const struct st_ddofx_sink *sink)
 	else if (matches(ddo, "dMUSICON"))
 		query_reply(sink,
 		    st_audio_runtime_is_pull(sink->audio) || st_audio_runtime_allowed(sink->audio) ? "YES" : "NO");
+	else if (ddo->body[0] == 'd' && ddo->length >= 2 && strchr("mftr", ddo->body[1]) != NULL) {
+		const char *category = ddo->body[1] == 'm' ? "MUSIC" : ddo->body[1] == 'f' ? "FONTS" : "BBSTHEME";
+		file_query(sink, category, NULL, (const char *)ddo->body + 2);
+	}
+	else if (verb(ddo, "8CDIR,", 6))
+		query_reply(sink, sink->client_exists(sink->context, (const char *)ddo->body + 6) ? "Y" : "N");
+	else if (verb(ddo, "8CFILE,", 7)) {
+		char *client = (char *)ddo->body + 7;
+		char *comma  = strchr(client, ',');
+		if (comma != NULL) {
+			*comma = 0;
+			file_query(sink, "TERMS", client, comma + 1);
+		}
+		else
+			query_reply(sink, "N");
+	}
 	else if (ddo->body[0] == 'm')
 		music(ddo, sink, (const char *)ddo->body + 1);
 	else if (matches(ddo, "MMPR"))

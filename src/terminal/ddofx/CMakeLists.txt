@@ -1,6 +1,6 @@
 # Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
 add_library(st_ddofx STATIC st_ddofx.c)
-target_link_libraries(st_ddofx PUBLIC st_tracker PRIVATE syncterm_string_util)
+target_link_libraries(st_ddofx PUBLIC st_tracker PRIVATE syncterm_string_util syncterm_filesystem syncterm_value_convert)
 target_include_directories(st_ddofx PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 set_target_properties(st_ddofx PROPERTIES C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 if(MSVC)
