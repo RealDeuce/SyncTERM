@@ -994,6 +994,23 @@ for (text in ["EVENT-imported", "EVENT-importer", "EVENT-override"]) {
         client.wait_text("TEST-COMPLETE autoload")
         assert b"PICKER-AUTOLOAD-PASS" in client.stderr
 
+    def entry_scripts(root):
+        write_script(root, "after_missing", '''
+import "syncterm" for Console, Conn, LogSource
+if (Console.entries.any {|entry| entry[1] == LogSource.runtimeError && entry[2].contains("removed_login.wren") }) {
+  Conn.sendText("script loaded")
+}
+''')
+    options = ("WrenScripts=removed_login,after_missing\nUserName=demo\nPassword=test\n"
+               "Graphics=DDO F/X 2.0\n")
+    with connection(executable, reports, options=options, prepare=entry_scripts) as (client, root, peer, send):
+        receive(peer, b"script loaded", root / "wire.bin")
+        send(b"Login: ")
+        client.wait_text("Login: ")
+        client.command_key(38)  # L on the desktop keyboard.
+        receive(peer, b"demo\rtest\r", root / "wire.bin")
+        assert b"removed_login.wren" in client.stderr
+
 
 def recovery(executable, reports, close=False):
     def prepare(root):

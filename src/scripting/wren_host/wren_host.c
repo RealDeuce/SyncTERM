@@ -1005,13 +1005,18 @@ st_wren_interpret_profile_scripts(WrenVM *vm, const struct st_profile *profile)
 			if (!wrenHasModule(vm, name)) {
 				source   = read_named_source(host->config.paths->scripts_directory, NULL, name);
 				embedded = source == NULL ? embedded_script(name) : NULL;
-				if (source == NULL && embedded == NULL)
-					return IO_ERROR_NOT_FOUND;
-				WrenInterpretResult interpreted =
-				    wrenInterpret(vm, name, source == NULL ? embedded->source : source);
-				free(source);
-				if (interpreted != WREN_RESULT_SUCCESS)
-					return IO_ERROR_INVALID_FORMAT;
+				if (source == NULL && embedded == NULL) {
+					char message[sizeof(name) + sizeof("Cannot read entry script scripts/.wren")];
+					snprintf(message, sizeof(message), "Cannot read entry script scripts/%s.wren", name);
+					st_wren_log_error(vm, WREN_ERROR_RUNTIME, NULL, 0, message);
+				}
+				else {
+					WrenInterpretResult interpreted =
+					    wrenInterpret(vm, name, source == NULL ? embedded->source : source);
+					free(source);
+					if (interpreted != WREN_RESULT_SUCCESS)
+						return IO_ERROR_INVALID_FORMAT;
+				}
 			}
 		}
 		if (comma == NULL)
