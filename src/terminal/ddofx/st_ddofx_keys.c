@@ -196,31 +196,39 @@ logical_key(const struct st_console_event *e, unsigned physical)
 	return (uint16_t)((scan << 8) | low);
 }
 
-static bool
+enum key_match {
+	KEY_PASS,
+	KEY_CONSUMED,
+	KEY_CALLBACK
+};
+
+static enum key_match
 next_binding(struct st_ddofx *ddo)
 {
 	struct st_ddofx_keys *keys = ddo->keys;
-	while (keys->next < keys->count || keys->next < st_ddofx_button_count(ddo)) {
+	while (keys->next < keys->count || keys->next < st_ddofx_control_count(ddo)) {
 		unsigned slot = keys->next;
 		if (!keys->checked_button) {
 			keys->checked_button = true;
 			if (st_ddofx_button_key(ddo, slot, keys->word)) {
 				keys->active_button = true;
 				keys->active_slot   = slot;
-				return true;
+				return KEY_CALLBACK;
 			}
 		}
 		keys->checked_button = false;
 		++keys->next;
+		if (st_ddofx_choices_consume_key(ddo, slot, keys->word))
+			return KEY_CONSUMED;
 		struct binding *b = &keys->bindings[slot];
 		if (b->word && (b->word == keys->word || b->word == UINT16_MAX)
 		    && st_ddofx_callback_start(ddo, &b->callback, DDO_KEY)) {
 			keys->active_button = false;
 			keys->active_slot   = slot;
-			return true;
+			return KEY_CALLBACK;
 		}
 	}
-	return false;
+	return KEY_PASS;
 }
 
 int
@@ -229,8 +237,12 @@ st_ddofx_resume_key(struct st_ddofx *ddo, const struct st_ddofx_sink *sink)
 	struct st_ddofx_keys *keys = ddo->keys;
 	bool                  pass = keys->active_button ? st_ddofx_button_pass(ddo, keys->active_slot)
 	                                                 : keys->bindings[keys->active_slot].pass;
-	if (pass && next_binding(ddo))
-		return 0;
+	if (pass) {
+		enum key_match match = next_binding(ddo);
+		if (match == KEY_CALLBACK)
+			return 0;
+		pass = match == KEY_PASS;
+	}
 	ddo->in_key = false;
 	pass        = pass && !ddo->keys_locked;
 	if (keys->event.type == ST_CONSOLE_EVENT_PHYSICAL_KEY)
@@ -242,7 +254,7 @@ bool
 st_ddofx_key(struct st_ddofx *ddo, const struct st_console_event *e)
 {
 	struct st_ddofx_keys *keys = ddo->keys;
-	if (!keys && st_ddofx_button_count(ddo)) {
+	if (!keys && st_ddofx_control_count(ddo)) {
 		ddo->keys = calloc(1, sizeof(*ddo->keys));
 		keys      = ddo->keys;
 	}
@@ -283,11 +295,16 @@ st_ddofx_key(struct st_ddofx *ddo, const struct st_console_event *e)
 	keys->word = word;
 	keys->next = 0;
 	keys->checked_button = false;
-	if (!next_binding(ddo))
+	enum key_match match = next_binding(ddo);
+	if (match == KEY_PASS && e->type != ST_CONSOLE_EVENT_PHYSICAL_KEY)
 		return ddo->keys_locked;
 	keys->event = *e;
 	if (e->type == ST_CONSOLE_EVENT_PHYSICAL_KEY)
 		keys->alt_echo = word;
+	if (match != KEY_CALLBACK) {
+		keys->pass_echo = match == KEY_PASS && !ddo->keys_locked;
+		return !keys->pass_echo;
+	}
 	ddo->in_key = true;
 	return true;
 }

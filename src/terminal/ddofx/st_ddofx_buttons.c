@@ -30,15 +30,15 @@ st_ddofx_button_count(const struct st_ddofx *ddo)
 	return ddo->graphics && ddo->graphics->buttons ? ddo->graphics->buttons->count : 0;
 }
 
-static struct st_ddofx_sprite *
-sprite(struct st_ddofx_graphics *g, const char *name)
+struct st_ddofx_sprite *
+st_ddofx_find_sprite(struct st_ddofx_graphics *g, const char *name)
 {
 	int i = st_ddofx_sprite_slot(g, name, false);
 	return i >= 0 ? &g->sprites[i] : NULL;
 }
 
-static bool
-fits(const struct st_ddofx_sprite *s, int32_t x, int32_t y)
+bool
+st_ddofx_sprite_fits(const struct st_ddofx_sprite *s, int32_t x, int32_t y)
 {
 	return s && x >= 0 && x <= WIDTH - s->width && y >= s->height - 1 && y < HEIGHT;
 }
@@ -58,7 +58,7 @@ st_ddofx_define_button(struct st_ddofx *ddo, char *args)
 	const char *up_name = st_ddofx_field(&args), *down_name = st_ddofx_field(&args);
 	if (!up_name || !down_name)
 		return;
-	struct st_ddofx_sprite *up = sprite(g, up_name), *down = sprite(g, down_name);
+	struct st_ddofx_sprite *up = st_ddofx_find_sprite(g, up_name), *down = st_ddofx_find_sprite(g, down_name);
 	if (!up || !down) {
 		if (g->buttons)
 			g->buttons->slots[slot - 1] = (struct push_button) {0};
@@ -69,8 +69,8 @@ st_ddofx_define_button(struct st_ddofx *ddo, char *args)
 		if (!st_ddofx_field_number(ddo, &args, &v[i]))
 			return;
 	char *reply = st_ddofx_field(&args);
-	if (!args || !reply || !fits(up, v[0], v[1]) || !fits(down, v[0], v[1]) || (unsigned)v[2] > 255
-	    || (unsigned)v[3] > 255 || (v[4] != 0 && v[4] != 1) || v[5] < 1 || v[5] > 7)
+	if (!args || !reply || !st_ddofx_sprite_fits(up, v[0], v[1]) || !st_ddofx_sprite_fits(down, v[0], v[1])
+	    || (unsigned)v[2] > 255 || (unsigned)v[3] > 255 || (v[4] != 0 && v[4] != 1) || v[5] < 1 || v[5] > 7)
 		return;
 	if (!g->buttons)
 		g->buttons = calloc(1, sizeof(*g->buttons));
@@ -105,8 +105,8 @@ st_ddofx_button_up(struct st_ddofx *ddo, unsigned i)
 	if (i >= st_ddofx_button_count(ddo))
 		return;
 	struct push_button     *b = &ddo->graphics->buttons->slots[i];
-	struct st_ddofx_sprite *s = sprite(ddo->graphics, b->up);
-	if (fits(s, b->x, b->y))
+	struct st_ddofx_sprite *s = st_ddofx_find_sprite(ddo->graphics, b->up);
+	if (st_ddofx_sprite_fits(s, b->x, b->y))
 		st_ddofx_draw_sprite(ddo->graphics, s, VISUAL, 'D', b->x, b->y);
 }
 
@@ -114,8 +114,9 @@ static bool
 press(struct st_ddofx *ddo, unsigned i, enum st_ddofx_callback_kind kind, int x, int y)
 {
 	struct push_button     *b  = &ddo->graphics->buttons->slots[i];
-	struct st_ddofx_sprite *up = sprite(ddo->graphics, b->up), *down = sprite(ddo->graphics, b->down);
-	if (!fits(up, b->x, b->y) || !fits(down, b->x, b->y))
+	struct st_ddofx_sprite *up   = st_ddofx_find_sprite(ddo->graphics, b->up),
+			       *down = st_ddofx_find_sprite(ddo->graphics, b->down);
+	if (!st_ddofx_sprite_fits(up, b->x, b->y) || !st_ddofx_sprite_fits(down, b->x, b->y))
 		return false;
 	if (kind == DDO_MOUSE && (x < b->x || x >= b->x + up->width || y > b->y || y <= b->y - up->height))
 		return false;

@@ -48,6 +48,8 @@ struct macro_frame {
 	bool saved_in_event;
 	uint64_t               saved_wait;
 	unsigned                    pressed_button;
+	enum st_ddofx_choice_kind   choice_kind;
+	unsigned choice_anchor, choice_next; /* Anchor is one-based, zero for ordinary macro frames. */
 };
 
 struct st_ddofx_script {
@@ -374,6 +376,18 @@ st_ddofx_callback_start(struct st_ddofx *ddo, const struct st_ddofx_callback *cb
 	return f != NULL;
 }
 
+void
+st_ddofx_execute_choices(struct st_ddofx *ddo, enum st_ddofx_choice_kind kind, unsigned anchor)
+{
+	if (!script_ready(ddo))
+		return;
+	struct macro_frame *f = push(ddo->script);
+	if (f) {
+		f->choice_kind   = kind;
+		f->choice_anchor = anchor;
+	}
+}
+
 bool
 st_ddofx_button_callback(struct st_ddofx *ddo, const struct st_ddofx_callback *cb,
     enum st_ddofx_callback_kind kind, unsigned index)
@@ -645,6 +659,11 @@ st_ddofx_script_step(struct st_ddofx *ddo, const struct st_ddofx_sink *sink)
 {
 	struct st_ddofx_script *s = ddo->script;
 	struct macro_frame     *f = s->top;
+	if (f->choice_anchor) {
+		if (!st_ddofx_next_choice(ddo, f->choice_kind, f->choice_anchor, &f->choice_next))
+			pop(s);
+		return 0;
+	}
 	if (f->pressed_button) {
 		st_ddofx_button_up(ddo, f->pressed_button - 1);
 		f->pressed_button = 0;

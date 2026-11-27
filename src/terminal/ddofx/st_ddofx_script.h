@@ -12,6 +12,17 @@ struct st_ddofx_callback {
 enum st_ddofx_callback_kind { DDO_EVENT = 1, DDO_KEY, DDO_MOUSE, DDO_FIELD
 };
 
+enum st_ddofx_choice_kind {
+	DDO_RADIO,
+	DDO_CHECKBOX
+};
+
+unsigned st_ddofx_control_count(const struct st_ddofx *);
+bool     st_ddofx_choice_mouse(struct st_ddofx *, enum st_ddofx_choice_kind, unsigned slot, int x, int y);
+bool     st_ddofx_choices_consume_key(struct st_ddofx *, unsigned slot, uint16_t word);
+void     st_ddofx_execute_choices(struct st_ddofx *, enum st_ddofx_choice_kind, unsigned anchor);
+bool     st_ddofx_next_choice(struct st_ddofx *, enum st_ddofx_choice_kind, unsigned anchor, unsigned *next);
+
 unsigned st_ddofx_button_count(const struct st_ddofx *);
 bool     st_ddofx_button_key(struct st_ddofx *, unsigned, uint16_t);
 bool     st_ddofx_button_pass(const struct st_ddofx *, unsigned);

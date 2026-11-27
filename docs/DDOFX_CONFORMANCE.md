@@ -24,6 +24,8 @@ In Normal mode the BBS can show or hide the mouse pointer, query its position an
 
 The BBS can create up to 300 desktop push buttons with `5CPUSHB`. Creation draws the up sprite on the work page. A matching key or mouse combination draws the down sprite on the visual page for three clock ticks, restores the up sprite, then runs the macro and sends the return string. The pass flag controls whether a keyboard activation continues to the next binding and the connection.
 
+Desktop radio buttons and checkboxes each have 300 slots. A key or left click changes the selection. An explicit execute command runs the selected members of the addressed exclusive or multiple-selection group in slot order. Each macro finishes before its return string is sent.
+
 Desktop hover fields use a separate table of 300 slots. The highest matching slot runs its macro, sends its return string and selects its static or animated pointer. As specified in the SDK, leaving a field for uncovered space preserves the remembered slot. Re-entering it fires again after a different field has won or the BBS has sent `3MFFRS`.
 
 The host can load either MPT pointer format from the assigned M resource. A selected image keeps its own hotspot and AND/XOR masks when the BBS replaces or clears its list entry. The bitmap presenter applies those masks to the displayed palette indices, leaving the graphics pages available for capture and copying under the pointer. The 100 static slots and 100 animation profiles support one-shot, looping and oscillating playback.
@@ -309,14 +311,14 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 9211 | MOUSE FIELD | DDO-FX (NM) | Desktop hover fields |
 | 9292 | MOUSE FIELD SWAP | DDO-FX (NM) | Desktop hover fields |
 | 9302 | MOUSE FIELD FRESHEN | DDO-FX (NM) | Desktop hover fields |
-| 9317 | CREATE RADIO BUTTON | DDO-FX (NM) | Pending |
-| 9481 | EXECUTE RADIO BUTTON | DDO-FX (NM) | Pending |
-| 9548 | SWAP RADIO BUTTON | DDO-FX (NM) | Pending |
-| 9560 | DISABLE/ENABLE RADIO BUTTON | DDO-FX (NM) | Pending |
-| 9576 | CREATE CHECK BOX | DDO-FX (NM) | Pending |
-| 9679 | EXECUTE CHECK BOX | DDO-FX (NM) | Pending |
-| 9688 | SWAP CHECK BOX | DDO-FX (NM) | Pending |
-| 9697 | DISABLE/ENABLE CHECK BOX | DDO-FX (NM) | Pending |
+| 9317 | CREATE RADIO BUTTON | DDO-FX (NM) | Desktop controls |
+| 9481 | EXECUTE RADIO BUTTON | DDO-FX (NM) | Desktop controls |
+| 9548 | SWAP RADIO BUTTON | DDO-FX (NM) | Desktop controls |
+| 9560 | DISABLE/ENABLE RADIO BUTTON | DDO-FX (NM) | Desktop controls |
+| 9576 | CREATE CHECK BOX | DDO-FX (NM) | Desktop controls |
+| 9679 | EXECUTE CHECK BOX | DDO-FX (NM) | Desktop controls |
+| 9688 | SWAP CHECK BOX | DDO-FX (NM) | Desktop controls |
+| 9697 | DISABLE/ENABLE CHECK BOX | DDO-FX (NM) | Desktop controls |
 | 9706 | CREATE PUSH BUTTON | DDO-FX (NM) | Desktop mouse and keyboard |
 | 9792 | CREATE TEXT FIELD | DDO-FX (NM) | Pending |
 | 9973 | SHOW TEXT FIELD | DDO-FX (NM) | Pending |

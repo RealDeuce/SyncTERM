@@ -55,6 +55,10 @@ clear_graphics_objects(struct st_ddofx_graphics *g)
 	}
 	if (g->mouse.visibility_changed)
 		(void)st_console_set_pointer_visible(g->display, g->mouse.previous_visibility);
+	for (unsigned i = 0; i < 2; ++i) {
+		free(g->choices[i]);
+		g->choices[i] = NULL;
+	}
 	free(g->buttons);
 	g->buttons = NULL;
 	free(g->mouse.fields);

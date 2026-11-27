@@ -157,24 +157,24 @@ ellipse(struct st_ddofx_graphics *g, int32_t rx, int32_t ry, bool filled)
 	}
 }
 
-static void
-flood(struct st_ddofx_graphics *g, const struct bounds *b, int32_t x, int32_t y)
+void
+st_ddofx_flood(uint8_t *data, int stride, const struct bounds *b, int32_t x, int32_t y, uint8_t colour)
 {
 	if (!inside(b, x, y))
 		return;
-	uint8_t original = g->page[WORK][y][x];
-	if (original == g->colour)
+	uint8_t original = data[y * stride + x];
+	if (original == colour)
 		return;
 	size_t    capacity = (size_t)(b->right - b->left + 1) * (b->bottom - b->top + 1);
 	uint32_t *todo     = malloc(capacity * sizeof(*todo));
 	if (!todo)
 		return;
-	g->page[WORK][y][x] = g->colour;
-	todo[0]             = (uint32_t)(y * WIDTH + x);
+	data[y * stride + x] = colour;
+	todo[0]              = (uint32_t)(y * stride + x);
 	size_t count        = 1;
 	while (count) {
 		uint32_t         pixel = todo[--count];
-		int              px = (int)(pixel % WIDTH), py = (int)(pixel / WIDTH);
+		int              px = (int)(pixel % stride), py = (int)(pixel / stride);
 		static const int offsets[4][2] = {
 		    {-1, 0 },
                     {1,  0 },
@@ -183,10 +183,10 @@ flood(struct st_ddofx_graphics *g, const struct bounds *b, int32_t x, int32_t y)
                 };
 		for (unsigned i = 0; i < 4; ++i) {
 			int nx = px + offsets[i][0], ny = py + offsets[i][1];
-			if (inside(b, nx, ny) && g->page[WORK][ny][nx] == original) {
+			if (inside(b, nx, ny) && data[ny * stride + nx] == original) {
 				/* Mark at insertion so each pixel occupies at most one slot. */
-				g->page[WORK][ny][nx] = g->colour;
-				todo[count++]         = (uint32_t)(ny * WIDTH + nx);
+				data[ny * stride + nx] = colour;
+				todo[count++]          = (uint32_t)(ny * stride + nx);
 			}
 		}
 	}
@@ -264,7 +264,8 @@ st_ddofx_draw(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, const char
 	else if ((!strcmp(op, "ELIPS") || !strcmp(op, "ELIPSF")) && st_ddofx_numbers(ddo, args, n, 2))
 		ellipse(g, n[0], n[1], op[len - 1] == 'F');
 	else if ((!strcmp(op, "PAINT") || !strcmp(op, "FLOOD")) && st_ddofx_numbers(ddo, args, n, 2))
-		flood(g, op[0] == 'P' ? &screen : &g->clip, n[0], n[1]);
+		st_ddofx_flood((uint8_t *)g->page[WORK], WIDTH, op[0] == 'P' ? &screen : &g->clip, n[0], n[1],
+		    g->colour);
 	else if ((!strcmp(op, "BCURV") || !strcmp(op, "BCURVX")) && st_ddofx_numbers(ddo, args, n, 9))
 		bezier(g, n, op[len - 1] == 'X');
 }

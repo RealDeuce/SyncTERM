@@ -680,6 +680,51 @@ def check_push_buttons(t, mouse):
     t.input(b"c")
 
 
+def check_choices(t, mouse):
+    t.case("Desktop radio and checkbox selection, rendering and grouped execution")
+    radio = b"5CRBUTTON,1,2,2,12,3,EDGE,OFF,20,24,0,1,9,8,30,97,0,R,"
+    second = b"5CRBUTTON,2,2,2,12,3,EDGE,OFF,30,24,1,1,9,8,48,98,1,S,"
+    checkbox = b"5CCHKBOX,1,ON,EDGE,OFF,40,24,0,1,0,0,46,99,1,C~^M,\x1d(7SRET,1)"
+    pos = lambda x, y: y*640+x
+    f = t.exchange(commands(b"2C,7", b"2aFILL", b"2S,0,4,0,4,OFF", b"2C,11", b"2aFILL",
+                            b"2S,0,4,0,4,ON", b"2C,6", b"2aFILL", b"2C,2", b"2aRECT,1,3,1,3",
+                            b"2S,0,4,0,4,EDGE", b"2aERASE", radio, second, checkbox,
+                            b"7DEFRET,1,M", b"2aG,22,22", b"2aG,32,22"), b"3\xff12\xff")
+    assert f.primary[pos(22,22)] == 0
+    f = t.exchange(commands(b"2CPYWP2VP", b"5EXCBOX,1", b"5EXRBTN,1"), b"S")
+    assert [f.primary[pos(x,22)] for x in (20,22,32,42)] == [6,3,12,2]
+    t.client.text("a")
+    t.client.wait_for(lambda f: f.primary[pos(22,22)] == 12)
+    f = t.exchange(commands(b"5EXRBTN,2"), b"R")
+    assert f.primary[pos(32,22)] == 3
+    t.client.text("a")
+    t.exchange(commands(b"5EXRBTN,1"), b"R")
+    t.client.text("c")
+    t.input(b"c")
+    f = t.exchange(commands(b"5EXCBOX,1"), b"MC,\r")
+    assert f.primary[pos(42,22)] == 11
+    mouse(42,22,4)
+    mouse(42,22,0)
+    t.exchange(commands(b"5EXCBOX,1"), b"MC,\r")
+    mouse(44,24,1)
+    mouse(43,23,1)
+    mouse(43,23,0)
+    f = t.exchange(commands(b"5EXCBOX,1", b"5DERBTN,1,0", b"5EXRBTN,2"))
+    assert [f.primary[pos(x,22)] for x in (22,42)] == [7,2]
+    f = t.exchange(commands(b"5DERBTN,1,1", b"5EXRBTN,1"))
+    assert f.primary[pos(22,22)] == 3
+    # The first callback yields, executes the other family, then disables
+    # the last slot before the outer scan reaches it.
+    one = b"5CCHKBOX,1,ON,EDGE,OFF,40,24,1,1,0,4,0,0,0,A,\x1d(w1)\x1d(5EXRBTN,1)\x1d(5DECBOX,300,0)"
+    last = b"5CCHKBOX,300,ON,EDGE,OFF,50,24,1,1,0,4,0,0,0,Z,"
+    mouse(20,20,1)
+    mouse(20,20,0)
+    t.exchange(commands(one, last, b"5EXCBOX,300"), b"RA")
+    t.exchange(commands(last, b"5SWPCBOX,1,299", b"5SWPCBOX,300,2", b"5EXCBOX,299"), b"ZRA")
+    t.exchange(commands(b"5CRBUTTON,0", b"5EXRBTN,1", b"5EXCBOX,2"), b"ZA")
+    t.exchange(commands(b"5CCHKBOX,0", b"5EXCBOX,299", b"2RESET"))
+
+
 def check_mouse(t, root):
     t.case("Normal mouse region callbacks and button history")
     frame = t.exchange(commands(b"LIGMODE", b"LIGMODE", b"3MACT", b"dMOUSE"), b"Y\xff3\xff")
@@ -736,6 +781,7 @@ def check_mouse(t, root):
     mouse(301, 90, 0)
     t.exchange(commands(b"3MINF", b"2RESET"), b"112,90,0\xff")
     check_push_buttons(t, mouse)
+    check_choices(t, mouse)
     check_pointers(t, root, mouse)
     t.exchange(commands(b"3MREGN,300,70,85,40,55,3,B,", b"7DEFRET,1,M",
                         b"3MREGN,1,70,85,40,55,3,A~^M,\x1d(w1)\x1d(7SRET,1)",

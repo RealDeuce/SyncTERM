@@ -68,7 +68,7 @@ move_to(struct st_ddofx *ddo, int x, int y)
 	m->controlled                  = true;
 	if (moved && m->fields)
 		m->fields->dirty = true;
-	if (moved && (m->regions || st_ddofx_button_count(ddo)) && m->buttons && !m->scan.waiting
+	if (moved && (m->regions || st_ddofx_control_count(ddo)) && m->buttons && !m->scan.waiting
 	    && !m->ignore_hold)
 		m->scan.repeat_due = 1;
 	st_ddofx_pointer_refresh(ddo);
@@ -305,10 +305,18 @@ st_ddofx_resume_mouse(struct st_ddofx *ddo)
 	/* A callback may edit later slots. Preserve the initiating sample
 	 * across waits and read each control when its turn comes. */
 	unsigned regions = mouse->regions ? mouse->regions->count : 0;
-	while (scan->buttons && (scan->next < regions || scan->next < st_ddofx_button_count(ddo))) {
+	while (scan->buttons && (scan->next < regions || scan->next < st_ddofx_control_count(ddo))) {
 		unsigned slot = scan->next;
-		if (!scan->checked_button) {
-			scan->checked_button = true;
+		while (scan->stage < 2) {
+			enum st_ddofx_choice_kind kind = scan->stage++ == 0 ? DDO_RADIO : DDO_CHECKBOX;
+			if (scan->buttons == 1 && st_ddofx_choice_mouse(ddo, kind, slot, scan->x, scan->y)
+			    && mouse->buttons) {
+				scan->waiting = true;
+				return;
+			}
+		}
+		if (scan->stage == 2) {
+			++scan->stage;
 			if (st_ddofx_button_mouse(ddo, slot, scan->x, scan->y, scan->buttons)) {
 				scan->waiting = mouse->buttons != 0;
 				ddo->in_mouse = true;
@@ -322,7 +330,7 @@ st_ddofx_resume_mouse(struct st_ddofx *ddo)
 			return;
 		}
 		++scan->next;
-		scan->checked_button = false;
+		scan->stage = 0;
 		if (!hit)
 			continue;
 		if (!r->on_release)
@@ -424,7 +432,7 @@ st_ddofx_mouse(struct st_ddofx *ddo, const struct st_console_event *event)
 	}
 	if (moved && mouse->fields)
 		mouse->fields->dirty = true;
-	if (!mouse->regions && !st_ddofx_button_count(ddo) && !mouse->scan.waiting) {
+	if (!mouse->regions && !st_ddofx_control_count(ddo) && !mouse->scan.waiting) {
 		hover(ddo);
 		return;
 	}

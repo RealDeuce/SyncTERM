@@ -254,6 +254,8 @@ st_ddofx_gadget_command(struct st_ddofx *ddo, char *body)
 	    .g      = ddo->graphics,
 	    .damage = {WIDTH, -1, HEIGHT, -1}
         };
+	if (st_ddofx_choice_command(ddo, verb, args))
+		return;
 	if (!ascii_case_compare(verb, "5CPUSHB")) {
 		st_ddofx_define_button(ddo, args);
 		return;
