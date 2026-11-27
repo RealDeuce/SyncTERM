@@ -46,7 +46,7 @@ In Normal mode the BBS can show or hide the mouse pointer, query its position an
 
 In Lite and Normal, `EEDTEXT` opens a full-screen editor for a CP437 message of up to 65,532 bytes in the entry’s BBSTHEME directory. A new message starts empty. F2 saves and exits, and Escape discards edits and exits. Both send the door’s completion string. Existing line endings are preserved, and Enter inserts a DOS CRLF. The door can then read the saved bytes with `ERTEXT`.
 
-`EPTEXT` can export a BBSTHEME file in both modes. The door supplies a suggested DOS filename and the user selects the local destination in Save As. The output starts with the SDK’s single space, followed by the complete file, including binary printer data. Success, cancellation, a missing source and an unavailable device all send the specified completion string. SyncTERM currently treats DOS printer and serial ports as unavailable.
+`EPTEXT` can export a BBSTHEME file in both modes. The door supplies a suggested DOS filename and the user selects the local destination in Save As. The output starts with the SDK’s single space, followed by the complete file, including binary printer data. Success, cancellation, a missing source and an unavailable device all send the specified completion string. For the SDK’s printer ports (`LPT1`–`LPT3`) and serial ports (`COM1`–`COM4`), SyncTERM sends the completion string and writes no device bytes.
 
 In Lite and Normal, `~INFSAV` and `~INFLOD` use the assigned resource prefix plus `T` in the entry’s BBSTHEME directory. Slot numbers and signed 32-bit passwords follow the SDK. A successful load sends the saved bytes verbatim, including embedded control bytes. Variable capture keeps the first 50 bytes and preserves the destination variable’s type.
 
@@ -110,444 +110,448 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 
 Integer parameters accept signed decimal and `$`-prefixed hexadecimal values. When a parameter reads a defined variable, empty or nonnumeric content supplies zero. The stored bytes remain available to text commands. Numeric comparisons and arithmetic use the full variable value, including any embedded NUL. Left and right padding use the first byte of the supplied character, including NUL. `~RNDVAR` draws from 1 through the requested maximum. A scene reset clears the variables and subsequent draws continue the session’s random sequence.
 
-| SDK line | Definition | Domain | Coverage |
-| ---: | --- | --- | --- |
-| 575 | LOAD FONT | DDO-FX LITE | Connected |
-| 616 | LOAD MUSIC | DDO-FX LITE | MOD, S3M, CMF with embedded instruments |
-| 635 | LOAD BBS THEME | DDO-FX LITE | Connected |
-| 693 | LOAD SOUND BITES LIBRARY | DDO-FX LITE | Connected |
-| 767 | LOAD TERM THEME | DDO-FX LITE | Connected |
-| 828 | PLAY SAMPLE | DDO-FX LITE | Connected |
-| 858 | PLAY SOUND BITE SAMPLE | DDO-FX LITE | Connected |
-| 868 | PLAY SAMPLE At FREQUENCY | DDO-FX LITE | Connected |
-| 882 | PLAY SOUND BITE SAMPLE At FREQUENCY | DDO-FX LITE | Connected |
-| 894 | LOAD BIG SAMPLE | DDO-LITE | Connected |
-| 993 | DEFINE BIG SAMPLE | DDO-LITE | Connected |
-| 1055 | ADD BIG SAMPLE PART | DDO-LITE | Connected |
-| 1086 | UNLOAD BIG SAMPLE | DDO-LITE | Connected |
-| 1102 | PLAY BIG SAMPLE | DDO-LITE | Connected |
-| 1124 | CHECK BIG SAMPLE | DDO-LITE | Connected |
-| 1167 | PLAY REALPLAY SAMPLE | DDO-FX LITE | Connected |
-| 1207 | TEXT TO SPEECH | DDO-FX LITE | Connected |
-| 1417 | MODIFY MUSIC PATTERN | DDO-FX LITE | Connected |
-| 1447 | PAUSE RESUME MOD/S3M | DDO-FX LITE | Connected |
-| 1459 | SET VOLUME | DDO-FX LITE | Connected |
-| 1476 | MODIFY VOLUME | DDO-FX LITE | Connected |
-| 1491 | GET VOLUME | DDO-FX LITE | Connected |
-| 1509 | IS CMF PLAYING | DDO-FX LITE | Connected |
-| 1528 | WAIT | DDO-FX LITE | Connected |
-| 1544 | GOTO DDO-FX (NORMAL MODE) | DDO-FX LITE | Connected |
-| 1573 | DETECT LITERM | DDO-FX LITE | Connected |
-| 1611 | DETECT USER MEMORY | DDO-FX LITE | Connected |
-| 1634 | DETECT USER MEMORY & REACT | DDO-FX LITE | Connected |
-| 1729 | DETECT USER DRIVE SIZE | DDO-FX LITE | Connected |
-| 1755 | DETECT GRAPHICS ADAPTER TYPE | DDO-FX LITE | Connected |
-| 1770 | DETECT AUDIO CARD | DDO-FX LITE | Connected |
-| 1798 | DETECT Machine Speed | DDO-FX LITE | Connected |
-| 1851 | DETECT VIDEO MODE | DDO-FX LITE | Connected |
-| 1880 | DETECT FOR MUSIC FILE | DDO-FX LITE | Connected |
-| 1921 | DETECT FOR THEME FILE | DDO-FX LITE | Connected |
-| 1929 | ASSIGN RESOURCE FILE | DDO-FX LITE | Connected |
-| 2249 | DETECT FOR RESOURCE FILE | DDO-FX LITE | Connected |
-| 2262 | DETECT FOR RESOURCE ENTRY | DDO-FX LITE | Connected |
-| 2320 | DETECT FOR FONT FILE | DDO-FX LITE | Connected |
-| 2328 | DETECT MUSIC ON/OFF | DDO-FX LITE | Connected |
-| 2345 | DETECT SOUND F/X ON/OFF | DDO-FX LITE | Connected |
-| 2367 | DETECT MUSIC PLAYING | DDO-FX LITE | Connected |
-| 2389 | DETECT THEME LOADED | DDO-FX LITE | Connected |
-| 2411 | DETECT FONT LOADED | DDO-FX LITE | Connected |
-| 2431 | DEFINE A MACRO | DDO-FX LITE | Connected |
-| 2590 | CLEAR A MACRO | DDO-FX LITE | Connected |
-| 2602 | RUN A MACRO | DDO-FX LITE | Connected |
-| 2615 | EXECUTE A MACRO LINE | DDO-FX LITE | Connected |
-| 2662 | CREATE KEY MACRO | DDO-FX LITE | Connected |
-| 2874 | TEST FOR JOYSTICK | DDO-LITE | Connected |
-| 2893 | CALIBRATE JOYSTICK | DDO-LITE | Connected |
-| 2913 | DEFINE JOYSTICK | DDO-LITE | Connected |
-| 3067 | CREATE BACKGROUND EVENT | DDO-LITE | Connected |
-| 3161 | ACTIVATE BACKGROUND EVENT | DDO-LITE | Connected |
-| 3174 | DEACTIVATE BACKGROUND EVENT | DDO-LITE | Connected |
-| 3187 | DEFINE RETURN STRING | DDO-LITE | Connected |
-| 3226 | SEND RETURN STRING | DDO-LITE | Connected |
-| 3237 | TEXT FADE OUT | DDO-FX LITE | Connected |
-| 3264 | TEXT FADE IN | DDO-FX LITE | Connected |
-| 3273 | SLIDE SCREEN UP | DDO-FX LITE | Connected |
-| 3294 | SLIDE SCREEN DOWN | DDO-FX LITE | Connected |
-| 3307 | BOUNCE SCREEN DOWN | DDO-FX LITE | Connected |
-| 3323 | DISPLAY RAW ANSI | DDO-FX LITE | Connected |
-| 3365 | SET FULL SCREEN MODE | DDO-FX LITE | Connected |
-| 3400 | RESTORE FULL SCREEN MODE | DDO-FX LITE | Connected |
-| 3416 | RUN LOCAL SCRIPT | DDO-FX LITE | Connected |
-| 3501 | DEFINE SYSTEM VARIABLE | DDO-FX LITE | Connected |
-| 3604 | LOCK KEYS | DDO-FX LITE | Connected |
-| 3650 | UNLOCK KEYS | DDO-FX LITE | Connected |
-| 3661 | PAUSE BACKGROUND TASKS | DDO-FX LITE | Connected for timed events and background graphics, including clocks, marquees, sprite animations, tile maps, polygon objects and the raycaster |
-| 3710 | UNPAUSE BACKGROUND TASKS | DDO-FX LITE | Connected for timed events and background graphics, including clocks, marquees, sprite animations, tile maps, polygon objects and the raycaster |
-| 3720 | IGNORE COMMANDS | DDO-FX LITE | Connected |
-| 3767 | HEAR COMMANDS | DDO-FX LITE | Connected |
-| 3782 | ALL CAPS SYSTEM VARIABLE | DDO-FX LITE | Connected |
-| 3796 | GET TEXT FIELD INFO FULL | DDO-FX LITE | Connected on the desktop and in graphic windows |
-| 3824 | GET TEXT FIELD INFO | DDO-FX LITE | Connected on the desktop and in graphic windows |
-| 3841 | INCREMENT SYSTEM VARIABLE | DDO-FX LITE | Connected |
-| 3855 | DECREMENT SYSTEM VARIABLE | DDO-FX LITE | Connected |
-| 3870 | RANDOM SYSTEM VARIABLE | DDO-FX LITE | Connected |
-| 3893 | VARIABLE COPY | DDO-FX LITE | Connected |
-| 3941 | VARIABLE INSERT | DDO-FX LITE | Connected |
-| 3989 | PAD VARIABLE LEFT | DDO-FX LITE | Connected |
-| 4041 | PAD VARIABLE RIGHT | DDO-FX LITE | Connected |
-| 4063 | VARIABLE DELETE | DDO-FX LITE | Connected |
-| 4096 | VARIABLE POSITION | DDO-FX LITE | Connected |
-| 4132 | VARIABLE LENGTH | DDO-FX LITE | Connected |
-| 4157 | VARIABLE EQUAL | DDO-FX LITE | Connected |
-| 4186 | VARIABLE TYPING | DDO-FX LITE | Connected |
-| 4209 | VARIABLE ADD | DDO-FX LITE | Connected |
-| 4224 | VARIABLE SUBTRACT | DDO-FX LITE | Connected |
-| 4239 | VARIABLE MULTIPLY | DDO-FX LITE | Connected |
-| 4254 | VARIABLE DIVIDE | DDO-FX LITE | Connected |
-| 4270 | VARIABLE CAPTURE | DDO-FX LITE | Connected |
-| 4322 | IF VAR DO MACRO | DDO-FX LITE | Connected for literals, typed variables and all SDK master operands |
-| 4547 | REPEAT MACRO UNTIL VAR | DDO-FX LITE | Connected for literals, typed variables and all SDK master operands |
-| 4604 | REPEAT MACRO | DDO-FX LITE | Connected |
-| 4654 | INFO SAVE | DDO-FX LITE | Connected |
-| 4728 | INFO LOAD | DDO-FX LITE | Connected |
-| 4777 | LAUNCH TEXT EDITOR | DDO-FX LITE | Connected |
-| 4821 | RETRIEVE TEXT FILE | DDO-FX LITE | Connected |
-| 4847 | WRITE TEXT FILE | DDO-FX LITE | Connected |
-| 4886 | PRINT TEXT FILE | DDO-FX LITE | Connected for file output and unavailable-device completion. Printer and serial output unavailable |
-| 4940 | LABEL | DDO-FX LITE | Connected |
-| 4955 | RESET ENVIRONMENT | DDO-FX LITE | Connected for implemented scene objects |
-| 5436 | DETECT MOUSE | DDO-FX (NM) | Connected |
-| 5457 | OPEN GRAPHIC TEXT WINDOW | DDO-FX (NM) | Desktop and attached text windows |
-| 5780 | GOTO CURSOR | DDO-FX (NM) | Desktop and attached text windows |
-| 5819 | CLOSE WINDOW | DDO-FX (NM) | Desktop and attached text windows |
-| 5855 | HIDE WINDOW | DDO-FX (NM) | Desktop and attached text windows |
-| 5866 | UNHIDE WINDOW | DDO-FX (NM) | Desktop and attached text windows |
-| 5874 | ACTIVATE WINDOW | DDO-FX (NM) | Desktop and attached text windows |
-| 5884 | SWAP WINDOWS | DDO-FX (NM) | Desktop and attached text windows |
-| 5924 | POSITION VTP ORIGIN | DDO-FX (NM) | Desktop and attached text windows |
-| 5956 | POSITION VTP ORIGIN RELATIVE | DDO-FX (NM) | Desktop and attached text windows |
-| 5982 | GETPOS OF GRAPHIC TEXT WINDOW | DDO-FX (NM) | Desktop and attached text windows |
-| 6006 | CHANGE GRAPHIC TEXT WINDOW | DDO-FX (NM) | Desktop and attached text windows |
-| 6035 | SCALE GRAPHIC TEXT FONTS | DDO-FX (NM) | Desktop and attached text windows |
-| 6100 | SET GRAPHIC TEXT WINDOW COLUMNS | DDO-FX (NM) | Desktop and attached text windows |
-| 6131 | LOAD PCX TO BACKGROUND PAGE | DDO-FX (NM) | Connected |
-| 6163 | LOAD PCX TO WORK PAGE | DDO-FX (NM) | Connected |
-| 6179 | LOAD PCX TO VISUAL PAGE | DDO-FX (NM) | Connected on the desktop and alert visual page |
-| 6199 | LOAD A BITMAP FONT | DDO-FX (NM) | Connected |
-| 6237 | BITMAP FONT SELECT | DDO-FX (NM) | Connected |
-| 6246 | COPY BACKGROUND PAGE TO WORK PAGE | DDO-FX (NM) | Connected |
-| 6254 | COPY BACKGROUND PAGE TO VISUAL PAGE | DDO-FX (NM) | Connected |
-| 6261 | COPY WORK PAGE TO BACKGROUND PAGE | DDO-FX (NM) | Connected |
-| 6268 | COPY WORK PAGE TO VISUAL PAGE | DDO-FX (NM) | Connected |
-| 6275 | COPY VISUAL PAGE TO BACKGROUND PAGE | DDO-FX (NM) | Connected |
-| 6282 | COPY VISUAL PAGE TO WORK PAGE | DDO-FX (NM) | Connected |
-| 6289 | CUT BACKGROUND PAGE TO WORK PAGE | DDO-FX (NM) | Connected |
-| 6320 | CUT BACKGROUND PAGE TO VISUAL PAGE | DDO-FX (NM) | Connected |
-| 6328 | CUT WORK PAGE TO BACKGROUND PAGE | DDO-FX (NM) | Connected |
-| 6336 | CUT WORK PAGE TO VISUAL PAGE | DDO-FX (NM) | Connected |
-| 6344 | CUT HIDDEN PAGE TO VISUAL PAGE (T) | DDO-FX (NM) | Connected |
-| 6355 | CUT HIDDEN PAGE TO WORK PAGE (T) | DDO-FX (NM) | Connected |
-| 6366 | CUT HIDDEN PAGE TO BACKGROUND PAGE (T) | DDO-FX (NM) | Connected |
-| 6377 | CUT WORK PAGE TO VISUAL PAGE (T) | DDO-FX (NM) | Connected |
-| 6388 | CUT WORK PAGE TO HIDDEN PAGE (T) | DDO-FX (NM) | Connected |
-| 6399 | CUT WORK PAGE TO BACKGROUND PAGE (T) | DDO-FX (NM) | Connected |
-| 6410 | CUT BACKGROUND PAGE TO HIDDEN PAGE (T) | DDO-FX (NM) | Connected |
-| 6421 | CUT BACKGROUND PAGE TO WORK PAGE (T) | DDO-FX (NM) | Connected |
-| 6432 | CUT BACKGROUND PAGE TO VISUAL PAGE (T) | DDO-FX (NM) | Connected |
-| 6443 | CUT VISUAL PAGE TO BACKGROUND PAGE | DDO-FX (NM) | Connected |
-| 6453 | CUT VISUAL PAGE TO WORK PAGE | DDO-FX (NM) | Connected |
-| 6463 | DEFINE TRANSPARENT COLORS | DDO-FX (NM) | Connected |
-| 6514 | SAVE BACKGROUND PAGE TO PCX | DDO-FX (NM) | Connected |
-| 6528 | SAVE WORK PAGE TO PCX | DDO-FX (NM) | Connected |
-| 6536 | SAVE VISUAL PAGE TO PCX | DDO-FX (NM) | Connected |
-| 6544 | LOAD VISUAL PAGE PCX | DDO-FX (NM) | Connected on the desktop and alert visual page |
-| 6556 | LOAD WORK PAGE PCX | DDO-FX (NM) | Connected on the desktop and alert visual page |
-| 6568 | LOAD BACKGROUND PAGE PCX | DDO-FX (NM) | Connected on the desktop and alert visual page |
-| 6580 | GET SPRITE | DDO-FX (NM) | Connected |
-| 6669 | GET SPRITE VISUAL PAGE | DDO-FX (NM) | Connected |
-| 6679 | GET SPRITE BACKGROUND PAGE | DDO-FX (NM) | Connected |
-| 6689 | GET SPRITE HIDDEN PAGE | DDO-FX (NM) | Connected |
-| 6699 | DRAW SPRITE | DDO-FX (NM) | Connected |
-| 6725 | DRAW SPRITE VISUAL PAGE | DDO-FX (NM) | Connected |
-| 6733 | DRAW SPRITE BACKGROUND PAGE | DDO-FX (NM) | Connected |
-| 6741 | DRAW SPRITE HIDDEN PAGE | DDO-FX (NM) | Connected |
-| 6749 | CLIP SPRITE | DDO-FX (NM) | Connected |
-| 6762 | CLIP SPRITE VISUAL PAGE | DDO-FX (NM) | Connected |
-| 6769 | CLIP SPRITE BACKGROUND PAGE | DDO-FX (NM) | Connected |
-| 6776 | CLIP SPRITE HIDDEN PAGE | DDO-FX (NM) | Connected |
-| 6783 | FLIP SPRITE | DDO-FX (NM) | Connected |
-| 6799 | FLIP SPRITE VISUAL PAGE | DDO-FX (NM) | Connected |
-| 6806 | FLIP SPRITE BACKGROUND PAGE | DDO-FX (NM) | Connected |
-| 6813 | FLIP SPRITE HIDDEN PAGE | DDO-FX (NM) | Connected |
-| 6820 | REVERSE SPRITE | DDO-FX (NM) | Connected |
-| 6831 | REVERSE SPRITE VISUAL PAGE | DDO-FX (NM) | Connected |
-| 6838 | REVERSE SPRITE BACKGROUND PAGE | DDO-FX (NM) | Connected |
-| 6845 | REVERSE SPRITE HIDDEN PAGE | DDO-FX (NM) | Connected |
-| 6852 | PUT SPRITE | DDO-FX (NM) | Connected |
-| 6861 | PUT SPRITE VISUAL PAGE | DDO-FX (NM) | Connected |
-| 6868 | PUT SPRITE BACKGROUND PAGE | DDO-FX (NM) | Connected |
-| 6875 | PUT SPRITE HIDDEN PAGE | DDO-FX (NM) | Connected |
-| 6882 | INVERT SPRITE | DDO-FX (NM) | Connected |
-| 6895 | FREE ALL SPRITES | DDO-FX (NM) | Connected |
-| 6904 | STORE ALL SPRITES | DDO-FX (NM) | Connected |
-| 6919 | LOAD ALL SPRITES | DDO-FX (NM) | Connected |
-| 6939 | DEFINE ANIM PROFILE | DDO-FX (NM) | Connected on the desktop and in graphic windows |
-| 7151 | DEFINE ANIM SOUND | DDO-FX (NM) | Connected on the desktop and in graphic windows |
-| 7186 | PLAY ANIM PROFILE | DDO-FX (NM) | Connected on the desktop and in graphic windows |
-| 7219 | STOP ANIM PROFILE | DDO-FX (NM) | Connected on the desktop and in graphic windows |
-| 7235 | CHANGE ANIM PROFILE ON THE FLY | DDO-FX (NM) | Connected on the desktop and in graphic windows |
-| 7246 | ANIM COLLISION PROFILE | DDO-FX (NM) | Connected on the desktop and in graphic windows |
-| 7339 | RESOLUTION ANIMATOR | DDO-FX (NM) | Connected for FLI/FLC and animation profiles |
-| 7383 | DEFINE MOTION PROFILE | DDO-FX (NM) | Connected on the desktop and in graphic windows |
-| 7466 | DEFINE MOTION FRAME CONTROL | DDO-FX (NM) | Connected on the desktop and in graphic windows |
-| 7534 | DEFINE SIMPLE SPRITE | DDO-FX (NM) | Connected |
-| 7652 | DEFINE SIMPLE SPRITE ANIMATION | DDO-FX (NM) | Connected |
-| 7733 | CLEAR SIMPLE SPRITES | DDO-FX (NM) | Connected |
-| 7747 | CLEAR ALL SIMPLE SPRITES | DDO-FX (NM) | Connected |
-| 7754 | DRAW SIMPLE SPRITES | DDO-FX (NM) | Connected |
-| 7765 | COPY BACKGROUND PAGE TO HIDDEN PAGE | DDO-FX (NM) | Connected |
-| 7824 | COPY HIDDEN PAGE TO BACKGROUND PAGE | DDO-FX (NM) | Connected |
-| 7831 | COPY WORK PAGE TO HIDDEN PAGE | DDO-FX (NM) | Connected |
-| 7838 | COPY HIDDEN PAGE TO WORK PAGE | DDO-FX (NM) | Connected |
-| 7845 | COPY VISUAL PAGE TO HIDDEN PAGE | DDO-FX (NM) | Connected |
-| 7852 | COPY HIDDEN PAGE TO VISUAL PAGE | DDO-FX (NM) | Connected |
-| 7859 | CUT BACKGROUND PAGE TO HIDDEN PAGE | DDO-FX (NM) | Connected |
-| 7869 | CUT HIDDEN PAGE TO BACKGROUND PAGE | DDO-FX (NM) | Connected |
-| 7879 | CUT WORK PAGE TO HIDDEN PAGE | DDO-FX (NM) | Connected |
-| 7889 | CUT HIDDEN PAGE TO WORK PAGE | DDO-FX (NM) | Connected |
-| 7899 | CUT VISUAL PAGE TO HIDDEN PAGE | DDO-FX (NM) | Connected |
-| 7909 | CUT HIDDEN PAGE TO VISUAL PAGE | DDO-FX (NM) | Connected |
-| 7919 | DO PRINT | DDO-FX (NM) | Connected, including window pages and the low-memory text box |
-| 8058 | DO PRINT TEXT FONT | DDO-FX (NM) | Connected on desktop and window pages |
-| 8110 | DO PRINT TEXT FONT WP | DDO-FX (NM) | Connected on the desktop |
-| 8118 | DO PRINT TEXT FONT BP | DDO-FX (NM) | Connected on the desktop |
-| 8127 | DO PRINT TEXT FONT HP | DDO-FX (NM) | Connected on desktop and window pages |
-| 8136 | SET COLOR | DDO-FX (NM) | Connected |
-| 8146 | DRAW POINT | DDO-FX (NM) | Connected |
-| 8156 | DRAW POINT XOR | DDO-FX (NM) | Connected |
-| 8163 | ERASE PAGE | DDO-FX (NM) | Connected |
-| 8172 | Get Pixel | DDO-FX (NM) | Connected |
-| 8182 | MOVE GRAPHICS CURSOR | DDO-FX (NM) | Connected |
-| 8192 | PAINT | DDO-FX (NM) | Connected |
-| 8209 | SET RGB | DDO-FX (NM) | Connected |
-| 8221 | GET RGB | DDO-FX (NM) | Connected |
-| 8234 | STORE PALETTE | DDO-FX (NM) | Connected |
-| 8245 | RESTORE PALETTE | DDO-FX (NM) | Connected |
-| 8253 | ZERO PALETTE | DDO-FX (NM) | Connected |
-| 8260 | FADE PALETTE OUT | DDO-FX (NM) | Connected |
-| 8299 | FADE PALETTE OUT ADVANCED | DDO-FX (NM) | Connected |
-| 8350 | FADE PALETTE IN | DDO-FX (NM) | Connected |
-| 8361 | DRAW LINE RELATIVE | DDO-FX (NM) | Connected |
-| 8374 | CHANGE VIEW PORT ORIGIN | DDO-FX (NM) | Connected |
-| 8394 | SHAKE SCREEN | DDO-FX (NM) | Connected |
-| 8404 | DRAW FILLED RECTANGLE | DDO-FX (NM) | Connected |
-| 8420 | SET CLIPPING REGION | DDO-FX (NM) | Connected |
-| 8439 | DRAW CIRCLE | DDO-FX (NM) | Connected |
-| 8451 | DRAW FILLED CIRCLE | DDO-FX (NM) | Connected |
-| 8463 | DRAW LINE | DDO-FX (NM) | Connected |
-| 8474 | DRAW LINE XOR | DDO-FX (NM) | Connected |
-| 8481 | DEFAULT 16 COLOR PALETTE | DDO-FX (NM) | Connected |
-| 8492 | DRAW BOX | DDO-FX (NM) | Connected |
-| 8508 | DRAW BOX XOR | DDO-FX (NM) | Connected |
-| 8524 | EDIT BOX LINES | DDO-FX (NM) | Connected |
-| 8533 | DRAW CLIPPED RECTANGLE | DDO-FX (NM) | Connected |
-| 8548 | DRAW DASHED LINE | DDO-FX (NM) | Connected |
-| 8564 | DRAW DASHED LINE RELATIVE | DDO-FX (NM) | Connected |
-| 8580 | DRAW ELLIPSE | DDO-FX (NM) | Connected |
-| 8592 | DRAW FILLED ELLIPSE | DDO-FX (NM) | Connected |
-| 8599 | FILL PAGE | DDO-FX (NM) | Connected |
-| 8607 | FLOOD | DDO-FX (NM) | Connected |
-| 8616 | MOVEIT RELATIVE | DDO-FX (NM) | Connected |
-| 8624 | DRAW BEZIER CURVE | DDO-FX (NM) | Connected |
-| 8646 | DRAW BEZIER CURVE XOR | DDO-FX (NM) | Connected |
-| 8656 | VERTICAL SCROLL | DDO-FX (NM) | Connected on the desktop and window virtual pages |
-| 8694 | MOUSE ACTIVE | DDO-FX (NM) | Connected |
-| 8713 | CHANGE MOUSE POINTER | DDO-FX (NM) | Connected |
-| 8750 | LOAD MOUSE POINTER | DDO-FX (NM) | Connected |
-| 8776 | SELECT MOUSE POINTER | DDO-FX (NM) | Connected |
-| 8786 | ANIMATED MOUSE POINTER | DDO-FX (NM) | Connected |
-| 8837 | ACTIVATE ANIMATED MOUSE | DDO-FX (NM) | Connected |
-| 8846 | DEACTIVATE ANIMATED MOUSE | DDO-FX (NM) | Connected |
-| 8855 | MOUSE VISIBILITY | DDO-FX (NM) | Connected |
-| 8866 | MOUSE LIMITS | DDO-FX (NM) | Connected |
-| 8875 | MOUSE MOVE | DDO-FX (NM) | Connected |
-| 8890 | MOUSE INFO | DDO-FX (NM) | Connected |
-| 8928 | MOUSE INFO OLD | DDO-FX (NM) | Connected |
-| 8958 | MOUSE SPEED | DDO-FX (NM) | Connected |
-| 8968 | MOUSE REGION | DDO-FX (NM) | Connected on the desktop and in graphic windows |
-| 9189 | MOUSE REGION NON REPEAT | DDO-FX (NM) | Connected on the desktop and in graphic windows |
-| 9211 | MOUSE FIELD | DDO-FX (NM) | Connected on the desktop and in graphic windows |
-| 9292 | MOUSE FIELD SWAP | DDO-FX (NM) | Connected on the desktop and in graphic windows |
-| 9302 | MOUSE FIELD FRESHEN | DDO-FX (NM) | Connected on the desktop and in graphic windows |
-| 9317 | CREATE RADIO BUTTON | DDO-FX (NM) | Connected on the desktop and in graphic windows |
-| 9481 | EXECUTE RADIO BUTTON | DDO-FX (NM) | Connected on the desktop and in graphic windows |
-| 9548 | SWAP RADIO BUTTON | DDO-FX (NM) | Connected on the desktop and in graphic windows |
-| 9560 | DISABLE/ENABLE RADIO BUTTON | DDO-FX (NM) | Connected on the desktop and in graphic windows |
-| 9576 | CREATE CHECK BOX | DDO-FX (NM) | Connected on the desktop and in graphic windows |
-| 9679 | EXECUTE CHECK BOX | DDO-FX (NM) | Connected on the desktop and in graphic windows |
-| 9688 | SWAP CHECK BOX | DDO-FX (NM) | Connected on the desktop and in graphic windows |
-| 9697 | DISABLE/ENABLE CHECK BOX | DDO-FX (NM) | Connected on the desktop and in graphic windows |
-| 9706 | CREATE PUSH BUTTON | DDO-FX (NM) | Connected on the desktop and in graphic windows |
-| 9792 | CREATE TEXT FIELD | DDO-FX (NM) | Connected on the desktop and in graphic windows |
-| 9973 | SHOW TEXT FIELD | DDO-FX (NM) | Connected on the desktop and in graphic windows |
-| 9981 | ACTIVATE TEXT FIELD | DDO-FX (NM) | Connected on the desktop and in graphic windows |
-| 9992 | EXECUTE TEXT FIELD | DDO-FX (NM) | Connected on the desktop and in graphic windows |
-| 10008 | SWAP TEXT FIELD | DDO-FX (NM) | Connected on the desktop and in graphic windows |
-| 10016 | CREATE LIST BOX | DDO-FX (NM) | Connected on the desktop and in graphic windows |
-| 10143 | MODIFY LIST ITEM | DDO-FX (NM) | Connected on the desktop and in graphic windows |
-| 10197 | DRAW LIST BOX | DDO-FX (NM) | Connected on the desktop and in graphic windows |
-| 10211 | SHOW LIST BOX | DDO-FX (NM) | Connected on the desktop and in graphic windows |
-| 10224 | EXECUTE LIST BOX | DDO-FX (NM) | Connected on the desktop and in graphic windows |
-| 10237 | KILL LIST BOX | DDO-FX (NM) | Connected on the desktop and in graphic windows |
-| 10248 | DEACTIVATE LIST BOX | DDO-FX (NM) | Connected on the desktop and in graphic windows |
-| 10262 | REACTIVATE LIST BOX | DDO-FX (NM) | Connected on the desktop and in graphic windows |
-| 10274 | ADJUST LIST | DDO-FX (NM) | Connected on the desktop and in graphic windows |
-| 10341 | ADJUST HIGHLIGHT | DDO-FX (NM) | Connected on the desktop and in graphic windows |
-| 10378 | TOGGLE SELECTION | DDO-FX (NM) | Connected on the desktop and in graphic windows |
-| 10399 | CREATE MARQUEE | DDO-FX (NM) | Connected |
-| 10471 | SHOW MARQUEE | DDO-FX (NM) | Connected |
-| 10485 | STOP MARQUEE | DDO-FX (NM) | Connected |
-| 10498 | KILL MARQUEE | DDO-FX (NM) | Connected |
-| 10511 | OPEN FLI/FLC | DDO-FX (NM) | Connected |
-| 10600 | PAUSE FLI/FLC | DDO-FX (NM) | Connected |
-| 10620 | UNPAUSE FLI/FLC | DDO-FX (NM) | Connected |
-| 10632 | STOP FLI/FLC | DDO-FX (NM) | Connected |
-| 10648 | START ANALOG CLOCK | DDO-FX (NM) | Connected |
-| 10703 | SHOW ANALOG CLOCK | DDO-FX (NM) | Connected |
-| 10715 | STOP ANALOG CLOCK | DDO-FX (NM) | Connected |
-| 10725 | START TEXT CLOCK | DDO-FX (NM) | Connected |
-| 10772 | PAUSE TEXT CLOCK | DDO-FX (NM) | Connected |
-| 10782 | UNPAUSE TEXT CLOCK | DDO-FX (NM) | Connected |
-| 10794 | KILL TEXT CLOCK | DDO-FX (NM) | Connected |
-| 10806 | CREATE VIRTUAL LANDSCAPE | DDO-FX (NM) | Connected |
-| 10890 | VR CLOUDS | DDO-FX (NM) | Connected |
-| 10911 | VR SKY | DDO-FX (NM) | Connected |
-| 10925 | VR LAND POSITION | DDO-FX (NM) | Connected |
-| 10935 | VR CLOUD POSITION | DDO-FX (NM) | Connected |
-| 10942 | VR DRAW MAP | DDO-FX (NM) | Connected |
-| 10976 | VR DRAW MAP ON WORK PAGE | DDO-FX (NM) | Connected |
-| 10984 | VR GET MAP | DDO-FX (NM) | Connected |
-| 11005 | VR GET MAP ON WORK PAGE | DDO-FX (NM) | Connected |
-| 11012 | VR CHANGE SPEED | DDO-FX (NM) | Connected |
-| 11026 | VR CHANGE DIRECTION | DDO-FX (NM) | Connected |
-| 11036 | VR CHANGE X | DDO-FX (NM) | Connected |
-| 11046 | VR CHANGE Y | DDO-FX (NM) | Connected |
-| 11056 | VR CHANGE Z | DDO-FX (NM) | Connected |
-| 11066 | VR CHANGE DETAIL | DDO-FX (NM) | Connected |
-| 11079 | VR MODIFY SPEED | DDO-FX (NM) | Connected |
-| 11093 | VR MODIFY DIRECTION | DDO-FX (NM) | Connected |
-| 11100 | VR MODIFY X | DDO-FX (NM) | Connected |
-| 11107 | VR MODIFY Y | DDO-FX (NM) | Connected |
-| 11114 | VR MODIFY Z | DDO-FX (NM) | Connected |
-| 11121 | VR MODIFY DETAIL | DDO-FX (NM) | Connected |
-| 11128 | VR GET USER X | DDO-FX (NM) | Connected |
-| 11138 | VR GET USER Y | DDO-FX (NM) | Connected |
-| 11148 | VR GET USER Z | DDO-FX (NM) | Connected |
-| 11158 | VR GET USER DIRECTION | DDO-FX (NM) | Connected |
-| 11167 | VR ANIMATE | DDO-FX (NM) | Connected |
-| 11176 | RC 3D RAYCASTING ENGINE | DDO-FX (NM) | Connected |
-| 11262 | RC 3D SCALE | DDO-FX (NM) | Connected |
-| 11291 | RC 3D MAZE GENERATOR | DDO-FX (NM) | Connected |
-| 11331 | RC LOAD 3D MAP DEFINITION | DDO-FX (NM) | Connected |
-| 11351 | RC ROTATE PERSPECTIVE | DDO-FX (NM) | Connected |
-| 11381 | RC MOVE 3D FORWARD/BACKWARDS | DDO-FX (NM) | Connected |
-| 11409 | RC DUMP MAP | DDO-FX (NM) | Connected |
-| 11440 | RC MODIFY DUMP MAP | DDO-FX (NM) | Connected |
-| 11466 | RC CHANGE TEXTURE LIBRARY | DDO-FX (NM) | Connected |
-| 11516 | RC CHANGE OBJ TEXTURE LIBRARY | DDO-FX (NM) | Connected |
-| 11574 | RC SET USER X POSITION | DDO-FX (NM) | Connected |
-| 11595 | RC SET USER Y POSITION | DDO-FX (NM) | Connected |
-| 11613 | RC SET USER ANGLE | DDO-FX (NM) | Connected |
-| 11635 | RC GET USER ANGLE | DDO-FX (NM) | Connected |
-| 11657 | RC GET USER X POSITION | DDO-FX (NM) | Connected |
-| 11671 | RC GET USER Y POSITION | DDO-FX (NM) | Connected |
-| 11685 | RC DEFINE ANIMATED TEXTURE | DDO-FX (NM) | Connected |
-| 11761 | RC PLAY ANIMATED TEXTURE | DDO-FX (NM) | Connected |
-| 11776 | RC STOP ANIMATED TEXTURE | DDO-FX (NM) | Connected |
-| 11792 | RC CLEAR MAP | DDO-FX (NM) | Connected |
-| 11811 | RC CHANGE MAP | DDO-FX (NM) | Connected |
-| 11901 | RC CHANGE OBJECT MAP | DDO-FX (NM) | Connected |
-| 12046 | RC GET MAP INFO | DDO-FX (NM) | Connected |
-| 12101 | RC SET MAP PROFILE | DDO-FX (NM) | Connected |
-| 12392 | RC COPY MAP PROFILE | DDO-FX (NM) | Connected |
-| 12404 | RC FILL MAP PROFILE | DDO-FX (NM) | Connected |
-| 12414 | RC DEL MAP PROFILE | DDO-FX (NM) | Connected |
-| 12433 | RC SAVE 3D ENVIRONMENT | DDO-FX (NM) | Connected. Saves the native MAP layout, texture atlas and animation intervals |
-| 12453 | RC LOAD 3D ENVIRONMENT | DDO-FX (NM) | Connected. Restores the environment, renders imported textures and resumes active sprite sequences |
-| 12466 | RC RECORD 3D MOVEMENTS | DDO-FX (NM) | Connected |
-| 12510 | RC PLAY 3D MOVEMENTS | DDO-FX (NM) | Connected |
-| 12521 | RC PLAY 3D MOVEMENTS FROM RESOURCE | DDO-FX (NM) | Connected |
-| 12539 | RC DEFINE OBJECTS LAYER | DDO-FX (NM) | Connected. The desktop and window raycaster views draw the three shared object layers in order |
-| 12570 | 3D OBJECT INIT | DDO-FX (NM) | Connected |
-| 12829 | 3D OBJECT INIT LITE | DDO-FX (NM) | Connected |
-| 12844 | 3D DELETE OBJECT | DDO-FX (NM) | Connected |
-| 12856 | 3D ADJUST YAW | DDO-FX (NM) | Connected |
-| 12888 | 3D ADJUST ROLL | DDO-FX (NM) | Connected |
-| 12920 | 3D ADJUST PITCH | DDO-FX (NM) | Connected |
-| 12952 | 3D ADJUST LOCATION | DDO-FX (NM) | Connected |
-| 12981 | 3D ADJUST DISTANCE ZOOM | DDO-FX (NM) | Connected |
-| 13003 | 3D ADD FACE | DDO-FX (NM) | Connected |
-| 13026 | 3D PAINT OBJECT | DDO-FX (NM) | Connected |
-| 13059 | 3D RENDER TYPE | DDO-FX (NM) | Connected |
-| 13075 | 3D SET OBJECT | DDO-FX (NM) | Connected |
-| 13094 | 3D MERGE OBJECT | DDO-FX (NM) | Connected |
-| 13111 | 3D MORPH OBJECT | DDO-FX (NM) | Connected |
-| 13144 | 3D PLAY OBJECT | DDO-FX (NM) | Connected on the desktop and in graphic windows |
-| 13158 | GD DEFINE GRID | DDO-FX (NM) | Connected on the desktop and window virtual pages |
-| 13236 | GD CHANGE GRID | DDO-FX (NM) | Connected on the desktop and window virtual pages |
-| 13286 | GD FILL GRID | DDO-FX (NM) | Connected on the desktop and window virtual pages |
-| 13322 | GD KILL GRID | DDO-FX (NM) | Connected on the desktop and window virtual pages |
-| 13330 | GD DRAW GRID | DDO-FX (NM) | Connected on the desktop and window virtual pages |
-| 13382 | GD POS GRID | DDO-FX (NM) | Connected on the desktop and window virtual pages |
-| 13410 | GD MOVE GRID | DDO-FX (NM) | Connected on the desktop and window virtual pages |
-| 13432 | GD POS TILE | DDO-FX (NM) | Connected on the desktop and window virtual pages |
-| 13451 | GD MOVE TILE | DDO-FX (NM) | Connected on the desktop and window virtual pages |
-| 13473 | GD KILL TILE | DDO-FX (NM) | Connected on the desktop and window virtual pages |
-| 13488 | SET SLEEP DISCONNECT | DDO-FX (NM) | Connected |
-| 13544 | SET PING | DDO-FX (NM) | Connected |
-| 13620 | ROTATE IMAGE | DDO-FX (NM) | Connected on desktop and window pages |
-| 13703 | SCALE IMAGE | DDO-FX (NM) | Connected on desktop and window pages |
-| 13819 | ANTI-ALIAS IMAGE | DDO-FX (NM) | Connected on desktop and window pages |
-| 13917 | OUTLINE IMAGE | DDO-FX (NM) | Connected on desktop and window pages |
-| 13975 | ZMODEM BACKGROUND TRANSFERS | DDO-FX (NM) | Implemented |
-| 14035 | ZMODEM STEALTH MODE | DDO-FX (NM) | Connected for all 12 SDK families. Transfer tests exercise mouse fields, icons, list boxes, text fields, radio buttons, checkboxes, push buttons, mouse regions, timers, joystick input, keyboard macros and window close callbacks |
-| 14120 | DEFINE MUSIC BAR | DDO-FX (NM) | Connected on desktop and window pages |
-| 14292 | ACTIVATE/DEACTIVATE MUSIC BAR | DDO-FX (NM) | Connected on desktop and window pages |
-| 14308 | CLEAR MUSIC BAR | DDO-FX (NM) | Connected on desktop and window pages |
-| 14318 | EXIT TO TEXT MODE | DDO-FX (NM) | Connected |
-| 14638 | CREATE GRAPHIC WINDOW | DDO-FX (NM) | Scripted creation, frames, pages and stacking connected. Frame controls and linked icons connected |
-| 14837 | DEFINE CLOSE GRAPHIC WINDOW | DDO-FX (NM) | Connected |
-| 14898 | CLOSE GRAPHIC WINDOW | DDO-FX (NM) | Connected |
-| 14916 | LOAD PCX (X,Y) Graphic Window VP | DDO-FX (NM) | Connected |
-| 14936 | FIND ACTIVE GRAPHIC WINDOW | DDO-FX (NM) | Connected |
-| 14946 | IS GRAPHIC WINDOW HIDDEN | DDO-FX (NM) | Connected |
-| 14954 | IS GRAPHIC WINDOW ACTIVE | DDO-FX (NM) | Connected |
-| 14962 | IS GRAPHIC WINDOW CREATED | DDO-FX (NM) | Connected |
-| 14970 | GET GRAPHIC WINDOW STATS | DDO-FX (NM) | Connected |
-| 14980 | ACTIVATE GRAPHIC WINDOW | DDO-FX (NM) | Connected |
-| 14995 | CHANGE GRAPHIC WINDOW | DDO-FX (NM) | Scripted geometry, visibility and title connected. Mouse drag, resize, zoom, restore and scroll enable flags connected. Return-to-icon connected |
-| 15008 | CHANGE GRAPHIC WINDOW VGP REL | DDO-FX (NM) | Connected |
-| 15024 | CHANGE GRAPHIC WINDOW VGP | DDO-FX (NM) | Connected |
-| 15034 | ZOOM/SHRINK GRAPHIC WINDOW | DDO-FX (NM) | Connected |
-| 15042 | RESTORE GRAPHIC WINDOW | DDO-FX (NM) | Connected |
-| 15049 | RESTORE ALL GRAPHIC WINDOWS | DDO-FX (NM) | Connected |
-| 15056 | REFRESH ALL GRAPHIC WINDOWS | DDO-FX (NM) | Connected |
-| 15062 | REFRESH GRAPHIC WINDOWS INTERIOR | DDO-FX (NM) | Connected |
-| 15074 | ALERT GRAPHIC WINDOW | DDO-FX (NM) | Connected for primitives, PCX, visual/hidden page copies and scrolling, sprites, mouse fields and regions, push buttons, radio buttons, checkboxes, animations, collisions, icons, bitmap and VGA text, image transforms, tile grids, clocks, marquees, music bars, FLI/FLC playback, list boxes, editable text fields and graphic text windows |
-| 15094 | CALM GRAPHIC WINDOW | DDO-FX (NM) | Connected |
-| 15101 | CREATE ICON | DDO-FX (NM) | Connected |
-| 15135 | ICON MOUSE POINTER | DDO-FX (NM) | Connected |
-| 15161 | DEFINE ICON OPEN PROCEDURE | DDO-FX (NM) | Connected |
-| 15174 | DEFINE ICON CLOSE PROCEDURE | DDO-FX (NM) | Connected |
-| 15185 | DEFINE ICON DROP PROCEDURE | DDO-FX (NM) | Connected |
-| 15203 | EXECUTE OPEN ICON PROCEDURE | DDO-FX (NM) | Connected |
-| 15215 | EXECUTE CLOSE ICON PROCEDURE | DDO-FX (NM) | Connected |
-| 15227 | EXECUTE DROP ICON PROCEDURE | DDO-FX (NM) | Connected |
-| 15235 | KILL ICON | DDO-FX (NM) | Connected |
-| 15243 | MOVE ICON | DDO-FX (NM) | Connected |
-| 15249 | GET ICON STATS | DDO-FX (NM) | Connected |
-| 15265 | RESTORE ICON | DDO-FX (NM) | Connected |
-| 15273 | RESTORE ALL ICONS | DDO-FX (NM) | Connected |
-| 15578 | CHECK FOR DIRECTORY | DDO-FX Pro. | Connected in Lite and Normal. A local peer checks existing and missing client directories |
-| 15594 | CHECK FOR FILE | DDO-FX Pro. | Connected in Lite and Normal. A local peer checks file size, DOS timestamp, missing files and missing directories |
-| 15614 | EXECUTE CLIENT | DDO-FX Pro. | Consume without execution |
+## Command inventory
+
+Send each command body between the two opening bytes `1D 7B` and the closing byte `7D` (hex). For example, a door can send `1D 7B 64 4C 49 54 45 52 4D 7D` to query `dLITERM`. SyncTERM replies with the ASCII text `LITERM Ver. 2.00` followed by `FF`. The command column gives the prefix before any arguments. Case matters for commands such as `t` and `T`.
+
+| SDK line | Command | Definition | Domain | Coverage |
+| ---: | --- | --- | --- | --- |
+| 575 | `f` | LOAD FONT | DDO-FX LITE | Connected |
+| 616 | `m` | LOAD MUSIC | DDO-FX LITE | MOD, S3M, CMF with embedded instruments |
+| 635 | `t` | LOAD BBS THEME | DDO-FX LITE | Connected |
+| 693 | `tb` | LOAD SOUND BITES LIBRARY | DDO-FX LITE | Connected |
+| 767 | `T` | LOAD TERM THEME | DDO-FX LITE | Connected |
+| 828 | `p` | PLAY SAMPLE | DDO-FX LITE | Connected |
+| 858 | `pb` | PLAY SOUND BITE SAMPLE | DDO-FX LITE | Connected |
+| 868 | `P` | PLAY SAMPLE At FREQUENCY | DDO-FX LITE | Connected |
+| 882 | `PB` | PLAY SOUND BITE SAMPLE At FREQUENCY | DDO-FX LITE | Connected |
+| 894 | `6LBSOUND` | LOAD BIG SAMPLE | DDO-LITE | Connected |
+| 993 | `6DEFBSND` | DEFINE BIG SAMPLE | DDO-LITE | Connected |
+| 1055 | `6ADDBSND` | ADD BIG SAMPLE PART | DDO-LITE | Connected |
+| 1086 | `6UNLOADBS` | UNLOAD BIG SAMPLE | DDO-LITE | Connected |
+| 1102 | `6PLAYBS` | PLAY BIG SAMPLE | DDO-LITE | Connected |
+| 1124 | `6CHECKBS` | CHECK BIG SAMPLE | DDO-LITE | Connected |
+| 1167 | `MPREAL` | PLAY REALPLAY SAMPLE | DDO-FX LITE | Connected |
+| 1207 | `MTALK` | TEXT TO SPEECH | DDO-FX LITE | Connected |
+| 1417 | `MMPAT` | MODIFY MUSIC PATTERN | DDO-FX LITE | Connected |
+| 1447 | `MMPR` | PAUSE RESUME MOD/S3M | DDO-FX LITE | Connected |
+| 1459 | `MSVOL` | SET VOLUME | DDO-FX LITE | Connected |
+| 1476 | `MMVOL` | MODIFY VOLUME | DDO-FX LITE | Connected |
+| 1491 | `MGVOL` | GET VOLUME | DDO-FX LITE | Connected |
+| 1509 | `MICMF` | IS CMF PLAYING | DDO-FX LITE | Connected |
+| 1528 | `w` | WAIT | DDO-FX LITE | Connected |
+| 1544 | `LIGMODE` | GOTO DDO-FX (NORMAL MODE) | DDO-FX LITE | Connected |
+| 1573 | `dLITERM` | DETECT LITERM | DDO-FX LITE | Connected |
+| 1611 | `dMEM` | DETECT USER MEMORY | DDO-FX LITE | Connected |
+| 1634 | `dVMEM` | DETECT USER MEMORY & REACT | DDO-FX LITE | Connected |
+| 1729 | `dDRIVE` | DETECT USER DRIVE SIZE | DDO-FX LITE | Connected |
+| 1755 | `dVCARD` | DETECT GRAPHICS ADAPTER TYPE | DDO-FX LITE | Connected |
+| 1770 | `dACARD` | DETECT AUDIO CARD | DDO-FX LITE | Connected |
+| 1798 | `dSPEED` | DETECT Machine Speed | DDO-FX LITE | Connected |
+| 1851 | `dVIDMODE` | DETECT VIDEO MODE | DDO-FX LITE | Connected |
+| 1880 | `dm` | DETECT FOR MUSIC FILE | DDO-FX LITE | Connected |
+| 1921 | `dt` | DETECT FOR THEME FILE | DDO-FX LITE | Connected |
+| 1929 | `2f` | ASSIGN RESOURCE FILE | DDO-FX LITE | Connected |
+| 2249 | `dr` | DETECT FOR RESOURCE FILE | DDO-FX LITE | Connected |
+| 2262 | `dRESOURCE` | DETECT FOR RESOURCE ENTRY | DDO-FX LITE | Connected |
+| 2320 | `df` | DETECT FOR FONT FILE | DDO-FX LITE | Connected |
+| 2328 | `dMUSICON` | DETECT MUSIC ON/OFF | DDO-FX LITE | Connected |
+| 2345 | `dSOUNDON` | DETECT SOUND F/X ON/OFF | DDO-FX LITE | Connected |
+| 2367 | `dGETMUSIC` | DETECT MUSIC PLAYING | DDO-FX LITE | Connected |
+| 2389 | `dGETTHEME` | DETECT THEME LOADED | DDO-FX LITE | Connected |
+| 2411 | `dGETFONT` | DETECT FONT LOADED | DDO-FX LITE | Connected |
+| 2431 | `4DEFM` | DEFINE A MACRO | DDO-FX LITE | Connected |
+| 2590 | `4CLRM` | CLEAR A MACRO | DDO-FX LITE | Connected |
+| 2602 | `4RUNM` | RUN A MACRO | DDO-FX LITE | Connected |
+| 2615 | `4EXCM` | EXECUTE A MACRO LINE | DDO-FX LITE | Connected |
+| 2662 | `4MKEY` | CREATE KEY MACRO | DDO-FX LITE | Connected |
+| 2874 | `6TESTJOY` | TEST FOR JOYSTICK | DDO-LITE | Connected |
+| 2893 | `6CALJOY` | CALIBRATE JOYSTICK | DDO-LITE | Connected |
+| 2913 | `6DEFJOY` | DEFINE JOYSTICK | DDO-LITE | Connected |
+| 3067 | `7CEVENT` | CREATE BACKGROUND EVENT | DDO-LITE | Connected |
+| 3161 | `7AEVENT` | ACTIVATE BACKGROUND EVENT | DDO-LITE | Connected |
+| 3174 | `7DEVENT` | DEACTIVATE BACKGROUND EVENT | DDO-LITE | Connected |
+| 3187 | `7DEFRET` | DEFINE RETURN STRING | DDO-LITE | Connected |
+| 3226 | `7SRET` | SEND RETURN STRING | DDO-LITE | Connected |
+| 3237 | `0TFADEOUT` | TEXT FADE OUT | DDO-FX LITE | Connected |
+| 3264 | `0TFADEIN` | TEXT FADE IN | DDO-FX LITE | Connected |
+| 3273 | `0SLIDEU` | SLIDE SCREEN UP | DDO-FX LITE | Connected |
+| 3294 | `0SLIDED` | SLIDE SCREEN DOWN | DDO-FX LITE | Connected |
+| 3307 | `0BOUNCED` | BOUNCE SCREEN DOWN | DDO-FX LITE | Connected |
+| 3323 | `!` | DISPLAY RAW ANSI | DDO-FX LITE | Connected |
+| 3365 | `0SETFUL` | SET FULL SCREEN MODE | DDO-FX LITE | Connected |
+| 3400 | `0RSETFUL` | RESTORE FULL SCREEN MODE | DDO-FX LITE | Connected |
+| 3416 | `*` | RUN LOCAL SCRIPT | DDO-FX LITE | Connected |
+| 3501 | `~DEFVAR` | DEFINE SYSTEM VARIABLE | DDO-FX LITE | Connected |
+| 3604 | `~LOCKKEYS` | LOCK KEYS | DDO-FX LITE | Connected |
+| 3650 | `~UNLOCKKEYS` | UNLOCK KEYS | DDO-FX LITE | Connected |
+| 3661 | `~PAUSEBAK` | PAUSE BACKGROUND TASKS | DDO-FX LITE | Connected for timed events and background graphics, including clocks, marquees, sprite animations, tile maps, polygon objects and the raycaster |
+| 3710 | `~UNPAUSEBAK` | UNPAUSE BACKGROUND TASKS | DDO-FX LITE | Connected for timed events and background graphics, including clocks, marquees, sprite animations, tile maps, polygon objects and the raycaster |
+| 3720 | `~IGNORCMD` | IGNORE COMMANDS | DDO-FX LITE | Connected |
+| 3767 | `~HEARCMD` | HEAR COMMANDS | DDO-FX LITE | Connected |
+| 3782 | `~CAPVAR` | ALL CAPS SYSTEM VARIABLE | DDO-FX LITE | Connected |
+| 3796 | `~GTXTFLD+` | GET TEXT FIELD INFO FULL | DDO-FX LITE | Connected on the desktop and in graphic windows |
+| 3824 | `~GTXTFLD-` | GET TEXT FIELD INFO | DDO-FX LITE | Connected on the desktop and in graphic windows |
+| 3841 | `~INCVAR` | INCREMENT SYSTEM VARIABLE | DDO-FX LITE | Connected |
+| 3855 | `~DECVAR` | DECREMENT SYSTEM VARIABLE | DDO-FX LITE | Connected |
+| 3870 | `~RNDVAR` | RANDOM SYSTEM VARIABLE | DDO-FX LITE | Connected |
+| 3893 | `~VARCPY` | VARIABLE COPY | DDO-FX LITE | Connected |
+| 3941 | `~VARINS` | VARIABLE INSERT | DDO-FX LITE | Connected |
+| 3989 | `~PADVARL` | PAD VARIABLE LEFT | DDO-FX LITE | Connected |
+| 4041 | `~PADVARR` | PAD VARIABLE RIGHT | DDO-FX LITE | Connected |
+| 4063 | `~VARDEL` | VARIABLE DELETE | DDO-FX LITE | Connected |
+| 4096 | `~VARPOS` | VARIABLE POSITION | DDO-FX LITE | Connected |
+| 4132 | `~VARLEN` | VARIABLE LENGTH | DDO-FX LITE | Connected |
+| 4157 | `~VAREQU` | VARIABLE EQUAL | DDO-FX LITE | Connected |
+| 4186 | `~VARTYP` | VARIABLE TYPING | DDO-FX LITE | Connected |
+| 4209 | `~VARADD` | VARIABLE ADD | DDO-FX LITE | Connected |
+| 4224 | `~VARSUB` | VARIABLE SUBTRACT | DDO-FX LITE | Connected |
+| 4239 | `~VARMLT` | VARIABLE MULTIPLY | DDO-FX LITE | Connected |
+| 4254 | `~VARDIV` | VARIABLE DIVIDE | DDO-FX LITE | Connected |
+| 4270 | `~VARCAP` | VARIABLE CAPTURE | DDO-FX LITE | Connected |
+| 4322 | `~IFVAR` | IF VAR DO MACRO | DDO-FX LITE | Connected for literals, typed variables and all SDK master operands |
+| 4547 | `~REPVAR` | REPEAT MACRO UNTIL VAR | DDO-FX LITE | Connected for literals, typed variables and all SDK master operands |
+| 4604 | `~REPMAC` | REPEAT MACRO | DDO-FX LITE | Connected |
+| 4654 | `~INFSAV` | INFO SAVE | DDO-FX LITE | Connected |
+| 4728 | `~INFLOD` | INFO LOAD | DDO-FX LITE | Connected |
+| 4777 | `EEDTEXT` | LAUNCH TEXT EDITOR | DDO-FX LITE | Connected |
+| 4821 | `ERTEXT` | RETRIEVE TEXT FILE | DDO-FX LITE | Connected |
+| 4847 | `EWTEXT` | WRITE TEXT FILE | DDO-FX LITE | Connected |
+| 4886 | `EPTEXT` | PRINT TEXT FILE | DDO-FX LITE | Connected for file output and unavailable-device completion. Printer and serial output unavailable |
+| 4940 | `:` | LABEL | DDO-FX LITE | Connected |
+| 4955 | `2RESET` | RESET ENVIRONMENT | DDO-FX LITE | Connected for implemented scene objects |
+| 5436 | `dMOUSE` | DETECT MOUSE | DDO-FX (NM) | Connected |
+| 5457 | `1OPEN` | OPEN GRAPHIC TEXT WINDOW | DDO-FX (NM) | Desktop and attached text windows |
+| 5780 | `1GOTOC` | GOTO CURSOR | DDO-FX (NM) | Desktop and attached text windows |
+| 5819 | `1CLOSE` | CLOSE WINDOW | DDO-FX (NM) | Desktop and attached text windows |
+| 5855 | `1HIDE` | HIDE WINDOW | DDO-FX (NM) | Desktop and attached text windows |
+| 5866 | `1UNHIDE` | UNHIDE WINDOW | DDO-FX (NM) | Desktop and attached text windows |
+| 5874 | `1WIN` | ACTIVATE WINDOW | DDO-FX (NM) | Desktop and attached text windows |
+| 5884 | `1SWAP` | SWAP WINDOWS | DDO-FX (NM) | Desktop and attached text windows |
+| 5924 | `1POS` | POSITION VTP ORIGIN | DDO-FX (NM) | Desktop and attached text windows |
+| 5956 | `1POSR` | POSITION VTP ORIGIN RELATIVE | DDO-FX (NM) | Desktop and attached text windows |
+| 5982 | `1GETPOS` | GETPOS OF GRAPHIC TEXT WINDOW | DDO-FX (NM) | Desktop and attached text windows |
+| 6006 | `1CHANGE` | CHANGE GRAPHIC TEXT WINDOW | DDO-FX (NM) | Desktop and attached text windows |
+| 6035 | `1SCALE` | SCALE GRAPHIC TEXT FONTS | DDO-FX (NM) | Desktop and attached text windows |
+| 6100 | `1SETC` | SET GRAPHIC TEXT WINDOW COLUMNS | DDO-FX (NM) | Desktop and attached text windows |
+| 6131 | `2b` | LOAD PCX TO BACKGROUND PAGE | DDO-FX (NM) | Connected |
+| 6163 | `2w` | LOAD PCX TO WORK PAGE | DDO-FX (NM) | Connected |
+| 6179 | `2v` | LOAD PCX TO VISUAL PAGE | DDO-FX (NM) | Connected on the desktop and alert visual page |
+| 6199 | `2F` | LOAD A BITMAP FONT | DDO-FX (NM) | Connected |
+| 6237 | `2FSELECT` | BITMAP FONT SELECT | DDO-FX (NM) | Connected |
+| 6246 | `2CPYBP2WP` | COPY BACKGROUND PAGE TO WORK PAGE | DDO-FX (NM) | Connected |
+| 6254 | `2CPYBP2VP` | COPY BACKGROUND PAGE TO VISUAL PAGE | DDO-FX (NM) | Connected |
+| 6261 | `2CPYWP2BP` | COPY WORK PAGE TO BACKGROUND PAGE | DDO-FX (NM) | Connected |
+| 6268 | `2CPYWP2VP` | COPY WORK PAGE TO VISUAL PAGE | DDO-FX (NM) | Connected |
+| 6275 | `2CPYVP2BP` | COPY VISUAL PAGE TO BACKGROUND PAGE | DDO-FX (NM) | Connected |
+| 6282 | `2CPYVP2WP` | COPY VISUAL PAGE TO WORK PAGE | DDO-FX (NM) | Connected |
+| 6289 | `2CUTBP2WP` | CUT BACKGROUND PAGE TO WORK PAGE | DDO-FX (NM) | Connected |
+| 6320 | `2CUTBP2VP` | CUT BACKGROUND PAGE TO VISUAL PAGE | DDO-FX (NM) | Connected |
+| 6328 | `2CUTWP2BP` | CUT WORK PAGE TO BACKGROUND PAGE | DDO-FX (NM) | Connected |
+| 6336 | `2CUTWP2VP` | CUT WORK PAGE TO VISUAL PAGE | DDO-FX (NM) | Connected |
+| 6344 | `2CUTHP2VPT` | CUT HIDDEN PAGE TO VISUAL PAGE (T) | DDO-FX (NM) | Connected |
+| 6355 | `2CUTHP2WPT` | CUT HIDDEN PAGE TO WORK PAGE (T) | DDO-FX (NM) | Connected |
+| 6366 | `2CUTHP2BPT` | CUT HIDDEN PAGE TO BACKGROUND PAGE (T) | DDO-FX (NM) | Connected |
+| 6377 | `2CUTWP2VPT` | CUT WORK PAGE TO VISUAL PAGE (T) | DDO-FX (NM) | Connected |
+| 6388 | `2CUTWP2HPT` | CUT WORK PAGE TO HIDDEN PAGE (T) | DDO-FX (NM) | Connected |
+| 6399 | `2CUTWP2BPT` | CUT WORK PAGE TO BACKGROUND PAGE (T) | DDO-FX (NM) | Connected |
+| 6410 | `2CUTBP2HPT` | CUT BACKGROUND PAGE TO HIDDEN PAGE (T) | DDO-FX (NM) | Connected |
+| 6421 | `2CUTBP2WPT` | CUT BACKGROUND PAGE TO WORK PAGE (T) | DDO-FX (NM) | Connected |
+| 6432 | `2CUTBP2VPT` | CUT BACKGROUND PAGE TO VISUAL PAGE (T) | DDO-FX (NM) | Connected |
+| 6443 | `2CUTVP2BP` | CUT VISUAL PAGE TO BACKGROUND PAGE | DDO-FX (NM) | Connected |
+| 6453 | `2CUTVP2WP` | CUT VISUAL PAGE TO WORK PAGE | DDO-FX (NM) | Connected |
+| 6463 | `2CCOL` | DEFINE TRANSPARENT COLORS | DDO-FX (NM) | Connected |
+| 6514 | `2BP2PCX` | SAVE BACKGROUND PAGE TO PCX | DDO-FX (NM) | Connected |
+| 6528 | `2WP2PCX` | SAVE WORK PAGE TO PCX | DDO-FX (NM) | Connected |
+| 6536 | `2VP2PCX` | SAVE VISUAL PAGE TO PCX | DDO-FX (NM) | Connected |
+| 6544 | `2LVPPCX` | LOAD VISUAL PAGE PCX | DDO-FX (NM) | Connected on the desktop and alert visual page |
+| 6556 | `2LWPPCX` | LOAD WORK PAGE PCX | DDO-FX (NM) | Connected on the desktop and alert visual page |
+| 6568 | `2LBPPCX` | LOAD BACKGROUND PAGE PCX | DDO-FX (NM) | Connected on the desktop and alert visual page |
+| 6580 | `2S` | GET SPRITE | DDO-FX (NM) | Connected |
+| 6669 | `2SV` | GET SPRITE VISUAL PAGE | DDO-FX (NM) | Connected |
+| 6679 | `2SB` | GET SPRITE BACKGROUND PAGE | DDO-FX (NM) | Connected |
+| 6689 | `2SH` | GET SPRITE HIDDEN PAGE | DDO-FX (NM) | Connected |
+| 6699 | `2sD` | DRAW SPRITE | DDO-FX (NM) | Connected |
+| 6725 | `2sDV` | DRAW SPRITE VISUAL PAGE | DDO-FX (NM) | Connected |
+| 6733 | `2sDB` | DRAW SPRITE BACKGROUND PAGE | DDO-FX (NM) | Connected |
+| 6741 | `2sDH` | DRAW SPRITE HIDDEN PAGE | DDO-FX (NM) | Connected |
+| 6749 | `2sC` | CLIP SPRITE | DDO-FX (NM) | Connected |
+| 6762 | `2sCV` | CLIP SPRITE VISUAL PAGE | DDO-FX (NM) | Connected |
+| 6769 | `2sCB` | CLIP SPRITE BACKGROUND PAGE | DDO-FX (NM) | Connected |
+| 6776 | `2sCH` | CLIP SPRITE HIDDEN PAGE | DDO-FX (NM) | Connected |
+| 6783 | `2sF` | FLIP SPRITE | DDO-FX (NM) | Connected |
+| 6799 | `2sFV` | FLIP SPRITE VISUAL PAGE | DDO-FX (NM) | Connected |
+| 6806 | `2sFB` | FLIP SPRITE BACKGROUND PAGE | DDO-FX (NM) | Connected |
+| 6813 | `2sFH` | FLIP SPRITE HIDDEN PAGE | DDO-FX (NM) | Connected |
+| 6820 | `2sR` | REVERSE SPRITE | DDO-FX (NM) | Connected |
+| 6831 | `2sRV` | REVERSE SPRITE VISUAL PAGE | DDO-FX (NM) | Connected |
+| 6838 | `2sRB` | REVERSE SPRITE BACKGROUND PAGE | DDO-FX (NM) | Connected |
+| 6845 | `2sRH` | REVERSE SPRITE HIDDEN PAGE | DDO-FX (NM) | Connected |
+| 6852 | `2sP` | PUT SPRITE | DDO-FX (NM) | Connected |
+| 6861 | `2sPV` | PUT SPRITE VISUAL PAGE | DDO-FX (NM) | Connected |
+| 6868 | `2sPB` | PUT SPRITE BACKGROUND PAGE | DDO-FX (NM) | Connected |
+| 6875 | `2sPH` | PUT SPRITE HIDDEN PAGE | DDO-FX (NM) | Connected |
+| 6882 | `2sI` | INVERT SPRITE | DDO-FX (NM) | Connected |
+| 6895 | `2sFF` | FREE ALL SPRITES | DDO-FX (NM) | Connected |
+| 6904 | `2STORES` | STORE ALL SPRITES | DDO-FX (NM) | Connected |
+| 6919 | `2LOADS` | LOAD ALL SPRITES | DDO-FX (NM) | Connected |
+| 6939 | `2ANIM` | DEFINE ANIM PROFILE | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 7151 | `2ANIMSOUND` | DEFINE ANIM SOUND | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 7186 | `2PLAYA` | PLAY ANIM PROFILE | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 7219 | `2STOPA` | STOP ANIM PROFILE | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 7235 | `2AFLY` | CHANGE ANIM PROFILE ON THE FLY | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 7246 | `2COLL` | ANIM COLLISION PROFILE | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 7339 | `2RESA` | RESOLUTION ANIMATOR | DDO-FX (NM) | Connected for FLI/FLC and animation profiles |
+| 7383 | `2MOTION` | DEFINE MOTION PROFILE | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 7466 | `2MFRAME` | DEFINE MOTION FRAME CONTROL | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 7534 | `2SS` | DEFINE SIMPLE SPRITE | DDO-FX (NM) | Connected |
+| 7652 | `2SSA` | DEFINE SIMPLE SPRITE ANIMATION | DDO-FX (NM) | Connected |
+| 7733 | `2CSS` | CLEAR SIMPLE SPRITES | DDO-FX (NM) | Connected |
+| 7747 | `2ACSS` | CLEAR ALL SIMPLE SPRITES | DDO-FX (NM) | Connected |
+| 7754 | `2DSS` | DRAW SIMPLE SPRITES | DDO-FX (NM) | Connected |
+| 7765 | `2CPYBP2HP` | COPY BACKGROUND PAGE TO HIDDEN PAGE | DDO-FX (NM) | Connected |
+| 7824 | `2CPYHP2BP` | COPY HIDDEN PAGE TO BACKGROUND PAGE | DDO-FX (NM) | Connected |
+| 7831 | `2CPYWP2HP` | COPY WORK PAGE TO HIDDEN PAGE | DDO-FX (NM) | Connected |
+| 7838 | `2CPYHP2WP` | COPY HIDDEN PAGE TO WORK PAGE | DDO-FX (NM) | Connected |
+| 7845 | `2CPYVP2HP` | COPY VISUAL PAGE TO HIDDEN PAGE | DDO-FX (NM) | Connected |
+| 7852 | `2CPYHP2VP` | COPY HIDDEN PAGE TO VISUAL PAGE | DDO-FX (NM) | Connected |
+| 7859 | `2CUTBP2HP` | CUT BACKGROUND PAGE TO HIDDEN PAGE | DDO-FX (NM) | Connected |
+| 7869 | `2CUTHP2BP` | CUT HIDDEN PAGE TO BACKGROUND PAGE | DDO-FX (NM) | Connected |
+| 7879 | `2CUTWP2HP` | CUT WORK PAGE TO HIDDEN PAGE | DDO-FX (NM) | Connected |
+| 7889 | `2CUTHP2WP` | CUT HIDDEN PAGE TO WORK PAGE | DDO-FX (NM) | Connected |
+| 7899 | `2CUTVP2HP` | CUT VISUAL PAGE TO HIDDEN PAGE | DDO-FX (NM) | Connected |
+| 7909 | `2CUTHP2VP` | CUT HIDDEN PAGE TO VISUAL PAGE | DDO-FX (NM) | Connected |
+| 7919 | `2X` | DO PRINT | DDO-FX (NM) | Connected, including window pages and the low-memory text box |
+| 8058 | `2XT` | DO PRINT TEXT FONT | DDO-FX (NM) | Connected on desktop and window pages |
+| 8110 | `2XTWP` | DO PRINT TEXT FONT WP | DDO-FX (NM) | Connected on the desktop |
+| 8118 | `2XTBP` | DO PRINT TEXT FONT BP | DDO-FX (NM) | Connected on the desktop |
+| 8127 | `2XTHP` | DO PRINT TEXT FONT HP | DDO-FX (NM) | Connected on desktop and window pages |
+| 8136 | `2C` | SET COLOR | DDO-FX (NM) | Connected |
+| 8146 | `2aP` | DRAW POINT | DDO-FX (NM) | Connected |
+| 8156 | `2aPX` | DRAW POINT XOR | DDO-FX (NM) | Connected |
+| 8163 | `2aERASE` | ERASE PAGE | DDO-FX (NM) | Connected |
+| 8172 | `2aG` | Get Pixel | DDO-FX (NM) | Connected |
+| 8182 | `2aM` | MOVE GRAPHICS CURSOR | DDO-FX (NM) | Connected |
+| 8192 | `2aPAINT` | PAINT | DDO-FX (NM) | Connected |
+| 8209 | `2aSRGB` | SET RGB | DDO-FX (NM) | Connected |
+| 8221 | `2aGRGB` | GET RGB | DDO-FX (NM) | Connected |
+| 8234 | `2aSTOREPAL` | STORE PALETTE | DDO-FX (NM) | Connected |
+| 8245 | `2aRESTOREPAL` | RESTORE PALETTE | DDO-FX (NM) | Connected |
+| 8253 | `2aZEROPAL` | ZERO PALETTE | DDO-FX (NM) | Connected |
+| 8260 | `2aFPALOUT` | FADE PALETTE OUT | DDO-FX (NM) | Connected |
+| 8299 | `2aFPALOUTA` | FADE PALETTE OUT ADVANCED | DDO-FX (NM) | Connected |
+| 8350 | `2aFPALIN` | FADE PALETTE IN | DDO-FX (NM) | Connected |
+| 8361 | `2aDRAWREL` | DRAW LINE RELATIVE | DDO-FX (NM) | Connected |
+| 8374 | `2aCHORG` | CHANGE VIEW PORT ORIGIN | DDO-FX (NM) | Connected |
+| 8394 | `2aSHAKE` | SHAKE SCREEN | DDO-FX (NM) | Connected |
+| 8404 | `2aRECT` | DRAW FILLED RECTANGLE | DDO-FX (NM) | Connected |
+| 8420 | `2aCLIP` | SET CLIPPING REGION | DDO-FX (NM) | Connected |
+| 8439 | `2aCIRC` | DRAW CIRCLE | DDO-FX (NM) | Connected |
+| 8451 | `2aCIRCF` | DRAW FILLED CIRCLE | DDO-FX (NM) | Connected |
+| 8463 | `2aDRAW` | DRAW LINE | DDO-FX (NM) | Connected |
+| 8474 | `2aDRAWX` | DRAW LINE XOR | DDO-FX (NM) | Connected |
+| 8481 | `2aDEFPAL` | DEFAULT 16 COLOR PALETTE | DDO-FX (NM) | Connected |
+| 8492 | `2aDRWBOX` | DRAW BOX | DDO-FX (NM) | Connected |
+| 8508 | `2aDRWBXX` | DRAW BOX XOR | DDO-FX (NM) | Connected |
+| 8524 | `2aBOXLNS` | EDIT BOX LINES | DDO-FX (NM) | Connected |
+| 8533 | `2aCLPRCT` | DRAW CLIPPED RECTANGLE | DDO-FX (NM) | Connected |
+| 8548 | `2aDRDASH` | DRAW DASHED LINE | DDO-FX (NM) | Connected |
+| 8564 | `2aDRDSHRL` | DRAW DASHED LINE RELATIVE | DDO-FX (NM) | Connected |
+| 8580 | `2aELIPS` | DRAW ELLIPSE | DDO-FX (NM) | Connected |
+| 8592 | `2aELIPSF` | DRAW FILLED ELLIPSE | DDO-FX (NM) | Connected |
+| 8599 | `2aFILL` | FILL PAGE | DDO-FX (NM) | Connected |
+| 8607 | `2aFLOOD` | FLOOD | DDO-FX (NM) | Connected |
+| 8616 | `2aMVREL` | MOVEIT RELATIVE | DDO-FX (NM) | Connected |
+| 8624 | `2aBCURV` | DRAW BEZIER CURVE | DDO-FX (NM) | Connected |
+| 8646 | `2aBCURVX` | DRAW BEZIER CURVE XOR | DDO-FX (NM) | Connected |
+| 8656 | `2aSCROLL` | VERTICAL SCROLL | DDO-FX (NM) | Connected on the desktop and window virtual pages |
+| 8694 | `3MACT` | MOUSE ACTIVE | DDO-FX (NM) | Connected |
+| 8713 | `3MPT` | CHANGE MOUSE POINTER | DDO-FX (NM) | Connected |
+| 8750 | `3MPL` | LOAD MOUSE POINTER | DDO-FX (NM) | Connected |
+| 8776 | `3SMP` | SELECT MOUSE POINTER | DDO-FX (NM) | Connected |
+| 8786 | `3AMP` | ANIMATED MOUSE POINTER | DDO-FX (NM) | Connected |
+| 8837 | `3AAM` | ACTIVATE ANIMATED MOUSE | DDO-FX (NM) | Connected |
+| 8846 | `3DAM` | DEACTIVATE ANIMATED MOUSE | DDO-FX (NM) | Connected |
+| 8855 | `3MVIS` | MOUSE VISIBILITY | DDO-FX (NM) | Connected |
+| 8866 | `3MLIM` | MOUSE LIMITS | DDO-FX (NM) | Connected |
+| 8875 | `3MMOV` | MOUSE MOVE | DDO-FX (NM) | Connected |
+| 8890 | `3MINF` | MOUSE INFO | DDO-FX (NM) | Connected |
+| 8928 | `3MIOLD` | MOUSE INFO OLD | DDO-FX (NM) | Connected |
+| 8958 | `MSPD` | MOUSE SPEED | DDO-FX (NM) | Connected |
+| 8968 | `3MREG` | MOUSE REGION | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 9189 | `3MREGN` | MOUSE REGION NON REPEAT | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 9211 | `3MFLD` | MOUSE FIELD | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 9292 | `3MFSWP` | MOUSE FIELD SWAP | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 9302 | `3MFFRS` | MOUSE FIELD FRESHEN | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 9317 | `5CRBUTTON` | CREATE RADIO BUTTON | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 9481 | `5EXRBTN` | EXECUTE RADIO BUTTON | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 9548 | `5SWPRBTN` | SWAP RADIO BUTTON | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 9560 | `5DERBTN` | DISABLE/ENABLE RADIO BUTTON | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 9576 | `5CCHKBOX` | CREATE CHECK BOX | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 9679 | `5EXCBOX` | EXECUTE CHECK BOX | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 9688 | `5SWPCBOX` | SWAP CHECK BOX | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 9697 | `5DECBOX` | DISABLE/ENABLE CHECK BOX | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 9706 | `5CPUSHB` | CREATE PUSH BUTTON | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 9792 | `5CTXTFLD` | CREATE TEXT FIELD | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 9973 | `5SHOWTFLD` | SHOW TEXT FIELD | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 9981 | `5ACTTFLD` | ACTIVATE TEXT FIELD | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 9992 | `5EXTFLD` | EXECUTE TEXT FIELD | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 10008 | `5SWPTFLD` | SWAP TEXT FIELD | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 10016 | `5CLBOX` | CREATE LIST BOX | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 10143 | `5LBMODLST` | MODIFY LIST ITEM | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 10197 | `5LBDRWLST` | DRAW LIST BOX | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 10211 | `5LBSHWLST` | SHOW LIST BOX | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 10224 | `5LBEXCLST` | EXECUTE LIST BOX | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 10237 | `5LBCLSLST` | KILL LIST BOX | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 10248 | `5LBDEACT` | DEACTIVATE LIST BOX | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 10262 | `5LBREACT` | REACTIVATE LIST BOX | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 10274 | `5LBADJLST` | ADJUST LIST | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 10341 | `5LBADJHLT` | ADJUST HIGHLIGHT | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 10378 | `5LBTGLSEL` | TOGGLE SELECTION | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 10399 | `5CMARQEE` | CREATE MARQUEE | DDO-FX (NM) | Connected |
+| 10471 | `5SHOWMQ` | SHOW MARQUEE | DDO-FX (NM) | Connected |
+| 10485 | `5STOPMQ` | STOP MARQUEE | DDO-FX (NM) | Connected |
+| 10498 | `5KILLMQ` | KILL MARQUEE | DDO-FX (NM) | Connected |
+| 10511 | `5OFLIC` | OPEN FLI/FLC | DDO-FX (NM) | Connected |
+| 10600 | `5PFLIC` | PAUSE FLI/FLC | DDO-FX (NM) | Connected |
+| 10620 | `5UFLIC` | UNPAUSE FLI/FLC | DDO-FX (NM) | Connected |
+| 10632 | `5SFLIC` | STOP FLI/FLC | DDO-FX (NM) | Connected |
+| 10648 | `5SCLOCK` | START ANALOG CLOCK | DDO-FX (NM) | Connected |
+| 10703 | `5SHWCLK` | SHOW ANALOG CLOCK | DDO-FX (NM) | Connected |
+| 10715 | `5STPCLK` | STOP ANALOG CLOCK | DDO-FX (NM) | Connected |
+| 10725 | `5SOCLOCK` | START TEXT CLOCK | DDO-FX (NM) | Connected |
+| 10772 | `5POCLOCK` | PAUSE TEXT CLOCK | DDO-FX (NM) | Connected |
+| 10782 | `5UOCLOCK` | UNPAUSE TEXT CLOCK | DDO-FX (NM) | Connected |
+| 10794 | `5KOCLOCK` | KILL TEXT CLOCK | DDO-FX (NM) | Connected |
+| 10806 | `5CLAND` | CREATE VIRTUAL LANDSCAPE | DDO-FX (NM) | Connected |
+| 10890 | `5LCLOUD` | VR CLOUDS | DDO-FX (NM) | Connected |
+| 10911 | `5LSKY` | VR SKY | DDO-FX (NM) | Connected |
+| 10925 | `5LLPOS` | VR LAND POSITION | DDO-FX (NM) | Connected |
+| 10935 | `5LCPOS` | VR CLOUD POSITION | DDO-FX (NM) | Connected |
+| 10942 | `5LDMAP` | VR DRAW MAP | DDO-FX (NM) | Connected |
+| 10976 | `5LDMAPWP` | VR DRAW MAP ON WORK PAGE | DDO-FX (NM) | Connected |
+| 10984 | `5LGMAP` | VR GET MAP | DDO-FX (NM) | Connected |
+| 11005 | `5LGMAPWP` | VR GET MAP ON WORK PAGE | DDO-FX (NM) | Connected |
+| 11012 | `5LCSPD` | VR CHANGE SPEED | DDO-FX (NM) | Connected |
+| 11026 | `5LCDIR` | VR CHANGE DIRECTION | DDO-FX (NM) | Connected |
+| 11036 | `5LCX` | VR CHANGE X | DDO-FX (NM) | Connected |
+| 11046 | `5LCY` | VR CHANGE Y | DDO-FX (NM) | Connected |
+| 11056 | `5LCZ` | VR CHANGE Z | DDO-FX (NM) | Connected |
+| 11066 | `5LCD` | VR CHANGE DETAIL | DDO-FX (NM) | Connected |
+| 11079 | `5LMSPD` | VR MODIFY SPEED | DDO-FX (NM) | Connected |
+| 11093 | `5LMDIR` | VR MODIFY DIRECTION | DDO-FX (NM) | Connected |
+| 11100 | `5LMX` | VR MODIFY X | DDO-FX (NM) | Connected |
+| 11107 | `5LMY` | VR MODIFY Y | DDO-FX (NM) | Connected |
+| 11114 | `5LMZ` | VR MODIFY Z | DDO-FX (NM) | Connected |
+| 11121 | `5LMD` | VR MODIFY DETAIL | DDO-FX (NM) | Connected |
+| 11128 | `5LGX` | VR GET USER X | DDO-FX (NM) | Connected |
+| 11138 | `5LGY` | VR GET USER Y | DDO-FX (NM) | Connected |
+| 11148 | `5LGZ` | VR GET USER Z | DDO-FX (NM) | Connected |
+| 11158 | `5LGD` | VR GET USER DIRECTION | DDO-FX (NM) | Connected |
+| 11167 | `5LANIM` | VR ANIMATE | DDO-FX (NM) | Connected |
+| 11176 | `5DANIM` | RC 3D RAYCASTING ENGINE | DDO-FX (NM) | Connected |
+| 11262 | `5DSCALE` | RC 3D SCALE | DDO-FX (NM) | Connected |
+| 11291 | `5CMAZE` | RC 3D MAZE GENERATOR | DDO-FX (NM) | Connected |
+| 11331 | `5LOADMAP` | RC LOAD 3D MAP DEFINITION | DDO-FX (NM) | Connected |
+| 11351 | `5VD` | RC ROTATE PERSPECTIVE | DDO-FX (NM) | Connected |
+| 11381 | `5VM` | RC MOVE 3D FORWARD/BACKWARDS | DDO-FX (NM) | Connected |
+| 11409 | `52DMAP` | RC DUMP MAP | DDO-FX (NM) | Connected |
+| 11440 | `52DMMAP` | RC MODIFY DUMP MAP | DDO-FX (NM) | Connected |
+| 11466 | `5CTEXTURE` | RC CHANGE TEXTURE LIBRARY | DDO-FX (NM) | Connected |
+| 11516 | `5COBJECT` | RC CHANGE OBJ TEXTURE LIBRARY | DDO-FX (NM) | Connected |
+| 11574 | `5SETXPOS` | RC SET USER X POSITION | DDO-FX (NM) | Connected |
+| 11595 | `5SETYPOS` | RC SET USER Y POSITION | DDO-FX (NM) | Connected |
+| 11613 | `5SETANGL` | RC SET USER ANGLE | DDO-FX (NM) | Connected |
+| 11635 | `5GETANGL` | RC GET USER ANGLE | DDO-FX (NM) | Connected |
+| 11657 | `5GETXPOS` | RC GET USER X POSITION | DDO-FX (NM) | Connected |
+| 11671 | `5GETYPOS` | RC GET USER Y POSITION | DDO-FX (NM) | Connected |
+| 11685 | `5VANIM` | RC DEFINE ANIMATED TEXTURE | DDO-FX (NM) | Connected |
+| 11761 | `5PLAYV` | RC PLAY ANIMATED TEXTURE | DDO-FX (NM) | Connected |
+| 11776 | `5STOPV` | RC STOP ANIMATED TEXTURE | DDO-FX (NM) | Connected |
+| 11792 | `5CLSMAP` | RC CLEAR MAP | DDO-FX (NM) | Connected |
+| 11811 | `5CHMAP` | RC CHANGE MAP | DDO-FX (NM) | Connected |
+| 11901 | `5CHOBJ` | RC CHANGE OBJECT MAP | DDO-FX (NM) | Connected |
+| 12046 | `5GETMAP` | RC GET MAP INFO | DDO-FX (NM) | Connected |
+| 12101 | `5MAPPRO` | RC SET MAP PROFILE | DDO-FX (NM) | Connected |
+| 12392 | `5CPYPRO` | RC COPY MAP PROFILE | DDO-FX (NM) | Connected |
+| 12404 | `5FILPRO` | RC FILL MAP PROFILE | DDO-FX (NM) | Connected |
+| 12414 | `5DELMAPPRO` | RC DEL MAP PROFILE | DDO-FX (NM) | Connected |
+| 12433 | `5SAVE3D` | RC SAVE 3D ENVIRONMENT | DDO-FX (NM) | Connected. Saves the native MAP layout, texture atlas and animation intervals |
+| 12453 | `5LOAD3D` | RC LOAD 3D ENVIRONMENT | DDO-FX (NM) | Connected. Restores the environment, renders imported textures and resumes active sprite sequences |
+| 12466 | `5DREC` | RC RECORD 3D MOVEMENTS | DDO-FX (NM) | Connected |
+| 12510 | `5DPLY` | RC PLAY 3D MOVEMENTS | DDO-FX (NM) | Connected |
+| 12521 | `5DPLYR` | RC PLAY 3D MOVEMENTS FROM RESOURCE | DDO-FX (NM) | Connected |
+| 12539 | `5DLYR` | RC DEFINE OBJECTS LAYER | DDO-FX (NM) | Connected. The desktop and window raycaster views draw the three shared object layers in order |
+| 12570 | `23DINIT` | 3D OBJECT INIT | DDO-FX (NM) | Connected |
+| 12829 | `23DINITL` | 3D OBJECT INIT LITE | DDO-FX (NM) | Connected |
+| 12844 | `23DDEL` | 3D DELETE OBJECT | DDO-FX (NM) | Connected |
+| 12856 | `23DYAW` | 3D ADJUST YAW | DDO-FX (NM) | Connected |
+| 12888 | `23DROLL` | 3D ADJUST ROLL | DDO-FX (NM) | Connected |
+| 12920 | `23DPITCH` | 3D ADJUST PITCH | DDO-FX (NM) | Connected |
+| 12952 | `23DMOVE` | 3D ADJUST LOCATION | DDO-FX (NM) | Connected |
+| 12981 | `23DDIST` | 3D ADJUST DISTANCE ZOOM | DDO-FX (NM) | Connected |
+| 13003 | `23DFACE` | 3D ADD FACE | DDO-FX (NM) | Connected |
+| 13026 | `23DPAINT` | 3D PAINT OBJECT | DDO-FX (NM) | Connected |
+| 13059 | `23DWIRE` | 3D RENDER TYPE | DDO-FX (NM) | Connected |
+| 13075 | `23DEQU` | 3D SET OBJECT | DDO-FX (NM) | Connected |
+| 13094 | `23DMERGE` | 3D MERGE OBJECT | DDO-FX (NM) | Connected |
+| 13111 | `23DMORPH` | 3D MORPH OBJECT | DDO-FX (NM) | Connected |
+| 13144 | `23DPLAY` | 3D PLAY OBJECT | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 13158 | `5DEFGRID` | GD DEFINE GRID | DDO-FX (NM) | Connected on the desktop and window virtual pages |
+| 13236 | `5CHGGRID` | GD CHANGE GRID | DDO-FX (NM) | Connected on the desktop and window virtual pages |
+| 13286 | `5FILGRID` | GD FILL GRID | DDO-FX (NM) | Connected on the desktop and window virtual pages |
+| 13322 | `5KILGRID` | GD KILL GRID | DDO-FX (NM) | Connected on the desktop and window virtual pages |
+| 13330 | `5DRWGRID` | GD DRAW GRID | DDO-FX (NM) | Connected on the desktop and window virtual pages |
+| 13382 | `5POSGRID` | GD POS GRID | DDO-FX (NM) | Connected on the desktop and window virtual pages |
+| 13410 | `5MOVGRID` | GD MOVE GRID | DDO-FX (NM) | Connected on the desktop and window virtual pages |
+| 13432 | `5POSTILE` | GD POS TILE | DDO-FX (NM) | Connected on the desktop and window virtual pages |
+| 13451 | `5MOVTILE` | GD MOVE TILE | DDO-FX (NM) | Connected on the desktop and window virtual pages |
+| 13473 | `5KILTILE` | GD KILL TILE | DDO-FX (NM) | Connected on the desktop and window virtual pages |
+| 13488 | `5SLEEPER` | SET SLEEP DISCONNECT | DDO-FX (NM) | Connected |
+| 13544 | `5PING` | SET PING | DDO-FX (NM) | Connected |
+| 13620 | `5ROTATE` | ROTATE IMAGE | DDO-FX (NM) | Connected on desktop and window pages |
+| 13703 | `5SCALE` | SCALE IMAGE | DDO-FX (NM) | Connected on desktop and window pages |
+| 13819 | `5ALIAS` | ANTI-ALIAS IMAGE | DDO-FX (NM) | Connected on desktop and window pages |
+| 13917 | `5OUTLN` | OUTLINE IMAGE | DDO-FX (NM) | Connected on desktop and window pages |
+| 13975 | `7ZMBKGRND` | ZMODEM BACKGROUND TRANSFERS | DDO-FX (NM) | Implemented |
+| 14035 | `7ZMSTEALTH` | ZMODEM STEALTH MODE | DDO-FX (NM) | Connected for all 12 SDK families. Transfer tests exercise mouse fields, icons, list boxes, text fields, radio buttons, checkboxes, push buttons, mouse regions, timers, joystick input, keyboard macros and window close callbacks |
+| 14120 | `7DEFBAR` | DEFINE MUSIC BAR | DDO-FX (NM) | Connected on desktop and window pages |
+| 14292 | `7MUSBAR` | ACTIVATE/DEACTIVATE MUSIC BAR | DDO-FX (NM) | Connected on desktop and window pages |
+| 14308 | `7CLRBAR` | CLEAR MUSIC BAR | DDO-FX (NM) | Connected on desktop and window pages |
+| 14318 | `2GEXIT` | EXIT TO TEXT MODE | DDO-FX (NM) | Connected |
+| 14638 | `2GWIN` | CREATE GRAPHIC WINDOW | DDO-FX (NM) | Scripted creation, frames, pages and stacking connected. Frame controls and linked icons connected |
+| 14837 | `2DCGWIN` | DEFINE CLOSE GRAPHIC WINDOW | DDO-FX (NM) | Connected |
+| 14898 | `2CGWIN` | CLOSE GRAPHIC WINDOW | DDO-FX (NM) | Connected |
+| 14916 | `2VXY` | LOAD PCX (X,Y) Graphic Window VP | DDO-FX (NM) | Connected |
+| 14936 | `2FGWIN` | FIND ACTIVE GRAPHIC WINDOW | DDO-FX (NM) | Connected |
+| 14946 | `2HGWIN?` | IS GRAPHIC WINDOW HIDDEN | DDO-FX (NM) | Connected |
+| 14954 | `2AGWIN?` | IS GRAPHIC WINDOW ACTIVE | DDO-FX (NM) | Connected |
+| 14962 | `2VGWIN?` | IS GRAPHIC WINDOW CREATED | DDO-FX (NM) | Connected |
+| 14970 | `2SGWIN?` | GET GRAPHIC WINDOW STATS | DDO-FX (NM) | Connected |
+| 14980 | `2AGWIN` | ACTIVATE GRAPHIC WINDOW | DDO-FX (NM) | Connected |
+| 14995 | `2CHGWIN` | CHANGE GRAPHIC WINDOW | DDO-FX (NM) | Scripted geometry, visibility and title connected. Mouse drag, resize, zoom, restore and scroll enable flags connected. Return-to-icon connected |
+| 15008 | `2CHVGPR` | CHANGE GRAPHIC WINDOW VGP REL | DDO-FX (NM) | Connected |
+| 15024 | `2CHVGP` | CHANGE GRAPHIC WINDOW VGP | DDO-FX (NM) | Connected |
+| 15034 | `2ZGWIN` | ZOOM/SHRINK GRAPHIC WINDOW | DDO-FX (NM) | Connected |
+| 15042 | `2RGWIN,WN` | RESTORE GRAPHIC WINDOW | DDO-FX (NM) | Connected |
+| 15049 | `2RAGWIN` | RESTORE ALL GRAPHIC WINDOWS | DDO-FX (NM) | Connected |
+| 15056 | `2RGWIN` | REFRESH ALL GRAPHIC WINDOWS | DDO-FX (NM) | Connected |
+| 15062 | `2RGWINI` | REFRESH GRAPHIC WINDOWS INTERIOR | DDO-FX (NM) | Connected |
+| 15074 | `2ALERTGWIN` | ALERT GRAPHIC WINDOW | DDO-FX (NM) | Connected for primitives, PCX, visual/hidden page copies and scrolling, sprites, mouse fields and regions, push buttons, radio buttons, checkboxes, animations, collisions, icons, bitmap and VGA text, image transforms, tile grids, clocks, marquees, music bars, FLI/FLC playback, list boxes, editable text fields and graphic text windows |
+| 15094 | `2CALMGWIN` | CALM GRAPHIC WINDOW | DDO-FX (NM) | Connected |
+| 15101 | `2ICON` | CREATE ICON | DDO-FX (NM) | Connected |
+| 15135 | `2MPICON` | ICON MOUSE POINTER | DDO-FX (NM) | Connected |
+| 15161 | `2ICONO` | DEFINE ICON OPEN PROCEDURE | DDO-FX (NM) | Connected |
+| 15174 | `2ICONC` | DEFINE ICON CLOSE PROCEDURE | DDO-FX (NM) | Connected |
+| 15185 | `2ICOND` | DEFINE ICON DROP PROCEDURE | DDO-FX (NM) | Connected |
+| 15203 | `2OICON` | EXECUTE OPEN ICON PROCEDURE | DDO-FX (NM) | Connected |
+| 15215 | `2CICON` | EXECUTE CLOSE ICON PROCEDURE | DDO-FX (NM) | Connected |
+| 15227 | `2DICON` | EXECUTE DROP ICON PROCEDURE | DDO-FX (NM) | Connected |
+| 15235 | `2KICON` | KILL ICON | DDO-FX (NM) | Connected |
+| 15243 | `2MICON` | MOVE ICON | DDO-FX (NM) | Connected |
+| 15249 | `2GICON?` | GET ICON STATS | DDO-FX (NM) | Connected |
+| 15265 | `2RICON` | RESTORE ICON | DDO-FX (NM) | Connected |
+| 15273 | `2RAICON` | RESTORE ALL ICONS | DDO-FX (NM) | Connected |
+| 15578 | `8CDIR` | CHECK FOR DIRECTORY | DDO-FX Pro. | Connected in Lite and Normal. A local peer checks existing and missing client directories |
+| 15594 | `8CFILE` | CHECK FOR FILE | DDO-FX Pro. | Connected in Lite and Normal. A local peer checks file size, DOS timestamp, missing files and missing directories |
+| 15614 | `8EXEC` | EXECUTE CLIENT | DDO-FX Pro. | Consume without execution |
