@@ -1445,7 +1445,7 @@ cterm_resize_scrollback(st_cterm_t *terminal, uint32_t columns, uint32_t cell_wi
 }
 
 void
-cterm_resize_parser_geometry(st_cterm_t *terminal, int columns, int rows, int cursor_x, int cursor_y)
+cterm_resize_parser_geometry(st_cterm_t *terminal, int columns, int rows, bool preserve_cursor)
 {
 	int      old_columns = terminal->width;
 	int      old_rows    = terminal->height;
@@ -1465,16 +1465,18 @@ cterm_resize_parser_geometry(st_cterm_t *terminal, int columns, int rows, int cu
 		terminal->bottom_margin = rows;
 	if (terminal->top_margin > rows)
 		terminal->top_margin = 1;
-	if (cursor_x > columns)
-		cursor_x = columns;
-	if (cursor_y > rows)
-		cursor_y = rows;
 	if (terminal->screen.provisional_x > last_x)
 		terminal->screen.provisional_x = last_x;
 	if (terminal->screen.provisional_y > last_y)
 		terminal->screen.provisional_y = last_y;
 	cterm_apply_window(terminal);
-	cterm_set_position(terminal, cursor_x, cursor_y);
+	int x = 1, y = 1;
+	if (preserve_cursor) {
+		x = terminal->xpos > columns ? columns : terminal->xpos;
+		y = terminal->ypos > rows ? rows : terminal->ypos;
+		cterm_coord_conv_xy(terminal, CTERM_COORD_ABSTERM, CTERM_COORD_TERM, &x, &y);
+	}
+	cterm_set_position(terminal, x, y);
 }
 
 int
@@ -1504,13 +1506,13 @@ cterm_reconfigure_console(struct cterminal *t, const struct st_console_config *c
 	t->backstart  = 0;
 	t->backpos    = t->backfilled == t->backlines ? 0 : t->backfilled;
 	cterm_resize_parser_geometry(t, (int)config->columns,
-	    (int)(config->rows - t->api_reserved_rows - (t->status_display_type >= 1 ? 1u : 0u)), 1, 1);
+	    (int)(config->rows - t->api_reserved_rows - (t->status_display_type >= 1 ? 1u : 0u)), false);
 	if (t->status_sub != NULL) {
 		memcpy(t->status_sub->screen.mode_palette, t->screen.mode_palette, sizeof(t->screen.mode_palette));
 		cterm_render_attribute_colours(t->status_sub, t->status_sub->attr, &t->status_sub->fg_color,
 		    &t->status_sub->bg_color);
 		t->status_sub->y = t->y + t->height;
-		cterm_resize_parser_geometry(t->status_sub, (int)config->columns, 1, 1, 1);
+		cterm_resize_parser_geometry(t->status_sub, (int)config->columns, 1, false);
 		cterm_text_forget(t->status_sub);
 		st_unicode_presentation_reset(t->status_sub->screen.unicode);
 	}
@@ -1529,10 +1531,6 @@ st_cterm_resize(st_cterm_t *terminal, uint32_t columns, uint32_t rows)
 	uint32_t                 cell_width, cell_height;
 	uint32_t                 status_rows;
 	uint32_t                 terminal_rows;
-	int                      cursor_x;
-	int                      cursor_y;
-	int                      status_x = 1;
-	int                      status_y = 1;
 	int                      status;
 
 	if (terminal == NULL || columns == 0 || rows == 0 || columns > INT_MAX || rows > INT_MAX)
@@ -1565,12 +1563,6 @@ st_cterm_resize(st_cterm_t *terminal, uint32_t columns, uint32_t rows)
 		if (status != 0)
 			return status;
 	}
-	cursor_x = terminal->xpos;
-	cursor_y = terminal->ypos;
-	if (terminal->status_sub != NULL) {
-		status_x = terminal->status_sub->xpos;
-		status_y = terminal->status_sub->ypos;
-	}
 	status = st_console_resize(terminal->screen.console, columns, rows);
 	if (status != 0) {
 		free(scrollback);
@@ -1590,14 +1582,17 @@ st_cterm_resize(st_cterm_t *terminal, uint32_t columns, uint32_t rows)
 	terminal->backstart  = 0;
 	terminal->backpos    = terminal->backfilled == terminal->backlines ? 0 : terminal->backfilled;
 	free(old_scrollback);
-	cterm_resize_parser_geometry(terminal, (int)columns, (int)terminal_rows, cursor_x, cursor_y);
-	if (terminal->status_sub != NULL) {
-		terminal->status_sub->x = terminal->x;
-		terminal->status_sub->y = terminal->y + terminal->height;
-		cterm_resize_parser_geometry(terminal->status_sub, (int)columns, 1, status_x, status_y);
+	/* The active parser must leave its window and cursor on the shared console. */
+	struct cterminal *sub = terminal->status_sub;
+	if (sub != NULL) {
+		sub->x = terminal->x;
+		sub->y = terminal->y + (int)terminal_rows;
+		if (terminal->status_display_active == 0)
+			cterm_resize_parser_geometry(sub, (int)columns, 1, true);
 	}
-	if (terminal->status_sub == NULL || terminal->status_display_active == 0)
-		cterm_apply_window(terminal);
+	cterm_resize_parser_geometry(terminal, (int)columns, (int)terminal_rows, true);
+	if (sub != NULL && terminal->status_display_active == 1)
+		cterm_resize_parser_geometry(sub, (int)columns, 1, true);
 	status = cterm_render_take_error(terminal);
 	if (status == 0 && terminal->status_sub != NULL)
 		status = cterm_render_take_error(terminal->status_sub);

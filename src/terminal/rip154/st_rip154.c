@@ -242,11 +242,11 @@ rip_text_font(st_cterm_t *terminal, int style)
 		terminal->backpos    = terminal->backfilled == terminal->backlines ? 0 : terminal->backfilled;
 		free(old_scrollback);
 		cterm_resize_parser_geometry(terminal, (int)columns,
-		    (int)(rows - status_rows - terminal->api_reserved_rows), 1, 1);
+		    (int)(rows - status_rows - terminal->api_reserved_rows), false);
 		if (terminal->status_sub != NULL) {
 			terminal->status_sub->x = terminal->x;
 			terminal->status_sub->y = terminal->y + terminal->height;
-			cterm_resize_parser_geometry(terminal->status_sub, (int)columns, 1, 1, 1);
+			cterm_resize_parser_geometry(terminal->status_sub, (int)columns, 1, false);
 		}
 		if (old_cell_height != cell_height) {
 			status = st_console_set_default_cursor(terminal->screen.console, &cursor);

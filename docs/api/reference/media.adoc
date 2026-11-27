@@ -828,7 +828,7 @@ the rectangle.
 | Set/query cursor write position within the current text window.
 
 | st_console_set_window(console, window), st_console_get_window(console, window)
-| Set/query clipping/scroll rectangle; setting moves position to its origin.
+| Set/query the clipping and scrolling rectangle. A position outside the new rectangle moves to its origin.
 
 | st_console_set_wrap(console, wrap)
 | Enable/disable automatic right-margin wrap.

@@ -23,6 +23,8 @@ receives pointer coordinates only for forwarded events.
 `cterm` and the connected ANSI margins suites cover screen-clear history bounds
 for ED2 and FF, with origin mode on/off, and preserved rows outside the cleared
 window. Native cases also position the terminal within a larger console.
+The margins suites also check cursor placement after selecting an origin, saving
+modes, and restoring a changed, unchanged, or unsaved origin mode.
 The connected CP437/UTF-8 suites check complete cell and solid-colour pixel rows
 for LF, RI, SU, SD, IL and DL in small/large scroll regions, including oversized
 counts and reset recovery. Native IL tests retain every input split and the

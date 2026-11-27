@@ -308,9 +308,10 @@ The zero-initialized and traditional SyncTERM policy is blocky scaling;
 ## Stateful text
 
 The current position is absolute within the grid and must lie inside the active
-window.  Changing the window moves the position to its upper-left cell.  Text
-style, position, clipping/scroll window, wrapping, clearing, scrolling, and
-line insertion/deletion are retained on the same console instance.
+window. Changing the window preserves a position inside the new bounds. A
+position outside the new window moves to its upper-left cell. Text style,
+position, clipping/scroll window, wrapping, clearing, scrolling, and line
+insertion/deletion are retained on the same console instance.
 Rectangular cell moves have snapshot source semantics for overlap.  The clear
 variant fills only the part of the source rectangle not covered by its
 destination.  Scrolling and line insertion/deletion move matching cached

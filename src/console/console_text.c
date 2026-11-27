@@ -589,10 +589,12 @@ st_console_set_window(st_console_t *console, const struct st_console_rect *windo
 	if (!st_console_rect_valid(console, window))
 		result = IO_ERROR_OUT_OF_RANGE;
 	else {
-		console->window   = *window;
-		console->cursor_x = window->x;
-		console->cursor_y = window->y;
-		console->changed  = true;
+		console->window = *window;
+		if (!position_in_window(console, console->cursor_x, console->cursor_y)) {
+			console->cursor_x = window->x;
+			console->cursor_y = window->y;
+		}
+		console->changed = true;
 		result            = st_console_finish_change_locked(console);
 	}
 	(void)st_rwlock_unlock(st_console_state_lock(console));

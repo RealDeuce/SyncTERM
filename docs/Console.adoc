@@ -404,7 +404,8 @@ full license under SyncTERM Settings > Licenses or in
 
 The current style, position, clipping/scroll window, wrapping, cursor, blink
 mode, video flags, palette, and scaling policy are per instance.  Changing the
-text window moves the position to its upper-left corner.
+text window preserves the screen position when it lies inside the new bounds.
+A position outside the new window moves to its upper-left corner.
 
 The seven video flags retain the legacy source-attribute policy without
 changing the cell ABI.  Source bit 3 may select a bright foreground and/or an

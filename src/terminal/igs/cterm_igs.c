@@ -2892,13 +2892,13 @@ cterm_igs_set_resolution(struct cterm_igs *igs, unsigned resolution)
 	for (unsigned i = 0; i < 16; ++i)
 		t->screen.mode_palette[i] = CTERM_IGS_PALETTE_FIRST + (i & mask);
 	cterm_resize_parser_geometry(t, (int)config.columns,
-	    (int)(config.rows - t->api_reserved_rows - (t->status_display_type >= 1 ? 1u : 0u)), 1, 1);
+	    (int)(config.rows - t->api_reserved_rows - (t->status_display_type >= 1 ? 1u : 0u)), false);
 	if (t->status_sub != NULL) {
 		memcpy(t->status_sub->screen.mode_palette, t->screen.mode_palette, sizeof(t->screen.mode_palette));
 		cterm_render_attribute_colours(t->status_sub, t->status_sub->attr, &t->status_sub->fg_color,
 		    &t->status_sub->bg_color);
 		t->status_sub->y = t->y + t->height;
-		cterm_resize_parser_geometry(t->status_sub, (int)config.columns, 1, 1, 1);
+		cterm_resize_parser_geometry(t->status_sub, (int)config.columns, 1, false);
 	}
 	cterm_text_forget(t);
 	st_unicode_presentation_reset(t->screen.unicode);

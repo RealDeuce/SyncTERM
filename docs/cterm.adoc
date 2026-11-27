@@ -2217,6 +2217,7 @@ NON-STANDARD EXTENSION +
 Saves the current mode states as specified by `CSI ? l` and `CSI ? h`.  If
 `Ps1` is omitted, saves all such states.  If one or more values of `Ps` is
 included, saves only the specified states (arguments to `CSI ? l`/`h`).
+Saving modes preserves the cursor position.
 
 === `CSI Ps ; Pn1 ; Pn2 ; Pn3 t` Select a 24-bit colour (`CT24BC`)
 NON-STANDARD EXTENSION
@@ -2267,7 +2268,10 @@ NON-STANDARD EXTENSION
 
 Restores the mode states as saved via `CSI ? s`.  If `Ps` is omitted,
 restores all such states.  If one or more values of `Ps` is included,
-restores all the specified states (arguments to `CSI ? l`/`h`)
+restores all the specified states (arguments to `CSI ? l`/`h`).
+Restoring a different origin mode moves the cursor to the new origin.
+Restoring the current origin mode or one that has never been saved preserves
+the position.
 
 === `CSI Pts ; Pls ; Pbs ; Prs ; Pps ; Ptd ; Pld ; Ppd $ v` Copy Rectangular Area (`DECCRA`)
 Copies a rectangular area of characters from one location to another.

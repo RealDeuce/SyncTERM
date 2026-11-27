@@ -445,7 +445,7 @@ cterm_seq_defaults_apply(const struct cterminal *cterm)
 /* Console/history/status plumbing; protocol defaults remain with the owner. */
 int  cterm_resize_scrollback(struct cterminal *, uint32_t, uint32_t, uint32_t, struct st_console_cell **,
     struct st_pixel_buffer ***);
-void cterm_resize_parser_geometry(struct cterminal *, int, int, int, int);
+void cterm_resize_parser_geometry(struct cterminal *, int columns, int rows, bool preserve_cursor);
 int cterm_reconfigure_console(struct cterminal *, const struct st_console_config *);
 
 typedef void (*cterm_handler_fn)(struct cterminal *cterm, int *speed);

@@ -826,8 +826,7 @@ cterm_resize_rows(struct cterminal *cterm, int new_rows)
 	if (new_rows < 1 || new_rows == old_rows)
 		return;
 
-	/* Capture terminal coordinates because changing the console window also
-	 * changes the window-relative cursor; restore it after the resize. */
+	/* Preserve the terminal position across the change of bounds. */
 	TERM_XY(&tx, &ty);
 	if (ty > new_rows)
 		ty = new_rows;
@@ -2163,6 +2162,7 @@ cterm_reset(struct cterminal *cterm)
 		cterm->macro_lens[i] = 0;
 	}
 	cterm_apply_window(cterm);
+	cterm_render_set_position(cterm, CURR_MINX, CURR_MINY);
 
 	cterm->atascii_inverse = false;
 

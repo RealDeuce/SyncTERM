@@ -1207,6 +1207,8 @@ test_graphics_history(void)
 		CHECK(copy->primary[16] == ST_PIXEL_COLOR_RGB_VALUE(255, 0, 0));
 		st_pixel_buffer_destroy(copy);
 		CHECK(rip_test_reset(terminal) == 0);
+		uint32_t x, y;
+		CHECK(st_console_get_position(console, &x, &y) == 0 && x == 0 && y == 0);
 		CHECK(st_cterm_resize(terminal, 0, 4) == IO_ERROR_INVALID_ARGUMENT);
 		CHECK(st_cterm_copy_history_pixels(terminal, 0, &copy) == 0);
 		CHECK(copy != NULL && copy->primary[16] == ST_PIXEL_COLOR_RGB_VALUE(255, 0, 0));
@@ -1577,6 +1579,16 @@ st_cterm_test_main(void)
 		CHECK(columns == 24 && rows == 6);
 		CHECK(st_cterm_size(terminal, &columns, &rows) == 0);
 		CHECK(columns == 24 && rows == 5);
+		/* Resize with non-default margins, both before and after creating a status parser. */
+		const char main_cursor[] = "\x1b[2;4r\x1b[?6l\x1b[3;5H";
+		feed(terminal, main_cursor, sizeof(main_cursor) - 1);
+		uint32_t x, y;
+		CHECK(st_cterm_resize(terminal, 24, 6) == 0);
+		CHECK(st_console_get_position(console, &x, &y) == 0 && x == 4 && y == 2);
+		const char main_with_status[] = "\x1b[2$~\x1b[?6h\x1b[2;5H";
+		feed(terminal, main_with_status, sizeof(main_with_status) - 1);
+		CHECK(st_cterm_resize(terminal, 24, 6) == 0);
+		CHECK(st_console_get_position(console, &x, &y) == 0 && x == 4 && y == 2);
 		feed(terminal, "\x1b[2$~\x1b[1$}R", strlen("\x1b[2$~\x1b[1$}R"));
 		one.x = 0;
 		one.y = 5;
@@ -1585,6 +1597,8 @@ st_cterm_test_main(void)
 		    st_console_font_glyph_text(console, cell.glyph_font, cell.glyph, text, sizeof(text), &required)
 		    == 0);
 		CHECK(required == 1 && text[0] == 'R');
+		CHECK(st_cterm_resize(terminal, 24, 6) == 0);
+		CHECK(st_console_get_position(console, &x, &y) == 0 && x == 1 && y == 5);
 	}
 
 	rip_test_destroy(&terminal);

@@ -2588,7 +2588,8 @@ state change and does not promise rollback.
 
 | `Screen.window.bounds`, `setBounds(box)`
 | `[sx, sy, ex, ey]` of the active window (screen-absolute, 1-based,
-  inclusive).
+  inclusive). Setting bounds preserves the screen position if it is inside
+  the new window and otherwise moves it to the window origin.
 
 | `Screen.window.position`, `setPosition(coord)`
 | `[x, y]` cursor position, window-relative.

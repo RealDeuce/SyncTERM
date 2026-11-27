@@ -369,6 +369,17 @@ def margins(t):
     t.check("CTSMS", ESC + b"[?7s" + ESC + b"[?7l" + ESC + b"[?7$p", expected=ESC + b"[?7;2$y")
     t.check("CTRMS", ESC + b"[?7s" + ESC + b"[?7l" + ESC + b"[?7u" + ESC + b"[?7$p", expected=ESC + b"[?7;1$y")
     t.check("CTSMS_CTRMS", ESC + b"[?s" + ESC + b"[?7l" + ESC + b"[?u" + ESC + b"[?7$p", expected=ESC + b"[?7;1$y")
+    # Saving modes, restoring an unsaved mode, and restoring the same origin preserve the cursor.
+    for save, restore in ((b"", b"[?6u"), (b"[?6s", b"[?6u"), (b"[?s", b"[?u")):
+        t.check("CTSMS_CTRMS", cup(5, 3) + (ESC + save if save else b"") + ESC + restore + b"X",
+                (6, 3), ((5, 3, "X"),))
+    t.check("OriginMode", ESC + b"[5;10r" + cup(8, 8) + ESC + b"[?6hA" + cup(3, 2)
+            + ESC + b"[?6h" + ESC + b"[6n", (1, 5), ((1, 5, "A"),), expected=ESC + b"[1;1R")
+    # Origin changes home at the scrolling margins or at the screen origin.
+    for save, restore in ((b"[?6s", b"[?6u"), (b"[?s", b"[?u")):
+        t.check("OriginMode", ESC + b"[5;10r" + cup(5, 7) + ESC + b"[?6hA" + ESC + save
+                + ESC + b"[?6lB" + cup(8, 8) + ESC + restore + b"C" + ESC + b"[6n",
+                (2, 5), ((1, 1, "B"), (1, 5, "C")), expected=ESC + b"[1;2R")
     # Save-all restores several independent settings, not just autowrap.
     t.check("CTRMS", ESC + b"[?6;33;69h" + ESC + b"[?s" + ESC + b"[?6;33;69l"
             + ESC + b"[?u" + ESC + b"[?6$p" + ESC + b"[?33$p" + ESC + b"[?69$p",

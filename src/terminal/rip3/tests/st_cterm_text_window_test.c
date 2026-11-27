@@ -344,6 +344,9 @@ soft_ansi_reset(void)
 		CHECK(feed(&f, setup, sizeof(setup) - 1) == 0);
 		CHECK(st_cterm_rip3_ansi_reset(f.text, active != 0) == 0
 		      && position(&f, active ? 1 : 3, active ? 1 : 3) == 0);
+		uint32_t x, y;
+		CHECK(st_console_get_position(f.console, &x, &y) == 0 && x == (active ? 0u : 2u)
+		      && y == (active ? 0u : 2u));
 		CHECK(f.text->attr == 7 && !f.text->negative && f.text->save_xpos == 1 && f.text->save_ypos == 1
 		      && f.text->top_margin == 1 && f.text->bottom_margin == 5 && f.text->default_tabs
 		      && (f.text->extattr & CTERM_EXTATTR_ORIGINMODE)

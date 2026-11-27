@@ -727,7 +727,6 @@ cterm_handle_save_dec_modes(struct cterminal *cterm, int *speed) /* CSI ? s */
 					  : 0);
 		cterm->saved_mode |= (cterm->extattr & CTERM_EXTATTR_DECLRMM) ? CTERM_SAVEMODE_DECLRMM : 0;
 		cterm->saved_mode |= (cterm->extattr & CTERM_EXTATTR_DECBKM) ? CTERM_SAVEMODE_DECBKM : 0;
-		cterm_apply_window(cterm);
 		return;
 	}
 	for (i = 0; i < cterm->seq_param_count; i++) {
@@ -738,7 +737,6 @@ cterm_handle_save_dec_modes(struct cterminal *cterm, int *speed) /* CSI ? s */
 				cterm->saved_mode &= ~CTERM_SAVEMODE_ORIGIN;
 				cterm->saved_mode |=
 				    (cterm->extattr & CTERM_EXTATTR_ORIGINMODE) ? CTERM_SAVEMODE_ORIGIN : 0;
-				cterm_apply_window(cterm);
 				break;
 			case 7:
 				cterm->saved_mode_mask |= CTERM_SAVEMODE_AUTOWRAP;
@@ -891,6 +889,28 @@ cterm_handle_save_dec_modes(struct cterminal *cterm, int *speed) /* CSI ? s */
 	}
 }
 
+static void
+set_origin_mode(struct cterminal *cterm, bool enabled)
+{
+	cterm_clear_lcf(cterm);
+	if (enabled)
+		cterm->extattr |= CTERM_EXTATTR_ORIGINMODE;
+	else
+		cterm->extattr &= ~CTERM_EXTATTR_ORIGINMODE;
+	cterm_clear_selection(cterm);
+	cterm_apply_window(cterm);
+	cterm_render_set_position(cterm, CURR_MINX, CURR_MINY);
+}
+
+static void
+restore_origin_mode(struct cterminal *cterm)
+{
+	bool saved = (cterm->saved_mode & CTERM_SAVEMODE_ORIGIN) != 0;
+	if ((cterm->saved_mode_mask & CTERM_SAVEMODE_ORIGIN)
+	    && saved != ((cterm->extattr & CTERM_EXTATTR_ORIGINMODE) != 0))
+		set_origin_mode(cterm, saved);
+}
+
 void
 cterm_handle_restore_dec_modes(struct cterminal *cterm, int *speed) /* CSI ? u */
 {
@@ -903,13 +923,7 @@ cterm_handle_restore_dec_modes(struct cterminal *cterm, int *speed) /* CSI ? u *
 	updfg = (oldfg == cterm->fg_color);
 	updbg = (oldbg == cterm->bg_color);
 	if (cterm->seq_param_count == 0) {
-		if (cterm->saved_mode_mask & CTERM_SAVEMODE_ORIGIN) {
-			if (cterm->saved_mode & CTERM_SAVEMODE_ORIGIN)
-				cterm->extattr |= CTERM_EXTATTR_ORIGINMODE;
-			else
-				cterm->extattr &= ~CTERM_EXTATTR_ORIGINMODE;
-			cterm_apply_window(cterm);
-		}
+		restore_origin_mode(cterm);
 		if (cterm->saved_mode_mask & CTERM_SAVEMODE_AUTOWRAP) {
 			if (cterm->saved_mode & CTERM_SAVEMODE_AUTOWRAP)
 				cterm->extattr |= CTERM_EXTATTR_AUTOWRAP;
@@ -1009,13 +1023,7 @@ cterm_handle_restore_dec_modes(struct cterminal *cterm, int *speed) /* CSI ? u *
 		cterm_seq_default(cterm, i, 0);
 		switch (cterm->seq_param_int[i]) {
 			case 6:
-				if (cterm->saved_mode_mask & CTERM_SAVEMODE_ORIGIN) {
-					if (cterm->saved_mode & CTERM_SAVEMODE_ORIGIN)
-						cterm->extattr |= CTERM_EXTATTR_ORIGINMODE;
-					else
-						cterm->extattr &= ~CTERM_EXTATTR_ORIGINMODE;
-				}
-				cterm_apply_window(cterm);
+				restore_origin_mode(cterm);
 				break;
 			case 7:
 				if (cterm->saved_mode_mask & CTERM_SAVEMODE_AUTOWRAP) {
@@ -1222,10 +1230,7 @@ cterm_handle_decsm(struct cterminal *cterm, int *speed) /* CSI ? h */
 		cterm_seq_default(cterm, i, 0);
 		switch (cterm->seq_param_int[i]) {
 			case 6:
-				cterm_clear_lcf(cterm);
-				cterm->extattr |= CTERM_EXTATTR_ORIGINMODE;
-				cterm_clear_selection(cterm);
-				cterm_apply_window(cterm);
+				set_origin_mode(cterm, true);
 				break;
 			case 7:
 				cterm->extattr |= CTERM_EXTATTR_AUTOWRAP;
@@ -1278,10 +1283,7 @@ cterm_handle_decrm(struct cterminal *cterm, int *speed) /* CSI ? l */
 		cterm_seq_default(cterm, i, 0);
 		switch (cterm->seq_param_int[i]) {
 			case 6:
-				cterm_clear_lcf(cterm);
-				cterm->extattr &= ~CTERM_EXTATTR_ORIGINMODE;
-				cterm_clear_selection(cterm);
-				cterm_apply_window(cterm);
+				set_origin_mode(cterm, false);
 				break;
 			case 7:
 				cterm_clear_lcf(cterm);

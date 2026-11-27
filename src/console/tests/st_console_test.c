@@ -299,6 +299,14 @@ test_text_window_and_scroll(void)
 	uint32_t               y;
 
 	CHECK(st_console_set_window(console, &window) == 0);
+	CHECK(st_console_get_position(console, &x, &y) == 0 && x == window.x && y == window.y);
+	CHECK(st_console_set_position(console, 4, 2) == 0);
+	CHECK(st_console_set_window(console, &window) == 0);
+	CHECK(st_console_get_position(console, &x, &y) == 0 && x == 4 && y == 2);
+	CHECK(st_console_set_window(console, &(struct st_console_rect) {0, 0, 8, 4}) == 0);
+	CHECK(st_console_get_position(console, &x, &y) == 0 && x == 4 && y == 2);
+	CHECK(st_console_set_window(console, &window) == 0);
+	CHECK(st_console_set_position(console, window.x, window.y) == 0);
 	CHECK(st_console_set_style(console, &style) == 0);
 	CHECK(st_console_write_utf8(console, "abcde", 5) == 0);
 	cell = read_cell(console, 2, 1);

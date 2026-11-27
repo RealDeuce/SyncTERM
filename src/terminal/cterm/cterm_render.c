@@ -275,11 +275,8 @@ cterm_render_set_window(struct cterminal *cterm, int left, int top, int right, i
 		 * The console requires every physical cursor inside its window. */
 		const struct st_console_rect physical = {(uint32_t)(cterm->x - 1), (uint32_t)(cterm->y - 1),
 		    (uint32_t)cterm->width, (uint32_t)cterm->height};
-		if (render_succeeded(cterm, st_console_set_window(cterm->screen.console, &physical))) {
+		if (render_succeeded(cterm, st_console_set_window(cterm->screen.console, &physical)))
 			cterm->screen.addressing_window = window;
-			(void)render_succeeded(cterm,
-			    st_console_set_position(cterm->screen.console, window.x, window.y));
-		}
 		return;
 	}
 	(void)render_succeeded(cterm, st_console_set_window(cterm->screen.console, &window));
