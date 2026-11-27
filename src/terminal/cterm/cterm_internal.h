@@ -62,8 +62,8 @@
  *  entries first by introducer, then by final byte, keeping related
  *  sequences adjacent in the dispatch table.
  *
- *  Only the LAST intermediate byte is recorded in the key -- multi-
- *  intermediate sequences (rare in practice) collapse onto the same key.
+ *  A key with multiple intermediate bytes uses a reserved field value.
+ *  No supported command has more than one intermediate.
  * ------------------------------------------------------------------------ */
 
 #define SEQ_INTRO_SHIFT  15
@@ -74,6 +74,7 @@
 #define SEQ_INTRO_MASK  0x3Fu /* 6 bits */
 #define SEQ_PRIV_MASK   0x07u /* 3 bits */
 #define SEQ_INTERM_MASK 0x1Fu /* 5 bits */
+#define SEQ_MULTIPLE_INTERMEDIATES (SEQ_INTERM_MASK << SEQ_INTERM_SHIFT)
 #define SEQ_FINAL_MASK  0x7Fu /* 7 bits */
 
 /* Encode raw bytes into field values.  Values are cast to uint32_t

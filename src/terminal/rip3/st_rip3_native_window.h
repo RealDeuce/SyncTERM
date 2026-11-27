@@ -48,6 +48,5 @@ int st_cterm_default_window_interpreter(st_cterm_t *destination, const st_cterm_
  * the live cursor only if active. Retain parser, visibility and other modes;
  * do not clear pixels, history, font resources or stop audio. */
 int  st_cterm_rip3_ansi_reset(st_cterm_t *terminal, bool active);
-bool st_cterm_rip3_keyboard_locked(const st_cterm_t *terminal);
 
 #endif

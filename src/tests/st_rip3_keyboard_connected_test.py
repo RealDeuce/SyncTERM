@@ -7,7 +7,6 @@ from pathlib import Path
 from st_migrated_control_test import connection
 from st_rip3_buttons_connected_test import button,style,remove_fields
 from st_rip3_connected_test import check_default_text, pixel, query
-from st_rip3_extended_window_connected_test import window
 from st_rip3_mouse_connected_test import field
 from st_terminal_conformance_test import Terminal
 from syncterm_control import CONTROL, SHIFT
@@ -267,13 +266,8 @@ def check_backspace(t, half_duplex):
         for modifiers, expected in ((0, b"\x08"), (CONTROL, b"\x7f")):
             t.exchange(sample)
             blank(key(expected, modifiers))
-        t.case("rip3-ansi-mode-2-blocks-half-duplex-backspace-echo")
-        before = t.exchange(sample + b"\x1b[2h")
-        t.client.key("backspace")
-        t.client.wait_for(lambda f: f.metadata["events_dequeued"] > before.metadata["events_dequeued"])
-        after = t.exchange()
-        assert cursor(after) == (3, 1) and after.primary == before.primary and after.alternate == before.alternate
-        t.exchange(b"\x1b[2l")
+        t.case("rip3-ansi-mode-2-allows-half-duplex-backspace-echo")
+        t.exchange(sample + b"\x1b[2h")
         blank(key(b"\x08"))
         # Echo is local even with a partial remote SGR pending.
         t.send(sample + b"\x1b[32;")
@@ -325,122 +319,37 @@ def check_backspace(t, half_duplex):
     key(b"\x08", CONTROL)
 
 
-def check_keyboard_action_mode(t, encoding):
-    client = t.client
+def check_keyboard_action_mode(t):
+    t.case("rip3-permanently-reset-KAM-and-scene-keyboard-lock")
+    frame = t.exchange(b"\x01|*|fHSDC\r\n" + field((80, 80, 120, 120), b"field", hotkey=ord("H")))
+    for command in (b"\x1b[2h", b"\x1b[2;14h", b"\x1b[14;2l"):
+        t.exchange(command + b"\x1b[2$p", b"\x1b[2;4$y")
+        t.client.key(ord("q"))
+        t.input(b"q")
 
-    def values(source, expected=b""):
-        return t.exchange(query(source, at_cursor=True), expected)
-
-    def blocked(action, count=1):
-        before = client.capture().metadata["events_dequeued"]
-        action()
-        client.wait_for(lambda f: f.metadata["events_dequeued"] >= before + count)
-        return t.exchange()
-
-    def key(code, expected, modifiers=0):
-        client.key(code, modifiers)
-        return t.input(expected)
-
-    t.case("rip3-ansi-mode-2-consumers-and-focus")
-    t.exchange(b"\x01|*|fHSDC\r\n" + field((80, 80, 120, 120), b"field", hotkey=ord("H")))
-    t.exchange(b"\x1b[2;4h\x1b[?2h\x1b[2:0h")
-    key(ord("h"), b"field")
-    focused = blocked(lambda: client.key("tab"))
-    m = focused.metadata
+    t.exchange(b"\x1b[2h")
+    t.client.key(ord("h"))
+    t.input(b"field")
+    m = frame.metadata
     x = m["destination_x"] + 100 * m["destination_width"] // m["plane_width"]
     y = m["destination_y"] + 100 * m["destination_height"] // m["plane_height"]
-    blocked(lambda: client.mouse(x, y, action=1, buttons=1))
-    locked = t.exchange(b"\x1b[2h\x1b[4;2l\x1b[?2l")
-    assert locked.primary == focused.primary and locked.alternate == focused.alternate
-    for code in ("tab", "enter", "escape", "backspace", "up", "f1", ord("h")):
-        frame = blocked(lambda: client.key(code))
-        assert frame.primary == focused.primary and frame.alternate == focused.alternate
-    blocked(lambda: client.key(ord("a"), CONTROL))
-    blocked(lambda: client.text("é"))
-    # A pointer press already in progress may still commit independently.
-    client.mouse(x, y, action=1, buttons=0)
+    t.client.mouse(x, y, action=1, buttons=1)
+    t.client.mouse(x, y, action=1, buttons=0)
     t.input(b"field")
-    t.exchange(b"\x1b[2l")
-    key("enter", b"field")
-    client.text("é")
-    t.input(b"\x82" if encoding == "CP437" else "é".encode())
 
-    t.case("rip3-ansi-mode-2-disables-built-in-keyboard-sends")
-    client.clipboard("paste")
-    t.exchange(b"\x1b[2h")
-    blocked(lambda: client.key("insert", SHIFT))
-    blocked(lambda: client.command_key(38), 4)  # Alt/Command-L.
-    if encoding == "UTF-8":
-        client.command_key(25)  # Alt/Command-P.
-        client.wait_text("Insert Emoji")
-        client.key("enter")
-        client.wait_for(lambda frame: "Insert Emoji" not in frame.text)
-        t.exchange()
-    t.exchange(b"\x1b[2l")
-    key("insert", b"paste", SHIFT)
-    client.command_key(38)
-    t.input(b"mode2-user\r")
-
-    t.case("rip3-ansi-mode-2-window-selection-and-independent-scene-gate")
-    t.exchange(b"\x01|2T10\r\n\x1b[2h\x01|h01000400|2T00\r\n")
-    blocked(lambda: client.key(ord("q")))
-    blocked(lambda: client.key("insert", SHIFT))
-    values(b"$RESET(KEYBOARD)$")
-    key(ord("q"), b"q")
-    t.exchange(b"\x01|2T10|#\r\n")
-    blocked(lambda: client.key(ord("q")))
-    t.exchange(b"\x1b[2l")
-    key(ord("q"), b"q")
-
-    t.case("rip3-ansi-mode-2-copy-snapshot-and-fresh-definition")
-    t.exchange(b"\x1b[2h\x1b" b"7" b"\x01|2T30\r\n")
-    blocked(lambda: client.key(ord("q")))
-    values(b"$CUR(TW,5)$")
-    key(ord("q"), b"q")
-    t.exchange(b"\x1b" b"8")
-    blocked(lambda: client.key(ord("q")))
-    t.exchange(b"\x01|w00000F0A10\r\n")
-    key(ord("q"), b"q")
-    t.exchange(b"\x1b[2h\x01|w00000F0A00\r\n")
-    blocked(lambda: client.key(ord("q")))
-
-    t.case("rip3-window-redefinition-and-live-reset-restore-keyboard-input")
-    definition = window((0, 0, 159, 119), 10, 5, 0, 1)
-    t.exchange(definition + b"\x1b[2h")
-    blocked(lambda: client.key(ord("q")))
-    t.exchange(definition)
-    key(ord("q"), b"q")
-    values(b"$CUR(TW,0)$")
-    t.exchange(b"\x1b[2h")
-    blocked(lambda: client.key(ord("q")))
-    values(b"$RESET(TW,0)$")
-    key(ord("q"), b"q")
-    t.exchange(b"\x1b[2h")
-
-    t.case("rip3-ansi-mode-2-uses-inactive-window-state")
-    def without_ansi_fence(data, expected=b""):
-        fence = b"@MODE2@"
-        t.send(data + query(fence, at_cursor=True))
-        result = receive(t.peer, fence, t.root / "replies.bin")
-        assert result == expected + fence
-
-    without_ansi_fence(query(b"$DTW$", at_cursor=True) + b"\x1b[2l")
-    before = client.capture().metadata["events_dequeued"]
-    client.key(ord("q"))
-    client.wait_for(lambda f: f.metadata["events_dequeued"] > before)
-    without_ansi_fence(query(b"$ATW$", at_cursor=True))
-    blocked(lambda: client.key(ord("q")))
-    without_ansi_fence(b"\x1b[2l" + query(b"$DTW$", at_cursor=True))
-    before = client.capture().metadata["events_dequeued"]
-    client.key(ord("q"))
-    client.wait_for(lambda f: f.metadata["events_dequeued"] > before)
-    without_ansi_fence(query(b"$ATW$", at_cursor=True), b"q")
-    values(b"$MKILL$")
+    t.exchange(b"\x01|h01000400\r\n\x1b[2l\x1b[2$p", b"\x1b[2;4$y")
+    before = t.client.capture().metadata["events_dequeued"]
+    t.client.key(ord("q"))
+    t.client.wait_for(lambda f: f.metadata["events_dequeued"] > before)
+    t.exchange(query(b"$RESET(KEYBOARD)$", at_cursor=True))
+    t.client.key(ord("q"))
+    t.input(b"q")
+    t.exchange(b"\x01|#\r\n")
 
 
 def run(args):
     with connection(args.executable,args.reports,encoding=args.encoding,
-                    options="ScreenMode=Custom\nRIP=RIPv3\nUserName=mode2-user\n",
+                    options="ScreenMode=Custom\nRIP=RIPv3\n",
                     settings="CustomColumns=80\nCustomRows=60\nCustomFontHeight=8\n"
                              "CustomAspectWidth=4\nCustomAspectHeight=3\nAudioModes=0\n") as (client,root,peer,send):
         t=Terminal(client,root,peer,send)
@@ -455,7 +364,7 @@ def run(args):
         t.exchange(b"\x1b[!",b"RIPSCRIP030001")
         check_autosense(t)
         check_backspace(t, False)
-        check_keyboard_action_mode(t, args.encoding)
+        check_keyboard_action_mode(t)
         t.exchange(b"\x01|*\r\n\x1b[0m\x1b[?25l")
         t.case("rip3-keyboard-capability-and-engine-identity")
         values(b"A$RIPVER$B$RIPVER()$C$RIPVER(1)$D", b"ARIPSCRIP030001BRIPSCRIP030001C$RIPVER(1)$D")

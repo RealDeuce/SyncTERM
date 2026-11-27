@@ -656,7 +656,6 @@ st_term_session_create(st_term_session_t **result, const struct st_term_config *
 	                            ? ST_CTERM_ENCODING_UTF8
 	                            : config->encoding,
 	    .graphics_mode    = config->graphics_mode,
-	    .windowed_ansi    = config->graphics_mode == ST_CTERM_GRAPHICS_RIP_3,
 	    .escape_extension = config->graphics_mode == ST_CTERM_GRAPHICS_RIP_3 ? rip3_escape : NULL,
 	    .escape_context   = session,
 

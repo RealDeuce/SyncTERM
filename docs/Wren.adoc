@@ -4471,8 +4471,7 @@ assignment when selecting an existing font; loading only registers a new font.
   `CTerm.sendKey(KeyEvent.new(Key.enter))` forwards Return.
 
 | `CTerm.keyboardLocked`
-| Bool. Reports whether the current RIP3 text window's ANSI mode 2 or
-  the RIP3 keyboard scene gate suppresses terminal keyboard actions.
+| Bool. Reports whether the RIP3 scene has locked keyboard input.
   A shortcut that submits terminal data directly can check this before sending.
 
 | `CTerm.startMusicomm()`, `CTerm.musicomm`

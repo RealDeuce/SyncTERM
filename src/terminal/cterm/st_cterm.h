@@ -115,9 +115,6 @@ struct st_cterm_config {
 	enum st_cterm_encoding   encoding;
 	/* Identity reported to scripts and diagnostics. Graphics devices are owned by the session. */
 	enum st_cterm_graphics_mode graphics_mode;
-	/* Use the ANSI window's independent addressing, rendition and save state.
-	 * The session owns selection and replacement of these windows. */
-	bool windowed_ansi;
 	/* An optional session-owned extension gets first refusal on the next
 	 * byte of an open, top-level ANSI escape sequence. */
 	bool  (*escape_extension)(void *context, st_cterm_t *target, uint8_t byte);

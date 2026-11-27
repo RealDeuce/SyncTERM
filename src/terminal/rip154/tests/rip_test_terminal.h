@@ -8,18 +8,15 @@
 static inline struct st_rip154 *
 rip_test_device(st_cterm_t *t)
 {
-	return t != NULL
-	               && (t->graphics_mode == ST_CTERM_GRAPHICS_RIP_1
-	                   || (t->graphics_mode == ST_CTERM_GRAPHICS_RIP_3 && !t->windowed_ansi))
-		   ? t->device.context
-		   : NULL;
+	if (t == NULL || (t->graphics_mode != ST_CTERM_GRAPHICS_RIP_1 && t->graphics_mode != ST_CTERM_GRAPHICS_RIP_3))
+		return NULL;
+	return t->device.context;
 }
 
 static inline int
 rip_test_open(st_cterm_t **t, const struct st_cterm_config *cfg, const struct st_rip154_services *services)
 {
-	if (cfg->graphics_mode == ST_CTERM_GRAPHICS_RIP_1
-	    || (cfg->graphics_mode == ST_CTERM_GRAPHICS_RIP_3 && !cfg->windowed_ansi)) {
+	if (cfg->graphics_mode == ST_CTERM_GRAPHICS_RIP_1 || cfg->graphics_mode == ST_CTERM_GRAPHICS_RIP_3) {
 		struct st_rip154 *rip;
 		return st_rip154_open(&rip, t, cfg, services);
 	}

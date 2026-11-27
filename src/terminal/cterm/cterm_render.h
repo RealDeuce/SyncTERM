@@ -86,7 +86,8 @@ enum {
 struct cterm_render_state {
 	st_console_t *console;
 	/* RIP cursor commands can address outside ANSI origin-mode margins.
-	 * Keep that addressing region separate from the physical cursor bounds. */
+	 * A nonempty rectangle stores that separate addressing region. Other
+	 * terminals address the current console window directly. */
 	struct st_console_rect           addressing_window;
 	st_audio_runtime_t              *audio;
 	st_hyperlink_registry_t         *hyperlinks;

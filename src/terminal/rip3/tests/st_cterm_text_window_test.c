@@ -42,8 +42,7 @@ create(struct fixture *f, unsigned columns)
 	    .encoding                                   = ST_CTERM_ENCODING_CODEPAGE,
 	    .codepage                                   = ST_CODEPAGE_CP437,
 	    .quiet                                      = true,
-	    .graphics_mode                              = ST_CTERM_GRAPHICS_RIP_3,
-	    .windowed_ansi                              = true};
+	    .graphics_mode                              = ST_CTERM_GRAPHICS_RIP_3};
 	CHECK(st_cterm_create(&f->text, &config) == 0 && st_cterm_start_text(f->text) == 0);
 	return 0;
 }
@@ -245,8 +244,7 @@ window_copy(void)
 	    .codepage                                   = ST_CODEPAGE_CP437,
 	    .quiet                                      = true,
 	    .font_selector                              = 46,
-	    .graphics_mode                              = ST_CTERM_GRAPHICS_RIP_3,
-	    .windowed_ansi                              = true};
+	    .graphics_mode                              = ST_CTERM_GRAPHICS_RIP_3};
 	CHECK(st_cterm_create(&source.text, &config) == 0 && st_cterm_start_text(source.text) == 0);
 	const char setup[] =
 	    "\x1b[3g\x1b[1;6H\x1bH\x1b[2;4r\x1b[?6h\x1b[2;3H\x1b[s\x1b[38;2;18;52;86;48;2;0;0;0m\x1b[?25l";
@@ -463,6 +461,14 @@ character_sets(void)
 		      == 0);
 		CHECK(required == strlen(glyphs[i]) && memcmp(text, glyphs[i], required) == 0);
 	}
+	/* A second intermediate must never alias a single designation or bare CSI. */
+	const char framing[] = "\x1b$(B\x1b%[31mX";
+	for (size_t split = 0; split < sizeof(framing); ++split) {
+		CHECK(feed(&source, "\x1b[H", 3) == 0);
+		CHECK(feed(&source, framing, split) == 0);
+		CHECK(feed(&source, framing + split, sizeof(framing) - 1 - split) == 0);
+		CHECK(source.text->g0_designation == 'A' && position(&source, 5, 1) == 0);
+	}
 	/* CSI coordinates, ESC c and the preliminary outer reset preserve sets. */
 	const char coordinates[] = "\x1b)0\x1b[s\x1b(B\x1b[u";
 	CHECK(feed(&source, coordinates, sizeof(coordinates) - 1) == 0 && source.text->g0_designation == 'B'
@@ -494,15 +500,6 @@ character_sets(void)
 	CHECK(next.text->g0_designation == 'B' && next.text->g1_designation == 'B');
 	destroy(&source);
 	destroy(&next);
-	/* These declarations do not add charset interpretation to other routes. */
-	for (unsigned mode = 0; mode < 2; mode++) {
-		CHECK(create(&source, 17) == 0);
-		source.text->windowed_ansi      = false;
-		source.text->graphics_mode      = mode ? ST_CTERM_GRAPHICS_RIP_1 : ST_CTERM_GRAPHICS_OFF;
-		CHECK(feed(&source, "\x1b(A\x1b)0", 6) == 0 && source.text->g0_designation == 'B'
-		      && source.text->g1_designation == 'B');
-		destroy(&source);
-	}
 	return 0;
 }
 
@@ -586,68 +583,29 @@ ansi_window_save(void)
 	st_cterm_window_definition_destroy(saved);
 	destroy(&source);
 	destroy(&target);
-	for (unsigned mode = 0; mode < 3; mode++) {
-		CHECK(create(&source, 17) == 0);
-		source.text->graphics_mode = mode == 0   ? ST_CTERM_GRAPHICS_OFF
-		                             : mode == 1 ? ST_CTERM_GRAPHICS_RIP_1
-		                                         : ST_CTERM_GRAPHICS_RIP_3;
-		source.text->windowed_ansi = false;
-		static const char legacy[] =
-		    "\x1b[2;4H\x1b"
-		    "7\x1b[H\x1b"
-		    "8X";
-		CHECK(feed(&source, legacy, sizeof(legacy) - 1) == 0 && position(&source, 5, 2) == 0);
-		CHECK(st_cterm_take_deferred_escape(source.text) == 0);
-		destroy(&source);
-	}
 	return 0;
 }
 
 static int
-keyboard_action_mode(void)
+compound_ansi_modes(void)
 {
-	struct fixture source = {0}, clone = {0}, fresh = {0};
-	CHECK(create(&source, 17) == 0 && create(&clone, 17) == 0 && create(&fresh, 17) == 0);
-	static const char set[] = "\x1b[2h";
-	for (size_t split = 0; split < sizeof(set) - 1; ++split) {
-		CHECK(feed(&source, "\x1b[2l", 4) == 0);
-		CHECK(feed(&source, set, split) == 0 && !st_cterm_rip3_keyboard_locked(source.text));
-		CHECK(feed(&source, set + split, sizeof(set) - 1 - split) == 0);
-		CHECK(st_cterm_rip3_keyboard_locked(source.text));
+	struct fixture f = {0};
+	CHECK(create(&f, 17) == 0);
+	const char modes[] = "\x1b[2;14;16h";
+	const char reset[] = "\x1b[16;2;14l";
+	for (size_t split = 0; split < sizeof(modes); ++split) {
+		CHECK(feed(&f, reset, sizeof(reset) - 1) == 0 && !f.text->fetm && !f.text->ttm);
+		CHECK(feed(&f, modes, split) == 0);
+		CHECK(feed(&f, modes + split, sizeof(modes) - 1 - split) == 0 && f.text->fetm && f.text->ttm);
 	}
-	static const char ignored[] = "\x1b[4;2l\x1b[2:l\x1b[?2l\x1b[2:0l";
-	CHECK(feed(&source, ignored, sizeof(ignored) - 1) == 0);
-	CHECK(st_cterm_rip3_ansi_reset(source.text, true) == 0 && st_cterm_rip3_keyboard_locked(source.text));
-	CHECK(st_cterm_copy_window_state(clone.text, source.text) == 0);
-	CHECK(st_cterm_default_window_interpreter(fresh.text, source.text) == 0);
-	CHECK(st_cterm_rip3_keyboard_locked(clone.text) && !st_cterm_rip3_keyboard_locked(fresh.text));
-	CHECK(feed(&source,
-		  "\x1b"
-		  "c",
-		  2)
-	          == 0
-	      && !st_cterm_rip3_keyboard_locked(source.text));
-	CHECK(st_cterm_rip3_keyboard_locked(clone.text));
-
-	/* Ordinary ANSI and legacy RIP keep their existing multi-mode handling. */
-	for (unsigned mode = 0; mode < 2; ++mode) {
-		fresh.text->windowed_ansi      = false;
-		fresh.text->graphics_mode      = mode == 0 ? ST_CTERM_GRAPHICS_OFF : ST_CTERM_GRAPHICS_RIP_1;
-		static const char compound[]   = "\x1b[2;14h";
-		CHECK(feed(&fresh, "\x1b[14l", 5) == 0);
-		CHECK(feed(&fresh, compound, sizeof(compound) - 1) == 0 && fresh.text->fetm == 1);
-		CHECK(feed(&fresh, set, sizeof(set) - 1) == 0 && !st_cterm_rip3_keyboard_locked(fresh.text));
-	}
-	destroy(&fresh);
-	destroy(&clone);
-	destroy(&source);
+	destroy(&f);
 	return 0;
 }
 
 int
 main(void)
 {
-	CHECK(scene_input_continuation() == 0 && keyboard_action_mode() == 0);
+	CHECK(scene_input_continuation() == 0 && compound_ansi_modes() == 0);
 	CHECK(ansi_window_save() == 0 && character_sets() == 0 && definition_backups() == 0 && continuations() == 0
 	      && tabs_and_saved_cursor() == 0 && failures() == 0 && extended_tabs() == 0 && window_copy() == 0
 	      && selection_continuations() == 0 && default_window() == 0 && soft_ansi_reset() == 0);

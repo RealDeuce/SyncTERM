@@ -201,6 +201,13 @@ def numeric_cases(t):
 def wire_cases(t):
     copy_cases(t)
     numeric_cases(t)
+    scene(t)
+    t.check("ansi-save-and-restore", b"\x1b[2;4H\x1b" b"7\x1b[H\x1b" b"8X",
+            (5, 2), [(4, 2, "X")], reset=False)
+    t.check("ansi-intermediate-final-and-KAM", b"\x1b[H\x1b%[31mX\x1b[2h\x1b[2$p",
+            (5, 1), [(1, 1, "31mX")], expected=b"\x1b[2;4$y", reset=False)
+    t.client.key(ord("q"))
+    t.input(b"q")
     t.check("rip-version", b"\x1b[!", expected=b"RIPSCRIP015410", reset=False)
     t.check("rip-version-zero", b"\x1b[0!", expected=b"RIPSCRIP015410", reset=False)
     scene(t)

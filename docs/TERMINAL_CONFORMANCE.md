@@ -126,10 +126,9 @@ failures. Tests verify exported dimensions/colors and current-clipboard replacem
 byte/default/wildcard vectors, event consumption, HKEY gates, pointer cancellation
 and reset/delayed FIELDID lifetime through real keyboard events. Native forwarding
 checks cover ANSI/RIP1/RIP3 and pointer-only disable. The same connected
-fixtures cover ANSI Keyboard Action Mode and its independent scene gate,
-including inactive windows, retained focus and pointer capture, half-duplex
-Backspace, and built-in keyboard sends. The CTerm text-window test checks
-mode controls across receive splits and existing ANSI/RIP1 mode handling.
+fixtures check the permanently reset ANSI Keyboard Action Mode, half-duplex
+Backspace and the independent RIP scene keyboard lock. The native text-window
+test covers compound set/reset mode requests across receive splits.
 Connected hover, grouped buttons, nonplain sizing/eligibility and enclosed
 painting are covered below; see the RIP3 inventory for exact scope.
 RIPv3 uses the existing ANSI engine. Adding a VT-102 emulation mode, selector
@@ -2707,7 +2706,8 @@ selection versus first-use clone, entry COPY, owned TW backup, different
 protected/current/zero state across SOFT/TBL and split designation continuation.
 Native `cterm_text_window` exercises every six-sequence split across source
 teardown, independent glyph identities, reset/coordinate/definition/snapshot
-lifetimes and unchanged OFF/RIP1 handling. Charset state adds two metadata bytes;
+lifetimes. The ANSI movement suite checks escape finals after intermediates,
+including longer sequences whose suffix matches a supported command. Charset state adds two metadata bytes;
 no emulation mode or pixel/damage layer is added. Full ESC7/ESC8 snapshot semantics
 remain pending under issue150; ordinary CSI saved coordinates remain distinct.
 RIP1.54's original preservation boundary and ordinary rendering remain intact.

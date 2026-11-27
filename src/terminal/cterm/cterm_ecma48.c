@@ -506,15 +506,9 @@ cterm_handle_sm(struct cterminal *cterm, int *speed) /* CSI h */
 {
 	int i;
 	(void)speed;
-	if (cterm->windowed_ansi && (cterm->seq_param_count != 1 || cterm->seq_cur_has_sub))
-		return;
 	for (i = 0; i < cterm->seq_param_count; i++) {
 		cterm_seq_default(cterm, i, 0);
 		switch (cterm->seq_param_int[i]) {
-			case 2: /* KAM = keyboard locked */
-				if (cterm->windowed_ansi)
-					cterm->extattr |= CTERM_EXTATTR_KAM;
-				break;
 			case 14: /* FETM = EXCLUDE */
 				cterm->fetm = 1;
 				break;
@@ -530,15 +524,9 @@ cterm_handle_rm(struct cterminal *cterm, int *speed) /* CSI l */
 {
 	int i;
 	(void)speed;
-	if (cterm->windowed_ansi && (cterm->seq_param_count != 1 || cterm->seq_cur_has_sub))
-		return;
 	for (i = 0; i < cterm->seq_param_count; i++) {
 		cterm_seq_default(cterm, i, 0);
 		switch (cterm->seq_param_int[i]) {
-			case 2: /* KAM = keyboard unlocked */
-				if (cterm->windowed_ansi)
-					cterm->extattr &= ~CTERM_EXTATTR_KAM;
-				break;
 			case 14: /* FETM = INSERT */
 				cterm->fetm = 0;
 				break;
@@ -1056,29 +1044,6 @@ cterm_dispatch_ecma(struct cterminal *cterm, unsigned char byte, int *speed)
 	}
 }
 
-/* A window can retain its declared sets for save and restore.
- * Display remains CP437 and SI/SO do not invoke G1. Other routes retain their
- * existing unsupported-sequence handling and do not acquire new designations. */
-static bool
-record_designation(struct cterminal *cterm)
-{
-	if ((!cterm->windowed_ansi && !cterm->device.record_designations)
-	    || cterm->emulation != CTERM_EMULATION_ANSI_BBS)
-		return false;
-	static const uint8_t finals[] = {'0', 'A', 'B'};
-	for (size_t i = 0; i < sizeof(finals) / sizeof(finals[0]); i++) {
-		if (cterm->seq_key == SEQ_GZD4(finals[i])) {
-			cterm->g0_designation = finals[i];
-			return true;
-		}
-		if (cterm->seq_key == SEQ_G1D4(finals[i])) {
-			cterm->g1_designation = finals[i];
-			return true;
-		}
-	}
-	return false;
-}
-
 /* Finalize the ordinary ECMA parameter fields for an extension that uses
  * an intermediate as its terminator. Private or overflowing fields reject. */
 bool
@@ -1189,7 +1154,7 @@ cterm_accumulate_ecma_seq(struct cterminal *cterm, unsigned char byte, int *spee
 		cterm->sequence  = 0;
 		if (d != NULL && d->handler != NULL)
 			d->handler(cterm, speed);
-		else if (!record_designation(cterm))
+		else
 			cterm_log_sequence(cterm, "Unsupported sequence");
 		/* A macro can leave the next sequence partially parsed. */
 		if (cterm->accumulator == pre_handler && cterm->seq_phase == SEQ_PHASE_IDLE) {
@@ -1452,6 +1417,14 @@ done:
 
 /* enum sequence_state lives in cterm_internal.h */
 
+static uint32_t
+append_intermediate(uint32_t key, uint8_t byte)
+{
+	if ((key >> SEQ_INTERM_SHIFT) & SEQ_INTERM_MASK)
+		return key | SEQ_MULTIPLE_INTERMEDIATES;
+	return key | SEQ_INTERM(byte);
+}
+
 /* ------------------------------------------------------------------------
  * seq_feed() -- the incremental control-sequence parser
  *
@@ -1478,26 +1451,14 @@ seq_feed(struct cterminal *cterm, unsigned char ch)
 			return SEQ_BROKEN;
 
 		case SEQ_PHASE_C1:
-			/* First byte after ESC */
+			/* ESC may have zero or more intermediate bytes. */
 			if (ch >= 0x20 && ch <= 0x2F) {
 				/* Intermediate byte -- nF sequence (ESC I...I F) */
-				cterm->seq_key &= ~((uint32_t)SEQ_INTERM_MASK << SEQ_INTERM_SHIFT);
-				cterm->seq_key |= SEQ_INTERM(ch);
+				cterm->seq_key = append_intermediate(cterm->seq_key, ch);
 				return SEQ_INCOMPLETE;
 			}
 			if (ch >= 0x30 && ch <= 0x7E) {
-				/* In designation sequences A/B are final bytes after
-				 * the parenthesis, not fresh C1 introducers. Keep the old
-				 * parsing of other routes/sequences outside this scope. */
-				if ((cterm->windowed_ansi || cterm->device.record_designations)
-				    && cterm->emulation == CTERM_EMULATION_ANSI_BBS
-				    && (cterm->seq_key == (SEQ_ESC | SEQ_INTERM('('))
-				        || cterm->seq_key == (SEQ_ESC | SEQ_INTERM(')')))) {
-					cterm->seq_key |= SEQ_FINAL(ch);
-					cterm->seq_phase = SEQ_PHASE_COMPLETE;
-					return SEQ_COMPLETE;
-				}
-				if (ch >= 0x40 && ch <= 0x5F) {
+				if (cterm->seq_key == SEQ_ESC && ch >= 0x40 && ch <= 0x5F) {
 					/* Fe byte: C1 introducer */
 					cterm->seq_key = SEQ_C1(ch);
 					if (ch == '[') {
@@ -1516,7 +1477,7 @@ seq_feed(struct cterminal *cterm, unsigned char ch)
 					cterm->seq_phase = SEQ_PHASE_COMPLETE;
 					return SEQ_COMPLETE;
 				}
-				/* Fp (0x30-0x3F) or Fs (0x60-0x7E) with optional intermediate. */
+				/* Final of an escape sequence. */
 				cterm->seq_key |= SEQ_FINAL(ch);
 				cterm->seq_phase = SEQ_PHASE_COMPLETE;
 				return SEQ_COMPLETE;
@@ -1596,10 +1557,8 @@ seq_feed(struct cterminal *cterm, unsigned char ch)
 
 		case SEQ_PHASE_INTERM:
 			if (ch >= 0x20 && ch <= 0x2F) {
-				if (!cterm->seq_overflow) {
-					cterm->seq_key &= ~((uint32_t)SEQ_INTERM_MASK << SEQ_INTERM_SHIFT);
-					cterm->seq_key |= SEQ_INTERM(ch);
-				}
+				if (!cterm->seq_overflow)
+					cterm->seq_key = append_intermediate(cterm->seq_key, ch);
 				return SEQ_INCOMPLETE;
 			}
 			if (ch >= 0x40 && ch <= 0x7E) {

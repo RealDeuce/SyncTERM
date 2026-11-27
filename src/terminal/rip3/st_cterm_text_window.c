@@ -20,8 +20,7 @@ inherit_interpreter(st_cterm_t *destination, const st_cterm_t *source, bool pres
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (destination->emulation != CTERM_EMULATION_ANSI_BBS || source->emulation != CTERM_EMULATION_ANSI_BBS
 	    || destination->graphics_mode != ST_CTERM_GRAPHICS_RIP_3
-	    || source->graphics_mode != ST_CTERM_GRAPHICS_RIP_3 || !destination->windowed_ansi
-	    || !source->windowed_ansi)
+	    || source->graphics_mode != ST_CTERM_GRAPHICS_RIP_3)
 		return IO_ERROR_NOT_SUPPORTED;
 	/* These optional media/download payloads carry resources beyond ordinary
 	 * ANSI syntax. Retain their existing owner rather than copying half a
@@ -156,8 +155,7 @@ st_cterm_rip3_ansi_reset(st_cterm_t *terminal, bool active)
 {
 	if (terminal == NULL || terminal->input_depth != 0 || !terminal->started || terminal->width < 1)
 		return IO_ERROR_INVALID_ARGUMENT;
-	if (terminal->emulation != CTERM_EMULATION_ANSI_BBS || terminal->graphics_mode != ST_CTERM_GRAPHICS_RIP_3
-	    || !terminal->windowed_ansi)
+	if (terminal->emulation != CTERM_EMULATION_ANSI_BBS || terminal->graphics_mode != ST_CTERM_GRAPHICS_RIP_3)
 		return IO_ERROR_NOT_SUPPORTED;
 	size_t count = (size_t)(terminal->width - 1) / 8 + 1;
 	if (count > SIZE_MAX / sizeof(int))
@@ -190,12 +188,6 @@ st_cterm_rip3_ansi_reset(st_cterm_t *terminal, bool active)
 	cterm_render_set_colours(terminal, terminal->fg_color, terminal->bg_color);
 	int status = active ? st_cterm_position_text(terminal, 0, 0) : 0;
 	return status != 0 ? status : cterm_render_take_error(terminal);
-}
-
-bool
-st_cterm_rip3_keyboard_locked(const st_cterm_t *terminal)
-{
-	return terminal != NULL && terminal->windowed_ansi && (terminal->extattr & CTERM_EXTATTR_KAM) != 0;
 }
 
 int

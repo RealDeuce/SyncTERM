@@ -66,13 +66,16 @@ cterm_log_sequence(struct cterminal *cterm, const char *reason)
 	if (value >= 32)
 		intro[0] = (char)(value + 0x20);
 	value = (cterm->seq_key >> SEQ_INTERM_SHIFT) & SEQ_INTERM_MASK;
-	if (value != 0)
+	const char *intermediates = intermediate;
+	if (value == SEQ_INTERM_MASK)
+		intermediates = "<multiple intermediates>";
+	else if (value != 0)
 		intermediate[0] = (char)(value + 0x1f);
 	value = (cterm->seq_key >> SEQ_FINAL_SHIFT) & SEQ_FINAL_MASK;
 	if (value != 0)
 		final[0] = (char)(value + 0x2f);
 	cterm_log(cterm, ST_CTERM_LOG_WARNING, "%s: ESC %s%s%s%s (key=0x%08" PRIX32 ")", reason, intro, parameters,
-	    intermediate, final, cterm->seq_key);
+	    intermediates, final, cterm->seq_key);
 }
 
 void
@@ -266,7 +269,7 @@ cterm_render_set_window(struct cterminal *cterm, int left, int top, int right, i
 	    .width  = (uint32_t)(right - left + 1),
 	    .height = (uint32_t)(bottom - top + 1),
 	};
-	if (cterm->windowed_ansi) {
+	if (cterm->screen.addressing_window.width != 0) {
 		/* ANSI coordinates remain relative to their addressing region, but
 		 * RIP g/H can leave the cursor elsewhere in this same text window.
 		 * The console requires every physical cursor inside its window. */
@@ -285,7 +288,7 @@ cterm_render_set_window(struct cterminal *cterm, int left, int top, int right, i
 static bool
 addressing_window(struct cterminal *cterm, struct st_console_rect *window)
 {
-	if (cterm->windowed_ansi && cterm->screen.addressing_window.width != 0) {
+	if (cterm->screen.addressing_window.width != 0) {
 		*window = cterm->screen.addressing_window;
 		return true;
 	}
@@ -297,11 +300,11 @@ cterm_render_set_position(struct cterminal *cterm, int x, int y)
 {
 	struct st_console_rect window;
 
-	if (!cterm->windowed_ansi && (x < 1 || y < 1))
+	if (cterm->screen.addressing_window.width == 0 && (x < 1 || y < 1))
 		return;
 	if (!addressing_window(cterm, &window))
 		return;
-	if (cterm->windowed_ansi) {
+	if (cterm->screen.addressing_window.width != 0) {
 		int64_t physical_x = (int64_t)window.x + x - 1;
 		int64_t physical_y = (int64_t)window.y + y - 1;
 		if (physical_x < cterm->x - 1 || physical_y < cterm->y - 1
@@ -459,7 +462,7 @@ cterm_render_beep(struct cterminal *cterm)
 void
 cterm_render_clear_window(struct cterminal *cterm)
 {
-	if (cterm->windowed_ansi) {
+	if (cterm->screen.addressing_window.width != 0) {
 		struct st_console_rect window;
 		struct st_console_cell blank;
 		if (addressing_window(cterm, &window)
@@ -474,7 +477,7 @@ cterm_render_clear_window(struct cterminal *cterm)
 void
 cterm_render_clear_line(struct cterminal *cterm)
 {
-	if (cterm->windowed_ansi) {
+	if (cterm->screen.addressing_window.width != 0) {
 		struct st_console_rect window;
 		struct st_console_cell blank;
 		uint32_t               x, y;

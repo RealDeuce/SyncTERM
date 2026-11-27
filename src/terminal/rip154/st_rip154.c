@@ -2370,8 +2370,7 @@ st_rip154_open(struct st_rip154 **result, st_cterm_t **text, const struct st_cte
 	    .mouse                                                = device_mouse,
 	    .mouse_mode                                           = device_mouse_mode,
 	    .mouse_passthrough                                    = true,
-	    .record_designations = config->graphics_mode == ST_CTERM_GRAPHICS_RIP_3,
-	    .encoding            = device_encoding};
+	    .encoding                                             = device_encoding};
 	uint16_t normal;
 	st_font_catalog_identifier(config->fonts, config->font_selector, &normal);
 	if (services != NULL) {

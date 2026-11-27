@@ -117,6 +117,10 @@ class Terminal:
 
 
 def movement(t):
+    t.check("ESC-intermediate-finals", cup(4, 3) + ESC + b"(%M" + ESC + b"%[31mX",
+            (8, 3), [(4, 3, "31mX")])
+    t.check("CSI-multiple-intermediates", b"ABC" + cup(2, 1) + ESC + b"[1! @",
+            (2, 1), [(1, 1, "ABC")])
     cases = [
         ("NUL", cup(3, 4) + b"\0", (3, 4)),
         ("BS", cup(3, 4) + b"\b", (2, 4)),
@@ -607,6 +611,9 @@ def extensions(t):
 
 
 def keyboard(t):
+    t.check("KAM-permanently-reset", ESC + b"[2h" + ESC + b"[2$p", expected=ESC + b"[2;4$y")
+    t.client.key(ord("q"))
+    t.input(b"q")
     t.exchange(reset=True)
     for name, key, modifiers, expected in (
         ("IN:Up", "up", 0, b"\x1b[A"), ("IN:Down", "down", 0, b"\x1b[B"),

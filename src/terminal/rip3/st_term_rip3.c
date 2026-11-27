@@ -1689,7 +1689,7 @@ st_term_rip3_escape(void *context, st_cterm_t *text, uint8_t byte)
 	if (query)
 		query = cterm_csi_intermediate(text, byte, &first);
 	else if ((byte == '7' || byte == '8') && text->seq_phase == SEQ_PHASE_C1
-	    && text->seq_key == SEQ_ESC && text->windowed_ansi)
+	    && text->seq_key == SEQ_ESC && text->parent == NULL)
 		text->deferred_escape = byte;
 	else if (byte != 0x18 && byte != 0x1a && byte != 0x1b)
 		return false;
@@ -2165,9 +2165,7 @@ st_term_rip3_mouse(struct st_term_rip3 *rip, const struct st_console_event *even
 bool
 st_term_rip3_keyboard_locked(const struct st_term_rip3 *rip)
 {
-	return rip != NULL
-	       && (st_rip3_session_keyboard_locked(rip->session)
-	           || st_cterm_rip3_keyboard_locked(st_term_rip3_text(rip)));
+	return rip != NULL && st_rip3_session_keyboard_locked(rip->session);
 }
 
 static bool

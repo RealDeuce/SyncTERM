@@ -221,6 +221,7 @@ status_display_changed(struct cterminal *terminal, int old_type, int new_type, v
 		return;
 	cterm_coord_get_xy(terminal, CTERM_COORD_TERM, &saved_x, &saved_y);
 	screen                               = terminal->screen;
+	screen.addressing_window             = (struct st_console_rect) {0};
 	screen.unicode                       = NULL;
 	screen.provisional_columns           = 0;
 	screen.provisional_discarded         = false;
@@ -475,9 +476,8 @@ st_cterm_create(st_cterm_t **result, const struct st_cterm_config *config)
 	if (result == NULL || config == NULL || config->console == NULL || config->fonts == NULL
 	    || st_font_catalog_console(config->fonts) != config->console || config->emulation < ST_CTERM_ANSI_BBS
 	    || config->emulation > ST_CTERM_ATARI_ST_VT52 || config->encoding < ST_CTERM_ENCODING_UTF8
-	    || config->encoding > ST_CTERM_ENCODING_CODEPAGE || config->graphics_mode < ST_CTERM_GRAPHICS_OFF
-	    || (config->graphics_mode != ST_CTERM_GRAPHICS_OFF
-	        && (config->graphics_mode != ST_CTERM_GRAPHICS_RIP_3 || !config->windowed_ansi))
+	    || config->encoding > ST_CTERM_ENCODING_CODEPAGE
+	    || (config->graphics_mode != ST_CTERM_GRAPHICS_OFF && config->graphics_mode != ST_CTERM_GRAPHICS_RIP_3)
 	    || (config->graphics_mode != ST_CTERM_GRAPHICS_OFF && config->emulation != ST_CTERM_ANSI_BBS)
 	    || config->codepage >= ST_CODEPAGE_COUNT
 	    || (config->encoding == ST_CTERM_ENCODING_UTF8 && !utf8_supported(config->emulation))
@@ -539,17 +539,17 @@ st_cterm_create(st_cterm_t **result, const struct st_cterm_config *config)
 		return status;
 	}
 	terminal->graphics_mode = config->graphics_mode;
-	terminal->windowed_ansi = config->graphics_mode == ST_CTERM_GRAPHICS_RIP_3 && config->windowed_ansi;
-	if (terminal->windowed_ansi) {
-		terminal->escape_extension = config->escape_extension;
-		terminal->escape_context   = config->escape_context;
+	if (config->graphics_mode == ST_CTERM_GRAPHICS_RIP_3) {
+		terminal->screen.addressing_window = (struct st_console_rect) {0, 0, columns, terminal_rows};
+		terminal->device.pixel_history     = true;
+		terminal->last_column_flag         = CTERM_LCF_FORCED | CTERM_LCF_ENABLED;
 	}
+	terminal->escape_extension = config->escape_extension;
+	terminal->escape_context   = config->escape_context;
 
 	terminal->quiet                   = config->quiet;
 	terminal->atari_st_key_clicks     = true;
 	terminal->lf_expand               = config->expand_lf;
-	if (terminal->windowed_ansi)
-		terminal->last_column_flag = CTERM_LCF_FORCED | CTERM_LCF_ENABLED;
 	terminal->status_display_type      = config->status_line ? 1 : 0;
 	terminal->api_reserved_rows        = rows - terminal_rows - status_rows;
 	terminal->wire_encoding            = config->encoding;
@@ -859,7 +859,7 @@ suspend_partial_input(st_cterm_t *terminal, struct partial_input *saved)
 int
 st_cterm_suspend_input(st_cterm_t *terminal, struct st_cterm_suspended_input **result)
 {
-	if (terminal == NULL || result == NULL || !terminal->windowed_ansi || terminal->input_depth != 0
+	if (terminal == NULL || result == NULL || terminal->input_depth != 0
 	    || (terminal->status_sub != NULL && terminal->status_sub->input_depth != 0))
 		return IO_ERROR_INVALID_ARGUMENT;
 	struct st_cterm_suspended_input *saved = NULL;
@@ -1272,7 +1272,7 @@ st_cterm_set_destructive_backspace(st_cterm_t *terminal, bool destructive)
 int
 st_cterm_echo_window_backspace(st_cterm_t *terminal, bool destructive)
 {
-	if (terminal == NULL || !terminal->windowed_ansi)
+	if (terminal == NULL || terminal->screen.addressing_window.width == 0)
 		return IO_ERROR_INVALID_ARGUMENT;
 	cterm_start(terminal);
 	int status = cterm_text_boundary(terminal);
@@ -1295,7 +1295,7 @@ st_cterm_position_text(st_cterm_t *terminal, uint32_t column, uint32_t row)
 	int status = cterm_text_boundary(terminal);
 	if (status != 0)
 		return status;
-	bool     origin = !terminal->windowed_ansi && (terminal->extattr & CTERM_EXTATTR_ORIGINMODE);
+	bool origin = terminal->screen.addressing_window.width == 0 && (terminal->extattr & CTERM_EXTATTR_ORIGINMODE);
 	uint32_t columns =
 	    (uint32_t)(origin ? terminal->right_margin - terminal->left_margin + 1 : terminal->width);
 	uint32_t rows = (uint32_t)(origin ? terminal->bottom_margin - terminal->top_margin + 1 : terminal->height);
@@ -1306,7 +1306,7 @@ st_cterm_position_text(st_cterm_t *terminal, uint32_t column, uint32_t row)
 	cterm_clear_lcf(terminal);
 	++terminal->cursor_position_changes;
 	int x = (int)column + 1, y = (int)row + 1;
-	if (terminal->windowed_ansi)
+	if (terminal->screen.addressing_window.width != 0)
 		cterm_coord_conv_xy(terminal, CTERM_COORD_ABSTERM, CTERM_COORD_CURR, &x, &y);
 	cterm_render_set_position(terminal, x, y);
 	cterm_coord_get_xy(terminal, CTERM_COORD_ABSTERM, &terminal->xpos, &terminal->ypos);
@@ -1318,7 +1318,7 @@ st_cterm_set_text_cursor_visible(st_cterm_t *terminal, bool visible)
 {
 	if (terminal == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	if (!terminal->windowed_ansi)
+	if (terminal->screen.addressing_window.width == 0)
 		return IO_ERROR_NOT_SUPPORTED;
 	cterm_start(terminal);
 	int status = cterm_text_boundary(terminal);
@@ -1336,7 +1336,7 @@ st_cterm_present_text_cursor(st_cterm_t *terminal)
 {
 	if (terminal == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	if (!terminal->windowed_ansi)
+	if (terminal->screen.addressing_window.width == 0)
 		return IO_ERROR_NOT_SUPPORTED;
 	cterm_render_set_cursor(terminal, terminal->cursor);
 	return cterm_render_take_error(terminal);
@@ -1347,7 +1347,7 @@ st_cterm_get_text_cursor_visible(const st_cterm_t *terminal, bool *visible)
 {
 	if (terminal == NULL || visible == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	if (!terminal->windowed_ansi)
+	if (terminal->screen.addressing_window.width == 0)
 		return IO_ERROR_NOT_SUPPORTED;
 	*visible = terminal->cursor != CTERM_CURSOR_HIDDEN;
 	return 0;
@@ -1358,7 +1358,7 @@ erase_text(st_cterm_t *terminal, bool whole, bool ansi, uint32_t rgb)
 {
 	if (terminal == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	if (!terminal->windowed_ansi)
+	if (terminal->screen.addressing_window.width == 0)
 		return IO_ERROR_NOT_SUPPORTED;
 	if (rgb > UINT32_C(0xffffff))
 		return IO_ERROR_OUT_OF_RANGE;

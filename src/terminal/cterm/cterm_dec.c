@@ -82,7 +82,7 @@ cterm_handle_decrqm_public(struct cterminal *cterm, int *speed) /* CSI Ps $ p */
 		case 15:
 		case 17:
 		case 18:
-			pm = 4; /* permanently set (see ECMA-48 modes) */
+			pm = 4; /* permanently reset */
 			break;
 		case 14:
 			pm = cterm->fetm ? 1 : 2;
@@ -92,7 +92,7 @@ cterm_handle_decrqm_public(struct cterminal *cterm, int *speed) /* CSI Ps $ p */
 			break;
 		case 21:
 		case 22:
-			pm = 3; /* permanently reset */
+			pm = 3; /* permanently set */
 			break;
 	}
 	cterm_respond_printf(cterm, "\x1b[%u;%d$y", (unsigned)cterm->seq_param_int[0], pm);

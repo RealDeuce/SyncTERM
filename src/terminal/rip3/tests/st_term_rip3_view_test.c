@@ -52,8 +52,7 @@ shared_raster(void)
 	    .emulation                                  = ST_CTERM_ANSI_BBS,
 	    .encoding                                   = ST_CTERM_ENCODING_CODEPAGE,
 	    .codepage                                   = ST_CODEPAGE_CP437,
-	    .graphics_mode                              = ST_CTERM_GRAPHICS_RIP_3,
-	    .windowed_ansi                              = true};
+	    .graphics_mode                              = ST_CTERM_GRAPHICS_RIP_3};
 	/* Preserve the parent's row-ring optimization, then draw across the
 	 * physical wrap point from a window whose cells have a different height. */
 	CHECK(st_console_scroll(parent, 1, ' ') == 0);
@@ -180,8 +179,7 @@ main(void)
 	    .emulation                                             = ST_CTERM_ANSI_BBS,
 	    .encoding                                              = ST_CTERM_ENCODING_CODEPAGE,
 	    .codepage                                              = ST_CODEPAGE_CP437,
-	    .graphics_mode                                         = ST_CTERM_GRAPHICS_RIP_3,
-	    .windowed_ansi                                         = true};
+	    .graphics_mode                                         = ST_CTERM_GRAPHICS_RIP_3};
 	const struct st_rip3_text_window_layout layout = {.x = 16,
 	    .y                                               = 16,
 	    .columns                                         = 4,

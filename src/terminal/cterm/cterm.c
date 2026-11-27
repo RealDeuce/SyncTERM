@@ -1396,14 +1396,14 @@ cterm_line_to_scrollback(struct cterminal *cterm, int row)
 		const struct st_console_rect region = {(uint32_t)(cterm->x - 1) * cw, (uint32_t)(row - 1) * ch,
 		    (uint32_t)width * cw, ch};
 		uint32_t                     flags  = cells[0].flags;
-		if (cterm->device.pixel_history || cterm->windowed_ansi)
+		if (cterm->device.pixel_history)
 			cells[0].flags |= ST_CONSOLE_CELL_PIXEL_GRAPHICS;
 		status =
 		    st_history_capture_pixels(&pixels, cterm->screen.console, cells, (uint32_t)width, &region);
 		cells[0].flags = flags;
 	}
 	if (status == 0) {
-		if (cterm->device.pixel_history || cterm->windowed_ansi)
+		if (cterm->device.pixel_history)
 			status = cterm_history_append_pixels(cterm, pixels, cells, ch);
 		else {
 			status = history_store_row(cterm, cells, pixels, (size_t)width);
@@ -1910,6 +1910,19 @@ cterm_apply_sgr(struct cterminal *cterm, int first)
 		reverse_colours(cterm);
 }
 
+/* Retain the selector for text-window snapshots. Glyph lookup uses the
+ * configured codepage and font. */
+static void
+designate_charset(struct cterminal *cterm, int *speed)
+{
+	(void)speed;
+	uint8_t final = (uint8_t)(((cterm->seq_key >> SEQ_FINAL_SHIFT) & SEQ_FINAL_MASK) + 0x2f);
+	if (cterm->seq_key == SEQ_GZD4(final))
+		cterm->g0_designation = final;
+	else
+		cterm->g1_designation = final;
+}
+
 /* ------------------------------------------------------------------------
  * ANSI-BBS dispatch table (sorted ascending by key).
  *
@@ -1925,9 +1938,15 @@ const struct seq_dispatch cterm_ansi_dispatch[] = {
 	 * final byte (plain CSI, CSI = ..., CSI ? ..., CSI $ ..., CSI * ...)
 	 * therefore appear consecutively. */
 
-    /* ESC + Fp/Fs (intro = ESC = 0x1B) — by final byte */
+    /* ESC sequences sorted by final byte. */
+    {designate_charset,               SEQ_GZD4('0'),                                                0},
+    {designate_charset,               SEQ_G1D4('0'),                                                0},
     {cterm_handle_decsc,             SEQ_DECSC,                                                    0}, /* ESC 7 */
     {cterm_handle_decrc,             SEQ_DECRC,                                                    0}, /* ESC 8 */
+    {designate_charset,               SEQ_GZD4('A'),                                                0},
+    {designate_charset,               SEQ_G1D4('A'),                                                0},
+    {designate_charset,               SEQ_GZD4('B'),                                                0},
+    {designate_charset,               SEQ_G1D4('B'),                                                0},
     {cterm_handle_ris,               SEQ_RIS,                                                      0}, /* ESC c */
 
     /* C1 bare controls with introducer < CSI (0x5B) */
@@ -2214,7 +2233,7 @@ cterm_init(int height, int width, int xpos, int ypos, int backlines, int backcol
 		cterm->api_log_level          = initial->log_level;
 		cterm->api_diagnostic         = initial->diagnostic;
 		cterm->api_diagnostic_context = initial->diagnostic_context;
-		if (initial->force_lcf || initial->windowed_ansi)
+		if (initial->force_lcf)
 			cterm->last_column_flag = CTERM_LCF_FORCED | CTERM_LCF_ENABLED;
 		cterm->yellow_is_yellow = initial->yellow_is_yellow;
 		if (initial->palette_override != NULL) {
@@ -2352,7 +2371,7 @@ cterm_advance_char(struct cterminal *cterm, int *x, int *y, int move)
 
 	cterm_coord_conv_xy(cterm, CTERM_COORD_TERM, CTERM_COORD_CURR, &lm, &tm);
 	cterm_coord_conv_xy(cterm, CTERM_COORD_TERM, CTERM_COORD_CURR, &rm, &bm);
-	if (cterm->windowed_ansi && (cterm->extattr & CTERM_EXTATTR_ORIGINMODE)) {
+	if (cterm->screen.addressing_window.width != 0 && (cterm->extattr & CTERM_EXTATTR_ORIGINMODE)) {
 		/* RIP can position text beyond ANSI's addressing margins. Such
 		 * output reaches the physical edge without scrolling that region. */
 		if (*x > rm) {
@@ -2467,7 +2486,7 @@ cterm_ctputs(struct cterminal *cterm, char *buf)
 				cterm_adjust_currpos(cterm, INT_MIN, 0, 0);
 				break;
 			case '\b':
-				if (cterm->windowed_ansi)
+				if (cterm->screen.addressing_window.width != 0)
 					cterm_window_backspace(cterm, cterm->destructive_backspace);
 				else
 					cterm_adjust_currpos(cterm, -1, 0, 0);

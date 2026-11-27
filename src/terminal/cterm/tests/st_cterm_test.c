@@ -370,9 +370,8 @@ check_rip3_absolute_text_position(void)
 		    .encoding                                   = encoding,
 		    .codepage                                   = ST_CODEPAGE_CP437,
 		    .quiet                                      = true,
-		    .graphics_mode                              = ST_CTERM_GRAPHICS_RIP_3,
-		    .windowed_ansi                              = true};
-		CHECK(rip_test_create(&terminal, &config) == 0);
+		    .graphics_mode                              = ST_CTERM_GRAPHICS_RIP_3};
+		CHECK(st_cterm_create(&terminal, &config) == 0);
 		const char rows[] =
 		    "11111111\x1b[2;1H22222222\x1b[3;1H33333333"
 		    "\x1b[4;1H44444444\x1b[5;1H55555555\x1b[6;1H66666666";
@@ -507,7 +506,7 @@ check_rip3_absolute_text_position(void)
 }
 
 static void
-check_windowed_ansi_without_escape_extension(void)
+check_text_window_without_escape_extension(void)
 {
 	st_console_t                          *console  = NULL;
 	st_font_catalog_t                     *fonts    = NULL;
@@ -521,9 +520,8 @@ check_windowed_ansi_without_escape_extension(void)
 	    .emulation                                  = ST_CTERM_ANSI_BBS,
 	    .encoding                                   = ST_CTERM_ENCODING_UTF8,
 	    .quiet                                      = true,
-	    .graphics_mode                              = ST_CTERM_GRAPHICS_RIP_3,
-	    .windowed_ansi                              = true};
-	CHECK(rip_test_create(&terminal, &config) == 0);
+	    .graphics_mode                              = ST_CTERM_GRAPHICS_RIP_3};
+	CHECK(st_cterm_create(&terminal, &config) == 0);
 
 	const char wire[] =
 	    "\x1b[2;3H\x1b" "7\x1b[H\x1b[31;44m\x1b" "8X";
@@ -557,9 +555,8 @@ check_rip3_text_erase(void)
 		    .encoding                                   = encoding,
 		    .codepage                                   = ST_CODEPAGE_CP437,
 		    .quiet                                      = true,
-		    .graphics_mode                              = ST_CTERM_GRAPHICS_RIP_3,
-		    .windowed_ansi                              = true};
-		CHECK(rip_test_create(&terminal, &config) == 0);
+		    .graphics_mode                              = ST_CTERM_GRAPHICS_RIP_3};
+		CHECK(st_cterm_create(&terminal, &config) == 0);
 		const char rows[] =
 		    "\x1b[31;44mABCDEF\x1b[2;1HGHIJKL\x1b[3;1HMNOPQR\x1b[4;1HSTUVWX"
 		    "\x1b[2;3r\x1b[?6h\x1b[2;2H\x1b[s\x1b[4m";
@@ -629,9 +626,8 @@ check_rip3_ansi_eol(void)
 		    .codepage                                   = ST_CODEPAGE_CP437,
 		    .quiet                                      = true,
 		    .graphics_mode                              = ST_CTERM_GRAPHICS_RIP_3,
-		    .windowed_ansi                              = true,
 		    .palette_mapping                            = mapping};
-		CHECK(rip_test_create(&terminal, &config) == 0 && st_cterm_start_text(terminal) == 0);
+		CHECK(st_cterm_create(&terminal, &config) == 0 && st_cterm_start_text(terminal) == 0);
 		uint32_t red = 0x2468ac;
 		/* CTerm's extended ANSI bank follows the 16 system entries. */
 		CHECK(st_console_set_palette(console, 16 + 42, &red, 1) == 0);
@@ -1236,7 +1232,7 @@ st_cterm_test_main(void)
 	check_insert_lines_bounds();
 	check_local_text_position();
 	check_rip3_absolute_text_position();
-	check_windowed_ansi_without_escape_extension();
+	check_text_window_without_escape_extension();
 	check_rip3_text_erase();
 	check_rip3_ansi_eol();
 	test_graphics_history();

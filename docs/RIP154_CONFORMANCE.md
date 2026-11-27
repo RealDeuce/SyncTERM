@@ -270,6 +270,10 @@ The manifest lists every captured scene and its particular scope.
 
 ## Wire, state and interaction cases
 
+The wire suite checks ANSI pass-through after an ESC intermediate in CP437 and
+UTF-8. It also checks that KAM reports permanently reset and a local key reaches
+the connection after `CSI 2 h`.
+
 The `wire` suite checks both exact query replies and visible results:
 
 - Both version-query forms, literal/mid-column/escaped introducers, SOH and STX,

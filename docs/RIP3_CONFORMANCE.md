@@ -8825,15 +8825,14 @@ CSI s/u does not restore designations. Existing temporary/native definition
 capsules carry the fields; no resident scene, damage map or rendering layer is
 introduced. Coherent test-control state exposes the two final bytes for tests.
 
-Split-input tests exposed existing parsing of A/B after a parenthesis as fresh
-C1 controls. The correction applies only to RIP3 ANSI designation parsing;
-other routes retain their previous sequence handling. Normal glyph rendering
-is unchanged. No speed benchmark is claimed.
+CTerm frames ESC sequences identically for all ANSI sessions. A final byte in
+the Fe range after an intermediate completes the sequence. Multiple intermediates
+are consumed through the final byte as an unsupported sequence.
 
 Native tests cover all six designations at every split across a retired source
 owner, unknown finals, literal bank glyph identities, CSI/ESC-c/preliminary-reset
 state, selection versus clone/fresh defaults, owned snapshot restore after source
-destruction, and unchanged OFF/RIP1 designation handling. Connected CP437/UTF-8
+destruction, and intermediate/final framing. Connected CP437/UTF-8
 fixtures pass on 640×480, 800×600, 1024×768 and custom720×400, checking logical
 state, pixels/cursor, ordinary/extended/live reset, selection/clone/COPY/backup,
 protected survival and partial designation continuation. The literal ANSI vector
@@ -11111,17 +11110,12 @@ fields, hotkeys, normal key forwarding and recovery after invalid operands.
 
 ## ANSI Keyboard Action Mode
 
-CTerm handles ordinary single-parameter CSI 2 h and CSI 2 l in the
-selected RIP3 text window. The terminal's input route checks that
-window's stored mode and the separate scene keyboard gate before
-forwarding keys, applying half-duplex echo, or processing RIP hotkeys
-and Tab focus. Built-in keyboard paste, login and emoji submission also
-check both gates. Mouse input and host replies follow their existing routes.
-
-Native tests cover receive splits, compound and private controls, copy,
-fresh definitions, and ANSI reset. The connected keyboard fixtures cover
-window selection, ESC snapshots, inactive windows, scene release, pointer
-capture, focus retention, and half-duplex Backspace in CP437 and UTF-8.
+SyncTERM reports ANSI mode 2 as permanently reset in every ANSI session.
+In the portable RIPscrip profile, HEADER flag 4 locks both keyboard and mouse
+during scene receipt. `$RESET(KEYBOARD)$` releases the keyboard alone, and
+`|#` releases both. RIPtel 3.1 kept one shared lock until scene end.
+The connected keyboard tests exercise both controls on the same connection.
+PR #293 describes RIPtel's terminal emulation for reference.
 [PR #293](https://github.com/bbs-land/remote-imaging-protocol/pull/293)
 
 ## Live wire delay

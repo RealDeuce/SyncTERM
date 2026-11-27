@@ -122,7 +122,6 @@ struct cterm_device_events {
 	const uint8_t *sgr_palette;
 	unsigned       pen_mask;
 	bool           fixed_status_rows;
-	bool           record_designations;
 	bool           pixel_history;
 };
 struct cterm_apc_state;
@@ -139,13 +138,11 @@ struct cterminal {
 	/* Explicit terminal positioning, excluding renderer cursor restoration. */
 	uint64_t                    cursor_position_changes;
 	enum st_cterm_graphics_mode graphics_mode;
-	bool                        windowed_ansi;
 	bool                        destructive_backspace;
 	bool                        (*escape_extension)(void *context, st_cterm_t *target, uint8_t byte);
 	void                       *escape_context;
 	int                         visible_cursor;
-	/* RIP3 ANSI records designations, but always displays the CP437 bank.
-	 * SI/SO do not invoke G1 in this profile. Values are ESC final bytes. */
+	/* G0/G1 designation final bytes retained for window snapshots. */
 	uint8_t                     g0_designation, g1_designation;
 	/* An escape extension can yield input after consuming this final byte. */
 	uint8_t                     deferred_escape;
@@ -254,7 +251,6 @@ struct cterminal {
 #define CTERM_EXTATTR_PRESTEL_SEPARATED     0x0200
 #define CTERM_EXTATTR_PRESTEL_HOLD          0x0400
 #define CTERM_EXTATTR_ALTERNATE_KEYPAD      0x0800
-#define CTERM_EXTATTR_KAM                   0x1000
 	int      save_xpos;           // Saved position (for later restore)
 	int      save_ypos;
 	bool     vt52_cursor_saved;   // Atari IGS one-shot restore flag
