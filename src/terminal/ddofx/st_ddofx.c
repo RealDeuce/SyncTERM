@@ -185,6 +185,8 @@ st_ddofx_reset(struct st_ddofx *ddo)
 	for (size_t i = 0; i < sizeof(ddo->page_files) / sizeof(ddo->page_files[0]); ++i)
 		if (ddo->page_files[i] != NULL)
 			fclose(ddo->page_files[i]);
+	if (ddo->retrieval.file)
+		fclose(ddo->retrieval.file);
 	free(ddo->saved_palette);
 	free(ddo->queued);
 	free(ddo->keys);
@@ -248,6 +250,10 @@ execute(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *body)
 		st_ddofx_mouse_command(ddo, sink, body + 1);
 	else if (body[0] == '5' && ddo->graphics)
 		st_ddofx_gadget_command(ddo, sink, body);
+	else if (body[0] == 'E' && !ascii_case_ncompare(body + 1, "WTEXT,", 6))
+		st_ddofx_write_text_file(ddo, sink, body + 7);
+	else if (body[0] == 'E' && !ascii_case_ncompare(body + 1, "RTEXT,", 6))
+		st_ddofx_retrieve_text_file(ddo, sink, body + 7);
 	else if (body[0] == '*')
 		st_ddofx_run_resource(ddo, sink, st_ddofx_value(ddo, body + 1));
 	else if (body[0] == 'd' && ascii_case_ncompare(body + 1, "RESOURCE,", 9) == 0) {
@@ -408,7 +414,7 @@ st_ddofx_parse(struct st_ddofx *ddo, struct st_ddofx_framer *frame, const struct
 bool
 st_ddofx_busy(const struct st_ddofx *ddo)
 {
-	return ddo->wait_until != 0 || ddo->fade_due != 0 || st_ddofx_script_active(ddo)
+	return ddo->retrieval.file || ddo->wait_until != 0 || ddo->fade_due != 0 || st_ddofx_script_active(ddo)
 	       || ddo->queued_start != ddo->queued_end;
 }
 
@@ -454,6 +460,11 @@ st_ddofx_poll(struct st_ddofx *ddo, const struct st_ddofx_sink *sink)
 	/* Yield back to the session between slices so long or infinite scripts
 	 * cannot prevent local disconnect, redraws or transfer servicing. */
 	for (unsigned i = 0; i < 128; ++i) {
+		if (ddo->retrieval.file) {
+			st_ddofx_retrieve_step(ddo, sink);
+			if (ddo->retrieval.file)
+				break;
+		}
 		if (ddo->fade_due != 0 || ddo->wait_until != 0) {
 			uint64_t now;
 			if (st_time_monotonic_ms(&now) != 0)

@@ -95,7 +95,7 @@ st_ddofx_info(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, bool save,
 	if (save && path) {
 		for (int i = 0; i < 4; ++i)
 			update.record[i] = (uint8_t)(password >> (8 * i));
-		update.record[4] = (uint8_t)st_ddofx_info_value(ddo, args, update.record + 5);
+		update.record[4] = (uint8_t)st_ddofx_control_value(ddo, args, update.record + 5, 200);
 		(void)fs_replace_file_with(path, replace_record, &update);
 	}
 	else if (!save)

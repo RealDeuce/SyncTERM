@@ -50,6 +50,8 @@ Normal mode supports a tile map of up to 150 × 150 cells. The host can fill eit
 
 Loose-file queries read the entry’s `DDOFX/MUSIC`, `DDOFX/FONTS`, and `DDOFX/BBSTHEME` directories. Professional queries use `DDOFX/TERMS/<client>`. Names use DOS-style case matching. The timestamp is local modification time with DOS two-second precision. `8EXEC` consumes the command without starting a program.
 
+In Lite and Normal mode, `EWTEXT` creates or replaces a loose BBSTHEME file with flag 0 and appends with flag 1. It adds the carriage return specified by the SDK to each line. `ERTEXT` sends the file bytes followed by the supplied return string. A missing file still sends the return string.
+
 Resource assignment selects the M container in `DDOFX/BBSTHEME` for local scripts and bitmap fonts and the S container for indexed PCX artwork. Scripts up to 40,000 bytes can call other scripts and render DOS text. A resource entry query tests the member name and component ID. Conditional scripts can also read that ID.
 
 In Normal mode, `2STORES` saves the current sprite slots as paired DAT and RAW files in the entry’s BBSTHEME directory. `2LOADS` validates both files before replacing the live slots. Its erase flag removes the pair after a successful load. A bank preserves slot order, indexed pixel rows and opaque allocation tails.
@@ -161,8 +163,8 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 4654 | INFO SAVE | DDO-FX LITE | Connected |
 | 4728 | INFO LOAD | DDO-FX LITE | Connected |
 | 4777 | LAUNCH TEXT EDITOR | DDO-FX LITE | Pending |
-| 4821 | RETRIEVE TEXT FILE | DDO-FX LITE | Pending |
-| 4847 | WRITE TEXT FILE | DDO-FX LITE | Pending |
+| 4821 | RETRIEVE TEXT FILE | DDO-FX LITE | Connected |
+| 4847 | WRITE TEXT FILE | DDO-FX LITE | Connected |
 | 4886 | PRINT TEXT FILE | DDO-FX LITE | Pending |
 | 4940 | LABEL | DDO-FX LITE | Connected |
 | 4955 | RESET ENVIRONMENT | DDO-FX LITE | Connected for implemented scene objects |

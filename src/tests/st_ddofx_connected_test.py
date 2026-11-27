@@ -860,6 +860,26 @@ def check_resources(t, root):
             (2, 1), [(1, 1, "K")], expected=b"NO\xff")
 
 
+def check_text_files(t, root):
+    t.case("write, append and retrieve BBSTHEME text in Lite and Normal")
+    marker, = root.rglob("syncterm-cache-name.txt")
+    theme = marker.parent / "DDOFX" / "BBSTHEME"
+    t.exchange(commands(b"~DEFVAR,81,1,Note.TXT", b"EWTEXT,DEFVAR81,0,Hello,^M~", b"EWTEXT,note.txt,1,",
+                        b"ERTEXT,NOTE.TXT,^@END^M,"), b"Hello,^M~\r\r\0END\r,")
+    note, = (p for p in theme.iterdir() if p.name.upper() == "NOTE.TXT")
+    assert note.read_bytes() == b"Hello,^M~\r\r"
+
+    payload = (b"0123456789" * 495) + b"\0\x82\xff\r\n"
+    note.write_bytes(payload)
+    t.exchange(commands(b"LIGMODE", b"LIGMODE", b"4DEFM,1,1,\x1d(ERTEXT,NOTE.TXT,done)",
+                        b"4RUNM,1", b"dVIDMODE"), payload + b"done1\xff")
+    t.exchange(commands(b"EWTEXT,note.txt,0,new", b"EWTEXT,note.txt,2,bad", b"eWTEXT,note.txt,0,bad",
+                        b"EWTEXT,../bad.txt,0,escape", b"ERTEXT,../bad.txt,A", b"ERTEXT,MISSING.TXT,B",
+                        b"ERTEXT,note.txt,", b"2GEXIT"), b"ABnew\r")
+    assert note.read_bytes() == b"new\r"
+    assert not (theme.parent / "bad.txt").exists()
+
+
 def check_info(t, root):
     t.case("persistent INFO records in Lite and Normal with binary data and typed capture")
     marker, = root.rglob("syncterm-cache-name.txt")
@@ -1377,6 +1397,7 @@ def run(args):
         check_resources(t, fixture[1])
         check_speech(t, fixture[1])
         check_info(t, fixture[1])
+        check_text_files(t, fixture[1])
         check_scripts(t)
         check_events(t)
         check_lite_reset(t)

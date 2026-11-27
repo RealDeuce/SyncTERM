@@ -372,11 +372,11 @@ send_reply(const struct st_ddofx_sink *sink, const char *encoded)
 }
 
 size_t
-st_ddofx_info_value(const struct st_ddofx *ddo, const char *source, uint8_t value[200])
+st_ddofx_control_value(const struct st_ddofx *ddo, const char *source, uint8_t *value, size_t limit)
 {
 	size_t length = strlen(source);
-	char   decoded[201];
-	length          = decode_controls((uint8_t *)decoded, source, length < 200 ? length : 200, false);
+	char   decoded[ST_DDOFX_BODY_MAX + 1];
+	length          = decode_controls((uint8_t *)decoded, source, length < limit ? length : limit, false);
 	decoded[length] = 0;
 	if (length >= 6 && !ascii_case_ncompare(decoded, "DEFVAR", 6)) {
 		const struct variable *v = reference(ddo, decoded);

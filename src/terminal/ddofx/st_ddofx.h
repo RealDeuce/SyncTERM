@@ -32,6 +32,12 @@ struct st_ddofx {
 	bool                      mode_prefix;
 	uint32_t                 *saved_palette;
 	FILE                     *page_files[3];
+	struct {
+		FILE *file;
+		uint64_t remaining;
+		uint8_t reply[ST_DDOFX_BODY_MAX];
+		size_t reply_length;
+	} retrieval;
 	struct st_ddofx_framer   wire;
 	struct st_ddofx_script  *script;
 	struct st_ddofx_keys    *keys;

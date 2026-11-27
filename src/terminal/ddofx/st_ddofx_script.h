@@ -68,7 +68,10 @@ void st_ddofx_script_command(struct st_ddofx *, const struct st_ddofx_sink *, ch
 bool st_ddofx_number(const struct st_ddofx *, const char *, int32_t *);
 const char *st_ddofx_value(const struct st_ddofx *, const char *);
 void st_ddofx_info(struct st_ddofx *, const struct st_ddofx_sink *, bool save, char *args);
-size_t st_ddofx_info_value(const struct st_ddofx *, const char *, uint8_t value[200]);
+size_t st_ddofx_control_value(const struct st_ddofx *, const char *, uint8_t *, size_t limit);
+void st_ddofx_write_text_file(struct st_ddofx *, const struct st_ddofx_sink *, char *);
+void st_ddofx_retrieve_text_file(struct st_ddofx *, const struct st_ddofx_sink *, char *);
+void st_ddofx_retrieve_step(struct st_ddofx *, const struct st_ddofx_sink *);
 void st_ddofx_info_reply(struct st_ddofx *, const struct st_ddofx_sink *, const uint8_t *, size_t, const char *error);
 bool        st_ddofx_capture(struct st_ddofx *, const char *, bool numeric);
 
