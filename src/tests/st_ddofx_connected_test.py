@@ -34,6 +34,47 @@ def check_cache(t, root):
                    b"N\xffN\xffNO\xff")
 
 
+def commands(*bodies):
+    return b"".join(b"\x1d{" + body + b"}" for body in bodies)
+
+
+def check_scripts(t):
+    def read_variable(slot):
+        return commands(b"7DEFRET,300,DEFVAR" + str(slot).encode(), b"7SRET,300")
+
+    t.exchange(commands(b"7DEFRET,300,A~,B^@^[^m^^^?", b"7SRET,300"), b"A,,B\0\x1b\r\x1e\xff")
+    t.exchange(commands(b"7DEFRET,0", b"7SRET,300"))
+    t.exchange(commands(b"~DEFVAR,1000,1,a,b", b"7DEFRET,2,DEFVAR1000", b"~CAPVAR,1000",
+                        b"7SRET,2") + read_variable(1000), b"a,bA,B")
+    t.exchange(commands(b"~DEFVAR,1,1,xyz", b"~VARINS,1,1000,2", b"~VARDEL,1000,4,2",
+                        b"~VARCPY,1000,2,2,3", b"~PADVARL,2,5,.", b"~PADVARR,2,6,!",
+                        b"~VARPOS,2,3,y", b"~VARLEN,2,4") + read_variable(2) +
+               read_variable(3) + read_variable(4), b"..xyB!46")
+    t.exchange(commands(b"~VAREQU,1,4", b"~VARTYP,1,2", b"~VARADD,1,7", b"~VARMLT,1,-3",
+                        b"~VARSUB,1,2", b"~VARDIV,1,2") + read_variable(1), b"-20")
+    t.exchange(commands(b"~RNDVAR,1,1") + read_variable(1), b"1")
+    t.exchange(commands(b"~VARCAP,1000", b"MGVOL", b"7SRET,2", b"~VARCAP,0", b"~INCVAR,1000",
+                        b"MSVOL,DEFVAR1000", b"MGVOL"), b"a,b16\xff")
+    t.exchange(commands(b"~VARCAP,3", b"dLITERM", b"~VARCAP,0", b"~DECVAR,3") + read_variable(3),
+               b"LITERM Ver. 2.0")
+    # The running line stays intact while it replaces itself and the next line.
+    t.check("live macro definitions", commands(
+        b"4DEFM,32,1,A\x1d(4DEFM,32,1,Z)B\x1d(4DEFM,32,10,C\x1d[7SRET,2])",
+        b"4DEFM,32,10,OLD", b"4RUNM,32", b"4EXCM,32,1", b"4CLRM,32", b"4RUNM,32") + b"D",
+        (6, 1), [(1, 1, "ABCZD")], expected=b"a,b")
+    t.exchange(commands(b"~DEFVAR,1,2,0", b"~REPMAC,320,\x1d(~INCVAR,1)",
+                        b"~REPVAR,DEFVAR1,>=,324,\x1d(~INCVAR,1)",
+                        b"~IFVAR,DEFVAR1,=,324,\x1d(7SRET,2)",
+                        b"~IFVAR,LITERM,=,literm ver. 2.00,\x1d(7SRET,2)") + read_variable(1), b"a,ba,b324")
+    # Clearing a whole bank and rejecting out-of-range selectors preserve framing.
+    t.check("script limits and recovery", commands(b"~DEFVAR,0", b"4DEFM,1,1,Q", b"4DEFM,0",
+            b"4RUNM,1", b"4RUNM,33", b"7SRET,301") + read_variable(1000) + b"R", (2, 1), [(1, 1, "R")])
+    start = time.monotonic()
+    t.exchange(commands(b"4DEFM,1,1,\x1d(w3)\x1d(7SRET,2)", b"4RUNM,1", b"dLITERM"),
+               b"a,bLITERM Ver. 2.00\xff")
+    assert time.monotonic() - start >= 0.15
+
+
 def run(args):
     ident = b"\x1d{dLITERM}"
     reply = b"LITERM Ver. 2.00\xff"
@@ -47,6 +88,7 @@ def run(args):
         t.exchange(b"\x1d{dMUSICON}\x1d{mMISSING.MOD}\x1d{dGETMUSIC}", b"NO\xffNONE\xff")
         t.exchange(b"\x1d{MGVOL}\x1d{MSVOL,20}\x1d{MMVOL,-5}\x1d{MGVOL}", b"64\xff15\xff")
         check_cache(t, fixture[1])
+        check_scripts(t)
         glyph = "é".encode("utf-8" if args.encoding == "UTF-8" else "cp437")
         t.check("framing amid ANSI", b"\x1b[2;" + ident + b"3H" + glyph + ident + ident + b"B",
                 (5, 2), [(3, 2, "éB")], expected=reply * 3)

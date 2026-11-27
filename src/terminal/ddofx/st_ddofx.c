@@ -6,43 +6,31 @@
 #include <time.h>
 
 #include "filesystem.h"
-#include "st_ddofx.h"
+#include "io_error.h"
+#include "st_ddofx_script.h"
+#include "st_time.h"
 #include "string_util.h"
 #include "value_convert_time.h"
 
 static bool
-verb(const struct st_ddofx *ddo, const char *name, size_t length)
+matches(const char *body, const char *name)
 {
-	return ddo->length >= length && ddo->body[0] == (uint8_t)name[0]
-	       && ascii_case_ncompare((const char *)ddo->body + 1, name + 1, length - 1) == 0;
+	return body[0] == name[0] && ascii_case_compare(body + 1, name + 1) == 0;
 }
 
 static bool
-matches(const struct st_ddofx *ddo, const char *name)
+argument(const struct st_ddofx *ddo, const char *body, const char *name, int32_t *value)
 {
-	size_t length = strlen(name);
-	return ddo->length == length && verb(ddo, name, length);
-}
-
-static bool
-argument(const struct st_ddofx *ddo, const char *name, long *value)
-{
-	size_t length = strlen(name);
-	if (!verb(ddo, name, length) || ddo->body[length] != ',')
-		return false;
-	const char *start = (const char *)ddo->body + length + 1;
-	char       *end;
-	errno    = 0;
-	long num = strtol(start, &end, 10);
-	if (start == end || *end != 0 || errno == ERANGE)
-		return false;
-	*value = num;
-	return true;
+	const size_t length = strlen(name);
+	return body[0] == name[0] && ascii_case_ncompare(body + 1, name + 1, length - 1) == 0
+	       && body[length] == ',' && st_ddofx_number(ddo, body + length + 1, value);
 }
 
 static void
-query_reply(const struct st_ddofx_sink *sink, const char *text)
+query_reply(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, const char *text, bool numeric)
 {
+	if (st_ddofx_capture(ddo, text, numeric))
+		return;
 	uint8_t reply[ST_DDOFX_BODY_MAX + 1];
 	size_t  n = strlen(text);
 	memcpy(reply, text, n);
@@ -51,7 +39,8 @@ query_reply(const struct st_ddofx_sink *sink, const char *text)
 }
 
 static void
-file_query(const struct st_ddofx_sink *sink, const char *category, const char *client, const char *name)
+file_record(char *record, const struct st_ddofx_sink *sink, const char *category, const char *client,
+    const char *name)
 {
 	FILE          *file = sink->open_asset(sink->context, category, client, name);
 	struct fs_info info;
@@ -64,14 +53,34 @@ file_query(const struct st_ddofx_sink *sink, const char *category, const char *c
 		found        = (int64_t)stamp == info.modified_time && value_convert_localtime(stamp, &local);
 	}
 	if (!found) {
-		query_reply(sink, client == NULL ? "NO" : "N");
+		strcpy(record, client == NULL ? "NO" : "N");
 		return;
 	}
-	char record[100];
+
 	/* The SDK's timestamp comes from DOS file time, in two-second units. */
-	snprintf(record, sizeof(record), "%" PRIu64 ",%d,%d,%d,%d,%d,%d", info.size, local.tm_year + 1900,
+	snprintf(record, ST_DDOFX_BODY_MAX + 1, "%" PRIu64 ",%d,%d,%d,%d,%d,%d", info.size, local.tm_year + 1900,
 	    local.tm_mon + 1, local.tm_mday, local.tm_hour, local.tm_min, local.tm_sec & ~1);
-	query_reply(sink, record);
+}
+
+bool
+st_ddofx_builtin(const struct st_ddofx *ddo, const struct st_ddofx_sink *sink, const char *name, char *result,
+    bool *numeric)
+{
+	*numeric = false;
+	if (!ascii_case_compare(name, "LITERM"))
+		strcpy(result, "LITERM Ver. 2.00");
+	else if (!ascii_case_compare(name, "GETMUSIC"))
+		strcpy(result, ddo->player == NULL ? "NONE" : ddo->music_name);
+	else if (!ascii_case_compare(name, "MUSICON"))
+		strcpy(result,
+		    st_audio_runtime_is_pull(sink->audio) || st_audio_runtime_allowed(sink->audio) ? "YES" : "NO");
+	else if (*name && strchr("mftr", *name) != NULL) {
+		const char *category = *name == 'm' ? "MUSIC" : *name == 'f' ? "FONTS" : "BBSTHEME";
+		file_record(result, sink, category, NULL, name + 1);
+	}
+	else
+		return false;
+	return true;
 }
 
 static void
@@ -100,58 +109,67 @@ music(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, const char *filena
 void
 st_ddofx_reset(struct st_ddofx *ddo)
 {
+	free(ddo->queued);
+	st_ddofx_script_destroy(ddo);
 	st_tracker_destroy(ddo->player);
 	*ddo = (struct st_ddofx) {.volume = 64};
 }
 
 static void
-execute(struct st_ddofx *ddo, const struct st_ddofx_sink *sink)
+execute(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *body)
 {
-	if (matches(ddo, "~HEARCMD"))
+	if (matches(body, "~HEARCMD"))
 		ddo->ignoring = false;
-	else if (matches(ddo, "~IGNORCMD"))
+	else if (matches(body, "~IGNORCMD"))
 		ddo->ignoring = true;
+	else if (body[0] == '~' || (!ddo->ignoring && (body[0] == '7' || body[0] == '4')))
+		st_ddofx_script_command(ddo, sink, body);
 	else if (ddo->ignoring)
 		return;
-	else if (matches(ddo, "dLITERM"))
-		query_reply(sink, "LITERM Ver. 2.00");
-	else if (matches(ddo, "dGETMUSIC"))
-		query_reply(sink, ddo->player == NULL ? "NONE" : ddo->music_name);
-	else if (matches(ddo, "dMUSICON"))
-		query_reply(sink,
-		    st_audio_runtime_is_pull(sink->audio) || st_audio_runtime_allowed(sink->audio) ? "YES" : "NO");
-	else if (ddo->body[0] == 'd' && ddo->length >= 2 && strchr("mftr", ddo->body[1]) != NULL) {
-		const char *category = ddo->body[1] == 'm' ? "MUSIC" : ddo->body[1] == 'f' ? "FONTS" : "BBSTHEME";
-		file_query(sink, category, NULL, (const char *)ddo->body + 2);
+	else if (body[0] == 'd') {
+		char result[ST_DDOFX_BODY_MAX + 1];
+		bool numeric;
+		if (st_ddofx_builtin(ddo, sink, body + 1, result, &numeric))
+			query_reply(ddo, sink, result, numeric);
 	}
-	else if (verb(ddo, "8CDIR,", 6))
-		query_reply(sink, sink->client_exists(sink->context, (const char *)ddo->body + 6) ? "Y" : "N");
-	else if (verb(ddo, "8CFILE,", 7)) {
-		char *client = (char *)ddo->body + 7;
+	else if (ascii_case_ncompare(body, "8CDIR,", 6) == 0)
+		query_reply(ddo, sink,
+		    sink->client_exists(sink->context, st_ddofx_value(ddo, body + 6)) ? "Y" : "N", false);
+	else if (ascii_case_ncompare(body, "8CFILE,", 7) == 0) {
+		char *client = (char *)body + 7;
 		char *comma  = strchr(client, ',');
 		if (comma != NULL) {
 			*comma = 0;
-			file_query(sink, "TERMS", client, comma + 1);
+			char result[ST_DDOFX_BODY_MAX + 1];
+			file_record(result, sink, "TERMS", st_ddofx_value(ddo, client),
+			    st_ddofx_value(ddo, comma + 1));
+			query_reply(ddo, sink, result, false);
 		}
 		else
-			query_reply(sink, "N");
+			query_reply(ddo, sink, "N", false);
 	}
-	else if (ddo->body[0] == 'm')
-		music(ddo, sink, (const char *)ddo->body + 1);
-	else if (matches(ddo, "MMPR"))
+	else if (body[0] == 'm')
+		music(ddo, sink, st_ddofx_value(ddo, body + 1));
+	else if (body[0] == 'w') {
+		int32_t  ticks;
+		uint64_t now;
+		if (st_ddofx_number(ddo, body + 1, &ticks) && ticks > 0 && st_time_monotonic_ms(&now) == 0)
+			ddo->wait_until = now + ((uint64_t)ticks * 1000 + 17) / 18;
+	}
+	else if (matches(body, "MMPR"))
 		st_tracker_toggle_pause(ddo->player);
-	else if (matches(ddo, "MGVOL")) {
+	else if (matches(body, "MGVOL")) {
 		char volume[4];
 		snprintf(volume, sizeof(volume), "%u", ddo->volume);
-		query_reply(sink, volume);
+		query_reply(ddo, sink, volume, true);
 	}
 	else {
-		long value;
-		if (argument(ddo, "MMPAT", &value) && (value == -1 || value == 1))
+		int32_t value;
+		if (argument(ddo, body, "MMPAT", &value) && (value == -1 || value == 1))
 			st_tracker_step_order(ddo->player, (int)value);
-		else if (argument(ddo, "MSVOL", &value) && value >= 0 && value <= 64)
+		else if (argument(ddo, body, "MSVOL", &value) && value >= 0 && value <= 64)
 			ddo->volume = (unsigned)value;
-		else if (argument(ddo, "MMVOL", &value)) {
+		else if (argument(ddo, body, "MMVOL", &value)) {
 			if (value <= -(long)ddo->volume)
 				ddo->volume = 0;
 			else if (value >= 64 - (long)ddo->volume)
@@ -166,13 +184,13 @@ execute(struct st_ddofx *ddo, const struct st_ddofx_sink *sink)
 }
 
 int
-st_ddofx_feed(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, const uint8_t *bytes, size_t size,
-    size_t *consumed)
+st_ddofx_parse(struct st_ddofx *ddo, struct st_ddofx_framer *frame, const struct st_ddofx_sink *sink,
+    const uint8_t *bytes, size_t size, size_t *consumed)
 {
 	*consumed = 0;
 	while (*consumed < size) {
 		const uint8_t *here = bytes + *consumed;
-		if (ddo->phase == ST_DDO_TEXT && *here != 0x1d) {
+		if (frame->phase == ST_DDO_TEXT && *here != 0x1d) {
 			size_t         remaining = size - *consumed;
 			const uint8_t *gs        = memchr(here, 0x1d, remaining);
 			size_t         length    = gs == NULL ? remaining : (size_t)(gs - here);
@@ -184,49 +202,122 @@ st_ddofx_feed(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, const uint
 			continue;
 		}
 		uint8_t byte = *here;
-		switch (ddo->phase) {
+		switch (frame->phase) {
 			case ST_DDO_TEXT:
-				ddo->phase = ST_DDO_PREFIX;
+				frame->phase = ST_DDO_PREFIX;
 				break;
 			case ST_DDO_PREFIX:
 				if (byte == '{') {
-					ddo->phase  = ST_DDO_BODY;
-					ddo->length = 0;
+					frame->phase  = ST_DDO_BODY;
+					frame->length = 0;
 				}
 				else if (byte != 0x1d && byte != 0) {
-					ddo->phase = ST_DDO_TEXT;
+					frame->phase = ST_DDO_TEXT;
 					continue;
 				}
 				break;
 			case ST_DDO_BODY:
 				if (byte == '}') {
-					ddo->phase             = ST_DDO_TEXT;
-					ddo->body[ddo->length] = 0;
-					execute(ddo, sink);
+					frame->phase               = ST_DDO_TEXT;
+					frame->body[frame->length] = 0;
+					execute(ddo, sink, frame->body);
+					++*consumed;
+					return 0;
 				}
 				else if (byte == '\r' || byte == '\n') {
-					ddo->phase = ST_DDO_TEXT;
+					frame->phase = ST_DDO_TEXT;
 					continue;
 				}
 				else if (byte != 0) {
-					if (ddo->length == ST_DDOFX_BODY_MAX)
-						ddo->phase = ST_DDO_DISCARD;
+					if (frame->length == ST_DDOFX_BODY_MAX)
+						frame->phase = ST_DDO_DISCARD;
 					else
-						ddo->body[ddo->length++] = byte;
+						frame->body[frame->length++] = byte;
 				}
 				break;
 			case ST_DDO_DISCARD:
 				if (byte == '}')
-					ddo->phase = ST_DDO_TEXT;
+					frame->phase = ST_DDO_TEXT;
 				else if (byte == '\r' || byte == '\n') {
-					ddo->phase = ST_DDO_TEXT;
+					frame->phase = ST_DDO_TEXT;
 					continue;
 				}
 				else if (byte == 0x1d)
-					ddo->phase = ST_DDO_PREFIX;
+					frame->phase = ST_DDO_PREFIX;
 				break;
 		}
 		++*consumed;
+	}
+	return 0;
+}
+
+bool
+st_ddofx_busy(const struct st_ddofx *ddo)
+{
+	return ddo->wait_until != 0 || st_ddofx_script_active(ddo) || ddo->queued_start != ddo->queued_end;
+}
+
+int
+st_ddofx_poll(struct st_ddofx *ddo, const struct st_ddofx_sink *sink)
+{
+	/* Yield back to the session between slices so long or infinite scripts
+	 * cannot prevent local disconnect, redraws or transfer servicing. */
+	for (unsigned i = 0; i < 128; ++i) {
+		if (ddo->wait_until != 0) {
+			uint64_t now;
+			if (st_time_monotonic_ms(&now) == 0 && now < ddo->wait_until)
+				break;
+			ddo->wait_until = 0;
+		}
+		if (st_ddofx_script_active(ddo)) {
+			int status = st_ddofx_script_step(ddo, sink);
+			if (status != 0)
+				return status;
+		}
+		else if (ddo->queued_start != ddo->queued_end) {
+			size_t used;
+			int    status = st_ddofx_parse(ddo, &ddo->wire, sink, ddo->queued + ddo->queued_start,
+			    ddo->queued_end - ddo->queued_start, &used);
+			ddo->queued_start += used;
+			if (ddo->queued_start == ddo->queued_end) {
+				free(ddo->queued);
+				ddo->queued       = NULL;
+				ddo->queued_start = ddo->queued_end = 0;
+			}
+			if (status != 0 || used == 0)
+				return status;
+		}
+		else
+			break;
+	}
+	return 0;
+}
+
+int
+st_ddofx_feed(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, const uint8_t *bytes, size_t size,
+    size_t *consumed)
+{
+	*consumed = 0;
+	while (*consumed < size && !st_ddofx_busy(ddo)) {
+		size_t used;
+		int    status = st_ddofx_parse(ddo, &ddo->wire, sink, bytes + *consumed, size - *consumed, &used);
+		*consumed += used;
+		if (status != 0 || used == 0)
+			return status;
+	}
+	/* The session stops reading while busy. Preserve the rest of the current
+	 * delivery, including any bytes supplied by an input hook. */
+	if (*consumed < size) {
+		size_t count = size - *consumed;
+		if (count > SIZE_MAX - ddo->queued_end)
+			return IO_ERROR_OUT_OF_MEMORY;
+		uint8_t *pending = realloc(ddo->queued, ddo->queued_end + count);
+		if (pending == NULL)
+			return IO_ERROR_OUT_OF_MEMORY;
+		ddo->queued = pending;
+		memcpy(pending + ddo->queued_end, bytes + *consumed, count);
+		ddo->queued_end += count;
+		*consumed = size;
 	}
 	return 0;
 }

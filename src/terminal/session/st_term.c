@@ -105,11 +105,13 @@ st_term_session_observe_prompt_input(st_term_session_t *session, const struct st
 		st_term_rip3_observe_prompt_input(session->rip3, event);
 }
 
+static struct st_ddofx_sink ddofx_sink(st_term_session_t *session);
+
 bool
 st_term_session_device_paused(st_term_session_t *session)
 {
 	return session != NULL
-	       && (cterm_big_paused(session->big)
+	       && (st_ddofx_busy(&session->ddofx) || cterm_big_paused(session->big)
 	           || (session->skypix != NULL && cterm_skypix_paused(session->skypix))
 	           || cterm_igs_paused(session->igs));
 }
@@ -124,6 +126,10 @@ st_term_session_poll_display(st_term_session_t *session)
 		return 0;
 	}
 	int status = st_cterm_poll(st_term_session_cterm(session));
+	if (status == 0 && st_ddofx_busy(&session->ddofx)) {
+		const struct st_ddofx_sink sink = ddofx_sink(session);
+		status = st_ddofx_poll(&session->ddofx, &sink);
+	}
 	if (status == 0 && session->igs != NULL)
 		status = cterm_igs_poll(session->igs);
 	if (status == 0 && session->big != NULL)
@@ -1237,11 +1243,10 @@ ddofx_text(void *context, const uint8_t *bytes, size_t size, size_t *consumed)
 	return st_cterm_write(session->cterm, bytes, size, consumed);
 }
 
-static int
-write_protocol(st_term_session_t *session, const void *bytes, size_t size, size_t *consumed)
+static struct st_ddofx_sink
+ddofx_sink(st_term_session_t *session)
 {
-	if (session->config.graphics_mode == ST_GRAPHICS_DDOFX_20) {
-		const struct st_ddofx_sink sink = {
+	return (struct st_ddofx_sink){
 		    .context       = session,
 		    .text          = ddofx_text,
 		    .reply         = protocol_reply,
@@ -1249,6 +1254,13 @@ write_protocol(st_term_session_t *session, const void *bytes, size_t size, size_
 		    .client_exists = ddofx_client_exists,
 		    .audio         = session->config.audio,
 		};
+}
+
+static int
+write_protocol(st_term_session_t *session, const void *bytes, size_t size, size_t *consumed)
+{
+	if (session->config.graphics_mode == ST_GRAPHICS_DDOFX_20) {
+		const struct st_ddofx_sink sink = ddofx_sink(session);
 		return st_ddofx_feed(&session->ddofx, &sink, bytes, size, consumed);
 	}
 	if (session->rip3 != NULL) {
@@ -1409,7 +1421,7 @@ write_graphics(st_term_session_t *session, const uint8_t *bytes, size_t size)
 		/* Once an octet grammar owns the input, even an apparent OO][
 		 * marker or an incomplete UTF-8 lead is part of its payload. */
 		if (!split
-		    && (session->ddofx.phase != ST_DDO_TEXT || st_rip154_owns_bytes(session->rip154)
+		    && (session->ddofx.wire.phase != ST_DDO_TEXT || st_rip154_owns_bytes(session->rip154)
 		        || st_term_rip3_owns_bytes(session->rip3) || cterm_big_owns_bytes(session->big)
 		        || cterm_igs_owns_bytes(session->igs)
 		        || (session->skypix != NULL && cterm_skypix_parser_owns_bytes(&session->skypix->parser))

@@ -8,6 +8,8 @@ Connected tests cover framing, detection, and ignore/hear across CP437 and UTF-8
 
 Loose-file queries read the entry’s `DDOFX/MUSIC`, `DDOFX/FONTS`, and `DDOFX/BBSTHEME` directories. Professional queries use `DDOFX/TERMS/<client>`. Names use DOS-style case matching. The timestamp is local modification time with DOS two-second precision. `8EXEC` consumes the command without starting a program.
 
+Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed variables. Local macro calls, repeats and waits preserve the order of the wire stream. Variable capture redirects automatic query results. Configured return strings can send binary bytes. Conditional macros can compare user variables, identity, music state and loose-file metadata. Additional predefined system operands await their respective query implementations.
+
 | SDK line | Definition | Domain | Coverage |
 | ---: | --- | --- | --- |
 | 575 | LOAD FONT | DDO-FX LITE | Pending |
@@ -33,7 +35,7 @@ Loose-file queries read the entry’s `DDOFX/MUSIC`, `DDOFX/FONTS`, and `DDOFX/B
 | 1476 | MODIFY VOLUME | DDO-FX LITE | Connected |
 | 1491 | GET VOLUME | DDO-FX LITE | Connected |
 | 1509 | IS CMF PLAYING | DDO-FX LITE | Pending |
-| 1528 | WAIT | DDO-FX LITE | Pending |
+| 1528 | WAIT | DDO-FX LITE | Connected |
 | 1544 | GOTO DDO-FX (NORMAL MODE) | DDO-FX LITE | Pending |
 | 1573 | DETECT LITERM | DDO-FX LITE | Connected |
 | 1611 | DETECT USER MEMORY | DDO-FX LITE | Pending |
@@ -54,10 +56,10 @@ Loose-file queries read the entry’s `DDOFX/MUSIC`, `DDOFX/FONTS`, and `DDOFX/B
 | 2367 | DETECT MUSIC PLAYING | DDO-FX LITE | MOD and S3M |
 | 2389 | DETECT THEME LOADED | DDO-FX LITE | Pending |
 | 2411 | DETECT FONT LOADED | DDO-FX LITE | Pending |
-| 2431 | DEFINE A MACRO | DDO-FX LITE | Pending |
-| 2590 | CLEAR A MACRO | DDO-FX LITE | Pending |
-| 2602 | RUN A MACRO | DDO-FX LITE | Pending |
-| 2615 | EXECUTE A MACRO LINE | DDO-FX LITE | Pending |
+| 2431 | DEFINE A MACRO | DDO-FX LITE | Connected |
+| 2590 | CLEAR A MACRO | DDO-FX LITE | Connected |
+| 2602 | RUN A MACRO | DDO-FX LITE | Connected |
+| 2615 | EXECUTE A MACRO LINE | DDO-FX LITE | Connected |
 | 2662 | CREATE KEY MACRO | DDO-FX LITE | Pending |
 | 2874 | TEST FOR JOYSTICK | DDO-LITE | Pending |
 | 2893 | CALIBRATE JOYSTICK | DDO-LITE | Pending |
@@ -65,8 +67,8 @@ Loose-file queries read the entry’s `DDOFX/MUSIC`, `DDOFX/FONTS`, and `DDOFX/B
 | 3067 | CREATE BACKGROUND EVENT | DDO-LITE | Pending |
 | 3161 | ACTIVATE BACKGROUND EVENT | DDO-LITE | Pending |
 | 3174 | DEACTIVATE BACKGROUND EVENT | DDO-LITE | Pending |
-| 3187 | DEFINE RETURN STRING | DDO-LITE | Pending |
-| 3226 | SEND RETURN STRING | DDO-LITE | Pending |
+| 3187 | DEFINE RETURN STRING | DDO-LITE | Connected |
+| 3226 | SEND RETURN STRING | DDO-LITE | Connected |
 | 3237 | TEXT FADE OUT | DDO-FX LITE | Pending |
 | 3264 | TEXT FADE IN | DDO-FX LITE | Pending |
 | 3273 | SLIDE SCREEN UP | DDO-FX LITE | Pending |
@@ -76,36 +78,36 @@ Loose-file queries read the entry’s `DDOFX/MUSIC`, `DDOFX/FONTS`, and `DDOFX/B
 | 3365 | SET FULL SCREEN MODE | DDO-FX LITE | Pending |
 | 3400 | RESTORE FULL SCREEN MODE | DDO-FX LITE | Pending |
 | 3416 | RUN LOCAL SCRIPT | DDO-FX LITE | Pending |
-| 3501 | DEFINE SYSTEM VARIABLE | DDO-FX LITE | Pending |
+| 3501 | DEFINE SYSTEM VARIABLE | DDO-FX LITE | Connected |
 | 3604 | LOCK KEYS | DDO-FX LITE | Pending |
 | 3650 | UNLOCK KEYS | DDO-FX LITE | Pending |
 | 3661 | PAUSE BACKGROUND TASKS | DDO-FX LITE | Pending |
 | 3710 | UNPAUSE BACKGROUND TASKS | DDO-FX LITE | Pending |
 | 3720 | IGNORE COMMANDS | DDO-FX LITE | Connected |
 | 3767 | HEAR COMMANDS | DDO-FX LITE | Connected |
-| 3782 | ALL CAPS SYSTEM VARIABLE | DDO-FX LITE | Pending |
+| 3782 | ALL CAPS SYSTEM VARIABLE | DDO-FX LITE | Connected |
 | 3796 | GET TEXT FIELD INFO FULL | DDO-FX LITE | Pending |
 | 3824 | GET TEXT FIELD INFO | DDO-FX LITE | Pending |
-| 3841 | INCREMENT SYSTEM VARIABLE | DDO-FX LITE | Pending |
-| 3855 | DECREMENT SYSTEM VARIABLE | DDO-FX LITE | Pending |
-| 3870 | RANDOM SYSTEM VARIABLE | DDO-FX LITE | Pending |
-| 3893 | VARIABLE COPY | DDO-FX LITE | Pending |
-| 3941 | VARIABLE INSERT | DDO-FX LITE | Pending |
-| 3989 | PAD VARIABLE LEFT | DDO-FX LITE | Pending |
-| 4041 | PAD VARIABLE RIGHT | DDO-FX LITE | Pending |
-| 4063 | VARIABLE DELETE | DDO-FX LITE | Pending |
-| 4096 | VARIABLE POSITION | DDO-FX LITE | Pending |
-| 4132 | VARIABLE LENGTH | DDO-FX LITE | Pending |
-| 4157 | VARIABLE EQUAL | DDO-FX LITE | Pending |
-| 4186 | VARIABLE TYPING | DDO-FX LITE | Pending |
-| 4209 | VARIABLE ADD | DDO-FX LITE | Pending |
-| 4224 | VARIABLE SUBTRACT | DDO-FX LITE | Pending |
-| 4239 | VARIABLE MULTIPLY | DDO-FX LITE | Pending |
-| 4254 | VARIABLE DIVIDE | DDO-FX LITE | Pending |
-| 4270 | VARIABLE CAPTURE | DDO-FX LITE | Pending |
-| 4322 | IF VAR DO MACRO | DDO-FX LITE | Pending |
-| 4547 | REPEAT MACRO UNTIL VAR | DDO-FX LITE | Pending |
-| 4604 | REPEAT MACRO | DDO-FX LITE | Pending |
+| 3841 | INCREMENT SYSTEM VARIABLE | DDO-FX LITE | Connected |
+| 3855 | DECREMENT SYSTEM VARIABLE | DDO-FX LITE | Connected |
+| 3870 | RANDOM SYSTEM VARIABLE | DDO-FX LITE | Connected |
+| 3893 | VARIABLE COPY | DDO-FX LITE | Connected |
+| 3941 | VARIABLE INSERT | DDO-FX LITE | Connected |
+| 3989 | PAD VARIABLE LEFT | DDO-FX LITE | Connected |
+| 4041 | PAD VARIABLE RIGHT | DDO-FX LITE | Connected |
+| 4063 | VARIABLE DELETE | DDO-FX LITE | Connected |
+| 4096 | VARIABLE POSITION | DDO-FX LITE | Connected |
+| 4132 | VARIABLE LENGTH | DDO-FX LITE | Connected |
+| 4157 | VARIABLE EQUAL | DDO-FX LITE | Connected |
+| 4186 | VARIABLE TYPING | DDO-FX LITE | Connected |
+| 4209 | VARIABLE ADD | DDO-FX LITE | Connected |
+| 4224 | VARIABLE SUBTRACT | DDO-FX LITE | Connected |
+| 4239 | VARIABLE MULTIPLY | DDO-FX LITE | Connected |
+| 4254 | VARIABLE DIVIDE | DDO-FX LITE | Connected |
+| 4270 | VARIABLE CAPTURE | DDO-FX LITE | Connected |
+| 4322 | IF VAR DO MACRO | DDO-FX LITE | Variables and implemented system operands |
+| 4547 | REPEAT MACRO UNTIL VAR | DDO-FX LITE | Variables and implemented system operands |
+| 4604 | REPEAT MACRO | DDO-FX LITE | Connected |
 | 4654 | INFO SAVE | DDO-FX LITE | Pending |
 | 4728 | INFO LOAD | DDO-FX LITE | Pending |
 | 4777 | LAUNCH TEXT EDITOR | DDO-FX LITE | Pending |
