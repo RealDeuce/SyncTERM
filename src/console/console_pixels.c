@@ -851,6 +851,22 @@ move_raster_locked(st_console_t *console, const struct st_console_rect *source, 
 					console->raster_rows[st_console_row_index(console, dy)] =
 					    console->raster_rows[st_console_row_index(console, sy)];
 			}
+			/* A clipped text window can bring logical cells into view for
+			 * which there were no source pixels to move. The drawn-cell
+			 * cache follows the source row during a circular scroll. */
+			if ((console->view_rows < console->rows || console->view_columns < console->columns)
+			    && dy < console->view_rows && destination_x < console->view_columns) {
+				uint32_t first = 0;
+				if (sy < height / console->cell_height && source->x < width / console->cell_width)
+					first = width / console->cell_width - source->x;
+				uint32_t end = console->view_columns - destination_x;
+				if (end > source->width)
+					end = source->width;
+				size_t cell = metadata ? (size_t)dy * console->columns + destination_x
+				                       : (size_t)sy * console->columns + source->x;
+				for (uint32_t i = first; i < end; ++i)
+					st_console_drawn_at(console, cell + i)->flags |= ST_CONSOLE_RASTER_INVALID;
+			}
 			for (uint32_t py = 0; span != 0 && py < console->cell_height; py++) {
 				uint32_t from_y = sy * console->cell_height + py,
 					 to_y   = dy * console->cell_height + py;

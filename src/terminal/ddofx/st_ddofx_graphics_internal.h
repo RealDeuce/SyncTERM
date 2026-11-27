@@ -56,6 +56,15 @@ struct st_ddofx_mouse_state {
 	} history[3][2];
 };
 
+struct st_ddofx_text_page {
+	st_console_t      *view;
+	st_font_catalog_t *fonts;
+	st_cterm_t        *text;
+	unsigned           columns, rows;
+	int                x, y, cell_width, cell_height;
+	bool               hidden;
+};
+
 struct st_ddofx_graphics {
 	struct st_ddofx_buttons    *buttons;
 	struct st_ddofx_text_fields *text_fields;
@@ -76,9 +85,10 @@ struct st_ddofx_graphics {
 	unsigned animator_divisor;
 	int cell_width, cell_height;
 
-	st_console_t            *display, *view;
-	st_font_catalog_t       *fonts;
-	st_cterm_t              *text;
+	st_console_t *display;
+	/* Slot zero parses terminal traffic when the desktop has no text window. */
+	struct st_ddofx_text_page windows[11];
+	unsigned                  active_window;
 	struct st_console_config previous_mode;
 	st_console_snapshot_t   *previous_screen;
 	uint32_t                 palette[256];
@@ -143,6 +153,10 @@ void st_ddofx_rotation(int angle, double *cosine, double *sine);
 void st_ddofx_grid_destroy(struct st_ddofx_graphics *, bool erase);
 bool    st_ddofx_page_name(const char *, enum page *);
 void    st_ddofx_bitmap_text(struct st_ddofx *, const struct st_ddofx_sink *, const char *, char *);
+bool    st_ddofx_create_text_page(struct st_ddofx_graphics *, struct st_ddofx_text_page *,
+    const struct st_cterm_config *);
+void    st_ddofx_destroy_text_page(struct st_ddofx_text_page *);
+void    st_ddofx_close_text_windows(struct st_ddofx_graphics *);
 void    st_ddofx_set_palette(struct st_ddofx_graphics *, unsigned, unsigned);
 void    st_ddofx_resource_pcx(struct st_ddofx *, const struct st_ddofx_sink *, enum page, const char *);
 void    st_ddofx_page_file(struct st_ddofx *, enum page file, enum page target, bool save);

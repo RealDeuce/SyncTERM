@@ -561,6 +561,11 @@ int st_console_reconfigure(st_console_t *console, const struct st_console_config
  * adopt, which retains the visible pixels and enables native rendering. */
 int st_console_create_raster_view(st_console_t **result, st_console_t *parent, uint32_t columns, uint32_t rows,
     uint32_t cell_width, uint32_t cell_height, uint64_t x, uint64_t y);
+/* Restrict publication to the upper-left portion of the logical page.
+ * A zero extent keeps logical text and replies available without owning any display pixels. */
+int st_console_create_clipped_raster_view(st_console_t **result, st_console_t *parent, uint32_t columns,
+    uint32_t rows, uint32_t cell_width, uint32_t cell_height, uint64_t x, uint64_t y, uint32_t visible_columns,
+    uint32_t visible_rows);
 int st_console_raster_view_adopt(st_console_t *console);
 /* The view and graphics page use the same palette. Preserve native pixel
  * indices so palette edits recolour text already painted on the page. */

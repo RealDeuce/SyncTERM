@@ -245,6 +245,8 @@ execute(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *body)
 	}
 	else if (ddo->graphics && !ascii_case_ncompare(body, "1SCALE,", 7))
 		st_ddofx_text_scale(ddo, body+7);
+	else if (ddo->graphics && body[0] == '1')
+		st_ddofx_text_window_command(ddo, sink, body);
 	else if (body[0] == '2') {
 		if (ddo->graphics != NULL)
 			st_ddofx_graphics_command(ddo, sink, body);

@@ -10,9 +10,18 @@ int
 st_console_create_raster_view(st_console_t **result, st_console_t *parent, uint32_t columns, uint32_t rows,
     uint32_t cell_width, uint32_t cell_height, uint64_t x, uint64_t y)
 {
+	return st_console_create_clipped_raster_view(result, parent, columns, rows, cell_width, cell_height, x, y,
+	    columns, rows);
+}
+
+int
+st_console_create_clipped_raster_view(st_console_t **result, st_console_t *parent, uint32_t columns, uint32_t rows,
+    uint32_t cell_width, uint32_t cell_height, uint64_t x, uint64_t y, uint32_t visible_columns,
+    uint32_t visible_rows)
+{
 	if (result == NULL || parent == NULL || columns == 0 || rows == 0 || cell_width == 0 || cell_height == 0
-	    || columns > UINT32_MAX / cell_width || rows > UINT32_MAX / cell_height
-	    || (size_t)columns > SIZE_MAX / rows
+	    || visible_columns > columns || visible_rows > rows || columns > UINT32_MAX / cell_width
+	    || rows > UINT32_MAX / cell_height || (size_t)columns > SIZE_MAX / rows
 	    || (size_t)columns * rows > SIZE_MAX / sizeof(struct st_console_cell))
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (parent->raster_parent != NULL)
@@ -52,6 +61,8 @@ st_console_create_raster_view(st_console_t **result, st_console_t *parent, uint3
 			console->cell_width    = cell_width;
 			console->cell_height   = cell_height;
 			console->raster_parent = parent;
+			console->view_columns  = visible_columns;
+			console->view_rows     = visible_rows;
 			console->raster_x      = x;
 			console->raster_y      = y;
 			console->default_cursor =

@@ -960,10 +960,9 @@ st_term_session_text_view(st_term_session_t *session, st_console_t *display, str
 {
 	if (session != NULL && session->config.console == display && view != NULL
 	    && session->ddofx.graphics != NULL) {
-		*view = (struct st_term_text_view) {.console = st_ddofx_graphics_view(session->ddofx.graphics),
-		    .cell_width                              = 8,
-		    .cell_height                             = 16};
-		return true;
+		view->console = st_ddofx_graphics_view(session->ddofx.graphics, &view->x, &view->y,
+		    &view->cell_width, &view->cell_height);
+		return view->console != NULL;
 	}
 	return session != NULL && session->config.console == display
 	       && st_term_rip3_text_view(session->rip3, view);

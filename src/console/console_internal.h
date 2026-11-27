@@ -149,6 +149,7 @@ struct st_console {
 	 * own lock is initialized/destroyed normally but is never the raster lock. */
 	st_console_t *raster_parent;
 	uint64_t      raster_x, raster_y;
+	uint32_t      view_columns, view_rows;
 	size_t        raster_children;
 	bool          raster_enabled;
 	bool          raster_transient;
@@ -284,7 +285,8 @@ st_console_raster_visible_width(const st_console_t *console)
 	if (console->raster_x >= parent->width)
 		return 0;
 	uint32_t visible = parent->width - (uint32_t)console->raster_x;
-	return console->pixels->width < visible ? console->pixels->width : visible;
+	uint32_t extent  = console->view_columns * console->cell_width;
+	return extent < visible ? extent : visible;
 }
 
 static inline uint32_t
@@ -296,7 +298,8 @@ st_console_raster_visible_height(const st_console_t *console)
 	if (console->raster_y >= parent->height)
 		return 0;
 	uint32_t visible = parent->height - (uint32_t)console->raster_y;
-	return console->pixels->height < visible ? console->pixels->height : visible;
+	uint32_t extent  = console->view_rows * console->cell_height;
+	return extent < visible ? extent : visible;
 }
 
 static inline uint32_t

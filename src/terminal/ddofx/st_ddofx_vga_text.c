@@ -51,12 +51,13 @@ install(const struct st_ddofx_graphics *g, const struct st_ddofx_vga_font *font,
 	uint16_t id;
 	if (!g)
 		return st_console_set_font_strike(font->lite, font->lite_id, &strike) == 0;
-	if (!st_font_catalog_identifier(g->fonts, 0, &id)
-	    || st_console_raster_view_adopt_indexed_size(g->view, width, height))
+	const struct st_ddofx_text_page *page = &g->windows[g->active_window];
+	if (!st_font_catalog_identifier(page->fonts, 0, &id)
+	    || st_console_raster_view_adopt_indexed_size(page->view, width, height))
 		return false;
-	if (st_console_set_font_strike(g->view, id, &strike) == 0)
+	if (st_console_set_font_strike(page->view, id, &strike) == 0)
 		return true;
-	(void)st_console_raster_view_adopt_indexed_size(g->view, g->cell_width, g->cell_height);
+	(void)st_console_raster_view_adopt_indexed_size(page->view, g->cell_width, g->cell_height);
 	return false;
 }
 
@@ -71,6 +72,8 @@ st_ddofx_text_scale(struct st_ddofx *ddo, char *args)
 	    && install(g, ddo->vga_font, (unsigned)n[0], (unsigned)n[1])) {
 		g->cell_width  = n[0];
 		g->cell_height = n[1];
+		g->windows[g->active_window].cell_width  = n[0];
+		g->windows[g->active_window].cell_height = n[1];
 	}
 }
 
@@ -89,7 +92,7 @@ st_ddofx_text_area(const struct st_ddofx_graphics *g, unsigned x, unsigned botto
 void
 st_ddofx_apply_vga_font(struct st_ddofx *ddo)
 {
-	if (ddo->vga_font)
+	if (ddo->graphics || ddo->vga_font)
 		(void)install(ddo->graphics, ddo->vga_font, ddo->graphics ? ddo->graphics->cell_width : 8,
 		    ddo->graphics ? ddo->graphics->cell_height : 16);
 }

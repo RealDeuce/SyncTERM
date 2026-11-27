@@ -164,6 +164,39 @@ def commands(*bodies):
     return b"".join(b"\x1d{" + body + b"}" for body in bodies)
 
 
+FULL_TEXT_WINDOW = b"1OPEN,1,1,80,1,30,7,15,N,N,N,N,N,,,"
+
+
+def check_desktop_text(t):
+    t.case("resource line breaks after the last text window closes preserve the graphics desktop")
+    t.exchange(commands(b"2C,33", b"2aFILL", b"2C,91", b"2aP,5,470", b"2CPYWP2VP"))
+    scene = t.exchange()
+    assert scene.primary[470*640+5] == 91
+    window = b"1OPEN,2,2,5,3,5,7,15,N,N,N,N,N,,,"
+    frame = t.exchange(commands(window) + b"\x1b[41m    ")
+    for plane in (frame.primary, frame.alternate):
+        assert list(plane[32*640+7:32*640+41]) == [33] + [4]*32 + [33]
+    # Scroll a formerly invisible logical row into the bottom of the window.
+    frame = t.exchange(b"\x1b[4;1H\x1b[42m    \x1b[100;1H\n")
+    for plane in (frame.primary, frame.alternate):
+        assert list(plane[64*640+7:64*640+41]) == [33] + [2]*32 + [33]
+    # Closing a second, hidden window selects the visible window again.
+    visible = frame
+    hidden = b"1OPEN,8,1,80,1,30,7,15,N,Y,N,N,N,,,"
+    frame = t.exchange(commands(hidden) + b"\x1b[2JHIDDEN" + commands(b"1CLOSE"))
+    assert frame.primary == visible.primary and frame.alternate == visible.alternate
+    for data, reply in ((commands(b"1CLOSE", b"1CLOSE"), b""),
+                        (commands(b"2fPack.", b"*LINES.FX"), b"1\xff"),
+                        (b"\x1b[2J" + b"wire text\r\n"*102, b"")):
+        frame = t.exchange(data, reply)
+        assert frame.primary == scene.primary and frame.alternate == scene.alternate
+    t.client.command_key(48)
+    t.client.wait_text("Scrollback")
+    t.client.key("escape")
+    frame = t.exchange()
+    assert frame.primary == scene.primary and frame.alternate == scene.alternate
+
+
 def check_drawing(t):
     def scene(bodies, expected):
         queries = [f"2aG,{x},{y}".encode() for x, y in expected]
@@ -407,7 +440,7 @@ def check_text_scale(t, root):
         font[c*16+8] = 0x80
         font[c*16+15] = 0x20
     (marker.parent / "DDOFX" / "FONTS" / "Small.fnt").write_bytes(font)
-    frame = t.exchange(commands(b"2C,39", b"2aFILL", b"2CPYWP2VP", b"1SCALE,4,8", b"fSmall.fnt",
+    frame = t.exchange(commands(FULL_TEXT_WINDOW, b"2C,39", b"2aFILL", b"2CPYWP2VP", b"1SCALE,4,8", b"fSmall.fnt",
                             b"2XTWP,632,7,12,3,AA", b"2aG,632,0", b"2aG,636,0", b"2aG,638,7",
                             b"2aG,631,0", b"2aG,632,8", b"2CPYWP2VP"), b"12\xff12\xff12\xff39\xff39\xff")
     for plane in (frame.primary, frame.alternate):
@@ -984,7 +1017,7 @@ def check_vga_font(t, root):
     frame = t.exchange(commands(b"2XTHP,88,31,19,3,A", b"2CPYHP2VP", b"2XTWP,12,31,2,8,A",
                                 b"2aG,12,16", b"2aG,13,16"), b"2\xff54\xff")
     glyph(frame,88,16,19,3)
-    frame = t.exchange(commands(b"2RESET") + b"\x1b[H\x1b[37;40mA")
+    frame = t.exchange(commands(b"2RESET", FULL_TEXT_WINDOW) + b"\x1b[H\x1b[37;40mA")
     glyph(frame,0,0,7,0)
     frame = t.exchange(commands(b"2XT,0,15,18,4,A", b"fSecond.FNT", b"fNONE.FNT") + b"\x1b[1;2HB")
     glyph(frame,0,0,18,4)
@@ -1023,7 +1056,8 @@ def check_graphics(t, root):
     assert frame.palette[3] == 0xff5500
     t.exchange(commands(b"2CPYBP2WP", b"2aG,639,479", b"2CPYVP2WP", b"2aG,639,479",
                         b"2CUTBP2WP,0,1,0,1,639,479", b"2aG,639,479"), b"8\xff3\xff3\xff")
-    frame = t.exchange(b"\x1b[H\x1b[41m " + commands(b"2CPYVP2WP", b"2aG,3,4",
+    check_desktop_text(t)
+    frame = t.exchange(commands(FULL_TEXT_WINDOW) + b"\x1b[H\x1b[41m " + commands(b"2CPYVP2WP", b"2aG,3,4",
                                                        b"2aSRGB,4,0,63,63"), b"4\xff")
     assert frame.primary[4 * 640 + 3] == 4 and frame.palette[4] == 0x00ffff
     check_drawing(t)
@@ -1095,6 +1129,7 @@ def check_resources(t, root):
     assert len(limit) == 40000
     for slot, (name, version, payload) in enumerate([
         (b"INNER.FX", 2, b"\x1b[32m\x82"), (b"INNER.FX", 3, b"DUP"),
+        (b"LINES.FX", 0, (commands(b":comment") + b"\r\n")*125 + commands(b"dVIDMODE")),
         (b"LIMIT.FX", 0, limit), (b"LARGE.FX", 0, limit + b"!"),
         (b"REPLACE.FX", 4, commands(b"2fmissing."))]):
         start = link + slot * 24

@@ -17,15 +17,18 @@ class ScrollbackView {
         Input.enableMouseEvent(Mouse.wheelUpPress)
         Input.enableMouseEvent(Mouse.wheelDownPress)
         Screen.checked_(Screen.modalRun(Fn.new {
+          var size = Screen.checked_(Screen.size)
           var width = Scrollback.width
           var height = CTerm.height
           var x = CTerm.originX
           var y = CTerm.originY
           if (CTerm.graphicsMode == GraphicsMode.v3) {
-            height = Screen.checked_(Screen.size)[1]
+            height = size[1]
             x = 1
             y = 1
           }
+          width = width.min(size[0] - x + 1)
+          height = height.min(size[1] - y + 1)
           if (width <= 0 || height <= 0) return
           var live = Screen.checked_(Screen.readRect(x, y, x + width - 1, y + height - 1))
           if (live == null) return

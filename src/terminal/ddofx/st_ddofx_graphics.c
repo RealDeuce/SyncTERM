@@ -26,18 +26,6 @@ static const uint32_t text_colours[16] = {
     0xffffff,
 };
 
-st_console_t *
-st_ddofx_graphics_view(struct st_ddofx_graphics *g)
-{
-	return g->view;
-}
-
-st_cterm_t *
-st_ddofx_graphics_text(struct st_ddofx_graphics *g)
-{
-	return g->text;
-}
-
 bool
 st_ddofx_svga(const struct st_ddofx_sink *sink)
 {
@@ -49,6 +37,7 @@ st_ddofx_svga(const struct st_ddofx_sink *sink)
 static void
 clear_graphics_objects(struct st_ddofx_graphics *g)
 {
+	st_ddofx_close_text_windows(g);
 	if (g->mouse.pointers) {
 		(void)st_console_set_indexed_pointer(g->display, 0, 0, NULL);
 		free(g->mouse.pointers);
@@ -96,10 +85,7 @@ st_ddofx_graphics_exit(struct st_ddofx *ddo)
 	if (!g)
 		return;
 	clear_graphics_objects(g);
-	st_cterm_destroy(&g->text);
-	st_font_catalog_destroy(g->fonts);
-	if (g->view)
-		st_console_destroy(g->view);
+	st_ddofx_destroy_text_page(&g->windows[0]);
 	if (g->previous_screen) {
 		(void)st_console_reconfigure(g->display, &g->previous_mode);
 		(void)st_console_snapshot_restore(g->display, g->previous_screen, NULL);
@@ -129,7 +115,6 @@ st_ddofx_graphics_reset(struct st_ddofx_graphics *g)
 	clear_graphics_objects(g);
 	memset(g->page, 0, sizeof(g->page));
 	(void)st_console_modify_pixels(g->display, blank, NULL);
-	(void)st_console_raster_view_adopt_indexed(g->view);
 }
 
 void
@@ -182,26 +167,11 @@ st_ddofx_graphics_enter(struct st_ddofx *ddo, const struct st_ddofx_sink *sink)
 	if (st_console_reconfigure(g->display, &mode) != 0
 	    || st_console_set_cursor(g->display, false, ST_CONSOLE_CURSOR_BLOCK) != 0
 	    || st_console_set_palette(g->display, 0, g->palette, 256) != 0
-	    || st_console_modify_pixels(g->display, blank, NULL) != 0
-	    || st_console_create_raster_view(&g->view, g->display, 80, 100, 8, 16, 0, 0) != 0
-	    || st_font_catalog_create(&g->fonts, g->view) != 0) {
+	    || st_console_modify_pixels(g->display, blank, NULL) != 0) {
 		st_ddofx_graphics_exit(ddo);
 		return;
 	}
-	static const uint16_t pc_indices[16] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
-	config.console                       = g->view;
-	config.fonts                         = g->fonts;
-	config.font_selector                 = 0;
-	config.terminal_rows                 = 100;
-	config.status_line                   = false;
-	config.scrollback_lines              = 0;
-	config.size_changed                  = NULL;
-	config.emulation                     = ST_CTERM_ANSI_BBS;
-	config.palette_mapping               = pc_indices;
-	/* Text and DDO share one hardware palette, including indices 0..15. */
-	config.disabled_capabilities |= ST_CONSOLE_CAP_EXTENDED_PALETTE;
-	if (st_cterm_create(&g->text, &config) != 0 || st_cterm_start_text(g->text) != 0
-	    || st_console_raster_view_adopt_indexed(g->view) != 0)
+	if (!st_ddofx_create_text_page(g, &g->windows[0], &config))
 		st_ddofx_graphics_exit(ddo);
 	else
 		st_ddofx_apply_vga_font(ddo);
@@ -412,7 +382,10 @@ void
 st_ddofx_set_palette(struct st_ddofx_graphics *g, unsigned first, unsigned count)
 {
 	(void)st_console_set_palette(g->display, (uint16_t)first, g->palette + first, count);
-	(void)st_console_set_palette(g->view, (uint16_t)first, g->palette + first, count);
+	for (unsigned i = 0; i <= 10; ++i)
+		if (g->windows[i].view)
+			(void)st_console_set_palette(g->windows[i].view, (uint16_t)first, g->palette + first,
+			    count);
 }
 
 /* A fade owns the foreground until it reaches the target. Local input and

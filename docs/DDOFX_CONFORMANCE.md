@@ -10,7 +10,7 @@ After a ZMODEM batch finishes, SyncTERM installs up to 50 Lite/Normal command ZI
 
 BBS sound themes, resident sound bites and big-sample profiles use signed 8-bit PCM from the entry’s `DDOFX/BBSTHEME` resources. `MTALK` assembles loose RealPlay files from named `.SND` members, supports the four pause lengths, and can append, replace or delete a phrase. RealPlay streams loose sample files from the same directory. `dACARD` reports the SDK’s 16-bit stereo capability `SB 16` when SyncTERM has audio output configured, and `NONE` otherwise. The mixer advances the samples at the requested frequency alongside MOD or S3M playback. A connected peer checks `dSOUNDON` and starts RealPlay from the cache. The test reads the resulting stereo frames from a pull-only audio device.
 
-An online pair of `LIGMODE` commands enters Normal mode on a pixel display. The visible page is 640×480 with 256 palette entries. The work, background and hidden pages store pixel indices. Whole-page copies, rectangular cuts anchored at the lower left, transparent cuts, work-page drawing, vertical scrolling and palette changes are available from a connection. Ordinary ANSI goes to an 80×100 virtual text page with the top 30 rows visible at the default 8×16 cell size. `2GEXIT` restores the Lite screen, cursor and palette. Basic fade-out saves the active palette, fades to black and clears the visual and hidden pages. Advanced fade-out preserves page pixels and blends an inclusive palette range toward a selected register. Fade-in returns the palette to the saved values. Named text windows and window scrolling remain pending.
+An online pair of `LIGMODE` commands enters Normal mode on a pixel display. The visible page is 640×480 with 256 palette entries. The work, background and hidden pages store pixel indices. Whole-page copies, rectangular cuts anchored at the lower left, transparent cuts, work-page drawing, vertical scrolling and palette changes are available from a connection. Each open text window has an 80×100 virtual page. Ordinary text and ANSI from the connection or a resource script paint only within the active visible text window. Closing the last window restores the desktop. `2GEXIT` restores the Lite screen, cursor and palette. Basic fade-out saves the active palette, fades to black and clears the visual and hidden pages. Advanced fade-out preserves page pixels and blends an inclusive palette range toward a selected register. Fade-in returns the palette to the saved values. Window borders, cursor tracking, origin changes and manual scrolling remain pending.
 
 In Normal mode, `1SCALE` sets a common cell width of 2–8 pixels and height of 2–16 pixels. The primary text page keeps its 80×100 logical cells. Direct graphics text, desktop text fields, list boxes, marquees and digital clocks take their glyphs from the lower left of each 8×16 font record. The dimensions determine the space each character occupies. The font pixels keep their native size. A scene reset retains the current dimensions.
 
@@ -181,9 +181,9 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 4940 | LABEL | DDO-FX LITE | Connected |
 | 4955 | RESET ENVIRONMENT | DDO-FX LITE | Connected for implemented scene objects |
 | 5436 | DETECT MOUSE | DDO-FX (NM) | Connected |
-| 5457 | OPEN GRAPHIC TEXT WINDOW | DDO-FX (NM) | Pending |
+| 5457 | OPEN GRAPHIC TEXT WINDOW | DDO-FX (NM) | Window placement, text routing, initial visibility and virtual page. Frame decoration and tracking pending. |
 | 5780 | GOTO CURSOR | DDO-FX (NM) | Pending |
-| 5819 | CLOSE WINDOW | DDO-FX (NM) | Pending |
+| 5819 | CLOSE WINDOW | DDO-FX (NM) | Desktop text windows |
 | 5855 | HIDE WINDOW | DDO-FX (NM) | Pending |
 | 5866 | UNHIDE WINDOW | DDO-FX (NM) | Pending |
 | 5874 | ACTIVATE WINDOW | DDO-FX (NM) | Pending |
