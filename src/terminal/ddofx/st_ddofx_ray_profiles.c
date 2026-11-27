@@ -7,8 +7,7 @@
 #include "string_util.h"
 
 enum {
-	PROFILE_COUNT = 3600,
-	PROFILE_TEXT  = 25
+	PROFILE_TEXT = 25
 };
 
 struct rc_profile {
@@ -24,7 +23,7 @@ struct rc_key {
 };
 
 struct rc_profiles {
-	struct rc_profile profiles[PROFILE_COUNT + 1];
+	struct rc_profile profiles[RC_PROFILES + 1];
 	uint16_t          cells[RC_HEIGHT][RC_WIDTH];
 	struct rc_key    *first_key, *last_key;
 	int               previous_x, previous_y;
@@ -53,6 +52,80 @@ st_ddofx_ray_clear_profiles(struct rc_world *w)
 	}
 	free(w->profiles);
 	w->profiles = NULL;
+}
+
+void
+st_ddofx_ray_profiles_save(const struct rc_world *w, uint8_t *map, struct rc_saved_profile *records)
+{
+	const struct rc_profiles *p = w->profiles;
+	for (int y = 0; y < RC_HEIGHT; ++y)
+		for (int x = 0; x < RC_WIDTH; ++x)
+			rc_put_word(map + 2 * (y * RC_PROFILE_STRIDE + x), p ? p->cells[y][x] : 0);
+	for (unsigned i = 1; i <= RC_PROFILES; ++i) {
+		struct rc_saved_profile *s = &records[i - 1];
+		*s                         = (struct rc_saved_profile) {0};
+		if (!p || !p->profiles[i].defined)
+			continue;
+		const struct rc_profile *r = &p->profiles[i];
+		s->defined                 = 1;
+		s->action                  = r->action;
+		rc_put_word(s->key_high, r->key >> 8);
+		rc_put_word(s->key_low, r->key & 255);
+		s->mouse     = r->mouse;
+		s->joystick  = r->joystick;
+		s->direction = r->direction;
+		s->stealth   = r->stealth;
+		rc_put_word(s->chain, r->chain);
+		s->reply[0] = (uint8_t)strlen(r->reply);
+		s->macro[0] = (uint8_t)strlen(r->macro);
+		memcpy(s->reply + 1, r->reply, s->reply[0]);
+		memcpy(s->macro + 1, r->macro, s->macro[0]);
+	}
+}
+
+bool
+st_ddofx_ray_profiles_load(struct rc_world *w, const uint8_t *map, const struct rc_saved_profile *records)
+{
+	struct rc_profiles *p = calloc(1, sizeof(*p));
+	if (!p)
+		return false;
+	for (int y = 0; y < RC_HEIGHT; ++y) {
+		for (int x = 0; x < RC_WIDTH; ++x) {
+			unsigned id = rc_word(map + 2 * (y * RC_PROFILE_STRIDE + x));
+			if (id > RC_PROFILES)
+				goto invalid;
+			p->cells[y][x] = (uint16_t)id;
+		}
+	}
+	bool defined = false;
+	for (unsigned i = 1; i <= RC_PROFILES; ++i) {
+		const struct rc_saved_profile *s = &records[i - 1];
+		if (!s->defined)
+			continue;
+		if (s->reply[0] > PROFILE_TEXT || s->macro[0] > PROFILE_TEXT || rc_word(s->chain) > RC_PROFILES)
+			goto invalid;
+		defined              = true;
+		struct rc_profile *r = &p->profiles[i];
+		*r                   = (struct rc_profile) {.defined = true,
+		    .action                        = s->action,
+		    .stealth                       = s->stealth,
+		    .chain                         = rc_word(s->chain),
+		    .key                           = (s->key_high[0] << 8) | s->key_low[0],
+		    .mouse                         = s->mouse,
+		    .joystick                      = s->joystick,
+		    .direction                     = s->direction};
+		memcpy(r->reply, s->reply + 1, s->reply[0]);
+		memcpy(r->macro, s->macro + 1, s->macro[0]);
+	}
+	st_ddofx_ray_clear_profiles(w);
+	if (defined)
+		w->profiles = p;
+	else
+		free(p);
+	return true;
+invalid:
+	free(p);
+	return false;
 }
 
 bool
@@ -96,7 +169,7 @@ st_ddofx_ray_profile_command(struct st_ddofx *ddo, const char *verb, char *args)
 	if (!define && !remove && !fill && ascii_case_compare(verb, "5CPYPRO"))
 		return false;
 	int32_t id;
-	if (!st_ddofx_field_number(ddo, &args, &id) || (unsigned)id > PROFILE_COUNT)
+	if (!st_ddofx_field_number(ddo, &args, &id) || (unsigned)id > RC_PROFILES)
 		return true;
 	struct rc_world *w = ddo->graphics->ray;
 	if (!id) {
@@ -113,7 +186,7 @@ st_ddofx_ray_profile_command(struct st_ddofx *ddo, const char *verb, char *args)
 		const char *reply = st_ddofx_field(&args);
 		if (!reply || !args || (unsigned)n[0] > 1 || (unsigned)n[1] > 255 || (unsigned)n[2] > 255
 		    || (unsigned)n[3] > 7 || (unsigned)n[4] > 3 || n[5] < 1 || n[5] > 9
-		    || (unsigned)n[6] > PROFILE_COUNT || ((n[7] || n[8]) && !cell(n[7], n[8])))
+		    || (unsigned)n[6] > RC_PROFILES || ((n[7] || n[8]) && !cell(n[7], n[8])))
 			return true;
 		w = st_ddofx_ray_world(ddo->graphics);
 		if (!w)
@@ -147,7 +220,7 @@ st_ddofx_ray_profile_command(struct st_ddofx *ddo, const char *verb, char *args)
 		return true;
 	if (remove && !args) {
 		memset(&p->profiles[id], 0, sizeof(p->profiles[id]));
-		for (unsigned i = 1; i <= PROFILE_COUNT; ++i)
+		for (unsigned i = 1; i <= RC_PROFILES; ++i)
 			if (p->profiles[i].chain == id)
 				p->profiles[i].chain = 0;
 	}

@@ -303,6 +303,7 @@ st_ddofx_ray_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, con
 			break;
 	if (op == sizeof(commands) / sizeof(*commands))
 		return st_ddofx_ray_profile_command(ddo, verb, args)
+		       || st_ddofx_ray_environment_command(ddo, sink, verb, args)
 		       || st_ddofx_ray_record_command(ddo, sink, verb, args)
 		       || st_ddofx_ray_view_command(ddo, sink, verb, args);
 	int32_t n[5];
@@ -331,8 +332,10 @@ st_ddofx_ray_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, con
 				break;
 			struct rc_cell *c = &w->cells[n[2] - 1][n[1] - 1];
 			if (op == OBJECT) {
-				if (n[0] >= 1 && n[0] <= 3 && (unsigned)n[3] <= 2 && (unsigned)n[4] <= 15)
+				if (n[0] >= 1 && n[0] <= 3 && (unsigned)n[3] <= 2 && (unsigned)n[4] <= 15) {
 					c->objects[w->layer] = (struct rc_object) {n[4] ? n[0] : 0, n[3], n[4]};
+					c->characteristic = n[4] ? n[3] : 0;
+				}
 			}
 			else if (n[0] >= 1 && n[0] <= 4 && n[3] >= 1 && n[3] <= 8) {
 				c->wall    = n[0];

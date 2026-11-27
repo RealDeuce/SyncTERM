@@ -643,6 +643,48 @@ def check_raycast_view(t):
     t.exchange(commands(b"2RESET"))
 
 
+def check_raycast_environment(t, root):
+    t.case("save and import binary raycaster environments")
+    marker, = root.rglob("syncterm-cache-name.txt")
+    theme = marker.parent / "DDOFX" / "BBSTHEME"
+    t.exchange(commands(b"2RESET", b"5CLSMAP,7", b"5CHMAP,4,41,12,8", b"5DLYR,2",
+                        b"5CHOBJ,3,42,12,2,15", b"5SETANGL,90", b"5DSCALE,160,80",
+                        b"5MAPPRO,3600,0,0,0,0,0,9,0,31,21,V,",
+                        b"2C,17", b"2aFILL", b"2S,0,31,0,31,Floor",
+                        b"5CTEXTURE,FLCL,7,Floor", b"5VANIM,0,7,2,Floor,Floor,50",
+                        b"5SAVE3D,Dungeon.Map"))
+    data = bytearray((theme / "Dungeon.Map").read_bytes())
+    assert len(data) == 1141178
+    world = 262250 + 4*65534
+    at = (12+19)*256 + 41+4
+    assert (data[world+at], data[world+32768+at]) == (31,169)
+    lower = world + 3*65534
+    assert (data[lower+at+1], data[lower+32768+at+1]) == (23,174)
+    assert data[lower+65534+32768+at+1] == 175
+    assert data[983124+11*245+41] == 2
+    assert data[999049+7*32:999049+8*32] == bytes([17])*32
+    animation = 1130119 + 7*138
+    assert data[animation+3] == 2
+    assert struct.unpack_from("<3H", data, animation+20) == (1,1,1)
+    assert struct.unpack_from("<H", data, 2*(20*245+30)) == (3600,)
+    assert data[31850+3599*64+9:31850+3599*64+11] == b"\x01V"
+    assert struct.unpack_from("<HBHH", data, len(data)-7) == (128,1,160,80)
+
+    # Edit the native world plane independently, then import it at a different player position.
+    data[world+at], data[world+32768+at] = 5,9
+    (theme / "Foreign.Map").write_bytes(data)
+    t.exchange(commands(b"2RESET", b"5SETXPOS,31,0", b"5SETYPOS,21,0", b"5LOAD3D,FOREIGN.MAP",
+                        b"5GETXPOS", b"5GETYPOS", b"5GETANGL", b"5GETMAP,41,12",
+                        b"5DLYR,2", b"5GETMAP,42,12", b"5DANIM,0,159,1", b"w4"),
+               b"31\xff21\xff90,EAST\xff0,0,5,9,0,0\xff0,0,7,7,3,15\xffV")
+    (theme / "Short.Map").write_bytes(data[:-1])
+    data[world+at] = 13
+    struct.pack_into("<H", data, 31850+3599*64+62, 65535)
+    (theme / "Invalid.Map").write_bytes(data)
+    t.exchange(commands(b"5LOAD3D,SHORT.MAP", b"5LOAD3D,INVALID.MAP", b"5LOAD3D,ABSENT.MAP", b"5GETMAP,41,12",
+                        b"2RESET"), b"0,0,5,9,0,0\xff")
+
+
 def check_raycast_recordings(t, root):
     t.case("raycaster movement recording, append, loose and resource playback")
     marker, = root.rglob("syncterm-cache-name.txt")
@@ -1109,6 +1151,7 @@ def check_graphics(t, root):
     check_landscape(t)
     check_raycast_world(t, root)
     check_raycast_view(t)
+    check_raycast_environment(t, root)
     check_raycast_recordings(t, root)
     check_raycast_profiles(t)
     check_sprite_banks(t, root)

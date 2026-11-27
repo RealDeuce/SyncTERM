@@ -4,6 +4,7 @@
 
 #include "st_ddofx_graphics_internal.h"
 #include "st_ddofx_script.h"
+#include "st_ddofx_ray.h"
 #include "st_time.h"
 #include "string_util.h"
 
@@ -59,6 +60,8 @@ clear_graphics_objects(struct st_ddofx_graphics *g)
 	st_ddofx_grid_destroy(g, false);
 	st_ddofx_ray_stop_recording(g->ray);
 	st_ddofx_ray_clear_profiles(g->ray);
+	if (g->ray)
+		free(g->ray->environment);
 	free(g->ray);
 	g->ray = NULL;
 	free(g->landscape);

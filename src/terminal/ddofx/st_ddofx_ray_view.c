@@ -209,6 +209,7 @@ render(struct rc_world *w)
 		r.dy        = r.forward_y + side * sine;
 		render_column(w, col, &r);
 	}
+	w->frame_changed = true;
 	w->dirty = false;
 }
 
@@ -407,6 +408,8 @@ st_ddofx_ray_view_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink
 			if (start >= 0 && end >= start && st_ddofx_numbers(ddo, args, &fps, 1) && fps >= 1
 			    && fps <= 100)
 				*a = (struct rc_animation) {.first = start,
+				    .current = start,
+				    .step = 1,
 				    .last                          = end,
 				    .loop                          = n[2],
 				    .period                        = (1000 + fps - 1) / fps};
