@@ -84,6 +84,7 @@ struct st_ddofx {
 	struct st_tracker       *player;
 	struct st_cmf           *cmf;
 	unsigned                 volume;
+	bool                     term_theme_initialized;
 	bool                     pointer_paused, controller_paused;
 	bool                     enable_background_download, background_download, define_stealth;
 	bool                     keys_locked, in_key, in_mouse;

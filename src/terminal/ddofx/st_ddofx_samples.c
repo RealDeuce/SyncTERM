@@ -51,7 +51,6 @@ struct sample_voice {
 struct st_ddofx_samples {
 	struct realplay     real;
 	struct bank         theme, bites, terminal;
-	bool                terminal_selected;
 	struct profile      profiles[PROFILE_COUNT];
 	char                theme_name[ST_DDOFX_BODY_MAX + 1], bite_file[ST_DDOFX_BODY_MAX + 1];
 	struct sample_voice main, animation, motion;
@@ -372,15 +371,23 @@ term_selection_path(const struct st_ddofx_sink *sink)
 	return path;
 }
 
-static void
-select_term_theme(struct st_ddofx_samples *s, const struct st_ddofx_sink *sink, const char *name)
+void
+st_ddofx_unload_term_theme(struct st_ddofx *ddo)
 {
-	if (!ascii_case_compare(name, "NONE")) {
-		clear_bank(s, &s->terminal);
-		s->terminal_selected = true;
-	}
+	if (ddo->samples)
+		clear_bank(ddo->samples, &ddo->samples->terminal);
+	/* Suppress lazy loading until an explicit selection or a new session. */
+	ddo->term_theme_initialized = true;
+}
+
+static void
+select_term_theme(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, const char *name)
+{
+	struct st_ddofx_samples *s = ddo->samples;
+	if (!ascii_case_compare(name, "NONE"))
+		st_ddofx_unload_term_theme(ddo);
 	else if (st_ddofx_dos_filename(name) && load_bank(s, sink, "THEMES", name, &s->terminal)) {
-		s->terminal_selected = true;
+		ddo->term_theme_initialized = true;
 		char *path           = term_selection_path(sink);
 		if (path)
 			(void)fs_replace_file(path, name, strlen(name));
@@ -391,11 +398,12 @@ select_term_theme(struct st_ddofx_samples *s, const struct st_ddofx_sink *sink, 
 void
 st_ddofx_term_sound(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, unsigned number)
 {
-	if ((!st_audio_runtime_is_pull(sink->audio) && !st_audio_runtime_allowed(sink->audio))
+	if ((ddo->term_theme_initialized && !ddo->samples)
+	    || (!st_audio_runtime_is_pull(sink->audio) && !st_audio_runtime_allowed(sink->audio))
 	    || !samples_ready(ddo))
 		return;
 	struct st_ddofx_samples *s = ddo->samples;
-	if (!s->terminal_selected) {
+	if (!ddo->term_theme_initialized) {
 		char *path = term_selection_path(sink);
 		FILE *file;
 		char  name[14] = "DEFAULT.THE";
@@ -407,7 +415,7 @@ st_ddofx_term_sound(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, unsi
 			fclose(file);
 		}
 		free(path);
-		s->terminal_selected = load_bank(s, sink, "THEMES", name, &s->terminal);
+		ddo->term_theme_initialized = load_bank(s, sink, "THEMES", name, &s->terminal);
 	}
 	if (number && number <= s->terminal.count)
 		play(s, &s->main, sink->audio, &s->terminal.samples[number - 1], 8500);
@@ -639,7 +647,7 @@ st_ddofx_samples_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink,
 		return true;
 	struct st_ddofx_samples *s = ddo->samples;
 	if (*body == 'T')
-		select_term_theme(s, sink, st_ddofx_value(ddo, body + 1));
+		select_term_theme(ddo, sink, st_ddofx_value(ddo, body + 1));
 	else if (*body != 't')
 		play_slot(ddo, sink, body);
 	else if (body[1] == 'b')

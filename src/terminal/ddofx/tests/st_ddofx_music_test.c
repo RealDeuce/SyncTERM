@@ -118,7 +118,7 @@ static FILE *
 open_music(void *context, const char *category, const char *client, const char *name)
 {
 	(void)context;
-	if (!client && !strcmp(category, "THEMES") && !strcmp(name, "TERM.THE"))
+	if (!client && !strcmp(category, "THEMES") && (!strcmp(name, "TERM.THE") || !strcmp(name, "DEFAULT.THE")))
 		return sample_asset("BANK.THE");
 	if (client == NULL && !strcmp(category, "BBSTHEME"))
 		return sample_asset(name);
@@ -386,6 +386,48 @@ check_cmf(struct st_ddofx *ddo, struct st_ddofx_sink *sink)
 	return 0;
 }
 
+static int32_t available_bytes;
+
+static int32_t
+available_memory(void)
+{
+	return available_bytes;
+}
+
+static int
+check_normal_theme(struct st_ddofx *ddo, struct st_ddofx_sink *sink)
+{
+	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_config mode = {.columns = 80, .rows = 25, .cell_width = 8, .cell_height = 16};
+	struct st_cterm_config config = {.codepage = ST_CODEPAGE_CP437, .quiet = true};
+	CHECK(st_console_create(&config.console, &display, &mode) == 0);
+	sink->text_config = &config;
+	sink->available_memory = available_memory;
+	const int32_t memory[] = {2097151, 2097151, 2097152, -1};
+	for (unsigned i = 0; i < sizeof(memory) / sizeof(memory[0]); ++i) {
+		st_ddofx_reset(ddo);
+		available_bytes = memory[i];
+		/* The first case leaves the default terminal bank unopened. */
+		if (i)
+			CHECK(command_reply(ddo, sink, "TTERM.THE", ""));
+		CHECK(command_reply(ddo, sink, "tBANK.THE", ""));
+		CHECK(command_reply(ddo, sink, "LIGMODE", ""));
+		CHECK(command_reply(ddo, sink, "LIGMODE", "") && ddo->graphics);
+		st_ddofx_term_sound(ddo, sink, 2);
+		CHECK(pull_level(sink->audio, 21, i < 2 ? 0 : 40));
+		CHECK(command_reply(ddo, sink, "p1", ""));
+		CHECK(pull_level(sink->audio, 21, 32));
+		CHECK(command_reply(ddo, sink, "TTERM.THE", ""));
+		st_ddofx_term_sound(ddo, sink, 2);
+		CHECK(pull_level(sink->audio, 21, 40));
+	}
+	st_ddofx_reset(ddo);
+	st_console_destroy(config.console);
+	sink->text_config = NULL;
+	sink->available_memory = NULL;
+	return 0;
+}
+
 int
 main(void)
 {
@@ -420,6 +462,7 @@ main(void)
 	CHECK(!has_signal(sink.audio));
 	CHECK(command_reply(&ddo, &sink, "dGETMUSIC", "NONE\xff"));
 	CHECK(check_cmf(&ddo, &sink) == 0);
+	CHECK(check_normal_theme(&ddo, &sink) == 0);
 	CHECK(check_samples(&ddo, &sink) == 0);
 	CHECK(check_animation_sound(&ddo, &sink) == 0);
 	CHECK(command_reply(&ddo, &sink, "MPREAL,LONG.RLP,8000", ""));

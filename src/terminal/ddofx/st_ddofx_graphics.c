@@ -4,6 +4,7 @@
 
 #include "st_ddofx_graphics_internal.h"
 #include "st_ddofx_script.h"
+#include "st_ddofx_samples.h"
 #include "st_ddofx_ray.h"
 #include "st_time.h"
 #include "string_util.h"
@@ -204,6 +205,9 @@ st_ddofx_graphics_enter(struct st_ddofx *ddo, const struct st_ddofx_sink *sink)
 {
 	if (!st_ddofx_svga(sink))
 		return;
+	int32_t available = sink->available_memory ? sink->available_memory() : -1;
+	if (available >= 0 && available < 2 * 1024 * 1024)
+		st_ddofx_unload_term_theme(ddo);
 	st_ddofx_slide_restore(ddo);
 	struct st_ddofx_graphics *g = calloc(1, sizeof(*g));
 	if (g == NULL)
