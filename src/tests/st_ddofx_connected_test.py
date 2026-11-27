@@ -142,6 +142,83 @@ def check_background_download(t):
     t.exchange(commands(b"2RESET", b"2GEXIT"))
 
 
+def scene_mouse(t, frame):
+    m = frame.metadata
+
+    def mouse(x, y, buttons):
+        px = m["destination_x"] + (2*x+1)*m["destination_width"]//(2*m["plane_width"])
+        py = m["destination_y"] + (2*y+1)*m["destination_height"]//(2*m["plane_height"])
+        before = t.client.capture().metadata["events_dequeued"]
+        t.client.mouse(px, py, action=1, buttons=buttons)
+        t.client.wait_for(lambda f: f.metadata["events_dequeued"] > before)
+
+    return mouse
+
+
+def check_stealth_controls(t):
+    t.case("stealth controls act locally while ZMODEM has the connection")
+    t.exchange(commands(b"LIGMODE", b"LIGMODE", b"3MACT", b"2C,11", b"2aFILL", b"2S,0,4,0,4,ON",
+                        b"2C,7", b"2aFILL", b"2S,0,4,0,4,OFF", b"2aERASE", b"7ZMBKGRND,1"), b"Y\xff")
+    # Each callback leaves a distinct pixel on WP. Deliberately give it a return string too.
+    def callback(x):
+        return f"unexpected,\x1d(2C,9)\x1d(2aP,{x},0)"
+    for stealth in (0,1):
+        n, x = stealth+1, 100+100*stealth
+        t.exchange(commands(*(body.encode() for body in (
+            f"7ZMSTEALTH,{stealth}",
+            f"3MFLD,{n},{x},{x+10},20,40,0,0,{callback(x)}",
+            f"3MREGN,{n},{x},{x+10},20,40,1,{callback(x+1)}",
+            f"5CPUSHB,{n},OFF,ON,{x},65,0,0,0,1,{callback(x+2)}",
+            f"2ANIM,{n},0,0,0,ON,ON,0,0,0,1,20,0", f"2ICON,{n},{x},90,0,{n}",
+            f"2ICONO,{n},{callback(x+3)}", f"2PLAYA,{n}",
+            f"5CLBOX,{n},{x},120,3,1,10,1,11,2,12,3,1,0", f"5LBMODLST,{n},1,1,0,ITEM,list{n},",
+            f"5LBDRWLST,{n}",
+            f"5CRBUTTON,{n},2,2,12,3,OFF,OFF,{x},145,0,1,0,0,0,0,0,radio{n},",
+            f"5CCHKBOX,{n},ON,OFF,OFF,{x},165,0,1,0,0,0,0,0,check{n},",
+            f"5CTXTFLD,{n},IBMSTD.FNT,,[,],{x},195,3,1,4,15,0,,0,0,0,0,0,0,0,0,0,"
+        ))))
+    frame = t.exchange(commands(b"7ZMSTEALTH,0", b"2CPYWP2VP",
+                                b"2GWIN,1,360,509,270,389,300,200,0,0,0,0,0,0,0,0,0,0,0,Move"))
+    mouse = scene_mouse(t, frame)
+
+    def click(x, y):
+        mouse(x, y, 1)
+        mouse(x, y, 0)
+
+    t.send(header(0))
+    receive_header(t, 1)
+    t.client.wait_for(lambda f: f.application.get("transfer.active"))
+    mouse(395,278,1)
+    mouse(425,293,1)
+    mouse(425,293,0)
+    for x in (100,200):
+        mouse(x+2,30,0)
+        click(x+2,30)
+        click(x+2,63)
+        if x == 200:
+            t.client.wait_for(lambda f: f.primary[63*640+x+2] == 7)
+        click(x+2,88)
+        click(x+2,115)
+        click(x+2,115)
+        click(x+2,143)
+        click(x+2,163)
+        click(x+2,190)
+        t.client.text("q")
+        t.client.key("enter")
+    t.client.wait_for(lambda f: f.primary[163*640+202] == 11 and f.primary[190*640+202] == 1)
+    t.send(header(8))
+    receive_header(t, 8)
+    t.send(b"OO")
+    t.client.wait_for(lambda f: not f.application.get("transfer.active"))
+    t.exchange(commands(b"2SGWIN?,1"), b"390,539,285,404,0,0\xff")
+    for n, x in [(1,100),(2,200)]:
+        expected = (b"0\xff"*4 + b"[]") if n == 1 else (b"9\xff"*4 + b"list2radio2check2[q]")
+        t.exchange(commands(*(f"2aG,{x+i},0".encode() for i in range(4)),
+                            *(f"{op},{n}".encode() for op in ("5LBEXCLST","5EXRBTN","5EXCBOX","5EXTFLD"))),
+                   expected)
+    t.exchange(commands(b"2RESET", b"2GEXIT"))
+
+
 def check_capacity(t):
     t.case("drive, memory and speed queries on the connection and in script variables")
     t.exchange(commands(b"dDRIVE,", b"dMEM,", b"dVMEM,0", b"dMEM"), re.compile(rb"[0-9]+\xff"))
@@ -1196,13 +1273,7 @@ def check_icons(t):
     t.exchange(commands(b"4DEFM,1,1,\x1d(2GWIN,2,280,479,80,229,400,300,1,1,0,0,0,0,0,0,0,0,0,Host)",
                         b"2ICONO,1,First,\x1d(4RUNM,1)", b"2ICONC,1,Closed,\x1d(2CGWIN,2)",
                         b"2ICONO,300,Second,", b"2ICONC,300,Again,", b"2ICOND,300,Drop,\x1d(2GICON?,300)"))
-    m = frame.metadata
-    def mouse(x, y, buttons):
-        px = m["destination_x"] + (2*x+1)*m["destination_width"]//1280
-        py = m["destination_y"] + (2*y+1)*m["destination_height"]//960
-        n = t.client.capture().metadata["events_dequeued"]
-        t.client.mouse(px, py, action=1, buttons=buttons)
-        t.client.wait_for(lambda f: f.metadata["events_dequeued"] > n)
+    mouse = scene_mouse(t, frame)
     mouse(152,105,1)
     mouse(172,125,1)
     mouse(172,125,0)
@@ -1606,13 +1677,7 @@ def check_graphic_window_controls(t):
     t.case("graphic window frame controls and close callbacks")
     create = b"2GWIN,1,60,259,80,229,400,300,0,0,0,0,0,0,0,0,0,0,0,First"
     frame = t.exchange(commands(create, b"2DCGWIN,1,46,99,0,R~^M,\x1d(2FGWIN)"))
-    m = frame.metadata
-    def mouse(x, y, buttons):
-        px = m["destination_x"] + (2*x+1)*m["destination_width"]//1280
-        py = m["destination_y"] + (2*y+1)*m["destination_height"]//960
-        n = t.client.capture().metadata["events_dequeued"]
-        t.client.mouse(px, py, action=1, buttons=buttons)
-        t.client.wait_for(lambda f: f.metadata["events_dequeued"] > n)
+    mouse = scene_mouse(t, frame)
 
     def click(x, y):
         mouse(x, y, 1)
@@ -2598,12 +2663,7 @@ def check_mouse(t, root):
     assert not t.exchange(commands(b"3MVIS,0", b"3MVIS,5")).metadata["pointer_visible"]
     assert t.exchange(commands(b"3MVIS,1")).metadata["pointer_visible"]
 
-    def mouse(x, y, buttons):
-        px = m["destination_x"] + (2*x+1)*m["destination_width"]//(2*m["plane_width"])
-        py = m["destination_y"] + (2*y+1)*m["destination_height"]//(2*m["plane_height"])
-        before = t.client.capture().metadata["events_dequeued"]
-        t.client.mouse(px, py, action=1, buttons=buttons)
-        t.client.wait_for(lambda s: s.metadata["events_dequeued"] > before)
+    mouse = scene_mouse(t, frame)
 
     t.case("Normal mouse motion, limits and speed")
     # Move the default arrow before the first physical mouse sample.
@@ -2792,6 +2852,7 @@ def run(args):
         check_joysticks(t)
         check_package_downloads(t)
         check_background_download(t)
+        check_stealth_controls(t)
         check_cache(t, fixture[1])
         check_resources(t, fixture[1])
         check_full_screen(t)
