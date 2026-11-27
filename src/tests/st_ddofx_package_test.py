@@ -60,7 +60,7 @@ def check_autoplay(executable):
                 assert {p.name for p in (root / "downloads").iterdir()} == {"$LI$R000.ZIP", "$LI$R001.ZIP"}
 
 
-def check_term_theme(executable):
+def check_theme(executable, samples):
     directory = bytearray(33 * 24)
     data = bytearray()
     for sample in range(1, 21):
@@ -69,6 +69,11 @@ def check_term_theme(executable):
         data.append(sample)
     with tempfile.TemporaryDirectory() as directory_name:
         root = Path(directory_name)
+        if samples:
+            (root / "BBSTHEME").mkdir()
+            (root / "BBSTHEME" / "SLIDES.THE").write_bytes(directory + data)
+            subprocess.run([executable, root, "samples"], check=True)
+            return
         (root / "THEMES").mkdir()
         (root / "THEMES" / "SLIDES.THE").write_bytes(directory + data)
         subprocess.run([executable, root, "select-theme"], check=True)
@@ -77,7 +82,7 @@ def check_term_theme(executable):
 
 
 if __name__ == "__main__":
-    if sys.argv[2:] == ["--theme"]:
-        check_term_theme(sys.argv[1])
+    if sys.argv[2:] in (["--theme"], ["--samples"]):
+        check_theme(sys.argv[1], sys.argv[2] == "--samples")
     else:
         check_autoplay(sys.argv[1])

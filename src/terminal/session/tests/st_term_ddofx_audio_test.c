@@ -134,6 +134,42 @@ check_autoplay(st_term_session_t *session, st_audio_runtime_t *audio, const char
 }
 
 static int
+check_sample_frame(st_audio_runtime_t *audio, unsigned sample)
+{
+	int16_t pcm[2];
+	CHECK(st_audio_runtime_pull(audio, pcm, 1) == 0 && pcm[0] == pcm[1]);
+	/* Each fixture member contains its one-byte sample number. Soft clipping
+	 * reduces these amplitudes by less than half a sample level. */
+	int amplitude = (int)sample * 256;
+	CHECK(sample ? pcm[0] > amplitude - 128 && pcm[0] <= amplitude : pcm[0] == 0);
+	return EXIT_SUCCESS;
+}
+
+static int
+check_sample_banks(st_term_session_t *session, st_audio_runtime_t *audio)
+{
+	/* An 8500 Hz byte spans six mixer frames, and a 22050 Hz byte spans two.
+	 * The two-part profile uses the mixer rate. Stop the indexed profile
+	 * after its first three members so the final step checks unloading. */
+	static const unsigned expected[][7] = {
+	    {8, 8, 8, 8, 8, 8, 0}, {3, 3, 0}, {17, 4, 0}, {1, 2, 3}, {0}
+	};
+	static const size_t lengths[] = {7, 3, 3, 3, 1};
+	for (unsigned mode = 0; mode < 2; ++mode) {
+		for (size_t i = 0; i < sizeof(lengths) / sizeof(*lengths); ++i) {
+			CHECK(wait_for_marker(session, (int)i + 2) == EXIT_SUCCESS);
+			for (size_t j = 0; j < lengths[i]; ++j)
+				CHECK(check_sample_frame(audio, expected[i][j]) == EXIT_SUCCESS);
+			CHECK(st_term_session_send_text(session, ".", 1) == 0);
+		}
+	}
+	CHECK(wait_for_marker(session, 7) == EXIT_SUCCESS);
+	CHECK(check_sample_frame(audio, 11) == EXIT_SUCCESS);
+	CHECK(check_sample_frame(audio, 0) == EXIT_SUCCESS);
+	return EXIT_SUCCESS;
+}
+
+static int
 check_slide_sounds(st_term_session_t *session, st_audio_runtime_t *audio, bool first)
 {
 	const unsigned samples[] = {20, 19, 15, 0};
@@ -142,12 +178,7 @@ check_slide_sounds(st_term_session_t *session, st_audio_runtime_t *audio, bool f
 		if (!first && samples[i] == 15)
 			continue;
 		CHECK(wait_for_marker(session, column++) == 0);
-		int16_t pcm[2];
-		CHECK(st_audio_runtime_pull(audio, pcm, 1) == 0 && pcm[0] == pcm[1]);
-		/* Fixtures use one positive signed byte per sound. The unity mixer
-		 * applies soft clipping; adjacent levels stay over 200 units apart. */
-		int amplitude = (int)samples[i] * 256;
-		CHECK(samples[i] ? pcm[0] > amplitude - 128 && pcm[0] <= amplitude : pcm[0] == 0);
+		CHECK(check_sample_frame(audio, samples[i]) == EXIT_SUCCESS);
 		if (samples[i])
 			CHECK(st_term_session_send_text(session, ".", 1) == 0);
 	}
@@ -203,7 +234,10 @@ main(int argc, char **argv)
 	bool theme = argc == 3 && (!strcmp(argv[2], "select-theme") || !strcmp(argv[2], "reuse-theme"));
 	bool first = theme && !strcmp(argv[2], "select-theme");
 	bool orders = argc == 3 && !strcmp(argv[2], "orders");
-	if (orders)
+	bool samples = argc == 3 && !strcmp(argv[2], "samples");
+	if (samples)
+		strcpy(profile.address, "sh term-fixture.sh ddofx-samples");
+	else if (orders)
 		strcpy(profile.address, "sh term-fixture.sh ddofx-orders");
 	else if (theme)
 		strcpy(profile.address,
@@ -222,6 +256,10 @@ main(int argc, char **argv)
 	    .ddofx_directory = argv[1],
 	};
 	CHECK(st_term_session_create(&session, &config) == 0);
+	if (samples) {
+		CHECK(check_sample_banks(session, audio) == EXIT_SUCCESS);
+		goto finished;
+	}
 	if (orders) {
 		CHECK(check_orders(session, audio) == EXIT_SUCCESS);
 		goto finished;

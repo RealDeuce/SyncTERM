@@ -51,6 +51,10 @@ if(BUILD_TESTING)
 				"${CMAKE_CURRENT_SOURCE_DIR}/../../tests/st_ddofx_package_test.py"
 				"$<TARGET_FILE:st_term_ddofx_audio_test>" --theme)
 			set_tests_properties(ddofx_term_theme PROPERTIES TIMEOUT 30)
+			add_test(NAME ddofx_sample_banks COMMAND "${Python3_EXECUTABLE}" -B
+				"${CMAKE_CURRENT_SOURCE_DIR}/../../tests/st_ddofx_package_test.py"
+				"$<TARGET_FILE:st_term_ddofx_audio_test>" --samples)
+			set_tests_properties(ddofx_sample_banks PROPERTIES TIMEOUT 15)
 		endif()
 
 		add_executable(st_term_big_pacing_test tests/st_term_big_pacing_test.c)

@@ -24,6 +24,33 @@ ddofx-theme)
 	printf '\035{TNONE}\035{0SLIDED}!'
 	dd bs=1 count=1 >/dev/null 2>&1
 	;;
+ddofx-samples)
+	stty raw -echo
+	step() {
+		printf '%b!' "$1"
+		dd bs=1 count=1 >/dev/null 2>&1
+	}
+	status() {
+		printf '\035{6CHECKBS,150}'
+		test "$(dd bs=1 count="$1" 2>/dev/null | od -An -tx1 | tr -d ' \n')" = "$2"
+	}
+	for mode in lite normal; do
+		if [ "$mode" = normal ]; then printf '\035{LIGMODE}\035{LIGMODE}'; fi
+		step '\035{tSLIDES.THE}\035{tb,SLIDES.THE}\035{tb8}\035{tb3}\035{pb1}'
+		step '\035{PB2,22050}'
+		printf '\035{6DEFBSND,150,2}\035{6ADDBSND,150,SAM17.SAM}\035{6PLAYBS,150,44100}'
+		status 4 4e2f41ff
+		printf '\035{6ADDBSND,150,SAM4.SAM}\035{6PLAYBS,150,44100}'
+		status 2 31ff
+		step ''
+		status 2 30ff
+		step '\035{6LBSOUND,150,SAM}\035{6PLAYBS,150,44100}'
+		printf '\035{6UNLOADBS,150}\035{tbNONE}'
+		status 4 4e2f41ff
+		step ''
+	done
+	step '\035{2S,0,1,0,1,A}\035{2ANIM,1,10,10,1,A,A,0,0,0,1,1,1}\035{2ANIMSOUND,1,19,11,44100,1}\035{2PLAYA,1}\035{w1}'
+	;;
 ddofx-orders)
 	stty raw -echo
 	step() {
