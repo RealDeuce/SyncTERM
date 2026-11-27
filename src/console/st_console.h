@@ -565,6 +565,9 @@ int st_console_raster_view_adopt(st_console_t *console);
 /* The view and graphics page use the same palette. Preserve native pixel
  * indices so palette edits recolour text already painted on the page. */
 int st_console_raster_view_adopt_indexed(st_console_t *console);
+/* Keep the logical grid and existing display pixels. Subsequent cell writes
+ * use the new cell dimensions on the same parent surface. */
+int st_console_raster_view_adopt_indexed_size(st_console_t *console, uint32_t width, uint32_t height);
 /* For a modal view on a paused parent. Report pixel damage while preserving
  * the parent's cell ownership. Restore the two
  * planes from the capture of the view rectangle before resuming the parent. */

@@ -14,8 +14,8 @@ enum {
 
 struct marquee {
 	uint8_t *text;
-	unsigned length, ring_pixels, first_pixel, period;
-	unsigned x, top, width, ink, paper;
+	unsigned length, first_pixel, period;
+	unsigned x, bottom, columns, ink, paper;
 	uint64_t due;
 	bool     on_visual;
 };
@@ -50,12 +50,14 @@ next_deadline(struct st_ddofx_marquees *marquees)
 static void
 define(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, unsigned slot, char *args)
 {
-	int32_t n[6];
+	struct st_ddofx_graphics *g = ddo->graphics;
+	int32_t                   n[6];
 	for (unsigned i = 0; i < 6; ++i)
 		if (!st_ddofx_field_number(ddo, &args, &n[i]))
 			return;
-	if (!args || !*args || n[2] < 1 || n[2] > WIDTH / 8 || n[0] < 0 || n[0] > WIDTH - 8 * n[2] || n[1] < 15
-	    || n[1] >= HEIGHT || (unsigned)n[3] > 15 || (unsigned)n[4] > 7 || n[5] < 1 || !ddo->resource_prefix[0]
+	if (!args || !*args || n[2] < 1 || n[2] > WIDTH / g->cell_width || n[0] < 0
+	    || n[0] > WIDTH - g->cell_width * n[2] || n[1] < g->cell_height - 1 || n[1] >= HEIGHT
+	    || (unsigned)n[3] > 15 || (unsigned)n[4] > 7 || n[5] < 1 || !ddo->resource_prefix[0]
 	    || !sink->open_asset)
 		return;
 	char container[sizeof(ddo->resource_prefix) + 1];
@@ -78,7 +80,6 @@ define(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, unsigned slot, ch
 	for (unsigned i = 0; i < length; ++i)
 		if (text[i] < 16)
 			text[i] = ' ';
-	struct st_ddofx_graphics *g = ddo->graphics;
 	if (!g->marquees)
 		g->marquees = calloc(1, sizeof(*g->marquees));
 	if (!g->marquees) {
@@ -88,24 +89,31 @@ define(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, unsigned slot, ch
 	struct marquee *m = &g->marquees->slots[slot];
 	free(m->text);
 	*m = (struct marquee) {
-	    .text        = text,
-	    .length      = length,
-	    .x           = (unsigned)n[0],
-	    .top         = (unsigned)n[1] - 15,
-	    .width       = (unsigned)n[2] * 8,
-	    .ink         = (unsigned)n[3],
-	    .paper       = (unsigned)n[4],
-	    .ring_pixels = 8 * (length > (unsigned)n[2] ? length : (unsigned)n[2]),
-	    .period      = (999u + (unsigned)n[5]) / (unsigned)n[5],
+	    .text    = text,
+	    .length  = length,
+	    .x       = (unsigned)n[0],
+	    .bottom  = (unsigned)n[1],
+	    .columns = (unsigned)n[2],
+	    .ink     = (unsigned)n[3],
+	    .paper   = (unsigned)n[4],
+	    .period  = (999u + (unsigned)n[5]) / (unsigned)n[5],
 	};
 	next_deadline(g->marquees);
+}
+
+static unsigned
+ring_width(const struct st_ddofx_graphics *g, const struct marquee *m)
+{
+	return g->cell_width * (m->length > m->columns ? m->length : m->columns);
 }
 
 static void
 paint(const struct marquee *m, const uint8_t *font, struct st_ddofx_graphics *g,
     const struct st_pixel_buffer *pixels, const struct st_console_rect *clip)
 {
-	unsigned left = m->x, right = left + m->width, top = m->top, bottom = top + 16;
+	struct st_console_rect area = st_ddofx_text_area(g, m->x, m->bottom, m->columns, 1, 0);
+	unsigned               ring = ring_width(g, m);
+	unsigned               left = area.x, right = left + area.width, top = area.y, bottom = top + area.height;
 	if (clip) {
 		if (left < clip->x)
 			left = clip->x;
@@ -117,19 +125,20 @@ paint(const struct marquee *m, const uint8_t *font, struct st_ddofx_graphics *g,
 			bottom = clip->y + clip->height;
 	}
 	for (unsigned y = top; y < bottom; ++y) {
-		unsigned row      = y - m->top;
-		unsigned position = (m->first_pixel + left - m->x) % m->ring_pixels;
+		unsigned row      = 15 - (m->bottom - y);
+		unsigned position = (m->first_pixel + left - m->x) % ring;
 		for (unsigned x = left; x < right; ++x) {
-			unsigned col    = position / 8;
-			uint8_t  ch     = col < m->length ? m->text[col] : ' ';
-			unsigned colour = (font[ch * 16 + row] & (0x80u >> (position % 8))) ? m->ink : m->paper;
+			unsigned col = position / g->cell_width;
+			uint8_t  ch  = col < m->length ? m->text[col] : ' ';
+			unsigned colour =
+			    (font[ch * 16 + row] & (0x80u >> (position % g->cell_width))) ? m->ink : m->paper;
 			if (pixels) {
-				size_t at           = (m->top + row) * WIDTH + x;
+				size_t at           = y * WIDTH + x;
 				pixels->primary[at] = pixels->alternate[at] = colour;
 			}
 			else
-				g->page[WORK][m->top + row][x] = (uint8_t)colour;
-			if (++position == m->ring_pixels)
+				g->page[WORK][y][x] = (uint8_t)colour;
+			if (++position == ring)
 				position = 0;
 		}
 	}
@@ -221,18 +230,20 @@ scroll(void *context, const struct st_pixel_buffer *pixels, struct st_console_re
 		struct marquee *m = &mq->slots[i];
 		if (!m->due || m->due > update->now)
 			continue;
-		m->first_pixel = m->first_pixel ? m->first_pixel - 1 : m->ring_pixels - 1;
+		struct st_console_rect area = st_ddofx_text_area(update->g, m->x, m->bottom, m->columns, 1, 0);
+		unsigned               ring = ring_width(update->g, m);
+		m->first_pixel              = (m->first_pixel + ring - 1) % ring;
 		paint(m, update->font, update->g, pixels, NULL);
 		m->on_visual = true;
 		m->due       = update->now + m->period;
 		if (m->x < left)
 			left = m->x;
-		if (m->x + m->width > right)
-			right = m->x + m->width;
-		if (m->top < top)
-			top = m->top;
-		if (m->top + 16 > bottom)
-			bottom = m->top + 16;
+		if (area.x + area.width > right)
+			right = area.x + area.width;
+		if (area.y < top)
+			top = area.y;
+		if (area.y + area.height > bottom)
+			bottom = area.y + area.height;
 	}
 	if (right > left)
 		*changed = (struct st_console_rect) {left, top, right - left, bottom - top};

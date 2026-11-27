@@ -236,6 +236,8 @@ execute(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *body)
 		if (strlen(body + 2) < sizeof(ddo->resource_prefix))
 			strcpy(ddo->resource_prefix, body + 2);
 	}
+	else if (ddo->graphics && !ascii_case_ncompare(body, "1SCALE,", 7))
+		st_ddofx_text_scale(ddo, body+7);
 	else if (body[0] == '2') {
 		if (ddo->graphics != NULL)
 			st_ddofx_graphics_command(ddo, sink, body);

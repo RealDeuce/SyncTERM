@@ -14,7 +14,7 @@ enum {
 
 struct text_field {
 	struct st_ddofx_callback callback;
-	struct st_console_rect   area;
+	unsigned                 x, bottom;
 	char                     text[TEXT_MAX + 1], before[AFFIX_MAX + 1], after[AFFIX_MAX + 1];
 	uint8_t                  font[4096];
 	unsigned                 limit, normal, selected, ink, filter, up, down;
@@ -67,7 +67,7 @@ paint(void *context, const struct st_pixel_buffer *pixels, struct st_console_rec
 {
 	const struct field_image    *image = context;
 	const struct text_field     *f     = image->f;
-	const struct st_console_rect a     = f->area;
+	const struct st_console_rect a     = st_ddofx_text_area(image->g, f->x, f->bottom, f->limit + 1, 1, 2);
 	if (pixels && (pixels->width != WIDTH || pixels->height != HEIGHT))
 		return 0;
 	unsigned paper = image->caret < 0 ? f->normal : f->selected;
@@ -87,11 +87,11 @@ paint(void *context, const struct st_pixel_buffer *pixels, struct st_console_rec
 	else
 		memcpy(visible, f->text, length);
 	struct bounds clip = {(int)a.x, (int)(a.x + a.width) - 1, (int)a.y, (int)(a.y + a.height) - 1};
-	st_ddofx_paint_vga_string(image->g, pixels, f->font, visible, (unsigned)length, a.x, a.y + a.height - 16,
-	    f->ink, paper, &clip);
+	st_ddofx_paint_vga_string(image->g, pixels, f->font, visible, (unsigned)length, a.x, f->bottom, f->ink,
+	    paper, &clip);
 	if (pixels && image->caret >= 0) {
-		unsigned left = a.x + (unsigned)image->caret * 8;
-		for (unsigned x = left; x < left + 8 && x < a.x + a.width; ++x) {
+		unsigned left = a.x + (unsigned)image->caret * image->g->cell_width;
+		for (unsigned x = left; x < left + image->g->cell_width && x < a.x + a.width; ++x) {
 			size_t at           = (a.y + a.height - 1) * WIDTH + x;
 			pixels->primary[at] = pixels->alternate[at] = 15;
 		}
@@ -138,11 +138,11 @@ define(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, unsigned id, char
 	for (unsigned i = 0; i < 9; ++i)
 		if (!st_ddofx_field_number(ddo, &args, n + i))
 			return;
-	if (!args || (unsigned)x >= WIDTH || y < 17 || y >= HEIGHT || limit < 1 || limit > TEXT_MAX
-	    || (unsigned)normal > 7 || (unsigned)selected > 7 || (unsigned)ink > 255 || (unsigned)echo > 1
-	    || (unsigned)n[0] > FIELD_COUNT || (unsigned)n[1] > FIELD_COUNT || (unsigned)n[2] > 1
-	    || (unsigned)n[4] > 2 || (unsigned)n[5] > 1 || (unsigned)n[6] > 255 || (unsigned)n[7] > 255
-	    || (unsigned)n[8] > 1)
+	if (!args || (unsigned)x >= WIDTH || y < ddo->graphics->cell_height + 1 || y >= HEIGHT || limit < 1
+	    || limit > TEXT_MAX || (unsigned)normal > 7 || (unsigned)selected > 7 || (unsigned)ink > 255
+	    || (unsigned)echo > 1 || (unsigned)n[0] > FIELD_COUNT || (unsigned)n[1] > FIELD_COUNT
+	    || (unsigned)n[2] > 1 || (unsigned)n[4] > 2 || (unsigned)n[5] > 1 || (unsigned)n[6] > 255
+	    || (unsigned)n[7] > 255 || (unsigned)n[8] > 1)
 		return;
 	struct text_field *f = calloc(1, sizeof(*f));
 	if (!f)
@@ -160,10 +160,9 @@ define(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, unsigned id, char
 	affix(f->before, st_ddofx_value(ddo, before));
 	affix(f->after, st_ddofx_value(ddo, after));
 	snprintf(f->text, sizeof(f->text), "%.*s", TEXT_MAX, st_ddofx_value(ddo, text));
-	f->limit       = (unsigned)limit;
-	unsigned width = 8 * (f->limit + 1);
-	f->area =
-	    (struct st_console_rect) {x, y - 17, width < WIDTH - (unsigned)x ? width : WIDTH - (unsigned)x, 18};
+	f->limit                       = (unsigned)limit;
+	f->x                           = (unsigned)x;
+	f->bottom                      = (unsigned)y;
 	f->normal                      = (unsigned)normal;
 	f->selected                    = (unsigned)selected;
 	f->ink                         = (unsigned)ink;
@@ -246,7 +245,7 @@ st_ddofx_text_field_mouse(struct st_ddofx *ddo, int x, int y)
 	for (unsigned i = t->count; i > 0; --i) {
 		unsigned               id = t->order[i - 1];
 		struct text_field     *f  = t->slots[id - 1];
-		struct st_console_rect a  = f->area;
+		struct st_console_rect a  = st_ddofx_text_area(ddo->graphics, f->x, f->bottom, f->limit + 1, 1, 2);
 		if ((unsigned)x >= a.x && (unsigned)x < a.x + a.width && (unsigned)y >= a.y
 		    && (unsigned)y < a.y + a.height && st_ddofx_callback_enabled(ddo, &f->callback)) {
 			activate(ddo, id);

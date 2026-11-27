@@ -389,6 +389,43 @@ def check_flics(t, root):
     t.exchange(commands(b"5CMARQEE,0", b"5SOCLOCK,0", b"2CPYWP2VP"))
 
 
+def check_text_scale(t, root):
+    t.case("graphic text uses the native FNT pixels and shared bottom-anchored cell dimensions")
+    marker, = root.rglob("syncterm-cache-name.txt")
+    font = bytearray(4096)
+    for c in b"A0123456789:":
+        font[c*16+8] = 0x80
+        font[c*16+15] = 0x20
+    (marker.parent / "DDOFX" / "FONTS" / "Small.fnt").write_bytes(font)
+    frame = t.exchange(commands(b"2C,39", b"2aFILL", b"2CPYWP2VP", b"1SCALE,4,8", b"fSmall.fnt",
+                            b"2XTWP,632,7,12,3,AA", b"2aG,632,0", b"2aG,636,0", b"2aG,638,7",
+                            b"2aG,631,0", b"2aG,632,8", b"2CPYWP2VP"), b"12\xff12\xff12\xff39\xff39\xff")
+    for plane in (frame.primary, frame.alternate):
+        assert list(plane[632:640]) == [12,3,3,3]*2
+    # DEC cursor positioning still addresses the 80 by 100 virtual text page.
+    frame = t.exchange(b"\x1b[3;4H\x1b[31;44mAA\x1b[6n", b"\x1b[3;6R")
+    for plane in (frame.primary, frame.alternate):
+        assert list(plane[16*640+12:16*640+20]) == [4,1,1,1]*2
+    frame = t.exchange(commands(b"5CLBOX,1,0,15,2,2,10,1,15,2,14,3,2,0", b"5LBMODLST,1,0,1,0,AA,,",
+                            b"5LBSHWLST,1", b"5SOCLOCK,1,608,479,11,3,0,0,0,Small.fnt", b"5UOCLOCK,1",
+                            b"5CTXTFLD,1,Small.fnt,AA,,,100,9,3,1,4,15,0,,0,0,0,0,0,0,0,0,0,",
+                            b"2aG,100,2", b"2aG,104,2", b"2aG,116,2"), b"15\xff15\xff39\xff")
+    for plane in (frame.primary, frame.alternate):
+        assert list(plane[:8]) == [15,2,2,2]*2
+        assert list(plane[472*640+608:473*640]) == [11,3,3,3]*8
+    t.exchange(commands(b"2fScroll.", b"5CMARQEE,1,632,7,2,13,5,10,LINE.TXT", b"5SHOWMQ,1",
+                        b"2aG,639,7", b"2aG,639,8", b"5CMARQEE,0"), b"5\xff39\xff")
+    # Both objects retain their bottom anchor. At 8 by 16 the list's
+    # first row is above the display, leaving the unhighlighted second row.
+    frame = t.exchange(commands(b"1SCALE,8,16", b"1SCALE,0,7", b"2CPYWP2VP", b"5LBSHWLST,1",
+                                b"5SHOWTFLD,1", b"2aG,108,2", b"2aG,116,2"), b"15\xff1\xff")
+    for plane in (frame.primary, frame.alternate):
+        assert list(plane[8*640:8*640+16]) == [10] + [1]*7 + [10] + [1]*7
+
+    t.exchange(commands(b"1SCALE,4,8", b"2RESET", b"2XTWP,636,7,13,6,A", b"2aG,636,0",
+                        b"1SCALE,8,16", b"fIBMSTD.FNT"), b"13\xff")
+
+
 def check_sprite_banks(t, root):
     t.case("sprite bank files, slot order, row orientation and erase after load")
     marker, = root.rglob("syncterm-cache-name.txt")
@@ -740,6 +777,7 @@ def check_graphics(t, root):
     check_marquees(t, root)
     check_clocks(t, root)
     check_flics(t, root)
+    check_text_scale(t, root)
     check_sprite_banks(t, root)
     check_sprites(t)
     check_grid(t)

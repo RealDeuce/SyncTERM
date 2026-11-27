@@ -30,28 +30,68 @@ st_ddofx_vga_bitmap(const struct st_ddofx *ddo)
 }
 
 static bool
-install(const struct st_ddofx_graphics *g, const struct st_ddofx_vga_font *font)
+install(const struct st_ddofx_graphics *g, const struct st_ddofx_vga_font *font, unsigned width, unsigned height)
 {
 	struct st_console_font strike;
 	if (!st_builtin_font_get(0, 8, 16, &strike))
 		return false;
-	strike.bitmap        = font->bitmap;
-	strike.raster_family = NULL;
-	uint16_t id          = font->lite_id;
-	if (g) {
-		/* Text drawn earlier may already be covered by graphics on VP. */
-		if (!st_font_catalog_identifier(g->fonts, 0, &id)
-		    || st_console_raster_view_adopt_indexed(g->view) != 0)
-			return false;
+	const uint8_t *source = font ? font->bitmap : strike.bitmap;
+	uint8_t        cropped[4096];
+	if (height != 16) {
+		for (unsigned ch = 0; ch < 256; ++ch)
+			memcpy(cropped + ch * height, source + ch * 16 + 16 - height, height);
+		source = cropped;
 	}
-	return st_console_set_font_strike(g ? g->view : font->lite, id, &strike) == 0;
+	strike.bitmap        = source;
+	strike.width         = width;
+	strike.height        = height;
+	strike.glyph_stride  = height;
+	strike.bitmap_size   = height * 256;
+	strike.raster_family = NULL;
+	uint16_t id;
+	if (!g)
+		return st_console_set_font_strike(font->lite, font->lite_id, &strike) == 0;
+	if (!st_font_catalog_identifier(g->fonts, 0, &id)
+	    || st_console_raster_view_adopt_indexed_size(g->view, width, height))
+		return false;
+	if (st_console_set_font_strike(g->view, id, &strike) == 0)
+		return true;
+	(void)st_console_raster_view_adopt_indexed_size(g->view, g->cell_width, g->cell_height);
+	return false;
+}
+
+void
+st_ddofx_text_scale(struct st_ddofx *ddo, char *args)
+{
+	int32_t n[2];
+	if (!st_ddofx_numbers(ddo, args, n, 2) || n[0] < 2 || n[0] > 8 || n[1] < 2 || n[1] > 16)
+		return;
+	struct st_ddofx_graphics *g = ddo->graphics;
+	if ((g->cell_width != n[0] || g->cell_height != n[1])
+	    && install(g, ddo->vga_font, (unsigned)n[0], (unsigned)n[1])) {
+		g->cell_width  = n[0];
+		g->cell_height = n[1];
+	}
+}
+
+struct st_console_rect
+st_ddofx_text_area(const struct st_ddofx_graphics *g, unsigned x, unsigned bottom, unsigned columns, unsigned rows,
+    unsigned padding)
+{
+	unsigned width = columns * (unsigned)g->cell_width, height = rows * (unsigned)g->cell_height + padding;
+	if (width > WIDTH - x)
+		width = WIDTH - x;
+	if (height > bottom + 1)
+		height = bottom + 1;
+	return (struct st_console_rect) {x, bottom + 1 - height, width, height};
 }
 
 void
 st_ddofx_apply_vga_font(struct st_ddofx *ddo)
 {
 	if (ddo->vga_font)
-		(void)install(ddo->graphics, ddo->vga_font);
+		(void)install(ddo->graphics, ddo->vga_font, ddo->graphics ? ddo->graphics->cell_width : 8,
+		    ddo->graphics ? ddo->graphics->cell_height : 16);
 }
 
 void
@@ -96,7 +136,8 @@ st_ddofx_load_vga_font(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, c
 	if (!loaded
 	    || !st_font_catalog_identifier(sink->text_config->fonts, sink->text_config->font_selector,
 		&next->lite_id)
-	    || !install(ddo->graphics, next)) {
+	    || !install(ddo->graphics, next, ddo->graphics ? ddo->graphics->cell_width : 8,
+		ddo->graphics ? ddo->graphics->cell_height : 16)) {
 		free(next);
 		return;
 	}
@@ -110,7 +151,7 @@ struct text_run {
 	struct st_ddofx_graphics *g;
 	enum page                 page;
 	const uint8_t            *font, *text;
-	int                       x, top, ink, paper, length;
+	int                       x, bottom, ink, paper, length;
 };
 
 static int
@@ -119,43 +160,60 @@ paint(void *context, const struct st_pixel_buffer *pixels, struct st_console_rec
 	const struct text_run *run = context;
 	if (pixels && (pixels->width != WIDTH || pixels->height != HEIGHT))
 		return 0;
+	/* FNT records always have 16 rows of 8 bits. A scaled font puts its
+	 * ink in the lower left. Only the advance and paper rectangle shrink. */
+	int           cw = run->g->cell_width, ch = run->g->cell_height;
+	struct bounds clip = run->clip ? *run->clip : (struct bounds) {0, WIDTH - 1, 0, HEIGHT - 1};
+	int           top  = run->bottom - 15;
 	for (int i = 0; i < run->length; ++i) {
 		const uint8_t *rows = run->font + run->text[i] * 16;
-		for (int y = 0; y < 16; ++y)
+		int            left = run->x + i * cw;
+		for (int y = 0; y < 16; ++y) {
+			int row = top + y;
+			if (row < clip.top || row > clip.bottom)
+				continue;
 			for (int x = 0; x < 8; ++x) {
-				bool lit = (rows[y] & (0x80u >> x)) != 0;
-				if (!lit && run->paper == 8)
+				int col = left + x;
+				if (col < clip.left || col > clip.right)
 					continue;
-				int col = run->x + i * 8 + x, row = run->top + y;
-				if (run->clip
-				    && (col < run->clip->left || col > run->clip->right || row < run->clip->top
-				        || row > run->clip->bottom))
+				bool ink = (rows[y] & (0x80u >> x)) != 0;
+				if (!ink && (run->paper == 8 || x >= cw || y < 16 - ch))
 					continue;
-				uint8_t value = (uint8_t)(lit ? run->ink : run->paper);
+				uint8_t colour = (uint8_t)(ink ? run->ink : run->paper);
 				if (pixels)
 					pixels->primary[row * WIDTH + col] = pixels->alternate[row * WIDTH + col] =
-					    value;
+					    colour;
 				else
-					run->g->page[run->page][row][col] = value;
+					run->g->page[run->page][row][col] = colour;
 			}
+		}
 	}
-	if (changed)
-		*changed = (struct st_console_rect) {run->x, run->top, 8 * run->length, 16};
+	if (changed) {
+		int left = run->x, right = left + cw * (run->length - 1) + 8;
+		if (right > WIDTH)
+			right = WIDTH;
+		if (top < 0)
+			top = 0;
+		*changed = (struct st_console_rect) {left, top, right - left, run->bottom - top + 1};
+	}
 	return 0;
 }
 
 void
-st_ddofx_paint_vga_string(struct st_ddofx_graphics *g, const struct st_pixel_buffer *pixels, const uint8_t *bitmap, const uint8_t *text,
-    unsigned length, int x, int top, unsigned ink, unsigned paper, const struct bounds *clip)
+st_ddofx_paint_vga_string(struct st_ddofx_graphics *g, const struct st_pixel_buffer *pixels, const uint8_t *bitmap,
+    const uint8_t *text, unsigned length, int x, int bottom, unsigned ink, unsigned paper,
+    const struct bounds *clip)
 {
-	struct text_run run = {.g = g, .page = WORK, .clip = clip,
-	    .font                    = bitmap,
-	    .text                    = text,
-	    .length                  = (int)length,
-	    .x                       = x,
-	    .top                     = top,
-	    .ink                     = (int)ink,
-	    .paper                   = (int)paper};
+	struct text_run run = {.g = g,
+	    .page                 = WORK,
+	    .clip                 = clip,
+	    .font                 = bitmap,
+	    .text                 = text,
+	    .length               = (int)length,
+	    .x                    = x,
+	    .bottom               = bottom,
+	    .ink                  = (int)ink,
+	    .paper                = (int)paper};
 	(void)paint(&run, pixels, NULL);
 }
 
@@ -169,18 +227,18 @@ st_ddofx_print_vga_text(struct st_ddofx *ddo, const char *suffix, char *args)
 	for (unsigned i = 0; i < 4; ++i)
 		if (!st_ddofx_field_number(ddo, &args, &n[i]))
 			return;
-	if (!args || n[0] < 0 || n[0] >= WIDTH || n[1] < 15 || n[1] >= HEIGHT || (unsigned)n[2] > 255
-	    || (unsigned)n[3] > 8)
+	if (!args || n[0] < 0 || n[0] >= WIDTH || n[1] < run.g->cell_height - 1 || n[1] >= HEIGHT
+	    || (unsigned)n[2] > 255 || (unsigned)n[3] > 8)
 		return;
 	run.text      = (const uint8_t *)st_ddofx_value(ddo, args);
 	size_t length = strlen((const char *)run.text);
-	if (!length || length > (size_t)(WIDTH - n[0]) / 8)
+	if (!length || length > (size_t)(WIDTH - n[0]) / (unsigned)run.g->cell_width)
 		return;
 	run.font = st_ddofx_vga_bitmap(ddo);
 	if (!run.font)
 		return;
 	run.x      = n[0];
-	run.top    = n[1] - 15;
+	run.bottom = n[1];
 	run.ink    = n[2];
 	run.paper  = n[3];
 	run.length = (int)length;

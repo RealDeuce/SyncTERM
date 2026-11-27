@@ -19,13 +19,13 @@ struct item {
 };
 
 struct list_box {
-	struct st_console_rect area;
-	unsigned               columns, rows, count, top, highlight;
-	unsigned               ink, paper, highlight_ink, highlight_paper, selected_ink, selected_paper;
-	uint64_t               clicked_at;
-	unsigned               clicked_item;
-	bool                   multiple, active, stealth;
-	struct item            items[];
+	unsigned    x, bottom;
+	unsigned    columns, rows, count, top, highlight;
+	unsigned    ink, paper, highlight_ink, highlight_paper, selected_ink, selected_paper;
+	uint64_t    clicked_at;
+	unsigned    clicked_item;
+	bool        multiple, active, stealth;
+	struct item items[];
 };
 
 struct st_ddofx_lists {
@@ -48,8 +48,8 @@ define(struct st_ddofx *ddo, unsigned id, char *args)
 {
 	int32_t n[12];
 	if (!st_ddofx_numbers(ddo, args, n, 12) || n[2] < 1 || n[2] > 40 || n[3] < 1 || n[3] > 30 || n[0] < 0
-	    || n[0] > WIDTH - 8 * n[2] || n[1] < 16 * n[3] - 1 || n[1] >= HEIGHT || n[10] < 1 || n[10] > 100
-	    || (unsigned)n[11] > 1)
+	    || n[0] > WIDTH - ddo->graphics->cell_width * n[2] || n[1] < ddo->graphics->cell_height * n[3] - 1
+	    || n[1] >= HEIGHT || n[10] < 1 || n[10] > 100 || (unsigned)n[11] > 1)
 		return;
 	for (unsigned i = 4; i < 10; i += 2)
 		if ((unsigned)n[i] > 255 || (unsigned)n[i + 1] > 7)
@@ -62,7 +62,8 @@ define(struct st_ddofx *ddo, unsigned id, char *args)
 	struct list_box *box = calloc(1, sizeof(*box) + (size_t)n[10] * sizeof(struct item));
 	if (!box)
 		return;
-	box->area            = (struct st_console_rect) {n[0], n[1] - 16 * n[3] + 1, 8 * n[2], 16 * n[3]};
+	box->x               = n[0];
+	box->bottom          = n[1];
 	box->columns         = (unsigned)n[2];
 	box->rows            = (unsigned)n[3];
 	box->ink             = (unsigned)n[4];
@@ -126,6 +127,9 @@ paint(void *context, const struct st_pixel_buffer *pixels, struct st_console_rec
 	const struct list_box   *b  = im->box;
 	if (pixels && (pixels->width != WIDTH || pixels->height != HEIGHT))
 		return 0;
+	struct st_console_rect area = st_ddofx_text_area(im->g, b->x, b->bottom, b->columns, b->rows, 0);
+	struct bounds          clip = {(int)area.x, (int)(area.x + area.width) - 1, (int)area.y,
+	    (int)(area.y + area.height) - 1};
 	for (unsigned row = 0; row < b->rows; ++row) {
 		unsigned index = b->top + row;
 		unsigned ink = b->ink, paper = b->paper;
@@ -145,11 +149,11 @@ paint(void *context, const struct st_pixel_buffer *pixels, struct st_console_rec
 				paper = b->highlight_paper;
 			}
 		}
-		st_ddofx_paint_vga_string(im->g, pixels, im->font, line, b->columns, b->area.x,
-		    b->area.y + 16 * row, ink, paper, NULL);
+		st_ddofx_paint_vga_string(im->g, pixels, im->font, line, b->columns, b->x,
+		    (int)b->bottom - (int)(b->rows - 1 - row) * im->g->cell_height, ink, paper, &clip);
 	}
 	if (damage)
-		*damage = b->area;
+		*damage = area;
 	return 0;
 }
 
@@ -210,13 +214,15 @@ st_ddofx_list_click(struct st_ddofx *ddo, int x, int y)
 		struct list_box *b = lists->boxes[i];
 		if (!b || !b->active || (ddo->background_download && !b->stealth))
 			continue;
-		struct st_console_rect r = b->area;
+		struct st_console_rect r =
+		    st_ddofx_text_area(ddo->graphics, b->x, b->bottom, b->columns, b->rows, 0);
 		if ((unsigned)x < r.x || (unsigned)x >= r.x + r.width || (unsigned)y < r.y
 		    || (unsigned)y >= r.y + r.height) {
 			b->clicked_item = 0;
 			continue;
 		}
-		unsigned row = ((unsigned)y - r.y) / 16;
+		int      top = (int)b->bottom + 1 - (int)b->rows * ddo->graphics->cell_height;
+		unsigned row = (unsigned)((y - top) / ddo->graphics->cell_height);
 		unsigned id  = b->top + row + 1;
 		if (id > b->count) {
 			b->clicked_item = 0;

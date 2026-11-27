@@ -5,6 +5,7 @@
 #include "st_cterm.h"
 #include "st_ddofx.h"
 
+void st_ddofx_text_scale(struct st_ddofx *, char *args);
 void st_ddofx_load_vga_font(struct st_ddofx *, const struct st_ddofx_sink *, const char *);
 const char *st_ddofx_vga_font_name(const struct st_ddofx *);
 void st_ddofx_release_vga_font(struct st_ddofx *);

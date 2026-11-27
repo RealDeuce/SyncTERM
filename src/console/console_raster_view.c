@@ -79,13 +79,17 @@ st_console_create_raster_view(st_console_t **result, st_console_t *parent, uint3
 }
 
 static int
-adopt(st_console_t *console, bool transient, bool parent_palette)
+adopt(st_console_t *console, bool transient, bool parent_palette, uint32_t width, uint32_t height)
 {
 	if (console == NULL || console->raster_parent == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (st_rwlock_write_lock(st_console_state_lock(console)) != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
 	st_console_t *parent = console->raster_parent;
+	if (width && (width > UINT32_MAX / console->columns || height > UINT32_MAX / console->rows)) {
+		(void)st_rwlock_unlock(st_console_state_lock(console));
+		return IO_ERROR_INVALID_ARGUMENT;
+	}
 	int           status = parent->raster_current ? 0 : st_console_rasterize_locked(parent, false);
 	if (status != 0) {
 		(void)st_rwlock_unlock(st_console_state_lock(console));
@@ -104,6 +108,12 @@ adopt(st_console_t *console, bool transient, bool parent_palette)
 		    (size_t)console->columns * console->rows * sizeof(*console->view_text_batch));
 		console->view_batch = 1;
 	}
+	if (width) {
+		console->cell_width = width;
+		console->cell_height = height;
+		console->pixels->width = console->columns * width;
+		console->pixels->height = console->rows * height;
+	}
 	console->raster_current      = true;
 	console->raster_enabled      = true;
 	console->raster_transient    = transient;
@@ -118,17 +128,25 @@ adopt(st_console_t *console, bool transient, bool parent_palette)
 int
 st_console_raster_view_adopt(st_console_t *console)
 {
-	return adopt(console, false, false);
+	return adopt(console, false, false, 0, 0);
 }
 
 int
 st_console_raster_view_adopt_transient(st_console_t *console)
 {
-	return adopt(console, true, false);
+	return adopt(console, true, false, 0, 0);
 }
 
 int
 st_console_raster_view_adopt_indexed(st_console_t *console)
 {
-	return adopt(console, false, true);
+	return adopt(console, false, true, 0, 0);
+}
+
+int
+st_console_raster_view_adopt_indexed_size(st_console_t *console, uint32_t width, uint32_t height)
+{
+	if (!width || !height)
+		return IO_ERROR_INVALID_ARGUMENT;
+	return adopt(console, false, true, width, height);
 }

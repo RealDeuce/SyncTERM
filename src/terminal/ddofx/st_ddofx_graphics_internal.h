@@ -72,6 +72,7 @@ struct st_ddofx_graphics {
 	struct st_ddofx_clocks *clocks;
 	struct st_ddofx_movies *movies;
 	unsigned animator_divisor;
+	int cell_width, cell_height;
 
 	st_console_t            *display, *view;
 	st_font_catalog_t       *fonts;
@@ -114,10 +115,12 @@ void st_ddofx_pointer_command(struct st_ddofx *, const struct st_ddofx_sink *, c
 void st_ddofx_mouse_defaults(struct st_ddofx_mouse_state *);
 bool st_ddofx_ensure_pointer(struct st_ddofx_mouse_state *);
 void st_ddofx_pointer_refresh(struct st_ddofx *);
+struct st_console_rect st_ddofx_text_area(const struct st_ddofx_graphics *, unsigned x, unsigned bottom,
+    unsigned columns, unsigned rows, unsigned padding);
 const uint8_t *st_ddofx_vga_bitmap(const struct st_ddofx *);
 bool st_ddofx_read_vga_font(const struct st_ddofx_sink *, const char *, uint8_t bitmap[4096]);
 void st_ddofx_paint_vga_string(struct st_ddofx_graphics *g, const struct st_pixel_buffer *, const uint8_t *bitmap, const uint8_t *text,
-    unsigned length, int x, int top, unsigned ink, unsigned paper, const struct bounds *clip);
+    unsigned length, int x, int bottom, unsigned ink, unsigned paper, const struct bounds *clip);
 void st_ddofx_repaint_clocks(struct st_ddofx *, const struct st_pixel_buffer *, const struct st_console_rect *);
 void st_ddofx_clear_movies(struct st_ddofx_graphics *);
 bool st_ddofx_movie_command(struct st_ddofx *, const struct st_ddofx_sink *, const char *, char *);
