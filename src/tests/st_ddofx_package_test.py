@@ -3,6 +3,7 @@
 from binascii import crc_hqx
 import io
 from pathlib import Path
+import struct
 import subprocess
 import sys
 import tempfile
@@ -59,5 +60,24 @@ def check_autoplay(executable):
                 assert {p.name for p in (root / "downloads").iterdir()} == {"$LI$R000.ZIP", "$LI$R001.ZIP"}
 
 
+def check_term_theme(executable):
+    directory = bytearray(33 * 24)
+    data = bytearray()
+    for sample in range(1, 21):
+        name = f"SAM{sample}.SAM".encode()
+        struct.pack_into("<12sII", directory, (sample - 1) * 24, name, len(directory) + len(data), 1)
+        data.append(sample)
+    with tempfile.TemporaryDirectory() as directory_name:
+        root = Path(directory_name)
+        (root / "THEMES").mkdir()
+        (root / "THEMES" / "SLIDES.THE").write_bytes(directory + data)
+        subprocess.run([executable, root, "select-theme"], check=True)
+        assert (root / "terminal-theme").read_bytes() == b"SLIDES.THE"
+        subprocess.run([executable, root, "reuse-theme"], check=True)
+
+
 if __name__ == "__main__":
-    check_autoplay(sys.argv[1])
+    if sys.argv[2:] == ["--theme"]:
+        check_term_theme(sys.argv[1])
+    else:
+        check_autoplay(sys.argv[1])

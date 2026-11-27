@@ -8,6 +8,22 @@ rip)
 	stty raw -echo
 	exec "$ST_RIP_TEST_PYTHON" "@CMAKE_CURRENT_BINARY_DIR@/../../scripting/wren_host/rip-peer.py" "$2"
 	;;
+ddofx-theme)
+	stty raw -echo
+	if [ "$2" = select ]; then
+		printf '\035{LIGMODE}\035{LIGMODE}\035{TSLIDES.THE}\035{TMISSING.THE}\035{2GEXIT}'
+	fi
+	printf '\035{0SLIDEU}!'
+	dd bs=1 count=1 >/dev/null 2>&1
+	printf '\035{0SLIDED}!'
+	dd bs=1 count=1 >/dev/null 2>&1
+	if [ "$2" = select ]; then
+		printf '\035{0BOUNCED}!'
+		dd bs=1 count=1 >/dev/null 2>&1
+	fi
+	printf '\035{TNONE}\035{0SLIDED}!'
+	dd bs=1 count=1 >/dev/null 2>&1
+	;;
 ddofx-audio)
 	stty raw -echo
 	printf '\035{dSOUNDON}\035{dACARD}'

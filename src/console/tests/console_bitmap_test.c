@@ -346,6 +346,15 @@ test_pixel_cursor_overlay(void)
 		for (uint32_t x = 0; x < 32; ++x)
 			CHECK(frame.pixels->pixels[y * 32 + x]
 			      == (y == 7 && x >= 2 && x < 18 ? UINT32_C(0xfa141e) : UINT32_C(0x010203)));
+	/* Shift only the first text row. The source cursor at scanline seven
+	 * moves with its page, and the row below the viewport stays put. */
+	CHECK(st_console_set_vertical_origin(console, 1, 9) == IO_ERROR_OUT_OF_RANGE);
+	CHECK(st_console_set_vertical_origin(console, 1, 3) == 0);
+	CHECK(st_console_bitmap_presenter_frame(presenter, console, 32, 16, 0, NULL, NULL, &frame) == 0);
+	CHECK(frame.pixels->pixels[4 * 32 + 2] == UINT32_C(0xfa141e));
+	CHECK(frame.pixels->pixels[7 * 32 + 2] == 0);
+	CHECK(frame.pixels->pixels[8 * 32 + 2] == UINT32_C(0x010203));
+	CHECK(st_console_set_vertical_origin(console, 0, 0) == 0);
 	const struct st_console_rect whole = {0, 0, 32, 16};
 	CHECK(st_console_get_pixels(&copy, console, &whole, false) == 0);
 	CHECK(copy->primary[7 * 32 + 2] == ST_PIXEL_COLOR_RGB_VALUE(1, 2, 3));

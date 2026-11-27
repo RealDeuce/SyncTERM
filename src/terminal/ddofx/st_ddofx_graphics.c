@@ -146,6 +146,7 @@ st_ddofx_graphics_enter(struct st_ddofx *ddo, const struct st_ddofx_sink *sink)
 {
 	if (!st_ddofx_svga(sink))
 		return;
+	st_ddofx_slide_restore(ddo);
 	struct st_ddofx_graphics *g = calloc(1, sizeof(*g));
 	if (g == NULL)
 		return;

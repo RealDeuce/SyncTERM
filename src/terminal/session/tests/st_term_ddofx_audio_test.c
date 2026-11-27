@@ -26,7 +26,7 @@ wait_for_marker(st_term_session_t *session, int column)
 		bool                     finished;
 		CHECK(st_term_session_pump(session, &disposition, &finished) == 0 && !finished);
 		CHECK(st_cterm_state(st_term_session_cterm(session), &state) == 0);
-		CHECK(st_time_monotonic_ms(&now) == 0 && now - start < 5000);
+		CHECK(st_time_monotonic_ms(&now) == 0 && now - start < 15000);
 	} while (state.x != column);
 	return EXIT_SUCCESS;
 }
@@ -133,6 +133,27 @@ check_autoplay(st_term_session_t *session, st_audio_runtime_t *audio, const char
 	return EXIT_SUCCESS;
 }
 
+static int
+check_slide_sounds(st_term_session_t *session, st_audio_runtime_t *audio, bool first)
+{
+	const unsigned samples[] = {20, 19, 15, 0};
+	int            column    = 2;
+	for (size_t i = 0; i < sizeof(samples) / sizeof(samples[0]); ++i) {
+		if (!first && samples[i] == 15)
+			continue;
+		CHECK(wait_for_marker(session, column++) == 0);
+		int16_t pcm[2];
+		CHECK(st_audio_runtime_pull(audio, pcm, 1) == 0 && pcm[0] == pcm[1]);
+		/* Fixtures use one positive signed byte per sound. The unity mixer
+		 * applies soft clipping; adjacent levels stay over 200 units apart. */
+		int amplitude = (int)samples[i] * 256;
+		CHECK(samples[i] ? pcm[0] > amplitude - 128 && pcm[0] <= amplitude : pcm[0] == 0);
+		if (samples[i])
+			CHECK(st_term_session_send_text(session, ".", 1) == 0);
+	}
+	return EXIT_SUCCESS;
+}
+
 int
 main(int argc, char **argv)
 {
@@ -150,7 +171,13 @@ main(int argc, char **argv)
 	struct st_profile profile;
 	st_profile_init(&profile);
 	profile.connection_type = ST_CONNECTION_SHELL;
-	strcpy(profile.address, "sh term-fixture.sh ddofx-audio");
+	bool theme = argc == 3 && (!strcmp(argv[2], "select-theme") || !strcmp(argv[2], "reuse-theme"));
+	bool first = theme && !strcmp(argv[2], "select-theme");
+	if (theme)
+		strcpy(profile.address,
+		    first ? "sh term-fixture.sh ddofx-theme select" : "sh term-fixture.sh ddofx-theme reuse");
+	else
+		strcpy(profile.address, "sh term-fixture.sh ddofx-audio");
 	CHECK(st_term_connect_profile(&connection, &profile, console, NULL, NULL) == 0);
 	const struct st_term_config config = {
 	    .console         = console,
@@ -163,6 +190,10 @@ main(int argc, char **argv)
 	    .ddofx_directory = argv[1],
 	};
 	CHECK(st_term_session_create(&session, &config) == 0);
+	if (theme) {
+		CHECK(check_slide_sounds(session, audio, first) == EXIT_SUCCESS);
+		goto finished;
+	}
 	if (argc >= 3) {
 		CHECK(check_autoplay(session, audio, argv[2], argc == 3) == EXIT_SUCCESS);
 		goto finished;

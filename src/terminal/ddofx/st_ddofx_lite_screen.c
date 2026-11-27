@@ -3,6 +3,7 @@
 
 #include "st_ddofx_graphics.h"
 #include "st_ddofx_resource.h"
+#include "st_ddofx_samples.h"
 #include "st_time.h"
 
 /* A RAW member is the VGA character/attribute memory image emitted by
@@ -141,4 +142,96 @@ st_ddofx_lite_fade(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, bool 
 	f->started  = now;
 	f->duration = (unsigned)duration;
 	(void)st_ddofx_lite_fade_step(ddo, now);
+}
+
+/* Animate the display origin in units of the SDK's 400-scanline text mode.
+ * The terminal keeps writing to its unshifted logical page throughout. */
+static bool
+show_offset(struct st_ddofx *ddo)
+{
+	uint32_t pixels = (uint64_t)ddo->slide.height * ddo->slide.offset / 400;
+	return st_console_set_vertical_origin(ddo->slide.display, ddo->slide.rows,
+		   ddo->slide.suspended ? 0 : pixels)
+	       == 0;
+}
+
+void
+st_ddofx_slide_restore(struct st_ddofx *ddo)
+{
+	if (ddo->slide.display)
+		(void)st_console_set_vertical_origin(ddo->slide.display, 0, 0);
+	ddo->slide.display = NULL;
+	ddo->slide.due     = 0;
+}
+
+void
+st_ddofx_slide_suspend(struct st_ddofx *ddo, bool suspended)
+{
+	ddo->slide.suspended = suspended;
+	if (ddo->slide.display && !show_offset(ddo))
+		st_ddofx_slide_restore(ddo);
+}
+
+void
+st_ddofx_slide(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, bool up, bool bounce)
+{
+	uint32_t columns, rows, width, height;
+	uint64_t now;
+	if (!sink->text_config || st_cterm_size(sink->lite_terminal, &columns, &rows)
+	    || st_console_cell_pixel_size(sink->text_config->console, &width, &height) || !height || !rows
+	    || rows > UINT32_MAX / height || st_time_monotonic_ms(&now))
+		return;
+	ddo->slide.display  = sink->text_config->console;
+	ddo->slide.up       = up;
+	ddo->slide.bounce   = bounce;
+	ddo->slide.rows     = rows;
+	ddo->slide.height   = rows * height;
+	ddo->slide.offset   = up ? 0 : 400;
+	ddo->slide.velocity = -3;
+	ddo->slide.steps = ddo->slide.rebounds = 0;
+	ddo->slide.due                         = now + 14;
+	if (!show_offset(ddo)) {
+		st_ddofx_slide_restore(ddo);
+		return;
+	}
+	if (!bounce)
+		st_ddofx_term_sound(ddo, sink, up ? 20 : 19);
+}
+
+bool
+st_ddofx_slide_step(struct st_ddofx *ddo, const struct st_ddofx_sink *sink)
+{
+	uint64_t now;
+	if (st_time_monotonic_ms(&now)) {
+		st_ddofx_slide_restore(ddo);
+		return false;
+	}
+	if (now < ddo->slide.due)
+		return true;
+	bool impact = false;
+	do {
+		ddo->slide.due += 14;
+		if (ddo->slide.bounce) {
+			ddo->slide.offset += ddo->slide.velocity;
+			if (++ddo->slide.steps % 4 == 0)
+				--ddo->slide.velocity;
+			if (ddo->slide.offset <= 0) {
+				ddo->slide.offset   = 0;
+				ddo->slide.velocity = abs(-ddo->slide.velocity - 2);
+				impact              = true;
+				if (++ddo->slide.rebounds == 10)
+					ddo->slide.due = 0;
+			}
+		}
+		else {
+			ddo->slide.offset += ddo->slide.up ? 10 : -10;
+			if (ddo->slide.offset == 0 || ddo->slide.offset == 400)
+				ddo->slide.due = 0;
+		}
+	} while (ddo->slide.due && now >= ddo->slide.due);
+	if (impact)
+		st_ddofx_term_sound(ddo, sink, 15);
+	if (!show_offset(ddo) || (!ddo->slide.due && !ddo->slide.up))
+		st_ddofx_slide_restore(ddo);
+	return ddo->slide.due != 0;
 }

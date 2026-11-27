@@ -5,6 +5,7 @@
 #include "st_ddofx.h"
 
 uint32_t    st_ddofx_sample_wait_ms(const struct st_ddofx *);
+void        st_ddofx_term_sound(struct st_ddofx *, const struct st_ddofx_sink *, unsigned number);
 void st_ddofx_animation_sample(struct st_ddofx *, const struct st_ddofx_sink *, bool motion, int sample, int rate);
 void        st_ddofx_samples_poll(struct st_ddofx *);
 const char *st_ddofx_theme_name(const struct st_ddofx *);

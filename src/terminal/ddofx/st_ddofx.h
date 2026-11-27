@@ -35,6 +35,14 @@ struct st_ddofx_framer {
 };
 
 struct st_ddofx {
+	struct {
+		struct st_console *display;
+		uint64_t           due;
+		uint32_t           rows, height;
+		int                offset, velocity;
+		unsigned           steps, rebounds;
+		bool               up, bounce, suspended;
+	} slide;
 	struct st_ddofx_graphics *graphics;
 	struct st_ddofx_vga_font *vga_font;
 	struct st_ddofx_lite_fade *lite_fade;

@@ -1030,6 +1030,7 @@ st_term_session_set_suspended(st_term_session_t *session, bool suspended)
 			session->download_row_due = 0;
 		}
 		if (session->suspended != suspended) {
+			st_ddofx_slide_suspend(&session->ddofx, suspended);
 			st_ddofx_sleep_close(&session->ddofx);
 			session->ddofx.sleeper.suspended = suspended;
 			if (!suspended)
@@ -2446,9 +2447,9 @@ st_term_session_wait(st_term_session_t *session, uint32_t timeout_ms)
 	}
 	if (timeout_ms > 1
 	    && (session->transfer != NULL || session->transfer_reserved
-	        || (paused && !session->ddofx.sleeper.warning) || cterm_big_needs_poll(session->big)
-	        || cterm_igs_needs_poll(session->igs) || session->musicomm != NULL
-	        || st_cterm_needs_poll(st_term_session_cterm(session))))
+	        || (paused && !session->ddofx.sleeper.warning && !session->ddofx.slide.due)
+	        || cterm_big_needs_poll(session->big) || cterm_igs_needs_poll(session->igs)
+	        || session->musicomm != NULL || st_cterm_needs_poll(st_term_session_cterm(session))))
 		timeout_ms = 1;
 	if (ddofx_can_run(session)) {
 		uint32_t ddofx_wait = st_ddofx_wait_ms(&session->ddofx);

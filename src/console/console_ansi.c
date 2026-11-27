@@ -505,13 +505,13 @@ ansi_present(st_console_t *console)
 
 	if (initializing)
 		prepare_initial_screen(&writer, console, state, &view, host_columns, host_rows);
-	else
+	else if (!console->origin_pixels)
 		(void)scroll_up_one(&writer, console, state, &view,
 		    host_columns == 0 ? console->columns : host_columns);
 	for (uint32_t y = 0; y < view.height; ++y) {
 		for (uint32_t x = 0; x < view.width; ++x) {
 			size_t                        index  = (size_t)y * console->columns + x;
-			const struct st_console_cell *source = st_console_cell_at(console, index);
+			const struct st_console_cell *source = st_console_display_cell(console, index);
 			struct st_console_cell        effective;
 			const struct st_console_cell *cell;
 
@@ -537,18 +537,20 @@ ansi_present(st_console_t *console)
 			output_x = x + 1;
 			output_y = y;
 			if (x + 1 < console->columns
-			    && (st_console_cell_at(console, index + 1)->flags & ST_CONSOLE_CELL_CONTINUATION) != 0)
+			    && (st_console_display_cell(console, index + 1)->flags & ST_CONSOLE_CELL_CONTINUATION)
+			           != 0)
 				++output_x;
 			position_known = output_x < view.width;
 		}
 	}
-	if (console->cursor_visible && cursor_x < view.width && console->cursor_y < view.height) {
+	if (console->cursor_visible && cursor_x < view.width
+	    && st_console_display_cursor_y(console) < view.height) {
 		uint32_t shape = console->cursor_shape == ST_CONSOLE_CURSOR_BLOCK       ? 2
 		                 : console->cursor_shape == ST_CONSOLE_CURSOR_UNDERLINE ? 4
 		                                                                        : 6;
 
-		emit_format(&writer, "\033[%" PRIu32 ";%" PRIu32 "H", view.y + console->cursor_y + 1,
-		    view.x + cursor_x + 1, 0);
+		emit_format(&writer, "\033[%" PRIu32 ";%" PRIu32 "H",
+		    view.y + st_console_display_cursor_y(console) + 1, view.x + cursor_x + 1, 0);
 		emit_format(&writer, "\033[%" PRIu32 " q", shape, 0, 0);
 		emit(&writer, "\033[0m\033[?25h", 10);
 	}

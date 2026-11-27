@@ -167,7 +167,7 @@ write_run(struct win32_state *state, st_console_t *console, uint32_t y, uint32_t
 			amount = sizeof(buffer) / sizeof(buffer[0]);
 		for (uint32_t i = 0; i < amount; ++i) {
 			size_t                        index  = (size_t)y * console->columns + first + offset + i;
-			const struct st_console_cell *source = st_console_cell_at(console, index);
+			const struct st_console_cell *source = st_console_display_cell(console, index);
 			struct st_console_cell        effective;
 			const struct st_console_cell *cell;
 
@@ -178,7 +178,8 @@ write_run(struct win32_state *state, st_console_t *console, uint32_t y, uint32_t
 			if ((cell->flags & ST_CONSOLE_CELL_CONTINUATION) != 0)
 				buffer[i].Attributes |= COMMON_LVB_TRAILING_BYTE;
 			else if (i + offset + first + 1 < console->columns
-			         && (st_console_cell_at(console, index + 1)->flags & ST_CONSOLE_CELL_CONTINUATION)
+			         && (st_console_display_cell(console, index + 1)->flags
+			                & ST_CONSOLE_CELL_CONTINUATION)
 			                != 0)
 				buffer[i].Attributes |= COMMON_LVB_LEADING_BYTE;
 			state->drawn[index] = *source;
@@ -223,7 +224,7 @@ win32_present(st_console_t *console)
 
 			while (x < console->columns) {
 				size_t                        index = (size_t)y * console->columns + x;
-				const struct st_console_cell *cell  = st_console_cell_at(console, index);
+				const struct st_console_cell *cell  = st_console_display_cell(console, index);
 
 				if ((cell->flags & ST_CONSOLE_CELL_DIRTY) != 0 || st_console_row_dirty(console, y)
 				    || !st_console_cells_equal(cell, &state->drawn[index]))
@@ -233,7 +234,7 @@ win32_present(st_console_t *console)
 			first = x;
 			while (x < console->columns) {
 				size_t                        index = (size_t)y * console->columns + x;
-				const struct st_console_cell *cell  = st_console_cell_at(console, index);
+				const struct st_console_cell *cell  = st_console_display_cell(console, index);
 
 				if ((cell->flags & ST_CONSOLE_CELL_DIRTY) == 0 && !st_console_row_dirty(console, y)
 				    && st_console_cells_equal(cell, &state->drawn[index]))
@@ -253,10 +254,11 @@ win32_present(st_console_t *console)
 	st_console_cursor_span_locked(console, &cursor_x, &cursor_columns);
 	(void)cursor_columns;
 	position.X = (SHORT)cursor_x;
-	position.Y = (SHORT)console->cursor_y;
+	uint32_t row = st_console_display_cursor_y(console);
+	position.Y   = row < console->rows ? (SHORT)row : 0;
 	if (!SetConsoleCursorPosition(state->output, position))
 		return IO_ERROR_IO;
-	cursor.bVisible = console->cursor_visible;
+	cursor.bVisible = console->cursor_visible && row < console->rows;
 	cursor.dwSize   = console->cursor_shape == ST_CONSOLE_CURSOR_UNDERLINE ? 15
 	                  : console->cursor_shape == ST_CONSOLE_CURSOR_BAR     ? 25
 	                                                                       : 100;

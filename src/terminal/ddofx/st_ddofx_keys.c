@@ -265,6 +265,13 @@ st_ddofx_resume_key(struct st_ddofx *ddo, const struct st_ddofx_sink *sink)
 bool
 st_ddofx_key(struct st_ddofx *ddo, const struct st_console_event *e)
 {
+	if (ddo->slide.due && ddo->slide.bounce) {
+		if (e->type != ST_CONSOLE_EVENT_PHYSICAL_KEY
+		    && !(e->type == ST_CONSOLE_EVENT_TEXT && e->data.text.codepoint == '0')
+		    && !(e->type == ST_CONSOLE_EVENT_CODEPAGE_BYTE && e->data.codepage_byte == '0'))
+			st_ddofx_slide_restore(ddo);
+		return true;
+	}
 	if (st_ddofx_sleep_key(ddo, e))
 		return true;
 	if ((e->type == ST_CONSOLE_EVENT_KEY_CODE || e->type == ST_CONSOLE_EVENT_DOORWAY_KEY)

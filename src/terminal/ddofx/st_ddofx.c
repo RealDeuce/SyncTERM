@@ -194,6 +194,7 @@ st_ddofx_reset(struct st_ddofx *ddo)
 {
 	st_ddofx_graphics_exit(ddo);
 	st_ddofx_release_vga_font(ddo);
+	st_ddofx_slide_restore(ddo);
 	st_ddofx_restore_lite_palette(ddo);
 	for (size_t i = 0; i < sizeof(ddo->page_files) / sizeof(ddo->page_files[0]); ++i)
 		if (ddo->page_files[i] != NULL)
@@ -213,6 +214,7 @@ st_ddofx_reset(struct st_ddofx *ddo)
 	*ddo = (struct st_ddofx) {
 	    .volume              = 64,
 	    .background_download = ddo->background_download,
+	    .slide.suspended     = ddo->slide.suspended,
 	    .sleeper.suspended   = ddo->sleeper.suspended,
 	    .controller_paused   = ddo->controller_paused,
 	    .sticks              = {ddo->sticks[0], ddo->sticks[1]}
@@ -315,7 +317,11 @@ execute(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *body)
 		st_ddofx_retrieve_text_file(ddo, sink, body + 7);
 	else if (!ddo->graphics && body[0] == '0') {
 		int32_t duration;
-		if (argument(ddo, body, "0TFADEIN", &duration))
+		if (matches(body, "0SLIDEU"))
+			st_ddofx_slide(ddo, sink, true, false);
+		else if (matches(body, "0SLIDED") || matches(body, "0BOUNCED"))
+			st_ddofx_slide(ddo, sink, false, matches(body, "0BOUNCED"));
+		else if (argument(ddo, body, "0TFADEIN", &duration))
 			st_ddofx_lite_fade(ddo, sink, true, duration);
 		else if (argument(ddo, body, "0TFADEOUT", &duration))
 			st_ddofx_lite_fade(ddo, sink, false, duration);
@@ -486,8 +492,8 @@ st_ddofx_parse(struct st_ddofx *ddo, struct st_ddofx_framer *frame, const struct
 bool
 st_ddofx_busy(const struct st_ddofx *ddo)
 {
-	return ddo->sleeper.warning || ddo->retrieval.file || ddo->wait_until != 0 || ddo->fade_due != 0
-	       || st_ddofx_script_active(ddo) || ddo->queued_start != ddo->queued_end;
+	return ddo->slide.due || ddo->sleeper.warning || ddo->retrieval.file || ddo->wait_until != 0
+	       || ddo->fade_due != 0 || st_ddofx_script_active(ddo) || ddo->queued_start != ddo->queued_end;
 }
 
 static uint32_t
@@ -509,6 +515,13 @@ st_ddofx_wait_ms(const struct st_ddofx *ddo)
 	uint32_t ping    = ping_wait_ms(ddo, &now);
 	uint32_t sleeper = st_ddofx_sleep_wait_ms(ddo);
 	uint32_t timers  = ping < sleeper ? ping : sleeper;
+	if (ddo->slide.due) {
+		if (st_time_monotonic_ms(&now) || now >= ddo->slide.due)
+			return 0;
+		uint64_t frame = ddo->slide.due - now;
+		if (frame < timers)
+			timers = (uint32_t)frame;
+	}
 	if (ddo->sleeper.warning)
 		return timers;
 	uint32_t audio = st_ddofx_sample_wait_ms(ddo), event = st_ddofx_event_wait_ms(ddo);
@@ -580,6 +593,8 @@ st_ddofx_poll(struct st_ddofx *ddo, const struct st_ddofx_sink *sink)
 	/* Yield back to the session between slices so long or infinite scripts
 	 * cannot prevent local disconnect, redraws or transfer servicing. */
 	for (unsigned i = 0; i < 128; ++i) {
+		if (ddo->slide.due && st_ddofx_slide_step(ddo, sink))
+			break;
 		if (ddo->retrieval.file) {
 			st_ddofx_retrieve_step(ddo, sink);
 			if (ddo->retrieval.file)

@@ -5,6 +5,10 @@
 #include "st_cterm.h"
 #include "st_ddofx.h"
 
+void        st_ddofx_slide(struct st_ddofx *, const struct st_ddofx_sink *, bool up, bool bounce);
+bool        st_ddofx_slide_step(struct st_ddofx *, const struct st_ddofx_sink *);
+void        st_ddofx_slide_restore(struct st_ddofx *);
+void        st_ddofx_slide_suspend(struct st_ddofx *, bool);
 void st_ddofx_restore_lite_palette(struct st_ddofx *);
 bool st_ddofx_lite_fade_step(struct st_ddofx *, uint64_t now);
 void st_ddofx_lite_fade(struct st_ddofx *, const struct st_ddofx_sink *, bool fade_in, int32_t duration);

@@ -26,6 +26,10 @@ Work, background and visual pages can load version-5, single-plane, 8-bit PCX ar
 
 Lite and Normal accept complete 4,096-byte VGA fonts from `DDOFX/FONTS` with lowercase `f`. The selected font applies to console text and all four desktop `2XT` destinations and an alerted window’s visual and hidden pages. `dGETFONT` reports its filename. SyncTERM supplies its built-in VGA font for `IBMSTD.FNT` when that file is absent.
 
+Lite slides and bounces move the displayed text page vertically. ANSI output, cursor reports and scrollback continue to use the original coordinates while the page is out of sight. Bitmap backends display scanline offsets and text backends use whole rows. Moving down works from either starting position. A bounce makes successively smaller rebounds and can be interrupted with a key. Normal mode ignores all three commands.
+
+Uppercase `Tfilename` loads terminal effects from `DDOFX/THEMES`. Each BBS starts with `DEFAULT.THE` when present. The last successfully selected filename is saved in that BBS’s cache and used on later connections. `TNONE` releases the current effects. Lowercase `tfilename` still controls the separate BBS sample bank. The SDK assigns terminal samples 20, 19 and 15 to slide up, slide down and bounce impact respectively. Playback requires enabled sound and the corresponding sample in the selected pack.
+
 Lite accepts 4,000-byte RAW ANSI screens from the assigned M resource. `!filename` places the 80-column VGA character/attribute image starting on physical row 2 and clips it to the terminal area. Ordinary text resumes at its existing cursor. `0TFADEOUT` and `0TFADEIN` fade the 256-entry text palette over the SDK’s requested duration in milliseconds. The BBS can build the next page while the palette is black.
 
 A BBS can load legacy and four-bank BMF fonts into 32 slots with `2F` and switch between loaded fonts with `2FSELECT`. On the selected desktop or window page, `2X` scales a variable-width string to the specified rectangle, draws an optional one-pixel outline, and rotates it about the rectangle center. A visual bitmap print refreshes its area in the window. If the scratch image allocation fails, the current VGA font renders inside a colour-10 box.
@@ -94,7 +98,7 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 616 | LOAD MUSIC | DDO-FX LITE | MOD, S3M, CMF with embedded instruments |
 | 635 | LOAD BBS THEME | DDO-FX LITE | Connected |
 | 693 | LOAD SOUND BITES LIBRARY | DDO-FX LITE | Connected |
-| 767 | LOAD TERM THEME | DDO-FX LITE | Pending |
+| 767 | LOAD TERM THEME | DDO-FX LITE | Connected |
 | 828 | PLAY SAMPLE | DDO-FX LITE | Connected |
 | 858 | PLAY SOUND BITE SAMPLE | DDO-FX LITE | Connected |
 | 868 | PLAY SAMPLE At FREQUENCY | DDO-FX LITE | Connected |
@@ -149,9 +153,9 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 3226 | SEND RETURN STRING | DDO-LITE | Connected |
 | 3237 | TEXT FADE OUT | DDO-FX LITE | Connected |
 | 3264 | TEXT FADE IN | DDO-FX LITE | Connected |
-| 3273 | SLIDE SCREEN UP | DDO-FX LITE | Pending |
-| 3294 | SLIDE SCREEN DOWN | DDO-FX LITE | Pending |
-| 3307 | BOUNCE SCREEN DOWN | DDO-FX LITE | Pending |
+| 3273 | SLIDE SCREEN UP | DDO-FX LITE | Connected |
+| 3294 | SLIDE SCREEN DOWN | DDO-FX LITE | Connected |
+| 3307 | BOUNCE SCREEN DOWN | DDO-FX LITE | Connected |
 | 3323 | DISPLAY RAW ANSI | DDO-FX LITE | Connected |
 | 3365 | SET FULL SCREEN MODE | DDO-FX LITE | Pending |
 | 3400 | RESTORE FULL SCREEN MODE | DDO-FX LITE | Pending |

@@ -114,7 +114,7 @@ resolve_rectangle(struct st_console_bitmap_presenter *presenter, struct st_rgb_b
 	for (uint32_t y = 0; y < rectangle->height; ++y) {
 		uint32_t  screen_y           = rectangle->y + y;
 		size_t    destination_offset = (size_t)screen_y * destination->width + rectangle->x;
-		size_t    source_offset      = st_console_pixel_position_locked(console, rectangle->x, screen_y);
+		uint32_t  source_y           = st_console_display_source_y(console, screen_y);
 		uint32_t *target             = &destination->pixels[destination_offset];
 		uint32_t  covered            = 0;
 		if (indicator != NULL && screen_y >= indicator_top && screen_y - indicator_top < indicator->height
@@ -129,9 +129,18 @@ resolve_rectangle(struct st_console_bitmap_presenter *presenter, struct st_rgb_b
 				covered)
 			    || changed;
 		}
-		changed = resolve_row(presenter, target + covered, plane + source_offset + covered,
-			      rectangle->width - covered)
-		          || changed;
+		if (source_y == UINT32_MAX) {
+			for (uint32_t x = covered; x < rectangle->width; ++x) {
+				changed |= target[x] != 0;
+				target[x] = 0;
+			}
+		}
+		else {
+			size_t from = st_console_pixel_position_locked(console, rectangle->x, source_y);
+			changed     = resolve_row(presenter, target + covered, plane + from + covered,
+					  rectangle->width - covered)
+			              || changed;
+		}
 	}
 	return changed;
 }
@@ -164,7 +173,8 @@ compose_index_cursor(struct st_console_bitmap_presenter *presenter, struct st_rg
 	bool            changed = false;
 
 	for (uint32_t y = 0; y < rect->height; ++y) {
-		size_t source = st_console_pixel_position_locked(console, rect->x, rect->y + y);
+		size_t source = st_console_pixel_position_locked(console, rect->x,
+		    st_console_display_source_y(console, rect->y + y));
 		size_t target = (size_t)(rect->y + y) * destination->width + rect->x;
 		for (uint32_t x = 0; x < rect->width; ++x) {
 			uint32_t index = plane[source + x];
@@ -847,6 +857,21 @@ cache_console_state(struct st_console_bitmap_presenter *presenter, const st_cons
 		    && presenter->cursor_x < presenter->columns && presenter->cursor_y < presenter->rows
 		    && presenter->cursor_rectangle.width != 0 && presenter->cursor_rectangle.height != 0;
 	}
+	if (console->origin_pixels && presenter->cursor_composed
+	    && presenter->cursor_rectangle.y < st_console_origin_height(console)) {
+		struct st_console_rect *r         = &presenter->cursor_rectangle;
+		uint32_t                available = st_console_origin_height(console) - r->y;
+		if (r->height > available)
+			r->height = available;
+		if (r->y < console->origin_pixels) {
+			uint32_t clipped           = console->origin_pixels - r->y;
+			r->height                  = clipped < r->height ? r->height - clipped : 0;
+			r->y                       = 0;
+			presenter->cursor_composed = r->height != 0;
+		}
+		else
+			r->y -= console->origin_pixels;
+	}
 	bool rectangle_changed = !st_console_rects_equal(&old_cursor, &presenter->cursor_rectangle);
 	bool bank_changed      = old_cursor_index_base != presenter->cursor_index_base
 	                         || old_cursor_index_xor != presenter->cursor_index_xor;
@@ -940,7 +965,9 @@ compose_pointer(struct st_console_bitmap_presenter *p, const st_console_t *conso
 	bool changed = false;
 	for (uint32_t dy = 0; dy < rect->height; ++dy) {
 		uint32_t y      = rect->y + dy;
-		size_t   source = st_console_pixel_position_locked(console, rect->x, y);
+		uint32_t source_y = st_console_display_source_y(console, y);
+		size_t   source =
+		    source_y == UINT32_MAX ? 0 : st_console_pixel_position_locked(console, rect->x, source_y);
 		size_t   target = (size_t)y * p->images[image]->width + rect->x;
 		for (uint32_t dx = 0; dx < rect->width; ++dx) {
 			uint32_t x       = rect->x + dx;
@@ -953,7 +980,8 @@ compose_pointer(struct st_console_bitmap_presenter *p, const st_console_t *conso
 				 toggle = console->indexed_pointer.xor_mask[row][col];
 			if (keep == 255 && !toggle)
 				continue;
-			uint32_t ink     = plane[source + dx];
+			uint32_t ink =
+			    source_y == UINT32_MAX ? ST_CONSOLE_COLOR_RGB_VALUE(0, 0, 0) : plane[source + dx];
 			bool     covered = indicator && y >= indicator_top && y - indicator_top < indicator->height
 			                   && x < indicator->width;
 			if (covered)
@@ -1139,6 +1167,20 @@ st_console_bitmap_prepare_frame(struct st_console_bitmap_presenter *presenter, c
 		if (console->pixel_damage_valid)
 			st_console_rect_accumulate(&presenter->damage, &presenter->damage_valid,
 			    &console->pixel_damage);
+		if (console->origin_pixels && presenter->damage_valid) {
+			struct st_console_rect visible = presenter->damage;
+			uint32_t               bottom  = visible.y + visible.height;
+			uint32_t               limit   = st_console_origin_height(console);
+			if (bottom > limit)
+				bottom = limit;
+			if (visible.y < console->origin_pixels)
+				visible.y = console->origin_pixels;
+			if (bottom > visible.y) {
+				visible.height = bottom - visible.y;
+				visible.y -= console->origin_pixels;
+				st_console_rect_accumulate(&presenter->damage, &presenter->damage_valid, &visible);
+			}
+		}
 		if (cursor_changed) {
 			if (old_cursor.width != 0 && old_cursor.height != 0)
 				st_console_rect_accumulate(&presenter->damage, &presenter->damage_valid,

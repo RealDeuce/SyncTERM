@@ -732,6 +732,10 @@ int st_console_font_glyph_columns(st_console_t *console, uint16_t identifier, ui
  * Pixel coordinates are zero-based and independent of the text window.
  * Pixel colours use the same indexed/direct representation as cell colours.
  */
+/* Display the top rows starting at a vertical pixel offset; exposed rows
+ * are black. Reads, drawing and scrolling keep their logical coordinates.
+ * Cell-only backends round down to a whole row. A zero offset restores the page. */
+int st_console_set_vertical_origin(st_console_t *, uint32_t rows, uint32_t pixels);
 int st_console_pixel_size(st_console_t *console, uint32_t *width, uint32_t *height);
 /* Display-only status cells on the last grid row of a bitmap console.
  * NULL with a count of zero removes the buffered row and hides it.

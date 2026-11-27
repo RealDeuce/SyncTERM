@@ -185,6 +185,7 @@ struct st_console {
 	uint32_t                pixel_top;
 	bool                    full_surface_scroll;
 	struct st_pixel_buffer *pixels;
+	uint32_t                origin_rows, origin_pixels;
 	struct st_pixel_buffer *status_pixels;
 	bool                    status_visible;
 	/* Cell metadata represented by the current contents of pixels. */
@@ -255,6 +256,51 @@ static inline struct st_console_cell *
 st_console_cell_at(const st_console_t *console, size_t index)
 {
 	return console->cells + st_console_cell_index(console, index);
+}
+
+static inline uint32_t
+st_console_origin_height(const st_console_t *console)
+{
+	uint32_t rows = console->origin_rows < console->rows ? console->origin_rows : console->rows;
+	return rows * console->cell_height;
+}
+
+static inline uint32_t
+st_console_display_source_y(const st_console_t *console, uint32_t y)
+{
+	if (!console->origin_pixels)
+		return y;
+	uint32_t height = st_console_origin_height(console);
+	if (y >= height)
+		return y;
+	return console->origin_pixels >= height - y ? UINT32_MAX : y + console->origin_pixels;
+}
+
+static inline const struct st_console_cell *
+st_console_display_cell(const st_console_t *console, size_t index)
+{
+	if (console->origin_pixels) {
+		uint32_t rows = console->origin_rows < console->rows ? console->origin_rows : console->rows;
+		uint32_t skip = console->origin_pixels / console->cell_height;
+		if (index < (size_t)rows * console->columns) {
+			if (skip >= rows || index >= (size_t)(rows - skip) * console->columns) {
+				static const struct st_console_cell blank = {.glyph = ' '};
+				return &blank;
+			}
+			index += (size_t)skip * console->columns;
+		}
+	}
+	return st_console_cell_at(console, index);
+}
+
+static inline uint32_t
+st_console_display_cursor_y(const st_console_t *console)
+{
+	uint32_t y = console->cursor_y;
+	if (!console->origin_pixels || y >= console->origin_rows)
+		return y;
+	uint32_t offset = console->origin_pixels / console->cell_height;
+	return y < offset ? UINT32_MAX : y - offset;
 }
 
 static inline struct st_console_cell *

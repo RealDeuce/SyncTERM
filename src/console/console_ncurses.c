@@ -983,7 +983,7 @@ sgr_present(st_console_t *console, struct curses_state *state, const struct st_c
 	for (uint32_t y = 0; y < view->height; ++y) {
 		for (uint32_t x = 0; x < view->width; ++x) {
 			size_t                        index  = (size_t)y * console->columns + x;
-			const struct st_console_cell *source = st_console_cell_at(console, index);
+			const struct st_console_cell *source = st_console_display_cell(console, index);
 			struct st_console_cell        effective;
 			const struct st_console_cell *cell;
 
@@ -1014,18 +1014,20 @@ sgr_present(st_console_t *console, struct curses_state *state, const struct st_c
 			output_x                       = x + 1;
 			output_y                       = y;
 			if (x + 1 < console->columns
-			    && (st_console_cell_at(console, index + 1)->flags & ST_CONSOLE_CELL_CONTINUATION) != 0)
+			    && (st_console_display_cell(console, index + 1)->flags & ST_CONSOLE_CELL_CONTINUATION)
+			           != 0)
 				++output_x;
 			position_known = output_x < view->width;
 		}
 	}
-	if (console->cursor_visible && cursor_x < view->width && console->cursor_y < view->height) {
+	if (console->cursor_visible && cursor_x < view->width
+	    && st_console_display_cursor_y(console) < view->height) {
 		uint32_t shape = console->cursor_shape == ST_CONSOLE_CURSOR_BLOCK       ? 2
 		                 : console->cursor_shape == ST_CONSOLE_CURSOR_UNDERLINE ? 4
 		                                                                        : 6;
 
-		sgr_format(&writer, "\033[%" PRIu32 ";%" PRIu32 "H", view->y + console->cursor_y + 1,
-		    view->x + cursor_x + 1, 0);
+		sgr_format(&writer, "\033[%" PRIu32 ";%" PRIu32 "H",
+		    view->y + st_console_display_cursor_y(console) + 1, view->x + cursor_x + 1, 0);
 		sgr_format(&writer, "\033[%" PRIu32 " q", shape, 0, 0);
 		sgr_emit(&writer, "\033[0m\033[?25h", 10);
 	}
@@ -1330,7 +1332,7 @@ curses_present_inner(void *argument)
 	for (y = 0; y < view->height; ++y) {
 		for (x = 0; x < view->width; ++x) {
 			size_t                        index  = (size_t)y * console->columns + x;
-			const struct st_console_cell *source = st_console_cell_at(console, index);
+			const struct st_console_cell *source = st_console_display_cell(console, index);
 			struct st_console_cell        effective;
 			const struct st_console_cell *cell;
 			int                           pair;
@@ -1367,13 +1369,17 @@ curses_present_inner(void *argument)
 			state->drawn_background[index] = background;
 		}
 	}
-	if (console->cursor_visible && cursor_x < view->width && console->cursor_y < view->height
-	    && state->api.call_move(state->window, (int)(view->y + console->cursor_y), (int)(view->x + cursor_x))
+	if (console->cursor_visible && cursor_x < view->width
+	    && st_console_display_cursor_y(console) < view->height
+	    && state->api.call_move(state->window, (int)(view->y + st_console_display_cursor_y(console)),
+		   (int)(view->x + cursor_x))
 	           == ERR)
 		return IO_ERROR_IO;
-	cursor = !console->cursor_visible || cursor_x >= view->width || console->cursor_y >= view->height ? 0
-	         : console->cursor_shape == ST_CONSOLE_CURSOR_BLOCK                                       ? 2
-	                                                                                                  : 1;
+	cursor = !console->cursor_visible || cursor_x >= view->width
+	                 || st_console_display_cursor_y(console) >= view->height
+	             ? 0
+	         : console->cursor_shape == ST_CONSOLE_CURSOR_BLOCK ? 2
+	                                                            : 1;
 	(void)state->api.call_cursor(cursor);
 	status = state->api.call_refresh(state->window) == ERR ? IO_ERROR_IO : 0;
 	report_invalid_colour(state);

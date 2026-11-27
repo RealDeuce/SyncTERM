@@ -5,6 +5,7 @@
 
 #include "st_cterm.h"
 #include "st_ddofx.h"
+#include "st_ddofx_samples.h"
 
 #define CHECK(e)                                                   \
 	do {                                                       \
@@ -117,6 +118,8 @@ static FILE *
 open_music(void *context, const char *category, const char *client, const char *name)
 {
 	(void)context;
+	if (!client && !strcmp(category, "THEMES") && !strcmp(name, "TERM.THE"))
+		return sample_asset("BANK.THE");
 	if (client == NULL && !strcmp(category, "BBSTHEME"))
 		return sample_asset(name);
 	if (client != NULL || strcmp(category, "MUSIC") != 0)
@@ -230,6 +233,14 @@ check_samples(struct st_ddofx *ddo, struct st_ddofx_sink *sink)
 	QUERY("dGETTHEME", "NONE");
 	CMD("tBANK.THE");
 	CMD("tMISSING");
+	QUERY("dGETTHEME", "BANK.THE");
+	CMD("TTERM.THE");
+	CMD("TMISSING.THE");
+	st_ddofx_term_sound(ddo, sink, 2);
+	LEVEL(21, 40);
+	CMD("TNONE");
+	st_ddofx_term_sound(ddo, sink, 2);
+	LEVEL(1, 0);
 	QUERY("dGETTHEME", "BANK.THE");
 	CMD("p1");
 	LEVEL(21, 32); /* ceil(4 * 44100 / 8500) */

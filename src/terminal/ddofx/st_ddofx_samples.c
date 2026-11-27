@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "filesystem.h"
+#include "path.h"
 #include "st_ddofx_resource.h"
 #include "st_ddofx_samples.h"
 #include "st_ddofx_script.h"
@@ -49,7 +50,8 @@ struct sample_voice {
 
 struct st_ddofx_samples {
 	struct realplay     real;
-	struct bank         theme, bites;
+	struct bank         theme, bites, terminal;
+	bool                terminal_selected;
 	struct profile      profiles[PROFILE_COUNT];
 	char                theme_name[ST_DDOFX_BODY_MAX + 1], bite_file[ST_DDOFX_BODY_MAX + 1];
 	struct sample_voice main, animation, motion;
@@ -245,6 +247,7 @@ st_ddofx_samples_destroy(struct st_ddofx *ddo)
 	stop(s);
 	clear_bank(s, &s->theme);
 	clear_bank(s, &s->bites);
+	clear_bank(s, &s->terminal);
 	st_ddofx_clear_sample_profiles(ddo);
 	free(s);
 	ddo->samples = NULL;
@@ -330,14 +333,16 @@ append_number(FILE *file, const char *prefix, unsigned index, struct sample *sam
 }
 
 static bool
-load_bank(struct st_ddofx_samples *s, const struct st_ddofx_sink *sink, const char *name, struct bank *bank)
+load_bank(struct st_ddofx_samples *s, const struct st_ddofx_sink *sink, const char *category, const char *name,
+    struct bank *bank)
 {
-	FILE *file = sink->open_asset(sink->context, "BBSTHEME", NULL, name);
+	FILE *file = sink->open_asset ? sink->open_asset(sink->context, category, NULL, name) : NULL;
 	if (file == NULL)
 		return false;
 	struct bank next = {0};
 	bool        ok   = fs_stream_size(file) >= 792;
-	while (ok && next.count < BANK_SIZE) {
+	unsigned    limit = bank == &s->terminal ? 27 : BANK_SIZE;
+	while (ok && next.count < limit) {
 		struct sample   *entry  = &next.samples[next.count];
 		enum load_result result = append_number(file, "SAM", next.count + 1, entry);
 		if (result != LOADED) {
@@ -358,6 +363,56 @@ load_bank(struct st_ddofx_samples *s, const struct st_ddofx_sink *sink, const ch
 	return ok;
 }
 
+static char *
+term_selection_path(const struct st_ddofx_sink *sink)
+{
+	char *path = NULL;
+	if (sink->cache_directory)
+		(void)path_join_alloc(&path, sink->cache_directory, "terminal-theme");
+	return path;
+}
+
+static void
+select_term_theme(struct st_ddofx_samples *s, const struct st_ddofx_sink *sink, const char *name)
+{
+	if (!ascii_case_compare(name, "NONE")) {
+		clear_bank(s, &s->terminal);
+		s->terminal_selected = true;
+	}
+	else if (st_ddofx_dos_filename(name) && load_bank(s, sink, "THEMES", name, &s->terminal)) {
+		s->terminal_selected = true;
+		char *path           = term_selection_path(sink);
+		if (path)
+			(void)fs_replace_file(path, name, strlen(name));
+		free(path);
+	}
+}
+
+void
+st_ddofx_term_sound(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, unsigned number)
+{
+	if ((!st_audio_runtime_is_pull(sink->audio) && !st_audio_runtime_allowed(sink->audio))
+	    || !samples_ready(ddo))
+		return;
+	struct st_ddofx_samples *s = ddo->samples;
+	if (!s->terminal_selected) {
+		char *path = term_selection_path(sink);
+		FILE *file;
+		char  name[14] = "DEFAULT.THE";
+		if (path && fs_open(&file, path, "rb") == 0) {
+			size_t n = fread(name, 1, sizeof(name) - 1, file);
+			name[n]  = 0;
+			if (ferror(file) || n > 12 || strlen(name) != n || !st_ddofx_dos_filename(name))
+				strcpy(name, "DEFAULT.THE");
+			fclose(file);
+		}
+		free(path);
+		s->terminal_selected = load_bank(s, sink, "THEMES", name, &s->terminal);
+	}
+	if (number && number <= s->terminal.count)
+		play(s, &s->main, sink->audio, &s->terminal.samples[number - 1], 8500);
+}
+
 static void
 load_bites(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, const char *arg)
 {
@@ -367,7 +422,7 @@ load_bites(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, const char *a
 	else if (!ascii_case_compare(arg, "NONE"))
 		clear_bank(s, &s->bites);
 	else if (!ascii_case_compare(arg, "LOAD"))
-		load_bank(s, sink, s->bite_file, &s->bites);
+		load_bank(s, sink, "BBSTHEME", s->bite_file, &s->bites);
 	else {
 		int32_t index;
 		if (s->bites.count == BANK_SIZE || !st_ddofx_number(ddo, arg, &index) || index < 1
@@ -577,13 +632,15 @@ st_ddofx_samples_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink,
 		play_file(ddo, sink, body + 7);
 		return true;
 	}
-	if (*body != 't' && *body != 'p' && *body != 'P')
+	if (*body != 'T' && *body != 't' && *body != 'p' && *body != 'P')
 		return false;
 	if ((!st_audio_runtime_is_pull(sink->audio) && !st_audio_runtime_allowed(sink->audio))
 	    || !samples_ready(ddo))
 		return true;
 	struct st_ddofx_samples *s = ddo->samples;
-	if (*body != 't')
+	if (*body == 'T')
+		select_term_theme(s, sink, st_ddofx_value(ddo, body + 1));
+	else if (*body != 't')
 		play_slot(ddo, sink, body);
 	else if (body[1] == 'b')
 		load_bites(ddo, sink, body + 2);
@@ -593,7 +650,7 @@ st_ddofx_samples_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink,
 			clear_bank(s, &s->theme);
 			s->theme_name[0] = 0;
 		}
-		else if (load_bank(s, sink, name, &s->theme))
+		else if (load_bank(s, sink, "BBSTHEME", name, &s->theme))
 			strcpy(s->theme_name, name);
 	}
 	return true;

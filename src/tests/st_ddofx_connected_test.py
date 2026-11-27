@@ -2403,6 +2403,31 @@ def check_events(t):
     t.exchange(commands(b"7CEVENT,0", b"7AEVENT,1", b"dLITERM"), b"LITERM Ver. 2.00\xff")
 
 
+def check_lite_slides(t):
+    t.case("Lite slides move the displayed page while ANSI continues drawing")
+    red = t.exchange(b"\x1b[?25l\x1b[41m\x1b[2J\x1b[HOLD")
+    red_rgb = red.palette[1]
+    assert red_rgb in red.rgb
+    t.send(commands(b"0SLIDEU"))
+    t.client.wait_for(lambda f: 0 < f.rgb.count(red_rgb) < red.rgb.count(red_rgb))
+    hidden = t.exchange(b"\x1b[42m\x1b[2J\x1b[HNEW\x1b[6n", b"\x1b[1;4R")
+    assert hidden.lines[0].startswith("NEW") and not any(hidden.rgb)
+    green = hidden.palette[2]
+    t.send(commands(b"0SLIDED"))
+    t.client.wait_for(lambda f: green in f.rgb and f.rgb.count(0) > red.rgb.count(0))
+    shown = t.exchange()
+    assert shown.primary == hidden.primary and shown.alternate == hidden.alternate
+    assert shown.rgb.count(green) > red.rgb.count(red_rgb) * 0.95
+    t.send(commands(b"0BOUNCED"))
+    t.client.wait_for(lambda f: green in f.rgb and f.rgb.count(green) < shown.rgb.count(green) // 2)
+    full = shown.rgb.count(green)
+    t.client.wait_for(lambda f: f.rgb.count(green) > full * 0.93)
+    t.client.wait_for(lambda f: f.rgb.count(green) < full * 0.85)
+    t.client.text("qk")
+    assert t.input(b"k").rgb == shown.rgb
+    t.exchange(b"\x1b[0m\x1b[?25h\x1b[2J\x1b[H")
+
+
 def check_sleeper(t):
     t.case("inactivity countdown, dismissal, scene restoration and local hangup")
     before = t.exchange(commands(b"5SLEEPER,0", b"LIGMODE", b"LIGMODE", b"2C,9", b"2aFILL", b"2CPYWP2VP"))
@@ -2479,6 +2504,7 @@ def run(args):
                 (3, 1), [(1, 1, "AB")], expected=reply)
         t.check("recover and continue", b"A\x1d{" + b"x" * 251 + b"}B\x1dX" + ident,
                 (4, 1), [(1, 1, "ABX")], expected=reply)
+        check_lite_slides(t)
         check_sleeper(t)
 
 

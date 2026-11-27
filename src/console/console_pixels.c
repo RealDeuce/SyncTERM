@@ -629,6 +629,32 @@ render_cell(st_console_t *console, uint32_t x, uint32_t y, enum row_scale row_sc
 }
 
 int
+st_console_set_vertical_origin(st_console_t *console, uint32_t rows, uint32_t pixels)
+{
+	if (!console || console->raster_parent)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (st_rwlock_write_lock(st_console_state_lock(console)) != ST_THREAD_SUCCESS)
+		return IO_ERROR_IO;
+	int status = 0;
+	if (rows > console->rows || !console->cell_height || rows > UINT32_MAX / console->cell_height
+	    || pixels > rows * console->cell_height)
+		status = IO_ERROR_OUT_OF_RANGE;
+	else if (pixels != console->origin_pixels || (pixels && rows != console->origin_rows)) {
+		console->origin_rows   = pixels ? rows : 0;
+		console->origin_pixels = pixels;
+		console->changed       = true;
+		if (console->pixels) {
+			console->pixel_damage =
+			    (struct st_console_rect) {0, 0, console->pixels->width, console->pixels->height};
+			console->pixel_damage_valid = true;
+		}
+		status = st_console_finish_change_locked(console);
+	}
+	(void)st_rwlock_unlock(st_console_state_lock(console));
+	return status;
+}
+
+int
 st_console_write_status_row(st_console_t *console, const struct st_console_cell *cells, size_t count)
 {
 	if (console == NULL || (cells == NULL && count != 0) || console->raster_parent != NULL)
