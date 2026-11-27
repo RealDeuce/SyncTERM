@@ -2,33 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "st_ddofx_graphics.h"
+#include "st_ddofx_graphics_internal.h"
 #include "st_ddofx_script.h"
 #include "string_util.h"
-
-enum {
-	WIDTH  = 640,
-	HEIGHT = 480
-};
-
-enum page {
-	WORK,
-	BACKGROUND,
-	HIDDEN,
-	VISUAL
-};
-
-struct st_ddofx_graphics {
-	st_console_t            *display, *view;
-	st_font_catalog_t       *fonts;
-	st_cterm_t              *text;
-	struct st_console_config previous_mode;
-	st_console_snapshot_t   *previous_screen;
-	uint32_t                 palette[256];
-	uint8_t                  page[3][HEIGHT][WIDTH];
-	bool                     transparent[256];
-	uint8_t                  colour;
-};
 
 static const uint32_t text_colours[16] = {
     0x000000,
@@ -126,6 +102,8 @@ st_ddofx_graphics_enter(struct st_ddofx *ddo, const struct st_ddofx_sink *sink)
 	    .scaling_policy                       = g->previous_mode.scaling_policy,
 	    .color_emoji                          = g->previous_mode.color_emoji};
 	g->colour                     = 10;
+	g->clip                       = (struct bounds) {0, WIDTH - 1, 0, HEIGHT - 1};
+	g->horizontal_thickness = g->vertical_thickness = 1;
 	(void)st_console_get_default_palette(0, g->palette, 256);
 	memcpy(g->palette, text_colours, sizeof(text_colours));
 	if (ddo->saved_palette == NULL) {
@@ -248,8 +226,8 @@ copy_region(void *context, const struct st_pixel_buffer *pixels, const uint32_t 
 	return 0;
 }
 
-static bool
-numbers(struct st_ddofx *ddo, char *args, int32_t *n, unsigned count)
+bool
+st_ddofx_numbers(struct st_ddofx *ddo, char *args, int32_t *n, unsigned count)
 {
 	for (unsigned i = 0; i < count; ++i)
 		if (!st_ddofx_field_number(ddo, &args, &n[i]))
@@ -270,7 +248,7 @@ copy_page(struct st_ddofx *ddo, const char *verb, char *args, bool cut)
 		return;
 	if (cut) {
 		int32_t n[6];
-		if (!numbers(ddo, args, n, 6) || n[0] < 0 || n[1] <= n[0] || n[1] >= WIDTH || n[2] < 0
+		if (!st_ddofx_numbers(ddo, args, n, 6) || n[0] < 0 || n[1] <= n[0] || n[1] >= WIDTH || n[2] < 0
 		    || n[3] <= n[2] || n[3] >= HEIGHT)
 			return;
 		t.x      = n[0];
@@ -288,6 +266,98 @@ copy_page(struct st_ddofx *ddo, const char *verb, char *args, bool cut)
 		(void)st_console_modify_pixels_with_palette(t.g->display, copy_region, &t);
 	else
 		(void)copy_region(&t, NULL, NULL, NULL);
+}
+
+struct scroll {
+	struct st_console_rect area;
+	int32_t                jump;
+	uint8_t                fill;
+	bool                   circular;
+};
+
+static void
+scroll_rows(void *plane, size_t pixel_size, const struct scroll *s)
+{
+	const int    height = (int)s->area.height;
+	const size_t stride = WIDTH * pixel_size, bytes = s->area.width * pixel_size;
+	uint8_t     *top = (uint8_t *)plane + s->area.y * stride + s->area.x * pixel_size;
+	if (s->circular) {
+		int jump = s->jump % height;
+		if (jump < 0)
+			jump += height;
+		if (jump == 0)
+			return;
+		/* Rotate each cycle using just one scanline of scratch space. */
+		uint32_t saved[WIDTH];
+		int      moved = 0;
+		for (int first = 0; moved < height; ++first) {
+			memcpy(saved, top + first * stride, bytes);
+			int dest = first;
+			for (;;) {
+				int src = (dest + height - jump) % height;
+				++moved;
+				if (src == first)
+					break;
+				memcpy(top + dest * stride, top + src * stride, bytes);
+				dest = src;
+			}
+			memcpy(top + dest * stride, saved, bytes);
+		}
+		return;
+	}
+	for (int i = 0; i < height; ++i) {
+		int      dest = s->jump > 0 ? height - 1 - i : i;
+		int64_t  src  = (int64_t)dest - s->jump;
+		uint8_t *row  = top + dest * stride;
+		if (src >= 0 && src < height)
+			memcpy(row, top + (size_t)src * stride, bytes);
+		else if (pixel_size == 1)
+			memset(row, s->fill, bytes);
+		else {
+			uint32_t *native = (uint32_t *)(void *)row;
+			for (unsigned x = 0; x < s->area.width; ++x)
+				native[x] = s->fill;
+		}
+	}
+}
+
+static int
+scroll_visible(void *context, const struct st_pixel_buffer *pixels, struct st_console_rect *changed)
+{
+	const struct scroll *s = context;
+	if (pixels->width == WIDTH && pixels->height == HEIGHT) {
+		scroll_rows(pixels->primary, sizeof(*pixels->primary), s);
+		scroll_rows(pixels->alternate, sizeof(*pixels->alternate), s);
+		*changed = s->area;
+	}
+	return 0;
+}
+
+static void
+scroll_page(struct st_ddofx *ddo, char *args)
+{
+	int32_t   n[6];
+	enum page page;
+	for (unsigned i = 0; i < 6; ++i)
+		if (!st_ddofx_field_number(ddo, &args, &n[i]))
+			return;
+	if (!args)
+		return;
+	const char *name = st_ddofx_value(ddo, args);
+	if (strlen(name) != 2 || !page_name(name, &page) || n[0] < 0 || n[1] < n[0] || n[1] >= WIDTH || n[2] < 0
+	    || n[3] < n[2] || n[3] >= HEIGHT || n[4] == 0 || (n[5] != 0 && n[5] != 1))
+		return;
+	struct st_ddofx_graphics *g = ddo->graphics;
+	struct scroll             s = {
+	    .area     = {n[0], n[2], n[1] - n[0] + 1, n[3] - n[2] + 1},
+	    .jump     = n[4],
+	    .fill     = g->colour,
+	    .circular = n[5] == 0
+        };
+	if (page == VISUAL)
+		(void)st_console_modify_pixels(g->display, scroll_visible, &s);
+	else
+		scroll_rows(&g->page[page], 1, &s);
 }
 
 static uint32_t
@@ -316,48 +386,37 @@ st_ddofx_graphics_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink
 		copy_page(ddo, verb, args, false);
 	else if (!ascii_case_ncompare(verb, "2CUT", 4))
 		copy_page(ddo, verb, args, true);
-	else if (!ascii_case_compare(verb, "2CCOL") && numbers(ddo, args, n, 2) && (unsigned)n[0] <= 255) {
+	else if (!ascii_case_compare(verb, "2CCOL") && st_ddofx_numbers(ddo, args, n, 2)
+	         && (unsigned)n[0] <= 255) {
 		if (n[1] == 0 || n[1] == 1)
 			g->transparent[n[0]] = n[1] == 1;
 		else if (n[0] == 0 && (n[1] == 3 || n[1] == 4))
 			for (unsigned i = 0; i < 256; ++i)
 				g->transparent[i] = n[1] == 3;
 	}
-	else if (!ascii_case_compare(verb, "2C") && numbers(ddo, args, n, 1) && (unsigned)n[0] <= 255)
+	else if (!ascii_case_compare(verb, "2C") && st_ddofx_numbers(ddo, args, n, 1) && (unsigned)n[0] <= 255)
 		g->colour = (uint8_t)n[0];
 	else if (verb[1] == 'a') {
 		const char *op = verb + 2;
-		if (!ascii_case_compare(op, "P") || !ascii_case_compare(op, "PX")
-		    || !ascii_case_compare(op, "G")) {
-			if (!numbers(ddo, args, n, 2) || (unsigned)n[0] >= WIDTH || (unsigned)n[1] >= HEIGHT)
-				return;
-			uint8_t *pixel = &g->page[WORK][n[1]][n[0]];
-			if (!ascii_case_compare(op, "G")) {
-				char reply[4];
-				snprintf(reply, sizeof(reply), "%u", (unsigned)*pixel);
-				st_ddofx_query_reply(ddo, sink, reply, true);
-			}
-			else if (op[1] != 0)
-				*pixel ^= g->colour;
-			else
-				*pixel = g->colour;
-		}
-		else if (args == NULL && (!ascii_case_compare(op, "FILL") || !ascii_case_compare(op, "ERASE")))
-			memset(g->page[WORK], !ascii_case_compare(op, "FILL") ? g->colour : 0,
-			    sizeof(g->page[WORK]));
-		else if (!ascii_case_compare(op, "SRGB") && numbers(ddo, args, n, 4) && (unsigned)n[0] < 256
-		         && (unsigned)n[1] < 64 && (unsigned)n[2] < 64 && (unsigned)n[3] < 64) {
+		if (!ascii_case_compare(op, "SCROLL"))
+			scroll_page(ddo, args);
+		else if (!ascii_case_compare(op, "SRGB") && st_ddofx_numbers(ddo, args, n, 4)
+		         && (unsigned)n[0] < 256 && (unsigned)n[1] < 64 && (unsigned)n[2] < 64
+		         && (unsigned)n[3] < 64) {
 			g->palette[n[0]] = dac(n[1]) << 16 | dac(n[2]) << 8 | dac(n[3]);
 			set_palette(g, (unsigned)n[0], 1);
 		}
-		else if (!ascii_case_compare(op, "GRGB") && numbers(ddo, args, n, 1) && (unsigned)n[0] < 256) {
+		else if (!ascii_case_compare(op, "GRGB") && st_ddofx_numbers(ddo, args, n, 1)
+		         && (unsigned)n[0] < 256) {
 			uint32_t rgb = g->palette[n[0]];
 			char     reply[12];
 			snprintf(reply, sizeof(reply), "%u,%u,%u", (unsigned)(rgb >> 18),
 			    (unsigned)((rgb >> 10) & 63), (unsigned)((rgb >> 2) & 63));
 			st_ddofx_query_reply(ddo, sink, reply, false);
 		}
-		else if (args == NULL) {
+		else if (args == NULL
+		         && (!ascii_case_compare(op, "STOREPAL") || !ascii_case_compare(op, "RESTOREPAL")
+		             || !ascii_case_compare(op, "ZEROPAL") || !ascii_case_compare(op, "DEFPAL"))) {
 			if (!ascii_case_compare(op, "STOREPAL"))
 				memcpy(ddo->saved_palette, g->palette, sizeof(g->palette));
 			else if (!ascii_case_compare(op, "RESTOREPAL")) {
@@ -373,5 +432,7 @@ st_ddofx_graphics_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink
 				set_palette(g, 0, 16);
 			}
 		}
+		else
+			st_ddofx_draw(ddo, sink, op, args);
 	}
 }

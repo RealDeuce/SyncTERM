@@ -39,6 +39,40 @@ def commands(*bodies):
     return b"".join(b"\x1d{" + body + b"}" for body in bodies)
 
 
+def check_drawing(t):
+    def scene(bodies, expected):
+        queries = [f"2aG,{x},{y}".encode() for x, y in expected]
+        reply = b"".join(str(colour).encode() + b"\xff" for colour in expected.values())
+        t.exchange(commands(*bodies, *queries), reply)
+
+    scene([b"2aERASE", b"2C,9", b"2aCLIP,10,20,15,25", b"2aM,5,20", b"2aDRAW,25,20",
+           b"2aMVREL,-10,0", b"2aDRAWREL,0,12", b"2aP,25,20", b"2aPX,15,20"],
+          {(9,20):0,(10,20):9,(15,20):0,(20,20):9,(21,20):0,(15,25):9,(15,26):0})
+    scene([b"2aERASE", b"2aRECT,2,5,1,3", b"2aCLPRCT,8,12,17,21",
+           b"2aBOXLNS,2,1", b"2aDRWBOX,14,20,15,21", b"2aDRWBXX,14,20,15,21"],
+          {(2,1):9,(5,3):9,(9,17):0,(10,17):9,(13,20):0,(14,15):0,(20,21):0})
+    scene([b"2aDRWBOX,14,20,15,21"], {(16,16):9,(15,17):0,(14,18):9,(19,18):0})
+    scene([b"2aERASE", b"2aM,8,18", b"2aDRDASH,18,18,1000100010001000",
+           b"2aDRDSHRL,0,4,1000100010001000"],
+          {(8,18):0,(11,18):0,(12,18):9,(16,18):9,(18,22):9,(18,21):0})
+    scene([b"2aERASE", b"2aM,15,20", b"2aCIRC,3", b"2C,6", b"2aFLOOD,15,20"],
+          {(15,20):6,(15,17):9,(18,20):9,(12,20):9,(15,23):9,(10,20):0})
+    scene([b"2aERASE", b"2aFLOOD,15,20", b"2C,3", b"2aPAINT,1,1"],
+          {(0,0):3,(9,15):3,(10,15):6,(20,25):6,(21,25):3})
+    scene([b"2aERASE", b"2aELIPSF,3,2", b"2aMVREL,3,2", b"2C,4", b"2aCIRCF,1"],
+          {(12,20):3,(15,18):3,(14,20):3,(15,17):0,(18,22):4})
+    scene([b"2aERASE", b"2aBCURV,1,2,4,2,7,2,10,2,8", b"2aBCURVX,1,2,4,2,7,2,10,2,8",
+           b"2aCLIP,0,639,0,479", b"2aDRAWREL,0,2"],
+          {(1,2):0,(7,2):0,(10,2):4,(10,4):4})
+    scene([b"2aERASE", b"2aM,-2147483648,7", b"2aDRAW,2147483647,7",
+           b"2aDRAWREL,1,1"], {(0,7):4,(639,7):4,(639,8):0})
+    scene([b"2aERASE", b"2C,2", b"2aRECT,1,3,1,2", b"2C,5", b"2aRECT,1,3,3,4",
+           b"2aSCROLL,1,3,1,4,-3,0,WP"], {(1,1):5,(1,2):2,(1,3):2,(1,4):5,(0,2):0})
+    scene([b"2CPYWP2VP", b"2C,7", b"2aSCROLL,1,3,1,4,2,1,VP", b"2CPYVP2WP"],
+          {(1,1):7,(1,2):7,(1,3):5,(1,4):2,(4,4):0})
+    scene([b"2CPYHP2WP"], {(1,1):5,(1,2):2,(1,3):2,(1,4):5})
+
+
 def check_graphics(t):
     lite = t.check("Lite screen before graphics", b"Before", (7, 1), [(1, 1, "Before")])
     enter = commands(b"LIGMODE", b"LIGMODE")
@@ -69,6 +103,7 @@ def check_graphics(t):
     frame = t.exchange(b"\x1b[H\x1b[41m " + commands(b"2CPYVP2WP", b"2aG,3,4",
                                                        b"2aSRGB,4,0,63,63"), b"4\xff")
     assert frame.primary[4 * 640 + 3] == 4 and frame.palette[4] == 0x00ffff
+    check_drawing(t)
     t.exchange(b"\x1b[75;45H" + b"\x1b[6n", b"\x1b[75;45R")
     restored = t.check("Lite display and cursor restored", commands(b"2GEXIT", b"dVIDMODE") + b"!",
                        (8, 1), [(1, 1, "Before!")], reset=False, expected=b"0\xff")

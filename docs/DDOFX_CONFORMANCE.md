@@ -8,7 +8,7 @@ Connected tests cover framing, detection, and ignore/hear across CP437 and UTF-8
 
 BBS sound themes, resident sound bites and big-sample profiles use signed 8-bit PCM from the entry’s `DDOFX/BBSTHEME` resources. RealPlay streams loose sample files from the same directory. The mixer advances the samples at the requested frequency alongside MOD or S3M playback. A connected peer checks `dSOUNDON` and starts RealPlay from the cache. The test reads the resulting stereo frames from a pull-only audio device.
 
-An online pair of `LIGMODE` commands enters Normal mode on a pixel display. The visible page is 640×480 with 256 palette entries. The work, background and hidden pages store pixel indices. Whole-page copies, rectangular cuts anchored at the lower left, transparent cuts, work-page points, fills and palette changes are available from a connection. Ordinary ANSI goes to an 80×100 virtual text page with the top 30 rows visible. `2GEXIT` restores the Lite screen, cursor and palette. Named text windows and window scrolling remain pending.
+An online pair of `LIGMODE` commands enters Normal mode on a pixel display. The visible page is 640×480 with 256 palette entries. The work, background and hidden pages store pixel indices. Whole-page copies, rectangular cuts anchored at the lower left, transparent cuts, work-page drawing, vertical scrolling and palette changes are available from a connection. Ordinary ANSI goes to an 80×100 virtual text page with the top 30 rows visible. `2GEXIT` restores the Lite screen, cursor and palette. Named text windows and window scrolling remain pending.
 
 Loose-file queries read the entry’s `DDOFX/MUSIC`, `DDOFX/FONTS`, and `DDOFX/BBSTHEME` directories. Professional queries use `DDOFX/TERMS/<client>`. Names use DOS-style case matching. The timestamp is local modification time with DOS two-second precision. `8EXEC` consumes the command without starting a program.
 
@@ -233,8 +233,8 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 8156 | DRAW POINT XOR | DDO-FX (NM) | Connected |
 | 8163 | ERASE PAGE | DDO-FX (NM) | Connected |
 | 8172 | Get Pixel | DDO-FX (NM) | Connected |
-| 8182 | MOVE GRAPHICS CURSOR | DDO-FX (NM) | Pending |
-| 8192 | PAINT | DDO-FX (NM) | Pending |
+| 8182 | MOVE GRAPHICS CURSOR | DDO-FX (NM) | Connected |
+| 8192 | PAINT | DDO-FX (NM) | Connected |
 | 8209 | SET RGB | DDO-FX (NM) | Connected |
 | 8221 | GET RGB | DDO-FX (NM) | Connected |
 | 8234 | STORE PALETTE | DDO-FX (NM) | Connected |
@@ -243,30 +243,30 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 8260 | FADE PALETTE OUT | DDO-FX (NM) | Pending |
 | 8299 | FADE PALETTE OUT ADVANCED | DDO-FX (NM) | Pending |
 | 8350 | FADE PALETTE IN | DDO-FX (NM) | Pending |
-| 8361 | DRAW LINE RELATIVE | DDO-FX (NM) | Pending |
+| 8361 | DRAW LINE RELATIVE | DDO-FX (NM) | Connected |
 | 8374 | CHANGE VIEW PORT ORIGIN | DDO-FX (NM) | Pending |
 | 8394 | SHAKE SCREEN | DDO-FX (NM) | Pending |
-| 8404 | DRAW FILLED RECTANGLE | DDO-FX (NM) | Pending |
-| 8420 | SET CLIPPING REGION | DDO-FX (NM) | Pending |
-| 8439 | DRAW CIRCLE | DDO-FX (NM) | Pending |
-| 8451 | DRAW FILLED CIRCLE | DDO-FX (NM) | Pending |
-| 8463 | DRAW LINE | DDO-FX (NM) | Pending |
-| 8474 | DRAW LINE XOR | DDO-FX (NM) | Pending |
+| 8404 | DRAW FILLED RECTANGLE | DDO-FX (NM) | Connected |
+| 8420 | SET CLIPPING REGION | DDO-FX (NM) | Connected |
+| 8439 | DRAW CIRCLE | DDO-FX (NM) | Connected |
+| 8451 | DRAW FILLED CIRCLE | DDO-FX (NM) | Connected |
+| 8463 | DRAW LINE | DDO-FX (NM) | Connected |
+| 8474 | DRAW LINE XOR | DDO-FX (NM) | Connected |
 | 8481 | DEFAULT 16 COLOR PALETTE | DDO-FX (NM) | Connected |
-| 8492 | DRAW BOX | DDO-FX (NM) | Pending |
-| 8508 | DRAW BOX XOR | DDO-FX (NM) | Pending |
-| 8524 | EDIT BOX LINES | DDO-FX (NM) | Pending |
-| 8533 | DRAW CLIPPED RECTANGLE | DDO-FX (NM) | Pending |
-| 8548 | DRAW DASHED LINE | DDO-FX (NM) | Pending |
-| 8564 | DRAW DASHED LINE RELATIVE | DDO-FX (NM) | Pending |
-| 8580 | DRAW ELLIPSE | DDO-FX (NM) | Pending |
-| 8592 | DRAW FILLED ELLIPSE | DDO-FX (NM) | Pending |
+| 8492 | DRAW BOX | DDO-FX (NM) | Connected |
+| 8508 | DRAW BOX XOR | DDO-FX (NM) | Connected |
+| 8524 | EDIT BOX LINES | DDO-FX (NM) | Connected |
+| 8533 | DRAW CLIPPED RECTANGLE | DDO-FX (NM) | Connected |
+| 8548 | DRAW DASHED LINE | DDO-FX (NM) | Connected |
+| 8564 | DRAW DASHED LINE RELATIVE | DDO-FX (NM) | Connected |
+| 8580 | DRAW ELLIPSE | DDO-FX (NM) | Connected |
+| 8592 | DRAW FILLED ELLIPSE | DDO-FX (NM) | Connected |
 | 8599 | FILL PAGE | DDO-FX (NM) | Connected |
-| 8607 | FLOOD | DDO-FX (NM) | Pending |
-| 8616 | MOVEIT RELATIVE | DDO-FX (NM) | Pending |
-| 8624 | DRAW BEZIER CURVE | DDO-FX (NM) | Pending |
-| 8646 | DRAW BEZIER CURVE XOR | DDO-FX (NM) | Pending |
-| 8656 | VERTICAL SCROLL | DDO-FX (NM) | Pending |
+| 8607 | FLOOD | DDO-FX (NM) | Connected |
+| 8616 | MOVEIT RELATIVE | DDO-FX (NM) | Connected |
+| 8624 | DRAW BEZIER CURVE | DDO-FX (NM) | Connected |
+| 8646 | DRAW BEZIER CURVE XOR | DDO-FX (NM) | Connected |
+| 8656 | VERTICAL SCROLL | DDO-FX (NM) | Connected |
 | 8694 | MOUSE ACTIVE | DDO-FX (NM) | Pending |
 | 8713 | CHANGE MOUSE POINTER | DDO-FX (NM) | Pending |
 | 8750 | LOAD MOUSE POINTER | DDO-FX (NM) | Pending |
