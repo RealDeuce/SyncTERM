@@ -154,6 +154,8 @@ bool st_ddofx_graphic_window_mouse(struct st_ddofx *, unsigned changed);
 void st_ddofx_repeat_window_arrow(struct st_ddofx *);
 void st_ddofx_free_graphic_windows(struct st_ddofx_graphics *);
 bool st_ddofx_graphic_window_command(struct st_ddofx *, const struct st_ddofx_sink *, const char *, char *);
+struct bounds st_ddofx_window_interior(const struct st_ddofx_graphic_window *);
+void st_ddofx_animation_window_closed(struct st_ddofx_graphics *, unsigned);
 void st_ddofx_refresh_window_area(struct st_ddofx *, unsigned slot, struct bounds area);
 void st_ddofx_refresh_graphic_interior(struct st_ddofx *);
 struct st_ddofx_sprite *st_ddofx_find_sprite(struct st_ddofx_graphics *, const char *);
@@ -219,7 +221,7 @@ void st_ddofx_draw_sprite(struct st_ddofx_graphics *, unsigned window, const str
     char op, int32_t x, int32_t y);
 void st_ddofx_collision_command(struct st_ddofx *, char *args);
 bool st_ddofx_collision_active(const struct st_ddofx_graphics *);
-void st_ddofx_collision_frame(struct st_ddofx *, unsigned slot, int x, int y, const struct st_ddofx_sprite *);
+void st_ddofx_collision_frame(struct st_ddofx *, unsigned window, unsigned slot, int x, int y, const struct st_ddofx_sprite *);
 bool st_ddofx_collision_pending(const struct st_ddofx *);
 void st_ddofx_collision_poll(struct st_ddofx *);
 int32_t st_ddofx_bezier_coordinate(const int32_t *points, double t);

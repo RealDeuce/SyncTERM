@@ -975,6 +975,39 @@ def check_animation_profiles(t):
     check(commands(b"2RESET"), {(41,27):0})
 
 
+def check_window_animations(t):
+    t.case("animation frames and collisions follow window focus, backing and viewport")
+    window = b"2GWIN,1,20,119,30,129,1000,750,0,0,0,0,0,0,0,0,0,0,1,Scene"
+    def check(wire, expected, reply=b""):
+        frame = t.exchange(commands(*wire), reply)
+        for x, y, value in expected:
+            index = y * 640 + x
+            assert frame.primary[index] == frame.alternate[index] == value, (x, y, frame.primary[index], value)
+
+    # Desktop animation crosses the window's left edge. A dirty VGP pixel
+    # stays unpublished until a window command explicitly refreshes it.
+    check([b"2RESET", b"2C,14", b"2aFILL", b"2S,0,3,0,3,A",
+           b"2C,21", b"2aFILL", b"2S,0,3,0,3,B", b"2C,45", b"2aFILL", b"2CPYWP2VP",
+           window, b"2CHVGP,1,700,500", b"2ALERTGWIN,1", b"2C,6", b"2aFILL",
+           b"2CPYVP2HP", b"2RGWINI", b"2C,8", b"2aP,700,502",
+           b"2COLL,1,700,705,500,510,1,0,0,Window,",
+           b"2ANIM,4,702,505,2,A,B,0,0,0,0,90,0", b"2CALMGWIN",
+           b"2COLL,2,700,705,500,510,1,0,0,Desktop,",
+           b"2ANIM,1,18,35,0,A,A,0,0,0,0,90,0", b"2PLAYA,1", b"2PLAYA,4", b"w3"],
+          [(18,32,14),(20,32,6),(22,32,6)])
+    check([b"2AGWIN,1", b"w4"], [(18,32,14),(20,32,8),(22,32,21),(25,35,21)], b"Window")
+    check([b"2ALERTGWIN,1", b"2ANIM,5,710,513,0,A,A,0,0,0,0,90,0", b"2CALMGWIN",
+           b"2PLAYA,5", b"w2", b"2AGWIN,0", b"2AFLY,5,720,523,A,A,0", b"w2"],
+          [(30,40,14),(40,50,6),(22,32,21)])
+    check([b"2STOPA,4", b"2PLAYA,4", b"2AGWIN,1", b"w3", b"2CHVGP,1,702,502"],
+          [(20,30,21),(24,30,6),(28,38,6),(38,48,14)])
+    # Closing releases the old background. Recreating the same slot with
+    # smaller pages must leave the off-page profile attached and harmless.
+    check([b"2CGWIN,1", b"2GWIN,1,40,139,50,149,100,100,0,1,0,0,0,0,0,0,0,0,1,Small",
+           b"w3"], [(20,32,14),(40,50,0)])
+    check([b"2STOPA,4", b"2STOPA,1", b"2GWIN,0", b"2RESET"], [(20,32,0)])
+
+
 def check_sprite_banks(t, root):
     t.case("sprite bank files, slot order, row orientation and erase after load")
     marker, = root.rglob("syncterm-cache-name.txt")
@@ -1507,6 +1540,7 @@ def check_graphics(t, root):
     check_raycast_recordings(t, root)
     check_raycast_profiles(t)
     check_animation_profiles(t)
+    check_window_animations(t)
     check_sprite_banks(t, root)
     check_sprites(t)
     check_grid(t)

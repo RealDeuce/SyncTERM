@@ -13,7 +13,7 @@ enum {
 
 struct collision {
 	struct bounds            box;
-	unsigned                 animation, variable;
+	unsigned                 window, animation, variable;
 	bool                     active, once;
 	struct st_ddofx_callback callback;
 	/* A macro can wait or redefine a box. Keep at most one outstanding
@@ -62,6 +62,7 @@ st_ddofx_collision_command(struct st_ddofx *ddo, char *args)
 		for (uint64_t bits = c->hits[i]; bits; bits &= bits - 1)
 			--g->collisions->pending;
 	*c = (struct collision) {
+	    .window    = g->alert_graphic_window,
 	    .box       = {n[0], n[1], n[2], n[3]},
 	    .once      = n[4],
 	    .variable  = n[5],
@@ -72,7 +73,7 @@ st_ddofx_collision_command(struct st_ddofx *ddo, char *args)
 }
 
 void
-st_ddofx_collision_frame(struct st_ddofx *ddo, unsigned slot, int x, int y, const struct st_ddofx_sprite *sprite)
+st_ddofx_collision_frame(struct st_ddofx *ddo, unsigned window, unsigned slot, int x, int y, const struct st_ddofx_sprite *sprite)
 {
 	struct st_ddofx_collisions *list = ddo->graphics->collisions;
 	if (!list || !list->active || !sprite->pixels)
@@ -80,7 +81,7 @@ st_ddofx_collision_frame(struct st_ddofx *ddo, unsigned slot, int x, int y, cons
 	int64_t right = (int64_t)x + sprite->width - 1, top = (int64_t)y - sprite->height + 1;
 	for (unsigned i = 0; i < COLLISIONS; ++i) {
 		struct collision *c = &list->boxes[i];
-		if (!c->active || (c->animation && c->animation != slot + 1) || x > c->box.right
+		if (!c->active || c->window != window || (c->animation && c->animation != slot + 1) || x > c->box.right
 		    || right < c->box.left || y < c->box.top || top > c->box.bottom
 		    || !st_ddofx_callback_enabled(ddo, &c->callback))
 			continue;

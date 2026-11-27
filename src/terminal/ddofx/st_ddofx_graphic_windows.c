@@ -7,8 +7,8 @@
 #include "string_util.h"
 #include "st_time.h"
 
-static struct bounds
-interior(const struct st_ddofx_graphic_window *w)
+struct bounds
+st_ddofx_window_interior(const struct st_ddofx_graphic_window *w)
 {
 	struct bounds b = w->frame;
 	if (!w->borderless) {
@@ -23,7 +23,7 @@ interior(const struct st_ddofx_graphic_window *w)
 static bool
 fits(const struct st_ddofx_graphic_window *w)
 {
-	struct bounds b = interior(w);
+	struct bounds b = st_ddofx_window_interior(w);
 	return w->frame.left >= 0 && w->frame.right < WIDTH && w->frame.top >= 0 && w->frame.bottom < HEIGHT
 	       && w->frame.left < w->frame.right && w->frame.top < w->frame.bottom && b.left <= b.right
 	       && b.top <= b.bottom && b.right - b.left < w->width && b.bottom - b.top < w->height;
@@ -32,7 +32,7 @@ fits(const struct st_ddofx_graphic_window *w)
 static void
 change_origin(struct st_ddofx_graphic_window *w, int64_t x, int64_t y, bool clamp)
 {
-	struct bounds b    = interior(w);
+	struct bounds b    = st_ddofx_window_interior(w);
 	int           xmax = w->width - (b.right - b.left + 1), ymax = w->height - (b.bottom - b.top + 1);
 	if (!clamp && (x < 0 || y < 0 || x > xmax || y > ymax))
 		return;
@@ -68,7 +68,7 @@ contains(const struct bounds *b, int x, int y)
 static struct bounds
 thumb(const struct st_ddofx_graphic_window *w, bool horizontal)
 {
-	struct bounds view = interior(w);
+	struct bounds view = st_ddofx_window_interior(w);
 	int first = horizontal ? view.left + 10 : view.top + 12;
 	int last = horizontal ? view.right - 11 : view.bottom - 10;
 	int track = last - first + 1;
@@ -193,7 +193,7 @@ paint(void *context, const struct st_pixel_buffer *pixels, struct st_console_rec
 		struct bounds area = w->frame;
 		if (!w->visual || w->hidden || !intersect(&area, &b))
 			continue;
-		struct bounds view         = interior(w);
+		struct bounds view         = st_ddofx_window_interior(w);
 		unsigned      title_colour = active ? 4 : 1;
 		for (int y = area.top; y <= area.bottom; ++y)
 			for (int x = area.left; x <= area.right; ++x) {
@@ -229,7 +229,7 @@ st_ddofx_refresh_window_area(struct st_ddofx *ddo, unsigned slot, struct bounds 
 	const struct st_ddofx_graphic_window *w = &ddo->graphics->graphic_windows[slot];
 	if (!w->visual || w->hidden)
 		return;
-	struct bounds view = interior(w);
+	struct bounds view = st_ddofx_window_interior(w);
 	int           dx = view.left - w->x, dy = view.top - w->y;
 	area.left += dx;
 	area.right += dx;
@@ -245,7 +245,7 @@ st_ddofx_refresh_graphic_interior(struct st_ddofx *ddo)
 	struct st_ddofx_graphics       *g = ddo->graphics;
 	struct st_ddofx_graphic_window *w = &g->graphic_windows[g->alert_graphic_window];
 	if (w->visual && !w->hidden)
-		refresh(ddo, interior(w));
+		refresh(ddo, st_ddofx_window_interior(w));
 }
 
 static void
@@ -254,6 +254,8 @@ dispose(struct st_ddofx_graphics *g, unsigned slot)
 	struct st_ddofx_graphic_window *w = &g->graphic_windows[slot];
 	if (g->frame_drag.slot == slot)
 		g->frame_drag = (struct st_ddofx_frame_drag){0};
+	if (w->visual)
+		st_ddofx_animation_window_closed(g, slot);
 	free(w->visual);
 	free(w->hidden_page);
 	*w = (struct st_ddofx_graphic_window) {0};
@@ -489,7 +491,7 @@ move_handle(struct st_ddofx *ddo, int dx, int dy)
 		case FRAME_SCROLL_Y:
 			change_origin(w, drag->origin_x + (drag->part == FRAME_SCROLL_X ? dx : 0),
 			    drag->origin_y + (drag->part == FRAME_SCROLL_Y ? dy : 0), true);
-			refresh(ddo, interior(w));
+			refresh(ddo, st_ddofx_window_interior(w));
 			return;
 		default:
 			return;
@@ -515,7 +517,7 @@ scroll_arrow(struct st_ddofx *ddo, unsigned delay)
 	change_origin(w, x + dx * 20, y + dy * 20, true);
 	drag->repeat_due = 0;
 	if (x != w->x || y != w->y) {
-		refresh(ddo, interior(w));
+		refresh(ddo, st_ddofx_window_interior(w));
 		uint64_t now;
 		if (st_time_monotonic_ms(&now) == 0)
 			drag->repeat_due = now + delay;
@@ -549,7 +551,7 @@ st_ddofx_window_point(const struct st_ddofx_graphics *g, int *x, int *y)
 	if (!slot)
 		return 0;
 	const struct st_ddofx_graphic_window *w = &g->graphic_windows[slot];
-	struct bounds view = interior(w);
+	struct bounds view = st_ddofx_window_interior(w);
 	if (slot != g->active_graphic_window || !contains(&view, *x, *y))
 		return -1;
 	*x += w->x - view.left;
@@ -581,7 +583,7 @@ st_ddofx_graphic_window_mouse(struct st_ddofx *ddo, unsigned changed)
 		g->active_graphic_window = slot;
 		redraw_all(ddo);
 	}
-	struct bounds view = interior(w);
+	struct bounds view = st_ddofx_window_interior(w);
 	if (contains(&view, m->x, m->y))
 		return false;
 	for (enum st_ddofx_frame_part part = FRAME_DRAG; part <= FRAME_RESIZE; ++part) {
@@ -721,7 +723,7 @@ st_ddofx_graphic_window_command(struct st_ddofx *ddo, const struct st_ddofx_sink
 				change_origin(w, (int64_t)xy[0] + (command == RELATIVE ? w->x : 0),
 				    (int64_t)xy[1] + (command == RELATIVE ? w->y : 0), command == RELATIVE);
 				if (!w->hidden)
-					refresh(ddo, interior(w));
+					refresh(ddo, st_ddofx_window_interior(w));
 			}
 		}
 	}

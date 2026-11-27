@@ -29,6 +29,7 @@ struct sound_slot {
 };
 
 struct animation {
+	unsigned window;
 	struct sound_slot      sounds[19];
 	int                    x, y, first, last, frame, direction, loop, draw, fps;
 	int                    first_path, last_path, path, path_frame, path_direction, path_loop;
@@ -43,22 +44,24 @@ struct st_ddofx_animations {
 	struct animation profiles[ANIMATIONS];
 	struct motion    paths[MOTIONS + 1];
 	unsigned         queue[ANIMATIONS], count;
-	uint64_t         due;
+	uint64_t         due[GRAPHIC_WINDOWS + 1];
 };
 
 struct presentation {
-	struct st_ddofx       *ddo;
+	struct st_ddofx *ddo;
+	unsigned window, count;
+	uint8_t *hidden;
+	int width, height;
 	struct st_console_rect areas[2 * ANIMATIONS];
-	unsigned               count;
 };
 
 static void
-copy_background(struct st_ddofx_graphics *g, struct animation *a, bool save)
+copy_background(const struct presentation *p, struct animation *a, bool save)
 {
 	const struct st_console_rect r = a->painted;
 	for (unsigned row = 0; row < r.height; ++row) {
-		uint8_t *hidden = &g->page[HIDDEN][r.y + row][r.x];
-		uint8_t *saved  = a->background + row * r.width;
+		uint8_t *hidden = p->hidden + (r.y + row) * p->width + r.x;
+		uint8_t *saved = a->background + row * r.width;
 		if (save)
 			memcpy(saved, hidden, r.width);
 		else
@@ -66,77 +69,142 @@ copy_background(struct st_ddofx_graphics *g, struct animation *a, bool save)
 	}
 }
 
+/* Split a changed rectangle around covering windows. Repainting a covering
+ * window from its VGP here would expose drawings awaiting an explicit refresh. */
+static void
+publish_area(const struct presentation *p, const struct st_pixel_buffer *pixels, struct bounds b,
+    unsigned next, int dx, int dy)
+{
+	if (b.left > b.right || b.top > b.bottom)
+		return;
+	const struct st_ddofx_graphics *g = p->ddo->graphics;
+	for (unsigned i = next; i <= GRAPHIC_WINDOWS; ++i) {
+		const struct st_ddofx_graphic_window *w = &g->graphic_windows[i];
+		if (!w->visual || w->hidden || i == p->window
+		    || (i < p->window && i != g->active_graphic_window))
+			continue;
+		struct bounds f = w->frame;
+		if (f.right < b.left || f.left > b.right || f.bottom < b.top || f.top > b.bottom)
+			continue;
+		if (b.top < f.top) {
+			publish_area(p, pixels, (struct bounds){b.left, b.right, b.top, f.top - 1}, i+1, dx, dy);
+			b.top = f.top;
+		}
+		if (b.bottom > f.bottom) {
+			publish_area(p, pixels, (struct bounds){b.left, b.right, f.bottom + 1, b.bottom}, i+1, dx, dy);
+			b.bottom = f.bottom;
+		}
+		if (b.left < f.left)
+			publish_area(p, pixels, (struct bounds){b.left, f.left - 1, b.top, b.bottom}, i+1, dx, dy);
+		if (b.right > f.right)
+			publish_area(p, pixels, (struct bounds){f.right + 1, b.right, b.top, b.bottom}, i+1, dx, dy);
+		return;
+	}
+
+	for (int y = b.top; y <= b.bottom; ++y) {
+		const uint8_t *src = p->hidden + (y - dy) * p->width + (b.left - dx);
+		for (int x = b.left; x <= b.right; ++x)
+			pixels->primary[y * WIDTH + x] = pixels->alternate[y * WIDTH + x] = *src++;
+	}
+	if (!p->window) {
+		struct st_console_rect area = {b.left, b.top, b.right - b.left + 1, b.bottom - b.top + 1};
+		st_ddofx_repaint_clocks(p->ddo, pixels, &area);
+		st_ddofx_repaint_marquees(p->ddo, pixels, &area);
+	}
+}
+
 static int
 publish(void *context, const struct st_pixel_buffer *pixels, struct st_console_rect *damage)
 {
-	struct presentation            *p = context;
-	const struct st_ddofx_graphics *g = p->ddo->graphics;
+	const struct presentation *p = context;
 	if (pixels->width != WIDTH || pixels->height != HEIGHT)
 		return 0;
-	unsigned left = WIDTH, right = 0, top = HEIGHT, bottom = 0;
-	for (unsigned i = 0; i < p->count; ++i) {
-		const struct st_console_rect r = p->areas[i];
-		for (unsigned y = r.y; y < r.y + r.height; ++y) {
-			for (unsigned x = r.x; x < r.x + r.width; ++x)
-				pixels->primary[y * WIDTH + x] = pixels->alternate[y * WIDTH + x] =
-				    g->page[HIDDEN][y][x];
-		}
-		if (r.x < left)
-			left = r.x;
-		if (r.y < top)
-			top = r.y;
-		if (r.x + r.width > right)
-			right = r.x + r.width;
-		if (r.y + r.height > bottom)
-			bottom = r.y + r.height;
+	struct bounds view = {0, WIDTH - 1, 0, HEIGHT - 1};
+	int dx = 0, dy = 0;
+	if (p->window) {
+		const struct st_ddofx_graphic_window *w = &p->ddo->graphics->graphic_windows[p->window];
+		view = st_ddofx_window_interior(w);
+		dx = view.left - w->x;
+		dy = view.top - w->y;
 	}
-	*damage = (struct st_console_rect) {left, top, right - left, bottom - top};
-	st_ddofx_repaint_clocks(p->ddo, pixels, damage);
-	st_ddofx_repaint_marquees(p->ddo, pixels, damage);
+	struct bounds changed = {WIDTH, -1, HEIGHT, -1};
+	for (unsigned i = 0; i < p->count; ++i) {
+		struct st_console_rect r = p->areas[i];
+		int x = (int)r.x + dx, y = (int)r.y + dy;
+		struct bounds b = {x, x + (int)r.width - 1, y, y + (int)r.height - 1};
+		if (b.left < view.left)
+			b.left = view.left;
+		if (b.right > view.right)
+			b.right = view.right;
+		if (b.top < view.top)
+			b.top = view.top;
+		if (b.bottom > view.bottom)
+			b.bottom = view.bottom;
+		if (b.left > b.right || b.top > b.bottom)
+			continue;
+		unsigned first_cover = p->window && p->window == p->ddo->graphics->active_graphic_window ? GRAPHIC_WINDOWS + 1 : 1;
+		publish_area(p, pixels, b, first_cover, dx, dy);
+		if (b.left < changed.left)
+			changed.left = b.left;
+		if (b.right > changed.right)
+			changed.right = b.right;
+		if (b.top < changed.top)
+			changed.top = b.top;
+		if (b.bottom > changed.bottom)
+			changed.bottom = b.bottom;
+	}
+	if (changed.right >= changed.left)
+		*damage = (struct st_console_rect){changed.left, changed.top, changed.right - changed.left + 1,
+		    changed.bottom - changed.top + 1};
 	return 0;
 }
 
 static struct st_console_rect
-footprint(const struct animation *a, const struct st_ddofx_sprite *s)
+footprint(const struct animation *a, const struct st_ddofx_sprite *s, int width, int height)
 {
 	int64_t left = a->x, right = left + s->width, bottom = (int64_t)a->y + 1, top = bottom - s->height;
-	if (!s->pixels || (!a->draw && (left < 0 || right > WIDTH || top < 0 || bottom > HEIGHT)) || right <= 0
-	    || bottom <= 0 || left >= WIDTH || top >= HEIGHT)
+	if (!s->pixels || (!a->draw && (left < 0 || right > width || top < 0 || bottom > height)) || right <= 0
+	    || bottom <= 0 || left >= width || top >= height)
 		return (struct st_console_rect) {0};
 	if (left < 0)
 		left = 0;
-	if (right > WIDTH)
-		right = WIDTH;
+	if (right > width)
+		right = width;
 	if (top < 0)
 		top = 0;
-	if (bottom > HEIGHT)
-		bottom = HEIGHT;
+	if (bottom > height)
+		bottom = height;
 	return (struct st_console_rect) {left, top, right - left, bottom - top};
 }
 
 static void
-compose(struct st_ddofx *ddo)
+compose(struct st_ddofx *ddo, unsigned window)
 {
 	struct st_ddofx_graphics   *g    = ddo->graphics;
 	struct st_ddofx_animations *list = g->animations;
-	struct presentation         p    = {.ddo = ddo};
+	struct st_ddofx_graphic_window *w = &g->graphic_windows[window];
+	if (window && !w->visual)
+		return;
+	struct presentation p = {.ddo = ddo, .window = window, .width = window ? w->width : WIDTH,
+	    .height = window ? w->height : HEIGHT, .hidden = window ? w->hidden_page : (uint8_t *)g->page[HIDDEN]};
+
 	/* Undo the old images from front to back. Then every new frame can
 	 * save what is underneath it, including lower animations. */
 	for (unsigned i = list->count; i; --i) {
 		struct animation *a = &list->profiles[list->queue[i - 1]];
-		if (a->painted.width) {
+		if (a->window == window && a->painted.width) {
 			p.areas[p.count++] = a->painted;
-			copy_background(g, a, false);
+			copy_background(&p, a, false);
 			a->painted = (struct st_console_rect) {0};
 		}
 	}
 	int32_t cx = g->cx, cy = g->cy;
 	for (unsigned i = 0; i < list->count; ++i) {
 		struct animation *a = &list->profiles[list->queue[i]];
-		if (!a->shown)
+		if (a->window != window || !a->shown)
 			continue;
 		const struct st_ddofx_sprite *s        = &g->sprites[a->frame];
-		struct st_console_rect        r        = footprint(a, s);
+		struct st_console_rect        r        = footprint(a, s, p.width, p.height);
 		size_t                        required = (size_t)r.width * r.height;
 		if (!required)
 			continue;
@@ -148,25 +216,54 @@ compose(struct st_ddofx *ddo)
 			a->capacity   = required;
 		}
 		a->painted = r;
-		copy_background(g, a, true);
-		st_ddofx_draw_sprite(g, 0, s, HIDDEN, "PCF"[a->draw], a->x, a->y);
+		copy_background(&p, a, true);
+		st_ddofx_draw_sprite(g, window, s, HIDDEN, "PCF"[a->draw], a->x, a->y);
 		p.areas[p.count++] = r;
 	}
 	g->cx = cx;
 	g->cy = cy;
-	if (p.count)
+	if (window) {
+		for (unsigned i = 0; i < p.count; ++i) {
+			struct st_console_rect r = p.areas[i];
+			for (unsigned row = 0; row < r.height; ++row) {
+				size_t offset = (r.y + row) * p.width + r.x;
+				memcpy(w->visual + offset, p.hidden + offset, r.width);
+			}
+		}
+	}
+	if (p.count && !w->hidden)
 		(void)st_console_modify_pixels(g->display, publish, &p);
 }
 
 static void
 deadline(struct st_ddofx_animations *list)
 {
-	list->due = 0;
+	memset(list->due, 0, sizeof(list->due));
 	for (unsigned i = 0; i < list->count; ++i) {
-		uint64_t due = list->profiles[list->queue[i]].due;
-		if (due && (!list->due || due < list->due))
-			list->due = due;
+		const struct animation *a = &list->profiles[list->queue[i]];
+		uint64_t *due = &list->due[a->window];
+		if (a->due && (!*due || a->due < *due))
+			*due = a->due;
 	}
+}
+
+void
+st_ddofx_animation_window_closed(struct st_ddofx_graphics *g, unsigned window)
+{
+	struct st_ddofx_animations *list = g->animations;
+	if (!list)
+		return;
+	for (unsigned i = 0; i < list->count; ++i) {
+		struct animation *a = &list->profiles[list->queue[i]];
+		if (a->window != window)
+			continue;
+		/* Both virtual pages are about to be released. The profile survives,
+		 * but its old damage and saved background belong to that allocation. */
+		a->painted = (struct st_console_rect){0};
+		a->shown = a->advance = false;
+		a->due = 1;
+	}
+	deadline(list);
 }
 
 void
@@ -188,7 +285,7 @@ stop(struct st_ddofx *ddo, unsigned slot)
 	if (!a->queued)
 		return;
 	a->shown = false;
-	compose(ddo);
+	compose(ddo, a->window);
 	unsigned i = 0;
 	while (list->queue[i] != slot)
 		++i;
@@ -245,7 +342,7 @@ define(struct st_ddofx *ddo, int slot, char *args, bool fly)
 		    || (unsigned)fields[3] > 2 || fields[4] < 1 || fields[4] > 100 || (unsigned)fields[5] > 1)
 			return;
 		stop(ddo, slot);
-		*a = (struct animation) {.first_path = fields[0],
+		*a = (struct animation) {.window = ddo->graphics->alert_graphic_window, .first_path = fields[0],
 		    .last_path                       = fields[1],
 		    .path                            = fields[0],
 		    .path_frame                      = 1,
@@ -314,12 +411,13 @@ st_ddofx_animation_command(struct st_ddofx *ddo, const char *verb, char *args)
 		else if (op == DEFINE || op == STOP) {
 			for (unsigned i = 0; i < list->count; ++i)
 				list->profiles[list->queue[i]].shown = false;
-			compose(ddo);
+			for (unsigned w = 0; w <= GRAPHIC_WINDOWS; ++w)
+				compose(ddo, w);
 			for (unsigned i = 0; i < ANIMATIONS; ++i)
 				free(list->profiles[i].background);
 			memset(list->profiles, 0, sizeof(list->profiles));
 			list->count = 0;
-			list->due   = 0;
+			memset(list->due, 0, sizeof(list->due));
 		}
 		return true;
 	}
@@ -359,7 +457,7 @@ st_ddofx_animation_command(struct st_ddofx *ddo, const char *verb, char *args)
 		}
 		list->queue[list->count++] = slot;
 		a->queued                  = true;
-		list->due = a->due = 1;
+		list->due[a->window] = a->due = 1;
 	}
 	return true;
 }
@@ -430,9 +528,14 @@ st_ddofx_animation_wait_ms(const struct st_ddofx *ddo)
 	uint64_t                          now;
 	if (st_ddofx_collision_pending(ddo))
 		return 0;
-	if (!list || !list->due || ddo->background_paused || st_time_monotonic_ms(&now))
+	if (!list || ddo->background_paused)
 		return UINT32_MAX;
-	return now < list->due ? (uint32_t)(list->due - now) : 0;
+	uint64_t due = list->due[0], active = list->due[ddo->graphics->active_graphic_window];
+	if (active && (!due || active < due))
+		due = active;
+	if (!due || st_time_monotonic_ms(&now))
+		return UINT32_MAX;
+	return now < due ? (uint32_t)(due - now) : 0;
 }
 
 static unsigned
@@ -488,10 +591,10 @@ st_ddofx_animation_poll(struct st_ddofx *ddo, const struct st_ddofx_sink *sink)
 	uint64_t                    now;
 	if (st_time_monotonic_ms(&now) || !list)
 		return;
-	bool changed = false;
+	bool changed[GRAPHIC_WINDOWS + 1] = {false};
 	for (unsigned i = 0; i < list->count; ++i) {
 		struct animation *a = &list->profiles[list->queue[i]];
-		if (!a->due || a->due > now)
+		if ((a->window && a->window != g->active_graphic_window) || !a->due || a->due > now)
 			continue;
 		bool     sprite = !a->advance || advance_sprite(a);
 		bool     path   = !a->advance || advance_path(a, list->paths);
@@ -501,7 +604,7 @@ st_ddofx_animation_poll(struct st_ddofx *ddo, const struct st_ddofx_sink *sink)
 		if (!sprite && !path) {
 			a->completed =
 			    (a->loop == 2 || (a->path && a->path_loop == 2)) && a->loop != 1 && a->loop != 3;
-			st_ddofx_collision_frame(ddo, list->queue[i], a->x, a->y, &g->sprites[a->frame]);
+			st_ddofx_collision_frame(ddo, a->window, list->queue[i], a->x, a->y, &g->sprites[a->frame]);
 			a->due = st_ddofx_collision_active(g) ? next : 0;
 			continue;
 		}
@@ -514,11 +617,12 @@ st_ddofx_animation_poll(struct st_ddofx *ddo, const struct st_ddofx_sink *sink)
 		}
 		a->shown = a->advance = true;
 		a->due                = next;
-		st_ddofx_collision_frame(ddo, list->queue[i], a->x, a->y, &g->sprites[a->frame]);
-		changed = true;
+		st_ddofx_collision_frame(ddo, a->window, list->queue[i], a->x, a->y, &g->sprites[a->frame]);
+		changed[a->window] = true;
 	}
-	if (changed)
-		compose(ddo);
+	for (unsigned w = 0; w <= GRAPHIC_WINDOWS; ++w)
+		if (changed[w])
+			compose(ddo, w);
 	st_ddofx_collision_poll(ddo);
 	deadline(list);
 }
