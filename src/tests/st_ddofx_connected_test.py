@@ -1303,6 +1303,26 @@ def check_raycast_view(t):
                b"24\xff\x15100,23\xff24\xff")
     t.exchange(commands(b"5CHOBJ,2,100,23,0,0", b"5CHMAP,4,100,23,3", b"5DANIM,480,479,1",
                         b"5VM,0,10", b"5GETYPOS", b"5VD,5", b"5GETANGL"), b"24\xff5,NORTH\xff")
+    t.case("raycaster object layers overlap in SDK order in a scrolled graphic window")
+    window = b"2GWIN,1,20,179,30,129,1000,750,0,1,0,0,0,0,0,0,0,0,1,Dungeon"
+    t.exchange(commands(window, b"2CHVGP,1,700,500", b"2ALERTGWIN,1", b"2C,11", b"2aFILL", b"2RGWINI",
+                        b"5CLSMAP,1", b"5SETXPOS,100,0", b"5SETYPOS,25,0", b"5SETANGL,360",
+                        b"5COBJECT,HIOBJ,1,Clear", b"5COBJECT,LOOBJ,1,Banner",
+                        b"5COBJECT,HIOBJ,2,Floor", b"5COBJECT,LOOBJ,2,FrameA",
+                        b"5COBJECT,HIOBJ,3,Clear", b"5COBJECT,LOOBJ,3,FrameB",
+                        b"5DLYR,1", b"5CHOBJ,3,100,24,0,2", b"5DLYR,2", b"5CHOBJ,3,100,23,0,3",
+                        b"5DLYR,3", b"5CHOBJ,3,100,22,0,1", b"5DSCALE,80,40", b"5DANIM,710,549,1",
+                        b"2CALMGWIN"))
+    def layers(low):
+        frame = t.client.wait_for(lambda f: f.primary[61*640+70] == low)
+        for plane in (frame.primary, frame.alternate):
+            assert plane[59*640+70] == 23 and plane[61*640+70] == low
+            assert plane[39*640+70] == 11
+    layers(77)
+    t.exchange(commands(b"5CHOBJ,3,100,22,0,0"))
+    layers(82)
+    t.exchange(commands(b"5DLYR,2", b"5CHOBJ,3,100,23,0,0"))
+    layers(81)
     t.exchange(commands(b"2RESET"))
 
 
@@ -1562,6 +1582,12 @@ def check_window_animations(t):
           [(30,40,14),(40,50,6),(22,32,21)])
     check([b"2STOPA,4", b"2PLAYA,4", b"2AGWIN,1", b"w3", b"2CHVGP,1,702,502"],
           [(20,30,21),(24,30,6),(28,38,6),(38,48,14)])
+    # Motion paths and knots use the animation's virtual coordinates even when
+    # defined on the desktop. On the last frame the knot switches from A to B.
+    check([b"2MOTION,250,735,528,748,537,739,531,745,535,4", b"2MFRAME,250,30,4,2,0,0",
+           b"2ALERTGWIN,1", b"2ANIM,6,0,0,4,A,B,250,250,2,0,90,0", b"2CALMGWIN",
+           b"2PLAYA,6", b"w5"], [(53,56,6),(66,65,21),(69,62,21),(70,65,6)])
+    check([b"2STOPA,6"], [(66,65,6),(69,62,6)])
     # Closing releases the old background. Recreating the same slot with
     # smaller pages must leave the off-page profile attached and harmless.
     check([b"2CGWIN,1", b"2GWIN,1,40,139,50,149,100,100,0,1,0,0,0,0,0,0,0,0,1,Small",
@@ -2985,6 +3011,9 @@ def check_window_lists_and_fields(t, mouse):
     t.client.text("C")
     t.client.key("enter")
     t.input(b"[ABC]")
+    t.exchange(commands(b"~DEFVAR,91,1,", b"~DEFVAR,92,1,", b"~GTXTFLD+,91,1", b"~GTXTFLD-,92,1",
+                        b"7DEFRET,3,DEFVAR91", b"7SRET,3", b"7DEFRET,3,DEFVAR92", b"7SRET,3"),
+               b"[ABC]ABC")
     frame = t.exchange(commands(b"5LBADJHLT,1,0,-1", b"5LBSHWLST,1"))
     assert frame.primary[top] == frame.primary[field] == 53
     frame = t.exchange(commands(b"2CGWIN,2", b"2ALERTGWIN,1", b"2aG,910,660", b"2CALMGWIN"), b"11\xff")

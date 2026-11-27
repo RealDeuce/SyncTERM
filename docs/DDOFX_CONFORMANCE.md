@@ -180,8 +180,8 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 3720 | IGNORE COMMANDS | DDO-FX LITE | Connected |
 | 3767 | HEAR COMMANDS | DDO-FX LITE | Connected |
 | 3782 | ALL CAPS SYSTEM VARIABLE | DDO-FX LITE | Connected |
-| 3796 | GET TEXT FIELD INFO FULL | DDO-FX LITE | Connected on the desktop |
-| 3824 | GET TEXT FIELD INFO | DDO-FX LITE | Connected on the desktop |
+| 3796 | GET TEXT FIELD INFO FULL | DDO-FX LITE | Connected on the desktop and in graphic windows |
+| 3824 | GET TEXT FIELD INFO | DDO-FX LITE | Connected on the desktop and in graphic windows |
 | 3841 | INCREMENT SYSTEM VARIABLE | DDO-FX LITE | Connected |
 | 3855 | DECREMENT SYSTEM VARIABLE | DDO-FX LITE | Connected |
 | 3870 | RANDOM SYSTEM VARIABLE | DDO-FX LITE | Connected |
@@ -292,8 +292,8 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 7235 | CHANGE ANIM PROFILE ON THE FLY | DDO-FX (NM) | Connected on the desktop and in graphic windows |
 | 7246 | ANIM COLLISION PROFILE | DDO-FX (NM) | Connected on the desktop and in graphic windows |
 | 7339 | RESOLUTION ANIMATOR | DDO-FX (NM) | Connected for FLI/FLC and animation profiles |
-| 7383 | DEFINE MOTION PROFILE | DDO-FX (NM) | Connected on the desktop |
-| 7466 | DEFINE MOTION FRAME CONTROL | DDO-FX (NM) | Connected on the desktop |
+| 7383 | DEFINE MOTION PROFILE | DDO-FX (NM) | Connected on the desktop and in graphic windows |
+| 7466 | DEFINE MOTION FRAME CONTROL | DDO-FX (NM) | Connected on the desktop and in graphic windows |
 | 7534 | DEFINE SIMPLE SPRITE | DDO-FX (NM) | Connected |
 | 7652 | DEFINE SIMPLE SPRITE ANIMATION | DDO-FX (NM) | Connected |
 | 7733 | CLEAR SIMPLE SPRITES | DDO-FX (NM) | Connected |
@@ -471,7 +471,7 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 12466 | RC RECORD 3D MOVEMENTS | DDO-FX (NM) | Connected |
 | 12510 | RC PLAY 3D MOVEMENTS | DDO-FX (NM) | Connected |
 | 12521 | RC PLAY 3D MOVEMENTS FROM RESOURCE | DDO-FX (NM) | Connected |
-| 12539 | RC DEFINE OBJECTS LAYER | DDO-FX (NM) | Connected on the desktop |
+| 12539 | RC DEFINE OBJECTS LAYER | DDO-FX (NM) | Connected. The desktop and window raycaster views draw the three shared object layers in order |
 | 12570 | 3D OBJECT INIT | DDO-FX (NM) | Connected |
 | 12829 | 3D OBJECT INIT LITE | DDO-FX (NM) | Connected |
 | 12844 | 3D DELETE OBJECT | DDO-FX (NM) | Connected |
@@ -486,7 +486,7 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 13075 | 3D SET OBJECT | DDO-FX (NM) | Connected |
 | 13094 | 3D MERGE OBJECT | DDO-FX (NM) | Connected |
 | 13111 | 3D MORPH OBJECT | DDO-FX (NM) | Connected |
-| 13144 | 3D PLAY OBJECT | DDO-FX (NM) | Connected on the desktop |
+| 13144 | 3D PLAY OBJECT | DDO-FX (NM) | Connected on the desktop and in graphic windows |
 | 13158 | GD DEFINE GRID | DDO-FX (NM) | Connected on the desktop and window virtual pages |
 | 13236 | GD CHANGE GRID | DDO-FX (NM) | Connected on the desktop and window virtual pages |
 | 13286 | GD FILL GRID | DDO-FX (NM) | Connected on the desktop and window virtual pages |
