@@ -100,12 +100,70 @@ clear_graphics_objects(struct st_ddofx_graphics *g)
 }
 
 void
+st_ddofx_present_origin(struct st_ddofx *ddo)
+{
+	struct st_ddofx_graphics *g = ddo->graphics;
+	if (!g)
+		return;
+	bool visible = !ddo->sleeper.warning && !ddo->sleeper.suspended;
+	(void)st_console_set_display_origin(g->display, HEIGHT / 16, visible ? g->origin_x : 0,
+	    visible ? g->origin_y : 0);
+}
+
+static void
+set_origin(struct st_ddofx *ddo, uint32_t x, uint32_t y)
+{
+	ddo->graphics->origin_x = x % WIDTH;
+	ddo->graphics->origin_y = y < HEIGHT ? y : HEIGHT;
+	st_ddofx_present_origin(ddo);
+}
+
+uint32_t
+st_ddofx_shake_wait_ms(const struct st_ddofx *ddo)
+{
+	if (!ddo->graphics || !ddo->shake_phase || ddo->background_paused || ddo->sleeper.warning
+	    || ddo->sleeper.suspended)
+		return UINT32_MAX;
+	uint64_t now;
+	if (st_time_monotonic_ms(&now) || now >= ddo->shake_due)
+		return 0;
+	return (uint32_t)(ddo->shake_due - now);
+}
+
+static void
+schedule_shake_frame(struct st_ddofx *ddo)
+{
+	uint64_t now;
+	ddo->shake_due = st_time_monotonic_ms(&now) ? 0 : now + 16;
+}
+
+void
+st_ddofx_shake_poll(struct st_ddofx *ddo)
+{
+	if (st_ddofx_shake_wait_ms(ddo))
+		return;
+	unsigned phase = ddo->shake_phase;
+	if (phase == 33) {
+		set_origin(ddo, 0, 0);
+		ddo->shake_phase = 0;
+		return;
+	}
+	/* Alternate the descending even offsets and ascending odd offsets. */
+	unsigned offset = phase % 2 ? 31 - phase : phase - 1;
+	set_origin(ddo, offset, offset);
+	++ddo->shake_phase;
+	schedule_shake_frame(ddo);
+}
+
+void
 st_ddofx_graphics_exit(struct st_ddofx *ddo)
 {
 	struct st_ddofx_graphics *g = ddo->graphics;
 	if (!g)
 		return;
 	st_ddofx_sleep_close(ddo);
+	ddo->background_paused = false;
+	(void)st_console_set_display_origin(g->display, 0, 0, 0);
 	ddo->sleeper.dismissal_key = 0;
 	clear_graphics_objects(g);
 	st_ddofx_destroy_text_page(&g->windows[0]);
@@ -546,6 +604,13 @@ st_ddofx_graphics_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink
 		st_ddofx_polygon_command(ddo, sink, verb + 3, args);
 	else if (!ascii_case_compare(verb, "2GEXIT") && args == NULL)
 		st_ddofx_graphics_exit(ddo);
+	else if (!ascii_case_compare(verb, "2aCHORG") && st_ddofx_numbers(ddo, args, n, 2))
+		set_origin(ddo, n[0] > 0 ? (uint32_t)n[0] : 0, n[1] > 0 ? (uint32_t)n[1] : 0);
+	else if (!ascii_case_compare(verb, "2aSHAKE") && !args) {
+		set_origin(ddo, 0, 0);
+		ddo->shake_phase = 1;
+		schedule_shake_frame(ddo);
+	}
 	else if (!ascii_case_compare(verb, "2RESA") && st_ddofx_numbers(ddo, args, n, 1) && n[0] >= 1 && n[0] <= 100) {
 		st_ddofx_movie_resolution(g, (unsigned)n[0]);
 		st_ddofx_animation_resolution(g);

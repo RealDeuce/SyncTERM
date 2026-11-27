@@ -150,7 +150,7 @@ static bool
 show_offset(struct st_ddofx *ddo)
 {
 	uint32_t pixels = (uint64_t)ddo->slide.height * ddo->slide.offset / 400;
-	return st_console_set_vertical_origin(ddo->slide.display, ddo->slide.rows,
+	return st_console_set_display_origin(ddo->slide.display, ddo->slide.rows, 0,
 		   ddo->slide.suspended ? 0 : pixels)
 	       == 0;
 }
@@ -159,7 +159,7 @@ void
 st_ddofx_slide_restore(struct st_ddofx *ddo)
 {
 	if (ddo->slide.display)
-		(void)st_console_set_vertical_origin(ddo->slide.display, 0, 0);
+		(void)st_console_set_display_origin(ddo->slide.display, 0, 0, 0);
 	ddo->slide.display = NULL;
 	ddo->slide.due     = 0;
 }

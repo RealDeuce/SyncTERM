@@ -107,6 +107,7 @@ struct st_ddofx_graphic_window {
 };
 
 struct st_ddofx_graphics {
+	uint32_t                       origin_x, origin_y;
 	st_console_t                  *sleep_view;
 	struct st_pixel_buffer        *sleep_saved;
 	uint16_t                       sleep_font;

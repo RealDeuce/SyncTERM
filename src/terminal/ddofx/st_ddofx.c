@@ -524,6 +524,9 @@ st_ddofx_wait_ms(const struct st_ddofx *ddo)
 	}
 	if (ddo->sleeper.warning)
 		return timers;
+	uint32_t shake = st_ddofx_shake_wait_ms(ddo);
+	if (shake < timers)
+		timers = shake;
 	uint32_t audio = st_ddofx_sample_wait_ms(ddo), event = st_ddofx_event_wait_ms(ddo);
 	uint32_t bars = st_ddofx_bar_wait_ms(ddo);
 	uint32_t wait = audio < event ? audio : event;
@@ -576,6 +579,7 @@ st_ddofx_poll(struct st_ddofx *ddo, const struct st_ddofx_sink *sink)
 	}
 	if (st_ddofx_sleep_poll(ddo, sink))
 		return 0;
+	st_ddofx_shake_poll(ddo);
 	st_ddofx_samples_poll(ddo);
 	st_ddofx_bar_poll(ddo);
 	st_ddofx_grid_poll(ddo);

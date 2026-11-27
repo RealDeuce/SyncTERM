@@ -629,7 +629,7 @@ render_cell(st_console_t *console, uint32_t x, uint32_t y, enum row_scale row_sc
 }
 
 int
-st_console_set_vertical_origin(st_console_t *console, uint32_t rows, uint32_t pixels)
+st_console_set_display_origin(st_console_t *console, uint32_t rows, uint32_t x, uint32_t y)
 {
 	if (!console || console->raster_parent)
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -637,11 +637,13 @@ st_console_set_vertical_origin(st_console_t *console, uint32_t rows, uint32_t pi
 		return IO_ERROR_IO;
 	int status = 0;
 	if (rows > console->rows || !console->cell_height || rows > UINT32_MAX / console->cell_height
-	    || pixels > rows * console->cell_height)
+	    || y > rows * console->cell_height
+	    || (x && (!console->pixels || rows != console->rows || x >= console->pixels->width)))
 		status = IO_ERROR_OUT_OF_RANGE;
-	else if (pixels != console->origin_pixels || (pixels && rows != console->origin_rows)) {
-		console->origin_rows   = pixels ? rows : 0;
-		console->origin_pixels = pixels;
+	else if (x != console->origin_x || y != console->origin_y || ((x || y) && rows != console->origin_rows)) {
+		console->origin_rows   = (x || y) ? rows : 0;
+		console->origin_x      = x;
+		console->origin_y      = y;
 		console->changed       = true;
 		if (console->pixels) {
 			console->pixel_damage =

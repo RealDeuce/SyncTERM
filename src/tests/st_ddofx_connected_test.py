@@ -1712,6 +1712,39 @@ def check_vga_font(t, root):
     assert frame.primary[0] != cell.foreground
 
 
+def check_display_origin(t):
+    t.case("absolute visual origin, wrapping, page ownership and background shake")
+    def pixel(f, x, y):
+        m = f.metadata
+        px = m["destination_x"] + (2*x+1)*m["destination_width"]//1280
+        py = m["destination_y"] + (2*y+1)*m["destination_height"]//960
+        return f.rgb[py*m["output_width"] + px]
+
+    scene = commands(b"2C,1", b"2aFILL", b"2C,12", b"2aRECT,0,4,20,25",
+                     b"2C,10", b"2aRECT,20,24,20,25", b"2CPYWP2VP")
+    base = t.exchange(scene)
+    f = t.exchange(commands(b"2aCHORG,10,10"))
+    assert (pixel(f, 631, 11), pixel(f, 11, 11), pixel(f, 11, 471)) == (f.palette[12], f.palette[10], 0)
+    assert f.primary == base.primary and f.alternate == base.alternate
+    f = t.exchange(commands(b"2CPYVP2WP", b"2aG,1,21", b"2C,14", b"2aP,1,21",
+                            b"2CUTWP2VP,1,2,21,22,1,22"), b"12\xff")
+    assert pixel(f, 631, 11) == f.palette[14]
+    f = t.exchange(commands(b"2RESET") + scene)
+    assert pixel(f, 631, 11) == f.palette[12]
+    f = t.exchange(commands(b"~PAUSEBAK", b"2aSHAKE", b"2aCHORG,642,1"))
+    assert pixel(f, 639, 20) == f.palette[12]
+    t.exchange(commands(b"~UNPAUSEBAK", b"dVIDMODE"), b"1\xff")
+    t.client.wait_for(lambda f: pixel(f, 50, 478) == 0 and pixel(f, 50, 1) == f.palette[1])
+    # One of the last intermediate frames also passes through zero.
+    t.client.wait_for(lambda f: f.rgb == base.rgb)
+    t.exchange(commands(b"w2"))
+    f = t.client.wait_for(lambda f: f.rgb == base.rgb)
+    assert f.primary == base.primary
+    f = t.exchange(commands(b"2aCHORG,0,480"))
+    assert not any(f.rgb)
+    t.exchange(commands(b"2aCHORG,0,0", b"2RESET"))
+
+
 def check_graphics(t, root):
     lite = t.check("Lite screen before graphics", b"Before", (7, 1), [(1, 1, "Before")])
     enter = commands(b"LIGMODE", b"LIGMODE")
@@ -2504,6 +2537,9 @@ def run(args):
                 (3, 1), [(1, 1, "AB")], expected=reply)
         t.check("recover and continue", b"A\x1d{" + b"x" * 251 + b"}B\x1dX" + ident,
                 (4, 1), [(1, 1, "ABX")], expected=reply)
+        t.exchange(commands(b"LIGMODE", b"LIGMODE"))
+        check_display_origin(t)
+        t.exchange(commands(b"2GEXIT"))
         check_lite_slides(t)
         check_sleeper(t)
 

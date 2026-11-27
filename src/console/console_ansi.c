@@ -505,7 +505,7 @@ ansi_present(st_console_t *console)
 
 	if (initializing)
 		prepare_initial_screen(&writer, console, state, &view, host_columns, host_rows);
-	else if (!console->origin_pixels)
+	else if (!console->origin_y)
 		(void)scroll_up_one(&writer, console, state, &view,
 		    host_columns == 0 ? console->columns : host_columns);
 	for (uint32_t y = 0; y < view.height; ++y) {

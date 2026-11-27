@@ -31,6 +31,7 @@ struct st_console_bitmap_presenter {
 	uint32_t                        cell_height;
 	uint32_t                        columns;
 	uint32_t                        rows;
+	uint32_t                        origin_x, origin_y, origin_rows;
 	uint32_t                        cursor_x;
 	uint32_t                        cursor_y;
 	uint32_t                        cursor_draw_x;
@@ -101,6 +102,19 @@ resolve_row(struct st_console_bitmap_presenter *presenter, uint32_t *destination
 	return changed;
 }
 
+/* A resize may replace the raster while an origin is active. */
+static uint32_t
+horizontal_offset(const st_console_t *console)
+{
+	return console->origin_x < console->pixels->width ? console->origin_x : 0;
+}
+
+static uint32_t
+source_column(uint32_t x, uint32_t offset, uint32_t width)
+{
+	return x >= width - offset ? x - (width - offset) : x + offset;
+}
+
 static bool
 resolve_rectangle(struct st_console_bitmap_presenter *presenter, struct st_rgb_buffer *destination,
     const st_console_t *console, bool alternate, const struct st_console_rect *rectangle)
@@ -135,11 +149,15 @@ resolve_rectangle(struct st_console_bitmap_presenter *presenter, struct st_rgb_b
 				target[x] = 0;
 			}
 		}
-		else {
-			size_t from = st_console_pixel_position_locked(console, rectangle->x, source_y);
-			changed     = resolve_row(presenter, target + covered, plane + from + covered,
-					  rectangle->width - covered)
-			              || changed;
+		else if (covered < rectangle->width) {
+			uint32_t width = console->pixels->width;
+			uint32_t x     = source_column(rectangle->x + covered, horizontal_offset(console), width);
+			uint32_t count = rectangle->width - covered;
+			uint32_t first = count < width - x ? count : width - x;
+			const uint32_t *row = plane + st_console_pixel_position_locked(console, 0, source_y);
+			changed |= resolve_row(presenter, target + covered, row + x, first);
+			if (count > first)
+				changed |= resolve_row(presenter, target + covered + first, row, count - first);
 		}
 	}
 	return changed;
@@ -163,9 +181,8 @@ fill_rectangle(struct st_rgb_buffer *buffer, const struct st_console_rect *recta
 
 static bool
 compose_index_cursor(struct st_console_bitmap_presenter *presenter, struct st_rgb_buffer *destination,
-    const st_console_t *console, bool alternate)
+    const st_console_t *console, bool alternate, const struct st_console_rect *rect, uint32_t logical_x)
 {
-	const struct st_console_rect *rect = &presenter->cursor_rectangle;
 	const uint32_t *plane   = alternate && console->pixels->alternate != NULL ? console->pixels->alternate
 	                                                                          : console->pixels->primary;
 	uint32_t        base    = presenter->cursor_index_base;
@@ -173,7 +190,7 @@ compose_index_cursor(struct st_console_bitmap_presenter *presenter, struct st_rg
 	bool            changed = false;
 
 	for (uint32_t y = 0; y < rect->height; ++y) {
-		size_t source = st_console_pixel_position_locked(console, rect->x,
+		size_t source = st_console_pixel_position_locked(console, logical_x,
 		    st_console_display_source_y(console, rect->y + y));
 		size_t target = (size_t)(rect->y + y) * destination->width + rect->x;
 		for (uint32_t x = 0; x < rect->width; ++x) {
@@ -857,20 +874,20 @@ cache_console_state(struct st_console_bitmap_presenter *presenter, const st_cons
 		    && presenter->cursor_x < presenter->columns && presenter->cursor_y < presenter->rows
 		    && presenter->cursor_rectangle.width != 0 && presenter->cursor_rectangle.height != 0;
 	}
-	if (console->origin_pixels && presenter->cursor_composed
+	if (console->origin_y && presenter->cursor_composed
 	    && presenter->cursor_rectangle.y < st_console_origin_height(console)) {
 		struct st_console_rect *r         = &presenter->cursor_rectangle;
 		uint32_t                available = st_console_origin_height(console) - r->y;
 		if (r->height > available)
 			r->height = available;
-		if (r->y < console->origin_pixels) {
-			uint32_t clipped           = console->origin_pixels - r->y;
+		if (r->y < console->origin_y) {
+			uint32_t clipped           = console->origin_y - r->y;
 			r->height                  = clipped < r->height ? r->height - clipped : 0;
 			r->y                       = 0;
 			presenter->cursor_composed = r->height != 0;
 		}
 		else
-			r->y -= console->origin_pixels;
+			r->y -= console->origin_y;
 	}
 	bool rectangle_changed = !st_console_rects_equal(&old_cursor, &presenter->cursor_rectangle);
 	bool bank_changed      = old_cursor_index_base != presenter->cursor_index_base
@@ -967,12 +984,13 @@ compose_pointer(struct st_console_bitmap_presenter *p, const st_console_t *conso
 		uint32_t y      = rect->y + dy;
 		uint32_t source_y = st_console_display_source_y(console, y);
 		size_t   source =
-		    source_y == UINT32_MAX ? 0 : st_console_pixel_position_locked(console, rect->x, source_y);
+		    source_y == UINT32_MAX ? 0 : st_console_pixel_position_locked(console, 0, source_y);
 		size_t   target = (size_t)y * p->images[image]->width + rect->x;
 		for (uint32_t dx = 0; dx < rect->width; ++dx) {
 			uint32_t x       = rect->x + dx;
+			uint32_t logical_x = source_column(x, horizontal_offset(console), console->pixels->width);
 			bool     repaint = contains_pixel(damage, x, y);
-			bool     cursor  = p->cursor_composed && contains_pixel(&p->cursor_rectangle, x, y);
+			bool     cursor = p->cursor_composed && contains_pixel(&p->cursor_rectangle, logical_x, y);
 			if (!repaint && !cursor)
 				continue;
 			unsigned row = console->pointer_skip_y + dy, col = console->pointer_skip_x + dx;
@@ -980,8 +998,8 @@ compose_pointer(struct st_console_bitmap_presenter *p, const st_console_t *conso
 				 toggle = console->indexed_pointer.xor_mask[row][col];
 			if (keep == 255 && !toggle)
 				continue;
-			uint32_t ink =
-			    source_y == UINT32_MAX ? ST_CONSOLE_COLOR_RGB_VALUE(0, 0, 0) : plane[source + dx];
+			uint32_t ink     = source_y == UINT32_MAX ? ST_CONSOLE_COLOR_RGB_VALUE(0, 0, 0)
+			                                          : plane[source + logical_x];
 			bool     covered = indicator && y >= indicator_top && y - indicator_top < indicator->height
 			                   && x < indicator->width;
 			if (covered)
@@ -1013,38 +1031,30 @@ compose_pointer(struct st_console_bitmap_presenter *p, const st_console_t *conso
 }
 
 static bool
-resolve_images(struct st_console_bitmap_presenter *presenter, const st_console_t *console,
-    const struct st_console_rect *rectangle)
+compose_cursor_part(struct st_console_bitmap_presenter *presenter, const st_console_t *console,
+    const struct st_console_rect *rect, uint32_t logical_x)
 {
-	bool changed = resolve_rectangle(presenter, presenter->images[BITMAP_PRIMARY], console, false, rectangle);
-
-	changed =
-	    resolve_rectangle(presenter, presenter->images[BITMAP_ALTERNATE], console, true, rectangle) || changed;
-	changed = copy_rgb_rectangle(presenter->images[BITMAP_PRIMARY_CURSOR], presenter->images[BITMAP_PRIMARY],
-		      rectangle)
-	          || changed;
-	changed = copy_rgb_rectangle(presenter->images[BITMAP_ALTERNATE_CURSOR],
-		      presenter->images[BITMAP_ALTERNATE], rectangle)
-	          || changed;
-	if (presenter->cursor_composed && presenter->cursor_index_xor != 0) {
-		changed = compose_index_cursor(presenter, presenter->images[BITMAP_PRIMARY_CURSOR], console, false)
+	bool changed = false;
+	if (presenter->cursor_index_xor != 0) {
+		changed = compose_index_cursor(presenter, presenter->images[BITMAP_PRIMARY_CURSOR], console, false,
+			      rect, logical_x)
 		          || changed;
-		changed =
-		    compose_index_cursor(presenter, presenter->images[BITMAP_ALTERNATE_CURSOR], console, true)
-		    || changed;
+		changed = compose_index_cursor(presenter, presenter->images[BITMAP_ALTERNATE_CURSOR], console,
+			      true, rect, logical_x)
+		          || changed;
 	}
-	else if (presenter->cursor_composed) {
-		changed = fill_rectangle(presenter->images[BITMAP_PRIMARY_CURSOR], &presenter->cursor_rectangle,
+	else {
+		changed = fill_rectangle(presenter->images[BITMAP_PRIMARY_CURSOR], rect,
 			      colour_value(presenter, presenter->cursor_colour))
 		          || changed;
-		changed = fill_rectangle(presenter->images[BITMAP_ALTERNATE_CURSOR], &presenter->cursor_rectangle,
+		changed = fill_rectangle(presenter->images[BITMAP_ALTERNATE_CURSOR], rect,
 			      colour_value(presenter, presenter->cursor_colour))
 		          || changed;
 	}
 	const struct st_pixel_buffer *indicator = st_console_status_pixels_locked(console);
-	if (indicator != NULL && presenter->cursor_composed) {
+	if (indicator != NULL) {
 		uint32_t               top    = (console->rows - 1) * console->cell_height;
-		struct st_console_rect cursor = presenter->cursor_rectangle;
+		struct st_console_rect cursor = *rect;
 		uint32_t               right  = cursor.x + cursor.width;
 		uint32_t               bottom = cursor.y + cursor.height;
 		if (right > indicator->width)
@@ -1062,6 +1072,39 @@ resolve_images(struct st_console_bitmap_presenter *presenter, const st_console_t
 			changed       = copy_rgb_rectangle(presenter->images[BITMAP_ALTERNATE_CURSOR],
 					    presenter->images[BITMAP_ALTERNATE], &cursor)
 			                || changed;
+		}
+	}
+	return changed;
+}
+
+static bool
+resolve_images(struct st_console_bitmap_presenter *presenter, const st_console_t *console,
+    const struct st_console_rect *rectangle)
+{
+	bool changed = resolve_rectangle(presenter, presenter->images[BITMAP_PRIMARY], console, false, rectangle);
+
+	changed =
+	    resolve_rectangle(presenter, presenter->images[BITMAP_ALTERNATE], console, true, rectangle) || changed;
+	changed = copy_rgb_rectangle(presenter->images[BITMAP_PRIMARY_CURSOR], presenter->images[BITMAP_PRIMARY],
+		      rectangle)
+	          || changed;
+	changed = copy_rgb_rectangle(presenter->images[BITMAP_ALTERNATE_CURSOR],
+		      presenter->images[BITMAP_ALTERNATE], rectangle)
+	          || changed;
+	if (presenter->cursor_composed) {
+		struct st_console_rect part      = presenter->cursor_rectangle;
+		uint32_t               logical_x = part.x, width = console->pixels->width;
+		uint32_t               offset = horizontal_offset(console);
+		part.x             = logical_x >= offset ? logical_x - offset : width - (offset - logical_x);
+		uint32_t remaining = part.width;
+		if (part.width > width - part.x)
+			part.width = width - part.x;
+		changed |= compose_cursor_part(presenter, console, &part, logical_x);
+		if (remaining > part.width) {
+			logical_x += part.width;
+			part.x     = 0;
+			part.width = remaining - part.width;
+			changed |= compose_cursor_part(presenter, console, &part, logical_x);
 		}
 	}
 	if (console->pointer_rect.width) {
@@ -1160,24 +1203,29 @@ st_console_bitmap_prepare_frame(struct st_console_bitmap_presenter *presenter, c
 		memcpy(presenter->palette, console->palette, sizeof(presenter->palette));
 		accumulate_full_damage(presenter);
 	}
-	if (!presenter->images_valid || console->pixel_surface_dirty)
+	if (!presenter->images_valid || console->pixel_surface_dirty || presenter->origin_x != console->origin_x
+	    || presenter->origin_y != console->origin_y || presenter->origin_rows != console->origin_rows) {
+		presenter->origin_x = console->origin_x;
+		presenter->origin_y = console->origin_y;
+		presenter->origin_rows = console->origin_rows;
 		accumulate_full_damage(presenter);
+	}
 	else {
 		(void)collect_cell_damage(presenter, console);
 		if (console->pixel_damage_valid)
 			st_console_rect_accumulate(&presenter->damage, &presenter->damage_valid,
 			    &console->pixel_damage);
-		if (console->origin_pixels && presenter->damage_valid) {
+		if (console->origin_y && presenter->damage_valid) {
 			struct st_console_rect visible = presenter->damage;
 			uint32_t               bottom  = visible.y + visible.height;
 			uint32_t               limit   = st_console_origin_height(console);
 			if (bottom > limit)
 				bottom = limit;
-			if (visible.y < console->origin_pixels)
-				visible.y = console->origin_pixels;
+			if (visible.y < console->origin_y)
+				visible.y = console->origin_y;
 			if (bottom > visible.y) {
 				visible.height = bottom - visible.y;
-				visible.y -= console->origin_pixels;
+				visible.y -= console->origin_y;
 				st_console_rect_accumulate(&presenter->damage, &presenter->damage_valid, &visible);
 			}
 		}
@@ -1191,6 +1239,10 @@ st_console_bitmap_prepare_frame(struct st_console_bitmap_presenter *presenter, c
 		}
 	}
 	if (presenter->damage_valid) {
+		if (horizontal_offset(console)) {
+			presenter->damage.x     = 0;
+			presenter->damage.width = console->pixels->width;
+		}
 		images_were_valid = presenter->images_valid;
 		if (presenter->images_valid)
 			presenter->plane_difference_count -= count_differences(presenter->images[BITMAP_PRIMARY],

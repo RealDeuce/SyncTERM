@@ -41,6 +41,7 @@ st_ddofx_sleep_close(struct st_ddofx *ddo)
 	g->sleep_view        = NULL;
 	g->sleep_saved       = NULL;
 	ddo->sleeper.warning = false;
+	st_ddofx_present_origin(ddo);
 }
 
 static bool
@@ -57,6 +58,7 @@ open_warning(struct st_ddofx *ddo)
 	    || st_console_raster_view_adopt_transient(g->sleep_view))
 		return false;
 	ddo->sleeper.warning = true;
+	st_ddofx_present_origin(ddo);
 	return true;
 }
 

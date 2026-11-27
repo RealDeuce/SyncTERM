@@ -1033,6 +1033,7 @@ st_term_session_set_suspended(st_term_session_t *session, bool suspended)
 			st_ddofx_slide_suspend(&session->ddofx, suspended);
 			st_ddofx_sleep_close(&session->ddofx);
 			session->ddofx.sleeper.suspended = suspended;
+			st_ddofx_present_origin(&session->ddofx);
 			if (!suspended)
 				st_ddofx_sleep_arm(&session->ddofx);
 		}
