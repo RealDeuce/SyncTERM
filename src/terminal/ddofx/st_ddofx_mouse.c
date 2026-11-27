@@ -202,6 +202,7 @@ hover(struct st_ddofx *ddo)
 		    || !inside(&f->area, x, y))
 			continue;
 		if (fields->last != i && st_ddofx_callback_start(ddo, &f->callback, DDO_FIELD)) {
+			st_ddofx_sleep_arm(ddo);
 			fields->last    = i;
 			fields->running = i;
 			ddo->in_mouse   = true;
@@ -430,6 +431,12 @@ st_ddofx_mouse(struct st_ddofx *ddo, const struct st_console_event *event)
 	struct st_ddofx_mouse_state *mouse   = &ddo->graphics->mouse;
 	unsigned                     buttons = button_mask(event->data.mouse.buttons);
 	unsigned                     changed = mouse->buttons ^ buttons;
+	if (ddo->sleeper.warning) {
+		st_ddofx_mouse_cancel(ddo, event->data.mouse.buttons);
+		return;
+	}
+	if (changed & buttons)
+		st_ddofx_sleep_arm(ddo);
 	bool moved     = sample_position(mouse, event->data.mouse.pixel_x, event->data.mouse.pixel_y);
 	mouse->buttons = buttons;
 	if (moved && mouse->pointers)

@@ -107,6 +107,9 @@ struct st_ddofx_graphic_window {
 };
 
 struct st_ddofx_graphics {
+	st_console_t                  *sleep_view;
+	struct st_pixel_buffer        *sleep_saved;
+	uint16_t                       sleep_font;
 	struct st_ddofx_graphic_window graphic_windows[GRAPHIC_WINDOWS + 1];
 	unsigned active_graphic_window, alert_graphic_window;
 	struct st_ddofx_frame_drag frame_drag;

@@ -4,6 +4,7 @@
 
 #include "st_codepage.h"
 #include "st_console.h"
+#include "st_ddofx_graphics.h"
 #include "st_ddofx_script.h"
 
 enum {
@@ -264,6 +265,8 @@ st_ddofx_resume_key(struct st_ddofx *ddo, const struct st_ddofx_sink *sink)
 bool
 st_ddofx_key(struct st_ddofx *ddo, const struct st_console_event *e)
 {
+	if (st_ddofx_sleep_key(ddo, e))
+		return true;
 	if ((e->type == ST_CONSOLE_EVENT_KEY_CODE || e->type == ST_CONSOLE_EVENT_DOORWAY_KEY)
 	    && st_ddofx_window_scroll_key(ddo, logical_key(e, 0)))
 		return true;

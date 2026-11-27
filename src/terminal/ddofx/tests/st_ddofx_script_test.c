@@ -5,6 +5,7 @@
 
 #include "st_cterm.h"
 #include "st_ddofx.h"
+#include "st_ddofx_graphics.h"
 
 #define CHECK(e)                                                   \
 	do {                                                       \
@@ -145,6 +146,48 @@ main(void)
 	CHECK(out.length == 4 && !memcmp(out.text, "P\0P\0", 4));
 	static const char reset[] = DDO("2RESET");
 	CHECK(feed(&ddo, &sink, reset, sizeof(reset) - 1) && !ddo.ping.interval_ms);
+	/* The last three minutes are the warning period. Checking the two
+	 * deadlines avoids spending ten real minutes on the default. */
+	CHECK(ddo.sleeper.deadline - ddo.sleeper.next_update == 180000);
+	uint32_t wake = st_ddofx_sleep_wait_ms(&ddo);
+	CHECK(wake > 419000 && wake <= 420000);
+	static const char set_sleep[] = DDO("5SLEEPER,12");
+	CHECK(feed(&ddo, &sink, set_sleep, sizeof(set_sleep) - 1));
+	ddo.sleeper.deadline = ddo.sleeper.next_update = 1;
+	struct st_console_event key = {.type = ST_CONSOLE_EVENT_TEXT, .data.text.codepoint = 'a'};
+	(void)st_ddofx_key(&ddo, &key);
+	wake = st_ddofx_sleep_wait_ms(&ddo);
+	CHECK(wake > 539000 && wake <= 540000);
+
+	struct st_console_event mouse = {.type = ST_CONSOLE_EVENT_MOUSE};
+	ddo.sleeper.deadline = ddo.sleeper.next_update = 1;
+	st_ddofx_mouse(&ddo, &mouse);
+	CHECK(ddo.sleeper.deadline == 1);
+	mouse.data.mouse.buttons = ST_CONSOLE_MOUSE_BUTTON_LEFT;
+	st_ddofx_mouse(&ddo, &mouse);
+	CHECK(ddo.sleeper.deadline > 1);
+	CHECK(feed(&ddo, &sink, leave, sizeof(leave) - 1) && st_ddofx_sleep_wait_ms(&ddo) == UINT32_MAX);
+	CHECK(feed(&ddo, &sink, enter, sizeof(enter) - 1) && ddo.sleeper.minutes == 12);
+	CHECK(feed(&ddo, &sink, reset, sizeof(reset) - 1));
+	wake = st_ddofx_sleep_wait_ms(&ddo);
+	CHECK(wake > 419000 && wake <= 420000);
+
+	/* Move the warning boundary to this poll while retaining a finite
+	 * countdown. PING still owns its independent connection deadline. */
+	static const char short_sleep[] = DDO("5SLEEPER,1");
+	CHECK(feed(&ddo, &sink, short_sleep, sizeof(short_sleep) - 1));
+	CHECK(feed(&ddo, &sink, ping, sizeof(ping) - 1));
+	ddo.sleeper.next_update = 0;
+	CHECK(st_ddofx_poll(&ddo, &sink) == 0 && ddo.sleeper.warning);
+	ddo.ping.due = 0;
+	size_t prior = out.length;
+	CHECK(st_ddofx_wait_ms(&ddo) == 0 && st_ddofx_poll(&ddo, &sink) == 0);
+	CHECK(out.length == prior + 2 && ddo.sleeper.warning);
+	struct st_console_event press = {.type = ST_CONSOLE_EVENT_PHYSICAL_KEY,
+	    .data.physical_key = {.evdev = 30, .pressed = true}};
+	CHECK(st_ddofx_key(&ddo, &press) && !ddo.sleeper.warning);
+	CHECK(st_ddofx_key(&ddo, &key));
+	CHECK(!st_ddofx_key(&ddo, &key));
 	st_ddofx_reset(&ddo);
 	st_console_destroy(config.console);
 	return EXIT_SUCCESS;

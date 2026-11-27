@@ -66,6 +66,8 @@ The Normal-mode landscape accepts a seed or a 255 × 255 indexed map from the vi
 
 Normal mode supports a tile map of up to 150 × 150 cells. The host can fill either layer, move the viewport, move or remove foreground tiles, and animate consecutive sprite frames. Grid assignments become visible on a draw. Movement redraws immediately. A grid created in an alerted window retains that window as its owner. Its tiles animate while the owner is active, and removing the grid restores the underlying page.
 
+Normal mode starts a ten-minute inactivity timer. `5SLEEPER,minutes` replaces and restarts it. A keystroke, mouse button press or mouse field activation rearms it. A local window counts down the final three minutes over the paused scene. A dismissing key restores the scene and starts the interval again. For short positive intervals the countdown starts after one second of inactivity. Expiry closes the connection. Zero requests immediate expiry. A Normal reset restores ten minutes, and Lite mode has no inactivity timer.
+
 In Normal mode, `5PING,minutes,string` sends up to ten decoded bytes to the host at the configured interval, independently of keyboard activity and variable capture. A zero interval or Normal reset disables it. Lite mode and background file transfers suspend transmission. Resuming an overdue timer sends one ping and starts a fresh interval.
 
 In Lite and Normal mode, `dDRIVE` reports free space available to the user on the BBS asset-cache volume. `dMEM` estimates available memory from the OS. Both report bytes up to the largest signed DDO script integer (2,147,483,647), and return −1 if the measurement is unavailable. When a positive `dVMEM` request exceeds measured memory, SyncTERM reports the shortfall through the connection’s alert handler, ends local script execution, and returns to text mode. It continues receiving host input. `dSPEED` reports a numeric processing-speed estimate taken once per process. SyncTERM samples the string, integer and floating-point workload of the SDK-era MPORT diagnostic over a short interval. The index is an estimate across architectures.
@@ -479,7 +481,7 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 13432 | GD POS TILE | DDO-FX (NM) | Connected on the desktop and window virtual pages |
 | 13451 | GD MOVE TILE | DDO-FX (NM) | Connected on the desktop and window virtual pages |
 | 13473 | GD KILL TILE | DDO-FX (NM) | Connected on the desktop and window virtual pages |
-| 13488 | SET SLEEP DISCONNECT | DDO-FX (NM) | Pending |
+| 13488 | SET SLEEP DISCONNECT | DDO-FX (NM) | Connected |
 | 13544 | SET PING | DDO-FX (NM) | Connected |
 | 13620 | ROTATE IMAGE | DDO-FX (NM) | Connected on desktop and window pages |
 | 13703 | SCALE IMAGE | DDO-FX (NM) | Connected on desktop and window pages |

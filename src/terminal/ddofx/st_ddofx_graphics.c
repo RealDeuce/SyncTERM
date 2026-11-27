@@ -105,6 +105,8 @@ st_ddofx_graphics_exit(struct st_ddofx *ddo)
 	struct st_ddofx_graphics *g = ddo->graphics;
 	if (!g)
 		return;
+	st_ddofx_sleep_close(ddo);
+	ddo->sleeper.dismissal_key = 0;
 	clear_graphics_objects(g);
 	st_ddofx_destroy_text_page(&g->windows[0]);
 	if (g->previous_screen) {
@@ -196,8 +198,10 @@ st_ddofx_graphics_enter(struct st_ddofx *ddo, const struct st_ddofx_sink *sink)
 	}
 	if (!st_ddofx_create_text_page(g, &g->windows[0], &config))
 		st_ddofx_graphics_exit(ddo);
-	else
+	else {
 		st_ddofx_apply_vga_font(ddo);
+		st_ddofx_sleep_arm(ddo);
+	}
 }
 
 struct transfer {

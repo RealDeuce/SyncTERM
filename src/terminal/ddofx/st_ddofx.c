@@ -210,8 +210,13 @@ st_ddofx_reset(struct st_ddofx *ddo)
 	stop_music(ddo);
 	/* The session releases the receive worker after joining it. Resetting
 	 * a display during reception must retain that worker's wire ownership. */
-	*ddo = (struct st_ddofx) {.volume = 64, .background_download = ddo->background_download,
-	    .controller_paused = ddo->controller_paused, .sticks = {ddo->sticks[0], ddo->sticks[1]}};
+	*ddo = (struct st_ddofx) {
+	    .volume              = 64,
+	    .background_download = ddo->background_download,
+	    .sleeper.suspended   = ddo->sleeper.suspended,
+	    .controller_paused   = ddo->controller_paused,
+	    .sticks              = {ddo->sticks[0], ddo->sticks[1]}
+        };
 }
 
 static void
@@ -256,8 +261,11 @@ execute(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *body)
 	else if (ddo->ignoring || body[0] == ':')
 		return;
 	else if (matches(body, "2RESET")) {
-		if (ddo->graphics)
+		if (ddo->graphics) {
 			ddo->ping.interval_ms = 0;
+			ddo->sleeper.configured = false;
+			st_ddofx_sleep_arm(ddo);
+		}
 		st_ddofx_graphics_reset(ddo->graphics);
 		st_ddofx_script_clear(ddo);
 		st_ddofx_clear_keys(ddo);
@@ -289,6 +297,14 @@ execute(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *body)
 		st_ddofx_mouse_command(ddo, sink, body);
 	else if (body[0] == '3' && ddo->graphics)
 		st_ddofx_mouse_command(ddo, sink, body + 1);
+	else if (ddo->graphics && !ascii_case_ncompare(body, "5SLEEPER,", 9)) {
+		int32_t minutes;
+		if (st_ddofx_number(ddo, body + 9, &minutes) && minutes >= 0) {
+			ddo->sleeper.minutes    = minutes;
+			ddo->sleeper.configured = true;
+			st_ddofx_sleep_arm(ddo);
+		}
+	}
 	else if (ddo->graphics && !ascii_case_ncompare(body, "5PING,", 6))
 		st_ddofx_define_ping(ddo, body + 6);
 	else if (body[0] == '5' && ddo->graphics)
@@ -470,8 +486,8 @@ st_ddofx_parse(struct st_ddofx *ddo, struct st_ddofx_framer *frame, const struct
 bool
 st_ddofx_busy(const struct st_ddofx *ddo)
 {
-	return ddo->retrieval.file || ddo->wait_until != 0 || ddo->fade_due != 0 || st_ddofx_script_active(ddo)
-	       || ddo->queued_start != ddo->queued_end;
+	return ddo->sleeper.warning || ddo->retrieval.file || ddo->wait_until != 0 || ddo->fade_due != 0
+	       || st_ddofx_script_active(ddo) || ddo->queued_start != ddo->queued_end;
 }
 
 static uint32_t
@@ -489,6 +505,12 @@ ping_wait_ms(const struct st_ddofx *ddo, uint64_t *now)
 uint32_t
 st_ddofx_wait_ms(const struct st_ddofx *ddo)
 {
+	uint64_t now;
+	uint32_t ping    = ping_wait_ms(ddo, &now);
+	uint32_t sleeper = st_ddofx_sleep_wait_ms(ddo);
+	uint32_t timers  = ping < sleeper ? ping : sleeper;
+	if (ddo->sleeper.warning)
+		return timers;
 	uint32_t audio = st_ddofx_sample_wait_ms(ddo), event = st_ddofx_event_wait_ms(ddo);
 	uint32_t bars = st_ddofx_bar_wait_ms(ddo);
 	uint32_t wait = audio < event ? audio : event;
@@ -527,9 +549,7 @@ st_ddofx_wait_ms(const struct st_ddofx *ddo)
 		wait = grid;
 	if (bars < wait)
 		wait = bars;
-	uint64_t now;
-	uint32_t ping = ping_wait_ms(ddo, &now);
-	return ping < wait ? ping : wait;
+	return timers < wait ? timers : wait;
 }
 
 int
@@ -541,6 +561,8 @@ st_ddofx_poll(struct st_ddofx *ddo, const struct st_ddofx_sink *sink)
 		if (ddo->ping.length && sink->reply)
 			sink->reply(sink->context, ddo->ping.bytes, ddo->ping.length);
 	}
+	if (st_ddofx_sleep_poll(ddo, sink))
+		return 0;
 	st_ddofx_samples_poll(ddo);
 	st_ddofx_bar_poll(ddo);
 	st_ddofx_grid_poll(ddo);

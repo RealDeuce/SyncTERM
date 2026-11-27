@@ -2403,6 +2403,25 @@ def check_events(t):
     t.exchange(commands(b"7CEVENT,0", b"7AEVENT,1", b"dLITERM"), b"LITERM Ver. 2.00\xff")
 
 
+def check_sleeper(t):
+    t.case("inactivity countdown, dismissal, scene restoration and local hangup")
+    before = t.exchange(commands(b"5SLEEPER,0", b"LIGMODE", b"LIGMODE", b"2C,9", b"2aFILL", b"2CPYWP2VP"))
+    # The countdown is a local window over an otherwise solid graphics page.
+    t.send(commands(b"5SLEEPER,1"))
+    warning = t.client.wait_for(lambda f: f.primary != before.primary)
+    assert warning.primary[0] == before.primary[0] == 9
+    updated = t.client.wait_for(lambda f: f.primary != warning.primary)
+    assert updated.primary[0] == 9
+    t.send(commands(b"5SLEEPER,8", b"dVIDMODE"))
+    t.client.text("c")
+    restored = t.input(b"1\xff")
+    assert restored.primary == before.primary and restored.alternate == before.alternate
+    t.client.text("d")
+    t.input(b"d")
+    t.send(commands(b"5SLEEPER,0"))
+    assert t.peer.recv(1) == b"", "sleep disconnect did not close the transport"
+
+
 def check_ping(args):
     with connection(args.executable, args.reports, encoding=args.encoding,
                     options="Graphics=DDO F/X 2.0\n", settings="AudioModes=0\n") as fixture:
@@ -2460,6 +2479,7 @@ def run(args):
                 (3, 1), [(1, 1, "AB")], expected=reply)
         t.check("recover and continue", b"A\x1d{" + b"x" * 251 + b"}B\x1dX" + ident,
                 (4, 1), [(1, 1, "ABX")], expected=reply)
+        check_sleeper(t)
 
 
 if __name__ == "__main__":

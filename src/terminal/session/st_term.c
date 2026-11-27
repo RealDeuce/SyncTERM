@@ -187,7 +187,7 @@ st_term_session_poll_display(st_term_session_t *session)
 		st_musicomm_poll(session->musicomm);
 		return 0;
 	}
-	int status = st_cterm_poll(st_term_session_cterm(session));
+	int status = session->ddofx.sleeper.warning ? 0 : st_cterm_poll(st_term_session_cterm(session));
 	if (status == 0 && ddofx_can_run(session)) {
 		const struct st_ddofx_sink sink = ddofx_sink(session);
 		status = st_ddofx_poll(&session->ddofx, &sink);
@@ -1029,6 +1029,12 @@ st_term_session_set_suspended(st_term_session_t *session, bool suspended)
 			session->download_row[0] = 0;
 			session->download_row_due = 0;
 		}
+		if (session->suspended != suspended) {
+			st_ddofx_sleep_close(&session->ddofx);
+			session->ddofx.sleeper.suspended = suspended;
+			if (!suspended)
+				st_ddofx_sleep_arm(&session->ddofx);
+		}
 		session->suspended = suspended;
 		session->ddofx.controller_paused = suspended || session->unfocused;
 		st_ddofx_pointer_pause(&session->ddofx,
@@ -1402,6 +1408,12 @@ ddofx_text(void *context, const uint8_t *bytes, size_t size, size_t *consumed)
 	return st_cterm_write(st_term_session_cterm(session), bytes, size, consumed);
 }
 
+static void
+ddofx_disconnect(void *context)
+{
+	st_term_session_request_end(context, false);
+}
+
 static struct st_ddofx_sink
 ddofx_sink(st_term_session_t *session)
 {
@@ -1409,6 +1421,7 @@ ddofx_sink(st_term_session_t *session)
 	    .context          = session,
 	    .text             = ddofx_text,
 	    .resource_text    = render_cp437_resource,
+	    .disconnect       = ddofx_disconnect,
 	    .cache_directory  = session->config.ddofx_directory,
 	    .available_memory = st_ddofx_available_memory,
 	    .alert            = session->config.graphics_alert,
@@ -2137,6 +2150,12 @@ st_term_session_service(st_term_session_t *session, enum st_term_disposition *di
 		status = st_term_session_poll_display(session);
 		if (status != 0 || session->output_error != 0)
 			return status != 0 ? status : session->output_error;
+		if (session->end_requested) {
+			*disposition =
+			    session->exit_requested ? ST_TERM_EXIT_APPLICATION : ST_TERM_RETURN_TO_PICKER;
+			*finished = true;
+			return 0;
+		}
 	}
 	if (!session->suspended && session->transfer == NULL && session->musicomm == NULL
 	    && session->throttle_bps != 0) {
@@ -2426,9 +2445,10 @@ st_term_session_wait(st_term_session_t *session, uint32_t timeout_ms)
 		}
 	}
 	if (timeout_ms > 1
-	    && (session->transfer != NULL || session->transfer_reserved || paused
-	        || cterm_big_needs_poll(session->big) || cterm_igs_needs_poll(session->igs)
-	        || session->musicomm != NULL || st_cterm_needs_poll(st_term_session_cterm(session))))
+	    && (session->transfer != NULL || session->transfer_reserved
+	        || (paused && !session->ddofx.sleeper.warning) || cterm_big_needs_poll(session->big)
+	        || cterm_igs_needs_poll(session->igs) || session->musicomm != NULL
+	        || st_cterm_needs_poll(st_term_session_cterm(session))))
 		timeout_ms = 1;
 	if (ddofx_can_run(session)) {
 		uint32_t ddofx_wait = st_ddofx_wait_ms(&session->ddofx);
@@ -2495,6 +2515,7 @@ st_term_session_begin_transfer(st_term_session_t *session, st_transfer_t *transf
 	                                   : 0;
 	if (status != 0)
 		return status;
+	st_ddofx_sleep_close(&session->ddofx);
 	session->transfer          = transfer;
 	session->transfer_reserved = false;
 	if (session->ddofx.graphics && session->ddofx.enable_background_download) {
@@ -2560,6 +2581,7 @@ st_term_session_end_transfer(st_term_session_t *session)
 		(void)st_console_write_status_row(session->config.console, NULL, 0);
 		st_ddofx_background_download(&session->ddofx, false);
 	}
+	st_ddofx_sleep_arm(&session->ddofx);
 	session->transfer          = NULL;
 	session->transfer_reserved = false;
 	session->transfer_skip_lf  = false;

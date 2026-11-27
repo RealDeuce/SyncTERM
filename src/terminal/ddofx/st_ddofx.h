@@ -53,6 +53,13 @@ struct st_ddofx {
 		uint8_t  bytes[10];
 		size_t   length;
 	} ping;
+
+	struct {
+		uint64_t deadline, next_update;
+		int32_t  minutes;
+		bool     configured, suspended, warning;
+		uint16_t dismissal_key;
+	} sleeper;
 	struct st_ddofx_framer   wire;
 	struct st_ddofx_script  *script;
 	struct st_ddofx_keys    *keys;
@@ -91,6 +98,7 @@ struct st_ddofx_sink {
 	int                 (*text)(void *, const uint8_t *, size_t, size_t *);
 	int                 (*resource_text)(void *, const uint8_t *, size_t, size_t *);
 	int                 (*pass_key)(void *, const struct st_console_event *);
+	void                (*disconnect)(void *);
 	void                (*reply)(void *, const uint8_t *, size_t);
 };
 
