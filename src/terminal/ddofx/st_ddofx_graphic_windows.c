@@ -194,8 +194,8 @@ paint_windows(void *context, const struct st_pixel_buffer *pixels, struct st_con
 		struct bounds  title = {w->frame.left + 2, w->frame.right - (w->icon && !w->no_icon ? 54 : 42), w->frame.top, view.top - 1};
 		const uint8_t *font  = st_ddofx_vga_bitmap(ddo);
 		if (!w->borderless && font && st_ddofx_intersect_bounds(&title, &area))
-			st_ddofx_paint_vga_string(g, 0, pixels, font, (const uint8_t *)w->title,
-			    (unsigned)strlen(w->title), w->frame.left + 2, view.top - 3, 14, title_colour, &title);
+			st_ddofx_paint_vga_string(g, 0, pixels, font, w->title,
+			    (unsigned)w->title_length, w->frame.left + 2, view.top - 3, 14, title_colour, &title);
 		if (!w->borderless)
 			paint_controls(w, &area, pixels);
 	}
@@ -495,7 +495,7 @@ read_properties(struct st_ddofx *ddo, char *args, struct st_ddofx_graphic_window
 	w->no_vertical   = n[7];
 	if (create)
 		w->borderless = n[8];
-	snprintf(w->title, sizeof(w->title), "%.60s", st_ddofx_value(ddo, args));
+	w->title_length = st_ddofx_copy_value(ddo, args, w->title, sizeof(w->title));
 	return fits(w);
 }
 

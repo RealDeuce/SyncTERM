@@ -89,6 +89,7 @@ bool st_ddofx_number(const struct st_ddofx *, const char *, int32_t *);
 const char *st_ddofx_value(const struct st_ddofx *, const char *);
 /* The returned byte count includes embedded NULs in a captured variable. */
 const char *st_ddofx_value_bytes(const struct st_ddofx *, const char *, size_t *length);
+size_t st_ddofx_copy_value(const struct st_ddofx *, const char *field, void *dest, size_t capacity);
 void st_ddofx_info(struct st_ddofx *, const struct st_ddofx_sink *, bool save, char *args);
 size_t st_ddofx_decode_controls(uint8_t *out, const char *source, size_t length, bool keep_final_caret);
 size_t st_ddofx_control_value(const struct st_ddofx *, const char *, uint8_t *, size_t limit);

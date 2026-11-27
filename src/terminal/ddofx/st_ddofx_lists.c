@@ -9,11 +9,12 @@
 
 enum {
 	LIST_COUNT      = 300,
+	LIST_COLUMNS    = 40,
 	DOUBLE_CLICK_MS = 500
 };
 
 struct item {
-	char                     description[41];
+	uint8_t                  description[LIST_COLUMNS];
 	struct st_ddofx_callback callback;
 	bool                     selectable, selected;
 };
@@ -49,7 +50,7 @@ define(struct st_ddofx *ddo, unsigned id, char *args)
 	unsigned                owner = ddo->graphics->alert_graphic_window;
 	struct st_ddofx_surface page  = st_ddofx_surface(ddo->graphics, owner, VISUAL);
 	int32_t n[12];
-	if (!st_ddofx_numbers(ddo, args, n, 12) || n[2] < 1 || n[2] > 40 || n[3] < 1 || n[3] > 30 || n[0] < 0
+	if (!st_ddofx_numbers(ddo, args, n, 12) || n[2] < 1 || n[2] > LIST_COLUMNS || n[3] < 1 || n[3] > 30 || n[0] < 0
 	    || n[0] > page.width - ddo->graphics->cell_width * n[2] || n[1] < ddo->graphics->cell_height * n[3] - 1
 	    || n[1] >= page.height || n[10] < 1 || n[10] > 100 || (unsigned)n[11] > 1)
 		return;
@@ -79,6 +80,7 @@ define(struct st_ddofx *ddo, unsigned id, char *args)
 	box->multiple        = n[11] != 0;
 	box->stealth         = ddo->define_stealth;
 	for (unsigned i = 0; i < box->count; ++i) {
+		memset(box->items[i].description, ' ', sizeof(box->items[i].description));
 		box->items[i].selectable       = true;
 		box->items[i].callback.stealth = box->stealth;
 	}
@@ -96,7 +98,9 @@ modify(struct st_ddofx *ddo, struct list_box *box, char *args)
 	const char *description = st_ddofx_field(&args), *reply = st_ddofx_field(&args);
 	if (!args)
 		return;
-	description = st_ddofx_value(ddo, description);
+	uint8_t caption[LIST_COLUMNS];
+	size_t length = st_ddofx_copy_value(ddo, description, caption, sizeof(caption));
+	memset(caption + length, ' ', sizeof(caption) - length);
 	struct st_ddofx_callback cb;
 	st_ddofx_callback_define(ddo, &cb, reply, args, 50);
 
@@ -106,8 +110,8 @@ modify(struct st_ddofx *ddo, struct list_box *box, char *args)
 			item->selectable = selectable != 0;
 		if ((unsigned)selected <= 1)
 			item->selected = selected != 0;
-		if (*description)
-			snprintf(item->description, sizeof(item->description), "%.40s", description);
+		if (length)
+			memcpy(item->description, caption, sizeof(caption));
 		if (cb.reply_length) {
 			memcpy(item->callback.reply, cb.reply, cb.reply_length);
 			item->callback.reply_length = cb.reply_length;
@@ -131,15 +135,15 @@ paint(void *context, const struct st_pixel_buffer *pixels, struct bounds clip)
 {
 	const struct list_image *im = context;
 	const struct list_box   *b  = im->box;
+	uint8_t blank[LIST_COLUMNS];
+	memset(blank, ' ', b->columns);
 	for (unsigned row = 0; row < b->rows; ++row) {
 		unsigned index = b->top + row;
 		unsigned ink = b->ink, paper = b->paper;
-		uint8_t  line[40];
-		memset(line, ' ', b->columns);
+		const uint8_t *line = blank;
 		if (index < b->count) {
 			const struct item *item = &b->items[index];
-			size_t             n    = strlen(item->description);
-			memcpy(line, item->description, n < b->columns ? n : b->columns);
+			line = item->description;
 			if (item->selected) {
 				ink   = b->selected_ink;
 				paper = b->selected_paper;

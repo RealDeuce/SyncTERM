@@ -3073,6 +3073,8 @@ def check_list_boxes(t, root, mouse):
     font = bytearray(4096)
     for ch in b"ABCDE":
         font[ch*16:(ch+1)*16] = bytes([0x80 >> (ch-65)]) * 16
+    font[:16] = bytes([0x40]) * 16
+    font[86*16:87*16] = bytes([0x20]) * 16
     (marker.parent / "DDOFX" / "FONTS" / "List.fnt").write_bytes(font)
     create = b"5CLBOX,300,600,479,5,2,10,1,11,2,12,3,5,1"
     items = [f"5LBMODLST,300,{i},1,0,{c},{c}~^M,".encode() for i,c in enumerate("ABCDE",1)]
@@ -3104,6 +3106,18 @@ def check_list_boxes(t, root, mouse):
     capture_callback_return(t)
     t.exchange(commands(b"5LBMODLST,300,3,2,2,,DEFVAR67,", b"5LBMODLST,300,3,2,2,,,",
                         b"5LBEXCLST,300"), b"A,\rM\0V,\xffD,\r")
+    # Use the same four-byte caption in a list, a bordered VTP and a graphic
+    # title bar. A blank description update must retain the populated list.
+    f = t.exchange(commands(b"5CLBOX,2,0,31,5,2,10,1,11,2,12,3,2,1",
+                            b"5LBMODLST,2,0,2,2,DEFVAR67,,", b"5LBMODLST,2,1,2,2,,,",
+                            b"5LBSHWLST,2", b"1OPEN,3,10,16,3,7,9,14,Y,N,N,N,N,DEFVAR67,DEFVAR67,List.fnt",
+                            b"2GWIN,3,200,359,120,219,200,160,0,1,0,0,0,0,0,0,0,0,0,DEFVAR67"))
+    for plane in (f.primary, f.alternate):
+        for x, y, ink, paper in ((0,0,11,2), (0,16,10,1), (80,32,14,4),
+                                 (80,96,14,4), (202,125,14,4)):
+            row = y*640 + x
+            assert list(plane[row:row+11]) == [paper,ink] + [paper]*8 + [ink]
+    t.exchange(commands(b"2CGWIN,3", b"1CLOSE", b"5LBCLSLST,2"))
     # A key macro can operate the box without mouse input. Only one of this box's items can be picked.
     single = b"5CLBOX,1,0,31,3,2,15,0,15,1,14,2,2,0"
     t.exchange(commands(single, b"5LBMODLST,1,1,1,0,A,first,", b"5LBMODLST,1,2,1,0,B,second,",

@@ -114,17 +114,12 @@ draw(struct st_ddofx *ddo, unsigned id, bool work)
 }
 
 static size_t
-copy_field_value(const struct st_ddofx *ddo, const char *field, char *dest, size_t capacity, bool replace_tildes)
+copy_affix(const struct st_ddofx *ddo, const char *field, char dest[AFFIX_MAX])
 {
-	size_t      length;
-	const char *bytes = st_ddofx_value_bytes(ddo, field, &length);
-	if (length > capacity)
-		length = capacity;
-	memcpy(dest, bytes, length);
-	if (replace_tildes)
-		for (size_t i = 0; i < length; ++i)
-			if (dest[i] == '~')
-				dest[i] = ',';
+	size_t length = st_ddofx_copy_value(ddo, field, dest, AFFIX_MAX);
+	for (size_t i = 0; i < length; ++i)
+		if (dest[i] == '~')
+			dest[i] = ',';
 	return length;
 }
 
@@ -165,9 +160,9 @@ define(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, unsigned id, char
 		memcpy(f->font, current, sizeof(f->font));
 	}
 	st_ddofx_callback_define(ddo, &f->callback, "", args, 100);
-	f->before_length = copy_field_value(ddo, before, f->before, sizeof(f->before), true);
-	f->after_length  = copy_field_value(ddo, after, f->after, sizeof(f->after), true);
-	f->text_length   = copy_field_value(ddo, text, f->text, sizeof(f->text), false);
+	f->before_length = copy_affix(ddo, before, f->before);
+	f->after_length  = copy_affix(ddo, after, f->after);
+	f->text_length   = st_ddofx_copy_value(ddo, text, f->text, sizeof(f->text));
 	f->limit                       = (unsigned)limit;
 	f->owner                       = owner;
 	f->x                           = (unsigned)x;

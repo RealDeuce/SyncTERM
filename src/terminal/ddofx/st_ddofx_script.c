@@ -174,6 +174,17 @@ st_ddofx_value(const struct st_ddofx *ddo, const char *field)
 	return st_ddofx_value_bytes(ddo, field, NULL);
 }
 
+size_t
+st_ddofx_copy_value(const struct st_ddofx *ddo, const char *field, void *dest, size_t capacity)
+{
+	size_t      length;
+	const char *bytes = st_ddofx_value_bytes(ddo, field, &length);
+	if (length > capacity)
+		length = capacity;
+	memcpy(dest, bytes, length);
+	return length;
+}
+
 bool
 st_ddofx_number(const struct st_ddofx *ddo, const char *s, int32_t *value)
 {

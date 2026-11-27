@@ -108,7 +108,9 @@ struct st_ddofx_text_page {
 	/* The original strike also supplies unscaled border glyphs. */
 	uint8_t            font_bitmap[4096];
 	unsigned           font_width, font_height;
-	char               title[81], help[81], font_name[ST_DDOFX_BODY_MAX + 1];
+	uint8_t            title[80], help[80];
+	size_t             title_length, help_length;
+	char               font_name[ST_DDOFX_BODY_MAX + 1];
 };
 
 enum { GRAPHIC_WINDOWS = 10 };
@@ -134,7 +136,8 @@ struct st_ddofx_graphic_window {
 	int width, height, x, y, icon;
 	bool hidden, no_drag, no_resize, no_zoom, no_restore, no_icon, no_horizontal, no_vertical;
 	bool borderless, zoomed;
-	char title[61];
+	uint8_t title[60];
+	size_t title_length;
 	uint8_t *visual, *hidden_page;
 };
 

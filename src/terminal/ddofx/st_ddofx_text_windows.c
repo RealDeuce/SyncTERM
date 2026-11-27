@@ -284,8 +284,8 @@ paint_frame(void *context, const struct st_pixel_buffer *pixels, struct bounds v
 	 * help in character space, so cropping either label retains whole glyphs. */
 	for (unsigned row = 0; row < p->rows + 2; ++row) {
 		bool        top = row == 0, bottom = row == p->rows + 1;
-		const char *label = top ? p->title : bottom ? p->help : "";
-		unsigned    len   = (unsigned)strlen(label);
+		const uint8_t *label = top ? p->title : p->help;
+		unsigned len = top ? (unsigned)p->title_length : bottom ? (unsigned)p->help_length : 0;
 		if (len > p->columns)
 			len = p->columns;
 		unsigned start = 1 + (p->columns - len) / 2;
@@ -298,7 +298,7 @@ paint_frame(void *context, const struct st_pixel_buffer *pixels, struct bounds v
 			if (frame->labels_only && !label_cell)
 				continue;
 			if (label_cell) {
-				ch    = (uint8_t)label[col - start];
+				ch    = label[col - start];
 				ink   = p->title_colour;
 				paper = frame->active ? 4 : 1;
 			}
@@ -642,8 +642,8 @@ configure_window(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *a
 	page.y            = (n[2] - 1 + inset) * g->cell_height;
 	page.frame_colour = (uint8_t)n[4];
 	page.title_colour = (uint8_t)n[5];
-	snprintf(page.title, sizeof(page.title), "%s", st_ddofx_value(ddo, title));
-	snprintf(page.help, sizeof(page.help), "%s", st_ddofx_value(ddo, help));
+	page.title_length = st_ddofx_copy_value(ddo, title, page.title, sizeof(page.title));
+	page.help_length  = st_ddofx_copy_value(ddo, help, page.help, sizeof(page.help));
 	const char *font = st_ddofx_value(ddo, args);
 	snprintf(page.font_name, sizeof(page.font_name), "%s", *font ? font : st_ddofx_vga_font_name(ddo));
 	if (create) {
