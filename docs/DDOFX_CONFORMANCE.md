@@ -8,6 +8,8 @@ Connected tests cover framing, detection, and ignore/hear across CP437 and UTF-8
 
 Loose-file queries read the entry’s `DDOFX/MUSIC`, `DDOFX/FONTS`, and `DDOFX/BBSTHEME` directories. Professional queries use `DDOFX/TERMS/<client>`. Names use DOS-style case matching. The timestamp is local modification time with DOS two-second precision. `8EXEC` consumes the command without starting a program.
 
+Resource assignment selects the M container in `DDOFX/BBSTHEME` for local scripts. Scripts up to 40,000 bytes can call other scripts and render DOS text. A resource entry query tests the member name and component ID. Conditional scripts can also read that ID.
+
 Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed variables. Local macro calls, repeats and waits preserve the order of the wire stream. Variable capture redirects automatic query results. Configured return strings can send binary bytes. Conditional macros can compare user variables, identity, music state and loose-file metadata. Additional predefined system operands await their respective query implementations.
 
 | SDK line | Definition | Domain | Coverage |
@@ -47,9 +49,9 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 1851 | DETECT VIDEO MODE | DDO-FX LITE | Pending |
 | 1880 | DETECT FOR MUSIC FILE | DDO-FX LITE | Connected |
 | 1921 | DETECT FOR THEME FILE | DDO-FX LITE | Connected |
-| 1929 | ASSIGN RESOURCE FILE | DDO-FX LITE | Pending |
+| 1929 | ASSIGN RESOURCE FILE | DDO-FX LITE | Connected |
 | 2249 | DETECT FOR RESOURCE FILE | DDO-FX LITE | Connected |
-| 2262 | DETECT FOR RESOURCE ENTRY | DDO-FX LITE | Pending |
+| 2262 | DETECT FOR RESOURCE ENTRY | DDO-FX LITE | Connected |
 | 2320 | DETECT FOR FONT FILE | DDO-FX LITE | Connected |
 | 2328 | DETECT MUSIC ON/OFF | DDO-FX LITE | Connected |
 | 2345 | DETECT SOUND F/X ON/OFF | DDO-FX LITE | Pending |
@@ -77,7 +79,7 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 3323 | DISPLAY RAW ANSI | DDO-FX LITE | Pending |
 | 3365 | SET FULL SCREEN MODE | DDO-FX LITE | Pending |
 | 3400 | RESTORE FULL SCREEN MODE | DDO-FX LITE | Pending |
-| 3416 | RUN LOCAL SCRIPT | DDO-FX LITE | Pending |
+| 3416 | RUN LOCAL SCRIPT | DDO-FX LITE | Connected |
 | 3501 | DEFINE SYSTEM VARIABLE | DDO-FX LITE | Connected |
 | 3604 | LOCK KEYS | DDO-FX LITE | Pending |
 | 3650 | UNLOCK KEYS | DDO-FX LITE | Pending |

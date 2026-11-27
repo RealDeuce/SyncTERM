@@ -7,6 +7,7 @@
 
 #include "filesystem.h"
 #include "io_error.h"
+#include "st_ddofx_resource.h"
 #include "st_ddofx_script.h"
 #include "st_time.h"
 #include "string_util.h"
@@ -62,6 +63,27 @@ file_record(char *record, const struct st_ddofx_sink *sink, const char *category
 	    local.tm_mon + 1, local.tm_mday, local.tm_hour, local.tm_min, local.tm_sec & ~1);
 }
 
+static int
+resource_id(const struct st_ddofx *ddo, const struct st_ddofx_sink *sink, const char *container,
+    const char *member, int wanted)
+{
+	const char *name     = st_ddofx_value(ddo, container);
+	const char *category = "BBSTHEME";
+	if (ascii_case_ncompare(name, "BBSTHEME", 8) == 0 && (name[8] == '/' || name[8] == '\\'))
+		name += 9;
+	else if (ascii_case_ncompare(name, "THEMES", 6) == 0 && (name[6] == '/' || name[6] == '\\')) {
+		category = "THEMES";
+		name += 7;
+	}
+	FILE *file = sink->open_asset(sink->context, category, NULL, name);
+	if (file == NULL)
+		return -1;
+	uint32_t size;
+	int      id = st_ddofx_resource_find(file, st_ddofx_value(ddo, member), wanted, &size);
+	fclose(file);
+	return id;
+}
+
 bool
 st_ddofx_builtin(const struct st_ddofx *ddo, const struct st_ddofx_sink *sink, const char *name, char *result,
     bool *numeric)
@@ -74,6 +96,18 @@ st_ddofx_builtin(const struct st_ddofx *ddo, const struct st_ddofx_sink *sink, c
 	else if (!ascii_case_compare(name, "MUSICON"))
 		strcpy(result,
 		    st_audio_runtime_is_pull(sink->audio) || st_audio_runtime_allowed(sink->audio) ? "YES" : "NO");
+	else if (ascii_case_ncompare(name, "RESOURCE|", 9) == 0) {
+		char fields[ST_DDOFX_BODY_MAX + 1];
+		strcpy(fields, name + 9);
+		char *member = strchr(fields, '|');
+		int   id     = -1;
+		if (member != NULL) {
+			*member++ = 0;
+			id        = resource_id(ddo, sink, fields, member, -1);
+		}
+		snprintf(result, ST_DDOFX_BODY_MAX + 1, "%d", id);
+		*numeric = true;
+	}
 	else if (*name && strchr("mftr", *name) != NULL) {
 		const char *category = *name == 'm' ? "MUSIC" : *name == 'f' ? "FONTS" : "BBSTHEME";
 		file_record(result, sink, category, NULL, name + 1);
@@ -131,7 +165,22 @@ execute(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *body)
 		st_ddofx_script_command(ddo, sink, body);
 	else if (ddo->ignoring)
 		return;
-	else if (body[0] == 'd') {
+	else if (!strncmp(body, "2f", 2)) {
+		if (strlen(body + 2) < sizeof(ddo->resource_prefix))
+			strcpy(ddo->resource_prefix, body + 2);
+	}
+	else if (body[0] == '*')
+		st_ddofx_run_resource(ddo, sink, st_ddofx_value(ddo, body + 1));
+	else if (body[0] == 'd' && ascii_case_ncompare(body + 1, "RESOURCE,", 9) == 0) {
+		char       *args      = body + 10;
+		const char *container = st_ddofx_field(&args);
+		const char *member    = st_ddofx_field(&args);
+		int32_t     id;
+		bool        found = member != NULL && args != NULL && st_ddofx_number(ddo, args, &id) && id >= 0
+		                    && id <= 64000 && resource_id(ddo, sink, container, member, id) >= 0;
+		query_reply(ddo, sink, found ? "YES" : "NO", false);
+	}
+	else if (body[0] == 'd' && ascii_case_ncompare(body + 1, "RESOURCE|", 9) != 0) {
 		char result[ST_DDOFX_BODY_MAX + 1];
 		bool numeric;
 		if (st_ddofx_builtin(ddo, sink, body + 1, result, &numeric))

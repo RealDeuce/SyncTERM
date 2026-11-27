@@ -2,6 +2,7 @@
 # Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
 import argparse
 import os
+import struct
 import time
 from pathlib import Path
 
@@ -36,6 +37,46 @@ def check_cache(t, root):
 
 def commands(*bodies):
     return b"".join(b"\x1d{" + body + b"}" for body in bodies)
+
+
+def check_resources(t, root):
+    [marker] = root.rglob("syncterm-cache-name.txt")
+    directory = marker.parent / "DDOFX" / "BBSTHEME"
+    record = struct.Struct("<12sIIHH")
+    block_size = 33 * record.size
+    unused = record.pack(b"\xff", 0, 0, 0, 0)
+    data = bytearray(unused * 33)
+    outer = b"A" + commands(b"*Inner.fx") + b"C" + commands(b"4DEFM,1,1,\x82")
+    data[:24] = record.pack(b"OUTER.FX", len(data), len(outer), 0, 100)
+    data.extend(outer)
+    link = len(data)
+    data[32*24:33*24] = record.pack(b"\xff", link, 0, 0, 0)
+    data.extend(unused * 33)
+    limit = b"\x1d{" + b"x" * 39996 + b"}L"
+    assert len(limit) == 40000
+    for slot, (name, version, payload) in enumerate([
+        (b"INNER.FX", 2, b"\x1b[32m\x82"), (b"INNER.FX", 3, b"DUP"),
+        (b"LIMIT.FX", 0, limit), (b"LARGE.FX", 0, limit + b"!"),
+        (b"REPLACE.FX", 4, commands(b"2fmissing."))]):
+        start = link + slot * 24
+        data[start:start+24] = record.pack(name, len(data), len(payload), 0, version)
+        data.extend(payload)
+    (directory / "Pack.M").write_bytes(data + b"\xe5\xff\xe6")
+    t.exchange(commands(b"dRESOURCE,pack.m,inner.fx,3", b"dRESOURCE,pack.m,inner.fx,42",
+                        b"dRESOURCE,BBSTHEME\\PACK.M,inner.fx,2",
+                        b"7DEFRET,1,Y", b"~IFVAR,RESOURCE|pack.m|outer.fx,=,100,\x1d(7SRET,1)",
+                        b"~IFVAR,RESOURCE|pack.m|absent,<,0,\x1d(7SRET,1)"), b"YES\xffNO\xffYES\xffYY")
+    t.check("nested DOS resource scripts and a retained macro", commands(
+            b"2fPACK.", b"2FOther.", b"2fTOO-LONG-NAME", b"*outer.fx", b"4EXCM,1,1",
+            b"*large.fx", b"*limit.fx", b"*replace.fx", b"*outer.fx") + b"Z",
+            (7, 1), [(1, 1, "AéCéLZ")])
+    # A malformed block link and a truncated member must leave the next
+    # online command available. The latter contains a valid-looking script.
+    data[link+32*24:link+33*24] = record.pack(b"\xff", link, 0, 0, 0)
+    data[:24] = record.pack(b"BAD.FX", len(data) - 1, 900, 0, 0)
+    (directory / "Bad.M").write_bytes(data)
+    t.check("damaged resource", commands(b"2fbad.", b"*bad.fx", b"*absent", b"dRESOURCE,bad.m,absent,0") + b"K",
+            (2, 1), [(1, 1, "K")], expected=b"NO\xff")
 
 
 def check_scripts(t):
@@ -123,6 +164,7 @@ def run(args):
         t.exchange(b"\x1d{dMUSICON}\x1d{mMISSING.MOD}\x1d{dGETMUSIC}", b"NO\xffNONE\xff")
         t.exchange(b"\x1d{MGVOL}\x1d{MSVOL,20}\x1d{MMVOL,-5}\x1d{MGVOL}", b"64\xff15\xff")
         check_cache(t, fixture[1])
+        check_resources(t, fixture[1])
         check_scripts(t)
         check_events(t)
         glyph = "é".encode("utf-8" if args.encoding == "UTF-8" else "cp437")

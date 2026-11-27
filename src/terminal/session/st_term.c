@@ -106,6 +106,7 @@ st_term_session_observe_prompt_input(st_term_session_t *session, const struct st
 }
 
 static struct st_ddofx_sink ddofx_sink(st_term_session_t *session);
+static int render_cp437_resource(void *, const uint8_t *, size_t, size_t *);
 
 bool
 st_term_session_device_paused(st_term_session_t *session)
@@ -1256,6 +1257,7 @@ ddofx_sink(st_term_session_t *session)
 	return (struct st_ddofx_sink){
 		    .context       = session,
 		    .text          = ddofx_text,
+		    .resource_text = render_cp437_resource,
 		    .reply         = protocol_reply,
 		    .open_asset    = ddofx_open_asset,
 		    .client_exists = ddofx_client_exists,
@@ -1313,26 +1315,44 @@ write_terminal_wire(st_term_session_t *session, const uint8_t *bytes, size_t siz
 }
 
 static int
-ooii_render(void *context, const uint8_t *bytes, size_t size)
+render_cp437_resource(void *context, const uint8_t *bytes, size_t size, size_t *used)
 {
 	st_term_session_t *session = context;
 	char               unicode[4096];
 
-	/* Resource data is CP437 even when the connection uses another encoding. */
-	while (size != 0) {
-		size_t chunk     = size > sizeof(unicode) / 4 ? sizeof(unicode) / 4 : size;
+	*used = 0;
+	while (*used < size) {
+		size_t chunk = size - *used;
+		if (chunk > sizeof(unicode) / 4)
+			chunk = sizeof(unicode) / 4;
 		size_t converted = 0, consumed;
-		int    status    = st_term_rip_wire_to_utf8(unicode, sizeof(unicode), &converted, bytes, chunk,
+		int status = st_term_rip_wire_to_utf8(unicode, sizeof(unicode), &converted, bytes + *used, chunk,
 		    ST_CODEPAGE_CP437);
 		if (status != 0)
 			return status;
 		status = st_cterm_write_utf8_input(session->cterm, unicode, converted, &consumed);
-		if (status != 0 || consumed != converted)
-			return status == 0 ? IO_ERROR_IO : status;
-		bytes += chunk;
-		size -= chunk;
+		if (consumed == converted)
+			*used += chunk;
+		else {
+			/* Every source byte produced one scalar. Preserve the byte
+			 * position if the emulator yielded at a control boundary. */
+			for (size_t i = 0; i < consumed; ++i)
+				if (((uint8_t)unicode[i] & 0xc0) != 0x80)
+					++*used;
+			return status;
+		}
+		if (status != 0)
+			return status;
 	}
 	return 0;
+}
+
+static int
+ooii_render(void *context, const uint8_t *bytes, size_t size)
+{
+	size_t used;
+	int    status = render_cp437_resource(context, bytes, size, &used);
+	return status == 0 && used != size ? IO_ERROR_IO : status;
 }
 
 static int

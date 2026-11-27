@@ -32,6 +32,7 @@ struct st_ddofx {
 	size_t                  queued_start, queued_end;
 	uint64_t                wait_until;
 	char                    music_name[ST_DDOFX_BODY_MAX + 1];
+	char                    resource_prefix[12];
 	struct st_tracker      *player;
 	unsigned                volume;
 	bool                    ignoring, background_paused, in_event;
@@ -43,6 +44,7 @@ struct st_ddofx_sink {
 	FILE               *(*open_asset)(void *, const char *category, const char *client, const char *name);
 	bool                (*client_exists)(void *, const char *name);
 	int                 (*text)(void *, const uint8_t *, size_t, size_t *);
+	int                 (*resource_text)(void *, const uint8_t *, size_t, size_t *);
 	void                (*reply)(void *, const uint8_t *, size_t);
 };
 

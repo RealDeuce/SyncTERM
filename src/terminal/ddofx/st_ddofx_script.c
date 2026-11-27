@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "st_ddofx_resource.h"
 #include "st_ddofx_script.h"
 #include "string_util.h"
 
@@ -34,6 +35,8 @@ struct macro_frame {
 	struct macro_frame    *parent;
 	struct st_ddofx_framer framer;
 	char                   source[ST_DDOFX_BODY_MAX + 1];
+	uint8_t               *resource;
+	bool                   resource_text;
 	size_t                 position, length;
 	int                    macro, next_line, end_line;
 	int                    remaining;
@@ -48,6 +51,7 @@ struct st_ddofx_script {
 	struct variable     variables[VARIABLE_COUNT];
 	char                returns[RETURN_COUNT][LINE_LENGTH + 1];
 	char                macros[MACRO_COUNT][MACRO_LINES][LINE_LENGTH + 1];
+	bool                macro_resource_text[MACRO_COUNT][MACRO_LINES];
 	struct macro_frame *top;
 	unsigned            depth;
 	int                 capture;
@@ -200,6 +204,7 @@ pop(struct st_ddofx_script *s)
 	struct macro_frame *f = s->top;
 	s->top                = f->parent;
 	--s->depth;
+	free(f->resource);
 	free(f);
 }
 
@@ -216,6 +221,44 @@ st_ddofx_script_destroy(struct st_ddofx *ddo)
 		pop(ddo->script);
 	free(ddo->script);
 	ddo->script = NULL;
+}
+
+static bool
+script_ready(struct st_ddofx *ddo)
+{
+	if (ddo->script == NULL)
+		ddo->script = calloc(1, sizeof(*ddo->script));
+	return ddo->script != NULL;
+}
+
+void
+st_ddofx_run_resource(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, const char *member)
+{
+	char container[sizeof(ddo->resource_prefix) + 1];
+	snprintf(container, sizeof(container), "%sM", ddo->resource_prefix);
+	FILE *file = sink->open_asset(sink->context, "BBSTHEME", NULL, container);
+	if (file == NULL)
+		return;
+	uint32_t size;
+	if (st_ddofx_resource_find(file, member, -1, &size) >= 0 && size && size <= 40000 && script_ready(ddo)) {
+		struct macro_frame *f = push(ddo->script);
+		if (f != NULL) {
+			f->resource = malloc(size);
+			if (f->resource != NULL && fread(f->resource, 1, size, file) == size) {
+				f->length        = size;
+				f->resource_text = true;
+			}
+			else
+				pop(ddo->script);
+		}
+	}
+	fclose(file);
+}
+
+static bool
+using_resource_text(const struct st_ddofx *ddo)
+{
+	return st_ddofx_script_active(ddo) && ddo->script->top->resource_text;
 }
 
 static void
@@ -240,6 +283,7 @@ named_macro(struct st_ddofx *ddo, const char *verb, char *args)
 		if (!st_ddofx_field_number(ddo, &args, &line) || line < 1 || line > MACRO_LINES)
 			return;
 		if (!strcmp(verb, "DEFM")) {
+			s->macro_resource_text[id - 1][line - 1] = using_resource_text(ddo);
 			macro_text(s->macros[id - 1][line - 1], st_ddofx_value(ddo, args ? args : ""),
 			    LINE_LENGTH);
 			return;
@@ -285,6 +329,7 @@ void
 st_ddofx_callback_define(const struct st_ddofx *ddo, struct st_ddofx_callback *cb, const char *reply,
     const char *macro)
 {
+	cb->resource_text = using_resource_text(ddo);
 	define_reply(cb->reply, st_ddofx_value(ddo, reply), sizeof(cb->reply) - 1);
 	macro_text(cb->macro, st_ddofx_value(ddo, macro), sizeof(cb->macro) - 1);
 }
@@ -294,10 +339,11 @@ st_ddofx_callback_start(struct st_ddofx *ddo, const struct st_ddofx_callback *cb
 {
 	struct macro_frame *f = push(ddo->script);
 	if (f != NULL) {
-		f->event        = true;
-		f->saved_wait   = ddo->wait_until;
-		ddo->wait_until = 0;
-		ddo->in_event   = true;
+		f->event         = true;
+		f->saved_wait    = ddo->wait_until;
+		ddo->wait_until  = 0;
+		ddo->in_event    = true;
+		f->resource_text = cb->resource_text;
 		copy(f->source, cb->macro, sizeof(cb->macro) - 1);
 		f->length = strlen(f->source);
 		copy(f->after_reply, cb->reply, sizeof(cb->reply) - 1);
@@ -550,6 +596,7 @@ repeat_macro(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, const char 
 	struct macro_frame *f = push(ddo->script);
 	if (f == NULL)
 		return;
+	f->resource_text = f->parent != NULL && f->parent->resource_text;
 	macro_text(f->source, st_ddofx_value(ddo, args), ST_DDOFX_BODY_MAX);
 	f->length    = strlen(f->source);
 	f->remaining = count;
@@ -563,14 +610,19 @@ st_ddofx_script_step(struct st_ddofx *ddo, const struct st_ddofx_sink *sink)
 	struct st_ddofx_script *s = ddo->script;
 	struct macro_frame     *f = s->top;
 	if (f->position < f->length) {
-		size_t used;
-		int    status = st_ddofx_parse(ddo, &f->framer, sink, (const uint8_t *)f->source + f->position,
+		size_t               used;
+		const uint8_t       *source      = f->resource != NULL ? f->resource : (const uint8_t *)f->source;
+		struct st_ddofx_sink destination = *sink;
+		if (f->resource_text && sink->resource_text != NULL)
+			destination.text = sink->resource_text;
+		int status = st_ddofx_parse(ddo, &f->framer, &destination, source + f->position,
 		    f->length - f->position, &used);
 		f->position += used;
 		return status;
 	}
 	if (f->macro && f->next_line <= f->end_line) {
 		/* Snapshot this line. Commands in it may change any later line. */
+		f->resource_text = s->macro_resource_text[f->macro - 1][f->next_line - 1];
 		copy(f->source, s->macros[f->macro - 1][f->next_line++ - 1], LINE_LENGTH);
 		f->length = strlen(f->source);
 	}
@@ -603,11 +655,8 @@ st_ddofx_script_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, 
 	char *verb = st_ddofx_field(&args);
 	if (args == NULL)
 		return;
-	if (ddo->script == NULL) {
-		ddo->script = calloc(1, sizeof(*ddo->script));
-		if (ddo->script == NULL)
-			return;
-	}
+	if (!script_ready(ddo))
+		return;
 	for (char *p = verb; *p; ++p)
 		*p = (char)ascii_to_upper((unsigned char)*p);
 	if (root == '4')
