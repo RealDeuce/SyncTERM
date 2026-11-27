@@ -166,6 +166,13 @@ st_rip3_local_variables_execute(const struct st_rip3_host_variables *host,
 	if (host == NULL || reference == NULL || result == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	const char *name = reference->name;
+	if (strcmp(name, "BSMODE") == 0 || strcmp(name, "BSXMIT") == 0) {
+		/* Consume RIPtel's Backspace settings wherever RIP text is expanded. */
+		if (capacity == 0)
+			return IO_ERROR_OUT_OF_RANGE;
+		result[0] = '\0';
+		return 0;
+	}
 	if (strcmp(name, "OPTION") == 0 || strcmp(name, "DWAYON") == 0 || strcmp(name, "DWAYOFF") == 0
 	    || strcmp(name, "HKEYON") == 0 || strcmp(name, "HKEYOFF") == 0 || strcmp(name, "TABON") == 0
 	    || strcmp(name, "TABOFF") == 0 || strcmp(name, "SBARON") == 0 || strcmp(name, "SBAROFF") == 0)

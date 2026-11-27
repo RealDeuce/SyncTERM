@@ -10267,7 +10267,8 @@ HEADER framing forms.
 
 CTerm handles received BS and encodes the ordinary Backspace key in RIP text
 windows. RIPtel's `$BSMODE$` and `$BSXMIT$` client settings are outside
-SyncTERM's RIP scope. The connected CP437 and UTF-8 tests check that BS preserves
+SyncTERM's RIP scope. Both references expand to empty text in graphics strings
+and host replies. The connected CP437 and UTF-8 tests check that BS preserves
 the previously drawn glyph and its colors, stops at the left edge, and that
 DEC Backarrow Key Mode determines the wire byte. Old dialing entries may
 still contain the three obsolete RIP keyboard settings.

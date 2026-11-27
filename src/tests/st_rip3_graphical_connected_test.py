@@ -221,6 +221,11 @@ def run(args):
         frame=t.exchange(b'\x01|m0A1E|T$RESX$\r\n'+query(b'$TEXTXY$',at_cursor=True),b'34:50')
         assert any(pixel(frame,x,y) for y in range(35,75) for x in range(10,34))
         assert not any(pixel(frame,x,y) for y in range(35,75) for x in range(34,60))
+        t.case('rip3-backspace-variables-expand-to-empty')
+        source = b'6$BSXMIT$4$BSMODE(DEST)$0$BSXMIT(DEL)$$BSMODE$'
+        actual = t.exchange(b'\x01|m0A1E|T' + source + b'\r\n'
+                            + query(source + b'/$TEXTXY$', at_cursor=True), b'640/34:50')
+        assert actual.primary == frame.primary and actual.alternate == frame.alternate
         t.case('rip3-graphical-literal-disabled-and-quoted-references')
         for source,expected in ((b'\\$V$',b'$V$'),(b'^M``',b'^M``'),
                                 (b'$?3$',b'$?3$'),(b'$>SCENE.RIP$',b'$>SCENE.RIP$'),
