@@ -14,9 +14,11 @@ Sprites can be captured from any of the four graphics pages. The SDK repeats the
 
 Work, background and visual pages can load version-5, single-plane, 8-bit PCX artwork up to 640×480. Loading artwork installs its palette across all pages. Each page can save a session-owned PCX file and restore it to any of the three pages. The files survive a return to Lite mode and close at disconnect.
 
+A BBS can load legacy and four-bank BMF fonts into 32 slots with `2F` and switch between loaded fonts with `2FSELECT`. On all four desktop pages, `2X` scales a variable-width string to the specified rectangle, draws an optional one-pixel outline, and rotates it about the rectangle center.
+
 Loose-file queries read the entry’s `DDOFX/MUSIC`, `DDOFX/FONTS`, and `DDOFX/BBSTHEME` directories. Professional queries use `DDOFX/TERMS/<client>`. Names use DOS-style case matching. The timestamp is local modification time with DOS two-second precision. `8EXEC` consumes the command without starting a program.
 
-Resource assignment selects the M container in `DDOFX/BBSTHEME` for local scripts and the S container for indexed PCX artwork. Scripts up to 40,000 bytes can call other scripts and render DOS text. A resource entry query tests the member name and component ID. Conditional scripts can also read that ID.
+Resource assignment selects the M container in `DDOFX/BBSTHEME` for local scripts and bitmap fonts and the S container for indexed PCX artwork. Scripts up to 40,000 bytes can call other scripts and render DOS text. A resource entry query tests the member name and component ID. Conditional scripts can also read that ID.
 
 Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed variables. Local macro calls, repeats and waits preserve the order of the wire stream. Variable capture redirects automatic query results. Configured return strings can send binary bytes. Conditional macros can compare user variables, identity, music state and loose-file metadata. Additional predefined system operands await their respective query implementations.
 
@@ -143,8 +145,8 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 6131 | LOAD PCX TO BACKGROUND PAGE | DDO-FX (NM) | Connected |
 | 6163 | LOAD PCX TO WORK PAGE | DDO-FX (NM) | Connected |
 | 6179 | LOAD PCX TO VISUAL PAGE | DDO-FX (NM) | Desktop pages; graphic window refresh pending |
-| 6199 | LOAD A BITMAP FONT | DDO-FX (NM) | Pending |
-| 6237 | BITMAP FONT SELECT | DDO-FX (NM) | Pending |
+| 6199 | LOAD A BITMAP FONT | DDO-FX (NM) | Connected |
+| 6237 | BITMAP FONT SELECT | DDO-FX (NM) | Connected |
 | 6246 | COPY BACKGROUND PAGE TO WORK PAGE | DDO-FX (NM) | Connected |
 | 6254 | COPY BACKGROUND PAGE TO VISUAL PAGE | DDO-FX (NM) | Connected |
 | 6261 | COPY WORK PAGE TO BACKGROUND PAGE | DDO-FX (NM) | Connected |
@@ -227,7 +229,7 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 7889 | CUT HIDDEN PAGE TO WORK PAGE | DDO-FX (NM) | Connected |
 | 7899 | CUT VISUAL PAGE TO HIDDEN PAGE | DDO-FX (NM) | Connected |
 | 7909 | CUT HIDDEN PAGE TO VISUAL PAGE | DDO-FX (NM) | Connected |
-| 7919 | DO PRINT | DDO-FX (NM) | Pending |
+| 7919 | DO PRINT | DDO-FX (NM) | Desktop pages; low-memory text fallback and virtual windows pending |
 | 8058 | DO PRINT TEXT FONT | DDO-FX (NM) | Pending |
 | 8110 | DO PRINT TEXT FONT WP | DDO-FX (NM) | Pending |
 | 8118 | DO PRINT TEXT FONT BP | DDO-FX (NM) | Pending |

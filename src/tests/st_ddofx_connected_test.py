@@ -151,6 +151,63 @@ def check_sprites(t):
                         b"2ACSS", b"2C,12", b"2aFILL", b"2DSS", b"2aG,51,49"), b"3\xff12\xff")
 
 
+def check_bitmap_fonts(t, root):
+    t.case("bitmap font selection, scaling, outlining and rotation")
+    [marker] = root.rglob("syncterm-cache-name.txt")
+    # Legacy A is 3x3 in a six-byte slot. Its rows use one byte each.
+    # With the source margins, the unscaled 4x4 image is .#../.##./...#/....
+    legacy = bytearray(194 + 96 * 6)
+    legacy[:2] = bytes((2, 3))
+    legacy[2 + 33] = legacy[98 + 33] = 3
+    legacy[194 + 33*6:194 + 33*6 + 3] = bytes((128, 192, 32))
+    # In a four-bank font A is glyph 1 of bank 1. The comma and byte 0x82
+    # each select their own bank and exercise literal text after the page.
+    extended = bytearray(2 + 4 * (128 + 64*3))
+    extended[:2] = bytes((129, 3))
+    for code, bits in [(65, 32), (44, 64), (130, 128)]:
+        bank = 2 + (code // 64) * 320
+        slot = code % 64
+        extended[bank + slot] = extended[bank + 64 + slot] = 3
+        pos = bank + 128 + slot*3
+        extended[pos:pos+3] = bytes((bits, bits, bits))
+    record = struct.Struct("<12sIIHH")
+    data = bytearray(record.pack(b"\xff", 0, 0, 0, 0)*33)
+    for i, (name, payload) in enumerate([(b"A.BMF", legacy), (b"B.BMF", extended),
+                                          (b"BAD.BMF", legacy[:-1])]):
+        record.pack_into(data, i*24, name, len(data), len(payload), 0, 1)
+        data.extend(payload)
+    (marker.parent/"DDOFX"/"BBSTHEME"/"Fonts.M").write_bytes(data)
+
+    t.exchange(commands(b"2fFonts.", b"2C,7", b"2aFILL", b"2CPYWP2VP", b"2CPYWP2BP",
+                        b"2F,A.BMF,1", b"2F,B.BMF,32", b"2FSELECT,1"))
+    glyph = [[7,11,7,7], [7,11,11,7], [7,7,7,11], [7,7,7,7]]
+    for i, page in enumerate([b"WP", b"BP", b"HP", b"VP"]):
+        rotated = glyph
+        for _ in range(i):
+            rotated = list(zip(*rotated[::-1]))
+        wire = [b"2X,40,43,20,23,11,0," + str(90*i).encode() + b"," + page + b",A"]
+        if page != b"VP":
+            wire.append(b"2CPY" + page + b"2VP")
+        frame = t.exchange(commands(*wire))
+        assert all(list(plane[y*640+40:y*640+44]) == list(row)
+                   for plane in (frame.primary, frame.alternate) for y,row in enumerate(rotated, 20))
+        # Publishing a page updates HP. Restore the empty background for the next angle.
+        t.exchange(commands(b"2aFILL", b"2CPYWP2BP", b"2CPYWP2VP"))
+
+    frame = t.exchange(commands(b"2FSELECT,32", b"2X,5,14,8,11,13,0,0,VP,A,\x82",
+                                b"2FSELECT,1", b"2X,25,32,8,15,0,255,0,VP,A",
+                                b"2F,BAD.BMF,1", b"2X,40,43,20,23,99,0,0,VP,A"))
+    for plane in (frame.primary, frame.alternate):
+        assert list(plane[8*640+5:8*640+15]) == [7,7,7,13,7,13,7,13,7,7]
+        assert list(plane[8*640+25:8*640+31]) == [7,255,0,0,255,7]
+        assert list(plane[20*640+40:20*640+44]) == [7]*4
+    frame = t.exchange(commands(b"2FSELECT,32", b"2X,0,3,0,3,13,0,45,VP,\x7f\x11A",
+                                b"2X,40,43,20,23,99,0,0,VP," + b"A"*101,
+                                b"2X,40,43,20,100,99,0,0,VP,A"))
+    assert any(frame.primary[y*640+x] == 17 for x in range(5) for y in range(5))
+    assert list(frame.primary[20*640+40:20*640+44]) == [7]*4
+
+
 def check_pcx(t, root):
     t.case("indexed PCX resource loading and page snapshots")
     [marker] = root.rglob("syncterm-cache-name.txt")
@@ -228,6 +285,7 @@ def check_graphics(t, root):
     t.exchange(enter + commands(b"2aGRGB,3", b"2aG,639,479", b"2LWPPCX,WP", b"2aG,1,0"),
                b"63,21,0\xff0\xff193\xff")
     check_fades(t)
+    check_bitmap_fonts(t, root)
     t.exchange(commands(b"2GEXIT"))
 
 

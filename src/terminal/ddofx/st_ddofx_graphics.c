@@ -54,6 +54,8 @@ st_ddofx_graphics_exit(struct st_ddofx *ddo)
 		return;
 	free(g->simple);
 	free(g->bars);
+	for (unsigned i = 0; i < 32; ++i)
+		free(g->bitmap_fonts[i]);
 	st_ddofx_free_sprites(g);
 	st_cterm_destroy(&g->text);
 	st_font_catalog_destroy(g->fonts);
@@ -154,8 +156,8 @@ struct transfer {
 	bool                      transparent;
 };
 
-static bool
-page_name(const char *s, enum page *page)
+bool
+st_ddofx_page_name(const char *s, enum page *page)
 {
 	static const char *const names[] = {"WP", "BP", "HP", "VP"};
 	for (unsigned i = 0; i < 4; ++i) {
@@ -247,7 +249,7 @@ copy_page(struct st_ddofx *ddo, const char *verb, char *args, bool cut)
 	if (length != 9 && !(cut && length == 10 && (verb[9] == 't' || verb[9] == 'T')))
 		return;
 	t.transparent = length == 10;
-	if (verb[6] != '2' || !page_name(verb + 4, &t.source) || !page_name(verb + 7, &t.dest)
+	if (verb[6] != '2' || !st_ddofx_page_name(verb + 4, &t.source) || !st_ddofx_page_name(verb + 7, &t.dest)
 	    || t.source == t.dest || (t.transparent && t.source == VISUAL))
 		return;
 	if (cut) {
@@ -348,7 +350,7 @@ scroll_page(struct st_ddofx *ddo, char *args)
 	if (!args)
 		return;
 	const char *name = st_ddofx_value(ddo, args);
-	if (strlen(name) != 2 || !page_name(name, &page) || n[0] < 0 || n[1] < n[0] || n[1] >= WIDTH || n[2] < 0
+	if (strlen(name) != 2 || !st_ddofx_page_name(name, &page) || n[0] < 0 || n[1] < n[0] || n[1] >= WIDTH || n[2] < 0
 	    || n[3] < n[2] || n[3] >= HEIGHT || n[4] == 0 || (n[5] != 0 && n[5] != 1))
 		return;
 	struct st_ddofx_graphics *g = ddo->graphics;
@@ -474,15 +476,18 @@ st_ddofx_graphics_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink
 	int32_t     n[4];
 	if (!ascii_case_compare(verb, "2GEXIT") && args == NULL)
 		st_ddofx_graphics_exit(ddo);
+	else if (!strcmp(verb, "2F") || (verb[1] == 'F' && !ascii_case_compare(verb + 2, "SELECT"))
+	         || !strcmp(verb, "2X"))
+		st_ddofx_bitmap_text(ddo, sink, verb, args);
 	else if (strlen(verb) == 7 && !args && !ascii_case_compare(verb + 3, "2PCX")) {
 		enum page page;
-		if (page_name(verb + 1, &page) && page != HIDDEN)
+		if (st_ddofx_page_name(verb + 1, &page) && page != HIDDEN)
 			st_ddofx_page_file(ddo, page, page, true);
 	}
 	else if (strlen(verb) == 7 && ascii_case_ncompare(verb, "2L", 2) == 0
 	         && !ascii_case_compare(verb + 4, "PCX") && args && strlen(args) == 2) {
 		enum page file, dest;
-		if (page_name(verb + 2, &file) && page_name(args, &dest) && file != HIDDEN && dest != HIDDEN)
+		if (st_ddofx_page_name(verb + 2, &file) && st_ddofx_page_name(args, &dest) && file != HIDDEN && dest != HIDDEN)
 			st_ddofx_page_file(ddo, file, dest, false);
 	}
 	else if (!ascii_case_ncompare(verb, "2CPY", 4))

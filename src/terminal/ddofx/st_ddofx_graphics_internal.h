@@ -32,6 +32,8 @@ struct st_ddofx_sprite {
 
 struct st_ddofx_graphics {
 	struct st_ddofx_sprite  sprites[SPRITE_COUNT];
+	struct st_ddofx_bmf    *bitmap_fonts[32];
+	unsigned                bitmap_slot;
 	struct st_ddofx_simple *simple;
 	struct st_ddofx_bars   *bars;
 
@@ -49,16 +51,18 @@ struct st_ddofx_graphics {
 		FADE_IN
 	} fade;
 
-	unsigned                 fade_first, fade_last;
-	uint32_t                 fade_target;
-	uint8_t                  page[3][HEIGHT][WIDTH];
-	bool                     transparent[256];
-	uint8_t                  colour;
-	int32_t                  cx, cy;
-	struct bounds            clip;
-	int                      horizontal_thickness, vertical_thickness;
+	unsigned      fade_first, fade_last;
+	uint32_t      fade_target;
+	uint8_t       page[3][HEIGHT][WIDTH];
+	bool          transparent[256];
+	uint8_t       colour;
+	int32_t       cx, cy;
+	struct bounds clip;
+	int           horizontal_thickness, vertical_thickness;
 };
 
+bool    st_ddofx_page_name(const char *, enum page *);
+void    st_ddofx_bitmap_text(struct st_ddofx *, const struct st_ddofx_sink *, const char *, char *);
 void    st_ddofx_set_palette(struct st_ddofx_graphics *, unsigned, unsigned);
 void    st_ddofx_resource_pcx(struct st_ddofx *, const struct st_ddofx_sink *, enum page, const char *);
 void    st_ddofx_page_file(struct st_ddofx *, enum page file, enum page target, bool save);
