@@ -563,6 +563,43 @@ def check_raycast_view(t):
     t.exchange(commands(b"2RESET"))
 
 
+def check_raycast_recordings(t, root):
+    t.case("raycaster movement recording, append, loose and resource playback")
+    marker, = root.rglob("syncterm-cache-name.txt")
+    theme = marker.parent / "DDOFX" / "BBSTHEME"
+    recorded = theme / "Tour.Rec"
+    t.exchange(commands(b"2RESET", b"5CLSMAP,1", b"5SETXPOS,31,0", b"5SETYPOS,21,0",
+                        b"5SETANGL,90", b"5DREC,0,Tour.Rec", b"5DANIM,0,159,1", b"w3",
+                        b"5SETANGL,135", b"w3", b"5DREC,1,STOP"))
+    poses = list(struct.iter_unpack("<HHH", recorded.read_bytes()))
+    assert [(x//32-4,y//32-19,h) for x,y,h in poses] == [(31,21,128),(31,21,64)]
+    t.exchange(commands(b"5DREC,1,TOUR.REC", b"w3", b"5DREC,0,STOP"))
+    assert list(struct.iter_unpack("<HHH",recorded.read_bytes())) == poses + [poses[-1]]
+
+    # External recordings store X and Y in 1/32-cell units and a 512-step heading.
+    tour = struct.pack("<6H",1120,1280,128,1216,1376,0)
+    (theme / "Walk.Rec").write_bytes(tour)
+    t.exchange(commands(b"5DPLY,WALK.REC", b"w4", b"5GETXPOS", b"5GETYPOS", b"5GETANGL"),
+               b"34\xff24\xff180,SOUTH\xff")
+    assert (theme / "Walk.Rec").read_bytes() == tour
+
+    record = struct.Struct("<12sIIHH")
+    bank = bytearray(record.pack(b"\xff",0,0,0,0)*33)
+    record.pack_into(bank,0,b"MEMBER.REC",len(bank),6,0,0)
+    (theme / "Tour.M").write_bytes(bank+tour[:6])
+    t.exchange(commands(b"2fTour.", b"~PAUSEBAK", b"5DPLYR,MEMBER.REC"))
+    assert (theme / "MEMBER.REC").read_bytes() == tour[:6]
+    t.exchange(commands(b"5DPLY,member.rec", b"~UNPAUSEBAK", b"w3", b"5GETXPOS", b"5GETYPOS", b"5GETANGL"),
+               b"31\xff21\xff90,EAST\xff")
+    assert not (theme / "MEMBER.REC").exists()
+    t.exchange(commands(b"~PAUSEBAK", b"5DPLYR,MEMBER.REC", b"2RESET"))
+    assert not (theme / "MEMBER.REC").exists()
+    t.exchange(commands(b"~PAUSEBAK", b"5DPLYR,MEMBER.REC", b"EWTEXT,member.rec,0,replaced", b"2RESET"))
+    assert (theme / "MEMBER.REC").read_bytes() == b"replaced\r"
+    t.exchange(commands(b"5DREC,0,tour.rec", b"5DREC,0,STOP"))
+    assert recorded.read_bytes() == b""
+
+
 def check_sprite_banks(t, root):
     t.case("sprite bank files, slot order, row orientation and erase after load")
     marker, = root.rglob("syncterm-cache-name.txt")
@@ -918,6 +955,7 @@ def check_graphics(t, root):
     check_landscape(t)
     check_raycast_world(t, root)
     check_raycast_view(t)
+    check_raycast_recordings(t, root)
     check_sprite_banks(t, root)
     check_sprites(t)
     check_grid(t)

@@ -50,6 +50,8 @@ The host can load either MPT pointer format from the assigned M resource. A sele
 
 The desktop raycaster renders a 244 × 64 world with textured walls, floors, ceilings and three transparent object layers. The BBS can generate a seeded maze, edit individual cells or import the two map sections specified by the SDK’s DEFMAP.TXT from the assigned M resource. The overview and the player marker share the same map coordinates. A new maze starts the player at (5,5) and returns a reachable endpoint. Map queries report the SDK texture numbers. The initial textures are generated locally. Hosts can replace them with copies of 32 × 32 sprites or animate them from a live range of sprite slots. Movement checks walls and object characteristics, and an interactive encounter stops rendering and reports the object coordinates to the host or capture variable.
 
+The raycaster records changed camera positions and headings as six-byte REC records in BBSTHEME. Playback applies one recorded pose per frame through the final record. A recording played from the assigned M resource is limited to 60,000 bytes. Its extracted file is removed on completion, replacement or reset.
+
 The Normal-mode desktop landscape accepts a seed or a 255 × 255 indexed map from the visual or work page. The lower-left map pixel is world coordinate (0,0). The camera has 256 positions on each axis, so an imported map wraps its extra row and column to the opposite edge. The BBS can set or adjust the camera, query its position and direction, and fly over the terrain in a 320 × 200 viewport. Clouds have their own placement. The last frame stays visible when flight stops. Window ownership and sprite animation profiles are tracked separately below.
 
 Normal mode supports a tile map of up to 150 × 150 cells. The host can fill either layer, move the viewport, move or remove foreground tiles, and animate consecutive sprite frames. Grid assignments become visible on a draw. Movement redraws immediately.
@@ -432,9 +434,9 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 12414 | RC DEL MAP PROFILE | DDO-FX (NM) | Pending |
 | 12433 | RC SAVE 3D ENVIRONMENT | DDO-FX (NM) | Pending |
 | 12453 | RC LOAD 3D ENVIRONMENT | DDO-FX (NM) | Pending |
-| 12466 | RC RECORD 3D MOVEMENTS | DDO-FX (NM) | Pending |
-| 12510 | RC PLAY 3D MOVEMENTS | DDO-FX (NM) | Pending |
-| 12521 | RC PLAY 3D MOVEMENTS FROM RESOURCE | DDO-FX (NM) | Pending |
+| 12466 | RC RECORD 3D MOVEMENTS | DDO-FX (NM) | Connected |
+| 12510 | RC PLAY 3D MOVEMENTS | DDO-FX (NM) | Connected |
+| 12521 | RC PLAY 3D MOVEMENTS FROM RESOURCE | DDO-FX (NM) | Connected |
 | 12539 | RC DEFINE OBJECTS LAYER | DDO-FX (NM) | Connected on the desktop |
 | 12570 | 3D OBJECT INIT | DDO-FX (NM) | Pending |
 | 12829 | 3D OBJECT INIT LITE | DDO-FX (NM) | Pending |

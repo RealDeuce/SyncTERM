@@ -302,7 +302,7 @@ st_ddofx_ray_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, con
 		if (!ascii_case_compare(verb, commands[op].name))
 			break;
 	if (op == sizeof(commands) / sizeof(*commands))
-		return st_ddofx_ray_view_command(ddo, sink, verb, args);
+		return st_ddofx_ray_record_command(ddo, sink, verb, args) || st_ddofx_ray_view_command(ddo, sink, verb, args);
 	int32_t n[5];
 	int     count = commands[op].count;
 	if (count == -1 ? !args : !st_ddofx_numbers(ddo, args, n, (unsigned)count))

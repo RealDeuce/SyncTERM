@@ -296,6 +296,7 @@ st_ddofx_ray_poll(struct st_ddofx *ddo)
 		animate(g, now);
 	if (!w->active || now < w->next_frame)
 		return;
+	st_ddofx_ray_motion_frame(w);
 	w->next_frame = now + 55 * g->animator_divisor;
 	if (w->left > WIDTH - w->width || w->bottom < w->height - 1)
 		return;
