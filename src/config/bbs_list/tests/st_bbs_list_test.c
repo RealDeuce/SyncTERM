@@ -123,8 +123,6 @@ check_complete_profile_roundtrip(void)
 			source.ssh_allow_aes128_cbc = source.ssh_accept_early_data = true;
 			source.telnet_no_binary = source.defer_telnet_negotiation = true;
 			source.expand_lf                                          = true;
-			source.rip3_nondestructive_backspace = source.rip3_backspace_sends_del = true;
-			source.rip3_half_duplex                                                = true;
 			source.append_log = source.tls_trust_web_pki = false;
 		}
 		CHECK(ini_document_create(&document) == 0);
@@ -169,9 +167,6 @@ check_complete_profile_roundtrip(void)
 		NUMBER(defer_telnet_negotiation);
 		NUMBER(tls_trust_web_pki);
 		NUMBER(expand_lf);
-		NUMBER(rip3_nondestructive_backspace);
-		NUMBER(rip3_backspace_sends_del);
-		NUMBER(rip3_half_duplex);
 #undef NUMBER
 #define STRING(member) CHECK(strcmp(result.member, source.member) == 0)
 		STRING(name);
@@ -247,7 +242,8 @@ check_graphics_transactions(const struct st_app_paths *base)
 	st_profile_init(&local);
 	st_profile_init(&stale);
 	CHECK(fs_create_parent_directories(path) == 0);
-	CHECK(write_text(path, "RIP=RIPv3\n[Graphics]\nRIP=RIPv1\nExtra=keep\n") == 0);
+	CHECK(write_text(path, "RIP=RIPv3\nRIP3HalfDuplex=true\n[Graphics]\nRIP=RIPv1\n"
+		    "RIP3NonDestructiveBackspace=true\nRIP3BackspaceSendsDEL=true\nExtra=keep\n") == 0);
 	CHECK(st_bbs_list_open(&first, &paths, NULL, 0) == 0);
 	CHECK(st_bbs_list_open(&second, &paths, NULL, 0) == 0);
 	CHECK(copy_named(&local, first, "Graphics") == 0);
@@ -275,6 +271,8 @@ check_graphics_transactions(const struct st_app_paths *base)
 	CHECK(st_bbs_list_defaults(first)->graphics_mode == ST_GRAPHICS_SKYPIX_13);
 	CHECK(st_bbs_list_find(first, "Graphics")->profile->graphics_mode == ST_GRAPHICS_SKYPIX_13);
 	CHECK(!file_contains(path, "RIP="));
+	CHECK(!file_contains(path, "RIP3HalfDuplex") && !file_contains(path, "RIP3NonDestructiveBackspace")
+	      && !file_contains(path, "RIP3BackspaceSendsDEL"));
 	st_bbs_list_close(first);
 	st_profile_dispose(&local);
 	st_profile_dispose(&stale);

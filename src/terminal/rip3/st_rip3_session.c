@@ -23,7 +23,6 @@
 #include "st_rip3_host_internal.h"
 #include "st_rip3_host_variables.h"
 #include "st_rip3_input.h"
-#include "st_rip3_local_variables.h"
 #include "st_rip3_mouse.h"
 #include "st_rip3_outline_cache.h"
 #include "st_rip3_palettes.h"
@@ -135,7 +134,6 @@ struct st_rip3_session {
 	bool                                  ready;
 	bool                                  text_active, mouse_locked, keyboard_locked;
 	unsigned                              scene_revision;
-	struct st_rip3_backspace              backspace;
 	unsigned                              current_window;
 	unsigned                              default_text_font;
 	bool                                  default_text_wrap;
@@ -2717,8 +2715,6 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	session->commands.codepage_converted     = config->graphical_codepage_converted;
 	if (config->services != NULL)
 		session->variables = *config->services;
-	if (session->variables.backspace == NULL)
-		session->variables.backspace = &session->backspace;
 	session->status_bar                       = true;
 	session->variables.status_bar             = &session->status_bar;
 	session->variables.status_bar_context     = config->sink.context;

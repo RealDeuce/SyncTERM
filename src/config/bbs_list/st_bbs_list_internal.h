@@ -69,6 +69,7 @@ int  st_bbs_cache_visit(const char *directory, int (*visit)(const char *key, voi
 int  st_bbs_cache_remove_tree(const char *path);
 int  st_bbs_decode_profile(struct st_profile *profile, const ini_section_t *section, const char *name, bool system,
     const char *download_path);
+void st_bbs_remove_legacy_graphics_keys(ini_section_t *section);
 int  st_bbs_encode_profile(ini_section_t *section, const struct st_profile *profile, bool defaults);
 bool st_bbs_profiles_equal(const struct st_profile *left, const struct st_profile *right);
 int  st_bbs_view_prepare(const st_bbs_list_t *list, ini_document_t *personal_document, struct st_bbs_view *view);

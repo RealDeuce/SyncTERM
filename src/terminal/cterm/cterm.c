@@ -2441,30 +2441,6 @@ cterm_advance_char(struct cterminal *cterm, int *x, int *y, int move)
 }
 
 void
-cterm_window_backspace(struct cterminal *cterm, bool destructive)
-{
-	int x, y;
-	ABS_XY(&x, &y);
-	if (x <= 1)
-		return;
-	--x;
-	cterm_clear_lcf(cterm);
-	if (destructive) {
-		struct st_console_cell blank;
-		int                    status = cterm_render_make_current_cell(cterm, &blank, ' ', 0);
-		if (status == 0)
-			(void)cterm_render_write_cells(cterm, cterm->x + x - 1, cterm->y + y - 1, cterm->x + x - 1,
-			    cterm->y + y - 1, &blank);
-		else
-			cterm_render_record_error(cterm, status);
-	}
-	cterm_coord_conv_xy(cterm, CTERM_COORD_ABSTERM, CTERM_COORD_CURR, &x, &y);
-	cterm_render_set_position(cterm, x, y);
-	++cterm->cursor_position_changes;
-	ABS_XY(&cterm->xpos, &cterm->ypos);
-}
-
-void
 cterm_ctputs(struct cterminal *cterm, char *buf)
 {
 	for (const unsigned char *p = (const unsigned char *)buf; *p; ++p) {
@@ -2486,10 +2462,7 @@ cterm_ctputs(struct cterminal *cterm, char *buf)
 				cterm_adjust_currpos(cterm, INT_MIN, 0, 0);
 				break;
 			case '\b':
-				if (cterm->screen.addressing_window.width != 0)
-					cterm_window_backspace(cterm, cterm->destructive_backspace);
-				else
-					cterm_adjust_currpos(cterm, -1, 0, 0);
+				cterm_adjust_currpos(cterm, -1, 0, 0);
 				break;
 			case '\t':
 				cterm_do_tab(cterm);

@@ -177,7 +177,7 @@ merge_profile_sections(ini_section_t *remote, const ini_section_t *remote_compar
 	}
 	(void)ini_section_remove_key(remote, "BeDumb");
 	(void)ini_section_remove_key(remote, "TelnetLogLevel");
-	(void)ini_section_remove_key(remote, "RIP");
+	st_bbs_remove_legacy_graphics_keys(remote);
 	return 0;
 }
 

@@ -121,9 +121,9 @@ def movement(t):
             (8, 3), [(4, 3, "31mX")])
     t.check("CSI-multiple-intermediates", b"ABC" + cup(2, 1) + ESC + b"[1! @",
             (2, 1), [(1, 1, "ABC")])
+    t.check("BS", cup(2, 4) + b"AB\b", (3, 4), [(2, 4, "AB")])
     cases = [
         ("NUL", cup(3, 4) + b"\0", (3, 4)),
-        ("BS", cup(3, 4) + b"\b", (2, 4)),
         ("BS.2", b"\b", (1, 1)),
         ("HT", b"\t", (9, 1)),
         ("HT.2", b"\t\t", (17, 1)),

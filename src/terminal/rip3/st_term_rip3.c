@@ -72,7 +72,6 @@ struct st_term_rip3 {
 	struct st_rip3_features          features;
 	struct st_rip3_terminal_identity identity;
 	struct st_rip3_local_queries     local;
-	struct st_rip3_backspace         backspace;
 	struct st_rip3_variables        *session_values, *persistent_values;
 	struct st_rip3_user_variables   *user;
 	char                            *variable_path;
@@ -491,10 +490,8 @@ flush_text(void *context)
 			status = st_term_rip3_view_begin(rip->view, rip->config.console);
 		st_cterm_t *text     = st_term_rip3_text(rip);
 		size_t      consumed = 0;
-		if (status == 0) {
-			st_cterm_set_destructive_backspace(text, !rip->backspace.nondestructive);
+		if (status == 0)
 			status = st_cterm_write(text, rip->tty + used, length - used, &consumed);
-		}
 		used += consumed;
 		if (rip->view != NULL && status == 0)
 			status = st_term_rip3_view_present(rip->view, rip->config.console,
@@ -2168,9 +2165,11 @@ st_term_rip3_keyboard_locked(const struct st_term_rip3 *rip)
 	return rip != NULL && st_rip3_session_keyboard_locked(rip->session);
 }
 
-static bool
-rip3_key_binding(struct st_term_rip3 *rip, const struct st_console_event *event)
+bool
+st_term_rip3_key(struct st_term_rip3 *rip, const struct st_console_event *event)
 {
+	if (rip == NULL)
+		return false;
 	if (rip->pick_list != NULL) {
 		pick_list_input(rip, event);
 		return true;
@@ -2251,55 +2250,6 @@ rip3_key_binding(struct st_term_rip3 *rip, const struct st_console_event *event)
 	}
 	feedback_end(rip);
 	return handled;
-}
-
-static void
-echo_backspace(struct st_term_rip3 *rip)
-{
-	if (!st_rip3_session_text_active(rip->session))
-		return;
-	feedback_begin(rip);
-	flush_text(rip);
-	int status = rip->view == NULL ? 0 : st_term_rip3_view_begin(rip->view, rip->config.console);
-	if (status == 0)
-		status = st_cterm_echo_window_backspace(st_term_rip3_text(rip), !rip->backspace.nondestructive);
-	if (status == 0 && rip->view != NULL)
-		status = st_term_rip3_view_present(rip->view, rip->config.console, true);
-	if (status != 0)
-		diagnostic(rip, ST_RIP3_COMMAND_OPERATION_FAILED);
-	feedback_end(rip);
-}
-
-bool
-st_term_rip3_key(struct st_term_rip3 *rip, const struct st_console_event *event)
-{
-	if (rip == NULL)
-		return false;
-	if (rip3_key_binding(rip, event))
-		return true;
-	bool ctrl;
-	if (event->type == ST_CONSOLE_EVENT_KEY_CODE && event->data.key.code == '\b') {
-		if (event->data.key.modifiers & (ST_CONSOLE_MODIFIER_ALT | ST_CONSOLE_MODIFIER_GUI))
-			return false;
-		ctrl = (event->data.key.modifiers & ST_CONSOLE_MODIFIER_CONTROL) != 0;
-	}
-	else if ((event->type == ST_CONSOLE_EVENT_TEXT && event->data.text.codepoint == '\b')
-	         || (event->type == ST_CONSOLE_EVENT_CODEPAGE_BYTE && event->data.codepage_byte == '\b')) {
-		unsigned down = 0;
-		(void)modifiers(rip, &down);
-		ctrl = (down & ST_RIP3_MODIFIER_CTRL) != 0;
-	}
-	else
-		return false;
-	bool half_duplex = rip->config.rip3_half_duplex;
-	if (half_duplex)
-		echo_backspace(rip);
-	bool send_del = rip->backspace.send_del;
-	if (ctrl && (send_del || half_duplex))
-		send_del = !send_del;
-	uint8_t byte = send_del ? 0x7f : '\b';
-	rip->output(rip->output_context, ST_CTERM_OUTPUT_USER, &byte, 1);
-	return true;
 }
 
 void
@@ -2480,8 +2430,6 @@ st_term_rip3_create(struct st_term_rip3 **result, const struct st_term_config *c
 	rip->text                         = ansi;
 	rip->text_config                  = *text_config;
 	rip->owner                        = owner;
-	rip->backspace.nondestructive     = config->rip3_nondestructive_backspace;
-	rip->backspace.send_del           = config->rip3_backspace_sends_del;
 	rip->framing_enabled              = true;
 	rip->text_config.history_display  = ansi;
 	rip->text_config.palette_mapping  = NULL;
@@ -2561,7 +2509,6 @@ st_term_rip3_create(struct st_term_rip3 **result, const struct st_term_config *c
 	    .link_context                                         = config->link_context,
 	    .local                                                = &rip->local,
 	    .user_variables                                       = rip->user,
-	    .backspace                                            = &rip->backspace,
 	    .wire_codepage                                        = config->codepage,
 	    .directory =
 		config->rip_directory != NULL && config->rip_directory[0] != '\0' ? &rip->host_directory : NULL};

@@ -1263,29 +1263,6 @@ st_cterm_start_text(st_cterm_t *terminal)
 	return cterm_render_take_error(terminal);
 }
 
-void
-st_cterm_set_destructive_backspace(st_cterm_t *terminal, bool destructive)
-{
-	terminal->destructive_backspace = destructive;
-}
-
-int
-st_cterm_echo_window_backspace(st_cterm_t *terminal, bool destructive)
-{
-	if (terminal == NULL || terminal->screen.addressing_window.width == 0)
-		return IO_ERROR_INVALID_ARGUMENT;
-	cterm_start(terminal);
-	int status = cterm_text_boundary(terminal);
-	if (status != 0)
-		return status;
-	cterm_apply_window(terminal);
-	int x = terminal->xpos, y = terminal->ypos;
-	cterm_coord_conv_xy(terminal, CTERM_COORD_ABSTERM, CTERM_COORD_CURR, &x, &y);
-	cterm_render_set_position(terminal, x, y);
-	cterm_window_backspace(terminal, destructive);
-	return cterm_render_take_error(terminal);
-}
-
 int
 st_cterm_position_text(st_cterm_t *terminal, uint32_t column, uint32_t row)
 {

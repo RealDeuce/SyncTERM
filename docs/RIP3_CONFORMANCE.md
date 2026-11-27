@@ -46,8 +46,8 @@ documentation issue only when a gap or conflict prevents implementing or
 verifying an in-scope RIP effect.
 
 **The pinned RIPscrip 3.0 requirements are implemented in connected RIPv3 sessions.**
-The ledger records 6,183 implemented source blocks, 3,397 context blocks and
-208 exclusions. All clarification issues have a disposition. The completion
+The ledger records 6,173 implemented source blocks, 3,397 context blocks and
+218 exclusions. All clarification issues have a disposition. The completion
 check and the native and connected tests described below cover this scope.
 
 The final connected run covered all 40 RIPv3 test groups in CP437 and UTF-8.
@@ -10265,25 +10265,12 @@ HEADER framing forms.
 
 ## Connected ANSI Backspace
 
-`$BSMODE$` selects destructive or nondestructive Backspace in the ANSI
-text window. The destructive form paints a space using the current ANSI
-face and colors and leaves the cursor at the erased cell. At the left edge
-the screen and cursor stay put. `$BSXMIT$` controls the ordinary key's
-wire byte after local editing and RIP bindings have had their turn.
-Generated RIP responses retain their original bytes. Both settings start
-at DEST and BS, follow the active profile, and survive RIP resets.
-[PR #220](https://github.com/bbs-land/remote-imaging-protocol/pull/220)
-
-The RIPv3 dialing entry accepts `RIP3NonDestructiveBackspace` and
-`RIP3BackspaceSendsDEL` to override those defaults. `RIP3HalfDuplex`
-enables Backspace local echo and the associated Ctrl+Backspace byte
-selection. RIP setters affect the live session. The saved entry is
-edited independently through its INI values.
-
-Connected CP437 and UTF-8 fixtures verify the exact replies and key
-bytes in both duplex modes, the cell erase and its colors, hotkey
-precedence, generated output, local scene playback and reset lifetime.
-Half-duplex echo preserves a partially received ANSI sequence.
+CTerm handles received BS and encodes the ordinary Backspace key in RIP text
+windows. RIPtel's `$BSMODE$` and `$BSXMIT$` client settings are outside
+SyncTERM's RIP scope. The connected CP437 and UTF-8 tests check that BS preserves
+the previously drawn glyph and its colors, stops at the left edge, and that
+DEC Backarrow Key Mode determines the wire byte. Old dialing entries may
+still contain the three obsolete RIP keyboard settings.
 
 ## Connected mouse presence
 

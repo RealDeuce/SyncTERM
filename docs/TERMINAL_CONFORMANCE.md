@@ -6,7 +6,10 @@ protocol detection observes the original bytes. The session decodes text for
 glyph-based graphics commands and preserves the original octets for binary
 command arguments and escape sequences. BIG, IGS, OO][, RIP 1.54, RIP 3 and
 SkyPix have their own parsers under `src/terminal`. Their ordinary text reaches
-CTerm for emulation and console presentation.
+CTerm for emulation and console presentation. The selected emulation defines
+the meaning of terminal controls. Graphics adapters may observe terminal state
+and use existing terminal operations. Received ANSI BS moves the cursor back
+one position on the line and preserves the cell, including its rendition.
 
 Connected console input reaches Wren claims and hooks first. Keys passed by
 Wren go through local session controls, graphics and then CTerm. A script
@@ -126,8 +129,8 @@ failures. Tests verify exported dimensions/colors and current-clipboard replacem
 byte/default/wildcard vectors, event consumption, HKEY gates, pointer cancellation
 and reset/delayed FIELDID lifetime through real keyboard events. Native forwarding
 checks cover ANSI/RIP1/RIP3 and pointer-only disable. The same connected
-fixtures check the permanently reset ANSI Keyboard Action Mode, half-duplex
-Backspace and the independent RIP scene keyboard lock. The native text-window
+fixtures check the permanently reset ANSI Keyboard Action Mode, Backspace
+transmission and the independent RIP scene keyboard lock. The native text-window
 test covers compound set/reset mode requests across receive splits.
 Connected hover, grouped buttons, nonplain sizing/eligibility and enclosed
 painting are covered below; see the RIP3 inventory for exact scope.

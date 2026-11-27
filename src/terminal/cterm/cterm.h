@@ -138,7 +138,6 @@ struct cterminal {
 	/* Explicit terminal positioning, excluding renderer cursor restoration. */
 	uint64_t                    cursor_position_changes;
 	enum st_cterm_graphics_mode graphics_mode;
-	bool                        destructive_backspace;
 	bool                        (*escape_extension)(void *context, st_cterm_t *target, uint8_t byte);
 	void                       *escape_context;
 	int                         visible_cursor;

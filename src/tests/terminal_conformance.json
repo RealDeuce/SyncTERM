@@ -53,7 +53,7 @@
     {"id": "RegionClearRecovery", "suite": "margins", "scope": "Reset restores text after margin-restricted clears"},
     {"id": "NUL", "source_line": 209, "suite": "movement", "scope": "Expected cursor coordinates; defaults, clamping and tab stops"},
     {"id": "BEL", "source_line": 214, "suite": "extensions", "scope": "Partial: parsing/recovery only; audibility needs audio-device validation"},
-    {"id": "BS", "source_line": 220, "suite": "movement", "scope": "Expected cursor coordinates; defaults, clamping and tab stops"},
+    {"id": "BS", "source_line": 220, "suite": "movement", "scope": "BS moves back one column and preserves the character at that position"},
     {"id": "HT", "source_line": 228, "suite": "movement", "scope": "Default stops and exact report, right-edge wrapping, bottom-row scrolling and reset recovery; focused C tests cover resize and wide reports"},
     {"id": "LF", "source_line": 235, "suite": "movement", "scope": "Expected cursor coordinates; defaults, clamping and tab stops"},
     {"id": "CR", "source_line": 240, "suite": "movement", "scope": "Expected cursor coordinates; defaults, clamping and tab stops"},

@@ -325,7 +325,6 @@ void cterm_delete_vtabstop(struct cterminal *cterm, int line);
 
 /* Output */
 void cterm_ctputs(struct cterminal *cterm, char *buf);
-void cterm_window_backspace(struct cterminal *cterm, bool destructive);
 void cterm_uctputs(struct cterminal *cterm, char *buf);
 void cterm_respond(struct cterminal *cterm, const char *data, size_t len);
 void cterm_respond_printf(struct cterminal *cterm, const char *fmt, ...);

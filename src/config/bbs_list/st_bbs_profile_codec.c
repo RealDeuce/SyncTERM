@@ -128,10 +128,6 @@ st_bbs_decode_profile(struct st_profile *profile, const ini_section_t *section, 
 	profile->force_lcf        = ini_section_get_bool(section, "ForceLCF", false);
 	profile->yellow_is_yellow = ini_section_get_bool(section, "YellowIsYellow", false);
 	profile->expand_lf        = ini_section_get_bool(section, "LFExpand", false);
-	profile->rip3_nondestructive_backspace =
-	    ini_section_get_bool(section, "RIP3NonDestructiveBackspace", false);
-	profile->rip3_backspace_sends_del = ini_section_get_bool(section, "RIP3BackspaceSendsDEL", false);
-	profile->rip3_half_duplex         = ini_section_get_bool(section, "RIP3HalfDuplex", false);
 	profile->sftp_public_key          = ini_section_get_bool(section, "SFTPPublicKey", false);
 	profile->ssh_allow_aes128_cbc     = ini_section_get_bool(section, "SSHAllowAES128CBC", false);
 	profile->ssh_accept_early_data    = ini_section_get_bool(section, "SSHAcceptEarlyData", false);
@@ -223,6 +219,15 @@ st_bbs_decode_profile(struct st_profile *profile, const ini_section_t *section, 
 	return 0;
 }
 
+void
+st_bbs_remove_legacy_graphics_keys(ini_section_t *section)
+{
+	(void)ini_section_remove_key(section, "RIP");
+	(void)ini_section_remove_key(section, "RIP3NonDestructiveBackspace");
+	(void)ini_section_remove_key(section, "RIP3BackspaceSendsDEL");
+	(void)ini_section_remove_key(section, "RIP3HalfDuplex");
+}
+
 #define ENCODE(call)                   \
 	do {                           \
 		status = (call);       \
@@ -251,7 +256,7 @@ st_bbs_encode_profile(ini_section_t *section, const struct st_profile *profile, 
 	    (size_t)profile->screen_mode, &ini_default_style));
 	ENCODE(ini_section_set_bool(section, "NoStatus", profile->hide_status, &ini_default_style));
 	ENCODE(ini_section_set_bool(section, "HidePopups", profile->hide_popups, &ini_default_style));
-	(void)ini_section_remove_key(section, "RIP");
+	st_bbs_remove_legacy_graphics_keys(section);
 	ENCODE(ini_section_set_enum_names(section, "Graphics", ENUM_NAMES(graphics_modes),
 	    (size_t)profile->graphics_mode, &ini_default_style));
 	ENCODE(ini_section_set_string(section, "AmigaFont", profile->amiga_font, &ini_default_style));
@@ -260,14 +265,6 @@ st_bbs_encode_profile(ini_section_t *section, const struct st_profile *profile, 
 	ENCODE(ini_section_set_bool(section, "YellowIsYellow", profile->yellow_is_yellow, &ini_default_style));
 	ENCODE(ini_section_set_string(section, "TerminalType", profile->terminal_name, &ini_default_style));
 	ENCODE(ini_section_set_bool(section, "LFExpand", profile->expand_lf, &ini_default_style));
-	if (profile->graphics_mode == ST_GRAPHICS_RIP_3) {
-		ENCODE(ini_section_set_bool(section, "RIP3NonDestructiveBackspace",
-		    profile->rip3_nondestructive_backspace, &ini_default_style));
-		ENCODE(ini_section_set_bool(section, "RIP3BackspaceSendsDEL", profile->rip3_backspace_sends_del,
-		    &ini_default_style));
-		ENCODE(ini_section_set_bool(section, "RIP3HalfDuplex", profile->rip3_half_duplex,
-		    &ini_default_style));
-	}
 	ENCODE(
 	    ini_section_set_bool(section, "TelnetBrokenTextmode", profile->telnet_no_binary, &ini_default_style));
 	ENCODE(ini_section_set_bool(section, "TelnetDeferNegotiate", profile->defer_telnet_negotiation,

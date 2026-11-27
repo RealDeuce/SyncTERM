@@ -231,92 +231,26 @@ def check_tab_navigation(t):
     values(b"$WORLD(CUR,640,480)$")
 
 
-def check_backspace(t, half_duplex):
-    def values(source, expected=b""):
-        return t.exchange(query(source, at_cursor=True), expected)
+def check_backspace(t):
+    t.case("rip3-backspace-owned-by-ansi")
+    t.exchange(query(b"$BSMODE(DEST)$", at_cursor=True))
+    frame = t.exchange(b"\x1b[H\x1b[31;40mAB\x1b[37;44m\x08")
+    assert (frame.application["cterm.x"], frame.application["cterm.y"]) == (2, 1)
+    check_default_text(frame, b"AB", foreground=0xa80000)
+    frame = t.exchange(b"\x08\x08")
+    assert (frame.application["cterm.x"], frame.application["cterm.y"]) == (1, 1)
+    check_default_text(frame, b"AB", foreground=0xa80000)
 
-    def key(expected, modifiers=0):
-        t.client.key("backspace", modifiers)
-        return t.input(expected)
-
-    def cursor(frame):
-        return frame.application["cterm.x"], frame.application["cterm.y"]
-
-    def cell(frame):
-        # Mode 0's second 8x11 cell on the 640x480 canvas.
-        return tuple(pixel(frame, x, y) for y in range(11) for x in range(8, 16))
-
-    def blank(frame):
-        assert cursor(frame) == (2, 1)
-        check_default_text(frame, b"A", foreground=0xa80000)
-        assert set(cell(frame)) == {0x0000a8}
-
-    colors = b"\x1b[37;44m" if half_duplex else b"\x1b[38;2;168;168;168;48;2;0;0;168m"
-    sample = b"\x1b[H\x1b[31;40mAB" + colors
-    if half_duplex:
-        t.case("rip3-backspace-half-duplex-and-profile-defaults")
-        values(b"$BSMODE$:$BSXMIT$", b"0:0")
-        before = t.exchange(sample)
-        after = key(b"\x7f")
-        assert cursor(after) == (2, 1) and cell(after) == cell(before)
-        values(b"$BSMODE(DEST)$")
-        t.exchange(sample)
-        blank(key(b"\x08", CONTROL))
-        values(b"$BSXMIT(BS)$")
-        for modifiers, expected in ((0, b"\x08"), (CONTROL, b"\x7f")):
-            t.exchange(sample)
-            blank(key(expected, modifiers))
-        t.case("rip3-ansi-mode-2-allows-half-duplex-backspace-echo")
-        t.exchange(sample + b"\x1b[2h")
-        blank(key(b"\x08"))
-        # Echo is local even with a partial remote SGR pending.
-        t.send(sample + b"\x1b[32;")
-        t.client.wait_for(lambda frame: cursor(frame) == (3, 1))
+    for mode, request, expected in ((b"h", b"DEL", b"\x08"), (b"l", b"BS", b"\x7f")):
+        t.exchange(b"\x1b[?67" + mode + query(b"$BSXMIT(" + request + b")$", at_cursor=True))
         t.client.key("backspace")
-        receive(t.peer, b"\x08", t.root / "replies.bin")
-        frame = t.exchange(b"40m")
-        blank(frame)
-        assert frame.application["cterm.attr"] == 2
-        return
+        t.input(expected)
+    t.exchange(b"\x1b[?67h")
 
-    t.case("rip3-backspace-receive-colours-and-boundary")
-    values(b"$BSMODE()$:$BSXMIT(QUERY)$", b"1:1")
-    blank(t.exchange(sample + b"\x08"))
-    frame = t.exchange(b"\x1b[H\x08")
-    check_default_text(frame, b"A", foreground=0xa80000)
-    assert set(cell(frame)) == {0x0000a8} and cursor(frame) == (1, 1)
-    t.exchange(b"\x01|T$BSMODE(nondest)$\r\n")
-    values(b"$BSMODE$", b"0")
-    before = t.exchange(sample)
-    after = t.exchange(b"\x08")
-    assert cursor(after) == (2, 1) and cell(after) == cell(before)
-
-    t.case("rip3-backspace-full-duplex-and-generated-output")
-    values(b"$BSXMIT(del)$[$BSMODE(BS)$][$BSXMIT(BS,DEL)$]$BSMODE$:$BSXMIT$", b"[$BSMODE(BS)$][$BSXMIT(BS,DEL)$]0:0")
-    before = t.exchange(sample)
-    for modifiers, expected in ((0, b"\x7f"), (CONTROL, b"\x08")):
-        after = key(expected, modifiers)
-        assert cursor(after) == (3, 1) and cell(after) == cell(before)
-    values(b"^h", b"\x08")
+    t.exchange(query(b"^h", at_cursor=True), b"\x08")
     t.exchange(style(flags=256 | 1024) + button((32, 40, 80, 60), b"<><>bound", hotkey=8))
-    key(b"bound")
-
-    t.case("rip3-backspace-local-scene-modes-and-ansi-text")
-    owner, = (p for p in (t.root / "cache").glob("*/syncterm-cache-name.txt")
-              if p.read_text(encoding="utf-8").strip() == "Capture")
-    assets = owner.parent / "RIP"
-    assets.mkdir(exist_ok=True)
-    (assets / "Backspace.RIP").write_bytes(
-        query(b"$BSMODE(DEST)$$BSXMIT(BS)$", at_cursor=True) + sample + b"\x08")
-    blank(values(b"$>Backspace$$BSMODE$:$BSXMIT$", b"1:1"))
-    values(b"$BSMODE(NONDEST)$$BSXMIT(DEL)$")
-
-    t.exchange(b"\x01|*\r\n")
-    values(b"$BSMODE$:$BSXMIT$", b"0:0")
-    values(b"$RESET(HARD)$$BSMODE$:$BSXMIT$", b"0:0")
-    values(b"$BSMODE(DEST)$$BSXMIT(BS)$")
-    key(b"\x08")
-    key(b"\x08", CONTROL)
+    t.client.key("backspace")
+    t.input(b"bound")
 
 
 def check_keyboard_action_mode(t):
@@ -363,7 +297,7 @@ def run(args):
             return t.input(expected) if expected else t.exchange()
         t.exchange(b"\x1b[!",b"RIPSCRIP030001")
         check_autosense(t)
-        check_backspace(t, False)
+        check_backspace(t)
         check_keyboard_action_mode(t)
         t.exchange(b"\x01|*\r\n\x1b[0m\x1b[?25l")
         t.case("rip3-keyboard-capability-and-engine-identity")
@@ -493,7 +427,12 @@ def run(args):
         t = Terminal(client, root, peer, send)
         t.exchange(b"\x1b[!", b"RIPSCRIP030001")
         t.exchange(b"\x01|*\r\n\x1b[?25l")
-        check_backspace(t, True)
+        t.case("rip3-obsolete-entry-settings-ignored")
+        before = t.exchange(b"AB")
+        client.key("backspace")
+        after = t.input(b"\x08")
+        assert after.application["cterm.x"] == before.application["cterm.x"] == 3
+        assert after.primary == before.primary and after.alternate == before.alternate
 
 
 if __name__=="__main__":

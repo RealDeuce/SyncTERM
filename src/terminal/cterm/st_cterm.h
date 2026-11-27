@@ -237,8 +237,6 @@ void st_cterm_resume_input(st_cterm_t *terminal, struct st_cterm_suspended_input
  * Zero means there is no final byte available. */
 uint8_t st_cterm_take_deferred_escape(st_cterm_t *terminal);
 bool    st_cterm_escape_pending(st_cterm_t *terminal);
-void    st_cterm_set_destructive_backspace(st_cterm_t *, bool destructive);
-int     st_cterm_echo_window_backspace(st_cterm_t *, bool destructive);
 /* Restore physical cursor presentation from the retained native state. */
 int st_cterm_present_text_cursor(st_cterm_t *terminal);
 /* Zero-based local cursor placement. A RIP3 session owner uses full-window

@@ -212,9 +212,6 @@ struct st_profile {
 	bool     defer_telnet_negotiation;
 	bool     tls_trust_web_pki;
 	bool     expand_lf;
-	bool     rip3_nondestructive_backspace;
-	bool     rip3_backspace_sends_del;
-	bool     rip3_half_duplex;
 };
 
 /* Returns zero for connection types without an inherent network port. */
