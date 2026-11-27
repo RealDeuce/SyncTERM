@@ -46,7 +46,7 @@ In Normal mode the BBS can show or hide the mouse pointer, query its position an
 
 In Lite and Normal, `EEDTEXT` opens a full-screen editor for a CP437 message of up to 65,532 bytes in the entry’s BBSTHEME directory. A new message starts empty. F2 saves and exits, and Escape discards edits and exits. Both send the door’s completion string. Existing line endings are preserved, and Enter inserts a DOS CRLF. The door can then read the saved bytes with `ERTEXT`.
 
-`EPTEXT` can export a BBSTHEME file in both modes. The door supplies a suggested DOS filename and the user selects the local destination in Save As. The output starts with the SDK’s single space, followed by the complete file, including binary printer data. Success, cancellation, a missing source and an unavailable device all send the specified completion string. For the SDK’s printer ports (`LPT1`–`LPT3`) and serial ports (`COM1`–`COM4`), SyncTERM sends the completion string and writes no device bytes.
+`EPTEXT` can export a BBSTHEME file in both modes. The door supplies a suggested DOS filename and the user selects the local destination in Save As. The output starts with the SDK’s single space, followed by the complete file, including binary printer data. Success, cancellation, a missing source and an unavailable device all send the specified completion string. SyncTERM always treats the SDK’s printer ports (`LPT1`–`LPT3`) and serial ports (`COM1`–`COM4`) as unavailable. A request for any of these seven ports sends only the completion string.
 
 In Lite and Normal, `~INFSAV` and `~INFLOD` use the assigned resource prefix plus `T` in the entry’s BBSTHEME directory. Slot numbers and signed 32-bit passwords follow the SDK. A successful load sends the saved bytes verbatim, including embedded control bytes. Variable capture keeps the first 50 bytes and preserves the destination variable’s type.
 
@@ -217,7 +217,7 @@ Send each command body between the two opening bytes `1D 7B` and the closing byt
 | 4777 | `EEDTEXT` | LAUNCH TEXT EDITOR | DDO-FX LITE | Connected |
 | 4821 | `ERTEXT` | RETRIEVE TEXT FILE | DDO-FX LITE | Connected |
 | 4847 | `EWTEXT` | WRITE TEXT FILE | DDO-FX LITE | Connected |
-| 4886 | `EPTEXT` | PRINT TEXT FILE | DDO-FX LITE | Connected for file output and unavailable-device completion. Printer and serial output unavailable |
+| 4886 | `EPTEXT` | PRINT TEXT FILE | DDO-FX LITE | Connected. File export and completion for all seven reserved ports in Lite and Normal |
 | 4940 | `:` | LABEL | DDO-FX LITE | Connected |
 | 4955 | `2RESET` | RESET ENVIRONMENT | DDO-FX LITE | Connected for implemented scene objects |
 | 5436 | `dMOUSE` | DETECT MOUSE | DDO-FX (NM) | Connected |

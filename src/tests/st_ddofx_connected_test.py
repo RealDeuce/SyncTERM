@@ -2642,6 +2642,9 @@ def check_print_file(t, root):
     output = root / "downloads" / "OUT.PRN"
     original = bytes(range(256)) * 100
     source.write_bytes(original)
+    ports = (b"LPT1", b"LPT2", b"LPT3", b"COM1", b"COM2", b"COM3", b"COM4")
+    device_requests = commands(*(b"EPTEXT,PRINT.BIN," + port + b"," + port for port in ports))
+    t.exchange(device_requests, b"".join(ports))
     request = commands(b"EPTEXT,PRINT.BIN,D:\\REMOTE\\OUT.PRN,^@done,^M", b"dVIDMODE")
     t.send(request)
     frame = t.client.wait_text("Save DDO F/X file")
@@ -2653,6 +2656,7 @@ def check_print_file(t, root):
     assert output.read_bytes() == b" " + original
 
     t.exchange(commands(b"LIGMODE", b"LIGMODE", b"2C,33", b"2aFILL", b"2CPYWP2VP"))
+    t.exchange(device_requests, b"".join(ports))
     source.write_bytes(b"")
     t.send(request)
     t.client.wait_text("Save DDO F/X file")
@@ -2670,8 +2674,7 @@ def check_print_file(t, root):
     t.input(b"SAVED")
     assert output.read_bytes() == b" "
     t.exchange(commands(b"EPTEXT,ABSENT.TXT,OUT.PRN,MISSING", b"EPTEXT,../PRINT.BIN,OUT.PRN,BAD",
-                        b"EPTEXT,PRINT.BIN,,EMPTY", b"EPTEXT,PRINT.BIN,LPT1,P", b"EPTEXT,PRINT.BIN,COM2,S",
-                        b"2GEXIT"), b"MISSINGBADEMPTYPS")
+                        b"EPTEXT,PRINT.BIN,,EMPTY", b"2GEXIT"), b"MISSINGBADEMPTY")
     assert output.read_bytes() == b" "
 
 
