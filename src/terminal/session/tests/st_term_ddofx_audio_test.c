@@ -30,6 +30,42 @@ wait_for_marker(st_term_session_t *session, int column)
 	return EXIT_SUCCESS;
 }
 
+static bool
+bars_match(st_console_t *console, bool visible)
+{
+	/* Tracks 1, 3 and 4 play a looping note. Track 2 rests, and the song
+	 * has no fifth track. All four directions share a background of 9. */
+	const struct st_console_rect r      = {0, 40, 128, 42};
+	struct st_pixel_buffer      *pixels = NULL;
+	if (st_console_get_pixels(&pixels, console, &r, false) != 0)
+		return false;
+	bool ok = true;
+	for (unsigned plane = 0; plane < 2; ++plane) {
+		const uint32_t *p = plane ? pixels->alternate : pixels->primary;
+		for (unsigned y = 0; y < r.height; ++y) {
+			for (unsigned x = 0; x < r.width; ++x) {
+				uint32_t v = p[y * r.width + x];
+				if (visible && x >= 20 && x <= 22 && y >= 5 && y <= 20) {
+					if (y >= 19 ? v != 30 : (v != 30 && v != 9))
+						ok = false;
+				}
+				else if (visible && y >= 18 && y <= 20 && x >= 60 && x <= 75) {
+					if (x <= 61 ? v != 50 : (v != 50 && v != 9))
+						ok = false;
+				}
+				else if (visible && y >= 18 && y <= 20 && x >= 85 && x <= 100) {
+					if (x >= 99 ? v != 60 : (v != 60 && v != 9))
+						ok = false;
+				}
+				else if (v != 9)
+					ok = false;
+			}
+		}
+	}
+	st_pixel_buffer_destroy(pixels);
+	return ok;
+}
+
 int
 main(int argc, char **argv)
 {
@@ -86,6 +122,42 @@ main(int argc, char **argv)
 			++cycles;
 	}
 	CHECK(cycles >= 43 && cycles <= 45);
+
+	CHECK(st_term_session_send_text(session, ".", 1) == 0);
+	/* Normal mode starts a fresh text page. */
+	CHECK(wait_for_marker(session, 2) == 0);
+	CHECK(st_audio_runtime_pull(audio, tone, 4410) == 0);
+	uint64_t start, now;
+	CHECK(st_time_monotonic_ms(&start) == 0);
+	do {
+		CHECK(st_term_session_poll_display(session) == 0);
+		CHECK(st_time_monotonic_ms(&now) == 0 && now - start < 3000);
+		CHECK(st_term_session_wait(session, 200) == 0);
+	} while (!bars_match(console, true));
+	CHECK(st_term_session_send_text(session, ".", 1) == 0);
+	CHECK(wait_for_marker(session, 3) == 0);
+	/* Redefining track 1 moves it to the silent track's base, growing
+	 * downwards and cycling. Its previous footprint must be restored. */
+	unsigned seen = 0;
+	CHECK(st_time_monotonic_ms(&start) == 0);
+	do {
+		CHECK(st_term_session_poll_display(session) == 0);
+		const struct st_console_rect area = {20, 60, 24, 2};
+		struct st_pixel_buffer      *p    = NULL;
+		CHECK(st_console_get_pixels(&p, console, &area, false) == 0);
+		unsigned colour = p->primary[20];
+		if (colour >= 32 && colour <= 34) {
+			CHECK(p->primary[0] == 9 && p->alternate[0] == 9);
+			CHECK(p->primary[44] == colour && p->alternate[46] == colour && p->primary[47] == 9);
+			seen |= 1u << (colour - 32);
+		}
+		st_pixel_buffer_destroy(p);
+		CHECK(st_time_monotonic_ms(&now) == 0 && now - start < 3000);
+		CHECK(st_term_session_wait(session, 200) == 0);
+	} while (seen != 7);
+	CHECK(st_term_session_send_text(session, ".", 1) == 0);
+	CHECK(wait_for_marker(session, 4) == 0);
+	CHECK(bars_match(console, false));
 
 	st_term_session_destroy(&session);
 	CHECK(st_connection_close(connection) == 0);

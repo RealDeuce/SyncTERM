@@ -52,6 +52,7 @@ st_ddofx_graphics_exit(struct st_ddofx *ddo)
 	if (!g)
 		return;
 	free(g->simple);
+	free(g->bars);
 	st_ddofx_free_sprites(g);
 	st_cterm_destroy(&g->text);
 	st_font_catalog_destroy(g->fonts);

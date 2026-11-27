@@ -18,6 +18,15 @@ ddofx-audio)
 	test "$(dd bs=1 count=2 2>/dev/null | od -An -tx1 | tr -d ' \n')" = 59ff
 	printf '!'
 	dd bs=1 count=1 >/dev/null 2>&1
+	printf '\035{LIGMODE}\035{LIGMODE}\035{2C,9}\035{2aFILL}\035{2CPYWP2VP}\035{mBARS.MOD}'
+	printf '\035{7DEFBAR,1,20,60,4,3,30,0,0,0,0,1}\035{7DEFBAR,2,40,60,4,3,40,0,0,0,0,2}'
+	printf '\035{7DEFBAR,3,60,60,4,3,50,0,0,0,0,3}\035{7DEFBAR,4,100,60,4,3,60,0,0,0,0,4}'
+	printf '\035{7DEFBAR,5,120,60,4,3,70,0,0,0,0,1}\035{7MUSBAR,1}!'
+	dd bs=1 count=1 >/dev/null 2>&1
+	printf '\035{7DEFBAR,1,40,60,4,3,32,1,32,34,1,2}!'
+	dd bs=1 count=1 >/dev/null 2>&1
+	printf '\035{7MUSBAR,0}\035{7CLRBAR}!'
+	dd bs=1 count=1 >/dev/null 2>&1
 	;;
 auto-transfer)
 	stty raw -echo

@@ -5,6 +5,10 @@
 #include "st_cterm.h"
 #include "st_ddofx.h"
 
+bool st_ddofx_bar_command(struct st_ddofx *, char *body);
+uint32_t st_ddofx_bar_wait_ms(const struct st_ddofx *);
+void st_ddofx_bar_poll(struct st_ddofx *);
+
 bool          st_ddofx_svga(const struct st_ddofx_sink *);
 void          st_ddofx_graphics_enter(struct st_ddofx *, const struct st_ddofx_sink *);
 void          st_ddofx_graphics_exit(struct st_ddofx *);

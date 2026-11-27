@@ -2,11 +2,19 @@
 #ifndef ST_TRACKER_H_
 #define ST_TRACKER_H_
 
+#include <stdint.h>
 #include <stdio.h>
 
 #include "st_audio_runtime.h"
 
 struct st_tracker;
+
+enum {
+	ST_TRACKER_METER_CHANNELS = 16
+};
+
+/* Levels for the first pattern channels, normalized to 0..255. */
+unsigned st_tracker_levels(const struct st_tracker *, uint8_t levels[ST_TRACKER_METER_CHANNELS]);
 /* The caller owns the file and can close it as soon as this call returns.
  * One owner thread controls the player; the audio engine clocks playback. */
 struct st_tracker *st_tracker_play(st_audio_runtime_t *, FILE *, unsigned volume);

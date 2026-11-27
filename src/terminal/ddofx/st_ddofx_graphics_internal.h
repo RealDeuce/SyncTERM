@@ -33,6 +33,7 @@ struct st_ddofx_sprite {
 struct st_ddofx_graphics {
 	struct st_ddofx_sprite  sprites[SPRITE_COUNT];
 	struct st_ddofx_simple *simple;
+	struct st_ddofx_bars   *bars;
 
 	st_console_t            *display, *view;
 	st_font_catalog_t       *fonts;

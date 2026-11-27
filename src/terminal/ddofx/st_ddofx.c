@@ -193,6 +193,8 @@ execute(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *body)
 		ddo->background_paused = true;
 	else if (matches(body, "~UNPAUSEBAK"))
 		ddo->background_paused = false;
+	else if (body[0] == '7' && !ddo->ignoring && ddo->graphics && st_ddofx_bar_command(ddo, body))
+		return;
 	else if (body[0] == '~' || (!ddo->ignoring && (body[0] == '7' || body[0] == '4')))
 		st_ddofx_script_command(ddo, sink, body);
 	else if (ddo->ignoring)
@@ -372,13 +374,16 @@ uint32_t
 st_ddofx_wait_ms(const struct st_ddofx *ddo)
 {
 	uint32_t audio = st_ddofx_sample_wait_ms(ddo), event = st_ddofx_event_wait_ms(ddo);
-	return audio < event ? audio : event;
+	uint32_t bars = st_ddofx_bar_wait_ms(ddo);
+	uint32_t wait = audio < event ? audio : event;
+	return bars < wait ? bars : wait;
 }
 
 int
 st_ddofx_poll(struct st_ddofx *ddo, const struct st_ddofx_sink *sink)
 {
 	st_ddofx_samples_poll(ddo);
+	st_ddofx_bar_poll(ddo);
 	st_ddofx_event_poll(ddo);
 	/* Yield back to the session between slices so long or infinite scripts
 	 * cannot prevent local disconnect, redraws or transfer servicing. */

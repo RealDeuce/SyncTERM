@@ -345,10 +345,13 @@ main(void)
 	CHECK(command_reply(&ddo, &sink, "mA", ""));
 	CHECK(command_reply(&ddo, &sink, "dGETMUSIC", "A\xff"));
 	CHECK(has_signal(sink.audio));
+	uint8_t levels[ST_TRACKER_METER_CHANNELS];
+	CHECK(st_tracker_levels(ddo.player, levels) == 4 && levels[0] > 0 && !levels[1] && !levels[2] && !levels[3]);
 	CHECK(command_reply(&ddo, &sink, "mMISSING", ""));
 	CHECK(command_reply(&ddo, &sink, "dGETMUSIC", "A\xff"));
 	CHECK(command_reply(&ddo, &sink, "MMPR", ""));
 	CHECK(!has_signal(sink.audio));
+	CHECK(st_tracker_levels(ddo.player, levels) == 4 && levels[0] == 0);
 	CHECK(command_reply(&ddo, &sink, "MMPAT,1", ""));
 	CHECK(!has_signal(sink.audio));
 	CHECK(command_reply(&ddo, &sink, "MMPR", ""));
@@ -356,6 +359,7 @@ main(void)
 	CHECK(command_reply(&ddo, &sink, "mB", ""));
 	CHECK(command_reply(&ddo, &sink, "dGETMUSIC", "B\xff"));
 	CHECK(has_signal(sink.audio));
+	CHECK(st_tracker_levels(ddo.player, levels) >= 1 && levels[0] > 0);
 	CHECK(command_reply(&ddo, &sink, "MSVOL,0", ""));
 	CHECK(!has_signal(sink.audio));
 	CHECK(command_reply(&ddo, &sink, "MMVOL,99", ""));
