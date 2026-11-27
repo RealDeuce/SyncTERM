@@ -69,89 +69,17 @@ copy_background(const struct presentation *p, struct animation *a, bool save)
 	}
 }
 
-/* Split a changed rectangle around covering windows. Repainting a covering
- * window from its VGP here would expose drawings awaiting an explicit refresh. */
-static void
-publish_area(const struct presentation *p, const struct st_pixel_buffer *pixels, struct bounds b,
-    unsigned next, int dx, int dy)
-{
-	if (b.left > b.right || b.top > b.bottom)
-		return;
-	const struct st_ddofx_graphics *g = p->ddo->graphics;
-	for (unsigned i = next; i <= GRAPHIC_WINDOWS; ++i) {
-		const struct st_ddofx_graphic_window *w = &g->graphic_windows[i];
-		if (!w->visual || w->hidden || i == p->window
-		    || (i < p->window && i != g->active_graphic_window))
-			continue;
-		struct bounds f = w->frame;
-		if (f.right < b.left || f.left > b.right || f.bottom < b.top || f.top > b.bottom)
-			continue;
-		if (b.top < f.top) {
-			publish_area(p, pixels, (struct bounds){b.left, b.right, b.top, f.top - 1}, i+1, dx, dy);
-			b.top = f.top;
-		}
-		if (b.bottom > f.bottom) {
-			publish_area(p, pixels, (struct bounds){b.left, b.right, f.bottom + 1, b.bottom}, i+1, dx, dy);
-			b.bottom = f.bottom;
-		}
-		if (b.left < f.left)
-			publish_area(p, pixels, (struct bounds){b.left, f.left - 1, b.top, b.bottom}, i+1, dx, dy);
-		if (b.right > f.right)
-			publish_area(p, pixels, (struct bounds){f.right + 1, b.right, b.top, b.bottom}, i+1, dx, dy);
-		return;
-	}
-
-	for (int y = b.top; y <= b.bottom; ++y) {
-		const uint8_t *src = p->hidden + (y - dy) * p->width + (b.left - dx);
-		for (int x = b.left; x <= b.right; ++x)
-			pixels->primary[y * WIDTH + x] = pixels->alternate[y * WIDTH + x] = *src++;
-	}
-	if (!p->window) {
-		struct st_console_rect area = {b.left, b.top, b.right - b.left + 1, b.bottom - b.top + 1};
-		st_ddofx_repaint_clocks(p->ddo, pixels, &area);
-		st_ddofx_repaint_marquees(p->ddo, pixels, &area);
-	}
-}
-
 static int
 publish(void *context, const struct st_pixel_buffer *pixels, struct st_console_rect *damage)
 {
 	const struct presentation *p = context;
 	if (pixels->width != WIDTH || pixels->height != HEIGHT)
 		return 0;
-	struct bounds view = {0, WIDTH - 1, 0, HEIGHT - 1};
-	int dx = 0, dy = 0;
-	if (p->window) {
-		const struct st_ddofx_graphic_window *w = &p->ddo->graphics->graphic_windows[p->window];
-		view = st_ddofx_window_interior(w);
-		dx = view.left - w->x;
-		dy = view.top - w->y;
-	}
 	struct bounds changed = {WIDTH, -1, HEIGHT, -1};
 	for (unsigned i = 0; i < p->count; ++i) {
 		struct st_console_rect r = p->areas[i];
-		int x = (int)r.x + dx, y = (int)r.y + dy;
-		struct bounds b = {x, x + (int)r.width - 1, y, y + (int)r.height - 1};
-		if (b.left < view.left)
-			b.left = view.left;
-		if (b.right > view.right)
-			b.right = view.right;
-		if (b.top < view.top)
-			b.top = view.top;
-		if (b.bottom > view.bottom)
-			b.bottom = view.bottom;
-		if (b.left > b.right || b.top > b.bottom)
-			continue;
-		unsigned first_cover = p->window && p->window == p->ddo->graphics->active_graphic_window ? GRAPHIC_WINDOWS + 1 : 1;
-		publish_area(p, pixels, b, first_cover, dx, dy);
-		if (b.left < changed.left)
-			changed.left = b.left;
-		if (b.right > changed.right)
-			changed.right = b.right;
-		if (b.top < changed.top)
-			changed.top = b.top;
-		if (b.bottom > changed.bottom)
-			changed.bottom = b.bottom;
+		struct bounds area = {r.x, r.x + r.width - 1, r.y, r.y + r.height - 1};
+		st_ddofx_publish_page_area(p->ddo, p->window, pixels, area, &changed);
 	}
 	if (changed.right >= changed.left)
 		*damage = (struct st_console_rect){changed.left, changed.top, changed.right - changed.left + 1,

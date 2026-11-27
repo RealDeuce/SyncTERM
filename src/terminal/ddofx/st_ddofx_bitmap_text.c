@@ -256,7 +256,7 @@ print_text(struct st_ddofx *ddo, char *args)
 	const uint8_t *text = (const uint8_t *)st_ddofx_value(ddo, args);
 	if (strlen(name) != 2 || !st_ddofx_page_name(name, &page))
 		return;
-	struct st_ddofx_surface target = st_ddofx_surface(g, page);
+	struct st_ddofx_surface target = st_ddofx_surface(g, g->alert_graphic_window, page);
 	if (!*text
 	    || strlen((const char *)text) > MAX_TEXT || n[0] < 0 || n[1] <= n[0] || n[1] >= target.width || n[2] < 0
 	    || n[3] <= n[2] || n[3] >= target.height || (unsigned)n[4] > 254 || (unsigned)n[5] > 255

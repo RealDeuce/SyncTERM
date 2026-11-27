@@ -259,7 +259,7 @@ void
 st_ddofx_print_text_box(struct st_ddofx *ddo, enum page page, struct bounds box, const uint8_t *text)
 {
 	struct st_ddofx_graphics *g = ddo->graphics;
-	struct text_box fallback = {.box = box, .run = {.g = g, .target = st_ddofx_surface(g, page),
+	struct text_box fallback = {.box = box, .run = {.g = g, .target = st_ddofx_surface(g, g->alert_graphic_window, page),
 	    .font = st_ddofx_vga_bitmap(ddo), .text = text, .length = (int)strlen((const char *)text),
 	    .ink = 15, .paper = 8}};
 	struct bounds clip = fallback.run.target.clip;
@@ -304,7 +304,7 @@ st_ddofx_print_vga_text(struct st_ddofx *ddo, const char *suffix, char *args)
 	enum page page = VISUAL;
 	if (*suffix && (strlen(suffix) != 2 || !st_ddofx_page_name(suffix, &page)))
 		return;
-	run.target = st_ddofx_surface(run.g, page);
+	run.target = st_ddofx_surface(run.g, run.g->alert_graphic_window, page);
 	int32_t n[4];
 	for (unsigned i = 0; i < 4; ++i)
 		if (!st_ddofx_field_number(ddo, &args, &n[i]))

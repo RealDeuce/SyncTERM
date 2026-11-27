@@ -36,9 +36,9 @@ st_ddofx_svga(const struct st_ddofx_sink *sink)
 }
 
 struct st_ddofx_surface
-st_ddofx_surface(struct st_ddofx_graphics *g, enum page page)
+st_ddofx_surface(struct st_ddofx_graphics *g, unsigned owner, enum page page)
 {
-	struct st_ddofx_graphic_window *w = &g->graphic_windows[g->alert_graphic_window];
+	struct st_ddofx_graphic_window *w = &g->graphic_windows[owner];
 	if (w->visual && (page == VISUAL || page == HIDDEN))
 		return (struct st_ddofx_surface){page == VISUAL ? w->visual : w->hidden_page,
 		    w->width, w->height, w->clip};
@@ -69,7 +69,7 @@ clear_graphics_objects(struct st_ddofx_graphics *g)
 	free(g->mouse.regions);
 	g->mouse = (struct st_ddofx_mouse_state){0};
 	st_ddofx_mouse_defaults(&g->mouse);
-	st_ddofx_grid_destroy(g, false);
+	st_ddofx_grid_destroy(g);
 	st_ddofx_clear_polygons(g);
 	st_ddofx_ray_stop_recording(g->ray);
 	st_ddofx_ray_clear_profiles(g->ray);

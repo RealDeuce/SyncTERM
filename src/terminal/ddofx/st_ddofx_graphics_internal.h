@@ -29,7 +29,7 @@ struct st_ddofx_surface {
 	struct bounds clip;
 };
 
-struct st_ddofx_surface st_ddofx_surface(struct st_ddofx_graphics *, enum page);
+struct st_ddofx_surface st_ddofx_surface(struct st_ddofx_graphics *, unsigned owner, enum page);
 
 enum {
 	SPRITE_COUNT = 3200
@@ -167,6 +167,9 @@ void st_ddofx_free_graphic_windows(struct st_ddofx_graphics *);
 bool st_ddofx_graphic_window_command(struct st_ddofx *, const struct st_ddofx_sink *, const char *, char *);
 struct bounds st_ddofx_window_interior(const struct st_ddofx_graphic_window *);
 void st_ddofx_animation_window_closed(struct st_ddofx_graphics *, unsigned);
+void st_ddofx_publish_page_area(struct st_ddofx *, unsigned owner, const struct st_pixel_buffer *,
+    struct bounds area, struct bounds *damage);
+void st_ddofx_grid_window_closed(struct st_ddofx_graphics *, unsigned slot);
 void st_ddofx_refresh_window_area(struct st_ddofx *, unsigned slot, struct bounds area);
 void st_ddofx_refresh_graphic_interior(struct st_ddofx *);
 struct st_ddofx_sprite *st_ddofx_find_sprite(struct st_ddofx_graphics *, const char *);
@@ -215,7 +218,7 @@ void    st_ddofx_select_window_font(struct st_ddofx *, const struct st_ddofx_sin
     const char *);
 void st_ddofx_grid_command(struct st_ddofx *, const char *, char *);
 void st_ddofx_rotation(int angle, double *cosine, double *sine);
-void st_ddofx_grid_destroy(struct st_ddofx_graphics *, bool erase);
+void st_ddofx_grid_destroy(struct st_ddofx_graphics *);
 bool    st_ddofx_page_name(const char *, enum page *);
 void    st_ddofx_bitmap_text(struct st_ddofx *, const struct st_ddofx_sink *, const char *, char *);
 bool    st_ddofx_create_text_page(struct st_ddofx_graphics *, struct st_ddofx_text_page *,

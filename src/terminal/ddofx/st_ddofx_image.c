@@ -278,8 +278,8 @@ st_ddofx_gadget_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, 
 		return;
 	if (!st_ddofx_numbers(ddo, args, im.n, im.op == ROTATE ? 10 : 6))
 		return;
-	im.src = st_ddofx_surface(ddo->graphics, src);
-	im.dst = st_ddofx_surface(ddo->graphics, dst);
+	im.src = st_ddofx_surface(ddo->graphics, ddo->graphics->alert_graphic_window, src);
+	im.dst = st_ddofx_surface(ddo->graphics, ddo->graphics->alert_graphic_window, dst);
 	im.box = (struct bounds) {im.n[0], im.n[1], im.n[2], im.n[3]};
 	if (im.box.left < 0 || im.box.right >= im.src.width || im.box.left > im.box.right || im.box.top < 0
 	    || im.box.bottom >= im.src.height || im.box.top > im.box.bottom)

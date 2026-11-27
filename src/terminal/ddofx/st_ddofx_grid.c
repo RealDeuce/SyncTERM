@@ -17,7 +17,7 @@ struct st_ddofx_grid {
 	int          x, y, columns, rows, view_w, view_h, tile_w, tile_h;
 	int          left, top;
 	uint64_t     due;
-	unsigned     frame;
+	unsigned     frame, owner;
 	bool         animated, drawn;
 	uint8_t     *underlay;
 	struct tile *visible;
@@ -29,52 +29,101 @@ enum {
 };
 
 struct grid_update {
-	const struct st_ddofx_graphics *graphics;
-	bool                            animation_only;
+	struct st_ddofx *ddo;
+	bool animation_only;
 };
+
+static bool
+grid_fits(const struct st_ddofx_graphics *g)
+{
+	const struct st_ddofx_grid *grid = g->grid;
+	const struct st_ddofx_graphic_window *w = &g->graphic_windows[grid->owner];
+	return !grid->owner || (w->visual && grid->x + grid->view_w * grid->tile_w <= w->width
+	    && grid->y + grid->view_h * grid->tile_h <= w->height);
+}
+
+static void
+publish_tiles(const struct grid_update *update, const struct st_pixel_buffer *pixels,
+    struct bounds area, struct bounds *damage)
+{
+	struct st_ddofx_graphics *g = update->ddo->graphics;
+	unsigned owner = g->grid->owner;
+	if (owner) {
+		struct st_ddofx_graphic_window *w = &g->graphic_windows[owner];
+		for (int y = area.top; y <= area.bottom; ++y) {
+			size_t at = (size_t)y * w->width + area.left;
+			memcpy(w->visual + at, w->hidden_page + at, area.right - area.left + 1);
+		}
+	}
+	st_ddofx_publish_page_area(update->ddo, owner, pixels, area, damage);
+}
 
 static int
 publish(void *context, const struct st_pixel_buffer *pixels, struct st_console_rect *changed)
 {
-	const struct grid_update       *update = context;
-	const struct st_ddofx_graphics *g      = update->graphics;
-	const struct st_ddofx_grid     *grid   = g->grid;
+	const struct grid_update *update = context;
+	const struct st_ddofx_grid *grid = update->ddo->graphics->grid;
 	if (pixels->width != WIDTH || pixels->height != HEIGHT)
 		return 0;
-	for (int row = 0; row < grid->view_h; ++row) {
-		for (int col = 0; col < grid->view_w; ++col) {
-			const struct tile *tile = &grid->visible[row * grid->view_w + col];
-			if (update->animation_only && tile->first == tile->last)
-				continue;
-			int x = grid->x + col * grid->tile_w, y = grid->y + row * grid->tile_h;
-			for (int i = 0; i < grid->tile_h; ++i) {
-				size_t offset = (size_t)(y + i) * WIDTH + x;
-				for (int j = 0; j < grid->tile_w; ++j)
-					pixels->primary[offset + j] = pixels->alternate[offset + j] =
-					    g->page[HIDDEN][y + i][x + j];
+	struct bounds damage = {WIDTH, -1, HEIGHT, -1};
+	if (!update->animation_only) {
+		struct bounds area = {grid->x, grid->x + grid->view_w * grid->tile_w - 1,
+		    grid->y, grid->y + grid->view_h * grid->tile_h - 1};
+		publish_tiles(update, pixels, area, &damage);
+	}
+	else {
+		for (int row = 0; row < grid->view_h; ++row) {
+			const struct tile *tiles = grid->visible + row * grid->view_w;
+			int top = grid->y + row * grid->tile_h;
+			for (int col = 0; col < grid->view_w;) {
+				if (tiles[col].first == tiles[col].last) {
+					++col;
+					continue;
+				}
+				int left = grid->x + col * grid->tile_w;
+				do {
+					++col;
+				} while (col < grid->view_w && tiles[col].first != tiles[col].last);
+				struct bounds area = {left, grid->x + col * grid->tile_w - 1, top, top + grid->tile_h - 1};
+				publish_tiles(update, pixels, area, &damage);
 			}
 		}
 	}
-	*changed =
-	    (struct st_console_rect) {grid->x, grid->y, grid->view_w * grid->tile_w, grid->view_h * grid->tile_h};
+	if (damage.left <= damage.right)
+		*changed = (struct st_console_rect){damage.left, damage.top, damage.right - damage.left + 1,
+		    damage.bottom - damage.top + 1};
 	return 0;
 }
 
 void
-st_ddofx_grid_destroy(struct st_ddofx_graphics *g, bool erase)
+st_ddofx_grid_window_closed(struct st_ddofx_graphics *g, unsigned slot)
 {
-	struct st_ddofx_grid *grid = g->grid;
-	if (!grid)
-		return;
-	if (erase && grid->drawn) {
-		int width = grid->view_w * grid->tile_w;
-		for (int y = 0; y < grid->view_h * grid->tile_h; ++y)
-			memcpy(&g->page[HIDDEN][grid->y + y][grid->x], grid->underlay + y * width, width);
-		(void)st_console_modify_pixels(g->display, publish, &(struct grid_update) {g, false});
-	}
-	free(grid->underlay);
-	free(grid);
+	if (g->grid && g->grid->owner == slot)
+		g->grid->drawn = false;
+}
+
+void
+st_ddofx_grid_destroy(struct st_ddofx_graphics *g)
+{
+	if (g->grid)
+		free(g->grid->underlay);
+	free(g->grid);
 	g->grid = NULL;
+}
+
+static void
+remove_grid(struct st_ddofx *ddo)
+{
+	struct st_ddofx_graphics *g = ddo->graphics;
+	struct st_ddofx_grid *grid = g->grid;
+	if (grid && grid->drawn && grid_fits(g)) {
+		int width = grid->view_w * grid->tile_w;
+		struct st_ddofx_surface target = st_ddofx_surface(g, grid->owner, HIDDEN);
+		for (int y = 0; y < grid->view_h * grid->tile_h; ++y)
+			memcpy(target.data + (grid->y + y) * target.width + grid->x, grid->underlay + y * width, width);
+		(void)st_console_modify_pixels(g->display, publish, &(struct grid_update){ddo, false});
+	}
+	st_ddofx_grid_destroy(g);
 }
 
 static void
@@ -84,9 +133,11 @@ define(struct st_ddofx *ddo, char *args)
 	if (!st_ddofx_numbers(ddo, args, n, 8))
 		return;
 	int x = n[0], y = n[1], cols = n[2], rows = n[3], vw = n[4], vh = n[5], tw = n[6], th = n[7];
-	if ((unsigned)x >= WIDTH || (unsigned)y >= HEIGHT || cols < 1 || cols > 150 || rows < 1 || rows > 150
-	    || vw < 1 || vw > cols || vh < 1 || vh > rows || tw < 1 || tw > (WIDTH - x) / vw || th < 1
-	    || th > (HEIGHT - y) / vh)
+	unsigned owner = ddo->graphics->alert_graphic_window;
+	struct st_ddofx_surface target = st_ddofx_surface(ddo->graphics, owner, HIDDEN);
+	if (x < 0 || x >= target.width || y < 0 || y >= target.height || cols < 1 || cols > 150 || rows < 1 || rows > 150
+	    || vw < 1 || vw > cols || vh < 1 || vh > rows || tw < 1 || tw > (target.width - x) / vw || th < 1
+	    || th > (target.height - y) / vh)
 		return;
 	struct st_ddofx_grid *grid = calloc(1, sizeof(*grid) + (cols * rows + vw * vh) * sizeof(struct tile));
 	if (!grid)
@@ -96,6 +147,7 @@ define(struct st_ddofx *ddo, char *args)
 		free(grid);
 		return;
 	}
+	grid->owner = owner;
 	grid->x       = x;
 	grid->y       = y;
 	grid->columns = cols;
@@ -105,7 +157,7 @@ define(struct st_ddofx *ddo, char *args)
 	grid->tile_w  = tw;
 	grid->tile_h  = th;
 	grid->visible = grid->cells + cols * rows;
-	st_ddofx_grid_destroy(ddo->graphics, true);
+	remove_grid(ddo);
 	ddo->graphics->grid = grid;
 }
 
@@ -163,14 +215,21 @@ assign(struct st_ddofx *ddo, char *args, bool fill)
 }
 
 static void
-draw(struct st_ddofx_graphics *g, bool tick)
+draw(struct st_ddofx *ddo, bool tick)
 {
+	struct st_ddofx_graphics *g = ddo->graphics;
+	if (!grid_fits(g))
+		return;
+
 	struct st_ddofx_grid *grid    = g->grid;
 	int                   width   = grid->view_w * grid->tile_w;
 	int32_t               saved_x = g->cx, saved_y = g->cy;
-	if (!grid->drawn)
+	struct st_ddofx_surface target = st_ddofx_surface(g, grid->owner, HIDDEN);
+	if (!grid->drawn) {
+		tick = false;
 		for (int y = 0; y < grid->view_h * grid->tile_h; ++y)
-			memcpy(grid->underlay + y * width, &g->page[HIDDEN][grid->y + y][grid->x], width);
+			memcpy(grid->underlay + y * width, target.data + (grid->y + y) * target.width + grid->x, width);
+	}
 	grid->drawn    = true;
 	grid->animated = false;
 	for (int row = 0; row < grid->view_h; ++row) {
@@ -187,21 +246,21 @@ draw(struct st_ddofx_graphics *g, bool tick)
 			int dx = col * grid->tile_w, dy = row * grid->tile_h;
 			int x = grid->x + dx, y = grid->y + dy, bottom = y + grid->tile_h - 1;
 			if (t->background && fits(g, t->background - 1))
-				st_ddofx_draw_sprite(g, 0, &g->sprites[t->background - 1], HIDDEN, 'P', x, bottom);
+				st_ddofx_draw_sprite(g, grid->owner, &g->sprites[t->background - 1], HIDDEN, 'P', x, bottom);
 			else
 				for (int i = 0; i < grid->tile_h; ++i)
-					memcpy(&g->page[HIDDEN][y + i][x], grid->underlay + (dy + i) * width + dx,
+					memcpy(target.data + (y + i) * target.width + x, grid->underlay + (dy + i) * width + dx,
 					    grid->tile_w);
 			if (t->first) {
 				unsigned slot = t->first - 1 + (grid->frame - t->phase) % (t->last - t->first + 1);
 				if (fits(g, slot))
-					st_ddofx_draw_sprite(g, 0, &g->sprites[slot], HIDDEN, 'D', x, bottom);
+					st_ddofx_draw_sprite(g, grid->owner, &g->sprites[slot], HIDDEN, 'D', x, bottom);
 			}
 		}
 	}
 	g->cx = saved_x;
 	g->cy = saved_y;
-	(void)st_console_modify_pixels(g->display, publish, &(struct grid_update) {g, tick});
+	(void)st_console_modify_pixels(g->display, publish, &(struct grid_update) {ddo, tick});
 	if (grid->animated && !grid->due) {
 		uint64_t now;
 		if (st_time_monotonic_ms(&now) == 0)
@@ -216,7 +275,7 @@ st_ddofx_grid_wait_ms(const struct st_ddofx *ddo)
 {
 	const struct st_ddofx_grid *grid = ddo->graphics ? ddo->graphics->grid : NULL;
 	uint64_t                    now;
-	if (!grid || !grid->due || ddo->background_paused || st_time_monotonic_ms(&now) != 0)
+	if (!grid || !grid->due || ddo->background_paused || (grid->owner && grid->owner != ddo->graphics->active_graphic_window) || !grid_fits(ddo->graphics) || st_time_monotonic_ms(&now) != 0)
 		return UINT32_MAX;
 	return grid->due > now ? (uint32_t)(grid->due - now) : 0;
 }
@@ -228,7 +287,7 @@ st_ddofx_grid_poll(struct st_ddofx *ddo)
 		struct st_ddofx_grid *grid = ddo->graphics->grid;
 		++grid->frame;
 		grid->due = 0;
-		draw(ddo->graphics, true);
+		draw(ddo, true);
 	}
 }
 
@@ -242,9 +301,9 @@ st_ddofx_grid_command(struct st_ddofx *ddo, const char *op, char *args)
 	else if (!grid)
 		return;
 	else if (!ascii_case_compare(op, "5KILGRID") && !args)
-		st_ddofx_grid_destroy(g, true);
+		remove_grid(ddo);
 	else if (!ascii_case_compare(op, "5DRWGRID") && !args)
-		draw(g, false);
+		draw(ddo, false);
 	else if (!ascii_case_compare(op, "5CHGGRID") || !ascii_case_compare(op, "5FILGRID"))
 		assign(ddo, args, !ascii_case_compare(op, "5FILGRID"));
 	else if (!ascii_case_compare(op, "5POSGRID") || !ascii_case_compare(op, "5MOVGRID")) {
@@ -258,7 +317,7 @@ st_ddofx_grid_command(struct st_ddofx *ddo, const char *op, char *args)
 			return;
 		grid->left = (int)left;
 		grid->top  = (int)top;
-		draw(g, false);
+		draw(ddo, false);
 	}
 	else if (!ascii_case_compare(op, "5POSTILE") || !ascii_case_compare(op, "5MOVTILE")
 	         || !ascii_case_compare(op, "5KILTILE")) {
@@ -279,6 +338,6 @@ st_ddofx_grid_command(struct st_ddofx *ddo, const char *op, char *args)
 			dst->phase = src->phase;
 		}
 		src->first = src->last = 0;
-		draw(g, false);
+		draw(ddo, false);
 	}
 }

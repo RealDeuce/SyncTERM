@@ -64,7 +64,7 @@ The raycaster records changed camera positions and headings as six-byte REC reco
 
 The Normal-mode desktop landscape accepts a seed or a 255 × 255 indexed map from the visual or work page. The lower-left map pixel is world coordinate (0,0). The camera has 256 positions on each axis, so an imported map wraps its extra row and column to the opposite edge. The BBS can set or adjust the camera, query its position and direction, and fly over the terrain in a 320 × 200 viewport. Clouds have their own placement. The last frame stays visible when flight stops. Window ownership and sprite animation profiles are tracked separately below.
 
-Normal mode supports a tile map of up to 150 × 150 cells. The host can fill either layer, move the viewport, move or remove foreground tiles, and animate consecutive sprite frames. Grid assignments become visible on a draw. Movement redraws immediately.
+Normal mode supports a tile map of up to 150 × 150 cells. The host can fill either layer, move the viewport, move or remove foreground tiles, and animate consecutive sprite frames. Grid assignments become visible on a draw. Movement redraws immediately. A grid created in an alerted window retains that window as its owner. Its tiles animate while the owner is active, and removing the grid restores the underlying page.
 
 Loose-file queries read the entry’s `DDOFX/MUSIC`, `DDOFX/FONTS`, and `DDOFX/BBSTHEME` directories. Professional queries use `DDOFX/TERMS/<client>`. Names use DOS-style case matching. The timestamp is local modification time with DOS two-second precision. `8EXEC` consumes the command without starting a program.
 
@@ -465,16 +465,16 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 13094 | 3D MERGE OBJECT | DDO-FX (NM) | Connected on the desktop |
 | 13111 | 3D MORPH OBJECT | DDO-FX (NM) | Connected on the desktop |
 | 13144 | 3D PLAY OBJECT | DDO-FX (NM) | Connected on the desktop |
-| 13158 | GD DEFINE GRID | DDO-FX (NM) | Connected on the desktop |
-| 13236 | GD CHANGE GRID | DDO-FX (NM) | Connected on the desktop |
-| 13286 | GD FILL GRID | DDO-FX (NM) | Connected on the desktop |
-| 13322 | GD KILL GRID | DDO-FX (NM) | Connected on the desktop |
-| 13330 | GD DRAW GRID | DDO-FX (NM) | Connected on the desktop |
-| 13382 | GD POS GRID | DDO-FX (NM) | Connected on the desktop |
-| 13410 | GD MOVE GRID | DDO-FX (NM) | Connected on the desktop |
-| 13432 | GD POS TILE | DDO-FX (NM) | Connected on the desktop |
-| 13451 | GD MOVE TILE | DDO-FX (NM) | Connected on the desktop |
-| 13473 | GD KILL TILE | DDO-FX (NM) | Connected on the desktop |
+| 13158 | GD DEFINE GRID | DDO-FX (NM) | Connected on the desktop and window virtual pages |
+| 13236 | GD CHANGE GRID | DDO-FX (NM) | Connected on the desktop and window virtual pages |
+| 13286 | GD FILL GRID | DDO-FX (NM) | Connected on the desktop and window virtual pages |
+| 13322 | GD KILL GRID | DDO-FX (NM) | Connected on the desktop and window virtual pages |
+| 13330 | GD DRAW GRID | DDO-FX (NM) | Connected on the desktop and window virtual pages |
+| 13382 | GD POS GRID | DDO-FX (NM) | Connected on the desktop and window virtual pages |
+| 13410 | GD MOVE GRID | DDO-FX (NM) | Connected on the desktop and window virtual pages |
+| 13432 | GD POS TILE | DDO-FX (NM) | Connected on the desktop and window virtual pages |
+| 13451 | GD MOVE TILE | DDO-FX (NM) | Connected on the desktop and window virtual pages |
+| 13473 | GD KILL TILE | DDO-FX (NM) | Connected on the desktop and window virtual pages |
 | 13488 | SET SLEEP DISCONNECT | DDO-FX (NM) | Pending |
 | 13544 | SET PING | DDO-FX (NM) | Pending |
 | 13620 | ROTATE IMAGE | DDO-FX (NM) | Connected on desktop and window pages |
@@ -505,7 +505,7 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 15049 | RESTORE ALL GRAPHIC WINDOWS | DDO-FX (NM) | Connected |
 | 15056 | REFRESH ALL GRAPHIC WINDOWS | DDO-FX (NM) | Connected |
 | 15062 | REFRESH GRAPHIC WINDOWS INTERIOR | DDO-FX (NM) | Connected |
-| 15074 | ALERT GRAPHIC WINDOW | DDO-FX (NM) | Connected for primitives, PCX, visual/hidden page copies, sprites, mouse fields and regions, push buttons, radio buttons, checkboxes, animations, collisions, icons, bitmap and VGA text, and image transforms. Other attached operations pending |
+| 15074 | ALERT GRAPHIC WINDOW | DDO-FX (NM) | Connected for primitives, PCX, visual/hidden page copies, sprites, mouse fields and regions, push buttons, radio buttons, checkboxes, animations, collisions, icons, bitmap and VGA text, image transforms, and tile grids. Other attached operations pending |
 | 15094 | CALM GRAPHIC WINDOW | DDO-FX (NM) | Connected |
 | 15101 | CREATE ICON | DDO-FX (NM) | Connected |
 | 15135 | ICON MOUSE POINTER | DDO-FX (NM) | Connected |

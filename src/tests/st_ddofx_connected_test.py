@@ -1248,6 +1248,28 @@ def check_grid(t):
 
     assert row(b"5KILGRID", b"5DRWGRID") == [8]*6
 
+    t.case("grid draws, moves, animates and restores its original window after CALM")
+    window = b"2GWIN,1,20,119,30,129,1000,750,0,1,0,0,0,0,0,0,0,0,1,Tiles"
+    frame = t.exchange(commands(window, b"2CHVGP,1,900,650", b"2ALERTGWIN,1", b"2C,23", b"2aFILL",
+                                b"2CPYVP2HP", b"5DEFGRID,910,660,3,2,2,2,3,2", b"2CALMGWIN",
+                                b"5FILGRID,Grass,Grass,1", b"5CHGGRID,2,1,A,B,2", b"5DRWGRID"))
+    start = 40*640 + 30
+    assert list(frame.primary[start:start+6]) == list(frame.alternate[start:start+6]) == [3,3,3,3,9,3]
+    t.client.wait_for(lambda f: f.primary[start+4] == 12)
+    frame = t.exchange(commands(b"2AGWIN,0", b"5POSGRID,2,1"))
+    stationary = frame.primary[start+1]
+    frame = t.exchange(commands(b"w30"))
+    assert frame.primary[start+1] == stationary
+    t.exchange(commands(b"2AGWIN,1"))
+    t.client.wait_for(lambda f: f.primary[start+1] != stationary)
+    # Replacing the window drops the old underlay but keeps the stored map.
+    frame = t.exchange(commands(b"~PAUSEBAK", b"2CGWIN,1", window, b"2CHVGP,1,900,650", b"2ALERTGWIN,1",
+                                b"2C,24", b"2aFILL", b"2CPYVP2HP", b"2CALMGWIN", b"5DRWGRID"))
+    assert frame.primary[start] == 3
+    frame = t.exchange(commands(b"5KILGRID"))
+    assert frame.primary[start] == frame.alternate[start] == 24
+    t.exchange(commands(b"2CGWIN,1", b"~UNPAUSEBAK"))
+
 
 def check_bitmap_fonts(t, root):
     t.case("bitmap font selection, scaling, outlining and rotation")

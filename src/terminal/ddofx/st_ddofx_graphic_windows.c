@@ -227,6 +227,86 @@ refresh(struct st_ddofx *ddo, struct bounds area)
 	(void)st_console_modify_pixels(ddo->graphics->display, paint, &r);
 }
 
+/* Split a changed rectangle around covering windows. Repainting a covering
+ * window from its VGP here would expose drawings awaiting an explicit refresh. */
+static void
+publish_area(struct st_ddofx *ddo, unsigned owner, const struct st_pixel_buffer *pixels, struct bounds b,
+    unsigned next, int dx, int dy)
+{
+	if (b.left > b.right || b.top > b.bottom)
+		return;
+	const struct st_ddofx_graphics *g = ddo->graphics;
+	for (unsigned i = next; i <= GRAPHIC_WINDOWS; ++i) {
+		const struct st_ddofx_graphic_window *w = &g->graphic_windows[i];
+		if (!w->visual || w->hidden || i == owner
+		    || (i < owner && i != g->active_graphic_window))
+			continue;
+		struct bounds f = w->frame;
+		if (f.right < b.left || f.left > b.right || f.bottom < b.top || f.top > b.bottom)
+			continue;
+		if (b.top < f.top) {
+			publish_area(ddo, owner, pixels, (struct bounds){b.left, b.right, b.top, f.top - 1}, i+1, dx, dy);
+			b.top = f.top;
+		}
+		if (b.bottom > f.bottom) {
+			publish_area(ddo, owner, pixels, (struct bounds){b.left, b.right, f.bottom + 1, b.bottom}, i+1, dx, dy);
+			b.bottom = f.bottom;
+		}
+		if (b.left < f.left)
+			publish_area(ddo, owner, pixels, (struct bounds){b.left, f.left - 1, b.top, b.bottom}, i+1, dx, dy);
+		if (b.right > f.right)
+			publish_area(ddo, owner, pixels, (struct bounds){f.right + 1, b.right, b.top, b.bottom}, i+1, dx, dy);
+		return;
+	}
+
+	const struct st_ddofx_graphic_window *w = &g->graphic_windows[owner];
+	const uint8_t *source = owner ? w->visual : (const uint8_t *)g->page[HIDDEN];
+	int stride = owner ? w->width : WIDTH;
+	for (int y = b.top; y <= b.bottom; ++y) {
+		const uint8_t *src = source + (y - dy) * stride + (b.left - dx);
+		for (int x = b.left; x <= b.right; ++x)
+			pixels->primary[y * WIDTH + x] = pixels->alternate[y * WIDTH + x] = *src++;
+	}
+	if (!owner) {
+		struct st_console_rect area = {b.left, b.top, b.right - b.left + 1, b.bottom - b.top + 1};
+		st_ddofx_repaint_clocks(ddo, pixels, &area);
+		st_ddofx_repaint_marquees(ddo, pixels, &area);
+	}
+}
+
+void
+st_ddofx_publish_page_area(struct st_ddofx *ddo, unsigned owner, const struct st_pixel_buffer *pixels,
+    struct bounds area, struct bounds *damage)
+{
+	const struct st_ddofx_graphics *g = ddo->graphics;
+	struct bounds view = {0, WIDTH - 1, 0, HEIGHT - 1};
+	int dx = 0, dy = 0;
+	if (owner) {
+		const struct st_ddofx_graphic_window *w = &g->graphic_windows[owner];
+		if (!w->visual || w->hidden)
+			return;
+		view = st_ddofx_window_interior(w);
+		dx = view.left - w->x;
+		dy = view.top - w->y;
+		area.left += dx;
+		area.right += dx;
+		area.top += dy;
+		area.bottom += dy;
+	}
+	if (!intersect(&area, &view))
+		return;
+	unsigned first_cover = owner && owner == g->active_graphic_window ? GRAPHIC_WINDOWS + 1 : 1;
+	publish_area(ddo, owner, pixels, area, first_cover, dx, dy);
+	if (area.left < damage->left)
+		damage->left = area.left;
+	if (area.right > damage->right)
+		damage->right = area.right;
+	if (area.top < damage->top)
+		damage->top = area.top;
+	if (area.bottom > damage->bottom)
+		damage->bottom = area.bottom;
+}
+
 void
 st_ddofx_refresh_window_area(struct st_ddofx *ddo, unsigned slot, struct bounds area)
 {
@@ -258,8 +338,10 @@ dispose(struct st_ddofx_graphics *g, unsigned slot)
 	struct st_ddofx_graphic_window *w = &g->graphic_windows[slot];
 	if (g->frame_drag.slot == slot)
 		g->frame_drag = (struct st_ddofx_frame_drag){0};
-	if (w->visual)
+	if (w->visual) {
 		st_ddofx_animation_window_closed(g, slot);
+		st_ddofx_grid_window_closed(g, slot);
+	}
 	free(w->visual);
 	free(w->hidden_page);
 	*w = (struct st_ddofx_graphic_window) {0};
