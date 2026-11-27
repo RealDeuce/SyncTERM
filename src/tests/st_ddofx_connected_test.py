@@ -562,6 +562,9 @@ def check_drawing(t):
         reply = b"".join(str(colour).encode() + b"\xff" for colour in expected.values())
         t.exchange(commands(*bodies, *queries), reply)
 
+    t.case("work-page drawing, XOR and cursor-relative strokes")
+    scene([b"2C,6", b"2aFILL", b"2C,3", b"2aM,1,1", b"2aDRAWX,4,1", b"2aDRAWREL,0,2"],
+          {(0,1):6,(1,1):5,(3,1):5,(4,1):3,(4,2):3,(5,1):6})
     scene([b"2aERASE", b"2C,9", b"2aCLIP,10,20,15,25", b"2aM,5,20", b"2aDRAW,25,20",
            b"2aMVREL,-10,0", b"2aDRAWREL,0,12", b"2aP,25,20", b"2aPX,15,20"],
           {(9,20):0,(10,20):9,(15,20):0,(20,20):9,(21,20):0,(15,25):9,(15,26):0})
@@ -591,6 +594,15 @@ def check_drawing(t):
 
 
 def check_fades(t):
+    t.case("default ANSI palette restores exactly the first sixteen VGA registers")
+    # The SDK names the colours. The palette reference records their DAC values,
+    # including pure yellow at register 14.
+    ansi = [(0,0,0),(0,0,42),(0,42,0),(0,42,42),(42,0,0),(42,0,42),(42,21,0),(42,42,42),
+            (21,21,21),(21,21,63),(21,63,21),(21,63,63),(63,21,21),(63,21,63),(63,63,0),(63,63,63)]
+    probes = [f"2aGRGB,{i}".encode() for i in range(17)]
+    seed = [f"2aSRGB,{i},3,7,11".encode() for i in range(17)]
+    expected = b"".join(f"{r},{g},{b}".encode() + b"\xff" for r, g, b in ansi + [(3,7,11)])
+    t.exchange(commands(b"2aSTOREPAL", *seed, b"2aDEFPAL", *probes, b"2aRESTOREPAL"), expected)
     t.case("foreground palette fades and page preservation")
     t.exchange(commands(b"2C,17", b"2aFILL", b"2CPYWP2VP", b"2C,18", b"2aFILL", b"2CPYWP2BP",
                         b"2aSRGB,17,63,0,0", b"2aSRGB,18,0,63,0", b"2aSRGB,19,0,0,63"))
@@ -2692,6 +2704,8 @@ def check_choices(t, mouse):
     mouse(20,20,0)
     t.exchange(commands(one, last, b"5EXCBOX,300"), b"RA")
     t.exchange(commands(last, b"5SWPCBOX,1,299", b"5SWPCBOX,300,2", b"5EXCBOX,299"), b"ZRA")
+    t.exchange(commands(b"5SWPRBTN,1,297", b"5EXRBTN,1", b"5EXRBTN,297",
+                        b"5SWPRBTN,297,2", b"5EXRBTN,2"), b"RR")
     t.exchange(commands(b"5CRBUTTON,0", b"5EXRBTN,1", b"5EXCBOX,2"), b"ZA")
     t.exchange(commands(b"5CCHKBOX,0", b"5EXCBOX,299", b"2RESET"))
 
