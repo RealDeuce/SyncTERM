@@ -92,8 +92,8 @@ st_ddofx_define_button(struct st_ddofx *ddo, char *args)
 	b->window = g->alert_graphic_window;
 	b->pass = v[4] != 0;
 	b->mask = (unsigned)v[5];
-	st_ddofx_callback_define(ddo, &b->callback, reply, args);
-	b->callback.macro[95] = b->callback.reply[95] = 0;
+	st_ddofx_callback_define(ddo, &b->callback, reply, args, 95);
+
 	if ((unsigned)slot > g->buttons->count)
 		g->buttons->count = (unsigned)slot;
 	paint_button(ddo, b, up, WORK);

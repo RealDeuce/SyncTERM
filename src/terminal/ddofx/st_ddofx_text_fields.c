@@ -157,7 +157,7 @@ define(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, unsigned id, char
 		}
 		memcpy(f->font, current, sizeof(f->font));
 	}
-	st_ddofx_callback_define(ddo, &f->callback, "", args);
+	st_ddofx_callback_define(ddo, &f->callback, "", args, 100);
 	affix(f->before, st_ddofx_value(ddo, before));
 	affix(f->after, st_ddofx_value(ddo, after));
 	snprintf(f->text, sizeof(f->text), "%.*s", TEXT_MAX, st_ddofx_value(ddo, text));

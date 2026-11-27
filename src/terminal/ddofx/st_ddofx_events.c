@@ -82,7 +82,7 @@ define_event(struct st_ddofx *ddo, int32_t id, char *args)
 	else
 		return;
 
-	st_ddofx_callback_define(ddo, &event.callback, reply, args);
+	st_ddofx_callback_define(ddo, &event.callback, reply, args, 100);
 	if (ddo->events == NULL) {
 		ddo->events = calloc(1, sizeof(*ddo->events));
 		if (ddo->events == NULL)

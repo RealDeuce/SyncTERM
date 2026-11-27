@@ -165,7 +165,7 @@ st_ddofx_joystick_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink
 		}
 		const char *reply = st_ddofx_field(&args);
 		if (reply && args)
-			st_ddofx_callback_define(ddo, &c->fields[dir][buttons], reply, args);
+			st_ddofx_callback_define(ddo, &c->fields[dir][buttons], reply, args, 100);
 	}
 	return true;
 }
@@ -178,7 +178,7 @@ selected(const struct st_ddofx *ddo, unsigned slot)
 	if (!c->active || !s->device)
 		return NULL;
 	const struct st_ddofx_callback *cb = &c->fields[direction(s, c)][s->buttons];
-	return (*cb->macro || *cb->reply) && st_ddofx_callback_enabled(ddo, cb) ? cb : NULL;
+	return (*cb->macro || cb->reply_length) && st_ddofx_callback_enabled(ddo, cb) ? cb : NULL;
 }
 
 uint32_t

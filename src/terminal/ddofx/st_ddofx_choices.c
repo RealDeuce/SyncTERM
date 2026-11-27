@@ -169,8 +169,8 @@ define(struct st_ddofx *ddo, enum st_ddofx_group_kind kind, unsigned slot, char 
 	c.multiple  = v[5];
 	c.key       = (uint16_t)((v[6] << 8) | v[7]);
 	c.pass      = v[8];
-	st_ddofx_callback_define(ddo, &c.callback, reply, args);
-	c.callback.macro[95] = c.callback.reply[95] = 0;
+	st_ddofx_callback_define(ddo, &c.callback, reply, args, 95);
+
 
 	if (!g->choices[kind])
 		g->choices[kind] = calloc(1, sizeof(*g->choices[kind]));

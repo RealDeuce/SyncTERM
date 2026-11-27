@@ -265,8 +265,8 @@ st_ddofx_icon_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, co
 			struct st_ddofx_callback *cb = op == ON_OPEN    ? &i->open
 			                               : op == ON_CLOSE ? &i->close
 			                                                : &icons->drops[id];
-			st_ddofx_callback_define(ddo, cb, reply, args);
-			cb->macro[50] = cb->reply[50] = 0;
+			st_ddofx_callback_define(ddo, cb, reply, args, 50);
+
 			cb->stealth                   = i->stealth;
 		}
 	}

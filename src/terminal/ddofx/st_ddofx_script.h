@@ -5,7 +5,8 @@
 #include "st_ddofx.h"
 
 struct st_ddofx_callback {
-	char macro[101], reply[101];
+	char macro[101], reply[100];
+	size_t reply_length;
 	bool resource_text, stealth;
 };
 
@@ -54,7 +55,8 @@ bool st_ddofx_ray_accepts_key(const struct st_ddofx *);
 void st_ddofx_ray_key(struct st_ddofx *, uint16_t word);
 void st_ddofx_finish_field(struct st_ddofx *);
 void st_ddofx_resume_mouse(struct st_ddofx *);
-void     st_ddofx_callback_define(const struct st_ddofx *, struct st_ddofx_callback *, const char *, const char *);
+void     st_ddofx_callback_define(const struct st_ddofx *, struct st_ddofx_callback *, const char *, const char *,
+             size_t limit);
 bool     st_ddofx_callback_enabled(const struct st_ddofx *, const struct st_ddofx_callback *);
 bool     st_ddofx_callback_start(struct st_ddofx *, const struct st_ddofx_callback *, enum st_ddofx_callback_kind);
 void     st_ddofx_define_key(struct st_ddofx *, char *args);

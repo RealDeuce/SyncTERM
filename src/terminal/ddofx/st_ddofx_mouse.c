@@ -130,7 +130,7 @@ define_region(struct st_ddofx *ddo, char *args, bool on_release)
 	r->area          = area;
 	r->buttons       = (unsigned)buttons;
 	r->on_release    = on_release;
-	st_ddofx_callback_define(ddo, &r->callback, reply, args);
+	st_ddofx_callback_define(ddo, &r->callback, reply, args, 100);
 	if ((unsigned)slot > mouse->regions->count)
 		mouse->regions->count = (unsigned)slot;
 	if (mouse->buttons && !mouse->ignore_hold && !mouse->scan.waiting && !ddo->in_mouse)
@@ -163,7 +163,7 @@ define_field(struct st_ddofx *ddo, char *args)
 		return;
 	f.pointer  = (unsigned)pointer;
 	f.animated = animated != 0;
-	st_ddofx_callback_define(ddo, &f.callback, reply, args);
+	st_ddofx_callback_define(ddo, &f.callback, reply, args, 100);
 	m->fields->slots[slot - 1] = f;
 	m->fields->dirty           = true;
 }

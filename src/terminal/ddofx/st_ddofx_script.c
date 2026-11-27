@@ -47,7 +47,8 @@ struct macro_frame {
 	int                    remaining;
 	bool                   until;
 	struct predicate       condition;
-	char                   after_reply[ST_DDOFX_FIELD_REPLY_MAX + 1];
+	uint8_t                after_reply[ST_DDOFX_FIELD_REPLY_MAX];
+	size_t                 after_reply_length;
 	bool                   submitted_by_key;
 	enum st_ddofx_callback_kind callback;
 	bool saved_in_event;
@@ -441,15 +442,6 @@ st_ddofx_define_ping(struct st_ddofx *ddo, char *args)
 	ddo->ping.due         = now + ddo->ping.interval_ms;
 }
 
-static void
-send_reply(const struct st_ddofx_sink *sink, const char *encoded)
-{
-	uint8_t bytes[LINE_LENGTH];
-	size_t  n = decode_controls(bytes, encoded, strlen(encoded), true);
-	if (n)
-		sink->reply(sink->context, bytes, n);
-}
-
 size_t
 st_ddofx_control_value(const struct st_ddofx *ddo, const char *source, uint8_t *value, size_t limit)
 {
@@ -489,12 +481,18 @@ st_ddofx_info_reply(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, cons
 
 void
 st_ddofx_callback_define(const struct st_ddofx *ddo, struct st_ddofx_callback *cb, const char *reply,
-    const char *macro)
+    const char *macro, size_t limit)
 {
+	if (limit > sizeof(cb->reply))
+		limit = sizeof(cb->reply);
 	cb->resource_text = using_resource_text(ddo);
 	cb->stealth = ddo->define_stealth;
-	copy_comma_field(cb->reply, st_ddofx_value(ddo, reply), sizeof(cb->reply) - 1);
-	macro_text(cb->macro, st_ddofx_value(ddo, macro), sizeof(cb->macro) - 1);
+	size_t      length;
+	const char *bytes = st_ddofx_value_bytes(ddo, reply, &length);
+	cb->reply_length = length < limit ? length : limit;
+	for (size_t i = 0; i < cb->reply_length; ++i)
+		cb->reply[i] = bytes[i] == '~' ? ',' : bytes[i];
+	macro_text(cb->macro, st_ddofx_value(ddo, macro), limit);
 }
 
 bool
@@ -518,7 +516,7 @@ st_ddofx_callback_start(struct st_ddofx *ddo, const struct st_ddofx_callback *cb
 		f->resource_text = cb->resource_text;
 		copy(f->source, cb->macro, sizeof(cb->macro) - 1);
 		f->length = strlen(f->source);
-		copy(f->after_reply, cb->reply, sizeof(cb->reply) - 1);
+		f->after_reply_length = decode_controls(f->after_reply, cb->reply, cb->reply_length, true);
 	}
 	return f != NULL;
 }
@@ -547,7 +545,11 @@ st_ddofx_field_callback(struct st_ddofx *ddo, const struct st_ddofx_callback *cb
 {
 	if (!st_ddofx_callback_start(ddo, cb, DDO_EVENT))
 		return false;
-	copy(ddo->script->top->after_reply, reply, sizeof(ddo->script->top->after_reply)-1);
+	struct macro_frame *f = ddo->script->top;
+	size_t length = strlen(reply);
+	if (length > sizeof(f->after_reply))
+		length = sizeof(f->after_reply);
+	f->after_reply_length = decode_controls(f->after_reply, reply, length, true);
 	return true;
 }
 
@@ -934,7 +936,8 @@ st_ddofx_script_step(struct st_ddofx *ddo, const struct st_ddofx_sink *sink)
 		if (f->callback) {
 			ddo->in_event   = f->saved_in_event;
 			ddo->wait_until = f->saved_wait;
-			send_reply(sink, f->after_reply);
+			if (f->after_reply_length)
+				sink->reply(sink->context, f->after_reply, f->after_reply_length);
 		}
 		pop(s);
 		if (kind == DDO_RAY)

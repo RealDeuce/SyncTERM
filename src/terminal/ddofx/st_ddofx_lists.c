@@ -98,8 +98,8 @@ modify(struct st_ddofx *ddo, struct list_box *box, char *args)
 		return;
 	description = st_ddofx_value(ddo, description);
 	struct st_ddofx_callback cb;
-	st_ddofx_callback_define(ddo, &cb, reply, args);
-	cb.macro[50] = cb.reply[50] = 0;
+	st_ddofx_callback_define(ddo, &cb, reply, args, 50);
+
 	for (unsigned i = id ? (unsigned)id - 1 : 0, end = id ? (unsigned)id : box->count; i < end; ++i) {
 		struct item *item = &box->items[i];
 		if ((unsigned)selectable <= 1)
@@ -108,8 +108,10 @@ modify(struct st_ddofx *ddo, struct list_box *box, char *args)
 			item->selected = selected != 0;
 		if (*description)
 			snprintf(item->description, sizeof(item->description), "%.40s", description);
-		if (*cb.reply)
-			strcpy(item->callback.reply, cb.reply);
+		if (cb.reply_length) {
+			memcpy(item->callback.reply, cb.reply, cb.reply_length);
+			item->callback.reply_length = cb.reply_length;
+		}
 		if (*cb.macro) {
 			strcpy(item->callback.macro, cb.macro);
 			item->callback.resource_text = cb.resource_text;

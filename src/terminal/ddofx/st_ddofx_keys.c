@@ -64,7 +64,7 @@ st_ddofx_define_key(struct st_ddofx *ddo, char *args)
 		ddo->keys = calloc(1, sizeof(*ddo->keys));
 	if (ddo->keys) {
 		struct binding *b = &ddo->keys->bindings[slot - 1];
-		st_ddofx_callback_define(ddo, &b->callback, reply, args);
+		st_ddofx_callback_define(ddo, &b->callback, reply, args, 100);
 		b->word = (uint16_t)((high << 8) | low);
 		b->pass = pass;
 		if (ddo->keys->count < (unsigned)slot)

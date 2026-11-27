@@ -69,7 +69,7 @@ st_ddofx_collision_command(struct st_ddofx *ddo, char *args)
 	    .animation = n[6],
 	    .active    = true
         };
-	st_ddofx_callback_define(ddo, &c->callback, reply, args);
+	st_ddofx_callback_define(ddo, &c->callback, reply, args, 100);
 }
 
 void
