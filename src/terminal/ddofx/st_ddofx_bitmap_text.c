@@ -113,8 +113,7 @@ struct bitmap_run {
 };
 
 struct text_image {
-	struct st_ddofx_graphics *graphics;
-	enum page                 page;
+	struct st_ddofx_surface    target;
 	int                       x, y, width, height;
 	double                    cosine, sine;
 	struct bounds             bounds;
@@ -229,7 +228,7 @@ draw_image(void *context, const struct st_pixel_buffer *pixels, struct st_consol
 			if (pixels)
 				pixels->alternate[y * WIDTH + x] = pixels->primary[y * WIDTH + x] = ink - 1u;
 			else
-				image->graphics->page[image->page][y][x] = (uint8_t)(ink - 1);
+				image->target.data[y * image->target.width + x] = (uint8_t)(ink - 1);
 		}
 	}
 	if (changed)
@@ -255,19 +254,23 @@ print_text(struct st_ddofx *ddo, char *args)
 		return;
 	name                = st_ddofx_value(ddo, name);
 	const uint8_t *text = (const uint8_t *)st_ddofx_value(ddo, args);
-	if (strlen(name) != 2 || !st_ddofx_page_name(name, &page) || !*text
-	    || strlen((const char *)text) > MAX_TEXT || n[0] < 0 || n[1] <= n[0] || n[1] >= WIDTH || n[2] < 0
-	    || n[3] <= n[2] || n[3] >= HEIGHT || (unsigned)n[4] > 254 || (unsigned)n[5] > 255
+	if (strlen(name) != 2 || !st_ddofx_page_name(name, &page))
+		return;
+	struct st_ddofx_surface target = st_ddofx_surface(g, page);
+	if (!*text
+	    || strlen((const char *)text) > MAX_TEXT || n[0] < 0 || n[1] <= n[0] || n[1] >= target.width || n[2] < 0
+	    || n[3] <= n[2] || n[3] >= target.height || (unsigned)n[4] > 254 || (unsigned)n[5] > 255
 	    || (unsigned)n[6] > 359)
 		return;
 	int w = n[1] - n[0] + 1, h = n[3] - n[2] + 1;
 	if (h + font->descent > 79)
 		return;
 	struct text_image *image = calloc(1, sizeof(*image) + (size_t)w * h * sizeof(*image->colours));
-	if (!image)
+	if (!image) {
+		st_ddofx_print_text_box(ddo, page, (struct bounds){n[0], n[1], n[2], n[3]}, text);
 		return;
-	image->graphics = g;
-	image->page     = page;
+	}
+	image->target = target;
 	image->x        = n[0];
 	image->y        = n[2];
 	image->width    = w;
@@ -279,12 +282,17 @@ print_text(struct st_ddofx *ddo, char *args)
 		double cx = n[0] + (w - 1) * 0.5, cy = n[2] + (h - 1) * 0.5;
 		double rx     = (fabs(image->cosine) * w + fabs(image->sine) * h) * 0.5;
 		double ry     = (fabs(image->sine) * w + fabs(image->cosine) * h) * 0.5;
-		image->bounds = (struct bounds) {(int)fmax(0, ceil(cx - rx)), (int)fmin(WIDTH - 1, floor(cx + rx)),
-		    (int)fmax(0, ceil(cy - ry)), (int)fmin(HEIGHT - 1, floor(cy + ry))};
-		if (page == VISUAL)
-			(void)st_console_modify_pixels(g->display, draw_image, image);
-		else
-			(void)draw_image(image, NULL, NULL);
+		image->bounds = (struct bounds) {(int)fmax(target.clip.left, ceil(cx - rx)), (int)fmin(target.clip.right, floor(cx + rx)),
+		    (int)fmax(target.clip.top, ceil(cy - ry)), (int)fmin(target.clip.bottom, floor(cy + ry))};
+		if (image->bounds.left <= image->bounds.right && image->bounds.top <= image->bounds.bottom) {
+			if (!target.data)
+				(void)st_console_modify_pixels(g->display, draw_image, image);
+			else {
+				(void)draw_image(image, NULL, NULL);
+				if (page == VISUAL)
+					st_ddofx_refresh_window_area(ddo, g->alert_graphic_window, image->bounds);
+			}
+		}
 	}
 	free(image);
 }

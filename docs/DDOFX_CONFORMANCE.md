@@ -24,13 +24,13 @@ Desktop polygon objects can load triangle meshes from the current M resource or 
 
 Work, background and visual pages can load version-5, single-plane, 8-bit PCX artwork up to 640×480. Loading artwork installs its palette across all pages. Each page can save a session-owned PCX file and restore it to any of the three pages. The files survive a return to Lite mode and close at disconnect.
 
-Lite and Normal accept complete 4,096-byte VGA fonts from `DDOFX/FONTS` with lowercase `f`. The selected font applies to console text and all four desktop `2XT` destinations. `dGETFONT` reports its filename. SyncTERM supplies its built-in VGA font for `IBMSTD.FNT` when that file is absent.
+Lite and Normal accept complete 4,096-byte VGA fonts from `DDOFX/FONTS` with lowercase `f`. The selected font applies to console text and all four desktop `2XT` destinations and an alerted window’s visual and hidden pages. `dGETFONT` reports its filename. SyncTERM supplies its built-in VGA font for `IBMSTD.FNT` when that file is absent.
 
 Lite accepts 4,000-byte RAW ANSI screens from the assigned M resource. `!filename` places the 80-column VGA character/attribute image starting on physical row 2 and clips it to the terminal area. Ordinary text resumes at its existing cursor. `0TFADEOUT` and `0TFADEIN` fade the 256-entry text palette over the SDK’s requested duration in milliseconds. The BBS can build the next page while the palette is black.
 
-A BBS can load legacy and four-bank BMF fonts into 32 slots with `2F` and switch between loaded fonts with `2FSELECT`. On all four desktop pages, `2X` scales a variable-width string to the specified rectangle, draws an optional one-pixel outline, and rotates it about the rectangle center.
+A BBS can load legacy and four-bank BMF fonts into 32 slots with `2F` and switch between loaded fonts with `2FSELECT`. On the selected desktop or window page, `2X` scales a variable-width string to the specified rectangle, draws an optional one-pixel outline, and rotates it about the rectangle center. A visual bitmap print refreshes its area in the window. If the scratch image allocation fails, the current VGA font renders inside a colour-10 box.
 
-The four desktop pages support lower-left anchored image scaling, rotation between pages with a transparent index and independent pivots, palette-based anti-aliasing, and single-index outlines.
+Desktop pages and the alerted window’s virtual pages support lower-left anchored image scaling, rotation between pages with a transparent index and independent pivots, palette-based anti-aliasing, and single-index outlines. Direct VGA text and image transforms on the visual VGP become visible on refresh. Explicit work and background page destinations remain on the desktop.
 
 In Normal mode the BBS can show or hide the mouse pointer, query its position and three logical buttons, and read separate press and release counts and positions for each button. The BBS can position the DDO pointer with `3MMOV` and confine it to a rectangle with `3MLIM`. SyncTERM accepts both the SDK spelling `MSPD` and the mouse-family spelling `3MSPD`. Relative to the default rates of 8 horizontally and 16 vertically, doubling an axis rate halves its travel. Motion is measured in desktop raster pixels, with fractional movement carried between samples. Up to 300 desktop regions share one table. Overlapping regions run in slot order. Each macro finishes before its return string is sent. Held repeatable regions run at 50 ms intervals during idle input. Non-repeating regions wait for all buttons to be released.
 
@@ -289,11 +289,11 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 7889 | CUT HIDDEN PAGE TO WORK PAGE | DDO-FX (NM) | Connected |
 | 7899 | CUT VISUAL PAGE TO HIDDEN PAGE | DDO-FX (NM) | Connected |
 | 7909 | CUT HIDDEN PAGE TO VISUAL PAGE | DDO-FX (NM) | Connected |
-| 7919 | DO PRINT | DDO-FX (NM) | Desktop pages; low-memory text fallback and virtual windows pending |
-| 8058 | DO PRINT TEXT FONT | DDO-FX (NM) | Connected on the desktop |
+| 7919 | DO PRINT | DDO-FX (NM) | Connected, including window pages and the low-memory text box |
+| 8058 | DO PRINT TEXT FONT | DDO-FX (NM) | Connected on desktop and window pages |
 | 8110 | DO PRINT TEXT FONT WP | DDO-FX (NM) | Connected on the desktop |
 | 8118 | DO PRINT TEXT FONT BP | DDO-FX (NM) | Connected on the desktop |
-| 8127 | DO PRINT TEXT FONT HP | DDO-FX (NM) | Connected on the desktop |
+| 8127 | DO PRINT TEXT FONT HP | DDO-FX (NM) | Connected on desktop and window pages |
 | 8136 | SET COLOR | DDO-FX (NM) | Connected |
 | 8146 | DRAW POINT | DDO-FX (NM) | Connected |
 | 8156 | DRAW POINT XOR | DDO-FX (NM) | Connected |
@@ -477,10 +477,10 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 13473 | GD KILL TILE | DDO-FX (NM) | Connected on the desktop |
 | 13488 | SET SLEEP DISCONNECT | DDO-FX (NM) | Pending |
 | 13544 | SET PING | DDO-FX (NM) | Pending |
-| 13620 | ROTATE IMAGE | DDO-FX (NM) | Connected on the desktop |
-| 13703 | SCALE IMAGE | DDO-FX (NM) | Connected on the desktop |
-| 13819 | ANTI-ALIAS IMAGE | DDO-FX (NM) | Connected on the desktop |
-| 13917 | OUTLINE IMAGE | DDO-FX (NM) | Connected on the desktop |
+| 13620 | ROTATE IMAGE | DDO-FX (NM) | Connected on desktop and window pages |
+| 13703 | SCALE IMAGE | DDO-FX (NM) | Connected on desktop and window pages |
+| 13819 | ANTI-ALIAS IMAGE | DDO-FX (NM) | Connected on desktop and window pages |
+| 13917 | OUTLINE IMAGE | DDO-FX (NM) | Connected on desktop and window pages |
 | 13975 | ZMODEM BACKGROUND TRANSFERS | DDO-FX (NM) | Implemented |
 | 14035 | ZMODEM STEALTH MODE | DDO-FX (NM) | Partial: keyboard macros, fields, regions, push/radio/check buttons, text fields, list boxes, timed events, joysticks, animation collisions and raycaster cell profiles. Window close callbacks and icons connected |
 | 14120 | DEFINE MUSIC BAR | DDO-FX (NM) | Desktop pages; virtual windows pending |
@@ -505,7 +505,7 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 15049 | RESTORE ALL GRAPHIC WINDOWS | DDO-FX (NM) | Connected |
 | 15056 | REFRESH ALL GRAPHIC WINDOWS | DDO-FX (NM) | Connected |
 | 15062 | REFRESH GRAPHIC WINDOWS INTERIOR | DDO-FX (NM) | Connected |
-| 15074 | ALERT GRAPHIC WINDOW | DDO-FX (NM) | Connected for primitives, PCX, visual/hidden page copies, sprites, mouse fields and regions, push buttons, radio buttons, checkboxes, animations, collisions and icons. Other attached operations pending |
+| 15074 | ALERT GRAPHIC WINDOW | DDO-FX (NM) | Connected for primitives, PCX, visual/hidden page copies, sprites, mouse fields and regions, push buttons, radio buttons, checkboxes, animations, collisions, icons, bitmap and VGA text, and image transforms. Other attached operations pending |
 | 15094 | CALM GRAPHIC WINDOW | DDO-FX (NM) | Connected |
 | 15101 | CREATE ICON | DDO-FX (NM) | Connected |
 | 15135 | ICON MOUSE POINTER | DDO-FX (NM) | Connected |

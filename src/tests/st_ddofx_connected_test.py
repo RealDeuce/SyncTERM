@@ -1194,6 +1194,22 @@ def check_image_commands(t):
                         b"5ALIAS,WP,20,20,20,20,30,0", b"2aG,20,20", b"2aG,0,0", b"2aRESTOREPAL"),
                b"30\xff30\xff31\xff30\xff")
 
+    t.case("image transforms use virtual page bounds, preserve hidden data and wait for refresh")
+    frame = t.exchange(commands(b"2GWIN,1,20,119,30,129,1000,750,0,1,0,0,0,0,0,0,0,0,1,Images",
+                                b"2CHVGP,1,900,650", b"2ALERTGWIN,1", b"2C,22", b"2aP,998,748",
+                                b"2CPYVP2HP", b"5SCALE,HP,998,998,748,748,2,2",
+                                b"5ROTATE,HP,VP,998,999,747,748,90,998,747,0,910,660",
+                                b"5OUTLN,VP,908,912,658,662,22,40", b"2aG,909,660", b"2aG,911,660"),
+                       b"22\xff40\xff")
+    assert frame.primary[40*640+29] == 0
+    frame = t.exchange(commands(b"2RGWINI"))
+    assert frame.primary[40*640+29] == frame.alternate[40*640+29] == 22
+    t.exchange(commands(b"2aSTOREPAL", b"2aZEROPAL", b"2aSRGB,30,60,0,0", b"2aSRGB,31,12,0,0",
+                        b"2C,30", b"2aP,902,652", b"5ALIAS,VP,902,902,652,652,30,0",
+                        b"2aG,902,652", b"2aRESTOREPAL", b"2CPYHP2VP", b"2aG,999,747",
+                        b"5ROTATE,HP,WP,999,999,747,747,0,999,747,0,35,40", b"2CGWIN,1", b"2aG,35,40"),
+               b"31\xff22\xff22\xff")
+
 
 def check_grid(t):
     t.case("one-based tile map, transparent foreground and scrolling viewport")
@@ -1276,6 +1292,16 @@ def check_bitmap_fonts(t, root):
         # Publishing a page updates HP. Restore the empty background for the next angle.
         t.exchange(commands(b"2aFILL", b"2CPYWP2BP", b"2CPYWP2VP"))
 
+    t.case("rotated bitmap text publishes the alerted viewport and preserves the hidden page")
+    frame = t.exchange(commands(b"2GWIN,1,20,119,30,129,1000,750,0,1,0,0,0,0,0,0,0,0,1,Bitmap",
+                                b"2CHVGP,1,900,650", b"2ALERTGWIN,1", b"2C,7", b"2aFILL",
+                                b"2CPYVP2HP", b"2RGWINI", b"2X,920,923,670,673,11,0,90,VP,A",
+                                b"2X,920,923,670,673,12,0,0,HP,A", b"2aG,923,671"), b"11\xff")
+    for y, row in enumerate(zip(*glyph[::-1]), 50):
+        assert list(frame.primary[y*640+40:y*640+44]) == list(frame.alternate[y*640+40:y*640+44]) == list(row)
+    frame = t.exchange(commands(b"2CPYHP2VP", b"2aG,921,670", b"2aG,923,671"), b"12\xff7\xff")
+    assert frame.primary[50*640+41] == frame.alternate[50*640+41] == 12
+    t.exchange(commands(b"2CGWIN,1"))
     frame = t.exchange(commands(b"2FSELECT,32", b"2X,5,14,8,11,13,0,0,VP,A,\x82",
                                 b"2FSELECT,1", b"2X,25,32,8,15,0,255,0,VP,A",
                                 b"2F,BAD.BMF,1", b"2X,40,43,20,23,99,0,0,VP,A"))
@@ -1542,6 +1568,14 @@ def check_vga_font(t, root):
     frame = t.exchange(commands(b"2XTHP,88,31,19,3,A", b"2CPYHP2VP", b"2XTWP,12,31,2,8,A",
                                 b"2aG,12,16", b"2aG,13,16"), b"2\xff54\xff")
     glyph(frame,88,16,19,3)
+    t.case("direct VGA text writes visual or hidden window pixels before viewport refresh")
+    frame = t.exchange(commands(b"2GWIN,1,20,119,30,129,1000,750,0,1,0,0,0,0,0,0,0,0,1,Font",
+                                b"2CHVGP,1,900,650", b"2ALERTGWIN,1", b"2XT,910,675,23,6,A",
+                                b"2XTHP,910,675,93,7,A", b"2aG,910,660", b"2aG,911,660"), b"23\xff6\xff")
+    assert frame.primary[40*640+30] == 0
+    glyph(t.exchange(commands(b"2RGWINI")),30,40,23,6)
+    glyph(t.exchange(commands(b"2CPYHP2VP")),30,40,93,7)
+    t.exchange(commands(b"2XTWP,50,31,27,3,A", b"2CGWIN,1", b"2aG,50,16"), b"27\xff")
     frame = t.exchange(commands(b"2RESET", FULL_TEXT_WINDOW) + b"\x1b[H\x1b[37;40mA")
     glyph(frame,0,0,7,0)
     frame = t.exchange(commands(b"2XT,0,15,18,4,A", b"fSecond.FNT", b"fNONE.FNT") + b"\x1b[1;2HB")

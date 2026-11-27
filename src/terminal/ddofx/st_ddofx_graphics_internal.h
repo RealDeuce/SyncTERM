@@ -21,6 +21,16 @@ enum page {
 	VISUAL
 };
 
+/* The desktop visual page is accessed through the console's pixel callback.
+ * All other pages are indexed memory with a stride equal to their width. */
+struct st_ddofx_surface {
+	uint8_t *data;
+	int width, height;
+	struct bounds clip;
+};
+
+struct st_ddofx_surface st_ddofx_surface(struct st_ddofx_graphics *, enum page);
+
 enum {
 	SPRITE_COUNT = 3200
 };
@@ -181,6 +191,7 @@ struct st_console_rect st_ddofx_text_area(const struct st_ddofx_graphics *, unsi
     unsigned columns, unsigned rows, unsigned padding);
 const uint8_t *st_ddofx_vga_bitmap(const struct st_ddofx *);
 bool st_ddofx_read_vga_font(const struct st_ddofx_sink *, const char *, uint8_t bitmap[4096]);
+void st_ddofx_print_text_box(struct st_ddofx *, enum page, struct bounds, const uint8_t *);
 void st_ddofx_paint_vga_string(struct st_ddofx_graphics *g, const struct st_pixel_buffer *, const uint8_t *bitmap, const uint8_t *text,
     unsigned length, int x, int bottom, unsigned ink, unsigned paper, const struct bounds *clip);
 void st_ddofx_repaint_clocks(struct st_ddofx *, const struct st_pixel_buffer *, const struct st_console_rect *);

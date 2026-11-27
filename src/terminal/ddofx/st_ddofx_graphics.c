@@ -35,6 +35,17 @@ st_ddofx_svga(const struct st_ddofx_sink *sink)
 	       && (caps & ST_CONSOLE_CAP_PIXELS);
 }
 
+struct st_ddofx_surface
+st_ddofx_surface(struct st_ddofx_graphics *g, enum page page)
+{
+	struct st_ddofx_graphic_window *w = &g->graphic_windows[g->alert_graphic_window];
+	if (w->visual && (page == VISUAL || page == HIDDEN))
+		return (struct st_ddofx_surface){page == VISUAL ? w->visual : w->hidden_page,
+		    w->width, w->height, w->clip};
+	struct bounds clip = page == WORK ? g->clip : (struct bounds){0, WIDTH - 1, 0, HEIGHT - 1};
+	return (struct st_ddofx_surface){page == VISUAL ? NULL : (uint8_t *)g->page[page], WIDTH, HEIGHT, clip};
+}
+
 static void
 clear_graphics_objects(struct st_ddofx_graphics *g)
 {

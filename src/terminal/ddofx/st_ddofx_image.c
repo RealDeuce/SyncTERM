@@ -15,10 +15,9 @@ enum operation {
 };
 
 struct image_op {
-	struct st_ddofx_graphics     *g;
+	struct st_ddofx_surface       src, dst;
 	enum operation                op;
-	enum page                     src, dst;
-	struct bounds                 box, clip, damage;
+	struct bounds                 box, damage;
 	int32_t                       n[10];
 	const struct st_pixel_buffer *screen;
 	const uint32_t               *palette;
@@ -27,18 +26,18 @@ struct image_op {
 static uint8_t
 read_index(const struct image_op *im, int x, int y)
 {
-	if (im->src == VISUAL)
+	if (!im->src.data)
 		return st_console_palette_index256(im->palette, im->screen->primary[y * WIDTH + x]);
-	return im->g->page[im->src][y][x];
+	return im->src.data[y * im->src.width + x];
 }
 
 static void
 write_index(struct image_op *im, int x, int y, uint8_t colour)
 {
-	if (x < im->clip.left || x > im->clip.right || y < im->clip.top || y > im->clip.bottom)
+	if (x < im->dst.clip.left || x > im->dst.clip.right || y < im->dst.clip.top || y > im->dst.clip.bottom)
 		return;
-	if (im->dst != VISUAL) {
-		im->g->page[im->dst][y][x] = colour;
+	if (im->dst.data) {
+		im->dst.data[y * im->dst.width + x] = colour;
 		return;
 	}
 	size_t offset               = (size_t)y * WIDTH + x;
@@ -66,7 +65,7 @@ scale(struct image_op *im)
 {
 	struct bounds b = im->box;
 	int           w = b.right - b.left + 1, h = b.bottom - b.top + 1, nw = im->n[4], nh = im->n[5];
-	if (nw < 1 || nw > WIDTH - b.left || nh < 1 || nh > b.bottom + 1)
+	if (nw < 1 || nw > im->dst.width - b.left || nh < 1 || nh > b.bottom + 1)
 		return;
 
 	uint8_t *source = malloc((size_t)w * h);
@@ -118,7 +117,7 @@ rotate(struct image_op *im)
 				continue;
 			double u = cs * (x - ox) - sn * (y - oy), v = sn * (x - ox) + cs * (y - oy);
 			double tx = dx + round(u), ty = dy + round(v);
-			if (tx < 0 || tx >= WIDTH || ty < 0 || ty >= HEIGHT)
+			if (tx < 0 || tx >= im->dst.width || ty < 0 || ty >= im->dst.height)
 				continue;
 			write_index(im, (int)tx, (int)ty, index);
 			/* At oblique angles the second sample closes gaps between pixels. */
@@ -168,15 +167,15 @@ smooth(struct image_op *im)
 				continue;
 			/* A run through either axis is already a smooth edge. */
 			if (((x ? read_index(im, x - 1, y) : 0) == index
-			        && (x + 1 < WIDTH ? read_index(im, x + 1, y) : 0) == index)
+			        && (x + 1 < im->src.width ? read_index(im, x + 1, y) : 0) == index)
 			    || ((y ? read_index(im, x, y - 1) : 0) == index
-			        && (y + 1 < HEIGHT ? read_index(im, x, y + 1) : 0) == index))
+			        && (y + 1 < im->src.height ? read_index(im, x, y + 1) : 0) == index))
 				continue;
 			struct rgb center = dac[index], avg = center;
 			int        count = 1;
 			for (int dx = -1; dx <= 1; dx += 2)
 				for (int dy = -1; dy <= 1; dy += 2) {
-					if ((unsigned)(x + dx) >= WIDTH || (unsigned)(y + dy) >= HEIGHT)
+					if (x + dx < 0 || x + dx >= im->src.width || y + dy < 0 || y + dy >= im->src.height)
 						continue;
 					struct rgb p = dac[read_index(im, x + dx, y + dy)];
 					avg.r += p.r;
@@ -250,10 +249,7 @@ st_ddofx_gadget_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, 
 {
 	char           *args = body;
 	const char     *verb = st_ddofx_field(&args);
-	struct image_op im   = {
-	    .g      = ddo->graphics,
-	    .damage = {WIDTH, -1, HEIGHT, -1}
-        };
+	struct image_op im = {.damage = {WIDTH, -1, HEIGHT, -1}};
 	if (st_ddofx_list_command(ddo, verb, args) || st_ddofx_text_field_command(ddo, sink, verb, args) || st_ddofx_choice_command(ddo, verb, args) || st_ddofx_marquee_command(ddo, sink, verb, args)
 	    || st_ddofx_clock_command(ddo, sink, verb, args) || st_ddofx_movie_command(ddo, sink, verb, args)
 	    || st_ddofx_landscape_command(ddo, sink, verb, args) || st_ddofx_ray_command(ddo, sink, verb, args))
@@ -274,24 +270,26 @@ st_ddofx_gadget_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, 
 		st_ddofx_grid_command(ddo, verb, args);
 		return;
 	}
-	if (!page_field(ddo, &args, &im.src))
+	enum page src, dst;
+	if (!page_field(ddo, &args, &src))
 		return;
-	im.dst = im.src;
-	if (im.op == ROTATE && (!page_field(ddo, &args, &im.dst) || im.src == im.dst))
+	dst = src;
+	if (im.op == ROTATE && (!page_field(ddo, &args, &dst) || src == dst))
 		return;
 	if (!st_ddofx_numbers(ddo, args, im.n, im.op == ROTATE ? 10 : 6))
 		return;
+	im.src = st_ddofx_surface(ddo->graphics, src);
+	im.dst = st_ddofx_surface(ddo->graphics, dst);
 	im.box = (struct bounds) {im.n[0], im.n[1], im.n[2], im.n[3]};
-	if (im.box.left < 0 || im.box.right >= WIDTH || im.box.left > im.box.right || im.box.top < 0
-	    || im.box.bottom >= HEIGHT || im.box.top > im.box.bottom)
+	if (im.box.left < 0 || im.box.right >= im.src.width || im.box.left > im.box.right || im.box.top < 0
+	    || im.box.bottom >= im.src.height || im.box.top > im.box.bottom)
 		return;
 	if ((im.op == ROTATE && (unsigned)im.n[7] > 255)
 	    || (im.op == ALIAS && (im.n[4] < -1 || im.n[4] > 255 || (unsigned)im.n[5] > 255))
 	    || (im.op == OUTLINE && ((unsigned)im.n[4] > 254 || (unsigned)im.n[5] > 255)))
 		return;
-	im.clip = im.dst == WORK ? im.g->clip : (struct bounds) {0, WIDTH - 1, 0, HEIGHT - 1};
-	if (im.src == VISUAL || im.dst == VISUAL)
-		(void)st_console_modify_pixels_with_palette(im.g->display, apply, &im);
+	if (!im.src.data || !im.dst.data)
+		(void)st_console_modify_pixels_with_palette(ddo->graphics->display, apply, &im);
 	else
-		(void)apply(&im, NULL, im.g->palette, NULL);
+		(void)apply(&im, NULL, ddo->graphics->palette, NULL);
 }

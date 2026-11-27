@@ -158,7 +158,7 @@ st_ddofx_select_window_font(struct st_ddofx *ddo, const struct st_ddofx_sink *si
 struct text_run {
 	const struct bounds      *clip;
 	struct st_ddofx_graphics *g;
-	enum page                 page;
+	struct st_ddofx_surface   target;
 	const uint8_t            *font, *text;
 	int                       x, bottom, ink, paper, length;
 };
@@ -172,7 +172,7 @@ paint(void *context, const struct st_pixel_buffer *pixels, struct st_console_rec
 	/* FNT records always have 16 rows of 8 bits. A scaled font puts its
 	 * ink in the lower left. Only the advance and paper rectangle shrink. */
 	int           cw = run->g->cell_width, ch = run->g->cell_height;
-	struct bounds clip = run->clip ? *run->clip : (struct bounds) {0, WIDTH - 1, 0, HEIGHT - 1};
+	struct bounds clip = run->clip ? *run->clip : (struct bounds) {0, run->target.width - 1, 0, run->target.height - 1};
 	int           top  = run->bottom - 15;
 	for (int i = 0; i < run->length; ++i) {
 		const uint8_t *rows = run->font + run->text[i] * 16;
@@ -193,7 +193,7 @@ paint(void *context, const struct st_pixel_buffer *pixels, struct st_console_rec
 					pixels->primary[row * WIDTH + col] = pixels->alternate[row * WIDTH + col] =
 					    colour;
 				else
-					run->g->page[run->page][row][col] = colour;
+					run->target.data[row * run->target.width + col] = colour;
 			}
 		}
 	}
@@ -208,13 +208,84 @@ paint(void *context, const struct st_pixel_buffer *pixels, struct st_console_rec
 	return 0;
 }
 
+struct text_box {
+	struct text_run run;
+	struct bounds box, clip;
+};
+
+static int
+paint_box(void *context, const struct st_pixel_buffer *pixels, struct st_console_rect *damage)
+{
+	const struct text_box *box = context;
+	struct text_run run = box->run;
+	if (pixels && (pixels->width != WIDTH || pixels->height != HEIGHT))
+		return 0;
+	for (int y = box->clip.top; y <= box->clip.bottom; ++y) {
+		for (int x = box->clip.left; x <= box->clip.right; ++x) {
+			if (y - box->box.top >= run.g->horizontal_thickness &&
+			    box->box.bottom - y >= run.g->horizontal_thickness &&
+			    x - box->box.left >= run.g->vertical_thickness &&
+			    box->box.right - x >= run.g->vertical_thickness)
+				continue;
+			size_t offset = (size_t)y * run.target.width + x;
+			if (pixels)
+				pixels->primary[offset] = pixels->alternate[offset] = 10;
+			else
+				run.target.data[offset] = 10;
+		}
+	}
+	run.clip = &box->clip;
+	run.x = box->box.left + 1;
+	int columns = (box->box.right - run.x) / run.g->cell_width;
+	if (columns < 1)
+		columns = 1;
+	int remaining = run.length;
+	for (int top = box->box.top + 1; remaining && top < box->box.bottom; top += run.g->cell_height) {
+		run.bottom = top + run.g->cell_height - 1;
+		run.length = remaining < columns ? remaining : columns;
+		paint(&run, pixels, NULL);
+		remaining -= run.length;
+		run.text += run.length;
+	}
+	if (damage)
+		*damage = (struct st_console_rect){box->clip.left, box->clip.top,
+		    box->clip.right - box->clip.left + 1, box->clip.bottom - box->clip.top + 1};
+	return 0;
+}
+
+/* If scaling a BMF cannot allocate its scratch image, the SDK specifies
+ * a colour-10 box with the current textual font. This path uses only the stack. */
+void
+st_ddofx_print_text_box(struct st_ddofx *ddo, enum page page, struct bounds box, const uint8_t *text)
+{
+	struct st_ddofx_graphics *g = ddo->graphics;
+	struct text_box fallback = {.box = box, .run = {.g = g, .target = st_ddofx_surface(g, page),
+	    .font = st_ddofx_vga_bitmap(ddo), .text = text, .length = (int)strlen((const char *)text),
+	    .ink = 15, .paper = 8}};
+	struct bounds clip = fallback.run.target.clip;
+	fallback.clip = (struct bounds){box.left > clip.left ? box.left : clip.left,
+	    box.right < clip.right ? box.right : clip.right, box.top > clip.top ? box.top : clip.top,
+	    box.bottom < clip.bottom ? box.bottom : clip.bottom};
+	if (fallback.clip.left > fallback.clip.right || fallback.clip.top > fallback.clip.bottom)
+		return;
+	if (!fallback.run.font)
+		fallback.run.length = 0;
+	if (!fallback.run.target.data)
+		(void)st_console_modify_pixels(g->display, paint_box, &fallback);
+	else {
+		paint_box(&fallback, NULL, NULL);
+		if (page == VISUAL)
+			st_ddofx_refresh_window_area(ddo, g->alert_graphic_window, fallback.clip);
+	}
+}
+
 void
 st_ddofx_paint_vga_string(struct st_ddofx_graphics *g, const struct st_pixel_buffer *pixels, const uint8_t *bitmap,
     const uint8_t *text, unsigned length, int x, int bottom, unsigned ink, unsigned paper,
     const struct bounds *clip)
 {
 	struct text_run run = {.g = g,
-	    .page                 = WORK,
+	    .target               = {(uint8_t *)g->page[WORK], WIDTH, HEIGHT, {0}},
 	    .clip                 = clip,
 	    .font                 = bitmap,
 	    .text                 = text,
@@ -229,19 +300,21 @@ st_ddofx_paint_vga_string(struct st_ddofx_graphics *g, const struct st_pixel_buf
 void
 st_ddofx_print_vga_text(struct st_ddofx *ddo, const char *suffix, char *args)
 {
-	struct text_run run = {.g = ddo->graphics, .page = VISUAL};
-	if (*suffix && (strlen(suffix) != 2 || !st_ddofx_page_name(suffix, &run.page)))
+	struct text_run run = {.g = ddo->graphics};
+	enum page page = VISUAL;
+	if (*suffix && (strlen(suffix) != 2 || !st_ddofx_page_name(suffix, &page)))
 		return;
+	run.target = st_ddofx_surface(run.g, page);
 	int32_t n[4];
 	for (unsigned i = 0; i < 4; ++i)
 		if (!st_ddofx_field_number(ddo, &args, &n[i]))
 			return;
-	if (!args || n[0] < 0 || n[0] >= WIDTH || n[1] < run.g->cell_height - 1 || n[1] >= HEIGHT
+	if (!args || n[0] < 0 || n[0] >= run.target.width || n[1] < run.g->cell_height - 1 || n[1] >= run.target.height
 	    || (unsigned)n[2] > 255 || (unsigned)n[3] > 8)
 		return;
 	run.text      = (const uint8_t *)st_ddofx_value(ddo, args);
 	size_t length = strlen((const char *)run.text);
-	if (!length || length > (size_t)(WIDTH - n[0]) / (unsigned)run.g->cell_width)
+	if (!length || length > (size_t)(run.target.width - n[0]) / (unsigned)run.g->cell_width)
 		return;
 	run.font = st_ddofx_vga_bitmap(ddo);
 	if (!run.font)
@@ -251,7 +324,7 @@ st_ddofx_print_vga_text(struct st_ddofx *ddo, const char *suffix, char *args)
 	run.ink    = n[2];
 	run.paper  = n[3];
 	run.length = (int)length;
-	if (run.page == VISUAL)
+	if (!run.target.data)
 		(void)st_console_modify_pixels(run.g->display, paint, &run);
 	else
 		(void)paint(&run, NULL, NULL);
