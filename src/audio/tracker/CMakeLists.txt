@@ -7,7 +7,8 @@ syncterm_dependency(NAME OPENMPT PACKAGE libopenmpt HEADER libopenmpt/libopenmpt
 int main(void) {
 	openmpt_module *mod = openmpt_module_create2(openmpt_stream_get_file_callbacks2(), 0, openmpt_log_func_silent, 0, 0, 0, 0, 0, 0);
 	if (mod) {
-		openmpt_module_set_position_order_row(mod, 0, 0);
+		if (!openmpt_module_is_order_stop_entry(mod, 0))
+			openmpt_module_set_position_order_row(mod, 0, 0);
 		openmpt_module_read_interleaved_stereo(mod, 44100, 0, 0);
 		openmpt_module_destroy(mod);
 	}

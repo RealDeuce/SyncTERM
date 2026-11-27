@@ -154,6 +154,35 @@ check_slide_sounds(st_term_session_t *session, st_audio_runtime_t *audio, bool f
 	return EXIT_SUCCESS;
 }
 
+/* ORDERS.DAT is an S3M with two 64-row patterns. C-4 and C-5 play a
+ * 64-sample square wave at 8363 and 16726 Hz. The sequence has two skip
+ * markers between the patterns and a second subsong after the stop marker. */
+static int
+check_orders(st_term_session_t *session, st_audio_runtime_t *audio)
+{
+	const unsigned expected[] = {13, 26, 13, 13, 0, 26, 13, 13, 0};
+	for (unsigned mode = 0; mode < 2; ++mode) {
+		for (unsigned i = 0; i < sizeof(expected) / sizeof(expected[0]); ++i) {
+			CHECK(wait_for_marker(session, (int)i + 2) == EXIT_SUCCESS);
+			int16_t pcm[4410 * 2];
+			CHECK(st_audio_runtime_pull(audio, pcm, 4410) == 0);
+			unsigned cycles = 0;
+			for (unsigned f = 1; f < 4410; ++f)
+				if (pcm[(f - 1) * 2] <= 0 && pcm[f * 2] > 0)
+					++cycles;
+			if (!expected[i])
+				CHECK(!memcmp(pcm, (int16_t[4410 * 2]){0}, sizeof(pcm)));
+			else if (cycles + 1 < expected[i] || cycles > expected[i] + 1) {
+				fprintf(stderr, "Mode %u step %u produced %u cycles, expected %u\n",
+				    mode, i, cycles, expected[i]);
+				return EXIT_FAILURE;
+			}
+			CHECK(st_term_session_send_text(session, ".", 1) == 0);
+		}
+	}
+	return EXIT_SUCCESS;
+}
+
 int
 main(int argc, char **argv)
 {
@@ -173,7 +202,10 @@ main(int argc, char **argv)
 	profile.connection_type = ST_CONNECTION_SHELL;
 	bool theme = argc == 3 && (!strcmp(argv[2], "select-theme") || !strcmp(argv[2], "reuse-theme"));
 	bool first = theme && !strcmp(argv[2], "select-theme");
-	if (theme)
+	bool orders = argc == 3 && !strcmp(argv[2], "orders");
+	if (orders)
+		strcpy(profile.address, "sh term-fixture.sh ddofx-orders");
+	else if (theme)
 		strcpy(profile.address,
 		    first ? "sh term-fixture.sh ddofx-theme select" : "sh term-fixture.sh ddofx-theme reuse");
 	else
@@ -190,6 +222,10 @@ main(int argc, char **argv)
 	    .ddofx_directory = argv[1],
 	};
 	CHECK(st_term_session_create(&session, &config) == 0);
+	if (orders) {
+		CHECK(check_orders(session, audio) == EXIT_SUCCESS);
+		goto finished;
+	}
 	if (theme) {
 		CHECK(check_slide_sounds(session, audio, first) == EXIT_SUCCESS);
 		goto finished;

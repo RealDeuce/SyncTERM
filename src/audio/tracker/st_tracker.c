@@ -92,6 +92,18 @@ st_tracker_toggle_pause(struct st_tracker *player)
 		player->paused = !player->paused;
 }
 
+static int32_t
+playable_order(openmpt_module *module, int32_t count, int32_t order, int direction)
+{
+	while (order >= 0 && order < count && !openmpt_module_is_order_stop_entry(module, order)) {
+		int32_t pattern = openmpt_module_get_order_pattern(module, order);
+		if (openmpt_module_get_pattern_num_rows(module, pattern) > 0)
+			return order;
+		order += direction;
+	}
+	return -1;
+}
+
 void
 st_tracker_step_order(struct st_tracker *player, int direction)
 {
@@ -100,10 +112,20 @@ st_tracker_step_order(struct st_tracker *player, int direction)
 	/* Quiesce the mixer's read callback before touching the decoder. */
 	if (!player->paused && audio_stream_source_active(player->stream, false) != 0)
 		return;
-	int order = openmpt_module_get_current_order(player->module) + direction;
-	if (order >= openmpt_module_get_num_orders(player->module))
-		order = 0;
-	openmpt_module_set_position_order_row(player->module, order < 0 ? 0 : order, 0);
+	openmpt_module *module  = player->module;
+	int32_t         current = openmpt_module_get_current_order(module);
+	int32_t         count   = openmpt_module_get_num_orders(module);
+	int32_t         next    = playable_order(module, count, current + direction, direction);
+	if (next < 0) {
+		/* Both advancing past the end and rewinding past the start
+		 * select the first pattern of the current song. */
+		int32_t start = current;
+		while (start > 0 && !openmpt_module_is_order_stop_entry(module, start - 1))
+			--start;
+		next = playable_order(module, count, start, 1);
+	}
+	if (next >= 0)
+		openmpt_module_set_position_order_row(module, next, 0);
 	if (!player->paused)
 		audio_stream_source_active(player->stream, true);
 }

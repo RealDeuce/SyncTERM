@@ -24,6 +24,29 @@ ddofx-theme)
 	printf '\035{TNONE}\035{0SLIDED}!'
 	dd bs=1 count=1 >/dev/null 2>&1
 	;;
+ddofx-orders)
+	stty raw -echo
+	step() {
+		printf '%b!' "$1"
+		dd bs=1 count=1 >/dev/null 2>&1
+	}
+	for mode in lite normal; do
+		if [ "$mode" = normal ]; then printf '\035{LIGMODE}\035{LIGMODE}'; fi
+		printf '\035{mORDERS.DAT}\035{mMISSING.S3M}\035{dGETMUSIC}\035{MICMF}'
+		test "$(dd bs=1 count=13 2>/dev/null | od -An -tx1 | tr -d ' \n')" = 4f52444552532e444154ff4eff
+		step ''
+		step '\035{MMPAT,1}'
+		step '\035{MMPAT,-1}'
+		step '\035{MMPAT,-1}'
+		step '\035{MMPR}\035{MMPAT,1}'
+		step '\035{MMPR}'
+		step '\035{MMPAT,1}'
+		step '\035{MMPAT,1}\035{MMPAT,-1}'
+		printf '\035{mNONE}\035{dGETMUSIC}'
+		test "$(dd bs=1 count=5 2>/dev/null | od -An -tx1 | tr -d ' \n')" = 4e4f4e45ff
+		step ''
+	done
+	;;
 ddofx-audio)
 	stty raw -echo
 	printf '\035{dSOUNDON}\035{dACARD}'
