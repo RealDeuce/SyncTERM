@@ -9,7 +9,7 @@ void st_ddofx_restore_lite_palette(struct st_ddofx *);
 bool st_ddofx_lite_fade_step(struct st_ddofx *, uint64_t now);
 void st_ddofx_lite_fade(struct st_ddofx *, const struct st_ddofx_sink *, bool fade_in, int32_t duration);
 void st_ddofx_display_raw(const struct st_ddofx *, const struct st_ddofx_sink *, const char *member);
-void st_ddofx_text_scale(struct st_ddofx *, char *args);
+void        st_ddofx_text_scale(struct st_ddofx *, const struct st_ddofx_sink *, char *args);
 void st_ddofx_load_vga_font(struct st_ddofx *, const struct st_ddofx_sink *, const char *);
 const char *st_ddofx_vga_font_name(const struct st_ddofx *);
 void st_ddofx_release_vga_font(struct st_ddofx *);

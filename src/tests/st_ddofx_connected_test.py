@@ -167,6 +167,46 @@ def commands(*bodies):
 FULL_TEXT_WINDOW = b"1OPEN,1,1,80,1,30,7,15,N,N,N,N,N,,,"
 
 
+def check_text_windows(t):
+    t.case("overlapping text windows retain their pages, cursor, order and hidden output")
+    t.exchange(commands(b"2C,33", b"2aFILL", b"2CPYWP2VP"))
+    def colours(data, expected, reply=b""):
+        frame = t.exchange(data, reply)
+        for (x, y), index in expected.items():
+            for plane in (frame.primary, frame.alternate):
+                assert plane[y * 640 + x] == index, (data, x, y, index, plane[y * 640 + x])
+    first = b"1OPEN,1,2,8,2,6,7,15,N,N,N,N,N,,,"
+    second = b"1OPEN,4,3,7,2,5,7,15,N,N,N,N,N,,,"
+    colours(commands(first) + b"\x1b[41m    " + commands(second) + b"\x1b[42m   ",
+            {(8,16):4,(16,16):2,(40,16):0,(0,16):33})
+    colours(commands(b"1WIN,1", b"1WIN,8", b"1WIN,11", b"1SWAP,1,8", b"1GETPOS"),
+            {(8,16):4,(16,16):4}, b"5,1,1,1\xff")
+    colours(commands(b"1SWAP,1,4", b"1HIDE", b"1HIDE") + b"\x1b[44m ",
+            {(8,16):33,(16,16):2,(40,16):0})
+    colours(commands(b"1UNHIDE", b"1GETPOS"), {(8,16):4,(16,16):4,(40,16):1}, b"6,1,1,1\xff")
+    colours(commands(b"1WIN,1", b"1GETPOS"), {(16,16):2}, b"4,1,1,1\xff")
+    moved = b"1CHANGE,11,17,7,10,7,15,N,N,N,N,N,,,"
+    colours(commands(moved, b"1GETPOS"), {(16,16):4,(80,96):2}, b"4,1,1,1\xff")
+    colours(commands(b"1CLOSE", b"1GETPOS"), {(16,16):4,(80,96):33}, b"6,1,1,1\xff")
+    colours(commands(b"1CLOSE", b"1UNHIDE", b"1GETPOS"), {(8,16):33,(16,16):33}, b"NONE\xff")
+
+    # The tabs of a double-line window use the selected FNT and center the
+    # clipped title and help. Give each tested glyph a distinct literal row.
+    marker, = t.root.rglob("syncterm-cache-name.txt")
+    strike = bytearray(4096)
+    for ch, ink in [(201, 0x80), (205, 0x40), (186, 0x20), (ord("X"), 0x10), (ord("H"), 0x08)]:
+        strike[ch*16] = strike[ch*16+8] = ink
+    (marker.parent / "DDOFX" / "FONTS" / "Border.fnt").write_bytes(strike)
+    border = b"1OPEN,7,10,16,3,7,9,14,Y,N,N,N,N,X,H,Border.fnt"
+    colours(commands(border, b"dGETFONT"), {(72,32):9,(73,32):0,(81,32):9,(74,48):9,
+            (96,32):4,(99,32):14,(96,96):4,(100,96):14,(128,32):33}, b"Border.fnt\xff")
+    colours(commands(first), {(96,32):1,(99,32):14})
+    colours(commands(b"1WIN,7", b"1HIDE"), {(72,32):33,(99,32):33,(100,96):33})
+    colours(commands(b"1UNHIDE", b"1SCALE,4,8"), {(36,16):9,(48,16):4,(51,16):14,
+            (72,32):33,(99,32):33})
+    colours(commands(b"1SCALE,8,16", b"1CLOSE", b"1CLOSE", b"fIBMSTD.FNT"), {(72,32):33,(8,16):33})
+
+
 def check_desktop_text(t):
     t.case("resource line breaks after the last text window closes preserve the graphics desktop")
     t.exchange(commands(b"2C,33", b"2aFILL", b"2C,91", b"2aP,5,470", b"2CPYWP2VP"))
@@ -1056,6 +1096,7 @@ def check_graphics(t, root):
     assert frame.palette[3] == 0xff5500
     t.exchange(commands(b"2CPYBP2WP", b"2aG,639,479", b"2CPYVP2WP", b"2aG,639,479",
                         b"2CUTBP2WP,0,1,0,1,639,479", b"2aG,639,479"), b"8\xff3\xff3\xff")
+    check_text_windows(t)
     check_desktop_text(t)
     frame = t.exchange(commands(FULL_TEXT_WINDOW) + b"\x1b[H\x1b[41m " + commands(b"2CPYVP2WP", b"2aG,3,4",
                                                        b"2aSRGB,4,0,63,63"), b"4\xff")

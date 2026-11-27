@@ -62,7 +62,9 @@ struct st_ddofx_text_page {
 	st_cterm_t        *text;
 	unsigned           columns, rows;
 	int                x, y, cell_width, cell_height;
-	bool               hidden;
+	bool               hidden, border;
+	uint8_t            frame_colour, title_colour;
+	char               title[81], help[81], font_name[ST_DDOFX_BODY_MAX + 1];
 };
 
 struct st_ddofx_graphics {
@@ -148,6 +150,8 @@ void st_ddofx_clear_marquees(struct st_ddofx_graphics *);
 bool st_ddofx_marquee_command(struct st_ddofx *, const struct st_ddofx_sink *, const char *, char *);
 void st_ddofx_print_vga_text(struct st_ddofx *, const char *, char *);
 void st_ddofx_apply_vga_font(struct st_ddofx *);
+void    st_ddofx_select_window_font(struct st_ddofx *, const struct st_ddofx_sink *, struct st_ddofx_text_page *,
+    const char *);
 void st_ddofx_grid_command(struct st_ddofx *, const char *, char *);
 void st_ddofx_rotation(int angle, double *cosine, double *sine);
 void st_ddofx_grid_destroy(struct st_ddofx_graphics *, bool erase);

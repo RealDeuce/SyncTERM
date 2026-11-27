@@ -30,7 +30,8 @@ st_ddofx_vga_bitmap(const struct st_ddofx *ddo)
 }
 
 static bool
-install(const struct st_ddofx_graphics *g, const struct st_ddofx_vga_font *font, unsigned width, unsigned height)
+install(const struct st_ddofx_text_page *page, const struct st_ddofx_vga_font *font, unsigned width,
+    unsigned height)
 {
 	struct st_console_font strike;
 	if (!st_builtin_font_get(0, 8, 16, &strike))
@@ -49,32 +50,15 @@ install(const struct st_ddofx_graphics *g, const struct st_ddofx_vga_font *font,
 	strike.bitmap_size   = height * 256;
 	strike.raster_family = NULL;
 	uint16_t id;
-	if (!g)
+	if (!page)
 		return st_console_set_font_strike(font->lite, font->lite_id, &strike) == 0;
-	const struct st_ddofx_text_page *page = &g->windows[g->active_window];
 	if (!st_font_catalog_identifier(page->fonts, 0, &id)
 	    || st_console_raster_view_adopt_indexed_size(page->view, width, height))
 		return false;
 	if (st_console_set_font_strike(page->view, id, &strike) == 0)
 		return true;
-	(void)st_console_raster_view_adopt_indexed_size(page->view, g->cell_width, g->cell_height);
+	(void)st_console_raster_view_adopt_indexed_size(page->view, page->cell_width, page->cell_height);
 	return false;
-}
-
-void
-st_ddofx_text_scale(struct st_ddofx *ddo, char *args)
-{
-	int32_t n[2];
-	if (!st_ddofx_numbers(ddo, args, n, 2) || n[0] < 2 || n[0] > 8 || n[1] < 2 || n[1] > 16)
-		return;
-	struct st_ddofx_graphics *g = ddo->graphics;
-	if ((g->cell_width != n[0] || g->cell_height != n[1])
-	    && install(g, ddo->vga_font, (unsigned)n[0], (unsigned)n[1])) {
-		g->cell_width  = n[0];
-		g->cell_height = n[1];
-		g->windows[g->active_window].cell_width  = n[0];
-		g->windows[g->active_window].cell_height = n[1];
-	}
 }
 
 struct st_console_rect
@@ -92,9 +76,10 @@ st_ddofx_text_area(const struct st_ddofx_graphics *g, unsigned x, unsigned botto
 void
 st_ddofx_apply_vga_font(struct st_ddofx *ddo)
 {
-	if (ddo->graphics || ddo->vga_font)
-		(void)install(ddo->graphics, ddo->vga_font, ddo->graphics ? ddo->graphics->cell_width : 8,
-		    ddo->graphics ? ddo->graphics->cell_height : 16);
+	struct st_ddofx_graphics *g = ddo->graphics;
+	if (g || ddo->vga_font)
+		(void)install(g ? &g->windows[g->active_window] : NULL, ddo->vga_font, g ? g->cell_width : 8,
+		    g ? g->cell_height : 16);
 }
 
 void
@@ -126,27 +111,48 @@ st_ddofx_read_vga_font(const struct st_ddofx_sink *sink, const char *name, uint8
 	return loaded;
 }
 
-void
-st_ddofx_load_vga_font(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, const char *name)
+static bool
+load_font(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, const char *name,
+    struct st_ddofx_text_page *page)
 {
 	if (!*name || strlen(name) > ST_DDOFX_BODY_MAX || !sink->text_config || !sink->open_asset)
-		return;
+		return false;
 	struct st_ddofx_vga_font *next = malloc(sizeof(*next));
 	if (!next)
-		return;
+		return false;
 	bool loaded = st_ddofx_read_vga_font(sink, name, next->bitmap);
 	next->lite  = sink->text_config->console;
 	if (!loaded
 	    || !st_font_catalog_identifier(sink->text_config->fonts, sink->text_config->font_selector,
 		&next->lite_id)
-	    || !install(ddo->graphics, next, ddo->graphics ? ddo->graphics->cell_width : 8,
-		ddo->graphics ? ddo->graphics->cell_height : 16)) {
+	    || !install(page, next, page ? page->cell_width : 8, page ? page->cell_height : 16)) {
 		free(next);
-		return;
+		return false;
 	}
 	strcpy(next->name, name);
 	free(ddo->vga_font);
 	ddo->vga_font = next;
+	return true;
+}
+
+void
+st_ddofx_load_vga_font(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, const char *name)
+{
+	struct st_ddofx_graphics *g = ddo->graphics;
+	(void)load_font(ddo, sink, name, g ? &g->windows[g->active_window] : NULL);
+}
+
+void
+st_ddofx_select_window_font(struct st_ddofx *ddo, const struct st_ddofx_sink *sink,
+    struct st_ddofx_text_page *page, const char *name)
+{
+	const char *current = st_ddofx_vga_font_name(ddo);
+	if (ascii_case_compare(name, current)) {
+		if (load_font(ddo, sink, name, page))
+			return;
+		strcpy(page->font_name, current);
+	}
+	(void)install(page, ddo->vga_font, page->cell_width, page->cell_height);
 }
 
 struct text_run {

@@ -89,6 +89,21 @@ st_console_create_clipped_raster_view(st_console_t **result, st_console_t *paren
 	return 0;
 }
 
+int
+st_console_place_raster_view(st_console_t *console, uint64_t x, uint64_t y, uint32_t columns, uint32_t rows)
+{
+	if (!console || !console->raster_parent || columns > console->columns || rows > console->rows)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (st_rwlock_write_lock(st_console_state_lock(console)) != ST_THREAD_SUCCESS)
+		return IO_ERROR_IO;
+	console->raster_x     = x;
+	console->raster_y     = y;
+	console->view_columns = columns;
+	console->view_rows    = rows;
+	(void)st_rwlock_unlock(st_console_state_lock(console));
+	return 0;
+}
+
 static int
 adopt(st_console_t *console, bool transient, bool parent_palette, uint32_t width, uint32_t height)
 {
