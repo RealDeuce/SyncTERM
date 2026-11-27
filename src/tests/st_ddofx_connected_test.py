@@ -2660,6 +2660,14 @@ def check_info(t, root):
     t.exchange(commands(b"~DEFVAR,9,1,old", b"~VARCAP,9", b"~INFLOD,-2147483648,3", b"~VARCAP,0",
                         b"~VARLEN,9,10", b"7DEFRET,2,DEFVAR10", b"7SRET,2", b"~INFSAV,1,0,DEFVAR9",
                         b"~INFLOD,0,1"), b"6A\0,~\r\xff")
+    # Write the same captured bytes in both modes. A NUL inside the line
+    # is data, and each write adds one carriage return, even after an FF.
+    line = b"A\0,~\r\xff\r"
+    t.exchange(commands(b"EWTEXT,CAPTURE.TXT,0,DEFVAR9", b"ERTEXT,CAPTURE.TXT,DEFVAR9"),
+               line + line[:-1])
+    t.exchange(commands(b"LIGMODE", b"LIGMODE", b"EWTEXT,CAPTURE.TXT,1,DEFVAR9",
+                        b"ERTEXT,CAPTURE.TXT,DEFVAR9^@end", b"2GEXIT"), line * 2 + b"DEFVAR9\0end")
+    assert (theme / "CAPTURE.TXT").read_bytes() == line * 2
     t.exchange(commands(b"~INFSAV,3,2147483647,27", b"~DEFVAR,10,2,0", b"~VARCAP,10", b"~INFLOD,2147483647,3",
                         b"~VARCAP,0", b"~INCVAR,10", b"7DEFRET,2,DEFVAR10", b"7SRET,2"), b"28")
     # Loading retains all bytes. A NUL after a digit still makes this a

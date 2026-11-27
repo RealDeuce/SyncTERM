@@ -16,9 +16,9 @@ st_ddofx_write_text_file(struct st_ddofx *ddo, const struct st_ddofx_sink *sink,
 	if (!st_ddofx_field_number(ddo, &args, &append) || (unsigned)append > 1 || !args
 	    || !st_ddofx_dos_filename(name) || !sink->theme_path)
 		return;
-	const char *text = st_ddofx_value(ddo, args);
+	size_t      length;
+	const char *text = st_ddofx_value_bytes(ddo, args, &length);
 	uint8_t     line[ST_DDOFX_BODY_MAX + 1];
-	size_t      length = strlen(text);
 	memcpy(line, text, length);
 	line[length++] = '\r';
 

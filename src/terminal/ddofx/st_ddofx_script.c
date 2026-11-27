@@ -152,14 +152,25 @@ reference(const struct st_ddofx *ddo, const char *s)
 }
 
 const char *
-st_ddofx_value(const struct st_ddofx *ddo, const char *field)
+st_ddofx_value_bytes(const struct st_ddofx *ddo, const char *field, size_t *length)
 {
 	/* Only DEFVAR followed by a variable number is a reference. */
 	int32_t id;
-	if (!variable_id(field, &id))
+	if (!variable_id(field, &id)) {
+		if (length)
+			*length = strlen(field);
 		return field;
+	}
 	const struct variable *v = variable(ddo->script, id);
+	if (length)
+		*length = v ? v->length : 0;
 	return v ? v->text : "";
+}
+
+const char *
+st_ddofx_value(const struct st_ddofx *ddo, const char *field)
+{
+	return st_ddofx_value_bytes(ddo, field, NULL);
 }
 
 bool
@@ -446,14 +457,12 @@ st_ddofx_control_value(const struct st_ddofx *ddo, const char *source, uint8_t *
 	char   decoded[ST_DDOFX_BODY_MAX + 1];
 	length          = decode_controls((uint8_t *)decoded, source, length < limit ? length : limit, false);
 	decoded[length] = 0;
-	if (length >= 6 && !ascii_case_ncompare(decoded, "DEFVAR", 6)) {
-		const struct variable *v = reference(ddo, decoded);
-		if (!v || memchr(decoded, 0, length))
-			return 0;
-		memcpy(value, v->text, v->length);
-		return v->length;
-	}
-	memcpy(value, decoded, length);
+	const char *bytes = decoded;
+	if (!memchr(decoded, 0, length))
+		bytes = st_ddofx_value_bytes(ddo, decoded, &length);
+	if (length > limit)
+		length = limit;
+	memcpy(value, bytes, length);
 	return length;
 }
 
@@ -580,10 +589,9 @@ named_return(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, const char 
 		if (id == 0)
 			memset(s->returns, 0, sizeof(s->returns));
 		else {
-			const char            *source = st_ddofx_value(ddo, args ? args : "");
-			const struct variable *v      = args ? reference(ddo, args) : NULL;
-			size_t                 length = v ? v->length : strlen(source);
-			char                   encoded[LINE_LENGTH];
+			size_t      length;
+			const char *source = st_ddofx_value_bytes(ddo, args ? args : "", &length);
+			char        encoded[LINE_LENGTH];
 			if (length > sizeof(encoded))
 				length = sizeof(encoded);
 			for (size_t i = 0; i < length; ++i)
@@ -664,10 +672,9 @@ edit_variables(struct st_ddofx *ddo, struct variable *v, const char *verb, char 
 	else if (!strcmp(verb, "VARLEN") || !strcmp(verb, "VARPOS")) {
 		size_t result = len;
 		if (!strcmp(verb, "VARPOS")) {
-			const char *needle = args ? st_ddofx_value(ddo, args) : "";
-			const struct variable *needle_var = args ? reference(ddo, args) : NULL;
-			size_t                 size       = needle_var ? needle_var->length : strlen(needle);
-			result                            = 0;
+			size_t      size;
+			const char *needle = st_ddofx_value_bytes(ddo, args ? args : "", &size);
+			result             = 0;
 			for (size_t i = 0; size && size <= len && i <= len - size; ++i) {
 				if (!memcmp(v->text + i, needle, size)) {
 					result = i + 1;
@@ -791,8 +798,7 @@ compare(const struct st_ddofx *ddo, const struct st_ddofx_sink *sink, const stru
 		master = builtin;
 	else
 		master = p->master;
-	const char *slave = st_ddofx_value(ddo, p->slave);
-	int         relation;
+	int relation;
 	if (numeric) {
 		int32_t a = 0, b = 0;
 		if (v)
@@ -803,10 +809,9 @@ compare(const struct st_ddofx *ddo, const struct st_ddofx_sink *sink, const stru
 		relation = (a > b) - (a < b);
 	}
 	else {
-		const struct variable *rhs = reference(ddo, p->slave);
-		size_t                 a   = v ? v->length : strlen(master);
-		size_t                 b   = rhs ? rhs->length : strlen(slave);
-		relation                   = 0;
+		size_t      a = v ? v->length : strlen(master), b;
+		const char *slave = st_ddofx_value_bytes(ddo, p->slave, &b);
+		relation          = 0;
 		for (size_t i = 0; !relation && i < a && i < b; ++i)
 			relation =
 			    (int)ascii_to_upper((uint8_t)master[i]) - (int)ascii_to_upper((uint8_t)slave[i]);

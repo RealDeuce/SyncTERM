@@ -92,7 +92,7 @@ Doors can supply a resource prefix, member or loose filename through a system va
 
 Loose-file queries read the entry’s `DDOFX/MUSIC`, `DDOFX/FONTS`, and `DDOFX/BBSTHEME` directories. Professional queries use `DDOFX/TERMS/<client>`. Names use DOS-style case matching. The timestamp is local modification time with DOS two-second precision. `8EXEC` consumes the command without starting a program.
 
-In Lite and Normal mode, `EWTEXT` creates or replaces a loose BBSTHEME file with flag 0 and appends with flag 1. It adds the carriage return specified by the SDK to each line. `ERTEXT` sends the file bytes followed by the supplied return string. A missing file still sends the return string.
+In Lite and Normal mode, `EWTEXT` creates or replaces a loose BBSTHEME file with flag 0 and appends with flag 1. When a variable supplies the line, the command writes its full byte count, including embedded NULs, then adds the carriage return specified by the SDK. `ERTEXT` sends the file bytes followed by the supplied return string. A missing file still sends the return string.
 
 Resource assignment selects the M container in `DDOFX/BBSTHEME` for local scripts and bitmap fonts and the S container for indexed PCX artwork. Scripts up to 40,000 bytes can call other scripts and render DOS text. A resource entry query tests the member name and component ID. Conditional scripts can also read that ID.
 
