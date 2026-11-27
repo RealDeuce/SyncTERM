@@ -16,6 +16,8 @@ Work, background and visual pages can load version-5, single-plane, 8-bit PCX ar
 
 A BBS can load legacy and four-bank BMF fonts into 32 slots with `2F` and switch between loaded fonts with `2FSELECT`. On all four desktop pages, `2X` scales a variable-width string to the specified rectangle, draws an optional one-pixel outline, and rotates it about the rectangle center.
 
+The four desktop pages support lower-left anchored image scaling, rotation between pages with a transparent index and independent pivots, palette-based anti-aliasing, and single-index outlines.
+
 Normal mode supports a tile map of up to 150 × 150 cells. The host can fill either layer, move the viewport, move or remove foreground tiles, and animate consecutive sprite frames. Grid assignments become visible on a draw. Movement redraws immediately.
 
 Loose-file queries read the entry’s `DDOFX/MUSIC`, `DDOFX/FONTS`, and `DDOFX/BBSTHEME` directories. Professional queries use `DDOFX/TERMS/<client>`. Names use DOS-style case matching. The timestamp is local modification time with DOS two-second precision. `8EXEC` consumes the command without starting a program.
@@ -421,10 +423,10 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 13473 | GD KILL TILE | DDO-FX (NM) | Connected on the desktop |
 | 13488 | SET SLEEP DISCONNECT | DDO-FX (NM) | Pending |
 | 13544 | SET PING | DDO-FX (NM) | Pending |
-| 13620 | ROTATE IMAGE | DDO-FX (NM) | Pending |
-| 13703 | SCALE IMAGE | DDO-FX (NM) | Pending |
-| 13819 | ANTI-ALIAS IMAGE | DDO-FX (NM) | Pending |
-| 13917 | OUTLINE IMAGE | DDO-FX (NM) | Pending |
+| 13620 | ROTATE IMAGE | DDO-FX (NM) | Connected on the desktop |
+| 13703 | SCALE IMAGE | DDO-FX (NM) | Connected on the desktop |
+| 13819 | ANTI-ALIAS IMAGE | DDO-FX (NM) | Connected on the desktop |
+| 13917 | OUTLINE IMAGE | DDO-FX (NM) | Connected on the desktop |
 | 13975 | ZMODEM BACKGROUND TRANSFERS | DDO-FX (NM) | Pending |
 | 14035 | ZMODEM STEALTH MODE | DDO-FX (NM) | Pending |
 | 14120 | DEFINE MUSIC BAR | DDO-FX (NM) | Desktop pages; virtual windows pending |

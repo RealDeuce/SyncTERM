@@ -218,7 +218,7 @@ execute(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *body)
 			st_ddofx_graphics_command(ddo, sink, body);
 	}
 	else if (body[0] == '5' && ddo->graphics)
-		st_ddofx_grid_command(ddo, body);
+		st_ddofx_gadget_command(ddo, body);
 	else if (body[0] == '*')
 		st_ddofx_run_resource(ddo, sink, st_ddofx_value(ddo, body + 1));
 	else if (body[0] == 'd' && ascii_case_ncompare(body + 1, "RESOURCE,", 9) == 0) {

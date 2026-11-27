@@ -168,6 +168,47 @@ def check_sprites(t):
                         b"2ACSS", b"2C,12", b"2aFILL", b"2DSS", b"2aG,51,49"), b"3\xff12\xff")
 
 
+def check_image_commands(t):
+    t.case("scaled, rotated, outlined and smoothed page rectangles")
+    # Source from top down is [1,2], [3,0]. Scale up against the
+    # top/right edges, then shrink toward the same lower-left corner.
+    seed = [b"2aERASE", b"2C,1", b"2aP,636,2", b"2C,2", b"2aP,637,2",
+            b"2C,3", b"2aP,636,3", b"2CPYWP2BP"]
+    frame = t.exchange(commands(*seed, b"5SCALE,BP,636,637,2,3,4,4", b"2CPYBP2VP"))
+    for plane in (frame.primary, frame.alternate):
+        assert [list(plane[y*640+636:(y+1)*640]) for y in range(4)] == [
+            [1,1,2,2], [1,1,2,2], [3,3,0,0], [3,3,0,0]]
+    t.exchange(commands(b"5SCALE,VP,636,639,0,3,2,2", b"2CPYVP2WP", b"2aG,636,0", b"2aG,637,2",
+                        b"2aG,636,3", b"2aG,638,2"), b"0\xff2\xff3\xff0\xff")
+
+    # Rotate about the top-left source pixel. VP already has a 7 where
+    # the transparent source pixel would land.
+    t.exchange(commands(b"2C,7", b"2aFILL", b"2CPYWP2HP", b"5ROTATE,VP,HP,636,637,2,3,90,636,2,0,10,20",
+                        b"2CPYHP2WP", b"2aG,10,20", b"2aG,10,21", b"2aG,9,20", b"2aG,9,21"),
+               b"1\xff2\xff3\xff7\xff")
+    t.exchange(commands(b"2C,7", b"2aFILL", b"5ROTATE,HP,WP,9,10,20,21,360,-1,-1,7,-1,-1", b"2aG,9,20",
+                        b"5ROTATE,WP,WP,9,10,20,21,90,9,20,0,0,0", b"2aG,0,0"), b"3\xff7\xff")
+    # External pivot and a partly clipped 45-degree rotation. The
+    # selected source point lies four pixels to the right of its pivot.
+    t.exchange(commands(b"5ROTATE,HP,WP,10,10,20,20,45,6,20,0,-2,0", b"2aG,1,3",
+                        b"2aG,0,2", b"2aG,2,3"), b"1\xff1\xff7\xff")
+    frame = t.exchange(commands(b"2aERASE", b"2C,6", b"2aP,10,10", b"2C,255", b"2aP,12,12",
+                                b"2CPYWP2VP", b"5OUTLN,VP,8,12,8,12,6,9"))
+    for plane in (frame.primary, frame.alternate):
+        for y in range(8,13):
+            for x in range(8,13):
+                expected = 6 if (x,y) == (10,10) else 9 if (x,y) == (12,12) or max(abs(x-10),abs(y-10)) == 1 else 0
+                assert plane[y*640+x] == expected
+
+    # Center red 60 and four black diagonals average to DAC red 12.
+    # Select an independent palette with just one matching index.
+    t.exchange(commands(b"2aSTOREPAL", b"2aZEROPAL", b"2aSRGB,30,60,0,0", b"2aSRGB,31,12,0,0",
+                        b"2aERASE", b"2C,30", b"2aP,0,0", b"2aP,20,20", b"5ALIAS,WP,20,20,20,20,29,0",
+                        b"2aG,20,20", b"5ALIAS,WP,20,20,20,20,-1,255", b"2aG,20,20",
+                        b"5ALIAS,WP,20,20,20,20,30,0", b"2aG,20,20", b"2aG,0,0", b"2aRESTOREPAL"),
+               b"30\xff30\xff31\xff30\xff")
+
+
 def check_grid(t):
     t.case("one-based tile map, transparent foreground and scrolling viewport")
 
@@ -332,6 +373,7 @@ def check_graphics(t, root):
     check_drawing(t)
     check_sprites(t)
     check_grid(t)
+    check_image_commands(t)
     check_pcx(t, root)
     t.exchange(b"\x1b[75;45H" + b"\x1b[6n", b"\x1b[75;45R")
     restored = t.check("Lite display and cursor restored", commands(b"2GEXIT", b"dVIDMODE") + b"!",

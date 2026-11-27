@@ -233,10 +233,8 @@ st_ddofx_grid_poll(struct st_ddofx *ddo)
 }
 
 void
-st_ddofx_grid_command(struct st_ddofx *ddo, char *body)
+st_ddofx_grid_command(struct st_ddofx *ddo, const char *op, char *args)
 {
-	char                     *args = body;
-	const char               *op   = st_ddofx_field(&args);
 	struct st_ddofx_graphics *g    = ddo->graphics;
 	struct st_ddofx_grid     *grid = g->grid;
 	if (!ascii_case_compare(op, "5DEFGRID"))

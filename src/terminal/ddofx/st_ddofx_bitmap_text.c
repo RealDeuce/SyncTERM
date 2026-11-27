@@ -275,16 +275,7 @@ print_text(struct st_ddofx *ddo, char *args)
 	if (scale_run(image, font, text, (unsigned)n[4])) {
 		if (n[5])
 			outline(image, (unsigned)n[5]);
-		if (n[6] % 90 == 0) {
-			static const int sine[] = {0, 1, 0, -1, 0};
-			image->sine             = sine[n[6] / 90];
-			image->cosine           = sine[n[6] / 90 + 1];
-		}
-		else {
-			double angle  = n[6] * (3.14159265358979323846 / 180.0);
-			image->cosine = cos(angle);
-			image->sine   = sin(angle);
-		}
+		st_ddofx_rotation(n[6], &image->cosine, &image->sine);
 		double cx = n[0] + (w - 1) * 0.5, cy = n[2] + (h - 1) * 0.5;
 		double rx     = (fabs(image->cosine) * w + fabs(image->sine) * h) * 0.5;
 		double ry     = (fabs(image->sine) * w + fabs(image->cosine) * h) * 0.5;

@@ -62,6 +62,8 @@ struct st_ddofx_graphics {
 	int           horizontal_thickness, vertical_thickness;
 };
 
+void st_ddofx_grid_command(struct st_ddofx *, const char *, char *);
+void st_ddofx_rotation(int angle, double *cosine, double *sine);
 void st_ddofx_grid_destroy(struct st_ddofx_graphics *, bool erase);
 bool    st_ddofx_page_name(const char *, enum page *);
 void    st_ddofx_bitmap_text(struct st_ddofx *, const struct st_ddofx_sink *, const char *, char *);
