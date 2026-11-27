@@ -17,6 +17,8 @@ def run(args):
             t.send(ident[:split])
             t.exchange(ident[split:], reply)
         t.exchange(b"\x1d{dliterm}\x1d{DLITERM}", reply)
+        t.exchange(b"\x1d{dMUSICON}\x1d{mMISSING.MOD}\x1d{dGETMUSIC}", b"NO\xffNONE\xff")
+        t.exchange(b"\x1d{MGVOL}\x1d{MSVOL,20}\x1d{MMVOL,-5}\x1d{MGVOL}", b"64\xff15\xff")
         glyph = "é".encode("utf-8" if args.encoding == "UTF-8" else "cp437")
         t.check("framing amid ANSI", b"\x1b[2;" + ident + b"3H" + glyph + ident + ident + b"B",
                 (5, 2), [(3, 2, "éB")], expected=reply * 3)

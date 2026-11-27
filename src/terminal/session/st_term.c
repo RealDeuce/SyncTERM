@@ -11,6 +11,9 @@
 #include "audio.h"
 #include "cterm_big.h"
 #include "cterm_igs.h"
+#include "cterm_rip_asset.h"
+#include "filesystem.h"
+#include "path.h"
 #include "cterm_skypix.h"
 #include "io_error.h"
 #include "st_controller.h"
@@ -161,7 +164,7 @@ st_term_session_finish_display(st_term_session_t *session)
 	if (pending != 0)
 		return pending;
 	if (session->config.graphics_mode == ST_GRAPHICS_DDOFX_20)
-		session->ddofx = (struct st_ddofx){0};
+		st_ddofx_reset(&session->ddofx);
 	if (session->rip154 != NULL) {
 		int status = st_rip154_finish(session->rip154);
 		if (status != 0)
@@ -185,7 +188,7 @@ st_term_session_reset_display(st_term_session_t *session)
 	if (pending != 0)
 		return pending;
 	if (session->config.graphics_mode == ST_GRAPHICS_DDOFX_20)
-		session->ddofx = (struct st_ddofx){0};
+		st_ddofx_reset(&session->ddofx);
 	if (session->rip154 != NULL)
 		return st_rip154_reset(session->rip154);
 	if (session->igs != NULL)
@@ -629,6 +632,8 @@ st_term_session_create(st_term_session_t **result, const struct st_term_config *
 	if (session == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
 	session->config = *config;
+	if (config->graphics_mode == ST_GRAPHICS_DDOFX_20)
+		st_ddofx_reset(&session->ddofx);
 	if (config->graphics_mode == ST_GRAPHICS_RIP_3) {
 		status = st_term_rip3_prepare_console(config->console);
 		if (status != 0) {
@@ -818,6 +823,7 @@ st_term_session_destroy(st_term_session_t **session)
 	(void)st_term_session_end_transfer(*session);
 	(void)finish(*session);
 	publish_history(*session);
+	st_ddofx_reset(&(*session)->ddofx);
 	st_ooii_destroy((*session)->ooii);
 	st_term_rip3_destroy((*session)->rip3);
 	st_rip154_destroy((*session)->rip154);
@@ -1170,6 +1176,21 @@ local_command(st_console_t *console, const struct st_console_event *event, enum 
 	return false;
 }
 
+static FILE *
+ddofx_open_music(void *context, const char *filename)
+{
+	st_term_session_t *session = context;
+	const char *root = session->config.ddofx_directory;
+	struct fs_info info;
+	char *directory = NULL;
+	if (root == NULL || fs_get_link_info(&info, root) != 0 || info.kind != FS_ENTRY_DIRECTORY
+	    || path_join_alloc(&directory, root, "MUSIC") != 0)
+		return NULL;
+	FILE *file = cterm_rip_asset_open_read(directory, filename, false);
+	free(directory);
+	return file;
+}
+
 static int
 ddofx_text(void *context, const uint8_t *bytes, size_t size, size_t *consumed)
 {
@@ -1181,9 +1202,13 @@ static int
 write_protocol(st_term_session_t *session, const void *bytes, size_t size, size_t *consumed)
 {
 	if (session->config.graphics_mode == ST_GRAPHICS_DDOFX_20) {
-		const struct st_ddofx_sink sink = {.context = session,
-		    .text                                   = ddofx_text,
-		    .reply                                  = protocol_reply};
+		const struct st_ddofx_sink sink = {
+		    .context = session,
+		    .text = ddofx_text,
+		    .reply = protocol_reply,
+		    .open_music = ddofx_open_music,
+		    .audio = session->config.audio,
+		};
 		return st_ddofx_feed(&session->ddofx, &sink, bytes, size, consumed);
 	}
 	if (session->rip3 != NULL) {

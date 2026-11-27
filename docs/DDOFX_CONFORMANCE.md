@@ -4,12 +4,12 @@ Select **DDO F/X 2.0** under **Graphics** in the BBS entry. The session starts i
 
 The inventory follows the 439 host-to-client command definitions in the 2.00 SDK. Line numbers refer to physical lines of `SDK20/docs/DDOFX.DOC` (SHA-256 `8ef566f37ee14cd4e7b349fccca23fd0d05cd5d63dda9f378ec7471a8b1c1e98`). The SDK also describes 45 UHS host commands.
 
-Connected tests cover framing, detection, and ignore/hear across CP437 and UTF-8 sessions. The planned tracker decoder is libopenmpt for MOD and S3M. The SDK defines music bars as volume levels for the first 16 tracks. ZIP package input uses the approved libzip dependency.
+Connected tests cover framing, detection, and ignore/hear across CP437 and UTF-8 sessions. Place MOD and S3M files in the entry’s `DDOFX/MUSIC` cache directory. The `m` command selects the decoder by file content and plays through SyncTERM’s stereo mixer. A missing file leaves the previous song playing. The headless music test drives DDO commands and checks PCM from both formats. Music bars, CMF, and ZIP installation are pending.
 
 | SDK line | Definition | Domain | Coverage |
 | ---: | --- | --- | --- |
 | 575 | LOAD FONT | DDO-FX LITE | Pending |
-| 616 | LOAD MUSIC | DDO-FX LITE | Pending |
+| 616 | LOAD MUSIC | DDO-FX LITE | MOD and S3M |
 | 635 | LOAD BBS THEME | DDO-FX LITE | Pending |
 | 693 | LOAD SOUND BITES LIBRARY | DDO-FX LITE | Pending |
 | 767 | LOAD TERM THEME | DDO-FX LITE | Pending |
@@ -25,11 +25,11 @@ Connected tests cover framing, detection, and ignore/hear across CP437 and UTF-8
 | 1124 | CHECK BIG SAMPLE | DDO-LITE | Pending |
 | 1167 | PLAY REALPLAY SAMPLE | DDO-FX LITE | Pending |
 | 1207 | TEXT TO SPEECH | DDO-FX LITE | Pending |
-| 1417 | MODIFY MUSIC PATTERN | DDO-FX LITE | Pending |
-| 1447 | PAUSE RESUME MOD/S3M | DDO-FX LITE | Pending |
-| 1459 | SET VOLUME | DDO-FX LITE | Pending |
-| 1476 | MODIFY VOLUME | DDO-FX LITE | Pending |
-| 1491 | GET VOLUME | DDO-FX LITE | Pending |
+| 1417 | MODIFY MUSIC PATTERN | DDO-FX LITE | Connected |
+| 1447 | PAUSE RESUME MOD/S3M | DDO-FX LITE | Connected |
+| 1459 | SET VOLUME | DDO-FX LITE | Connected |
+| 1476 | MODIFY VOLUME | DDO-FX LITE | Connected |
+| 1491 | GET VOLUME | DDO-FX LITE | Connected |
 | 1509 | IS CMF PLAYING | DDO-FX LITE | Pending |
 | 1528 | WAIT | DDO-FX LITE | Pending |
 | 1544 | GOTO DDO-FX (NORMAL MODE) | DDO-FX LITE | Pending |
@@ -47,9 +47,9 @@ Connected tests cover framing, detection, and ignore/hear across CP437 and UTF-8
 | 2249 | DETECT FOR RESOURCE FILE | DDO-FX LITE | Pending |
 | 2262 | DETECT FOR RESOURCE ENTRY | DDO-FX LITE | Pending |
 | 2320 | DETECT FOR FONT FILE | DDO-FX LITE | Pending |
-| 2328 | DETECT MUSIC ON/OFF | DDO-FX LITE | Pending |
+| 2328 | DETECT MUSIC ON/OFF | DDO-FX LITE | Connected |
 | 2345 | DETECT SOUND F/X ON/OFF | DDO-FX LITE | Pending |
-| 2367 | DETECT MUSIC PLAYING | DDO-FX LITE | Pending |
+| 2367 | DETECT MUSIC PLAYING | DDO-FX LITE | MOD and S3M |
 | 2389 | DETECT THEME LOADED | DDO-FX LITE | Pending |
 | 2411 | DETECT FONT LOADED | DDO-FX LITE | Pending |
 | 2431 | DEFINE A MACRO | DDO-FX LITE | Pending |

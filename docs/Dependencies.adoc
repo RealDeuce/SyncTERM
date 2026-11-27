@@ -34,6 +34,9 @@ on macOS. Systems with libudev and libevdev can also read XUSB interfaces
 owned by a kernel input driver. Windows uses the SDK's XInput API.
 Libretro uses the frontend's configured RetroPad ports.
 
+DDO F/X decodes MOD and S3M through libopenmpt. The bundled build uses the
+library sources from the pinned release and the SyncTERM mixer supplies PCM output.
+
 == Feature and library options
 
 Feature switches retain `AUTO`, `ON`, and `OFF`, including `ST_CONSOLE_SDL`,
@@ -61,7 +64,7 @@ that prerequisite uses runtime loading; the report records that closure too.
 The old MIDI feature values `STATIC` and `RUNTIME` now belong on the dependency
 linkage option, rather than the feature enablement switch.
 
-Library names are `HIDAPI`, `LIBUSB`, `OPENSSL`, `BOTAN`, `SNDFILE`, `JPEG`, `JXL`, `SDL2`, `PORTAUDIO`,
+Library names are `HIDAPI`, `LIBUSB`, `OPENSSL`, `BOTAN`, `SNDFILE`, `OPENMPT`, `JPEG`, `JXL`, `SDL2`, `PORTAUDIO`,
 `ALSA`, `PULSEAUDIO`, `PIPEWIRE`, `FLUIDSYNTH`, `ADLMIDI`, `CURSES`, `TERMINFO`,
 `X11`, `XRENDER`, `XRANDR`, `XINERAMA`, `WAYLAND`, and `XKBCOMMON`.
 Transitive libraries have the same controls: `FLAC`, `OGG`, `VORBIS`, `OPUS`,

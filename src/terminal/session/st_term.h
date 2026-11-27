@@ -66,6 +66,7 @@ struct st_term_config {
 	enum st_cterm_encoding      encoding;
 	enum st_graphics_mode graphics_mode;
 	const char                 *rip_directory;
+	const char                 *ddofx_directory;
 	/* Read-only fallback for RIPv3 resources. Named directories stay under rip_directory. */
 	const char *rip3_data_directory;
 	void        (*rip3_alert)(void *context, const char *title, const char *message);

@@ -38,6 +38,7 @@ st_embed_license("XMODEM / YMODEM (BSD 2-Clause)" "${_st_license_root}/src/net/t
 st_embed_license("ZMODEM (BSD 2-Clause)" "${_st_license_root}/src/net/transfer/LICENSE.ZMODEM")
 st_embed_license("Native Amiga bitmap fonts (provenance)" "${_st_license_root}/src/fonts/amiga/data/NOTICE.txt")
 st_embed_license("RIPtel BGI, FastFont and MicroANSI (provenance)" "${_st_license_root}/src/terminal/rip3/assets/fonts/NOTICE.txt")
+st_embed_license("libopenmpt (BSD 3-Clause)" "${_st_license_root}/src/audio/tracker/LICENSE.OPENMPT")
 st_embed_license("Opal YM3812 adaptation (MIT)" "${_st_license_root}/src/audio/opl2/LICENSE.OPAL")
 st_embed_license("JPEG decoder (IJG)" "${_st_license_root}/src/graphics/image/LICENSE.JPEG")
 st_embed_license("Wren (MIT)" "${_st_license_root}/src/scripting/wren_vm/LICENSE")

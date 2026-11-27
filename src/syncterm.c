@@ -1008,6 +1008,7 @@ run_session(st_wren_host_t *host, st_console_display_t *display, st_console_t *c
 #endif
 	char                      *cache_directory      = NULL;
 	char                      *rip_directory        = NULL;
+	char                      *ddofx_directory      = NULL;
 	char                      *amiga_font_directory = NULL;
 	char                      *disconnect_details   = NULL;
 	bool                       notify_disconnect;
@@ -1083,6 +1084,8 @@ run_session(st_wren_host_t *host, st_console_display_t *display, st_console_t *c
 		status = st_bbs_cache_path_for_name(&cache_directory, paths->cache_directory, profile->name);
 		if (status == 0)
 			status = path_join_alloc(&rip_directory, cache_directory, "RIP");
+		if (status == 0 && profile->graphics_mode == ST_GRAPHICS_DDOFX_20)
+			status = path_join_alloc(&ddofx_directory, cache_directory, "DDOFX");
 		if (status != 0)
 			goto finished;
 	}
@@ -1102,6 +1105,7 @@ run_session(st_wren_host_t *host, st_console_display_t *display, st_console_t *c
 	    .encoding                      = st_term_profile_encoding(profile),
 	    .graphics_mode                 = st_term_profile_graphics_mode(profile),
 	    .rip_directory                 = rip_directory,
+	    .ddofx_directory               = ddofx_directory,
 	    .rip3_data_directory           = paths->rip_data_directory,
 	    .rip3_alert                    = connection_alert,
 	    .rip3_alert_context            = &connection_ui,
@@ -1292,6 +1296,7 @@ finished:
 	st_font_catalog_destroy(fonts);
 	free(cache_directory);
 	free(rip_directory);
+	free(ddofx_directory);
 	free(amiga_font_directory);
 	return status;
 }
