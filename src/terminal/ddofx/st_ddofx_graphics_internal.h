@@ -105,6 +105,9 @@ struct st_ddofx_text_page {
 	int                x, y, cell_width, cell_height;
 	bool               hidden, border;
 	uint8_t            frame_colour, title_colour;
+	/* The original strike also supplies unscaled border glyphs. */
+	uint8_t            font_bitmap[4096];
+	unsigned           font_width, font_height;
 	char               title[81], help[81], font_name[ST_DDOFX_BODY_MAX + 1];
 };
 
@@ -262,6 +265,7 @@ bool    st_ddofx_page_name(const char *, enum page *);
 void    st_ddofx_bitmap_text(struct st_ddofx *, const struct st_ddofx_sink *, const char *, char *);
 bool    st_ddofx_create_text_page(struct st_ddofx_graphics *, struct st_ddofx_text_page *,
     const struct st_cterm_config *);
+void    st_ddofx_repaint_text_windows(struct st_ddofx *, unsigned owner);
 void    st_ddofx_destroy_text_page(struct st_ddofx_text_page *);
 void    st_ddofx_close_text_windows(struct st_ddofx_graphics *);
 void    st_ddofx_set_palette(struct st_ddofx_graphics *, unsigned, unsigned);

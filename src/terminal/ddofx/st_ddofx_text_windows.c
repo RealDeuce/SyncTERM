@@ -247,7 +247,7 @@ struct window_frame {
 	struct st_ddofx_graphics        *graphics;
 	const struct st_ddofx_text_page *page;
 	const uint8_t                   *font;
-	bool                             active;
+	bool                             active, labels_only;
 };
 
 static void
@@ -270,7 +270,10 @@ paint_frame(void *context, const struct st_pixel_buffer *pixels, struct bounds v
 			if (!top && !bottom && !left && !right)
 				continue;
 			uint8_t ch = 186, ink = p->frame_colour, paper = 0;
-			if (col >= start && col - start < len) {
+			bool    label_cell = col >= start && col - start < len;
+			if (frame->labels_only && !label_cell)
+				continue;
+			if (label_cell) {
 				ch    = (uint8_t)label[col - start];
 				ink   = p->title_colour;
 				paper = frame->active ? 4 : 1;
@@ -291,19 +294,34 @@ paint_frame(void *context, const struct st_pixel_buffer *pixels, struct bounds v
 }
 
 static void
+draw_frame(struct st_ddofx *ddo, unsigned id, bool labels_only)
+{
+	struct st_ddofx_graphics        *g = ddo->graphics;
+	const struct st_ddofx_text_page *p = &g->windows[id];
+	if (!p->view || p->hidden || !p->border || !p->font_width)
+		return;
+	struct window_frame frame = {g, p, p->font_bitmap, id == g->active_window, labels_only};
+	paint_outer_area(ddo, p, paint_frame, &frame);
+}
+
+static void
+repaint_window(struct st_ddofx *ddo, unsigned id)
+{
+	struct st_ddofx_text_page *page = &ddo->graphics->windows[id];
+	if (page->view && !page->hidden) {
+		draw_frame(ddo, id, false);
+		(void)st_console_redraw_raster_view(page->view);
+	}
+}
+
+static void
 draw_window(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, unsigned id, const char *font)
 {
-	struct st_ddofx_graphics  *g    = ddo->graphics;
-	struct st_ddofx_text_page *page = &g->windows[id];
+	struct st_ddofx_text_page *page = &ddo->graphics->windows[id];
 	if (!page->view || page->hidden)
 		return;
 	st_ddofx_select_window_font(ddo, sink, page, font ? font : page->font_name);
-	if (page->border) {
-		struct window_frame frame = {g, page, st_ddofx_vga_bitmap(ddo), id == g->active_window};
-		if (frame.font)
-			paint_outer_area(ddo, page, paint_frame, &frame);
-	}
-	(void)st_console_redraw_raster_view(page->view);
+	repaint_window(ddo, id);
 }
 
 static void
@@ -317,6 +335,85 @@ redraw_text_pages(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, const 
 	if (g->active_window)
 		draw_window(ddo, sink, g->active_window, active_font);
 	(void)st_console_end_update(g->display);
+}
+
+static bool
+text_windows_overlap(const struct st_ddofx_graphics *g, unsigned owner)
+{
+	for (unsigned i = 1; i <= 10; ++i) {
+		const struct st_ddofx_text_page *p = &g->windows[i];
+		if (!p->view || p->hidden || p->owner != owner)
+			continue;
+		for (unsigned j = 1; j < i; ++j) {
+			const struct st_ddofx_text_page *other = &g->windows[j];
+			if (!other->view || other->hidden || other->owner != owner)
+				continue;
+			struct bounds a = outer_area(p), b = outer_area(other);
+			if (st_ddofx_intersect_bounds(&a, &b))
+				return true;
+		}
+	}
+	return false;
+}
+
+void
+st_ddofx_repaint_text_windows(struct st_ddofx *ddo, unsigned owner)
+{
+	struct st_ddofx_graphics *g = ddo->graphics;
+	unsigned exposed[10], count = 0;
+	/* Walk front to back, then paint the exposed windows back to front. */
+	for (unsigned rank = 11; rank > 0; --rank) {
+		unsigned id = rank == 11 ? g->active_window : rank;
+		if (!id || (rank != 11 && id == g->active_window))
+			continue;
+		const struct st_ddofx_text_page *p = &g->windows[id];
+		if (!p->view || p->hidden || p->owner != owner)
+			continue;
+		struct bounds area = outer_area(p);
+		unsigned i;
+		for (i = 0; i < count; ++i) {
+			struct bounds cover = outer_area(&g->windows[exposed[i]]);
+			if (cover.left <= area.left && cover.right >= area.right && cover.top <= area.top
+			    && cover.bottom >= area.bottom)
+				break;
+		}
+		if (i == count)
+			exposed[count++] = id;
+	}
+	while (count)
+		repaint_window(ddo, exposed[--count]);
+}
+
+/* Other owners' visual pages may contain drawings which have never
+ * been copied to their hidden pages. */
+static void
+rebuild_text_owner(struct st_ddofx *ddo, unsigned owner)
+{
+	struct st_ddofx_graphics *g       = ddo->graphics;
+	struct st_ddofx_surface   surface = st_ddofx_surface(g, owner, HIDDEN);
+	struct bounds             area    = {0, surface.width - 1, 0, surface.height - 1};
+	struct page_repair        repair  = {g, owner};
+	st_ddofx_draw_text_control(ddo, owner, false, area, restore_page, &repair);
+	st_ddofx_repaint_text_windows(ddo, owner);
+}
+
+static void
+show_active_window(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, unsigned old, bool opened)
+{
+	struct st_ddofx_graphics  *g              = ddo->graphics;
+	struct st_ddofx_text_page *next           = &g->windows[g->active_window];
+	unsigned                   previous_owner = g->windows[old].owner;
+	st_ddofx_select_window_font(ddo, sink, next, next->font_name);
+	if (old && previous_owner != next->owner && text_windows_overlap(g, previous_owner))
+		rebuild_text_owner(ddo, previous_owner);
+	else if (old && old != g->active_window)
+		draw_frame(ddo, old, true);
+	if (text_windows_overlap(g, next->owner))
+		rebuild_text_owner(ddo, next->owner);
+	else if (opened)
+		repaint_window(ddo, g->active_window);
+	else
+		draw_frame(ddo, g->active_window, true);
 }
 
 static int
@@ -500,13 +597,10 @@ configure_window(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *a
 			st_ddofx_destroy_text_page(&page);
 		return false;
 	}
-	uncover_page(ddo, old);
 	if (create)
 		st_ddofx_destroy_text_page(old);
 	*old             = page;
 	g->active_window = id;
-	if (create && page.hidden)
-		st_ddofx_select_window_font(ddo, sink, old, old->font_name);
 	return true;
 }
 
@@ -583,9 +677,18 @@ st_ddofx_text_window_command(struct st_ddofx *ddo, const struct st_ddofx_sink *s
 		return;
 	}
 	if (!ascii_case_compare(op, "1OPEN")) {
-		if (!st_ddofx_field_number(ddo, &args, &n[0]) || !valid_slot(n[0])
-		    || !configure_window(ddo, sink, args, (unsigned)n[0], true))
+		if (!st_ddofx_field_number(ddo, &args, &n[0]) || !valid_slot(n[0]))
 			return;
+		unsigned slot = (unsigned)n[0], former_owner = g->windows[slot].owner;
+		bool     replaced = g->windows[slot].view != NULL;
+		(void)st_console_begin_update(g->display);
+		if (configure_window(ddo, sink, args, slot, true)) {
+			if (replaced)
+				rebuild_text_owner(ddo, former_owner);
+			show_active_window(ddo, sink, id, true);
+		}
+		(void)st_console_end_update(g->display);
+		return;
 	}
 	else if (!id)
 		return;
@@ -602,11 +705,17 @@ st_ddofx_text_window_command(struct st_ddofx *ddo, const struct st_ddofx_sink *s
 		return;
 	}
 	else if (!ascii_case_compare(op, "1CHANGE")) {
-		if (!configure_window(ddo, sink, args, id, false))
-			return;
+		(void)st_console_begin_update(g->display);
+		if (configure_window(ddo, sink, args, id, false)) {
+			st_ddofx_select_window_font(ddo, sink, page, page->font_name);
+			rebuild_text_owner(ddo, page->owner);
+		}
+		(void)st_console_end_update(g->display);
+		return;
 	}
 	else if (!ascii_case_compare(op, "1CLOSE") && !args) {
-		uncover_page(ddo, page);
+		unsigned owner = page->owner;
+		(void)st_console_begin_update(g->display);
 		st_ddofx_destroy_text_page(page);
 		g->active_window = 0;
 		for (unsigned i = 1; i < 10; ++i) {
@@ -616,20 +725,39 @@ st_ddofx_text_window_command(struct st_ddofx *ddo, const struct st_ddofx_sink *s
 				break;
 			}
 		}
+		struct st_ddofx_text_page *next = &g->windows[g->active_window];
+		if (g->active_window)
+			st_ddofx_select_window_font(ddo, sink, next, next->font_name);
+		rebuild_text_owner(ddo, owner);
+		if (g->active_window && next->owner != owner) {
+			if (text_windows_overlap(g, next->owner))
+				rebuild_text_owner(ddo, next->owner);
+			else
+				draw_frame(ddo, g->active_window, true);
+		}
+		(void)st_console_end_update(g->display);
+		return;
 	}
 	else if ((!ascii_case_compare(op, "1HIDE") || !ascii_case_compare(op, "1UNHIDE")) && !args) {
 		bool hidden = !ascii_case_compare(op, "1HIDE");
 		if (hidden != page->hidden) {
 			if (place_page(page, hidden))
 				return;
-			if (hidden)
-				uncover_page(ddo, page);
 			page->hidden = hidden;
+			(void)st_console_begin_update(g->display);
+			rebuild_text_owner(ddo, page->owner);
+			(void)st_console_end_update(g->display);
 		}
+		return;
 	}
 	else if (!ascii_case_compare(op, "1WIN") && st_ddofx_numbers(ddo, args, n, 1) && valid_slot(n[0])
-	         && g->windows[n[0]].view && id != (unsigned)n[0])
+	         && g->windows[n[0]].view && id != (unsigned)n[0]) {
 		g->active_window = (unsigned)n[0];
+		(void)st_console_begin_update(g->display);
+		show_active_window(ddo, sink, id, false);
+		(void)st_console_end_update(g->display);
+		return;
+	}
 	else if (!ascii_case_compare(op, "1SWAP") && st_ddofx_numbers(ddo, args, n, 2) && valid_slot(n[0])
 	         && valid_slot(n[1]) && g->windows[n[0]].view && g->windows[n[1]].view && n[0] != n[1]) {
 		struct st_ddofx_text_page saved = g->windows[n[0]];
@@ -639,8 +767,12 @@ st_ddofx_text_window_command(struct st_ddofx *ddo, const struct st_ddofx_sink *s
 			g->active_window = (unsigned)n[1];
 		else if (id == (unsigned)n[1])
 			g->active_window = (unsigned)n[0];
+		unsigned first = g->windows[n[0]].owner, second = g->windows[n[1]].owner;
+		(void)st_console_begin_update(g->display);
+		if (text_windows_overlap(g, first))
+			st_ddofx_repaint_text_windows(ddo, first);
+		if (second != first && text_windows_overlap(g, second))
+			st_ddofx_repaint_text_windows(ddo, second);
+		(void)st_console_end_update(g->display);
 	}
-	else
-		return;
-	redraw_text_pages(ddo, sink, NULL);
 }

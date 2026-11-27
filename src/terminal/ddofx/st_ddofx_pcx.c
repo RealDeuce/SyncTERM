@@ -162,6 +162,8 @@ load_page(struct st_ddofx *ddo, enum page dest, FILE *file, uint32_t length, int
 	free(image);
 	if (window)
 		st_ddofx_refresh_graphic_interior(ddo);
+	if (dest == VISUAL)
+		st_ddofx_repaint_text_windows(ddo, window ? g->alert_graphic_window : 0);
 }
 
 static FILE *

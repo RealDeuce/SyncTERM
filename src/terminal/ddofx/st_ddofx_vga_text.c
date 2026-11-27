@@ -30,13 +30,16 @@ st_ddofx_vga_bitmap(const struct st_ddofx *ddo)
 }
 
 static bool
-install(const struct st_ddofx_text_page *page, const struct st_ddofx_vga_font *font, unsigned width,
-    unsigned height)
+install(struct st_ddofx_text_page *page, const struct st_ddofx_vga_font *font, unsigned width, unsigned height)
 {
 	struct st_console_font strike;
 	if (!st_builtin_font_get(0, 8, 16, &strike))
 		return false;
 	const uint8_t *source = font ? font->bitmap : strike.bitmap;
+	if (page && page->font_width == width && page->font_height == height
+	    && !memcmp(page->font_bitmap, source, sizeof(page->font_bitmap)))
+		return true;
+	const uint8_t *original = source;
 	uint8_t        cropped[4096];
 	if (height != 16) {
 		for (unsigned ch = 0; ch < 256; ++ch)
@@ -55,8 +58,12 @@ install(const struct st_ddofx_text_page *page, const struct st_ddofx_vga_font *f
 	if (!st_font_catalog_identifier(page->fonts, 0, &id)
 	    || st_console_raster_view_adopt_indexed_size(page->view, width, height))
 		return false;
-	if (st_console_set_font_strike(page->view, id, &strike) == 0)
+	if (st_console_set_font_strike(page->view, id, &strike) == 0) {
+		memcpy(page->font_bitmap, original, sizeof(page->font_bitmap));
+		page->font_width  = width;
+		page->font_height = height;
 		return true;
+	}
 	(void)st_console_raster_view_adopt_indexed_size(page->view, page->cell_width, page->cell_height);
 	return false;
 }

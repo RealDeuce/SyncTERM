@@ -381,14 +381,18 @@ copy_page(struct st_ddofx *ddo, const char *verb, char *args, bool cut)
 			else
 				memcpy(dst, src, t.width);
 		}
-		if (t.dest == VISUAL)
+		if (t.dest == VISUAL) {
 			st_ddofx_refresh_graphic_interior(ddo);
+			st_ddofx_repaint_text_windows(ddo, t.g->alert_graphic_window);
+		}
 		return;
 	}
 	if (t.source == VISUAL || t.dest == VISUAL)
 		(void)st_console_modify_pixels_with_palette(t.g->display, copy_region, &t);
 	else
 		(void)copy_region(&t, NULL, NULL, NULL);
+	if (t.dest == VISUAL)
+		st_ddofx_repaint_text_windows(ddo, 0);
 }
 
 struct scroll {

@@ -313,6 +313,23 @@ def check_text_windows(t):
                 assert plane[y * 640 + x] == index, (data, x, y, index, plane[y * 640 + x])
     first = b"1OPEN,1,2,8,2,6,7,15,N,N,N,N,N,,,"
     second = b"1OPEN,4,3,7,2,5,7,15,N,N,N,N,N,,,"
+    # A sprite on VP marks pixels which are absent from the hidden page.
+    separate = b"1OPEN,3,15,18,2,5,7,15,N,N,N,N,N,,,"
+    marker = b"2sPV,9,18,MARK"
+    outside = b"2sPV,600,451,MARK"
+    colours(commands(b"2C,77", b"2aFILL", b"2S,0,1,0,1,MARK", first, separate,
+                     marker, outside, b"1WIN,1"), {(9,18):77,(600,451):77})
+    colours(commands(second, marker, outside, b"1WIN,4"), {(9,18):77,(600,451):77})
+    # Slots 1 and 4 overlap. Even selecting the separate slot rebuilds VP.
+    colours(commands(b"1WIN,3"), {(9,18):0,(600,451):33})
+    colours(commands(outside, b"1HIDE"), {(600,451):33})
+    colours(commands(outside, b"1UNHIDE"), {(600,451):33})
+    colours(commands(outside, b"1CHANGE,16,19,2,5,7,15,N,N,N,N,N,,,"), {(600,451):33})
+    colours(commands(outside, b"1CLOSE"), {(600,451):33})
+    # Publishing WP supplies a new hidden background beneath the windows.
+    colours(commands(b"2CPYWP2VP"), {(9,18):0,(600,451):77})
+    colours(commands(b"1CLOSE", b"1CLOSE", b"2sFF"), {(9,18):77,(600,451):77})
+    t.exchange(commands(b"2C,33", b"2aFILL", b"2CPYWP2VP"))
     colours(commands(first) + b"\x1b[41m    " + commands(second) + b"\x1b[42m   ",
             {(8,16):4,(16,16):2,(40,16):0,(0,16):33})
     colours(commands(b"1WIN,1", b"1WIN,8", b"1WIN,11", b"1SWAP,1,8", b"1GETPOS"),
@@ -413,6 +430,11 @@ def check_attached_text(t):
         assert list(plane[46*640+28:46*640+52]) == [4]*16 + [0]*8
         assert any(9 in plane[y*640+20:y*640+68] for y in range(30, 46))
         assert plane[5*640+5] == 37
+    # Repair the entire owner, including pixels beyond the visible viewport.
+    other = b"1OPEN,4,112,115,41,44,7,15,N,N,N,N,N,,,"
+    t.exchange(commands(other, b"2C,51", b"2aP,995,740", b"2aG,995,740",
+                        b"1WIN,1", b"2aG,995,740", b"2aG,888,656",
+                        b"1WIN,4", b"1CLOSE"), b"51\xff23\xff4\xff")
     t.exchange(commands(b"1HIDE", b"2aG,888,656", b"2aG,880,640") + b"\x1b[42m " +
                commands(b"1UNHIDE", b"2aG,904,656", b"2CALMGWIN",
                         b"1CHANGE,111,116,42,45,9,14,Y,N,N,N,N,,,", b"2ALERTGWIN,1",
@@ -1782,6 +1804,15 @@ def check_pcx(t, root):
                         b"2LVPPCX,WP", b"2aG,1,1", b"2LBPPCX,VP", b"2CPYVP2WP", b"2aG,2,1"),
                b"193\xff48,37,15\xff255\xff6\xff")
 
+    # A resource image and a page snapshot both repaint text over the new VP.
+    frame = t.exchange(commands(b"1OPEN,2,1,3,1,2,7,15,N,N,N,N,N,,,") + b"\x1b[41m " +
+                       commands(b"2fArt.", b"2vART.PCX", b"2CPYHP2WP", b"2aG,0,0"), b"193\xff")
+    assert frame.primary[0] == frame.alternate[0] == 4
+    frame = t.exchange(commands(b"2LWPPCX,VP", b"2CPYHP2WP", b"2aG,1,1"), b"255\xff")
+    assert frame.primary[641] == frame.alternate[641] == 4
+    frame = t.exchange(commands(b"1CLOSE"))
+    assert frame.primary[641] == frame.alternate[641] == 255
+
 
 def check_graphic_windows(t):
     t.case("graphic window pages, stacking, viewport and restoration")
@@ -2080,6 +2111,7 @@ def check_graphics(t, root):
     frame = t.exchange(commands(FULL_TEXT_WINDOW) + b"\x1b[H\x1b[41m " + commands(b"2CPYVP2WP", b"2aG,3,4",
                                                        b"2aSRGB,4,0,63,63"), b"4\xff")
     assert frame.primary[4 * 640 + 3] == 4 and frame.palette[4] == 0x00ffff
+    t.exchange(commands(b"1CLOSE"))
     check_drawing(t)
     check_marquees(t, root)
     check_window_marquees(t)
