@@ -76,7 +76,6 @@ struct st_ddofx_script {
 	struct macro_frame *top;
 	unsigned            depth;
 	int                 capture;
-	uint32_t            random;
 };
 
 static void
@@ -617,18 +616,11 @@ named_return(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, const char 
 }
 
 static void
-arithmetic(struct st_ddofx_script *s, struct variable *v, const char *verb, int32_t amount)
+arithmetic(struct variable *v, const char *verb, int32_t amount)
 {
-	int32_t n = variable_integer(v);
-	if (!strcmp(verb, "RNDVAR")) {
-		if (amount > 0) {
-			s->random = s->random * UINT32_C(1664525) + UINT32_C(1013904223);
-			set_number(v, 1 + (((uint64_t)s->random * (unsigned)amount) >> 32));
-		}
-		return;
-	}
 	if (v->type != NUMERIC)
 		return;
+	int32_t n = variable_integer(v);
 	if (!strcmp(verb, "VARADD") || !strcmp(verb, "INCVAR"))
 		set_number(v, (int64_t)n + amount);
 	else if (!strcmp(verb, "VARSUB") || !strcmp(verb, "DECVAR"))
@@ -651,18 +643,18 @@ edit_variables(struct st_ddofx *ddo, struct variable *v, const char *verb, char 
 	int32_t index, count;
 	size_t  len = v->length;
 	if (!strcmp(verb, "PADVARL") || !strcmp(verb, "PADVARR")) {
-		const char *pad = args == NULL ? "" : st_ddofx_value(ddo, args);
+		char pad;
 		if (n > VARIABLE_LENGTH)
 			n = VARIABLE_LENGTH;
-		if (n <= (int32_t)len || !*pad)
+		if (n <= (int32_t)len || !args || !st_ddofx_copy_value(ddo, args, &pad, 1))
 			return;
 		size_t extra = (size_t)n - len;
 		if (!strcmp(verb, "PADVARL")) {
 			memmove(v->text + extra, v->text, len);
-			memset(v->text, *pad, extra);
+			memset(v->text, pad, extra);
 		}
 		else
-			memset(v->text + len, *pad, extra);
+			memset(v->text + len, pad, extra);
 		v->text[n] = 0;
 		v->length  = (size_t)n;
 		return;
@@ -754,7 +746,7 @@ variable_command(struct st_ddofx *ddo, const char *verb, char *args)
 				v->text[--v->length] = 0;
 		}
 		else
-			arithmetic(s, v, verb, 1);
+			arithmetic(v, verb, 1);
 		return;
 	}
 	if (!st_ddofx_field_number(ddo, &args, &n))
@@ -766,9 +758,14 @@ variable_command(struct st_ddofx *ddo, const char *verb, char *args)
 		if (!strcmp(verb, "DEFVAR"))
 			set_value(v, args ? args : "", args ? strlen(args) : 0);
 	}
-	else if (!strcmp(verb, "RNDVAR") || !strcmp(verb, "VARADD") || !strcmp(verb, "VARSUB")
-	         || !strcmp(verb, "VARMLT") || !strcmp(verb, "VARDIV"))
-		arithmetic(s, v, verb, n);
+	else if (!strcmp(verb, "RNDVAR")) {
+		if (n > 0) {
+			ddo->script_random = ddo->script_random * UINT32_C(1664525) + UINT32_C(1013904223);
+			set_number(v, 1 + (((uint64_t)ddo->script_random * (unsigned)n) >> 32));
+		}
+	}
+	else if (!strcmp(verb, "VARADD") || !strcmp(verb, "VARSUB") || !strcmp(verb, "VARMLT") || !strcmp(verb, "VARDIV"))
+		arithmetic(v, verb, n);
 	else
 		edit_variables(ddo, v, verb, args, n);
 }

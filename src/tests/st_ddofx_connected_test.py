@@ -295,6 +295,10 @@ def check_cache(t, root):
         t.exchange(b"\x1d{" + prefix + b"ABSENT}", missing)
     t.exchange(b"\x1d{8CDIR,slot}\x1d{8CDIR,../MUSIC}\x1d{8CDIR,ABSENT}", b"Y\xffN\xffN\xff")
     t.check("external client command", b"A\x1d{8EXEC,slot}B", (3, 1), [(1, 1, "AB")])
+    t.exchange(commands(b"LIGMODE", b"LIGMODE", b"dVIDMODE", b"~DEFVAR,61,1,sLoT",
+                        b"~DEFVAR,62,1,SAMPLE.BIN", b"8CDIR,DEFVAR61", b"8CFILE,DEFVAR61,DEFVAR62",
+                        b"8CDIR,MISSING", b"8CFILE,MISSING,DEFVAR62", b"8CFILE,DEFVAR61,MISSING",
+                        b"2GEXIT"), b"1\xffY\xff6,2024,2,29,12,34,18\xffN\xffN\xffN\xff")
     if os.name == "posix":
         (base / "TERMS" / "outside").symlink_to(root, target_is_directory=True)
         (base / "MUSIC" / "link.bin").symlink_to(marker)
@@ -2684,6 +2688,11 @@ def check_info(t, root):
     t.exchange(commands(b"~DEFVAR,9,1,old", b"~VARCAP,9", b"~INFLOD,-2147483648,3", b"~VARCAP,0",
                         b"~VARLEN,9,10", b"7DEFRET,2,DEFVAR10", b"7SRET,2", b"~INFSAV,1,0,DEFVAR9",
                         b"~INFLOD,0,1"), b"6A\0,~\r\xff")
+    # Byte two of variable 9 is NUL. Use it as the pad character on both sides.
+    t.exchange(commands(b"~VARCPY,9,8,2,1", b"~DEFVAR,7,1,A", b"~PADVARL,7,3,DEFVAR8",
+                        b"~PADVARR,7,5,DEFVAR8", b"~VARLEN,7,6",
+                        b"7DEFRET,2,DEFVAR6", b"7SRET,2", b"~INFSAV,1,0,DEFVAR7", b"~INFLOD,0,1"),
+               b"5\0\0A\0\0")
     # Write the same captured bytes in both modes. A NUL inside the line
     # is data, and each write adds one carriage return, even after an FF.
     line = b"A\0,~\r\xff\r"
@@ -2725,6 +2734,15 @@ def check_numeric_variables(t):
     t.exchange(commands(b"~DEFVAR,93,2,$80000000", b"~INCVAR,93", b"7DEFRET,93,DEFVAR93", b"7SRET,93",
                         b"~DEFVAR,93,2,2147483647", b"~INCVAR,93", b"7DEFRET,93,DEFVAR93", b"7SRET,93"),
                b"-2147483647-2147483648")
+    # A new scene starts with fresh variables and continues the session's random sequence.
+    draw = commands(b"~RNDVAR,1,2147483647", b"EWTEXT,DRAWS.TXT,1,DEFVAR1")
+    t.exchange(commands(b"2RESET", b"~DEFVAR,1,1,") + draw * 2 +
+               commands(b"LIGMODE", b"LIGMODE", b"2RESET", b"~DEFVAR,1,2,0") + draw * 2 +
+               commands(b"2GEXIT"))
+    path, = (t.root / "cache").glob("*/DDOFX/BBSTHEME/DRAWS.TXT")
+    values = [int(line) for line in path.read_bytes().splitlines()]
+    assert len(values) == 4 and all(1 <= value <= 2147483647 for value in values)
+    assert values[:2] != values[2:], values
 
 
 def check_scripts(t):

@@ -70,6 +70,7 @@ struct st_ddofx {
 		uint16_t dismissal_key;
 	} sleeper;
 	struct st_ddofx_framer   wire;
+	uint32_t                 script_random;
 	struct st_ddofx_script  *script;
 	struct st_ddofx_keys    *keys;
 	struct st_ddofx_stick    sticks[2];

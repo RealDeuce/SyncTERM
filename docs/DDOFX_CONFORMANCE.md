@@ -108,7 +108,7 @@ Lite and Normal expose two DOS joystick slots through SyncTERM’s controller ma
 
 Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed variables. Local macro calls, repeats and waits preserve the order of the wire stream. Named macro lines, conditional and repeated bodies, and control callbacks use the full byte count of a captured variable. Commands after a NUL still execute, including after a raycaster profile is saved and loaded. Variable capture redirects automatic query results. Configured return strings can send binary bytes. Key and control definitions copy the return bytes from the variable when the door defines the action. A leading or embedded NUL is preserved through activation and through saving and loading a raycaster profile. Conditional macros compare literal text, typed user variables and the SDK’s predefined master operands. These cover identity, memory, storage, speed, graphics and audio capabilities, the mouse, the current music, theme and font, loose-file metadata and resource member IDs. `~REPVAR` runs its body before testing, including when the body defines the variable being tested.
 
-Integer parameters accept signed decimal and `$`-prefixed hexadecimal values. When a parameter reads a defined variable, empty or nonnumeric content supplies zero. The stored bytes remain available to text commands. Numeric comparisons and arithmetic use the full variable value, including any embedded NUL.
+Integer parameters accept signed decimal and `$`-prefixed hexadecimal values. When a parameter reads a defined variable, empty or nonnumeric content supplies zero. The stored bytes remain available to text commands. Numeric comparisons and arithmetic use the full variable value, including any embedded NUL. Left and right padding use the first byte of the supplied character, including NUL. `~RNDVAR` draws from 1 through the requested maximum. A scene reset clears the variables and subsequent draws continue the session’s random sequence.
 
 | SDK line | Definition | Domain | Coverage |
 | ---: | --- | --- | --- |
@@ -548,6 +548,6 @@ Integer parameters accept signed decimal and `$`-prefixed hexadecimal values. Wh
 | 15249 | GET ICON STATS | DDO-FX (NM) | Connected |
 | 15265 | RESTORE ICON | DDO-FX (NM) | Connected |
 | 15273 | RESTORE ALL ICONS | DDO-FX (NM) | Connected |
-| 15578 | CHECK FOR DIRECTORY | DDO-FX Pro. | Connected |
-| 15594 | CHECK FOR FILE | DDO-FX Pro. | Connected |
+| 15578 | CHECK FOR DIRECTORY | DDO-FX Pro. | Connected in Lite and Normal. A local peer checks existing and missing client directories |
+| 15594 | CHECK FOR FILE | DDO-FX Pro. | Connected in Lite and Normal. A local peer checks file size, DOS timestamp, missing files and missing directories |
 | 15614 | EXECUTE CLIENT | DDO-FX Pro. | Consume without execution |

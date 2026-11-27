@@ -211,10 +211,13 @@ st_ddofx_reset(struct st_ddofx *ddo)
 	st_ddofx_samples_destroy(ddo);
 	st_ddofx_script_destroy(ddo);
 	stop_music(ddo);
+	uint64_t seed = 0;
+	(void)st_time_monotonic_ns(&seed);
 	/* The session releases the receive worker after joining it. Resetting
 	 * a display during reception must retain that worker's wire ownership. */
 	*ddo = (struct st_ddofx) {
 	    .volume              = 64,
+	    .script_random       = (uint32_t)(seed ^ (seed >> 32)),
 	    .background_download = ddo->background_download,
 	    .slide.suspended     = ddo->slide.suspended,
 	    .sleeper.suspended   = ddo->sleeper.suspended,
