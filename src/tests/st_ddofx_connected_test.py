@@ -234,6 +234,39 @@ def check_capacity(t):
                         b"2GEXIT", b"dVIDMODE"), re.compile(rb"1\xff[0-9]+\xff[0-9]+\xff-?[0-9]+\xff0\xff"))
 
 
+def check_predicates(t):
+    t.case("SDK conditional operands and post-test loops in Lite and Normal")
+    for enter, mode in [((), b"0"), ((b"LIGMODE", b"LIGMODE"), b"1")]:
+        t.exchange(commands(*enter, b"dVIDMODE", b"~DEFVAR,0", b"~DEFVAR,927,1,VCARD", b"7DEFRET,31,+"), mode + b"\xff")
+        # A literal comparison is textual, including tilde-encoded commas.
+        # System names on the right remain literals. Numeric MOUSE accepts 03.
+        operands = [(b"ME~YOU", b"=", b"me~you"), (b"10", b"<", b"2"),
+                    (b"DEFVAR927", b"=", b"VCARD"), (b"LITERM", b"=", b"literm ver. 2.00"),
+                    (b"VCARD", b"=", b"s"), (b"GETMUSIC", b"=", b"none"),
+                    (b"GETFONT", b"=", b"ibmstd.fnt"), (b"GETTHEME", b"=", b"none"),
+                    (b"ACARD", b"=", b"none"), (b"MUSICON", b"=", b"no"),
+                    (b"SOUNDON", b"=", b"no"), (b"MOUSE", b"=", b"03"),
+                    (b"DRIVE", b">", b"0"), (b"MEM", b">", b"0"), (b"SPEED", b">", b"0")]
+        checks = []
+        expected = bytearray()
+        for index, (master, op, slave) in enumerate(operands):
+            marker = bytes([ord("A") + index])
+            checks.extend((b"7DEFRET,30," + marker,
+                           b"~IFVAR," + b",".join((master, op, slave, b"\x1d(7SRET,30)"))))
+            expected.extend(marker)
+        t.exchange(commands(*checks), bytes(expected))
+        t.exchange(commands(b"~IFVAR,ME,=,YOU,\x1d(7SRET,31)",
+                            b"~REPVAR,DEFVAR928,=,done,\x1d(~DEFVAR,928,1,DONE)\x1d(7SRET,31)",
+                            b"~IFVAR,DEFVAR928,=,done,\x1d(7SRET,31)",
+                            b"~REPVAR,ONE,=,one,\x1d(7SRET,31)",
+                            b"~REPVAR,ONE,?,one,\x1d(7SRET,31)", b"~DEFVAR,929,1,",
+                            b"~REPVAR,ONE,=,TWO,DEFVAR929"), b"+++")
+        if mode == b"0":
+            t.exchange(commands(b"dMOUSE", b"dVIDMODE"), b"0\xff")
+        else:
+            t.exchange(commands(b"dMOUSE", b"2GEXIT"), b"3\xff")
+
+
 def check_cache(t, root):
     [marker] = root.rglob("syncterm-cache-name.txt")
     base = marker.parent / "DDOFX"
@@ -247,6 +280,10 @@ def check_cache(t, root):
         asset.write_bytes(b"sample")
         os.utime(asset, (timestamp, timestamp))
         t.exchange(b"\x1d{" + prefix + b"SAMPLE.BIN}", b"6,2024,2,29,12,34,18\xff")
+        if prefix.startswith(b"d"):
+            master = prefix[1:] + b"SAMPLE.BIN"
+            t.exchange(commands(b"7DEFRET,31,+", b"~IFVAR," + master +
+                                b",=,6~2024~2~29~12~34~18,\x1d(7SRET,31)"), b"+")
         missing = b"N\xff" if prefix.startswith(b"8") else b"NO\xff"
         t.exchange(b"\x1d{" + prefix + b"../Sample.bin}", missing)
         t.exchange(b"\x1d{" + prefix + b"ABSENT}", missing)
@@ -2930,6 +2967,7 @@ def run(args):
                             b"~VARCAP,10", b"6CHECKBS,1", b"~VARCAP,0", b"7DEFRET,1,DEFVAR10", b"7SRET,1"),
                    b"NO\xffNONE\xffNONE\xffN/A\xffN/A")
         check_capacity(t)
+        check_predicates(t)
         check_joysticks(t)
         check_package_downloads(t)
         check_background_download(t)

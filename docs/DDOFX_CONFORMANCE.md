@@ -100,7 +100,7 @@ In Lite and Normal, `4MKEY` binds DOS scan/character pairs or the all-keys wildc
 
 Lite and Normal expose two DOS joystick slots through SyncTERM’s controller mappings. The left stick, first hat and D-pad provide eight directions. The south/east buttons or joystick trigger/thumb supply buttons 1 and 2. Analog movement has a dead zone of one quarter of the axis range from center to an endpoint. The host can detect and calibrate each joystick, bind directions for each button combination, bind the three centered button combinations, and activate or clear each slot. Held actions repeat.
 
-Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed variables. Local macro calls, repeats and waits preserve the order of the wire stream. Variable capture redirects automatic query results. Configured return strings can send binary bytes. Conditional macros can compare user variables, identity, music state and loose-file metadata. Additional predefined system operands await their respective query implementations.
+Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed variables. Local macro calls, repeats and waits preserve the order of the wire stream. Variable capture redirects automatic query results. Configured return strings can send binary bytes. Conditional macros compare literal text, typed user variables and the SDK’s predefined master operands. These cover identity, memory, storage, speed, graphics and audio capabilities, the mouse, the current music, theme and font, loose-file metadata and resource member IDs. `~REPVAR` runs its body before testing, including when the body defines the variable being tested.
 
 | SDK line | Definition | Domain | Coverage |
 | ---: | --- | --- | --- |
@@ -197,8 +197,8 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 4239 | VARIABLE MULTIPLY | DDO-FX LITE | Connected |
 | 4254 | VARIABLE DIVIDE | DDO-FX LITE | Connected |
 | 4270 | VARIABLE CAPTURE | DDO-FX LITE | Connected |
-| 4322 | IF VAR DO MACRO | DDO-FX LITE | Variables and implemented system operands |
-| 4547 | REPEAT MACRO UNTIL VAR | DDO-FX LITE | Variables and implemented system operands |
+| 4322 | IF VAR DO MACRO | DDO-FX LITE | Connected for literals, typed variables and all SDK master operands |
+| 4547 | REPEAT MACRO UNTIL VAR | DDO-FX LITE | Connected for literals, typed variables and all SDK master operands |
 | 4604 | REPEAT MACRO | DDO-FX LITE | Connected |
 | 4654 | INFO SAVE | DDO-FX LITE | Connected |
 | 4728 | INFO LOAD | DDO-FX LITE | Connected |

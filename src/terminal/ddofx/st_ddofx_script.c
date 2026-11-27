@@ -29,8 +29,11 @@ struct variable {
 	} type;
 };
 
+enum { LESS = 1, EQUAL = 2, GREATER = 4 };
+
 struct predicate {
-	char master[ST_DDOFX_BODY_MAX + 1], slave[ST_DDOFX_BODY_MAX + 1], op[3];
+	char master[ST_DDOFX_BODY_MAX + 1], slave[ST_DDOFX_BODY_MAX + 1];
+	unsigned relations;
 };
 
 struct macro_frame {
@@ -347,7 +350,7 @@ named_macro(struct st_ddofx *ddo, const char *verb, char *args)
 }
 
 static void
-define_reply(char *out, const char *source, size_t limit)
+copy_comma_field(char *out, const char *source, size_t limit)
 {
 	copy(out, source, limit);
 	for (; *out; ++out)
@@ -448,7 +451,7 @@ st_ddofx_callback_define(const struct st_ddofx *ddo, struct st_ddofx_callback *c
 {
 	cb->resource_text = using_resource_text(ddo);
 	cb->stealth = ddo->define_stealth;
-	define_reply(cb->reply, st_ddofx_value(ddo, reply), sizeof(cb->reply) - 1);
+	copy_comma_field(cb->reply, st_ddofx_value(ddo, reply), sizeof(cb->reply) - 1);
 	macro_text(cb->macro, st_ddofx_value(ddo, macro), sizeof(cb->macro) - 1);
 }
 
@@ -700,6 +703,24 @@ variable_command(struct st_ddofx *ddo, const char *verb, char *args)
 		edit_variables(ddo, v, verb, args, n);
 }
 
+static unsigned
+comparison_operator(const char *op)
+{
+	if (!strcmp(op, "="))
+		return EQUAL;
+	if (!strcmp(op, "<>"))
+		return LESS | GREATER;
+	if (!strcmp(op, "<"))
+		return LESS;
+	if (!strcmp(op, ">"))
+		return GREATER;
+	if (!strcmp(op, "<="))
+		return LESS | EQUAL;
+	if (!strcmp(op, ">="))
+		return GREATER | EQUAL;
+	return 0;
+}
+
 static bool
 compare(const struct st_ddofx *ddo, const struct st_ddofx_sink *sink, const struct predicate *p, bool *valid)
 {
@@ -717,10 +738,8 @@ compare(const struct st_ddofx *ddo, const struct st_ddofx_sink *sink, const stru
 	}
 	else if (st_ddofx_builtin(ddo, sink, p->master, builtin, &numeric))
 		master = builtin;
-	else {
-		*valid = false;
-		return false;
-	}
+	else
+		master = p->master;
 	const char *slave = st_ddofx_value(ddo, p->slave);
 	int         relation;
 	if (numeric) {
@@ -741,20 +760,8 @@ compare(const struct st_ddofx *ddo, const struct st_ddofx_sink *sink, const stru
 			relation = (a > b) - (a < b);
 	}
 	*valid = true;
-	if (!strcmp(p->op, "="))
-		return relation == 0;
-	if (!strcmp(p->op, "<>"))
-		return relation != 0;
-	if (!strcmp(p->op, "<"))
-		return relation < 0;
-	if (!strcmp(p->op, ">"))
-		return relation > 0;
-	if (!strcmp(p->op, "<="))
-		return relation <= 0;
-	if (!strcmp(p->op, ">="))
-		return relation >= 0;
-	*valid = false;
-	return false;
+	unsigned order = relation < 0 ? LESS : relation > 0 ? GREATER : EQUAL;
+	return (p->relations & order) != 0;
 }
 
 static void
@@ -771,27 +778,25 @@ repeat_macro(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, const char 
 		char *master = st_ddofx_field(&args), *op = st_ddofx_field(&args), *slave = st_ddofx_field(&args);
 		if (master == NULL || op == NULL || slave == NULL)
 			return;
-		const char *operation = st_ddofx_value(ddo, op);
-		if (strlen(operation) > 2)
+		p.relations = comparison_operator(st_ddofx_value(ddo, op));
+		if (!p.relations)
 			return;
-		copy(p.master, master, ST_DDOFX_BODY_MAX);
-		copy(p.op, operation, 2);
-		copy(p.slave, slave, ST_DDOFX_BODY_MAX);
-		for (char *c = p.slave; *c; ++c)
-			if (*c == '~')
-				*c = ',';
-		bool valid;
-		bool match = compare(ddo, sink, &p, &valid);
-		if (!valid || (!until && !match))
-			return;
+		copy_comma_field(p.master, master, ST_DDOFX_BODY_MAX);
+		copy_comma_field(p.slave, slave, ST_DDOFX_BODY_MAX);
+		if (!until) {
+			bool valid;
+			if (!compare(ddo, sink, &p, &valid))
+				return;
+		}
 	}
-	if (args == NULL || !*args)
+	const char *body = args ? st_ddofx_value(ddo, args) : NULL;
+	if (!body || !*body)
 		return;
 	struct macro_frame *f = push(ddo->script);
 	if (f == NULL)
 		return;
 	f->resource_text = f->parent != NULL && f->parent->resource_text;
-	macro_text(f->source, st_ddofx_value(ddo, args), ST_DDOFX_BODY_MAX);
+	macro_text(f->source, body, ST_DDOFX_BODY_MAX);
 	f->length    = strlen(f->source);
 	f->remaining = count;
 	f->until     = until;

@@ -108,7 +108,7 @@ st_ddofx_builtin(const struct st_ddofx *ddo, const struct st_ddofx_sink *sink, c
 	}
 	else if (!ascii_case_compare(name, "VCARD"))
 		strcpy(result, st_ddofx_svga(sink) ? "S" : "V");
-	else if (ddo->graphics && !ascii_case_compare(name, "MOUSE")) {
+	else if (!ascii_case_compare(name, "MOUSE")) {
 		strcpy(result, sink->mouse_disabled ? "0" : "3");
 		*numeric = true;
 	}
@@ -354,6 +354,9 @@ execute(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *body)
 		st_ddofx_query_reply(ddo, sink, found ? "YES" : "NO", false);
 	}
 	else if (body[0] == 'd' && ascii_case_ncompare(body + 1, "RESOURCE|", 9) != 0) {
+		/* The script operand exists in Lite, the wire query belongs to Normal mode. */
+		if (!ddo->graphics && !ascii_case_compare(body + 1, "MOUSE"))
+			return;
 		char result[ST_DDOFX_BODY_MAX + 1];
 		bool numeric;
 		if (st_ddofx_builtin(ddo, sink, body + 1, result, &numeric))
