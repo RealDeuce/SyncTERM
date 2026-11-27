@@ -1151,6 +1151,49 @@ def check_text_fields(t, root, mouse):
     t.input(b"x")
 
 
+def check_list_boxes(t, root, mouse):
+    t.case("desktop list viewports, selection colours, mouse double-clicks and ordered callbacks")
+    marker, = root.rglob("syncterm-cache-name.txt")
+    font = bytearray(4096)
+    for ch in b"ABCDE":
+        font[ch*16:(ch+1)*16] = bytes([0x80 >> (ch-65)]) * 16
+    (marker.parent / "DDOFX" / "FONTS" / "List.fnt").write_bytes(font)
+    create = b"5CLBOX,300,600,479,5,2,10,1,11,2,12,3,5,1"
+    items = [f"5LBMODLST,300,{i},1,0,{c},{c}~^M,".encode() for i,c in enumerate("ABCDE",1)]
+    top, bottom = 448*640+600, 464*640+600
+    f = t.exchange(commands(b"2C,44", b"2aFILL", b"2CPYWP2VP", b"fList.fnt", create, *items,
+                            b"5LBMODLST,300,2,0,2,,,", b"5LBDRWLST,300", b"2aG,600,448",
+                            b"2aG,601,448", b"2aG,601,464"), b"11\xff2\xff10\xff")
+    assert f.primary[top] == f.alternate[top] == 44
+    f = t.exchange(commands(b"5LBSHWLST,300", b"5LBTGLSEL,300"))
+    assert list(f.primary[top:top+3]) == [12,2,2]
+    f = t.exchange(commands(b"5LBADJHLT,300,0,1", b"5LBTGLSEL,300", b"5LBEXCLST,300"), b"A,\r")
+    assert list(f.primary[bottom:bottom+3]) == [2,11,2]
+    f = t.exchange(commands(b"5LBADJHLT,300,0,1", b"5LBTGLSEL,300", b"5LBADJLST,300,1,1",
+                            b"5LBADJHLT,300,1,-1", b"5LBEXCLST,300"), b"A,\rC,\r")
+    assert list(f.primary[top:top+5]) == [2,2,2,11,2]
+    f = t.exchange(commands(b"5LBADJLST,300,2,-1", b"5LBDEACT,300", b"5LBADJHLT,300,0,1",
+                            b"5LBEXCLST,300", b"5LBREACT,300", b"5LBEXCLST,300"), b"A,\rC,\r")
+    assert f.primary[top] == 12
+    # The key macro changes the visible list, then two mouse presses select D.
+    t.exchange(commands(b"4MKEY,1,46,99,0,K,\x1d(5LBADJLST,300,2,1)"))
+    t.client.text("c")
+    t.input(b"K")
+    mouse(605,450,1)
+    mouse(605,450,0)
+    mouse(605,450,1)
+    mouse(605,450,0)
+    t.exchange(commands(b"7DEFRET,1,M", b"5LBMODLST,300,3,2,2,,,\x1d(w1)\x1d(7SRET,1)",
+                        b"5LBEXCLST,300"), b"A,\rMC,\rD,\r")
+    # A key macro can operate the box without mouse input. Only one of this box's items can be picked.
+    single = b"5CLBOX,1,0,31,3,2,15,0,15,1,14,2,2,0"
+    t.exchange(commands(single, b"5LBMODLST,1,1,1,0,A,first,", b"5LBMODLST,1,2,1,0,B,second,",
+                        b"5LBSHWLST,1", b"5LBTGLSEL,1", b"5LBADJHLT,1,0,1", b"5LBTGLSEL,1",
+                        b"5LBEXCLST,1", b"5LBCLSLST,1", b"5LBREACT,1", b"5LBEXCLST,1",
+                        b"5LBMODLST,300,0,2,0,,,", b"5LBEXCLST,300", b"5CLBOX,0", b"5LBEXCLST,300",
+                        b"fIBMSTD.FNT", b"2RESET"), b"second")
+
+
 def check_mouse(t, root):
     t.case("Normal mouse region callbacks and button history")
     frame = t.exchange(commands(b"LIGMODE", b"LIGMODE", b"3MACT", b"dMOUSE"), b"Y\xff3\xff")
@@ -1209,6 +1252,7 @@ def check_mouse(t, root):
     check_push_buttons(t, mouse)
     check_choices(t, mouse)
     check_text_fields(t, root, mouse)
+    check_list_boxes(t, root, mouse)
     check_pointers(t, root, mouse)
     t.exchange(commands(b"3MREGN,300,70,85,40,55,3,B,", b"7DEFRET,1,M",
                         b"3MREGN,1,70,85,40,55,3,A~^M,\x1d(w1)\x1d(7SRET,1)",

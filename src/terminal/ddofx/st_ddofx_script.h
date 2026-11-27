@@ -15,7 +15,8 @@ enum st_ddofx_callback_kind { DDO_EVENT = 1, DDO_KEY, DDO_MOUSE, DDO_FIELD
 enum st_ddofx_group_kind {
 	DDO_RADIO,
 	DDO_CHECKBOX,
-	DDO_TEXT_FIELD
+	DDO_TEXT_FIELD,
+	DDO_LIST_BOX
 };
 
 enum { ST_DDOFX_FIELD_REPLY_MAX = 120 }; /* Two 25-byte affixes and up to 70 edited bytes. */
@@ -23,6 +24,7 @@ unsigned st_ddofx_text_field_count(const struct st_ddofx *);
 bool st_ddofx_text_field_hotkey(struct st_ddofx *, unsigned, uint16_t);
 bool st_ddofx_text_field_editing(const struct st_ddofx *);
 bool st_ddofx_text_field_edit(struct st_ddofx *, uint16_t);
+bool st_ddofx_next_list_item(struct st_ddofx *, unsigned id, unsigned *next);
 bool st_ddofx_next_text_field(struct st_ddofx *, unsigned anchor, unsigned *next);
 bool st_ddofx_text_field_value(const struct st_ddofx *, int32_t id, bool full, char out[ST_DDOFX_FIELD_REPLY_MAX+1]);
 bool st_ddofx_field_callback(struct st_ddofx *, const struct st_ddofx_callback *, const char *reply);

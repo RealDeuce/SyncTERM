@@ -430,9 +430,12 @@ st_ddofx_mouse(struct st_ddofx *ddo, const struct st_console_event *event)
 		mouse->history[i][release].x = mouse->x;
 		mouse->history[i][release].y = mouse->y;
 	}
-	if ((changed & 1) && buttons == 1 && !mouse->outside && st_ddofx_text_field_mouse(ddo, mouse->x, mouse->y)) {
-		mouse->ignore_hold = true;
-		return;
+	if ((changed & 1) && buttons == 1 && !mouse->outside) {
+		st_ddofx_list_click(ddo, mouse->x, mouse->y);
+		if (st_ddofx_text_field_mouse(ddo, mouse->x, mouse->y)) {
+			mouse->ignore_hold = true;
+			return;
+		}
 	}
 	if (moved && mouse->fields)
 		mouse->fields->dirty = true;

@@ -59,6 +59,7 @@ struct st_ddofx_mouse_state {
 struct st_ddofx_graphics {
 	struct st_ddofx_buttons    *buttons;
 	struct st_ddofx_text_fields *text_fields;
+	struct st_ddofx_lists *lists;
 	struct st_ddofx_choices    *choices[2];
 	struct st_ddofx_mouse_state mouse;
 	struct st_ddofx_sprite  sprites[SPRITE_COUNT];
@@ -99,6 +100,9 @@ struct st_ddofx_graphics {
 struct st_ddofx_sprite *st_ddofx_find_sprite(struct st_ddofx_graphics *, const char *);
 bool                    st_ddofx_sprite_fits(const struct st_ddofx_sprite *, int32_t x, int32_t y);
 void    st_ddofx_flood(uint8_t *, int stride, const struct bounds *, int32_t x, int32_t y, uint8_t colour);
+void st_ddofx_clear_lists(struct st_ddofx_graphics *);
+bool st_ddofx_list_command(struct st_ddofx *, const char *, char *);
+void st_ddofx_list_click(struct st_ddofx *, int x, int y);
 void st_ddofx_clear_text_fields(struct st_ddofx_graphics *);
 bool st_ddofx_text_field_command(struct st_ddofx *, const struct st_ddofx_sink *, const char *, char *);
 bool st_ddofx_text_field_mouse(struct st_ddofx *, int x, int y);

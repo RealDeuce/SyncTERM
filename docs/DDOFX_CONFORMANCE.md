@@ -36,6 +36,8 @@ The BBS can create up to 300 desktop push buttons with `5CPUSHB`. Creation draws
 
 Desktop radio buttons and checkboxes each have 300 slots. A key or left click changes the selection. An explicit execute command runs the selected members of the addressed exclusive or multiple-selection group in slot order. Each macro finishes before its return string is sent.
 
+Desktop list boxes hold up to 100 items in each of 300 slots. The BBS can prepare a list on the work page, show it on the visual page, scroll by line or page, move the highlight, and toggle selections. A left click moves the highlight, and a double-click toggles the item. Execution visits selected items in list order. For `5LBADJLST`, positive movement goes toward the end, following the SDK’s direction parameter description.
+
 A BBS can define 250 single-line text fields on the desktop. Creation and `5SHOWTFLD` paint the work page. Selecting a field by command, key or mouse edits it on the visual page. Fields support masked input, letter and digit filters, linked navigation and grouped submission in creation order. Each field’s macro finishes before its return is sent. The two `~GTXTFLD` commands take the variable number first and field number second, following the SDK. They preserve the variable’s type.
 
 Desktop hover fields use a separate table of 300 slots. The highest matching slot runs its macro, sends its return string and selects its static or animated pointer. As specified in the SDK, leaving a field for uncovered space preserves the remembered slot. Re-entering it fires again after a different field has won or the BBS has sent `3MFFRS`.
@@ -339,17 +341,17 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 9981 | ACTIVATE TEXT FIELD | DDO-FX (NM) | Connected on the desktop |
 | 9992 | EXECUTE TEXT FIELD | DDO-FX (NM) | Connected on the desktop |
 | 10008 | SWAP TEXT FIELD | DDO-FX (NM) | Connected on the desktop |
-| 10016 | CREATE LIST BOX | DDO-FX (NM) | Pending |
-| 10143 | MODIFY LIST ITEM | DDO-FX (NM) | Pending |
-| 10197 | DRAW LIST BOX | DDO-FX (NM) | Pending |
-| 10211 | SHOW LIST BOX | DDO-FX (NM) | Pending |
-| 10224 | EXECUTE LIST BOX | DDO-FX (NM) | Pending |
-| 10237 | KILL LIST BOX | DDO-FX (NM) | Pending |
-| 10248 | DEACTIVATE LIST BOX | DDO-FX (NM) | Pending |
-| 10262 | REACTIVATE LIST BOX | DDO-FX (NM) | Pending |
-| 10274 | ADJUST LIST | DDO-FX (NM) | Pending |
-| 10341 | ADJUST HIGHLIGHT | DDO-FX (NM) | Pending |
-| 10378 | TOGGLE SELECTION | DDO-FX (NM) | Pending |
+| 10016 | CREATE LIST BOX | DDO-FX (NM) | Connected on the desktop |
+| 10143 | MODIFY LIST ITEM | DDO-FX (NM) | Connected on the desktop |
+| 10197 | DRAW LIST BOX | DDO-FX (NM) | Connected on the desktop |
+| 10211 | SHOW LIST BOX | DDO-FX (NM) | Connected on the desktop |
+| 10224 | EXECUTE LIST BOX | DDO-FX (NM) | Connected on the desktop |
+| 10237 | KILL LIST BOX | DDO-FX (NM) | Connected on the desktop |
+| 10248 | DEACTIVATE LIST BOX | DDO-FX (NM) | Connected on the desktop |
+| 10262 | REACTIVATE LIST BOX | DDO-FX (NM) | Connected on the desktop |
+| 10274 | ADJUST LIST | DDO-FX (NM) | Connected on the desktop |
+| 10341 | ADJUST HIGHLIGHT | DDO-FX (NM) | Connected on the desktop |
+| 10378 | TOGGLE SELECTION | DDO-FX (NM) | Connected on the desktop |
 | 10399 | CREATE MARQUEE | DDO-FX (NM) | Connected |
 | 10471 | SHOW MARQUEE | DDO-FX (NM) | Connected |
 | 10485 | STOP MARQUEE | DDO-FX (NM) | Connected |
@@ -456,7 +458,7 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 13819 | ANTI-ALIAS IMAGE | DDO-FX (NM) | Connected on the desktop |
 | 13917 | OUTLINE IMAGE | DDO-FX (NM) | Connected on the desktop |
 | 13975 | ZMODEM BACKGROUND TRANSFERS | DDO-FX (NM) | Implemented |
-| 14035 | ZMODEM STEALTH MODE | DDO-FX (NM) | Partial: keyboard macros, fields, regions, push/radio/check buttons, text fields and timed events. Icons, pick lists, joystick and window close pending |
+| 14035 | ZMODEM STEALTH MODE | DDO-FX (NM) | Partial: keyboard macros, fields, regions, push/radio/check buttons, text fields, list boxes and timed events. Icons, joystick and window close pending |
 | 14120 | DEFINE MUSIC BAR | DDO-FX (NM) | Desktop pages; virtual windows pending |
 | 14292 | ACTIVATE/DEACTIVATE MUSIC BAR | DDO-FX (NM) | Desktop pages; virtual windows pending |
 | 14308 | CLEAR MUSIC BAR | DDO-FX (NM) | Desktop pages; virtual windows pending |

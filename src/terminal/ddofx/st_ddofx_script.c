@@ -772,9 +772,18 @@ st_ddofx_script_step(struct st_ddofx *ddo, const struct st_ddofx_sink *sink)
 	struct st_ddofx_script *s = ddo->script;
 	struct macro_frame     *f = s->top;
 	if (f->group_anchor) {
-		bool started = f->group_kind == DDO_TEXT_FIELD
-		    ? st_ddofx_next_text_field(ddo, f->group_anchor, &f->group_next)
-		    : st_ddofx_next_choice(ddo, f->group_kind, f->group_anchor, &f->group_next);
+		bool started;
+		switch (f->group_kind) {
+			case DDO_LIST_BOX:
+				started = st_ddofx_next_list_item(ddo, f->group_anchor, &f->group_next);
+				break;
+			case DDO_TEXT_FIELD:
+				started = st_ddofx_next_text_field(ddo, f->group_anchor, &f->group_next);
+				break;
+			default:
+				started = st_ddofx_next_choice(ddo, f->group_kind, f->group_anchor, &f->group_next);
+				break;
+		}
 		if (!started) {
 			if (f->submitted_by_key)
 				ddo->in_key = false;
