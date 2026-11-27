@@ -484,6 +484,56 @@ def check_desktop_text(t):
     assert frame.primary == scene.primary and frame.alternate == scene.alternate
 
 
+def check_page_transfers(t):
+    pages = {b"WP": b"", b"BP": b"B", b"HP": b"H", b"VP": b"V"}
+    patterns = {}
+    setup = [b"2CCOL,0,4", b"2CCOL,72,1"]
+    seed = []
+    for i, (page, suffix) in enumerate(pages.items()):
+        # Each page has its own source at the top left and a different
+        # destination against the right and bottom edges. Column 636 is a guard.
+        source = [72, 11+i, 21+i, 31+i, 72, 41+i]
+        corner = [80+8*i+n for n in range(8)]
+        patterns[page] = source, corner
+        for values, width, label, x, bottom in ((source, 3, b"A", 0, 1), (corner, 4, b"B", 636, 479)):
+            name = label + page
+            for n, value in enumerate(values):
+                setup.extend((f"2C,{value}".encode(), f"2aP,{n%width},{n//width}".encode()))
+            setup.append(f"2S,0,{width-1},0,1,".encode() + name)
+            seed.append(b"2sP" + suffix + f",{x},{bottom},".encode() + name)
+    t.exchange(commands(*setup))
+
+    for src, (pattern, src_corner) in patterns.items():
+        for dst, suffix in pages.items():
+            if src == dst:
+                continue
+            for whole, transparent in ((True, False), (False, False), (False, True)):
+                if transparent and src == b"VP":
+                    continue
+                verb = (b"2CPY" if whole else b"2CUT") + src + b"2" + dst
+                verb += b"T" if transparent else b""
+                t.case(verb.decode())
+                command = verb if whole else verb + b",0,2,0,1,637,479"
+                corner = list(patterns[dst][1])
+                if whole:
+                    corner = src_corner
+                else:
+                    for n, value in enumerate(pattern):
+                        if value != 72 or not transparent:
+                            corner[1 + n//3*4 + n%3] = value
+
+                # Read through sprite capture independently of the copy commands.
+                # The foreground capture also checks offscreen writes stay offscreen.
+                queries = [f"2aG,{100+n%4},{100+n//4}".encode() for n in range(8)]
+                frame = t.exchange(commands(*seed, command, b"2S" + suffix + b",636,639,478,479,RESULT",
+                                            b"2sP,100,101,RESULT", *queries),
+                                   b"".join(str(n).encode() + b"\xff" for n in corner))
+                visible = corner if dst == b"VP" else patterns[b"VP"][1]
+                for plane in (frame.primary, frame.alternate):
+                    assert list(plane[-644:-640]) + list(plane[-4:]) == visible, verb
+    t.exchange(commands(b"2CCOL,72,0", b"2sFF"))
+
+
 def check_drawing(t):
     def scene(bodies, expected):
         queries = [f"2aG,{x},{y}".encode() for x, y in expected]
@@ -2023,6 +2073,7 @@ def check_graphics(t, root):
     assert frame.palette[3] == 0xff5500
     t.exchange(commands(b"2CPYBP2WP", b"2aG,639,479", b"2CPYVP2WP", b"2aG,639,479",
                         b"2CUTBP2WP,0,1,0,1,639,479", b"2aG,639,479"), b"8\xff3\xff3\xff")
+    check_page_transfers(t)
     check_text_windows(t)
     check_desktop_text(t)
     check_attached_text(t)
