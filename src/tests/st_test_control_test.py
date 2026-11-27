@@ -356,11 +356,22 @@ def automatic_zmodem(executable):
                  f"Port={server.getsockname()[1]}\nEncoding=CP437\nRIP=Off\nNoStatus=true\nHidePopups=true\n")
         def prepare(root):
             with (root / "syncterm.lst").open("a") as profile:
-                profile.write(f"DownloadPath={root / 'downloads'}\n")
+                profile.write(f"DownloadPath={root / 'incoming-files'}\n")
         with fixture(executable, entries=entry, prepare=prepare) as (client, root):
             client.wait_text("Transfer peer")
             client.key("enter")
             with server.accept()[0] as peer:
+                request = b"rz\r**\x18B00000000000000\r\x8a\x11"
+                peer.sendall(request)
+                notice = client.wait_text("ZMODEM Download")
+                assert "incoming-files" in notice.text and "Download Path" in notice.text
+                assert notice.application["transfer.active"] == 0
+                client.key("enter")
+                peer.sendall(request + b"BACK AT THE BBS")
+                client.wait_text("BACK AT THE BBS")
+                client.text("x")
+                assert receive(peer, b"x") == b"x"
+                (root / "incoming-files").mkdir()
                 # Observe each partial write before allowing its successor onto the wire.
                 peer.sendall(b"prompt*")
                 client.wait_text("prompt*")

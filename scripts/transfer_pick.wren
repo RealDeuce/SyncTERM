@@ -104,6 +104,16 @@ class TransferFlow {
         var door = Session.current.profile.graphics == GraphicsMode.ddofx20
         showDownload_("ZMODEM Download", door)
       })
+    } else if (pending == "download-unavailable") {
+      launch_(Fn.new {
+        var path = Session.current.profile.dlDir
+        var message = "The BBS requested a download, but SyncTERM cannot use the download directory."
+        if (path != null && path != "") message = message + "\n\n%(path)"
+        message = message + "\n\nSet Download Path in this BBS entry to an existing directory other than your home directory."
+        Screen.checked_(Screen.modalRun(Fn.new {
+          Alert.runStandalone(App.new(), "ZMODEM Download", message)
+        }))
+      })
     } else if (pending == "skypix-download") {
       launch_(Fn.new {
         var app = TransferApp.new("SkyPix Asset Download")

@@ -149,6 +149,8 @@ struct st_wren_transfer {
 	struct st_transfer_detector detector;
 	uint8_t                     zmodem_type_digit;
 	int                         automatic;
+	bool                        download_notice_pending;
+	uint64_t                    download_notice_after_ms;
 	bool                        upload, inline_upload;
 	char                       *rip_directory, *rip_filename, *rip_cache_root;
 	char                       *skypix_directory, *skypix_filename, *skypix_partial;
@@ -920,8 +922,25 @@ st_wren_transfer_observe(struct st_wren_context *context, uint8_t byte)
 	    || s->cancel_remaining != 0)
 		return 0;
 	int event = st_transfer_detect(&s->detector, byte);
-	if (event == 0 || (event == 1 && download_root(context) == NULL))
+	if (event == 0)
 		return 0;
+	if (event == 1) {
+		if (download_root(context) == NULL) {
+			/* Senders retry ZRQINIT while waiting for a receiver. Notify once
+			 * per series of requests, but recheck the directory on every retry. */
+			uint64_t now;
+			if (st_time_monotonic_ms(&now) == 0) {
+				if (now >= s->download_notice_after_ms)
+					s->download_notice_pending = true;
+				s->download_notice_after_ms = now + 30000;
+			}
+			else
+				s->download_notice_pending = true;
+			return 0;
+		}
+		s->download_notice_pending = false;
+		s->download_notice_after_ms = 0;
+	}
 	s->automatic         = event;
 	s->zmodem_type_digit = byte;
 	if (event == 1) {
@@ -1250,7 +1269,11 @@ automatic(WrenVM *vm)
 		s->automatic = 0;
 	static const char *const names[] = {"", "download", "upload", "rip-download", "rip-upload",
 	    "skypix-download"};
-	if (event == 0)
+	if (event == 0 && s != NULL && s->download_notice_pending) {
+		s->download_notice_pending = false;
+		wrenSetSlotString(vm, 0, "download-unavailable");
+	}
+	else if (event == 0)
 		wrenSetSlotNull(vm, 0);
 	else
 		wrenSetSlotString(vm, 0, names[event]);
