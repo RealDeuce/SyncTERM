@@ -67,8 +67,10 @@ def check_package_downloads(t):
     assert not list((t.root / "cache").glob("*/DDOFX/MUSIC/TUNE.MOD"))
     t.send(header(8))
     receive_header(t, 8)
-    t.send(b"OO")
-    t.client.wait_for(lambda frame: not frame.application.get("transfer.active"))
+    # Blood Quest sends its probe in the packet containing the final OO.
+    # It retries at two seconds and consumes one reply for each subsequent query.
+    t.send(b"OO" + commands(b"dLITERM"))
+    t.input(b"LITERM Ver. 2.00\xff", timeout=2)
     t.exchange(commands(b"dmTUNE.MOD", b"dmDRUM.S3M", b"dtMARK.THE"),
                b"5,2024,2,29,12,34,18\xff6,2024,2,29,12,34,18\xff5,2024,2,29,12,34,18\xff")
     cache, = (t.root / "cache").glob("*/DDOFX")

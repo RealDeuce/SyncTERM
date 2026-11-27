@@ -96,12 +96,12 @@ class Terminal:
             assert actual == text, (name, x, y, actual, text)
         return frame
 
-    def input(self, expected):
+    def input(self, expected, timeout=10):
         # Input acceptance queues an event; it does not acknowledge transmission.
         # Wait for its complete wire output before sending a parsing fence, so
         # connection input cannot overtake a queued keyboard/mouse event.
         received = bytearray()
-        deadline = time.monotonic() + 10
+        deadline = time.monotonic() + timeout
         while len(received) < len(expected):
             self.peer.settimeout(max(0.001, deadline - time.monotonic()))
             try:

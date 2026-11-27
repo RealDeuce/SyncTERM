@@ -1,6 +1,6 @@
 // Copyright (c) 2026 Stephen Hurd
 // SPDX-License-Identifier: BSD-2-Clause
-import "syncterm" for Transfer, Host, Session, CTerm, Emulation, Screen, Input, Mod,
+import "syncterm" for Transfer, Host, Session, CTerm, Emulation, GraphicsMode, Screen, Input, Mod,
                        Key, KeyEvent, Timer, FilePickerOptions, Error, Cleanup_
 import "ui_app" for App
 import "ui_picker" for ListPicker
@@ -91,7 +91,7 @@ class TransferFlow {
       }
       var error = Transfer.download(row[0], filename)
       if (error != null) Fiber.abort(error)
-      showDownload_(row[1] + " Download")
+      showDownload_(row[1] + " Download", false)
     })
   }
   static automatic() {
@@ -100,7 +100,10 @@ class TransferFlow {
     if (pending == "upload") {
       upload(true, 0)
     } else if (pending == "download") {
-      launch_(Fn.new { showDownload_("ZMODEM Download") })
+      launch_(Fn.new {
+        var door = Session.current.profile.graphics == GraphicsMode.ddofx20
+        showDownload_("ZMODEM Download", door)
+      })
     } else if (pending == "skypix-download") {
       launch_(Fn.new {
         var app = TransferApp.new("SkyPix Asset Download")
@@ -132,11 +135,13 @@ class TransferFlow {
       })
     }
   }
-  static showDownload_(label) {
+  static showDownload_(label, resumeImmediately) {
     if (Transfer.backgroundDownload_) {
       inline_(true)
     } else {
-      TransferApp.new(label).run()
+      var app = TransferApp.new(label)
+      if (resumeImmediately) app.waitTimeoutMs = 0
+      app.run()
     }
   }
   static inline_() { inline_(false) }
