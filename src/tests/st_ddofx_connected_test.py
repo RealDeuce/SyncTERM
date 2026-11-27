@@ -93,7 +93,10 @@ def check_background_download(t):
     frame = t.exchange(commands(b"LIGMODE", b"LIGMODE", b"2C,3", b"2aFILL", b"2CPYWP2VP",
                                 b"4MKEY,1,46,99,0,ordinary,\x1d(2C,5)\x1d(2aFILL)\x1d(2CPYWP2VP)",
                                 b"7CEVENT,1,0,20,0,0,0,0,0,0,0,parked,",
+                                b"6DEFJOY,1,0,B1,ordinary,\x1d(2C,5)\x1d(2aFILL)\x1d(2CPYWP2VP)",
                                 b"7ZMSTEALTH,1",
+                                b"6DEFJOY,1,0,B2,stealth,\x1d(2C,4)\x1d(2aFILL)\x1d(2CPYWP2VP)",
+                                b"6DEFJOY,1,1,AC,,",
                                 b"7CEVENT,2,0,20,0,0,0,0,0,0,0,local,\x1d(2C,6)\x1d(2aFILL)\x1d(2CPYWP2VP)",
                                 b"4MKEY,2,46,99,1,stealth,\x1d(7AEVENT,1)\x1d(7AEVENT,2)",
                                 b"7ZMSTEALTH,0", b"7ZMBKGRND,1"))
@@ -115,6 +118,10 @@ def check_background_download(t):
     receive_header(t, 5)
     assert duplicate.read_bytes() == b"existing file"
     t.client.wait_for(lambda f: "Rename" not in f.text and bottom(f) != frame.palette[3])
+    t.client.request(7, bytes([5, 0]))
+    t.client.request(7, bytes([2, 0, 0, 20, 0, 32]) + bytes(16))
+    t.client.wait_for(lambda f: f.primary and f.primary[0] == 4)
+    t.client.request(7, bytes([3, 0]))
     t.client.text("xc")
     active = t.client.wait_for(lambda f: f.primary and f.primary[0] == 6)
     assert bottom(active) != active.palette[6]
@@ -600,6 +607,78 @@ def check_raycast_recordings(t, root):
     assert recorded.read_bytes() == b""
 
 
+def check_joysticks(t):
+    t.case("Lite joystick detection, button combinations, calibration and held actions")
+    t.exchange(commands(b"6TESTJOY,1", b"6TESTJOY,2"), b"N\xffN\xff")
+    for slot in (0, 1):
+        t.client.request(7, bytes([5, slot]))
+
+    def sample(slot, buttons=0, dpad=0, stick_x=0):
+        packet = struct.pack("<BBHBBhhhh6x", 0, 20, buttons << 12 | dpad, 0, 0, stick_x, 0, 0, 0)
+        t.client.request(7, bytes([2, slot]) + packet)
+
+    sample(0)
+    sample(1)
+    t.exchange(commands(b"w2", b"6TESTJOY,1", b"6TESTJOY,2", b"7DEFRET,1,M",
+                        b"6DEFJOY,1,3,RUC,U~^M,\x1d(7SRET,1)",
+                        b"6DEFJOY,1,0,B3,B,\x1d(6DEFJOY,1,0,AC,,)", b"6DEFJOY,1,1,AC,,"), b"Y\xffY\xff")
+    sample(0, 3, 9)  # Up and right while both buttons are held.
+    t.input(b"MU,\rMU,\r")
+    sample(0, 3)
+    t.input(b"B")
+    sample(1, stick_x=-30000)
+    t.exchange(commands(b"w2", b"6CALJOY,2", b"6DEFJOY,2,0,RT,R,\x1d(6DEFJOY,2,0,CL,,)",
+                        b"6DEFJOY,2,1,AC,,"))
+    sample(1)
+    t.input(b"R")
+    t.client.request(7, bytes([3, 0]))
+    t.exchange(commands(b"w2", b"6TESTJOY,1", b"6TESTJOY,2"), b"N\xffY\xff")
+    t.client.request(7, bytes([3, 1]))
+    t.exchange(commands(b"w2", b"6TESTJOY,2", b"2RESET"), b"N\xff")
+
+
+def check_raycast_profiles(t):
+    t.case("raycaster cell entry, shared profiles, and live callback chains")
+    t.exchange(commands(b"2RESET", b"5SETXPOS,31,0", b"5SETYPOS,21,0", b"5SETANGL,90",
+                        b"5MAPPRO,1,1,46,99,0,0,3,3600,31,21,K,",
+                        b"5MAPPRO,3600,0,0,0,0,0,9,0,0,0,A~^M,\x1d(7SRET,1)",
+                        b"7DEFRET,1,M", b"5CPYPRO,1,32,21",
+                        b"5DANIM,0,159,1", b"w4"), b"MA,\r")
+    t.client.text("c")
+    t.input(b"cK")
+    t.exchange(commands(b"4MKEY,1,46,99,1,P,"))
+    t.client.text("c")
+    t.input(b"PcK")
+    t.exchange(commands(b"4MKEY,1,46,99,0,C,"))
+    t.client.text("c")
+    t.input(b"C")
+    t.exchange(commands(b"4MKEY,0", b"5SETANGL,180"))
+    t.client.text("c")
+    t.input(b"c")
+    t.exchange(commands(b"~PAUSEBAK", b"5SETXPOS,32,0", b"w4", b"~UNPAUSEBAK", b"w4"), b"MA,\r")
+    # The first callback redirects its own chain before the interpreter reads the link.
+    t.exchange(commands(b"4DEFM,1,1,\x1d(5MAPPRO,1,0,0,0,0,0,9,2,0,0,N,)",
+                        b"5MAPPRO,1,0,0,0,0,0,9,3600,0,0,O,\x1d(4RUNM,1)",
+                        b"5MAPPRO,2,0,0,0,0,0,9,2,0,0,D,\x1d(5DELMAPPRO,2)",
+                        b"5SETXPOS,31,0", b"w4", b"5SETXPOS,32,0", b"w4"), b"ODN")
+    t.exchange(commands(b"5FILPRO,3600", b"5SETXPOS,243,0", b"5SETYPOS,63,0",
+                        b"w4", b"5DELMAPPRO,3600", b"5SETXPOS,31,0", b"w4"), b"MA,\r")
+    t.exchange(commands(b"5MAPPRO,1,1,46,99,1,3,9,0,31,63,J,", b"5SETANGL,360"))
+    t.client.request(7, bytes([5, 0]))
+    t.client.request(7, bytes([2, 0, 0, 20, 0, 48]) + bytes(16))  # Both primary buttons.
+    t.client.mouse(300, 200, action=1, buttons=1)
+    t.client.text("c")
+    t.input(b"cJ")
+    t.client.request(7, bytes([3, 0]))
+    t.client.text("c")
+    t.input(b"c")
+    t.client.mouse(300, 200, action=1, buttons=0)
+    t.exchange(commands(b"5MAPPRO,0", b"5SETXPOS,32,0", b"w4",
+                        b"5MAPPRO,3,1,46,99,0,0,9,3,32,63,CYCLE,", b"w2"))
+    # An unfired circular chain must yield so a later wire command can delete it.
+    t.exchange(commands(b"5DELMAPPRO,3", b"2RESET"))
+
+
 def check_sprite_banks(t, root):
     t.case("sprite bank files, slot order, row orientation and erase after load")
     marker, = root.rglob("syncterm-cache-name.txt")
@@ -956,6 +1035,7 @@ def check_graphics(t, root):
     check_raycast_world(t, root)
     check_raycast_view(t)
     check_raycast_recordings(t, root)
+    check_raycast_profiles(t)
     check_sprite_banks(t, root)
     check_sprites(t)
     check_grid(t)
@@ -1606,6 +1686,7 @@ def run(args):
         t.exchange(commands(b"dSOUNDON", b"dACARD", b"tABSENT.THE", b"dGETTHEME", b"6CHECKBS,150", b"6CHECKBS,151",
                             b"~VARCAP,10", b"6CHECKBS,1", b"~VARCAP,0", b"7DEFRET,1,DEFVAR10", b"7SRET,1"),
                    b"NO\xffNONE\xffNONE\xffN/A\xffN/A")
+        check_joysticks(t)
         check_package_downloads(t)
         check_background_download(t)
         check_cache(t, fixture[1])

@@ -69,6 +69,7 @@ clear_graphics_objects(struct st_ddofx_graphics *g)
 	st_ddofx_mouse_defaults(&g->mouse);
 	st_ddofx_grid_destroy(g, false);
 	st_ddofx_ray_stop_recording(g->ray);
+	st_ddofx_ray_clear_profiles(g->ray);
 	free(g->ray);
 	g->ray = NULL;
 	free(g->landscape);

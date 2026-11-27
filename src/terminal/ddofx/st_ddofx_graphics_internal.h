@@ -125,6 +125,7 @@ void st_ddofx_paint_vga_string(struct st_ddofx_graphics *g, const struct st_pixe
     unsigned length, int x, int bottom, unsigned ink, unsigned paper, const struct bounds *clip);
 void st_ddofx_repaint_clocks(struct st_ddofx *, const struct st_pixel_buffer *, const struct st_console_rect *);
 void st_ddofx_clear_movies(struct st_ddofx_graphics *);
+void st_ddofx_ray_clear_profiles(struct rc_world *);
 void st_ddofx_ray_stop_recording(struct rc_world *);
 bool st_ddofx_ray_command(struct st_ddofx *, const struct st_ddofx_sink *, const char *, char *);
 bool st_ddofx_landscape_command(struct st_ddofx *, const struct st_ddofx_sink *, const char *, char *);

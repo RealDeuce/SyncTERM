@@ -9,7 +9,7 @@ struct st_ddofx_callback {
 	bool resource_text, stealth;
 };
 
-enum st_ddofx_callback_kind { DDO_EVENT = 1, DDO_KEY, DDO_MOUSE, DDO_FIELD
+enum st_ddofx_callback_kind { DDO_EVENT = 1, DDO_KEY, DDO_MOUSE, DDO_FIELD, DDO_RAY
 };
 
 enum st_ddofx_group_kind {
@@ -40,6 +40,12 @@ bool     st_ddofx_button_pass(const struct st_ddofx *, unsigned);
 bool     st_ddofx_button_callback(struct st_ddofx *, const struct st_ddofx_callback *, enum st_ddofx_callback_kind,
     unsigned);
 void     st_ddofx_button_up(struct st_ddofx *, unsigned);
+bool st_ddofx_joystick_command(struct st_ddofx *, const struct st_ddofx_sink *, char *);
+uint32_t st_ddofx_joystick_wait_ms(const struct st_ddofx *);
+void st_ddofx_joystick_poll(struct st_ddofx *);
+void st_ddofx_ray_after_profile(struct st_ddofx *);
+bool st_ddofx_ray_accepts_key(const struct st_ddofx *);
+void st_ddofx_ray_key(struct st_ddofx *, uint16_t word);
 void st_ddofx_finish_field(struct st_ddofx *);
 void st_ddofx_resume_mouse(struct st_ddofx *);
 void     st_ddofx_callback_define(const struct st_ddofx *, struct st_ddofx_callback *, const char *, const char *);

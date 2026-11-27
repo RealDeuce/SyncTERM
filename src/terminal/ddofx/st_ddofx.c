@@ -191,13 +191,15 @@ st_ddofx_reset(struct st_ddofx *ddo)
 	free(ddo->saved_palette);
 	free(ddo->queued);
 	free(ddo->keys);
+	free(ddo->joystick);
 	free(ddo->events);
 	st_ddofx_samples_destroy(ddo);
 	st_ddofx_script_destroy(ddo);
 	stop_music(ddo);
 	/* The session releases the receive worker after joining it. Resetting
 	 * a display during reception must retain that worker's wire ownership. */
-	*ddo = (struct st_ddofx) {.volume = 64, .background_download = ddo->background_download};
+	*ddo = (struct st_ddofx) {.volume = 64, .background_download = ddo->background_download,
+	    .controller_paused = ddo->controller_paused, .sticks = {ddo->sticks[0], ddo->sticks[1]}};
 }
 
 static void
@@ -225,6 +227,8 @@ execute(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *body)
 		st_ddofx_graphics_reset(ddo->graphics);
 		st_ddofx_script_clear(ddo);
 		st_ddofx_clear_keys(ddo);
+		free(ddo->joystick);
+		ddo->joystick = NULL;
 		ddo->keys_locked = false;
 		st_ddofx_clear_sample_profiles(ddo);
 		free(ddo->events);
@@ -297,6 +301,8 @@ execute(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *body)
 		else
 			st_ddofx_query_reply(ddo, sink, "N", false);
 	}
+	else if (body[0] == '6' && st_ddofx_joystick_command(ddo, sink, body))
+		return;
 	else if (st_ddofx_samples_command(ddo, sink, body))
 		return;
 	else if (body[0] == 'f')
@@ -438,6 +444,9 @@ st_ddofx_wait_ms(const struct st_ddofx *ddo)
 	uint32_t mouse = st_ddofx_mouse_wait_ms(ddo);
 	uint32_t pointer = st_ddofx_pointer_wait_ms(ddo);
 	uint32_t marquee = st_ddofx_marquee_wait_ms(ddo);
+	uint32_t joystick = st_ddofx_joystick_wait_ms(ddo);
+	if (joystick < wait)
+		wait = joystick;
 	uint32_t ray = st_ddofx_ray_wait_ms(ddo);
 	if (ray < wait)
 		wait = ray;
@@ -469,6 +478,7 @@ st_ddofx_poll(struct st_ddofx *ddo, const struct st_ddofx_sink *sink)
 	st_ddofx_grid_poll(ddo);
 	st_ddofx_landscape_poll(ddo);
 	st_ddofx_ray_poll(ddo);
+	st_ddofx_joystick_poll(ddo);
 	st_ddofx_movie_poll(ddo);
 	st_ddofx_clock_poll(ddo);
 	st_ddofx_marquee_poll(ddo);

@@ -1031,6 +1031,7 @@ st_term_session_set_suspended(st_term_session_t *session, bool suspended)
 			session->download_row_due = 0;
 		}
 		session->suspended = suspended;
+		session->ddofx.controller_paused = suspended || session->unfocused;
 		st_ddofx_pointer_pause(&session->ddofx,
 		    session->suspended || session->unfocused || session->mouse_disabled);
 		if (suspended) {
@@ -1855,11 +1856,14 @@ deliver_input(st_term_session_t *session, const struct local_input *input, bool 
 				sync_buttons(session, event->data.mouse.buttons);
 			return session->output_error;
 		case ST_CONSOLE_EVENT_CONTROLLER:
+			if (session->config.graphics_mode == ST_GRAPHICS_DDOFX_20)
+				st_ddofx_controller(&session->ddofx, &event->data.controller, input->controller_consumed);
 			st_graphics_handle_controller(st_term_session_cterm(session), &event->data.controller,
 			    input->controller_consumed);
 			return session->output_error;
 		case ST_CONSOLE_EVENT_FOCUS:
 			session->unfocused = !event->data.focus.focused;
+			session->ddofx.controller_paused = session->unfocused || session->suspended;
 			st_ddofx_pointer_pause(&session->ddofx,
 			    session->suspended || session->unfocused || session->mouse_disabled);
 			if (session->unfocused) {
@@ -2363,8 +2367,8 @@ st_term_session_service(st_term_session_t *session, enum st_term_disposition *di
 	}
 	if (status != IO_ERROR_WOULD_BLOCK)
 		return status;
-	if (!session->suspended && !session->wire_owner && !session->transfer && !session->transfer_reserved
-	    && !session->musicomm && st_connection_is_connected(session->config.connection)) {
+	if (!session->suspended && !session->wire_owner && (!session->transfer || session->ddofx.background_download)
+	    && !session->transfer_reserved && !session->musicomm && st_connection_is_connected(session->config.connection)) {
 		status = poll_controllers(session, disposition, finished);
 		if (status || *finished)
 			return status;

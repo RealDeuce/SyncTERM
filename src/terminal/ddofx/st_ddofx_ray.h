@@ -35,6 +35,7 @@ struct rc_animation {
 
 struct rc_world {
 	struct rc_recording *motion;
+	struct rc_profiles *profiles;
 	struct rc_cell       cells[RC_HEIGHT][RC_WIDTH];
 	unsigned             layer;
 	double               x, y;
@@ -53,6 +54,9 @@ struct rc_world {
 struct rc_world *st_ddofx_ray_world(struct st_ddofx_graphics *);
 bool st_ddofx_ray_record_command(struct st_ddofx *, const struct st_ddofx_sink *, const char *, char *);
 void st_ddofx_ray_motion_frame(struct rc_world *);
+bool st_ddofx_ray_profile_command(struct st_ddofx *, const char *, char *);
+uint64_t st_ddofx_ray_profile_due(const struct st_ddofx *);
+void st_ddofx_ray_profile_poll(struct st_ddofx *, bool frame, uint64_t now);
 void st_ddofx_ray_defaults(struct rc_world *);
 bool st_ddofx_ray_view_command(struct st_ddofx *, const struct st_ddofx_sink *, const char *, char *);
 void st_ddofx_ray_marker(struct st_ddofx_graphics *, int old_x, int old_y);

@@ -274,11 +274,15 @@ st_ddofx_ray_wait_ms(const struct st_ddofx *ddo)
 {
 	struct rc_world *w = ddo->graphics ? ddo->graphics->ray : NULL;
 	uint64_t         now;
-	if (!w || ddo->background_paused || (!w->active && !w->next_animation) || st_time_monotonic_ms(&now))
+	if (!w || ddo->background_paused)
 		return UINT32_MAX;
-	uint64_t due = w->active ? w->next_frame : w->next_animation;
+	uint64_t due = st_ddofx_ray_profile_due(ddo);
+	if (w->active && w->next_frame < due)
+		due = w->next_frame;
 	if (w->next_animation && w->next_animation < due)
 		due = w->next_animation;
+	if (due == UINT64_MAX || st_time_monotonic_ms(&now))
+		return UINT32_MAX;
 	return due <= now ? 0 : (uint32_t)(due - now);
 }
 
@@ -294,9 +298,12 @@ st_ddofx_ray_poll(struct st_ddofx *ddo)
 		return;
 	if (w->next_animation && now >= w->next_animation)
 		animate(g, now);
-	if (!w->active || now < w->next_frame)
+	bool frame = w->active && now >= w->next_frame;
+	if (frame)
+		st_ddofx_ray_motion_frame(w);
+	st_ddofx_ray_profile_poll(ddo, frame, now);
+	if (!frame)
 		return;
-	st_ddofx_ray_motion_frame(w);
 	w->next_frame = now + 55 * g->animator_divisor;
 	if (w->left > WIDTH - w->width || w->bottom < w->height - 1)
 		return;

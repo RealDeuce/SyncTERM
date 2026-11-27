@@ -50,6 +50,8 @@ The host can load either MPT pointer format from the assigned M resource. A sele
 
 The desktop raycaster renders a 244 × 64 world with textured walls, floors, ceilings and three transparent object layers. The BBS can generate a seeded maze, edit individual cells or import the two map sections specified by the SDK’s DEFMAP.TXT from the assigned M resource. The overview and the player marker share the same map coordinates. A new maze starts the player at (5,5) and returns a reachable endpoint. Map queries report the SDK texture numbers. The initial textures are generated locally. Hosts can replace them with copies of 32 × 32 sprites or animate them from a live range of sprite slots. Movement checks walls and object characteristics, and an interactive encounter stops rendering and reports the object coordinates to the host or capture variable.
 
+Raycaster cells can share any of 3,600 profiles. Instant profiles run on cell entry. Action profiles can require a DOS key, a mouse or joystick button combination, and a facing direction. Each link runs its macro and sends its return before selecting the next link. A macro can change that link or delete the profile. Ordinary keys reach the host before the matching profile's return.
+
 The raycaster records changed camera positions and headings as six-byte REC records in BBSTHEME. Playback applies one recorded pose per frame through the final record. A recording played from the assigned M resource is limited to 60,000 bytes. Its extracted file is removed on completion, replacement or reset.
 
 The Normal-mode desktop landscape accepts a seed or a 255 × 255 indexed map from the visual or work page. The lower-left map pixel is world coordinate (0,0). The camera has 256 positions on each axis, so an imported map wraps its extra row and column to the opposite edge. The BBS can set or adjust the camera, query its position and direction, and fly over the terrain in a 320 × 200 viewport. Clouds have their own placement. The last frame stays visible when flight stops. Window ownership and sprite animation profiles are tracked separately below.
@@ -64,9 +66,11 @@ Resource assignment selects the M container in `DDOFX/BBSTHEME` for local script
 
 In Normal mode, `2STORES` saves the current sprite slots as paired DAT and RAW files in the entry’s BBSTHEME directory. `2LOADS` validates both files before replacing the live slots. Its erase flag removes the pair after a successful load. A bank preserves slot order, indexed pixel rows and opaque allocation tails.
 
-In Lite and Normal mode, `2RESET` unlocks the keyboard and clears key bindings, macro definitions, variables, return strings, query capture, timed events and big-sample profiles. The current script continues after the command. In Normal mode it also clears all four graphics pages and releases sprites, simple animations, bitmap fonts and music bars. The assigned resource prefix, music, theme sounds, palette and saved page files survive a scene reset.
+In Lite and Normal mode, `2RESET` unlocks the keyboard and clears key bindings, macro definitions, variables, return strings, query capture, joystick bindings, timed events and big-sample profiles. The current script continues after the command. In Normal mode it also clears all four graphics pages and releases sprites, simple animations, bitmap fonts and music bars. The assigned resource prefix, music, theme sounds, palette and saved page files survive a scene reset.
 
 In Lite and Normal, `4MKEY` binds DOS scan/character pairs or the all-keys wildcard. Matching slots run in order, with each macro completing before its return bytes and any passed keystroke. The DDO key lock admits programmed bindings and consumes ordinary keyboard input. SyncTERM processes its local shortcuts before graphics input.
+
+Lite and Normal expose two DOS joystick slots through SyncTERM’s controller mappings. The left stick, first hat and D-pad provide eight directions. The south/east buttons or joystick trigger/thumb supply buttons 1 and 2. Analog movement has a dead zone of one quarter of the axis range from center to an endpoint. The host can detect and calibrate each joystick, bind directions for each button combination, bind the three centered button combinations, and activate or clear each slot. Held actions repeat.
 
 Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed variables. Local macro calls, repeats and waits preserve the order of the wire stream. Variable capture redirects automatic query results. Configured return strings can send binary bytes. Conditional macros can compare user variables, identity, music state and loose-file metadata. Additional predefined system operands await their respective query implementations.
 
@@ -121,9 +125,9 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 2602 | RUN A MACRO | DDO-FX LITE | Connected |
 | 2615 | EXECUTE A MACRO LINE | DDO-FX LITE | Connected |
 | 2662 | CREATE KEY MACRO | DDO-FX LITE | Connected |
-| 2874 | TEST FOR JOYSTICK | DDO-LITE | Pending |
-| 2893 | CALIBRATE JOYSTICK | DDO-LITE | Pending |
-| 2913 | DEFINE JOYSTICK | DDO-LITE | Pending |
+| 2874 | TEST FOR JOYSTICK | DDO-LITE | Connected |
+| 2893 | CALIBRATE JOYSTICK | DDO-LITE | Connected |
+| 2913 | DEFINE JOYSTICK | DDO-LITE | Connected |
 | 3067 | CREATE BACKGROUND EVENT | DDO-LITE | Connected |
 | 3161 | ACTIVATE BACKGROUND EVENT | DDO-LITE | Connected |
 | 3174 | DEACTIVATE BACKGROUND EVENT | DDO-LITE | Connected |
@@ -428,10 +432,10 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 11811 | RC CHANGE MAP | DDO-FX (NM) | Connected on the desktop |
 | 11901 | RC CHANGE OBJECT MAP | DDO-FX (NM) | Connected on the desktop |
 | 12046 | RC GET MAP INFO | DDO-FX (NM) | Connected on the desktop |
-| 12101 | RC SET MAP PROFILE | DDO-FX (NM) | Pending |
-| 12392 | RC COPY MAP PROFILE | DDO-FX (NM) | Pending |
-| 12404 | RC FILL MAP PROFILE | DDO-FX (NM) | Pending |
-| 12414 | RC DEL MAP PROFILE | DDO-FX (NM) | Pending |
+| 12101 | RC SET MAP PROFILE | DDO-FX (NM) | Connected |
+| 12392 | RC COPY MAP PROFILE | DDO-FX (NM) | Connected |
+| 12404 | RC FILL MAP PROFILE | DDO-FX (NM) | Connected |
+| 12414 | RC DEL MAP PROFILE | DDO-FX (NM) | Connected |
 | 12433 | RC SAVE 3D ENVIRONMENT | DDO-FX (NM) | Pending |
 | 12453 | RC LOAD 3D ENVIRONMENT | DDO-FX (NM) | Pending |
 | 12466 | RC RECORD 3D MOVEMENTS | DDO-FX (NM) | Connected |
@@ -470,7 +474,7 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 13819 | ANTI-ALIAS IMAGE | DDO-FX (NM) | Connected on the desktop |
 | 13917 | OUTLINE IMAGE | DDO-FX (NM) | Connected on the desktop |
 | 13975 | ZMODEM BACKGROUND TRANSFERS | DDO-FX (NM) | Implemented |
-| 14035 | ZMODEM STEALTH MODE | DDO-FX (NM) | Partial: keyboard macros, fields, regions, push/radio/check buttons, text fields, list boxes and timed events. Icons, joystick and window close pending |
+| 14035 | ZMODEM STEALTH MODE | DDO-FX (NM) | Partial: keyboard macros, fields, regions, push/radio/check buttons, text fields, list boxes, timed events, joysticks and raycaster cell profiles. Icons and window close pending |
 | 14120 | DEFINE MUSIC BAR | DDO-FX (NM) | Desktop pages; virtual windows pending |
 | 14292 | ACTIVATE/DEACTIVATE MUSIC BAR | DDO-FX (NM) | Desktop pages; virtual windows pending |
 | 14308 | CLEAR MUSIC BAR | DDO-FX (NM) | Desktop pages; virtual windows pending |

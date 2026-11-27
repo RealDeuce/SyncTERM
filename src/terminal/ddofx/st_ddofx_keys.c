@@ -247,14 +247,20 @@ st_ddofx_resume_key(struct st_ddofx *ddo, const struct st_ddofx_sink *sink)
 	pass        = pass && !keys->local_only && !ddo->keys_locked;
 	if (keys->event.type == ST_CONSOLE_EVENT_PHYSICAL_KEY)
 		keys->pass_echo = pass;
-	return pass && sink->pass_key ? sink->pass_key(sink->context, &keys->event) : 0;
+	if (pass && sink->pass_key) {
+		int status = sink->pass_key(sink->context, &keys->event);
+		if (!status)
+			st_ddofx_ray_key(ddo, keys->word);
+		return status;
+	}
+	return 0;
 }
 
 bool
 st_ddofx_key(struct st_ddofx *ddo, const struct st_console_event *e)
 {
 	struct st_ddofx_keys *keys = ddo->keys;
-	if (!keys && st_ddofx_control_count(ddo)) {
+	if (!keys && (st_ddofx_control_count(ddo) || st_ddofx_ray_accepts_key(ddo))) {
 		ddo->keys = calloc(1, sizeof(*ddo->keys));
 		keys      = ddo->keys;
 	}
@@ -303,6 +309,8 @@ st_ddofx_key(struct st_ddofx *ddo, const struct st_console_event *e)
 	keys->next = 0;
 	keys->checked_button = false;
 	enum key_match match = next_binding(ddo);
+	if (match == KEY_PASS && !ddo->keys_locked)
+		st_ddofx_ray_key(ddo, word);
 	if (match == KEY_PASS && e->type != ST_CONSOLE_EVENT_PHYSICAL_KEY)
 		return ddo->keys_locked;
 	keys->event = *e;

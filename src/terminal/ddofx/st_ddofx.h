@@ -13,6 +13,14 @@
 #define ST_DDOFX_BODY_MAX 250
 
 struct st_console_event;
+struct st_controller_event;
+
+struct st_ddofx_stick {
+	uint32_t device;
+	unsigned buttons, button_inputs;
+	int x, y, hat_x, hat_y;
+	unsigned dpad;
+};
 
 struct st_ddofx_framer {
 	enum {
@@ -42,6 +50,8 @@ struct st_ddofx {
 	struct st_ddofx_framer   wire;
 	struct st_ddofx_script  *script;
 	struct st_ddofx_keys    *keys;
+	struct st_ddofx_stick    sticks[2];
+	struct st_ddofx_joystick *joystick;
 	struct st_ddofx_events  *events;
 	struct st_ddofx_samples *samples;
 	uint8_t                 *queued;
@@ -52,7 +62,7 @@ struct st_ddofx {
 	struct st_tracker       *player;
 	struct st_cmf           *cmf;
 	unsigned                 volume;
-	bool                     pointer_paused;
+	bool                     pointer_paused, controller_paused;
 	bool                     enable_background_download, background_download, define_stealth;
 	bool                     keys_locked, in_key, in_mouse;
 	bool                     ignoring, background_paused, in_event;
@@ -74,6 +84,7 @@ struct st_ddofx_sink {
 	void                (*reply)(void *, const uint8_t *, size_t);
 };
 
+void st_ddofx_controller(struct st_ddofx *, const struct st_controller_event *, bool consumed);
 void st_ddofx_pointer_pause(struct st_ddofx *, bool);
 void st_ddofx_mouse(struct st_ddofx *, const struct st_console_event *);
 void st_ddofx_background_download(struct st_ddofx *, bool active);
