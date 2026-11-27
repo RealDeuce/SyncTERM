@@ -351,8 +351,14 @@ def check_text_windows(t):
 
     # A 4x3 aperture at screen (8,16) can see any part of its 80x100 page.
     viewport = b"1OPEN,1,2,5,2,4,7,15,N,N,N,N,Y,,,"
+    t.exchange(commands(b"~DEFVAR,61,1,y"))
     colours(commands(viewport) + b"\x1b[5;7H\x1b[41m \x1b[6;8H\x1b[42m " +
             commands(b"1POS,7,5", b"1GETPOS"), {(8,16):4,(16,32):2,(0,16):33}, b"9,6,7,5\xff")
+    # Reconfiguring a scrolled window homes its viewport, even when hidden.
+    colours(commands(b"1CHANGE,2,5,2,4,7,15,N,Y", b"1GETPOS"), {(8,16):4}, b"9,6,7,5\xff")
+    colours(commands(b"1CHANGE,2,5,2,4,7,15,N,DEFVAR61,N,N,DEFVAR61,,,", b"1GETPOS"),
+            {(8,16):33}, b"9,6,1,1\xff")
+    colours(commands(b"1UNHIDE", b"1POS,7,5"), {(8,16):4,(16,32):2})
     for key, pos in [("end", b"8,5"), ("page_down", b"8,6"), ("home", b"7,6"), ("page_up", b"7,5")]:
         t.client.key(key, 2)
         t.exchange(commands(b"1GETPOS"), b"9,6," + pos + b"\xff")
@@ -362,7 +368,7 @@ def check_text_windows(t):
     colours(commands(b"1GOTOC", b"1GETPOS"), {(8,32):0,(8,48):0}, b"9,6,9,4\xff")
     colours(commands(b"1POS,7,5") + b"\x1b[100;1H\n" + commands(b"1GETPOS"),
             {(8,16):0,(16,16):2,(0,16):33}, b"1,100,7,5\xff")
-    colours(commands(b"1CHANGE,2,5,2,4,7,15,N,N,Y,Y,Y,,,") + b"\x1b[12;22H" +
+    colours(commands(b"1CHANGE,2,5,2,4,7,15,N,N,DEFVAR61,DEFVAR61,Y,,,") + b"\x1b[12;22H" +
             commands(b"1GETPOS"), {(8,16):0}, b"22,12,19,10\xff")
     # Both cursor movements occur in one receive burst.
     colours(b"\x1b[60;50H\x1b[12;22H" + commands(b"1GETPOS"), {(8,16):0}, b"22,12,22,12\xff")
@@ -409,15 +415,17 @@ def check_text_windows(t):
     for ch, ink in [(201, 0x80), (205, 0x40), (186, 0x20), (ord("X"), 0x10), (ord("H"), 0x08)]:
         strike[ch*16] = strike[ch*16+8] = ink
     (marker.parent / "DDOFX" / "FONTS" / "Border.fnt").write_bytes(strike)
-    t.exchange(commands(b"~DEFVAR,60,1,Border.fnt"))
-    border = b"1OPEN,7,10,16,3,7,9,14,Y,N,N,N,N,X,H,DEFVAR60"
+    t.exchange(commands(b"~DEFVAR,60,1,Border.fnt", b"~DEFVAR,62,1,X", b"~DEFVAR,63,1,H"))
+    border = b"1OPEN,7,10,16,3,7,9,14,DEFVAR61,N,N,N,N,DEFVAR62,DEFVAR63,DEFVAR60"
     colours(commands(border, b"dGETFONT"), {(72,32):9,(73,32):0,(81,32):9,(74,48):9,
             (96,32):4,(99,32):14,(96,96):4,(100,96):14,(128,32):33}, b"Border.fnt\xff")
     colours(commands(first), {(96,32):1,(99,32):14})
     colours(commands(b"1WIN,7", b"1HIDE"), {(72,32):33,(99,32):33,(100,96):33})
     colours(commands(b"1UNHIDE", b"1SCALE,4,8"), {(36,16):9,(48,16):4,(51,16):14,
             (72,32):33,(99,32):33})
-    colours(commands(b"1SCALE,8,16", b"1CLOSE", b"1CLOSE", b"fIBMSTD.FNT"), {(72,32):33,(8,16):33})
+    colours(commands(b"1SCALE,8,16", b"1CHANGE,10,16,3,7,9,14,Y,N,N,N,N,H,X,DEFVAR60"),
+            {(100,32):14,(99,96):14})
+    colours(commands(b"1CLOSE", b"1CLOSE", b"fIBMSTD.FNT"), {(72,32):33,(8,16):33})
 
     colours(commands(b"1SETC,1", b"1OPEN,1,4,4,2,5,7,15,N,N,N,Y,N,,,") + b"abc" + commands(b"1GETPOS"),
             {(24,16):0}, b"1,3,1,1\xff")
@@ -2691,6 +2699,7 @@ def check_scripts(t):
     def read_variable(slot):
         return commands(b"7DEFRET,300,DEFVAR" + str(slot).encode(), b"7SRET,300")
 
+    t.exchange(commands(b"7DEFRET,300,DEFVAR label", b"7SRET,300"), b"DEFVAR label")
     t.exchange(commands(b"7DEFRET,300,A~,B^@^[^m^^^?", b"7SRET,300"), b"A,,B\0\x1b\r\x1e\xff")
     t.exchange(commands(b"7DEFRET,0", b"7SRET,300"))
     t.exchange(commands(b"~DEFVAR,1000,1,a,b", b"7DEFRET,2,DEFVAR1000", b"~CAPVAR,1000",

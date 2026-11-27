@@ -812,7 +812,7 @@ st_ddofx_graphic_window_command(struct st_ddofx *ddo, const struct st_ddofx_sink
 		int32_t x, y;
 		if (g->alert_graphic_window && st_ddofx_field_number(ddo, &args, &x)
 		    && st_ddofx_field_number(ddo, &args, &y) && args)
-			st_ddofx_resource_pcx(ddo, sink, VISUAL, st_ddofx_asset_name(ddo, args), x, y);
+			st_ddofx_resource_pcx(ddo, sink, VISUAL, st_ddofx_value(ddo, args), x, y);
 	}
 	else if (!ascii_case_compare(verb, "2FGWIN") && !args) {
 		char reply[4];

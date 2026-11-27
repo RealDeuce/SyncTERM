@@ -183,7 +183,7 @@ st_ddofx_pointer_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink,
 	if (!args)
 		return;
 	if (!ascii_case_compare(verb, "MPT")) {
-		const char *name = st_ddofx_asset_name(ddo, args);
+		const char *name = st_ddofx_value(ddo, args);
 		if (!ascii_case_compare(name, "DEFAULT")) {
 			default_arrow(&p->current);
 			st_ddofx_mouse_defaults(m);
@@ -200,7 +200,7 @@ st_ddofx_pointer_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink,
 		if (!slot)
 			memset(p->slots, 0, sizeof(p->slots));
 		else if (args)
-			p->slots[slot - 1].loaded = load(ddo, sink, st_ddofx_asset_name(ddo, args), &p->slots[slot - 1]);
+			p->slots[slot - 1].loaded = load(ddo, sink, st_ddofx_value(ddo, args), &p->slots[slot - 1]);
 	}
 	else if (!ascii_case_compare(verb, "SMP") && !args)
 		select_slot(ddo, (unsigned)slot);

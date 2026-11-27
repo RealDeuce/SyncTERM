@@ -95,7 +95,7 @@ open_movie(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, unsigned id, 
 	    || n[1] < 0 || n[1] >= target.height || n[2] <= 0 || (unsigned)n[3] > 1 || n[4] < 1 || n[4] > 100
 	    || (unsigned)n[5] > 1)
 		return;
-	const char *name = st_ddofx_asset_name(ddo, args);
+	const char *name = st_ddofx_value(ddo, args);
 	if (!st_ddofx_dos_filename(name))
 		return;
 	FILE *file = sink->open_asset(sink->context, "BBSTHEME", NULL, name);

@@ -152,22 +152,13 @@ reference(const struct st_ddofx *ddo, const char *s)
 }
 
 const char *
-st_ddofx_asset_name(const struct st_ddofx *ddo, const char *field)
+st_ddofx_value(const struct st_ddofx *ddo, const char *field)
 {
-	/* DEFVAR.FNT and DEFVARX are also valid literal DOS names. */
+	/* Only DEFVAR followed by a variable number is a reference. */
 	int32_t id;
 	if (!variable_id(field, &id))
 		return field;
 	const struct variable *v = variable(ddo->script, id);
-	return v ? v->text : "";
-}
-
-const char *
-st_ddofx_value(const struct st_ddofx *ddo, const char *s)
-{
-	if (ascii_case_ncompare(s, "DEFVAR", 6))
-		return s;
-	const struct variable *v = reference(ddo, s);
 	return v ? v->text : "";
 }
 

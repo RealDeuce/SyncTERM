@@ -95,7 +95,7 @@ load_font(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *args)
 	if (!file)
 		return;
 	uint32_t length;
-	if (st_ddofx_resource_find(file, st_ddofx_asset_name(ddo, name), -1, &length, NULL) >= 0 && length >= 2) {
+	if (st_ddofx_resource_find(file, st_ddofx_value(ddo, name), -1, &length, NULL) >= 0 && length >= 2) {
 		g->bitmap_fonts[slot - 1] = read_font(file, length);
 		if (g->bitmap_fonts[slot - 1])
 			g->bitmap_slot = (unsigned)(slot - 1);

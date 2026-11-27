@@ -595,6 +595,13 @@ st_ddofx_text_scale(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char
 }
 
 static bool
+window_flag(const struct st_ddofx *ddo, char **args)
+{
+	const char *field = st_ddofx_field(args);
+	return field && ascii_to_upper((unsigned char)*st_ddofx_value(ddo, field)) == 'Y';
+}
+
+static bool
 configure_window(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *args, unsigned id, bool create)
 {
 	struct st_ddofx_graphics  *g    = ddo->graphics;
@@ -612,19 +619,14 @@ configure_window(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *a
 	    || n[3] <= n[2] || n[3] > target.height / g->cell_height || n[3] - n[2] >= 100 || (unsigned)n[4] > 15
 	    || (unsigned)n[5] > 15)
 		return false;
-	const char *border = st_ddofx_field(&args), *hidden = st_ddofx_field(&args);
-	const char *track_x = st_ddofx_field(&args), *track_y = st_ddofx_field(&args),
-		   *manual = st_ddofx_field(&args);
-	if (!track_x || !track_y || !manual)
-		return false;
-	page.track_x       = ascii_to_upper((unsigned char)*track_x) == 'Y';
-	page.track_y       = ascii_to_upper((unsigned char)*track_y) == 'Y';
-	page.manual_scroll = ascii_to_upper((unsigned char)*manual) == 'Y';
+	page.border        = window_flag(ddo, &args);
+	page.hidden        = window_flag(ddo, &args);
+	page.track_x       = window_flag(ddo, &args);
+	page.track_y       = window_flag(ddo, &args);
+	page.manual_scroll = window_flag(ddo, &args);
 	const char *title = st_ddofx_field(&args), *help = st_ddofx_field(&args);
-	if (!args || !title || !help || !border || !hidden)
+	if (!args)
 		return false;
-	page.border = *border == 'Y' || *border == 'y';
-	page.hidden = *hidden == 'Y' || *hidden == 'y';
 	int inset   = page.border ? 1 : 0;
 	int columns = n[1] - n[0] + 1 - 2 * inset;
 	int rows    = n[3] - n[2] + 1 - 2 * inset;
@@ -632,19 +634,17 @@ configure_window(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *a
 		return false;
 	page.columns      = (unsigned)columns;
 	page.rows         = (unsigned)rows;
-	if (page.origin_x > g->text_columns - page.columns)
-		page.origin_x = g->text_columns - page.columns;
-	if (page.origin_y > 100 - page.rows)
-		page.origin_y = 100 - page.rows;
+	page.origin_x     = 0;
+	page.origin_y     = 0;
 	page.cell_width   = g->cell_width;
 	page.cell_height  = g->cell_height;
 	page.x            = (n[0] - 1 + inset) * g->cell_width;
 	page.y            = (n[2] - 1 + inset) * g->cell_height;
 	page.frame_colour = (uint8_t)n[4];
 	page.title_colour = (uint8_t)n[5];
-	snprintf(page.title, sizeof(page.title), "%s", title);
-	snprintf(page.help, sizeof(page.help), "%s", help);
-	const char *font = st_ddofx_asset_name(ddo, args);
+	snprintf(page.title, sizeof(page.title), "%s", st_ddofx_value(ddo, title));
+	snprintf(page.help, sizeof(page.help), "%s", st_ddofx_value(ddo, help));
+	const char *font = st_ddofx_value(ddo, args);
 	snprintf(page.font_name, sizeof(page.font_name), "%s", *font ? font : st_ddofx_vga_font_name(ddo));
 	if (create) {
 		if (!st_ddofx_create_text_page(g, &page, sink->text_config))

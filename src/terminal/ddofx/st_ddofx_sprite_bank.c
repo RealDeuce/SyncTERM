@@ -186,7 +186,7 @@ st_ddofx_sprite_bank(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, cha
 		return;
 	if (!args || !sink->theme_path)
 		return;
-	const char *name = st_ddofx_asset_name(ddo, args);
+	const char *name = st_ddofx_value(ddo, args);
 	if (!st_ddofx_dos_filename(name) || strchr(name, '.'))
 		return;
 	/* Serialize the pair of files, including name resolution, across sessions. */

@@ -69,7 +69,7 @@ define(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, unsigned slot, ch
 		return;
 	uint32_t length;
 	uint8_t *text = NULL;
-	if (st_ddofx_resource_find(file, st_ddofx_asset_name(ddo, args), -1, &length, NULL) >= 0 && length && length <= 20000) {
+	if (st_ddofx_resource_find(file, st_ddofx_value(ddo, args), -1, &length, NULL) >= 0 && length && length <= 20000) {
 		text = malloc(length);
 		if (text && fread(text, 1, length, file) != length) {
 			free(text);

@@ -228,7 +228,7 @@ st_ddofx_ray_environment_command(struct st_ddofx *ddo, const struct st_ddofx_sin
 		return false;
 	if (!args)
 		return true;
-	const char *name = st_ddofx_asset_name(ddo, args);
+	const char *name = st_ddofx_value(ddo, args);
 	if (!st_ddofx_dos_filename(name))
 		return true;
 	struct rc_world *w = st_ddofx_ray_world(ddo->graphics);

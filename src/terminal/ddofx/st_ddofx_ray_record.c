@@ -196,7 +196,7 @@ st_ddofx_ray_record_command(struct st_ddofx *ddo, const struct st_ddofx_sink *si
 	struct rc_world *w = st_ddofx_ray_world(ddo->graphics);
 	if (!w)
 		return true;
-	const char *name = st_ddofx_asset_name(ddo, args);
+	const char *name = st_ddofx_value(ddo, args);
 	if (record && !ascii_case_compare(name, "STOP")) {
 		if (w->motion && w->motion->recording)
 			st_ddofx_ray_stop_recording(w);

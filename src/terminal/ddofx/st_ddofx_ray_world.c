@@ -397,7 +397,7 @@ st_ddofx_ray_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, con
 			}
 			break;
 		case LOAD:
-			load_map(ddo, sink, st_ddofx_asset_name(ddo, args));
+			load_map(ddo, sink, st_ddofx_value(ddo, args));
 			break;
 		case DUMP:
 		case ANNOTATION:

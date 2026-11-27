@@ -293,7 +293,7 @@ play_file(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, char *args)
 	int32_t     rate;
 	if (args == NULL || !st_ddofx_number(ddo, args, &rate) || rate <= 0)
 		return;
-	st_ddofx_play_realplay(ddo, sink, st_ddofx_asset_name(ddo, name), (unsigned)rate);
+	st_ddofx_play_realplay(ddo, sink, st_ddofx_value(ddo, name), (unsigned)rate);
 }
 
 enum load_result {
@@ -426,7 +426,7 @@ load_bites(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, const char *a
 {
 	struct st_ddofx_samples *s = ddo->samples;
 	if (*arg == ',')
-		strcpy(s->bite_file, st_ddofx_asset_name(ddo, arg + 1));
+		strcpy(s->bite_file, st_ddofx_value(ddo, arg + 1));
 	else if (!ascii_case_compare(arg, "NONE"))
 		clear_bank(s, &s->bites);
 	else if (!ascii_case_compare(arg, "LOAD"))
@@ -516,7 +516,7 @@ big_sample(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, enum profile_
 	         && st_ddofx_number(ddo, args, &number))
 		play(s, &s->main, sink->audio, &p->sample, number);
 	else if (args && (cmd == LOAD || (cmd == ADD && p->loaded < p->expected))) {
-		const char *name = st_ddofx_asset_name(ddo, args);
+		const char *name = st_ddofx_value(ddo, args);
 		FILE       *file = sink->open_asset(sink->context, "BBSTHEME", NULL, s->theme_name);
 		if (file == NULL)
 			return;
@@ -602,8 +602,8 @@ assemble_speech(const struct st_ddofx *ddo, const struct st_ddofx_sink *sink, ch
 	int32_t operation;
 	if (!args || !sink->theme_path || !st_ddofx_number(ddo, args, &operation))
 		return;
-	container = st_ddofx_asset_name(ddo, container);
-	name = st_ddofx_asset_name(ddo, name);
+	container = st_ddofx_value(ddo, container);
+	name = st_ddofx_value(ddo, name);
 	if (!st_ddofx_dos_filename(container) || !st_ddofx_dos_filename(name))
 		return;
 	char *path = sink->theme_path(sink->context, name);
@@ -649,13 +649,13 @@ st_ddofx_samples_command(struct st_ddofx *ddo, const struct st_ddofx_sink *sink,
 		return true;
 	struct st_ddofx_samples *s = ddo->samples;
 	if (*body == 'T')
-		select_term_theme(ddo, sink, st_ddofx_asset_name(ddo, body + 1));
+		select_term_theme(ddo, sink, st_ddofx_value(ddo, body + 1));
 	else if (*body != 't')
 		play_slot(ddo, sink, body);
 	else if (body[1] == 'b')
 		load_bites(ddo, sink, body + 2);
 	else {
-		const char *name = st_ddofx_asset_name(ddo, body + 1);
+		const char *name = st_ddofx_value(ddo, body + 1);
 		if (!ascii_case_compare(name, "NONE")) {
 			clear_bank(s, &s->theme);
 			s->theme_name[0] = 0;
