@@ -47,35 +47,44 @@ temporary_path(char **result, const char *path, uint32_t sequence)
 }
 
 int
+fs_create_sibling_temp(char **result, FILE **stream, const char *path)
+{
+	if (!result || !stream || !path || !*path)
+		return IO_ERROR_INVALID_ARGUMENT;
+	for (unsigned attempt = 0; attempt < 256; ++attempt) {
+		uint32_t sequence = (uint32_t)atomic_fetch_add_explicit(&fs_temporary_sequence, 1, memory_order_relaxed);
+		char *temporary;
+		int status = temporary_path(&temporary, path, sequence);
+		if (status != 0)
+			return status;
+		status = fs_open(stream, temporary, "wbx");
+		if (status == 0) {
+			*result = temporary;
+			return 0;
+		}
+		free(temporary);
+		if (status != IO_ERROR_ALREADY_EXISTS)
+			return status;
+	}
+	return IO_ERROR_ALREADY_EXISTS;
+}
+
+int
 fs_replace_file_with(const char *path, int (*write_file)(FILE *, void *), void *context)
 {
-	char *temporary = NULL;
-	FILE *stream    = NULL;
-	int   status    = IO_ERROR_ALREADY_EXISTS;
-
-	if (path == NULL || path[0] == '\0' || write_file == NULL)
+	if (!write_file)
 		return IO_ERROR_INVALID_ARGUMENT;
-	for (unsigned int attempt = 0; attempt < 256; ++attempt) {
-		uint32_t sequence =
-		    (uint32_t)atomic_fetch_add_explicit(&fs_temporary_sequence, 1, memory_order_relaxed);
-
-		free(temporary);
-		temporary = NULL;
-		status    = temporary_path(&temporary, path, sequence);
-		if (status != 0)
-			break;
-		status = fs_open(&stream, temporary, "wbx");
-		if (status != IO_ERROR_ALREADY_EXISTS)
-			break;
-	}
-	bool created = stream != NULL;
-	if (status == 0)
-		status = write_file(stream, context);
-	if (stream != NULL && fclose(stream) != 0 && status == 0)
+	char *temporary;
+	FILE *stream;
+	int status = fs_create_sibling_temp(&temporary, &stream, path);
+	if (status != 0)
+		return status;
+	status = write_file(stream, context);
+	if (fclose(stream) != 0 && status == 0)
 		status = IO_ERROR_IO;
 	if (status == 0)
 		status = fs_rename(temporary, path);
-	if (status != 0 && created)
+	if (status != 0)
 		(void)fs_remove_file(temporary);
 	free(temporary);
 	return status;

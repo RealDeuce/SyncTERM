@@ -26,7 +26,8 @@ enum {
 
 struct st_ddofx_sprite {
 	char     name[9];
-	uint16_t width, height;
+	uint16_t width, height, allocation;
+	uint8_t  active;
 	uint8_t *pixels;
 };
 
@@ -111,6 +112,8 @@ void    st_ddofx_bitmap_text(struct st_ddofx *, const struct st_ddofx_sink *, co
 void    st_ddofx_set_palette(struct st_ddofx_graphics *, unsigned, unsigned);
 void    st_ddofx_resource_pcx(struct st_ddofx *, const struct st_ddofx_sink *, enum page, const char *);
 void    st_ddofx_page_file(struct st_ddofx *, enum page file, enum page target, bool save);
+void st_ddofx_sprite_bank(struct st_ddofx *, const struct st_ddofx_sink *, char *args, bool load);
+void st_ddofx_invert_sprite(struct st_ddofx_sprite *);
 void    st_ddofx_free_sprites(struct st_ddofx_graphics *);
 int     st_ddofx_sprite_slot(struct st_ddofx_graphics *, const char *, bool create);
 void    st_ddofx_draw_sprite(struct st_ddofx_graphics *, const struct st_ddofx_sprite *, enum page, char op,

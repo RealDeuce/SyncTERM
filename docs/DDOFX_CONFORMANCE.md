@@ -38,6 +38,8 @@ Loose-file queries read the entry’s `DDOFX/MUSIC`, `DDOFX/FONTS`, and `DDOFX/B
 
 Resource assignment selects the M container in `DDOFX/BBSTHEME` for local scripts and bitmap fonts and the S container for indexed PCX artwork. Scripts up to 40,000 bytes can call other scripts and render DOS text. A resource entry query tests the member name and component ID. Conditional scripts can also read that ID.
 
+In Normal mode, `2STORES` saves the current sprite slots as paired DAT and RAW files in the entry’s BBSTHEME directory. `2LOADS` validates both files before replacing the live slots. Its erase flag removes the pair after a successful load. A bank preserves slot order, indexed pixel rows and opaque allocation tails.
+
 In Lite and Normal mode, `2RESET` unlocks the keyboard and clears key bindings, macro definitions, variables, return strings, query capture, timed events and big-sample profiles. The current script continues after the command. In Normal mode it also clears all four graphics pages and releases sprites, simple animations, bitmap fonts and music bars. The assigned resource prefix, music, theme sounds, palette and saved page files survive a scene reset.
 
 In Lite and Normal, `4MKEY` binds DOS scan/character pairs or the all-keys wildcard. Matching slots run in order, with each macro completing before its return bytes and any passed keystroke. The DDO key lock admits programmed bindings and consumes ordinary keyboard input. SyncTERM processes its local shortcuts before graphics input.
@@ -223,8 +225,8 @@ Lite scripts can define 32 ten-line macros, 300 return strings, and 1,000 typed 
 | 6875 | PUT SPRITE HIDDEN PAGE | DDO-FX (NM) | Connected |
 | 6882 | INVERT SPRITE | DDO-FX (NM) | Connected |
 | 6895 | FREE ALL SPRITES | DDO-FX (NM) | Connected |
-| 6904 | STORE ALL SPRITES | DDO-FX (NM) | Pending |
-| 6919 | LOAD ALL SPRITES | DDO-FX (NM) | Pending |
+| 6904 | STORE ALL SPRITES | DDO-FX (NM) | Connected |
+| 6919 | LOAD ALL SPRITES | DDO-FX (NM) | Connected |
 | 6939 | DEFINE ANIM PROFILE | DDO-FX (NM) | Pending |
 | 7151 | DEFINE ANIM SOUND | DDO-FX (NM) | Pending |
 | 7186 | PLAY ANIM PROFILE | DDO-FX (NM) | Pending |

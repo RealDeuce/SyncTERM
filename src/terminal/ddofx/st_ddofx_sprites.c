@@ -98,7 +98,8 @@ capture_sprite(struct st_ddofx *ddo, char *args, enum page page)
 	size_t                 count = (size_t)r.width * r.height;
 	if (count > 64000)
 		return;
-	uint8_t *data = malloc(count);
+	/* Captured images carry 100 trailing bytes in a stored sprite bank. */
+	uint8_t *data = calloc(count + 100, 1);
 	if (!data)
 		return;
 	if (page == VISUAL) {
@@ -112,6 +113,8 @@ capture_sprite(struct st_ddofx *ddo, char *args, enum page page)
 		for (unsigned row = 0; row < r.height; ++row)
 			memcpy(data + row * r.width, &g->page[page][r.y + row][r.x], r.width);
 	}
+	s->active = 1;
+	s->allocation = (uint16_t)(count + 100);
 	s->pixels = data;
 	s->width  = (uint16_t)r.width;
 	s->height = (uint16_t)r.height;
@@ -190,15 +193,17 @@ st_ddofx_draw_sprite(struct st_ddofx_graphics *g, const struct st_ddofx_sprite *
 		paint(&d, g->page[page], NULL);
 }
 
-static void
-invert(struct st_ddofx_sprite *s)
+void
+st_ddofx_invert_sprite(struct st_ddofx_sprite *s)
 {
 	for (unsigned y = 0; y < s->height / 2; ++y) {
-		uint8_t  tmp[WIDTH];
-		uint8_t *top = s->pixels + y * s->width, *bottom = s->pixels + (s->height - 1 - y) * s->width;
-		memcpy(tmp, top, s->width);
-		memcpy(top, bottom, s->width);
-		memcpy(bottom, tmp, s->width);
+		uint8_t *top = s->pixels + y * s->width;
+		uint8_t *bottom = s->pixels + (s->height - 1 - y) * s->width;
+		for (unsigned x = 0; x < s->width; ++x) {
+			uint8_t pixel = top[x];
+			top[x] = bottom[x];
+			bottom[x] = pixel;
+		}
 	}
 }
 
@@ -214,7 +219,7 @@ st_ddofx_sprite_command(struct st_ddofx *ddo, const char *verb, char *args)
 	else if (!strcmp(verb, "2sI") && args) {
 		int slot = st_ddofx_sprite_slot(g, st_ddofx_value(ddo, args), false);
 		if (slot >= 0) {
-			invert(&g->sprites[slot]);
+			st_ddofx_invert_sprite(&g->sprites[slot]);
 			g->cx = g->cy = 0;
 		}
 	}

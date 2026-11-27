@@ -230,6 +230,40 @@ def check_graphics_reset(t):
     assert frame.primary[10*640+10] == 0 and frame.primary[20*640+41] == 11
 
 
+def check_sprite_banks(t, root):
+    t.case("sprite bank files, slot order, row orientation and erase after load")
+    marker, = root.rglob("syncterm-cache-name.txt")
+    theme = marker.parent / "DDOFX" / "BBSTHEME"
+    dat, raw = theme / "BANK.DAT", theme / "BANK.RAW"
+    record = struct.Struct("<BB8sIHHH")
+    t.exchange(commands(b"2sFF", b"2aCLIP,0,639,0,479", b"2aERASE",
+                        b"2C,10", b"2aP,1,1", b"2C,20", b"2aP,2,2", b"2S,1,2,1,2,logo",
+                        b"2STORES,BANK", b"2sP,5,6,LOGO", b"2aG,5,5"), b"10\xff")
+    assert dat.read_bytes() == record.pack(1, 4, b"LOGO", 0, 104, 2, 2) + bytes(3199 * 20)
+    assert raw.read_bytes() == bytes([0, 20, 10, 0]) + bytes(100)
+
+    # A sparse foreign bank with a nonzero legacy pointer, an opaque tail,
+    # and a one-row image at the end of the table.
+    foreign = bytearray(3200 * record.size)
+    record.pack_into(foreign, 20, 2, 1, b"A", 0xdeadbeef, 7, 2, 2)
+    record.pack_into(foreign, 3199 * 20, 1, 1, b"B", 0, 2, 2, 1)
+    dat.write_bytes(foreign)
+    payload = bytes([3, 4, 1, 2, 90, 91, 92, 8, 9])
+    raw.write_bytes(payload[:-1])
+    t.exchange(commands(b"2LOADS,1,bank", b"2aERASE", b"2sP,3,4,LOGO", b"2aG,3,3"), b"10\xff")
+    assert dat.exists() and raw.exists()
+    raw.write_bytes(payload)
+    t.exchange(commands(b"2loads,0,bank", b"2aERASE", b"2sP,3,4,LOGO", b"2aG,3,3",
+                        b"2sP,3,4,a", b"2sP,8,8,b", b"2aG,3,3", b"2aG,4,4", b"2aG,9,8",
+                        b"2sI,a", b"2stores,second"), b"0\xff1\xff4\xff9\xff")
+    assert (theme / "SECOND.RAW").read_bytes() == bytes([1, 2, 3, 4]) + payload[4:]
+    assert (theme / "SECOND.DAT").read_bytes()[3199*20:] == foreign[3199*20:]
+    t.exchange(commands(b"2sFF", b"2LOADS,1,BANK", b"2sP,3,4,A", b"2aG,4,4",
+                        b"2STORES,../escaped", b"2sFF"), b"4\xff")
+    assert not dat.exists() and not raw.exists()
+    assert not (theme.parent / "ESCAPED.DAT").exists()
+
+
 def check_sprites(t):
     t.case("sprite capture and drawing across the four graphics pages")
     # A 3x2 sprite with distinguishable rows and a transparent top-left pixel.
@@ -544,6 +578,7 @@ def check_graphics(t, root):
                                                        b"2aSRGB,4,0,63,63"), b"4\xff")
     assert frame.primary[4 * 640 + 3] == 4 and frame.palette[4] == 0x00ffff
     check_drawing(t)
+    check_sprite_banks(t, root)
     check_sprites(t)
     check_grid(t)
     check_image_commands(t)

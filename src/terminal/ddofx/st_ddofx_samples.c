@@ -508,10 +508,10 @@ assemble_speech(const struct st_ddofx *ddo, const struct st_ddofx_sink *sink, ch
 	const char *name = st_ddofx_field(&args);
 	char *phrase = st_ddofx_field(&args);
 	int32_t operation;
-	if (!args || !sink->theme_file_path || !st_ddofx_dos_filename(container) || !st_ddofx_dos_filename(name)
+	if (!args || !sink->theme_path || !st_ddofx_dos_filename(container) || !st_ddofx_dos_filename(name)
 	    || !st_ddofx_number(ddo, args, &operation))
 		return;
-	char *path = sink->theme_file_path(sink->context, name);
+	char *path = sink->theme_path(sink->context, name);
 	if (!path)
 		return;
 	if (operation == 3)

@@ -52,6 +52,9 @@ int     fs_set_modified_time(const char *path, int64_t modified_time);
 
 int fs_remove_file(const char *path);
 int fs_remove_directory(const char *path);
+/* Create an exclusive sibling file. The caller owns its path and stream
+ * and must rename or remove the file when finished. */
+int fs_create_sibling_temp(char **result, FILE **stream, const char *path);
 /* Replaces an existing non-directory destination; never copies volumes. */
 int fs_rename(const char *source, const char *destination);
 /*

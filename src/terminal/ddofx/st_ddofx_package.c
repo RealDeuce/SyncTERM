@@ -11,6 +11,7 @@
 #include "path.h"
 #include "st_ddofx_package.h"
 #include "st_ddofx_resource.h"
+#include "st_file_lock.h"
 #include "string_compat.h"
 #include "string_util.h"
 
@@ -286,9 +287,14 @@ install_download(struct st_ddofx_package_batch *batch, const char *category, con
 {
 	char *directory = NULL;
 	int   status    = batch->directory(&directory, batch->root, category);
+	bool theme = !strcmp(category, "BBSTHEME");
+	st_file_lock_t *lock = NULL;
+	if (!status && theme)
+		status = st_file_lock_acquire(&lock, directory, true);
 	if (!status)
-		status = unpack_package(path, directory, batch->resolve,
-		    !strcmp(category, "BBSTHEME") ? &batch->autoplay : NULL);
+		status = unpack_package(path, directory, batch->resolve, theme ? &batch->autoplay : NULL);
+	if (lock)
+		st_file_lock_release(lock);
 	free(directory);
 	return status ? status : fs_remove_file(path);
 }
