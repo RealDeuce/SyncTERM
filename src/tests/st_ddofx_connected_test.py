@@ -534,6 +534,27 @@ def check_flics(t, root):
         assert set(strip[:2]) <= {3,12} and strip[2] in (4,14) and list(strip[3:]) == [3,4]
     t.exchange(commands(b"5CMARQEE,0", b"5SOCLOCK,0", b"2CPYWP2VP"))
 
+    t.case("a window movie pauses with focus and plays underneath an animation")
+    t.exchange(commands(b"2C,61", b"2aFILL", b"2S,0,1,0,1,MARK",
+                        b"2GWIN,1,20,119,30,129,1000,750,0,0,0,0,0,0,0,0,0,0,1,Movie",
+                        b"2CHVGP,1,900,650", b"2ALERTGWIN,1", b"2C,23", b"2aFILL", b"2CPYVP2HP",
+                        b"2RGWINI", b"5OFLIC,9,910,660,2,1,8,0,DELTA.FLC",
+                        b"2ANIM,3,911,662,0,MARK,MARK,0,0,0,0,30,0", b"2PLAYA,3",
+                        b"2CALMGWIN", b"5UFLIC,9", b"w20"))
+    # Slot 1 was created inactive. Neither the sprite nor the film has run.
+    start = 40*640+30
+    assert t.exchange().primary[start] == 23
+    t.exchange(commands(b"2AGWIN,1"))
+    f = t.client.wait_for(lambda f: f.primary[start+640] == 15)
+    assert list(f.primary[start+640:start+645]) == [15,61,61,8,9]
+    f = t.exchange(commands(b"2STOPA,3"))
+    assert list(f.primary[start+640:start+645]) == list(f.alternate[start+640:start+645]) == [15,15,7,8,9]
+    # The desktop movie straddles the left border of the still-open window.
+    f = t.exchange(commands(b"5OFLIC,10,18,40,1,1,50,0,DELTA.FLC", b"5UFLIC,10", b"w4"))
+    assert list(f.primary[40*640+18:40*640+23]) == [0,1,23,23,23]
+    f = t.exchange(commands(b"2CGWIN,1"))
+    assert list(f.primary[40*640+18:40*640+23]) == [0,1,2,3,4]
+
 
 def check_text_scale(t, root):
     t.case("graphic text uses the native FNT pixels and shared bottom-anchored cell dimensions")

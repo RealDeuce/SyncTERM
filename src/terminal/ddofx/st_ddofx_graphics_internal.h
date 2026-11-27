@@ -250,6 +250,8 @@ bool st_ddofx_icon_command(struct st_ddofx *, const struct st_ddofx_sink *, cons
 bool st_ddofx_icon_mouse(struct st_ddofx *, unsigned changed);
 void st_ddofx_icon_cancel(struct st_ddofx_graphics *);
 void st_ddofx_close_icon(struct st_ddofx *, unsigned id);
+void st_ddofx_animation_background(struct st_ddofx *, unsigned window, const struct st_console_rect *,
+    const uint8_t *image);
 void st_ddofx_clear_animations(struct st_ddofx_graphics *);
 bool st_ddofx_animation_command(struct st_ddofx *, const char *verb, char *args);
 void    st_ddofx_simple_command(struct st_ddofx *, const char *, char *);

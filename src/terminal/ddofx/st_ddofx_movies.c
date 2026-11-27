@@ -17,14 +17,14 @@ enum {
 struct movie {
 	struct st_ddofx_flic   flic;
 	struct st_console_rect area;
-	unsigned               limit, played, fps;
+	unsigned               limit, played, fps, owner;
 	bool                   once, palette;
 	uint64_t               due;
 };
 
 struct st_ddofx_movies {
 	struct movie slots[MOVIE_COUNT];
-	uint64_t     next_due;
+	uint64_t     due[GRAPHIC_WINDOWS + 1];
 };
 
 static void
@@ -51,11 +51,12 @@ st_ddofx_clear_movies(struct st_ddofx_graphics *g)
 static void
 schedule(struct st_ddofx_movies *movies)
 {
-	movies->next_due = 0;
+	memset(movies->due, 0, sizeof(movies->due));
 	for (unsigned i = 0; i < MOVIE_COUNT; ++i) {
-		uint64_t due = movies->slots[i].due;
-		if (due && (!movies->next_due || due < movies->next_due))
-			movies->next_due = due;
+		const struct movie *m = &movies->slots[i];
+		uint64_t *due = &movies->due[m->owner];
+		if (m->due && (!*due || m->due < *due))
+			*due = m->due;
 	}
 }
 
@@ -87,17 +88,19 @@ open_movie(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, unsigned id, 
 	for (int i = 0; i < 6; ++i)
 		if (!st_ddofx_field_number(ddo, &args, n + i))
 			return;
-	if (!args || !st_ddofx_dos_filename(args) || !sink->open_asset || (unsigned)n[0] >= WIDTH
-	    || (unsigned)n[1] >= HEIGHT || n[2] <= 0 || (unsigned)n[3] > 1 || n[4] < 1 || n[4] > 100
+	struct st_ddofx_graphics *g = ddo->graphics;
+	unsigned owner = g->alert_graphic_window;
+	struct st_ddofx_surface target = st_ddofx_surface(g, owner, VISUAL);
+	if (!args || !st_ddofx_dos_filename(args) || !sink->open_asset || n[0] < 0 || n[0] >= target.width
+	    || n[1] < 0 || n[1] >= target.height || n[2] <= 0 || (unsigned)n[3] > 1 || n[4] < 1 || n[4] > 100
 	    || (unsigned)n[5] > 1)
 		return;
 	FILE *file = sink->open_asset(sink->context, "BBSTHEME", NULL, args);
 	if (!file)
 		return;
-	struct movie              m = {.fps = (unsigned)n[4], .once = n[3] != 0, .palette = n[5] != 0};
-	struct st_ddofx_graphics *g = ddo->graphics;
-	if (!st_ddofx_flic_header(&m.flic, file) || m.flic.width > WIDTH - (unsigned)n[0]
-	    || m.flic.height > HEIGHT - (unsigned)n[1]) {
+	struct movie m = {.owner = owner, .fps = (unsigned)n[4], .once = n[3] != 0, .palette = n[5] != 0};
+	if (!st_ddofx_flic_header(&m.flic, file) || m.flic.width > (unsigned)(target.width - n[0])
+	    || m.flic.height > (unsigned)(target.height - n[1])) {
 		fclose(file);
 		return;
 	}
@@ -154,33 +157,14 @@ st_ddofx_movie_wait_ms(const struct st_ddofx *ddo)
 {
 	const struct st_ddofx_movies *movies = ddo->graphics ? ddo->graphics->movies : NULL;
 	uint64_t                      now;
-	if (!movies || !movies->next_due || ddo->background_paused || st_time_monotonic_ms(&now))
+	if (!movies || ddo->background_paused)
 		return UINT32_MAX;
-	return movies->next_due > now ? (uint32_t)(movies->next_due - now) : 0;
-}
-
-struct presentation {
-	struct st_ddofx    *ddo;
-	const struct movie *m;
-};
-
-static int
-present(void *context, const struct st_pixel_buffer *pixels, struct st_console_rect *damage)
-{
-	const struct presentation *p = context;
-	const struct movie        *m = p->m;
-	if (pixels->width != WIDTH || pixels->height != HEIGHT)
-		return 0;
-	const uint8_t *src = m->flic.image;
-	for (unsigned y = 0; y < m->area.height; ++y) {
-		size_t at = (y + m->area.y) * WIDTH + m->area.x;
-		for (unsigned x = 0; x < m->area.width; ++x)
-			pixels->primary[at + x] = pixels->alternate[at + x] = *src++;
-	}
-	*damage = m->area;
-	st_ddofx_repaint_clocks(p->ddo, pixels, damage);
-	st_ddofx_repaint_marquees(p->ddo, pixels, damage);
-	return 0;
+	uint64_t due = movies->due[0], active = movies->due[ddo->graphics->active_graphic_window];
+	if (active && (!due || active < due))
+		due = active;
+	if (!due || st_time_monotonic_ms(&now))
+		return UINT32_MAX;
+	return due > now ? (uint32_t)(due - now) : 0;
 }
 
 void
@@ -188,12 +172,11 @@ st_ddofx_movie_poll(struct st_ddofx *ddo)
 {
 	struct st_ddofx_graphics *g = ddo->graphics;
 	uint64_t                  now;
-	if (!g || !g->movies || !g->movies->next_due || ddo->background_paused || st_time_monotonic_ms(&now)
-	    || now < g->movies->next_due)
+	if (st_ddofx_movie_wait_ms(ddo) || st_time_monotonic_ms(&now))
 		return;
 	for (unsigned i = 0; i < MOVIE_COUNT; ++i) {
 		struct movie *m = &g->movies->slots[i];
-		if (!m->due || now < m->due)
+		if (!m->due || now < m->due || (m->owner && m->owner != g->active_graphic_window))
 			continue;
 		uint32_t palette[256];
 		if (m->palette)
@@ -206,8 +189,7 @@ st_ddofx_movie_poll(struct st_ddofx *ddo)
 			memcpy(g->palette, palette, sizeof(palette));
 			st_ddofx_set_palette(g, 0, 256);
 		}
-		struct presentation frame = {ddo, m};
-		(void)st_console_modify_pixels(g->display, present, &frame);
+		st_ddofx_animation_background(ddo, m->owner, &m->area, m->flic.image);
 		if (++m->played == m->limit) {
 			if (m->once || fs_stream_seek(m->flic.file, 128)) {
 				close_movie(m);

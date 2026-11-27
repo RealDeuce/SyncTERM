@@ -52,7 +52,7 @@ struct presentation {
 	unsigned window, count;
 	uint8_t *hidden;
 	int width, height;
-	struct st_console_rect areas[2 * ANIMATIONS];
+	struct st_console_rect areas[2 * ANIMATIONS + 1];
 };
 
 static void
@@ -106,7 +106,7 @@ footprint(const struct animation *a, const struct st_ddofx_sprite *s, int width,
 }
 
 static void
-compose(struct st_ddofx *ddo, unsigned window)
+compose(struct st_ddofx *ddo, unsigned window, const struct st_console_rect *frame, const uint8_t *image)
 {
 	struct st_ddofx_graphics   *g    = ddo->graphics;
 	struct st_ddofx_animations *list = g->animations;
@@ -116,9 +116,27 @@ compose(struct st_ddofx *ddo, unsigned window)
 	struct presentation p = {.ddo = ddo, .window = window, .width = window ? w->width : WIDTH,
 	    .height = window ? w->height : HEIGHT, .hidden = window ? w->hidden_page : (uint8_t *)g->page[HIDDEN]};
 
+	unsigned count = list ? list->count : 0;
+	if (frame) {
+		if (frame->x >= (unsigned)p.width || frame->y >= (unsigned)p.height)
+			return;
+		/* A movie frame only requires reassembling the sprite stack if it
+		 * changes the background saved underneath a painted sprite. */
+		unsigned i;
+		for (i = 0; i < count; ++i) {
+			const struct animation *a = &list->profiles[list->queue[i]];
+			struct st_console_rect r = a->painted;
+			if (a->window == window && r.width && r.x < frame->x + frame->width && frame->x < r.x + r.width
+			    && r.y < frame->y + frame->height && frame->y < r.y + r.height)
+				break;
+		}
+		if (i == count)
+			count = 0;
+	}
+
 	/* Undo the old images from front to back. Then every new frame can
 	 * save what is underneath it, including lower animations. */
-	for (unsigned i = list->count; i; --i) {
+	for (unsigned i = count; i; --i) {
 		struct animation *a = &list->profiles[list->queue[i - 1]];
 		if (a->window == window && a->painted.width) {
 			p.areas[p.count++] = a->painted;
@@ -126,8 +144,18 @@ compose(struct st_ddofx *ddo, unsigned window)
 			a->painted = (struct st_console_rect) {0};
 		}
 	}
+	if (frame) {
+		struct st_console_rect r = *frame;
+		if (r.x + r.width > (unsigned)p.width)
+			r.width = (unsigned)p.width - r.x;
+		if (r.y + r.height > (unsigned)p.height)
+			r.height = (unsigned)p.height - r.y;
+		for (unsigned y = 0; y < r.height; ++y)
+			memcpy(p.hidden + (r.y + y) * p.width + r.x, image + y * frame->width, r.width);
+		p.areas[p.count++] = r;
+	}
 	int32_t cx = g->cx, cy = g->cy;
-	for (unsigned i = 0; i < list->count; ++i) {
+	for (unsigned i = 0; i < count; ++i) {
 		struct animation *a = &list->profiles[list->queue[i]];
 		if (a->window != window || !a->shown)
 			continue;
@@ -161,6 +189,13 @@ compose(struct st_ddofx *ddo, unsigned window)
 	}
 	if (p.count && !w->hidden)
 		(void)st_console_modify_pixels(g->display, publish, &p);
+}
+
+void
+st_ddofx_animation_background(struct st_ddofx *ddo, unsigned window, const struct st_console_rect *frame,
+    const uint8_t *image)
+{
+	compose(ddo, window, frame, image);
 }
 
 static void
@@ -213,7 +248,7 @@ stop(struct st_ddofx *ddo, unsigned slot)
 	if (!a->queued)
 		return;
 	a->shown = false;
-	compose(ddo, a->window);
+	compose(ddo, a->window, NULL, NULL);
 	unsigned i = 0;
 	while (list->queue[i] != slot)
 		++i;
@@ -288,7 +323,7 @@ st_ddofx_place_animation(struct st_ddofx *ddo, unsigned id, unsigned owner, int 
 	if (bind) {
 		if (a->window != owner && a->shown) {
 			a->shown = false;
-			compose(ddo, a->window);
+			compose(ddo, a->window, NULL, NULL);
 			a->shown = true;
 		}
 		a->first_path = a->last_path = a->path = a->path_loop = 0;
@@ -301,7 +336,7 @@ st_ddofx_place_animation(struct st_ddofx *ddo, unsigned id, unsigned owner, int 
 	a->x = x;
 	a->y = y;
 	if (a->shown)
-		compose(ddo, a->window);
+		compose(ddo, a->window, NULL, NULL);
 }
 
 static bool
@@ -417,7 +452,7 @@ st_ddofx_animation_command(struct st_ddofx *ddo, const char *verb, char *args)
 			for (unsigned i = 0; i < list->count; ++i)
 				list->profiles[list->queue[i]].shown = false;
 			for (unsigned w = 0; w <= GRAPHIC_WINDOWS; ++w)
-				compose(ddo, w);
+				compose(ddo, w, NULL, NULL);
 			for (unsigned i = 0; i < ANIMATIONS; ++i)
 				free(list->profiles[i].background);
 			memset(list->profiles, 0, sizeof(list->profiles));
@@ -617,7 +652,7 @@ st_ddofx_animation_poll(struct st_ddofx *ddo, const struct st_ddofx_sink *sink)
 	}
 	for (unsigned w = 0; w <= GRAPHIC_WINDOWS; ++w)
 		if (changed[w])
-			compose(ddo, w);
+			compose(ddo, w, NULL, NULL);
 	st_ddofx_collision_poll(ddo);
 	deadline(list);
 }
