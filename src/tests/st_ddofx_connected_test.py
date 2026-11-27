@@ -2916,8 +2916,11 @@ def check_pointers(t, root, mouse):
 def check_push_buttons(t, mouse):
     t.case("Normal push buttons from keyboard and mouse")
     make = b"5CPUSHB,300,up,down,80,60,46,99,1,3,P~^M,\x1d(7SRET,1)"
+    variable_sprites = make.replace(b",up,down,", b",DEFVAR41,DEFVAR42,")
     frame = t.exchange(commands(b"2C,6", b"2aFILL", b"2S,0,4,0,2,UP", b"2C,7", b"2aFILL",
-                                b"2S,0,4,0,2,DOWN", b"2aERASE", b"7DEFRET,1,M", make, b"2aG,80,58"),
+                                b"2S,0,4,0,2,DOWN", b"2aERASE", b"7DEFRET,1,M",
+                                b"~DEFVAR,41,1,up", b"~DEFVAR,42,1,down", variable_sprites,
+                                b"~DEFVAR,41,1,down", b"~DEFVAR,42,1,up", b"2aG,80,58"),
                        b"6\xff")
     pos = 58*640+80
     assert frame.primary[pos] == 0
@@ -2948,13 +2951,14 @@ def check_push_buttons(t, mouse):
 
 def check_choices(t, mouse):
     t.case("Desktop radio and checkbox selection, rendering and grouped execution")
-    radio = b"5CRBUTTON,1,2,2,12,3,EDGE,OFF,20,24,0,1,9,8,30,97,0,R,"
+    radio = b"5CRBUTTON,1,2,2,12,3,DEFVAR41,DEFVAR42,20,24,0,1,9,8,30,97,0,R,"
     second = b"5CRBUTTON,2,2,2,12,3,EDGE,OFF,30,24,1,1,9,8,48,98,1,S,"
-    checkbox = b"5CCHKBOX,1,ON,EDGE,OFF,40,24,0,1,0,0,46,99,1,C~^M,\x1d(7SRET,1)"
+    checkbox = b"5CCHKBOX,1,DEFVAR43,DEFVAR41,DEFVAR42,40,24,0,1,0,0,46,99,1,C~^M,\x1d(7SRET,1)"
     pos = lambda x, y: y*640+x
     f = t.exchange(commands(b"2C,7", b"2aFILL", b"2S,0,4,0,4,OFF", b"2C,11", b"2aFILL",
                             b"2S,0,4,0,4,ON", b"2C,6", b"2aFILL", b"2C,2", b"2aRECT,1,3,1,3",
-                            b"2S,0,4,0,4,EDGE", b"2aERASE", radio, second, checkbox,
+                            b"2S,0,4,0,4,EDGE", b"2aERASE", b"~DEFVAR,41,1,EDGE",
+                            b"~DEFVAR,42,1,OFF", b"~DEFVAR,43,1,ON", radio, second, checkbox, b"~DEFVAR,0",
                             b"7DEFRET,1,M", b"2aG,22,22", b"2aG,32,22"), b"3\xff12\xff")
     assert f.primary[pos(22,22)] == 0
     f = t.exchange(commands(b"2CPYWP2VP", b"5EXCBOX,1", b"5EXRBTN,1"), b"S")
@@ -3000,10 +3004,10 @@ def check_text_fields(t, root, mouse):
     glyphs = bytearray(4096)
     glyphs[ord("*")*16:(ord("*")+1)*16] = b"\x80"*16
     (fonts / "EDIT.FNT").write_bytes(glyphs)
-    name = b"5CTXTFLD,250,EDIT.FNT,ab,(,^M,30,80,7,1,4,20,1,*,0,2,1,12,1,1,59,0,0,\x1d(7SRET,1)"
+    name = b"5CTXTFLD,250,EDIT.FNT,ab,(,^M,30,80,7,1,4,20,1,DEFVAR41,0,2,1,12,1,1,59,0,0,\x1d(7SRET,1)"
     number = b"5CTXTFLD,2,IBMSTD.FNT,1,[,],635,90,4,3,5,11,0,,250,0,0,12,2,0,60,0,1,"
     pos = lambda x,y: y*640+x
-    f = t.exchange(commands(b"2aERASE", b"2CPYWP2VP", b"7DEFRET,1,M", name, number,
+    f = t.exchange(commands(b"2aERASE", b"2CPYWP2VP", b"7DEFRET,1,M", b"~DEFVAR,41,1,*", name, number,
                             b"2aG,30,67", b"2aG,31,67", b"2aG,639,73"), b"20\xff1\xff3\xff")
     assert f.primary[pos(30,67)] == 0
     t.exchange(commands(b"2CPYWP2VP", b"~DEFVAR,777,1,", b"~DEFVAR,778,2,0"))
@@ -3367,7 +3371,8 @@ def check_ping(args):
         t.case("one-minute DDO ping arrives on an idle UTF-8 connection")
         t.exchange(commands(b"LIGMODE", b"LIGMODE", b"~DEFVAR,1,2,1", b"~VARCAP,2", b"dVIDMODE"))
         start = time.monotonic()
-        t.exchange(commands(b"5PING,DEFVAR1,A^@,^h~^?12345678"))
+        t.exchange(commands(b"~DEFVAR,3,1,A^@,^h~^?12345678", b"5PING,DEFVAR1,DEFVAR3",
+                            b"~DEFVAR,3,1,replaced"))
         t.input(b"A\0,\b~\xff1234", timeout=70)
         assert time.monotonic() - start >= 59
         t.exchange(commands(b"5PING,0,", b"~VARCAP,0", b"7DEFRET,1,DEFVAR2", b"7SRET,1"), b"1")

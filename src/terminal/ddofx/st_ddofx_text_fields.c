@@ -171,7 +171,7 @@ define(struct st_ddofx *ddo, const struct st_ddofx_sink *sink, unsigned id, char
 	f->selected                    = (unsigned)selected;
 	f->ink                         = (unsigned)ink;
 	f->echo                        = echo != 0;
-	f->mask                        = (uint8_t)*mask;
+	f->mask                        = (uint8_t)*st_ddofx_value(ddo, mask);
 	f->up                          = (unsigned)n[0];
 	f->down                        = (unsigned)n[1];
 	f->immediate                   = n[2] == 0;

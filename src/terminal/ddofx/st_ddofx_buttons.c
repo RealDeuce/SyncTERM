@@ -64,7 +64,8 @@ st_ddofx_define_button(struct st_ddofx *ddo, char *args)
 	const char *up_name = st_ddofx_field(&args), *down_name = st_ddofx_field(&args);
 	if (!up_name || !down_name)
 		return;
-	struct st_ddofx_sprite *up = st_ddofx_find_sprite(g, up_name), *down = st_ddofx_find_sprite(g, down_name);
+	struct st_ddofx_sprite *up = st_ddofx_find_sprite(g, st_ddofx_value(ddo, up_name));
+	struct st_ddofx_sprite *down = st_ddofx_find_sprite(g, st_ddofx_value(ddo, down_name));
 	if (!up || !down) {
 		if (g->buttons)
 			g->buttons->slots[slot - 1] = (struct push_button) {0};

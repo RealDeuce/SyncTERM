@@ -152,15 +152,18 @@ define(struct st_ddofx *ddo, enum st_ddofx_group_kind kind, unsigned slot, char 
 	if (!args || (unsigned)v[2] > 1 || (unsigned)v[3] > 1 || (unsigned)v[6] > 255 || (unsigned)v[7] > 255
 	    || (unsigned)v[8] > 1)
 		return;
-	const struct st_ddofx_sprite *s = st_ddofx_find_sprite(g, on);
-	if (!st_ddofx_sprite_fits(g, c.window, s, v[0], v[1])
-	    || !st_ddofx_sprite_fits(g, c.window, st_ddofx_find_sprite(g, off), v[0], v[1])
-	    || !st_ddofx_sprite_fits(g, c.window, st_ddofx_find_sprite(g, disabled), v[0], v[1])
-	    || (kind == DDO_RADIO && (c.fx >= s->width || c.fy >= s->height)))
+	const struct st_ddofx_sprite *on_sprite = st_ddofx_find_sprite(g, st_ddofx_value(ddo, on));
+	const struct st_ddofx_sprite *off_sprite = kind == DDO_RADIO ? on_sprite
+	    : st_ddofx_find_sprite(g, st_ddofx_value(ddo, off));
+	const struct st_ddofx_sprite *disabled_sprite = st_ddofx_find_sprite(g, st_ddofx_value(ddo, disabled));
+	if (!st_ddofx_sprite_fits(g, c.window, on_sprite, v[0], v[1])
+	    || !st_ddofx_sprite_fits(g, c.window, off_sprite, v[0], v[1])
+	    || !st_ddofx_sprite_fits(g, c.window, disabled_sprite, v[0], v[1])
+	    || (kind == DDO_RADIO && (c.fx >= on_sprite->width || c.fy >= on_sprite->height)))
 		return;
-	strcpy(c.on, on);
-	strcpy(c.off, off);
-	strcpy(c.disabled, disabled);
+	memcpy(c.on, on_sprite->name, sizeof(c.on));
+	memcpy(c.off, off_sprite->name, sizeof(c.off));
+	memcpy(c.disabled, disabled_sprite->name, sizeof(c.disabled));
 	c.x         = v[0];
 	c.y         = v[1];
 	c.selected  = v[2];

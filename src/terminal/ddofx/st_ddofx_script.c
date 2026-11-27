@@ -445,11 +445,12 @@ st_ddofx_define_ping(struct st_ddofx *ddo, char *args)
 	uint64_t now;
 	if (st_time_monotonic_ms(&now) != 0)
 		return;
-	/* Decode in place. The SDK's ten-byte limit applies to the transmitted
-	 * string, which can contain NUL and commas. */
-	size_t length    = st_ddofx_decode_controls((uint8_t *)args, args, strlen(args), false);
+	/* Each transmitted byte can take up to two characters in the definition. */
+	char encoded[2 * sizeof(ddo->ping.bytes)];
+	size_t length = st_ddofx_copy_value(ddo, args, encoded, sizeof(encoded));
+	length = st_ddofx_decode_controls((uint8_t *)encoded, encoded, length, false);
 	ddo->ping.length = length < sizeof(ddo->ping.bytes) ? length : sizeof(ddo->ping.bytes);
-	memcpy(ddo->ping.bytes, args, ddo->ping.length);
+	memcpy(ddo->ping.bytes, encoded, ddo->ping.length);
 	ddo->ping.interval_ms = (uint64_t)minutes * 60000;
 	ddo->ping.due         = now + ddo->ping.interval_ms;
 }
