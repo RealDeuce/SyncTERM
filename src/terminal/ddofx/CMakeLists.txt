@@ -85,18 +85,11 @@ if(BUILD_TESTING)
 	target_link_libraries(st_ddofx_music_test PRIVATE st_ddofx st_cterm)
 	set_target_properties(st_ddofx_music_test PROPERTIES C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	add_test(NAME ddofx_music COMMAND st_ddofx_music_test)
-	if(TARGET st_dep_openmpt)
-		get_property(openmpt_linkage TARGET st_dep_openmpt PROPERTY ST_DEP_LINKAGE)
-		if(openmpt_linkage STREQUAL "RUNTIME" AND CMAKE_EXECUTABLE_FORMAT STREQUAL "ELF")
-			add_library(st_ddofx_incomplete_openmpt SHARED ../../base/dynamic_library/tests/dynamic_library_fixture.c)
-			set_target_properties(st_ddofx_incomplete_openmpt PROPERTIES OUTPUT_NAME openmpt SOVERSION 0
-				LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/incomplete"
-				C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
-			add_dependencies(st_ddofx_music_test st_ddofx_incomplete_openmpt)
-			add_test(NAME ddofx_music_unavailable COMMAND st_ddofx_music_test --without-openmpt)
-			set_tests_properties(ddofx_music_unavailable PROPERTIES ENVIRONMENT_MODIFICATION
-				"LD_LIBRARY_PATH=path_list_prepend:$<TARGET_FILE_DIR:st_ddofx_incomplete_openmpt>")
-		endif()
+	if(TARGET st_tracker_incomplete_openmpt)
+		add_dependencies(st_ddofx_music_test st_tracker_incomplete_openmpt)
+		add_test(NAME ddofx_music_unavailable COMMAND st_ddofx_music_test --without-openmpt)
+		set_tests_properties(ddofx_music_unavailable PROPERTIES ENVIRONMENT_MODIFICATION
+			"LD_LIBRARY_PATH=path_list_prepend:$<TARGET_FILE_DIR:st_tracker_incomplete_openmpt>")
 	endif()
 	add_executable(st_ddofx_script_test tests/st_ddofx_script_test.c)
 	target_link_libraries(st_ddofx_script_test PRIVATE st_ddofx st_cterm)

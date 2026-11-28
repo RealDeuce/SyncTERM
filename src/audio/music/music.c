@@ -10,6 +10,7 @@
 #include "music_internal.h"
 #include "st_threads.h"
 #include "st_time.h"
+#include "st_tracker.h"
 
 #define REQUEST_LIMIT      128
 #define NOTE_STORAGE_LIMIT (64U * 1024U * 1024U)
@@ -23,6 +24,7 @@
 
 struct request {
 	FILE                 *file;
+	bool                  module;
 	struct st_music_note *notes;
 	uint8_t              *bytes;
 	size_t                count;
@@ -41,7 +43,7 @@ struct st_music {
 	st_condition_t      changed;
 	st_thread_t         thread;
 	bool                started, stopping, active, injected, was_file;
-	bool                reset_requested;
+	bool                playing_module, reset_requested;
 	int                 reset_result;
 	bool                external, external_output, switching;
 	void               *source_context; /* Borrowed until quiescent detach, protected by mutex. */
@@ -137,7 +139,7 @@ clear_source_locked(st_music_t *m)
 	return source_volume_locked(m);
 }
 
-/* Called while idle, under the player mutex. Backend constructors do not
+/* Called while the MIDI sink is idle, under the player mutex. Backend constructors do not
  * invoke the cancellation callback. Failed methods are retried after policy
  * changes, rather than on every availability query or ANSI capture. */
 static bool
@@ -254,7 +256,8 @@ controls(st_music_t *m, uint64_t clock)
 	st_mutex_unlock(&m->mutex);
 	if (stop || st_audio_runtime_stopped(m->runtime))
 		return IO_ERROR_CANCELLED;
-	if (m->sink.send != NULL && (!m->gain_valid || left != m->applied_left || right != m->applied_right)) {
+	if (!m->playing_module && m->sink.send != NULL
+	    && (!m->gain_valid || left != m->applied_left || right != m->applied_right)) {
 		int result = st_midi_sink_gain(&m->sink, left, right);
 		if (result != 0)
 			return result;
@@ -269,6 +272,7 @@ struct playback {
 	st_music_t *music;
 	uint64_t    start_ns, rendered, origin, progress, base;
 	bool        pcm;
+	struct st_tracker *decoder;
 };
 
 static int
@@ -334,7 +338,14 @@ advance(struct playback *p, uint64_t target, int pitch, uint64_t tone_start, con
 		int16_t *frames = calloc(count, AUDIO_FRAME_SIZE);
 		if (frames == NULL)
 			return IO_ERROR_OUT_OF_MEMORY;
-		if (m->sink.render != NULL)
+		if (p->decoder != NULL) {
+			count = st_tracker_read(p->decoder, frames, count);
+			if (count == 0) {
+				free(frames);
+				return 0;
+			}
+		}
+		else if (m->sink.render != NULL)
 			result = m->sink.render(m->sink.state, frames, count);
 		else if (pitch >= 0 && tone != NULL)
 			memcpy(frames, tone + (size_t)(p->rendered - tone_start) * AUDIO_CHANNELS,
@@ -343,7 +354,7 @@ advance(struct playback *p, uint64_t target, int pitch, uint64_t tone_start, con
 		if (m->stopping || m->generation != m->working_generation)
 			result = IO_ERROR_CANCELLED;
 		struct audio_buffer_options options = AUDIO_BUFFER_OPTIONS_INIT;
-		if (m->sink.render != NULL)
+		if (p->decoder == NULL && m->sink.render != NULL)
 			options.volume_left_db = options.volume_right_db = m->sink.pcm_gain_db;
 		if (result == 0)
 			result = audio_stream_append_take(*m->pcm, frames, count, &options);
@@ -367,7 +378,17 @@ play(struct playback *p, struct request *r)
 {
 	st_music_t *m      = p->music;
 	int         result = 0;
-	if (r->file != NULL) {
+	if (r->module) {
+		p->decoder = st_tracker_open(r->file);
+		if (p->decoder == NULL)
+			return IO_ERROR_INVALID_ARGUMENT;
+		/* The decoder supplies the end of song. Use the normal channel's
+		 * bounded PCM queue, consumption clock, gain and cancellation. */
+		result = advance(p, UINT64_MAX - p->base, -1, 0, NULL);
+		st_tracker_destroy(p->decoder);
+		p->decoder = NULL;
+	}
+	else if (r->file != NULL) {
 		struct st_midi_file *file;
 		result = st_midi_file_open(&file, r->file, cancelled, m);
 		if (result != 0)
@@ -430,28 +451,36 @@ play(struct playback *p, struct request *r)
 }
 
 /* Return early when another request can render on the same PCM backend.
- * Otherwise retain logical busy through backend acknowledgement/latency. */
+ * Otherwise retain logical busy through backend acknowledgement/latency.
+ * Enter and return with the mutex held so a flush cannot replace the next
+ * request between the routing decision and the worker taking ownership. */
 static int
 drain_pcm(struct playback *p, bool *continuing)
 {
 	st_music_t *m = p->music;
 	*continuing   = false;
+	st_mutex_unlock(&m->mutex);
 	for (;;) {
 		int result = update(p);
+		st_mutex_lock(&m->mutex);
 		if (result != 0)
 			return result;
-		st_mutex_lock(&m->mutex);
-		bool next = m->head != NULL && !m->fading && !m->stopping && m->generation == m->working_generation
-		            && (m->injected || m->policy == st_audio_runtime_midi_allowed(m->runtime))
-		            && (m->head->file == NULL || m->sink.send != NULL);
-		st_mutex_unlock(&m->mutex);
+		bool next = m->head != NULL && m->playing_module == m->head->module
+		            && !m->fading && !m->stopping && m->generation == m->working_generation;
+		if (next && !m->playing_module)
+			next = (m->injected || m->policy == st_audio_runtime_midi_allowed(m->runtime))
+			       && (m->head->file == NULL || m->sink.send != NULL);
 		if (next) {
 			*continuing = true;
 			return 0;
 		}
+		st_mutex_unlock(&m->mutex);
 		if (audio_stream_buffered_frames(*m->pcm) == 0) {
 			result = audio_stream_drain(*m->pcm);
-			return result == 0 ? update(p) : result;
+			if (result == 0)
+				result = update(p);
+			st_mutex_lock(&m->mutex);
+			return result;
 		}
 		pause_worker();
 	}
@@ -500,9 +529,28 @@ live(st_music_t *m)
 		if (!m->injected && m->policy != st_audio_runtime_midi_allowed(m->runtime))
 			result = IO_ERROR_CANCELLED;
 		struct request *r = m->head;
-		if (result != 0 || (r != NULL && r->bytes == NULL)) {
+		if (result != 0) {
 			st_mutex_unlock(&m->mutex);
 			break;
+		}
+		if (r != NULL && r->bytes == NULL) {
+			if (r->module) {
+				st_mutex_unlock(&m->mutex);
+				st_midi_sink_release(&m->sink, true);
+				st_mutex_lock(&m->mutex);
+				/* Flush may have replaced the head while releasing voices. */
+				r = m->head;
+				if (r == NULL || r->bytes != NULL || m->stopping
+				    || m->generation != m->working_generation) {
+					st_mutex_unlock(&m->mutex);
+					continue;
+				}
+			}
+			m->rendered = p.rendered;
+			m->progress = p.progress;
+			/* A native MIDI clock cannot carry over into PCM playback. */
+			m->active = pcm || !r->module;
+			return;
 		}
 		if (r != NULL) {
 			m->head = r->next;
@@ -567,8 +615,6 @@ live(st_music_t *m)
 		result = IO_ERROR_CANCELLED;
 	m->rendered = p.rendered;
 	m->progress = p.progress;
-	if (result == 0)
-		return; /* The next file/ANSI request owns the transition. */
 	/* A failed destination cannot retain a meaningful partial wire message.
 	 * Cancel its queued prefix; a flushed generation leaves newer writes
 	 * alone. Subsequent writes can select a fresh sink. */
@@ -640,8 +686,9 @@ worker(void *context)
 		bool continuing       = m->active;
 		m->active             = true;
 		m->working_generation = m->generation;
-		bool midi             = continuing ? m->sink.send != NULL : select_locked(m);
-		int  result           = r->file != NULL && !midi ? IO_ERROR_NOT_SUPPORTED : 0;
+		m->playing_module     = r->module;
+		bool midi             = !r->module && (continuing ? m->sink.send != NULL : select_locked(m));
+		int  result           = r->file != NULL && !r->module && !midi ? IO_ERROR_NOT_SUPPORTED : 0;
 		bool pcm              = !midi || m->sink.render != NULL;
 		if (result == 0 && pcm)
 			result = pcm_locked(m);
@@ -677,21 +724,16 @@ worker(void *context)
 		else
 			--m->requests;
 		discard(r);
-		st_mutex_unlock(&m->mutex);
 		bool more = false;
 		if (result == 0 && pcm)
 			result = drain_pcm(&p, &more);
-		st_mutex_lock(&m->mutex);
 		m->rendered = p.rendered;
 		m->progress = p.progress;
-		/* A flush can revoke the next request after drain_pcm observed it. */
 		if (m->generation != m->working_generation || m->stopping)
 			result = IO_ERROR_CANCELLED;
-		if (m->head == NULL)
-			more = false;
 		if (result == 0 && pcm && more)
 			continue;
-		if (result != 0) {
+		if (result != 0 && !m->playing_module) {
 			st_mutex_unlock(&m->mutex);
 			st_midi_sink_release(&m->sink, true);
 			st_mutex_lock(&m->mutex);
@@ -699,7 +741,7 @@ worker(void *context)
 		if (result != 0 && *m->pcm != NULL)
 			(void)audio_stream_clear(*m->pcm);
 		complete_markers(m, 0, true);
-		m->active = false;
+		m->active = m->playing_module = false;
 		if (m->completed < sequence)
 			m->completed = sequence;
 		if (m->fading) {
@@ -789,7 +831,7 @@ st_music_available(st_music_t *m)
 	if (m == NULL || st_audio_runtime_stopped(m->runtime))
 		return false;
 	st_mutex_lock(&m->mutex);
-	bool result = m->active ? m->sink.send != NULL : select_locked(m);
+	bool result = m->active && !m->playing_module ? m->sink.send != NULL : select_locked(m);
 	st_mutex_unlock(&m->mutex);
 	return result;
 }
@@ -829,8 +871,21 @@ enqueue(st_music_t *m, struct request *r)
 	return result;
 }
 
-int
-st_music_queue_file(st_music_t *m, FILE *file)
+bool
+st_music_module_available(st_music_t *m)
+{
+	if (m == NULL || st_audio_runtime_stopped(m->runtime)
+	    || (!st_audio_runtime_is_pull(m->runtime) && !st_audio_runtime_allowed(m->runtime))
+	    || !st_tracker_available())
+		return false;
+	st_mutex_lock(&m->mutex);
+	bool available = !m->stopping && pcm_locked(m) == 0;
+	st_mutex_unlock(&m->mutex);
+	return available;
+}
+
+static int
+queue_file(st_music_t *m, FILE *file, bool module)
 {
 	if (m == NULL || file == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -841,23 +896,48 @@ st_music_queue_file(st_music_t *m, FILE *file)
 	st_mutex_unlock(&m->mutex);
 	if (status != 0)
 		return status;
-	if (!st_music_available(m))
-		return IO_ERROR_NOT_SUPPORTED;
-	/* Validate without sending anything. The queued authority is just the open
-	 * file; only the active request retains a bounded parser/message arena. */
-	struct st_midi_file *parsed;
-	status = st_midi_file_open(&parsed, file, validation_stopped, m);
-	if (status != 0)
-		return status;
-	st_midi_file_close(parsed);
+	/* Keep just the open file in the FIFO. Only validation and active
+	 * playback need a decoder. Invalid input cannot replace earlier music. */
+	if (module) {
+		if (!st_music_module_available(m))
+			return IO_ERROR_NOT_SUPPORTED;
+		struct st_tracker *parsed = st_tracker_open(file);
+		if (parsed == NULL)
+			return IO_ERROR_INVALID_ARGUMENT;
+		st_tracker_destroy(parsed);
+		if (fseek(file, 0, SEEK_SET) != 0)
+			return IO_ERROR_IO;
+	}
+	else {
+		if (!st_music_available(m))
+			return IO_ERROR_NOT_SUPPORTED;
+		struct st_midi_file *parsed;
+		status = st_midi_file_open(&parsed, file, validation_stopped, m);
+		if (status != 0)
+			return status;
+		st_midi_file_close(parsed);
+	}
 	struct request *r = calloc(1, sizeof(*r));
 	if (r == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
-	r->file = file;
-	status  = enqueue(m, r);
+	r->file   = file;
+	r->module = module;
+	status    = enqueue(m, r);
 	if (status != 0)
 		free(r);
 	return status;
+}
+
+int
+st_music_queue_file(st_music_t *m, FILE *file)
+{
+	return queue_file(m, file, false);
+}
+
+int
+st_music_queue_module(st_music_t *m, FILE *file)
+{
+	return queue_file(m, file, true);
 }
 
 int
@@ -1075,7 +1155,7 @@ st_music_flush(st_music_t *m, size_t fade_frames)
 		m->fade_cutoff      = cutoff;
 		m->controls_changed = true;
 		st_condition_signal(&m->changed);
-		if (*m->pcm != NULL && (m->sink.send == NULL || m->sink.render != NULL)) {
+		if (*m->pcm != NULL && (m->playing_module || m->sink.send == NULL || m->sink.render != NULL)) {
 			(void)audio_stream_ramp_volume(*m->pcm, -192, -192, fade_frames);
 			m->controls_changed = false;
 		}
@@ -1186,7 +1266,7 @@ st_music_volume(st_music_t *m, float left, float right, size_t ramp)
 	}
 	m->controls_changed = true;
 	st_condition_signal(&m->changed);
-	if (*m->pcm != NULL && (m->sink.send == NULL || m->sink.render != NULL)) {
+	if (*m->pcm != NULL && (m->playing_module || m->sink.send == NULL || m->sink.render != NULL)) {
 		(void)audio_stream_ramp_volume(*m->pcm, left, right, m->ramp_frames);
 		m->controls_changed = false;
 	}

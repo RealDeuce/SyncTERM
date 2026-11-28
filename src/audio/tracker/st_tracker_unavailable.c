@@ -8,6 +8,22 @@ st_tracker_available(void)
 }
 
 struct st_tracker *
+st_tracker_open(FILE *file)
+{
+	(void)file;
+	return NULL;
+}
+
+size_t
+st_tracker_read(struct st_tracker *player, int16_t *pcm, size_t frames)
+{
+	(void)player;
+	(void)pcm;
+	(void)frames;
+	return 0;
+}
+
+struct st_tracker *
 st_tracker_play(st_audio_runtime_t *audio, FILE *file, unsigned volume)
 {
 	(void)audio;

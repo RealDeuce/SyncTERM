@@ -3250,6 +3250,11 @@ This may initialize an internal synth or open the configured native route,
 but does not play notes. Quiet sessions report 0. Build Options separately
 reports compiled support without probing libraries or devices.
 
+|`module`
+|Whether libopenmpt and PCM output are available to play tracker modules in
+this session. The reply is `CSI = 7 ; 103 ; available n`, with 1 for usable
+and 0 otherwise. Quiet sessions report 0.
+
 |`libsndfile`
 |Runtime-loaded libsndfile for audio file decoding (`APC SyncTERM:A;Load`).
 Under the dynamic (`WITH_SNDFILE`) build mode, the first query also triggers
@@ -3377,11 +3382,11 @@ a file via libsndfile), `Synth` (in-terminal tone generator), or `Copy`
 (duplicating an existing slot).
 
 *Channels* — 16 logical playback channels, addressed 0..15. Channel 0 is
-cterm's music FIFO (ANSI/BananANSI/SyncTERM and MIDI files), including MIDI
+cterm's music FIFO (ANSI/BananANSI/SyncTERM music, MIDI files and tracker modules), including MIDI
 which sounds outside the PCM mixer. Channel 1 is the foreground-SFX stream
 (RIP / OOII); the BBS can use
 `Flush`, `Volume`, `Wait`, and `Update` on them but cannot `Queue`
-patch audio onto them. Use `QueueMIDI` to queue a MIDI file on channel 0.
+patch audio onto them. Use `QueueMIDI` or `QueueModule` to queue a file on channel 0.
 ANSI music selects GM Lead 2 (sawtooth), bank 0/program 81 (zero-based), on MIDI
 channel zero. Software MIDI renderers use this sustained synth voice to match
 K-weighted level to the existing beep/ANSI tone. Frequency weighting and
@@ -3483,12 +3488,12 @@ including RIFF/RMID wrapping, tempo maps, running status, SMPTE timing and
 SysEx. Format 2 and malformed files are ignored. SysEx is forwarded normally.
 No arbitrary local path or new file access authority is introduced.
 
-Accepted files and completed ANSI captures share a FIFO on channel 0;
+Accepted MIDI files, tracker modules and completed ANSI captures share a FIFO on channel 0;
 queueing never replaces earlier music. Use `Flush;C=0` for replacement.
 The FIFO accepts at most 128 requests. Invalid or full requests are rejected
 without cancelling accepted music. The active parser/message arena is bounded
 to 64 MiB and internal synthesis renders at most 4096 PCM frames ahead.
-Files release sustained notes at their end and allow two seconds for their
+MIDI files release sustained notes at their end and allow two seconds for their
 tails; that interval remains busy. ANSI retains its existing articulation.
 
 All channel 0 controls (`Flush`, including its fade, `Volume`, `Wait`, state
@@ -3497,6 +3502,17 @@ Internal timing follows PCM consumption; external timing follows a monotonic
 clock. Reset, disconnect and shutdown cancel queued events and silence notes.
 Native destinations without stereo gain use MIDI channel volume/pan controls
 as the stream-volume overlay, with the destination's MIDI gain resolution.
+
+==== `APC SyncTERM:A;QueueModule;<filename> ST` Queue a tracker module
+
+Queue a file from the current BBS cache on channel 0 using the same filename
+rules as `QueueMIDI`. Libopenmpt identifies the format from the file contents.
+Each accepted module plays once through PCM in FIFO order, independently of
+the selected MIDI method. Channel 0 volume, flush (including fade), wait,
+state and update requests apply during playback.
+
+Use `APC SyncTERM:Q;module ST` to check availability. An unavailable decoder
+or PCM output, an invalid file, or a full FIFO leaves earlier music queued.
 
 ==== `APC SyncTERM:A;Queue;C=#;S=N;... ST` Queue patch on channel (`CTAQ`)
 Moves slot `N`'s buffer onto channel `C`'s FIFO.  Slot becomes empty.
@@ -3669,7 +3685,7 @@ Pitch uses equal temperament with A = 440 Hz. Accidentals apply before
 range checking; a final pitch outside 0..83 is a rest.
 
 ANSI captures automatically use the first usable enabled MIDI method and
-otherwise use classic tones. Both share channel 0 with queued MIDI files.
+otherwise use classic tones. Both share channel 0 with queued MIDI files and tracker modules.
 Normal/staccato/legato articulation, integer-millisecond timing, dotted notes,
 and foreground/background capture semantics apply to both renderers.
 

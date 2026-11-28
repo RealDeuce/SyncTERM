@@ -6,7 +6,7 @@ add_library(st_music STATIC ansi_music.c midi_file.c midi_decode.c midi_calibrat
 	midi_backends.c midi_alsa.c midi_fluidsynth.c midi_adlmidi.c midi_winmm.c midi_apple.c)
 target_include_directories(st_music PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
 	PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
-target_link_libraries(st_music PUBLIC st_audio PRIVATE syncterm_filesystem st_time syncterm_threads)
+target_link_libraries(st_music PUBLIC st_audio PRIVATE st_tracker syncterm_filesystem st_time syncterm_threads)
 target_link_libraries(st_music PRIVATE syncterm_dynamic_library syncterm_string_compat ${_st_midi_deps})
 syncterm_target_atomics(st_music)
 if(NOT WIN32)

@@ -31,3 +31,10 @@ target_include_directories(st_tracker PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(st_tracker PUBLIC st_audio PRIVATE ${ST_DEP_OPENMPT_TARGET} syncterm_dynamic_library syncterm_threads)
 target_compile_definitions(st_tracker PRIVATE ST_DEP_OPENMPT_LINKED=$<NOT:$<STREQUAL:${ST_DEP_OPENMPT_MODE},RUNTIME>>)
 set_target_properties(st_tracker PROPERTIES C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+
+if(BUILD_TESTING AND ST_DEP_OPENMPT_TARGET AND ST_DEP_OPENMPT_MODE STREQUAL "RUNTIME" AND CMAKE_EXECUTABLE_FORMAT STREQUAL "ELF")
+	add_library(st_tracker_incomplete_openmpt SHARED ../../base/dynamic_library/tests/dynamic_library_fixture.c)
+	set_target_properties(st_tracker_incomplete_openmpt PROPERTIES OUTPUT_NAME openmpt SOVERSION 0
+		LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/incomplete"
+		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+endif()

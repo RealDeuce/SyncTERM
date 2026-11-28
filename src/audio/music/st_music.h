@@ -1,4 +1,4 @@
-/* Session music: ANSI notes, MIDI files/live input, and logical channel 0. */
+/* Session music: ANSI notes, MIDI files/live input and tracker modules on channel 0. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #ifndef ST_MUSIC_H_
 #define ST_MUSIC_H_
@@ -56,9 +56,11 @@ typedef struct st_music st_music_t;
 int  st_music_create(st_music_t **result, st_audio_runtime_t *runtime, audio_stream_t **pcm_slot);
 void st_music_destroy(st_music_t *music);
 bool st_music_available(st_music_t *music);
+bool st_music_module_available(st_music_t *music);
 /* Queue takes ownership only on success. FILE must be seekable and opened
  * through the caller's existing file authority. Queue never stores a path. */
 int st_music_queue_file(st_music_t *music, FILE *file);
+int st_music_queue_module(st_music_t *music, FILE *file);
 int st_music_queue_notes(st_music_t *music, struct st_music_note *notes, size_t count);
 /* Copies live MIDI wire bytes into the same bounded worker FIFO. Timing is
  * supplied by the caller; running status/partial messages persist across

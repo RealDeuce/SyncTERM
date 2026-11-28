@@ -2069,8 +2069,11 @@ unweighted RMS is not used to claim equal perceived loudness.
 Manually selected synth checks compare onset and sustained levels across
 eight pitches and verify dry ANSI/file-effect restoration where supported.
 They render into discarded buffers or the pull-only mixer without devices.
-The `extensions` control group checks feature 102 with MIDI disabled, rejected
-cache-path recovery and seven-octave ANSI capture recovery in CP437/UTF-8.
+The `extensions` control group checks the unavailable replies for MIDI (102)
+and tracker modules (103), rejected cache paths, channel 0 state, and
+seven-octave ANSI capture recovery in CP437 and UTF-8. The native CTerm
+test sends split `QueueModule` APCs and pulls PCM from a silent XM followed
+by an audible MOD, checking FIFO order, completion and channel 0 controls.
 These tests do not claim native MIDI-device or auditory coverage. MIDI and
 PCM masks are both disabled in shared headless application fixtures.
 

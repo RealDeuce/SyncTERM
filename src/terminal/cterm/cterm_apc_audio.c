@@ -363,11 +363,15 @@ cterm_apc_audio_dispatch(struct cterminal *terminal, char *text, size_t size)
 		synth_patch(terminal, arguments);
 	else if (VERB("Copy"))
 		copy_patch(terminal, arguments);
-	else if (VERB("QueueMIDI")) {
+	else if (VERB("QueueMIDI") || VERB("QueueModule")) {
 		if (*arguments == ';' && cterm_music_ensure(terminal)) {
 			FILE *file = cterm_apc_cache_open(terminal->apc->directory, arguments + 1, false);
-			if (file != NULL && st_music_queue_file(terminal->music_player, file) != 0)
-				fclose(file);
+			if (file != NULL) {
+				int status = VERB("QueueModule") ? st_music_queue_module(terminal->music_player, file)
+				                                 : st_music_queue_file(terminal->music_player, file);
+				if (status != 0)
+					fclose(file);
+			}
 		}
 	}
 	else if (VERB("Queue"))
@@ -410,6 +414,9 @@ cterm_apc_feature_query(struct cterminal *terminal, const char *text)
 	if (strcmp(text, "midi") == 0)
 		count = snprintf(reply, sizeof(reply), "\x1b[=7;102;%dn",
 		    cterm_music_ensure(terminal) && st_music_available(terminal->music_player) ? 1 : 0);
+	else if (strcmp(text, "module") == 0)
+		count = snprintf(reply, sizeof(reply), "\x1b[=7;103;%dn",
+		    cterm_music_ensure(terminal) && st_music_module_available(terminal->music_player) ? 1 : 0);
 	else if (strcmp(text, "libsndfile") == 0)
 		count = snprintf(reply, sizeof(reply), "\x1b[=7;100;%dn", st_audio_file_available() ? 1 : 0);
 	else if (strncmp(text, "libsndfileFormat;", 17) == 0) {

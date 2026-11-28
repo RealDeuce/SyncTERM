@@ -991,6 +991,10 @@ def extensions(t):
     # cover sequence consumption and return to normal terminal parsing.
     t.check("BEL", b"A\aB", (3, 1), ((1, 1, "AB"),))
     t.check("CTSAM", ESC + b"[=0M" + b"AB", (3, 1), ((1, 1, "AB"),))
+    t.check("CTQueueModule", ESC + b"_SyncTERM:Q;module" + ST
+            + ESC + b"_SyncTERM:A;QueueModule;../../outside.xm" + ST
+            + ESC + b"[=7;0nAB", (3, 1), ((1, 1, "AB"),),
+            expected=ESC + b"[=7;103;0n" + ESC + b"[=7;0;0n")
     t.check("CTMIDIUnavailable", ESC + b"_SyncTERM:Q;midi" + ST,
             (1, 1), expected=ESC + b"[=7;102;0n")
     t.check("CTMIDIQueueRecovery", ESC + b"_SyncTERM:A;QueueMIDI;../../outside.mid" + ST

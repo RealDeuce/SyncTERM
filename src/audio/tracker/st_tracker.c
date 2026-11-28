@@ -46,11 +46,17 @@ struct st_tracker {
 	bool            paused;
 };
 
+size_t
+st_tracker_read(struct st_tracker *player, int16_t *pcm, size_t frames)
+{
+	return mpt.module_read_interleaved_stereo(player->module, AUDIO_SAMPLE_RATE, frames, pcm);
+}
+
 static size_t
 render(void *context, int16_t *pcm, size_t frames)
 {
 	struct st_tracker *player = context;
-	size_t count  = mpt.module_read_interleaved_stereo(player->module, AUDIO_SAMPLE_RATE, frames, pcm);
+	size_t count  = st_tracker_read(player, pcm, frames);
 	int    volume = (int)atomic_load_explicit(&player->volume, memory_order_relaxed);
 	/* The decoder belongs to the mixer while running. Each track meter
 	 * is independent and can be sampled by the session between blocks. */
@@ -78,40 +84,51 @@ st_tracker_destroy(struct st_tracker *player)
 }
 
 struct st_tracker *
-st_tracker_play(st_audio_runtime_t *audio, FILE *file, unsigned volume)
+st_tracker_open(FILE *file)
 {
-	if (file == NULL || volume > 64 || (!st_audio_runtime_is_pull(audio) && !st_audio_runtime_allowed(audio)))
-		return NULL;
-	if (!mpt_available())
+	if (file == NULL || !mpt_available())
 		return NULL;
 	struct st_tracker *player = calloc(1, sizeof(*player));
 	if (player == NULL)
 		return NULL;
-	atomic_init(&player->volume, volume);
 	static const openmpt_module_initial_ctl controls[] = {
 	    {"load.skip_plugins", "1" },
             {NULL,                NULL}
         };
 	player->module = mpt.module_create2(openmpt_stream_get_file_callbacks2(), file,
 	    mpt.log_func_silent, NULL, NULL, NULL, NULL, NULL, controls);
-	if (player->module != NULL) {
-		const char *type      = mpt.module_get_metadata(player->module, "type");
-		bool        supported = type != NULL && (strcmp(type, "mod") == 0 || strcmp(type, "s3m") == 0);
-		mpt.free_string(type);
-		int32_t channels = mpt.module_get_num_channels(player->module);
-		if (channels > 0)
-			player->channels =
-			    channels > ST_TRACKER_METER_CHANNELS ? ST_TRACKER_METER_CHANNELS : (unsigned)channels;
-		for (unsigned i = 0; i < player->channels; ++i)
-			atomic_init(&player->levels[i], 0);
-		audio_engine_t *engine;
-		if (supported && mpt.module_set_repeat_count(player->module, -1)
-		    && st_audio_runtime_acquire(audio, &engine) == 0
-		    && audio_stream_create(&player->stream, engine, 0, 0) == 0
-		    && audio_stream_set_source(player->stream, render, player) == 0
-		    && audio_stream_source_active(player->stream, true) == 0)
-			return player;
+	if (player->module == NULL) {
+		free(player);
+		return NULL;
 	}
+	return player;
+}
+
+struct st_tracker *
+st_tracker_play(st_audio_runtime_t *audio, FILE *file, unsigned volume)
+{
+	if (volume > 64 || (!st_audio_runtime_is_pull(audio) && !st_audio_runtime_allowed(audio)))
+		return NULL;
+	struct st_tracker *player = st_tracker_open(file);
+	if (player == NULL)
+		return NULL;
+	atomic_init(&player->volume, volume);
+	const char *type      = mpt.module_get_metadata(player->module, "type");
+	bool        supported = type != NULL && (strcmp(type, "mod") == 0 || strcmp(type, "s3m") == 0);
+	mpt.free_string(type);
+	int32_t channels = mpt.module_get_num_channels(player->module);
+	if (channels > 0)
+		player->channels =
+		    channels > ST_TRACKER_METER_CHANNELS ? ST_TRACKER_METER_CHANNELS : (unsigned)channels;
+	for (unsigned i = 0; i < player->channels; ++i)
+		atomic_init(&player->levels[i], 0);
+	audio_engine_t *engine;
+	if (supported && mpt.module_set_repeat_count(player->module, -1)
+	    && st_audio_runtime_acquire(audio, &engine) == 0
+	    && audio_stream_create(&player->stream, engine, 0, 0) == 0
+	    && audio_stream_set_source(player->stream, render, player) == 0
+	    && audio_stream_source_active(player->stream, true) == 0)
+		return player;
 	st_tracker_destroy(player);
 	return NULL;
 }
@@ -171,7 +188,7 @@ st_tracker_set_volume(struct st_tracker *player, unsigned volume)
 unsigned
 st_tracker_levels(const struct st_tracker *player, uint8_t levels[ST_TRACKER_METER_CHANNELS])
 {
-	if (!player)
+	if (player == NULL)
 		return 0;
 	for (unsigned i = 0; i < player->channels; ++i)
 		levels[i] = player->paused ? 0 : atomic_load_explicit(&player->levels[i], memory_order_relaxed);
