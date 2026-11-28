@@ -1680,7 +1680,10 @@ The additional `recovery` group runs 48 bounded cases with seed `0x43544552`,
 including overlong parameters, malformed strings, invalid UTF-8 and random bytes.
 Every case must recover known cells, margins and cursor coordinates and answer a
 query. TCP write boundaries are not parser chunk boundaries: the existing
-`cterm_text` C tests retain exhaustive split/bytewise decoder coverage.
+`cterm_text` C tests retain exhaustive split/bytewise decoder coverage. The native
+`cterm` test moves the console cursor between a split ESC and its CSI parameters
+and checks that it stays there until dispatch. The `movement` group checks
+CUP and SGR with embedded NULs against expected cells, colour and cursor report.
 
 `cterm_music_render` holds foreground ANSI playback, APC audio waits on
 channels 0, 1, 2 and 15, BEL playback, response output and application APC

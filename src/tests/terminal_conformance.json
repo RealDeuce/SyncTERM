@@ -63,6 +63,7 @@
     {"id": "HTS", "source_line": 250, "suite": "movement", "scope": "Custom tab stops, sorted and duplicate insertion, reinsertion after clear; expected cursor coordinates"},
     {"id": "KAM-permanently-reset", "suite": "keyboard", "scope": "Mode report and transmitted key after CSI 2 h"},
     {"id": "ESC-intermediate-finals", "suite": "movement", "scope": "Final M and [ after ESC intermediates leave following text and cursor intact"},
+    {"id": "CSI-parameter-NUL", "suite": "movement", "scope": "Embedded NUL during CUP and SGR accumulation, resulting cells, colour, cursor and reply in CP437 and UTF-8."},
     {"id": "CSI-multiple-intermediates", "suite": "movement", "scope": "A longer CSI does not dispatch the command for its last intermediate"},
     {"id": "RI", "source_line": 257, "suite": "movement", "scope": "Expected cursor coordinates; defaults, clamping and tab stops"},
     {"id": "APC", "source_line": 262, "suite": "extensions", "scope": "String consumption and surrounding visible text"},

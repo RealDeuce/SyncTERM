@@ -362,6 +362,7 @@ bool cterm_accumulate_trailing(struct cterminal *cterm, unsigned char byte, int 
  * cterm_dispatch_byte drives ATASCII and PETSCII via their bitmap +
  * handler tables. */
 bool cterm_csi_intermediate(struct cterminal *cterm, uint8_t byte, uint64_t *first);
+bool cterm_execute_byte(struct cterminal *cterm, unsigned char byte, int *speed, cterm_accumulator_fn action);
 bool cterm_accumulate_ecma_seq(struct cterminal *cterm, unsigned char byte, int *speed);
 void cterm_dispatch_ecma(struct cterminal *cterm, unsigned char byte, int *speed);
 void cterm_dispatch_byte(struct cterminal *cterm, unsigned char byte, int *speed);

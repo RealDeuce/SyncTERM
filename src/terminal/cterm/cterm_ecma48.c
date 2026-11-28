@@ -1056,118 +1056,109 @@ cterm_csi_intermediate(struct cterminal *cterm, uint8_t byte, uint64_t *first)
 	return cterm->seq_key == (SEQ_CSI | SEQ_INTERM(byte)) && !cterm->seq_overflow;
 }
 
-/* ------------------------------------------------------------------------
- * cterm_accumulate_ecma_seq — ANSI-BBS / ECMA-48 CSI accumulator
- *
- * Feeds one byte to seq_feed().  On SEQ_INCOMPLETE, the byte is held for
- * more input.  On SEQ_COMPLETE, the handler is bsearched and invoked.
- * On SEQ_BROKEN the parser state is reset; the ESC and broken byte are
- * emitted as literal text via the caller's print-batch buffer (*prnpos),
- * mirroring the legacy escbuf fallback.
- *
- * Returns true when the byte was absorbed (keep in sequence mode or the
- * sequence just completed / broke here).  Returns false only when
- * SEQ_BROKEN occurred AND the byte itself was ESC (broken-then-legal):
- * in that case the caller should re-feed the byte to start a fresh
- * sequence from the ESC.  (The current byte-loop handles this inline by
- * restarting itself; exposing it via a return value matches the same
- * semantics once the loop is unified.)
- * ------------------------------------------------------------------------ */
+static bool
+recover_ecma_seq(struct cterminal *cterm, unsigned char byte, int *speed)
+{
+	(void)speed;
+	cterm_log_sequence(cterm,
+	    cterm->seq_overflow ? "Invalid sequence parameters (limit exceeded)" : "Invalid sequence");
+	cterm_log(cterm, ST_CTERM_LOG_WARNING, "Sequence rejected at byte 0x%02X", (unsigned)byte);
+	*cterm->print_pos++ = '\033';
+	*cterm->print_pos++ = byte;
+	*cterm->print_pos   = 0;
+	cterm->seq_phase    = SEQ_PHASE_IDLE;
+	cterm->sequence     = 0;
+	if (byte == '\033') {
+		/* Broken-then-legal: drop the trailing ESC we just emitted
+		 * and prime a fresh sequence that consumes this ESC.
+		 * Leave cterm->accumulator on ecma_seq and
+		 * cterm->saved_accumulator untouched — if we were nested
+		 * inside a string, the next sequence completes or breaks
+		 * back to it. */
+		if (cterm->print_buf[0]) {
+			cterm->print_pos -= 2;
+			*cterm->print_pos = 0;
+		}
+		cterm_uctputs(cterm, cterm->print_buf);
+		cterm->print_buf[0]  = 0;
+		cterm->print_pos     = cterm->print_buf;
+		cterm->sequence      = 1;
+		cterm->seq_phase     = SEQ_PHASE_C1;
+		cterm->seq_key       = SEQ_ESC;
+		cterm->seq_param_len = 0;
+		cterm->seq_params[0] = 0;
+	}
+	else {
+		/* Genuine break — restore the saved accumulator (non-NULL
+		 * when an ESC inside a DCS/OSC/… string kicked us here) or
+		 * clear otherwise. */
+		cterm->accumulator       = cterm->saved_accumulator;
+		cterm->saved_accumulator = NULL;
+	}
+	return true;
+}
+
+static bool
+dispatch_ecma_seq(struct cterminal *cterm, unsigned char byte, int *speed)
+{
+	(void)byte;
+	const struct seq_dispatch *d = NULL;
+	cterm_accumulator_fn       pre_handler;
+	if (cterm->dispatch_table != NULL && cterm->dispatch_table_len > 0) {
+		d = bsearch(&cterm->seq_key, cterm->dispatch_table, cterm->dispatch_table_len,
+		    sizeof(cterm->dispatch_table[0]), cterm_seq_dispatch_cmp);
+	}
+	cterm_build_param_strs(cterm);
+	memset(cterm->seq_consumed, 0, sizeof(cterm->seq_consumed));
+	cterm->seq_consumed_any = false;
+	if (d != NULL && d->trailing > 0) {
+		/* Set up trailing-byte accumulation; handler fires
+		 * when cterm_accumulate_trailing counts down. */
+		cterm->seq_trailing_handler = d->handler;
+		cterm->seq_trailing_remain  = d->trailing;
+		cterm->seq_param_count      = 0;
+		cterm->seq_phase            = SEQ_PHASE_IDLE;
+		cterm->sequence             = 0;
+		cterm_text_forget(cterm);
+		cterm->saved_accumulator = NULL;
+		cterm->accumulator       = cterm_accumulate_trailing;
+		return true;
+	}
+	pre_handler      = cterm->accumulator;
+	cterm->seq_phase = SEQ_PHASE_IDLE;
+	cterm->sequence  = 0;
+	if (d != NULL && d->handler != NULL)
+		d->handler(cterm, speed);
+	else
+		cterm_log_sequence(cterm, "Unsupported sequence");
+	/* A macro can leave the next sequence partially parsed. */
+	if (cterm->accumulator == pre_handler && cterm->seq_phase == SEQ_PHASE_IDLE) {
+		/* Handler didn't install a new mode.  Pop back to the
+		 * saved accumulator (string context we interrupted) or
+		 * clear to idle. */
+		cterm->accumulator       = cterm->saved_accumulator;
+		cterm->saved_accumulator = NULL;
+	}
+	/* else: handler installed a new accumulator (dcs_start, sos_start,
+	 * font_load, music, …) — keep it. */
+	return true;
+}
 
 bool
 cterm_accumulate_ecma_seq(struct cterminal *cterm, unsigned char byte, int *speed)
 {
-	enum sequence_state s;
-
+	struct cterminal *owner = cterm->parent == NULL ? cterm : cterm->parent;
+	if (owner->escape_extension != NULL && cterm->saved_accumulator == NULL
+	    && owner->escape_extension(owner->escape_context, cterm, byte))
+		return true;
 	if (byte == 0)
 		return true; /* NUL: media-fill, ignore (ECMA-48 §8.3.88) */
 
-	s = seq_feed(cterm, byte);
-	if (s == SEQ_INCOMPLETE)
+	/* Only dispatch and error recovery need the terminal's console state. */
+	enum sequence_state state = seq_feed(cterm, byte);
+	if (state == SEQ_INCOMPLETE)
 		return true;
-
-	if (s == SEQ_BROKEN) {
-		cterm_log_sequence(cterm,
-		    cterm->seq_overflow ? "Invalid sequence parameters (limit exceeded)" : "Invalid sequence");
-		cterm_log(cterm, ST_CTERM_LOG_WARNING, "Sequence rejected at byte 0x%02X", (unsigned)byte);
-		*cterm->print_pos++ = '\033';
-		*cterm->print_pos++ = byte;
-		*cterm->print_pos   = 0;
-		cterm->seq_phase    = SEQ_PHASE_IDLE;
-		cterm->sequence     = 0;
-		if (byte == '\033') {
-			/* Broken-then-legal: drop the trailing ESC we just emitted
-			 * and prime a fresh sequence that consumes this ESC.
-			 * Leave cterm->accumulator on ecma_seq and
-			 * cterm->saved_accumulator untouched — if we were nested
-			 * inside a string, the next sequence completes or breaks
-			 * back to it. */
-			if (cterm->print_buf[0]) {
-				cterm->print_pos -= 2;
-				*cterm->print_pos = 0;
-			}
-			cterm_uctputs(cterm, cterm->print_buf);
-			cterm->print_buf[0]  = 0;
-			cterm->print_pos     = cterm->print_buf;
-			cterm->sequence      = 1;
-			cterm->seq_phase     = SEQ_PHASE_C1;
-			cterm->seq_key       = SEQ_ESC;
-			cterm->seq_param_len = 0;
-			cterm->seq_params[0] = 0;
-		}
-		else {
-			/* Genuine break — restore the saved accumulator (non-NULL
-			 * when an ESC inside a DCS/OSC/… string kicked us here) or
-			 * clear otherwise. */
-			cterm->accumulator       = cterm->saved_accumulator;
-			cterm->saved_accumulator = NULL;
-		}
-		return true;
-	}
-
-	/* SEQ_COMPLETE */
-	{
-		const struct seq_dispatch *d = NULL;
-		cterm_accumulator_fn       pre_handler;
-		if (cterm->dispatch_table != NULL && cterm->dispatch_table_len > 0) {
-			d = bsearch(&cterm->seq_key, cterm->dispatch_table, cterm->dispatch_table_len,
-			    sizeof(cterm->dispatch_table[0]), cterm_seq_dispatch_cmp);
-		}
-		cterm_build_param_strs(cterm);
-		memset(cterm->seq_consumed, 0, sizeof(cterm->seq_consumed));
-		cterm->seq_consumed_any = false;
-		if (d != NULL && d->trailing > 0) {
-			/* Set up trailing-byte accumulation; handler fires
-			 * when cterm_accumulate_trailing counts down. */
-			cterm->seq_trailing_handler = d->handler;
-			cterm->seq_trailing_remain  = d->trailing;
-			cterm->seq_param_count      = 0;
-			cterm->seq_phase            = SEQ_PHASE_IDLE;
-			cterm->sequence             = 0;
-			cterm_text_forget(cterm);
-			cterm->saved_accumulator = NULL;
-			cterm->accumulator       = cterm_accumulate_trailing;
-			return true;
-		}
-		pre_handler      = cterm->accumulator;
-		cterm->seq_phase = SEQ_PHASE_IDLE;
-		cterm->sequence  = 0;
-		if (d != NULL && d->handler != NULL)
-			d->handler(cterm, speed);
-		else
-			cterm_log_sequence(cterm, "Unsupported sequence");
-		/* A macro can leave the next sequence partially parsed. */
-		if (cterm->accumulator == pre_handler && cterm->seq_phase == SEQ_PHASE_IDLE) {
-			/* Handler didn't install a new mode.  Pop back to the
-			 * saved accumulator (string context we interrupted) or
-			 * clear to idle. */
-			cterm->accumulator       = cterm->saved_accumulator;
-			cterm->saved_accumulator = NULL;
-		}
-		/* else: handler installed a new accumulator (dcs_start, sos_start,
-		 * font_load, music, …) — keep it. */
-	}
-	return true;
+	return cterm_execute_byte(cterm, byte, speed, state == SEQ_COMPLETE ? dispatch_ecma_seq : recover_ecma_seq);
 }
 
 /*

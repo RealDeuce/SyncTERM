@@ -117,6 +117,9 @@ class Terminal:
 
 
 def movement(t):
+    frame = t.check("CSI-parameter-NUL", b"A" + ESC + b"[2;1\x002H" + ESC + b"[1;3\x001mB" + ESC + b"[6n",
+                    (13, 2), [(1, 1, "A"), (12, 2, "B")], expected=ESC + b"[2;13R")
+    assert colour(frame, cell_at(frame, 11, 1)) == 0xff5454
     t.check("ESC-intermediate-finals", cup(4, 3) + ESC + b"(%M" + ESC + b"%[31mX",
             (8, 3), [(4, 3, "31mX")])
     t.check("CSI-multiple-intermediates", b"ABC" + cup(2, 1) + ESC + b"[1! @",

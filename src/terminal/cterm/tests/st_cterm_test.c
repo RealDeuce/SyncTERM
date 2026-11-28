@@ -1229,6 +1229,24 @@ test_graphics_history(void)
 	}
 }
 
+static void
+check_incomplete_csi(st_cterm_t *terminal, st_console_t *console)
+{
+	feed(terminal, "\x1b[H\x1b", 4);
+	/* A local console user moves the cursor while the wire sequence is pending. */
+	CHECK(st_console_set_position(console, 7, 2) == 0);
+	const char params[] = "[1;3\0" "1";
+	for (size_t i = 0; i < sizeof(params) - 1; ++i) {
+		uint32_t x, y;
+		feed(terminal, params + i, 1);
+		CHECK(st_console_get_position(console, &x, &y) == 0 && x == 7 && y == 2);
+	}
+	feed(terminal, "m", 1);
+	struct st_cterm_state state;
+	CHECK(st_cterm_state(terminal, &state) == 0 && state.x == 1 && state.y == 1 && state.attr == 0x0c);
+	feed(terminal, "\x1b[0m", 4);
+}
+
 int
 st_cterm_test_main(void)
 {
@@ -1268,10 +1286,8 @@ st_cterm_test_main(void)
 
 	CHECK(st_console_create(&console, &display, &console_config) == 0);
 	CHECK(st_font_catalog_create(&fonts, console) == 0);
-	/* Standalone parsers retain speed state without session callbacks;
-	 * both displays share the terminal's communication speed. */
 	for (unsigned encoding = 0; encoding < 2; ++encoding) {
-		const struct st_cterm_config speed_config = {
+		const struct st_cterm_config config = {
 		    .console        = console,
 		    .fonts          = fonts,
 		    .emulation      = ST_CTERM_ANSI_BBS,
@@ -1288,7 +1304,9 @@ st_cterm_test_main(void)
 		static const char expected[] =
 		    "\x1bP1$r;0*r\x1b\\\x1bP1$r;1*r\x1b\\"
 		    "\x1bP1$r;1*r\x1b\\\x1bP1$r;3*r\x1b\\";
-		CHECK(rip_test_create(&terminal, &speed_config) == 0);
+		CHECK(rip_test_create(&terminal, &config) == 0);
+		check_incomplete_csi(terminal, console);
+		/* Both displays share the standalone terminal's communication speed. */
 		feed(terminal, input, sizeof(input) - 1);
 		CHECK(output.size == sizeof(expected) - 1);
 		CHECK(memcmp(output.bytes, expected, output.size) == 0);

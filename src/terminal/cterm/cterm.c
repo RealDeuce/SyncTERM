@@ -2522,15 +2522,22 @@ cterm_accumulate_trailing(struct cterminal *cterm, unsigned char byte, int *spee
 bool
 cterm_parse_byte(struct cterminal *cterm, unsigned char byte, int *speed)
 {
+	if (!cterm->started)
+		cterm_start(cterm);
+	if (cterm->accumulator == cterm_accumulate_ecma_seq)
+		return cterm_accumulate_ecma_seq(cterm, byte, speed);
+	return cterm_execute_byte(cterm, byte, speed, cterm->accumulator);
+}
+
+bool
+cterm_execute_byte(struct cterminal *cterm, unsigned char byte, int *speed, cterm_accumulator_fn action)
+{
 	bool     consumed = true;
 	int      i, x, y;
 	int      olddmc;
 	uint32_t palette[16];
 	int      mpalette;
 	int      palette_offset = 0;
-
-	if (!cterm->started)
-		cterm_start(cterm);
 
 	/* Now rejigger the current modes palette... */
 	if (cterm->screen.capabilities & ST_CONSOLE_CAP_EXTENDED_PALETTE)
@@ -2554,13 +2561,8 @@ cterm_parse_byte(struct cterminal *cterm, unsigned char byte, int *speed)
 	cterm->print_pos    = cterm->print_buf;
 	if (cterm->emulation == CTERM_EMULATION_PRESTEL || cterm->emulation == CTERM_EMULATION_BEEB)
 		cterm_prestel_get_state(cterm);
-	if (cterm->accumulator != NULL) {
-		struct cterminal *owner = cterm->parent == NULL ? cterm : cterm->parent;
-		if (owner->escape_extension == NULL || cterm->accumulator != cterm_accumulate_ecma_seq
-		    || cterm->saved_accumulator != NULL
-		    || !owner->escape_extension(owner->escape_context, cterm, byte))
-			consumed = cterm->accumulator(cterm, byte, speed);
-	}
+	if (action != NULL)
+		consumed = action(cterm, byte, speed);
 	else
 		cterm->dispatch(cterm, byte, speed);
 	cterm_uctputs(cterm, cterm->print_buf);
