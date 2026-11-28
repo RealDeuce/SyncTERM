@@ -51,6 +51,13 @@ foreach(kind STATIC SHARED)
 		"-DPROVIDE=${kind}" "-DCMAKE_INSTALL_PREFIX=${TEST_ROOT}/prefix-${kind}")
 	run("build-${kind}" TRUE "${CMAKE_COMMAND}" --build "${TEST_ROOT}/provide-${kind}" --target install)
 endforeach()
+# Packaged librashader headers can live in a subdirectory of the include root.
+set(rashader_prefix "${TEST_ROOT}/rashader-prefix")
+file(MAKE_DIRECTORY "${rashader_prefix}/include/librashader")
+file(COPY "${TEST_ROOT}/prefix-SHARED/include/fixture.h" DESTINATION "${rashader_prefix}/include/librashader")
+run(rashader-headers TRUE "${CMAKE_COMMAND}" -S "${source}" -B "${TEST_ROOT}/rashader-headers"
+	"-DPROJECT_MODULES=${modules}" -DDEPENDENCY_NAME=LIBRASHADER -DEXPECTED=RUNTIME
+	-DST_DEP_LIBRASHADER_LINKAGE=RUNTIME "-DST_DEP_LIBRASHADER_ROOT=${rashader_prefix}")
 # The signed macOS packager supplies FindOpenSSL hints for its cached archives.
 run(openssl-hints TRUE "${CMAKE_COMMAND}" -S "${source}" -B "${TEST_ROOT}/openssl-hints"
 	"-DPROJECT_MODULES=${modules}" -DDEPENDENCY_NAME=OPENSSL -DEXPECTED=STATIC

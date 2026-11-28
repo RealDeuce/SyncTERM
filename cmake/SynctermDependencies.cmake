@@ -311,18 +311,27 @@ function(syncterm_dependency)
 				endif()
 			endif()
 		endif()
+		set(header_names "${DEP_HEADER}")
+		if(name STREQUAL "LIBRASHADER")
+			# Its pkg-config include root can contain either SDK layout.
+			list(APPEND header_names "librashader/${DEP_HEADER}")
+		endif()
 		if(ST_DEP_${name}_INCLUDE_DIR)
 			set(include_dir "${ST_DEP_${name}_INCLUDE_DIR}")
 		else()
 			unset(include_dir)
 			if(root)
-				find_path(include_dir NAMES "${DEP_HEADER}" PATHS "${root}"
+				find_path(include_dir NAMES ${header_names} PATHS "${root}"
 					PATH_SUFFIXES include include/botan-3 include/hidapi include/libusb-1.0 include/libevdev-1.0 include/SDL2 include/pipewire-0.3 include/ncursesw include/ncurses
 					NO_DEFAULT_PATH NO_CACHE)
 			else()
-				find_path(include_dir NAMES "${DEP_HEADER}" HINTS ${hints} ${ST_PC_${name}_INCLUDE_DIRS}
+				find_path(include_dir NAMES ${header_names} HINTS ${hints} ${ST_PC_${name}_INCLUDE_DIRS}
 					PATH_SUFFIXES include include/botan-3 include/hidapi include/libusb-1.0 include/libevdev-1.0 include/SDL2 include/pipewire-0.3 include/ncursesw include/ncurses NO_CACHE)
 			endif()
+		endif()
+		if(name STREQUAL "LIBRASHADER" AND NOT EXISTS "${include_dir}/${DEP_HEADER}"
+		    AND EXISTS "${include_dir}/librashader/${DEP_HEADER}")
+			cmake_path(APPEND include_dir librashader)
 		endif()
 		if(name STREQUAL "LIBUSB" AND EXISTS "${include_dir}/libusb.h" AND NOT APPLE)
 			# FreeBSD's libusb-1.0 SDK has a different transfer layout and soname.
