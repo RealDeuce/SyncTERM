@@ -125,6 +125,63 @@ check_warm_scaled_cache(void)
 }
 
 static void
+check_deferred_images(void)
+{
+	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_config config = {
+	    .columns      = 3,
+	    .rows         = 1,
+	    .cell_width   = 1,
+	    .cell_height  = 1,
+	    .blink_mode   = ST_CONSOLE_BLINK_PC,
+	    .scaling_mode = ST_CONSOLE_SCALING_EXTERNAL,
+	};
+	st_console_t                       *console   = NULL;
+	struct st_console_bitmap_presenter *presenter = NULL;
+	struct st_console_bitmap_frame      frame;
+	const struct st_rgb_buffer         *cached[4];
+	const uint32_t                      phases[] = {0, 133, 266, 399};
+
+	CHECK(st_console_create(&console, &display, &config) == 0);
+	console->cursor_x       = 2;
+	console->cursor_visible = true;
+	for (unsigned x = 0; x < 3; ++x) {
+		console->pixels->primary[x]   = ST_PIXEL_COLOR_RGB_TAG | 1;
+		console->pixels->alternate[x] = ST_PIXEL_COLOR_RGB_TAG | 2;
+	}
+	CHECK(st_console_bitmap_presenter_create(&presenter, console) == 0);
+	for (unsigned i = 0; i < 4; ++i) {
+		CHECK(st_console_bitmap_presenter_frame(presenter, i ? NULL : console, 3, 1, 1000 + phases[i],
+			  NULL, NULL, &frame)
+		      == 0);
+		cached[i] = frame.pixels;
+		CHECK(cached[i]->pixels[0] == (i < 2 ? 1U : 2U));
+	}
+	console->dirty_row_end       = 0;
+	console->pixel_surface_dirty = false;
+	for (unsigned x = 0; x < 2; ++x) {
+		console->pixels->primary[x]   = ST_PIXEL_COLOR_RGB_TAG | (3 + x);
+		console->pixels->alternate[x] = ST_PIXEL_COLOR_RGB_TAG | (5 + x);
+		console->pixel_damage         = (struct st_console_rect) {x, 0, 1, 1};
+		console->pixel_damage_valid   = true;
+		CHECK(st_console_bitmap_prepare_frame(presenter, console, 1532) == 0);
+	}
+	/* Later console edits are outside the prepared frame. */
+	console->pixels->alternate[1] = ST_PIXEL_COLOR_RGB_TAG | 7;
+	for (unsigned i = 0; i < 4; ++i) {
+		CHECK(cached[i]->pixels[0] == (i < 2 ? 1U : 2U));
+		CHECK(
+		    st_console_bitmap_presenter_frame(presenter, NULL, 3, 1, 1532 + phases[i], NULL, NULL, &frame)
+		    == 0);
+		CHECK(frame.pixels == cached[i]);
+		CHECK(frame.pixels->pixels[0] == (i < 2 ? 3U : 5U));
+		CHECK(frame.pixels->pixels[1] == (i < 2 ? 4U : 6U));
+	}
+	st_console_bitmap_presenter_destroy(presenter);
+	st_console_destroy(console);
+}
+
+static void
 check_identical_planes_do_not_animate(void)
 {
 	const struct st_console_display_config display = {
@@ -156,6 +213,39 @@ check_identical_planes_do_not_animate(void)
 	CHECK(!frame.changed);
 	CHECK(frame.generation == generation);
 	CHECK(frame.image_identity == identity);
+	/* Two indices with the same colour also share a phase until recoloured. */
+	console->palette[50] = console->palette[51] = UINT32_C(0x010203);
+	console->palette_dirty                      = true;
+	console->pixels->primary[0]                 = 50;
+	console->pixels->alternate[0]               = 51;
+	console->pixel_damage                       = (struct st_console_rect) {0, 0, 1, 1};
+	console->pixel_damage_valid                 = true;
+	CHECK(st_console_bitmap_presenter_frame(presenter, console, 1, 1, 1532, NULL, NULL, &frame) == 0);
+	generation           = frame.generation;
+	console->palette[52] = 0x789abc;
+	CHECK(st_console_bitmap_presenter_frame(presenter, console, 1, 1, 1798, NULL, NULL, &frame) == 0);
+	CHECK(!frame.changed && frame.generation == generation && frame.image_identity == identity);
+	console->palette[51] = 0x112233;
+	CHECK(st_console_bitmap_presenter_frame(presenter, console, 1, 1, 1798, NULL, NULL, &frame) == 0);
+	CHECK(frame.changed && frame.pixels->pixels[0] == 0x112233);
+	/* An indexed cursor and an overlapping pointer both transform the index.
+	 * Select the hidden phases after the live masks have been replaced. */
+	console->cursor_custom = true;
+	console->custom_cursor = (struct st_console_custom_cursor){
+	    .visible = true, .blink = true, .range = 1, .index_base = 48, .index_xor = 3,
+	};
+	console->pointer_rect                   = (struct st_console_rect) {0, 0, 1, 1};
+	console->indexed_pointer.and_mask[0][0] = 255;
+	console->indexed_pointer.xor_mask[0][0] = 1;
+	console->palette[48]                    = 0x222222;
+	console->palette[49]                    = 0x333333;
+	CHECK(st_console_bitmap_presenter_frame(presenter, console, 1, 1, 2000, NULL, NULL, &frame) == 0);
+	CHECK(frame.pixels->pixels[0] == 0x222222); /* (50 ^ 3) ^ 1 */
+	console->indexed_pointer.xor_mask[0][0] = 0;
+	CHECK(st_console_bitmap_presenter_frame(presenter, NULL, 1, 1, 2133, NULL, NULL, &frame) == 0);
+	CHECK(frame.pixels->pixels[0] == 0x112233); /* 50 ^ 1 */
+	CHECK(st_console_bitmap_presenter_frame(presenter, NULL, 1, 1, 2266, NULL, NULL, &frame) == 0);
+	CHECK(frame.pixels->pixels[0] == 0x333333); /* (51 ^ 3) ^ 1 */
 	st_console_bitmap_presenter_destroy(presenter);
 	st_console_destroy(console);
 }
@@ -203,6 +293,7 @@ main(void)
 	check_mode(ST_CONSOLE_BLINK_ATARI, atari, sizeof(atari) / sizeof(atari[0]), false);
 	check_mode(ST_CONSOLE_BLINK_ATARI_ST, atari_st, sizeof(atari_st) / sizeof(atari_st[0]), false);
 	check_warm_scaled_cache();
+	check_deferred_images();
 	check_identical_planes_do_not_animate();
 	return EXIT_SUCCESS;
 }

@@ -260,11 +260,10 @@ both must be supplied and neither may be smaller than the text image.  Text
 scrolling leaves that non-text margin stationary.  The primary and alternate
 planes are
 the two blink-state rasters.  Rasterization preserves indexed and direct cell
-colours in those native planes.  The bitmap presenter resolves a complete
-native frame into packed RGB before scaling or host upload.  A palette change
-therefore needs no text rerasterization and produces one full-frame resolve,
-scale, and upload for the batch.  Ordinary cell and pixel damage remains
-regional.  Pixel writes first make intersecting character rasters current, then
+colours in those native planes. The presenter converts the selected frame to
+packed RGB before scaling or host upload. A change to a displayed palette
+entry invalidates the full frame while preserving the text raster. Ordinary
+cell and pixel damage remains regional.  Pixel writes first make intersecting character rasters current, then
 modify those same final-raster planes and mark the cells `PIXEL_GRAPHICS`.
 Untouched pixels in a cell therefore remain intact.  A later cell-content
 change regenerates the cell, while a forced text readback deliberately
@@ -279,12 +278,12 @@ cells identifies text which still needs rasterization.  Prestel lower halves
 also depend on the cell above, while Mode 7 lower halves remain independently
 sourced.
 
-Bitmap presentation retains four unscaled RGB images: primary and alternate
-text planes, each with and without the cursor.  A drained content batch updates
-all four in order and advances one generation.  Selecting a blink or cursor
-phase only selects an already composed image and does not advance that
-generation.  When the fitted destination matches the native raster in both
-dimensions, the presenter uploads the composed RGB image directly.
+Bitmap presentation caches up to four native RGB images for the two text
+blink phases, each with and without the cursor. A completed batch retains
+the damaged source pixels and accumulates damage for each image. The
+presenter allocates and updates an image when its phase is selected. A warm
+image can be reused on a blink tick within the same generation. When the
+fitted destination matches the native raster in both dimensions, the presenter uploads the composed RGB image directly.
 Each image has its own lazy software-scaling cache, so a warm
 phase change performs no scaling.  Damage in the immediately preceding
 generation makes all four caches stale but can update a selected cache
@@ -343,8 +342,9 @@ part of this API while there is no locale-independent formatting component.
 ## Presentation and snapshots
 
 Window bitmap backends wake the presentation worker on the first pending change.
-The worker resolves dirty pixels into retained native-size images under the
-console lock, then releases it before scaling and submitting the frame. Writes
+The worker retains the dirty raster spans, palette and overlay state under the
+console lock. The presenter then resolves the selected image from that data
+before scaling and submitting the frame. Writes
 during display accumulate in the live console. Once the backend is ready, the
 worker takes the latest completed state. A window resize during an open batch
 uses the last complete image and the new window dimensions. Libretro consumes
