@@ -783,6 +783,34 @@ def extensions(t):
         assert tile(source, x + 1) == tile(replay, x + 1)
     frame = t.exchange(b"ABCD\x1b[1;1;1;2;19$r\x1b[1;1;1;1;1$t", reset=True)
     assert [cell_at(frame, x, 0).flags >> 27 for x in range(4)] == [9, 9, 0, 0]
+    # The clipboard reads the retained characters after position 9 is reassigned.
+    first, second = ((b"\xc0", b"\xc0") if t.encoding == "CP437"
+                     else ("└".encode(), "А".encode()))
+    frame = t.exchange(b"\x1b[?25l\x1b[9;1 D" + first + b"\x1b[19m" + second
+                       + b"\x1b[9;0 D\x1b[10m", reset=True)
+    cells = [cell_at(frame, x, 0) for x in (0, 1)]
+    assert [frame.cell_text(cell) for cell in cells] == ["└", "А"]
+    assert all(cell.glyph == 0xc0 and cell.glyph_font == cell.font for cell in cells)
+    assert cells[0].font != cells[1].font
+    m = frame.metadata
+    x0 = m["destination_x"] + m["cell_width"] * m["destination_width"] // (2 * m["plane_width"])
+    x1 = m["destination_x"] + 3 * m["cell_width"] * m["destination_width"] // (2 * m["plane_width"])
+    y = m["destination_y"] + (m["pixel_top"] + m["cell_height"] // 2) * m["destination_height"] // m["plane_height"]
+    t.client.mouse(x0, y, action=1, buttons=1)
+    t.client.mouse(x1, y, buttons=1)
+    t.client.wait_for(lambda s: s.primary != frame.primary)
+    t.client.mouse(x1, y, action=1)
+    t.client.wait_for(lambda s: s.clipboard == "└А")
+    # Change the primary assignment and select the same font through bright.
+    # A UTF-8 box corner retains its Unicode meaning under either assignment.
+    char = b"\xc0" if t.encoding == "CP437" else "└".encode()
+    frame = t.exchange(b"\x1b[0;1 D" + char + b"\x1b[0;0 D\x1b[1;1 D\x1b[?31h\x1b[1m"
+                       + char + b"\x1b[22m" + char, reset=True)
+    assert [frame.cell_text(cell_at(frame, x, 0)) for x in range(3)] == (
+        ["А", "А", "└"] if t.encoding == "CP437" else ["└"] * 3)
+    if t.encoding == "CP437":
+        t.exchange(b"\x1bF\x1b[9;1 D\x1b[19m\xc0\x1b[10m\xc0\x1bS",
+                   ESC + b"XCTerm:STS:0:\x1b[19m\x1b[9;1 D\xc0\x1b[10m\xc0" + ST, reset=True)
     t.case("CTOSF")
     # Real font-download payloads include controls and are not UTF-8 text.
     data = b"".join(ESC + f"[=255;{size}{{".encode() + b"\x10" * length
@@ -845,7 +873,9 @@ def keyboard(t):
     t.client.key("backspace")
     t.input(b"\x08")
     t.case("keyboard-paste")
-    t.exchange(ESC + b"[?2004h")
+    t.exchange(b"\x1b[9;1 D\x1b[19m\x1b[?2004h")
+    t.client.text("é")
+    t.input(b"\x82" if t.encoding == "CP437" else b"\xc3\xa9")
     t.client.clipboard("paste é")
     t.client.key("insert", SHIFT)
     # Encoding translation is part of the real connection's paste path.

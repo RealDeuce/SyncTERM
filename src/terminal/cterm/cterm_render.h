@@ -201,6 +201,7 @@ void     cterm_render_refresh_remote_fonts(struct cterminal *cterm);
 int      cterm_render_get_modepalette(struct cterminal *cterm, uint32_t *palette);
 int      cterm_render_font_selector(struct cterminal *cterm, int slot);
 int      cterm_render_set_font_selector(struct cterminal *cterm, int selector, int force, int slot);
+enum st_codepage cterm_render_byte_codepage(struct cterminal *cterm);
 unsigned cterm_render_font_position(const struct cterminal *cterm, uint8_t attribute, uint32_t video_flags,
     uint32_t cell_flags);
 uint8_t  cterm_render_attribute_font(struct cterminal *cterm, uint8_t attribute, uint32_t cell_flags);

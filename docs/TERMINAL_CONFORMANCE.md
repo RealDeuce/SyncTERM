@@ -1815,7 +1815,7 @@ bytes, case trace, coherent snapshot and PPM under the build's
 | `CUD` | 357 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
 | `CUF` | 370 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
 | `CUB` | 383 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
-| `FNT` | 396 | extensions | Ten SGR font positions, bright/blink precedence, attributed selection, glyph raster, and independent main/status fonts |
+| `FNT` | 396 | extensions | Ten SGR font positions, bright/blink precedence, attributed selection, cross-codepage glyphs and clipboard text, and independent main/status fonts |
 | `CNL` | 414 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
 | `CPL` | 429 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
 | `CHA` | 444 | movement | Expected cursor coordinates; defaults, clamping and tab stops |

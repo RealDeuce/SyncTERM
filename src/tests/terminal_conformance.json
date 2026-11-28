@@ -84,7 +84,7 @@
     {"id": "CUD", "source_line": 357, "suite": "movement", "scope": "Expected cursor coordinates; defaults, clamping and tab stops"},
     {"id": "CUF", "source_line": 370, "suite": "movement", "scope": "Expected cursor coordinates; defaults, clamping and tab stops"},
     {"id": "CUB", "source_line": 383, "suite": "movement", "scope": "Expected cursor coordinates; defaults, clamping and tab stops"},
-    {"id": "FNT", "source_line": 396, "suite": "extensions", "scope": "Ten SGR font positions, bright/blink precedence, attributed selection, glyph raster, and independent main/status fonts"},
+    {"id": "FNT", "source_line": 396, "suite": "extensions", "scope": "Ten SGR font positions, bright/blink precedence, attributed selection, cross-codepage glyphs and clipboard text, and independent main/status fonts"},
     {"id": "CNL", "source_line": 414, "suite": "movement", "scope": "Expected cursor coordinates; defaults, clamping and tab stops"},
     {"id": "CPL", "source_line": 429, "suite": "movement", "scope": "Expected cursor coordinates; defaults, clamping and tab stops"},
     {"id": "CHA", "source_line": 444, "suite": "movement", "scope": "Expected cursor coordinates; defaults, clamping and tab stops"},

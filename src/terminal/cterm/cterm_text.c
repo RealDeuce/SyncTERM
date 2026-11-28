@@ -294,13 +294,21 @@ cterm_text_feed(struct cterminal *cterm, const void *text, size_t size, size_t *
 	return status != 0 ? status : st_unicode_presentation_feed(cterm->screen.unicode, text, size, consumed);
 }
 
+static uint32_t
+byte_scalar(struct cterminal *cterm, uint8_t byte)
+{
+	enum st_codepage codepage = cterm->wire_encoding == ST_CTERM_ENCODING_CODEPAGE
+	    ? cterm_render_byte_codepage(cterm) : cterm->screen.codepage;
+	return st_codepage_to_unicode(codepage, byte, true);
+}
+
 void
 cterm_text_byte(struct cterminal *cterm, uint8_t byte)
 {
 	char      text[4];
 	size_t    consumed;
 	ptrdiff_t size =
-	    st_utf8_encode_one(text, sizeof(text), st_codepage_to_unicode(cterm->screen.codepage, byte, true));
+	    st_utf8_encode_one(text, sizeof(text), byte_scalar(cterm, byte));
 	cterm_render_record_error(cterm,
 	    size < 0 ? IO_ERROR_INVALID_ENCODING : cterm_text_feed(cterm, text, (size_t)size, &consumed));
 }
@@ -308,7 +316,7 @@ cterm_text_byte(struct cterminal *cterm, uint8_t byte)
 void
 cterm_text_literal(struct cterminal *cterm, uint8_t byte)
 {
-	cterm_text_literal_scalar(cterm, st_codepage_to_unicode(cterm->screen.codepage, byte, true));
+	cterm_text_literal_scalar(cterm, byte_scalar(cterm, byte));
 }
 
 static void

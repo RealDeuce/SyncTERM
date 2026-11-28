@@ -450,6 +450,12 @@ rendition and preserve the assignments.
 SGR 11–19 explicitly select positions 1–9. The intensity and blink bits
 select a font only in the primary rendition.
 
+For byte-oriented ANSI text, the selected font supplies the display codepage,
+including when position 0 is active. For example, with a CP437 profile and
+a CP1251 font, incoming byte `0xC0` displays and copies as Cyrillic `А`.
+Typing or pasting `é` sends the CP437 byte `0x82`. UTF-8 text retains its
+Unicode meaning when the font changes.
+
 .Currently included fonts
 [%autowidth,cols="1,2"]
 |===

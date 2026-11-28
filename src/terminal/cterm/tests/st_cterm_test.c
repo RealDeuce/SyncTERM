@@ -1314,6 +1314,13 @@ st_cterm_test_main(void)
 		CHECK(output.size == sizeof(defaults) - 1 && memcmp(output.bytes, defaults, output.size) == 0);
 		output.size = 0;
 		check_incomplete_csi(terminal, console);
+		/* The configured primary font is CP1251 on this CP437 profile. */
+		const char *graphic = encoding ? "\xc0" : "\xd0\x90";
+		feed(terminal, "\033[H", 3);
+		feed(terminal, graphic, strlen(graphic));
+		CHECK(st_console_read_cells(console, &one, &cell, 1) == 0 && cell.glyph == 0xc0);
+		CHECK(st_console_font_glyph_text(console, cell.glyph_font, cell.glyph, text, sizeof(text),
+			  &required) == 0 && required == 2 && memcmp(text, "\xd0\x90", 2) == 0);
 		/* Both displays share the standalone terminal's communication speed. */
 		feed(terminal, input, sizeof(input) - 1);
 		CHECK(output.size == sizeof(expected) - 1);

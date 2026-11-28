@@ -71,6 +71,12 @@ run_mode(struct result *result, enum st_cterm_encoding encoding, const char *inp
 	CHECK(st_console_register_static_font(console, &presentation.font, &identifier) == 0);
 	CHECK(identifier == 0);
 	CHECK(st_font_catalog_create(&fonts, console) == 0);
+	/* Give the codepage sweep a font registered with each tested mapping. */
+	uint8_t ansi_font = 0;
+	if (emulation == ST_CTERM_ANSI_BBS && codepage != ST_CODEPAGE_CP437) {
+		ansi_font = ST_FONT_CATALOG_FIRST_CUSTOM;
+		CHECK(st_font_catalog_load_bitmap(fonts, ansi_font, &base, codepage) == 0);
+	}
 	const struct st_cterm_config config = {
 	    .console          = console,
 	    .fonts            = fonts,
@@ -80,7 +86,7 @@ run_mode(struct result *result, enum st_cterm_encoding encoding, const char *inp
 	    .force_lcf        = true,
 	    .font_selector    = emulation == ST_CTERM_ATARI_ST_VT52 ? 44
 	                        : emulation == ST_CTERM_ATASCII     ? 36
-	                                                            : 0,
+	                                                            : ansi_font,
 	    .status_line      = status_line,
 	    .scrollback_lines = 4,
 	    .output           = capture,

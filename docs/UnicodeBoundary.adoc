@@ -30,7 +30,7 @@ The design must support all of the following at the same time:
 
 == Core Rule
 
-There are two representations but only one wire-to-Unicode translation:
+CTerm classifies wire bytes before interpreting graphic text:
 
 [source,text]
 ----
@@ -50,9 +50,11 @@ wire bytes
                             `-- CTerm text rendering
 ----
 
-The Unicode consumers share the output of one decoder.  Giving Wren and CTerm
-separate decoders would allow their state, invalid-input recovery, and response
-to hook replacements to diverge.
+UTF-8 consumers share the output of one decoder. For byte-oriented ANSI, the
+active font maps a surviving display byte to Unicode for glyph lookup. Input
+hooks and outgoing text use the profile encoding. The RIP 1 and RIP 3
+session adapters translate legacy profile text to UTF-8 before it reaches
+CTerm.
 
 == Receive Path
 
@@ -68,8 +70,8 @@ The receive path processes data in this order:
   them.
 . CTerm submits only graphic byte spans to the session's streaming decoder.
 . Default Wren input and matching hooks receive decoded Unicode.
-. Text which remains after the Unicode hooks is rendered by CTerm without
-  being encoded and decoded again.
+. CTerm renders surviving UTF-8 text directly. For byte-oriented ANSI it maps
+  the original surviving byte through the selected font’s codepage.
 
 CTerm must participate in classification because only its parser state can
 distinguish printable text from such inputs as PETSCII and ATASCII controls,
@@ -120,7 +122,8 @@ hooks wire-encoding-dependent.
 The BBS entry's `Encoding` field chooses this wire boundary independently of
 its font. A legacy wire `0x7C` is decoded as U+007C for hooks and text sends;
 a built-in font whose glyph at that byte looks like a broken bar still copies
-visually as U+00A6. Prestel separated mosaics are a stream-selected G1 set,
+visually as U+00A6. Copy reads each cell’s retained glyph, including across a
+font reassignment. Prestel separated mosaics are a stream-selected G1 set,
 not a separate connection encoding.
 
 The binding shall expose these semantic categories; final names may refine the

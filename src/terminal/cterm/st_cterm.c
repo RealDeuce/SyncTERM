@@ -241,6 +241,7 @@ status_display_changed(struct cterminal *terminal, int old_type, int new_type, v
 		return;
 	}
 	terminal->status_sub->parent           = terminal;
+	terminal->status_sub->wire_encoding    = terminal->wire_encoding;
 	terminal->status_sub->quiet            = terminal->quiet;
 	terminal->status_sub->response_cb      = terminal->response_cb;
 	terminal->status_sub->response_cbdata  = terminal->response_cbdata;
@@ -1058,8 +1059,25 @@ write_input(struct cterminal *terminal, const void *bytes, size_t size, size_t *
 			struct st_utf8_decode_event        cp;
 			const struct st_utf8_decode_event *character = *consumed == 0 ? decoded : NULL;
 			if (character == NULL && !utf8) {
+				/* Hooks see the connection encoding. Only surviving display bytes
+				 * take their meaning from the currently selected bitmap font. */
+				if (hooks && (input_filter_enabled(owner) || capture_enabled(owner))) {
+					bool filtered;
+					uint32_t scalar = st_codepage_to_unicode(target->screen.codepage, byte, true);
+					++target->input_depth;
+					status = present_filtered_scalar(owner, scalar, &filtered);
+					--target->input_depth;
+					if (status != 0)
+						break;
+					if (filtered) {
+						++*consumed;
+						input_cleanup(owner);
+						continue;
+					}
+					target = input_display(owner);
+				}
 				cp.kind        = ST_UTF8_DECODE_EVENT_SCALAR;
-				cp.data.scalar = st_codepage_to_unicode(target->screen.codepage, byte, true);
+				cp.data.scalar = st_codepage_to_unicode(cterm_render_byte_codepage(target), byte, true);
 				character      = &cp;
 			}
 			status = cterm_text_create(target);
@@ -1067,7 +1085,7 @@ write_input(struct cterminal *terminal, const void *bytes, size_t size, size_t *
 				break;
 			target->screen.capture_decode_error = hooks;
 			st_unicode_presentation_set_scalar_filter(target->screen.unicode,
-			    hooks ? present_filtered_scalar : NULL, owner);
+			    hooks && character != &cp ? present_filtered_scalar : NULL, owner);
 			++target->input_depth;
 			if (character != NULL) {
 				status = st_unicode_presentation_decoded(target->screen.unicode, character);
@@ -1967,8 +1985,10 @@ st_cterm_set_encoding(st_cterm_t *terminal, enum st_cterm_encoding encoding, enu
 	terminal->screen.codepage = codepage;
 	if (terminal->emulation == CTERM_EMULATION_PETASCII)
 		terminal->petscii_connection_codepage = codepage;
-	if (terminal->status_sub != NULL)
+	if (terminal->status_sub != NULL) {
 		terminal->status_sub->screen.codepage = codepage;
+		terminal->status_sub->wire_encoding   = encoding;
+	}
 	if (terminal->device.encoding != NULL)
 		terminal->device.encoding(terminal->device.context, encoding, codepage);
 	return 0;

@@ -198,6 +198,22 @@ cterm_render_attribute_font(struct cterminal *cterm, uint8_t attribute, uint32_t
 	return attribute_font(cterm, attribute, video_flags, cell_flags);
 }
 
+static enum st_codepage
+font_codepage(const struct cterminal *cterm, uint8_t selector)
+{
+	if (cterm->emulation == CTERM_EMULATION_ANSI_BBS && cterm->screen.font_valid[selector])
+		return cterm->screen.font_codepages[selector];
+	return cterm->screen.codepage;
+}
+
+enum st_codepage
+cterm_render_byte_codepage(struct cterminal *cterm)
+{
+	if (cterm->emulation != CTERM_EMULATION_ANSI_BBS)
+		return cterm->screen.codepage;
+	return font_codepage(cterm, cterm_render_attribute_font(cterm, cterm->attr, cterm->cell_flags));
+}
+
 static uint32_t
 attribute_flags(const struct cterminal *cterm, uint8_t attribute, uint32_t flags)
 {
@@ -228,7 +244,9 @@ cterm_render_make_cell(struct cterminal *cterm, struct st_console_cell *cell, ui
 	if (cterm == NULL || cell == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	selected = font_identifier(cterm, font_selector);
-	scalar   = st_codepage_to_unicode(cterm->screen.codepage, byte, true);
+	enum st_codepage codepage = cterm->wire_encoding == ST_CTERM_ENCODING_CODEPAGE
+	    ? font_codepage(cterm, font_selector) : cterm->screen.codepage;
+	scalar = st_codepage_to_unicode(codepage, byte, true);
 	/* CTerm has already resolved attributes through its mode palette. */
 	*cell = (struct st_console_cell) {
 	    .foreground = foreground,
@@ -264,7 +282,10 @@ cterm_render_cell_byte(struct cterminal *cterm, const struct st_console_cell *ce
 	        == 0
 	    && required != 0)
 		(void)st_utf8_decode_one(&scalar, &consumed, text, required);
-	if (st_codepage_from_unicode(&byte, cterm->screen.codepage, scalar)
+	enum st_codepage codepage = cterm->screen.codepage;
+	if (cterm->wire_encoding == ST_CTERM_ENCODING_CODEPAGE && cterm->emulation == CTERM_EMULATION_ANSI_BBS)
+		codepage = font_codepage(cterm, cterm_render_cell_font(cterm, cell));
+	if (st_codepage_from_unicode(&byte, codepage, scalar)
 	    && cterm->emulation == CTERM_EMULATION_ATASCII && cterm->screen.codepage == ST_CODEPAGE_ATASCII
 	    && (cell->flags & ST_CONSOLE_CELL_REVERSE))
 		byte ^= 0x80;
