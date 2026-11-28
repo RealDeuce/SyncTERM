@@ -81,7 +81,8 @@ enum {
 #define CTERM_KEY_DOS_CTRL_END    (0x75 << 8)
 
 #define CTERM_FIRST_DYNAMIC_FONT 46
-#define CTERM_PALETTE_SIZE       282
+#define CTERM_FAINT_BASE         282
+#define CTERM_PALETTE_SIZE       (CTERM_FAINT_BASE + 8)
 
 struct cterm_render_state {
 	st_console_t *console;
@@ -118,6 +119,7 @@ struct cterm_render_state {
 	uint16_t selectors[5];
 	uint16_t current_hyperlink;
 	uint32_t mode_palette[16];
+	uint32_t faint_defaults[8];
 	uint32_t capabilities;
 	int      mode;
 	uint8_t  default_attribute;
@@ -196,7 +198,10 @@ void     cterm_render_attribute_colours(struct cterminal *cterm, uint8_t attribu
 int      cterm_render_set_modepalette(struct cterminal *cterm, const uint32_t *palette);
 int      cterm_render_set_hold_update(struct cterminal *cterm, int hold);
 int      cterm_render_hold_update(const struct cterminal *cterm);
-int      cterm_render_default_palette(uint32_t entry, uint8_t *red, uint8_t *green, uint8_t *blue);
+uint32_t cterm_default_colour(uint16_t entry, bool yellow_is_yellow);
+extern const uint8_t cterm_ansi_colour_order[8];
+uint32_t cterm_faint_base(const struct cterminal *cterm);
+void cterm_rendition_colours(struct cterminal *cterm, uint8_t attribute, uint32_t *foreground, uint32_t *background);
 void     cterm_render_record_error(struct cterminal *cterm, int error);
 int      cterm_render_take_error(struct cterminal *cterm);
 uint16_t cterm_render_add_hyperlink(struct cterminal *cterm, const char *uri, const char *parameter);

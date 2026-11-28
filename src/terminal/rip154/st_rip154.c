@@ -266,10 +266,13 @@ rip_text_font(st_cterm_t *terminal, int style)
 		terminal->screen.font_valid[selector]       = true;
 		terminal->screen.font_codepages[selector]   = codepage;
 	}
-	cterm_render_attribute_colours(terminal, terminal->attr, &terminal->fg_color, &terminal->bg_color);
+	cterm_current_palette_colours(terminal, &terminal->fg_color, &terminal->bg_color);
 	if ((terminal->screen.capabilities & ST_CONSOLE_CAP_EXTENDED_PALETTE) != 0) {
-		terminal->fg_color += 16;
-		terminal->bg_color += 16;
+		/* Faint indices already address the shadow palette. */
+		if (!terminal->faint || terminal->negative)
+			terminal->fg_color += 16;
+		if (!terminal->faint || !terminal->negative)
+			terminal->bg_color += 16;
 	}
 	cterm_render_set_attribute(terminal, terminal->attr);
 	cterm_render_set_colours(terminal, terminal->fg_color, terminal->bg_color);
@@ -393,6 +396,7 @@ rip_save_text_window(st_cterm_t *terminal)
 	device(terminal)->rip_saved_text.cursor_visible = visible;
 	device(terminal)->rip_saved_text.cursor_shape   = shape;
 	device(terminal)->rip_saved_text.attr           = terminal->attr;
+	device(terminal)->rip_saved_text.faint          = terminal->faint;
 	device(terminal)->rip_saved_text.foreground     = terminal->fg_color;
 	device(terminal)->rip_saved_text.background     = terminal->bg_color;
 	return 0;
@@ -446,6 +450,7 @@ rip_restore_text_window(st_cterm_t *terminal)
 	raster->x          = device(terminal)->rip_saved_text.x;
 	raster->y          = device(terminal)->rip_saved_text.y;
 	terminal->attr     = device(terminal)->rip_saved_text.attr;
+	terminal->faint    = device(terminal)->rip_saved_text.faint;
 	terminal->fg_color = device(terminal)->rip_saved_text.foreground;
 	terminal->bg_color = device(terminal)->rip_saved_text.background;
 	cterm_render_set_attribute(terminal, terminal->attr);
@@ -1446,6 +1451,7 @@ rip_transfer_rejected:
 			terminal->bottom_margin             = terminal->height;
 			terminal->extattr |= CTERM_EXTATTR_ORIGINMODE | CTERM_EXTATTR_AUTOWRAP;
 			terminal->attr     = 15;
+			terminal->faint    = false;
 			terminal->fg_color = raster->palette[15];
 			terminal->bg_color = raster->palette[0];
 			cterm_apply_window(terminal);

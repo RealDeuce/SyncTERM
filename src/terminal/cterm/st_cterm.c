@@ -455,6 +455,12 @@ initialize_render_state(struct cterm_render_state *screen, const struct st_cterm
 	}
 	else
 		default_palette_mapping(config->emulation, config->petscii_machine, screen->mode_palette);
+	for (unsigned i = 0; i < 8; ++i) {
+		unsigned attr = cterm_ansi_colour_order[i];
+		uint32_t normal = config->palette_override != NULL ? config->palette_override[attr]
+		    : cterm_default_colour((uint16_t)screen->mode_palette[attr], config->yellow_is_yellow);
+		screen->faint_defaults[i] = (normal & 0xfefefe) >> 1;
+	}
 	screen->capabilities = capabilities & ~config->disabled_capabilities;
 	screen->wscroll      = 1;
 	return 0;
@@ -1509,8 +1515,7 @@ cterm_reconfigure_console(struct cterminal *t, const struct st_console_config *c
 	    (int)(config->rows - t->api_reserved_rows - (t->status_display_type >= 1 ? 1u : 0u)), false);
 	if (t->status_sub != NULL) {
 		memcpy(t->status_sub->screen.mode_palette, t->screen.mode_palette, sizeof(t->screen.mode_palette));
-		cterm_render_attribute_colours(t->status_sub, t->status_sub->attr, &t->status_sub->fg_color,
-		    &t->status_sub->bg_color);
+		cterm_current_palette_colours(t->status_sub, &t->status_sub->fg_color, &t->status_sub->bg_color);
 		t->status_sub->y = t->y + t->height;
 		cterm_resize_parser_geometry(t->status_sub, (int)config->columns, 1, false);
 		cterm_text_forget(t->status_sub);

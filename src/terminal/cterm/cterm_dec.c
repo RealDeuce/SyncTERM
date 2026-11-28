@@ -352,6 +352,7 @@ cterm_handle_deccara(struct cterminal *cterm, int *speed) /* CSI Pt;Pl;Pb;Pr;...
 		uint32_t                save_fg    = cterm->fg_color;
 		uint32_t                save_bg    = cterm->bg_color;
 		bool                    save_neg   = cterm->negative;
+		bool                    save_faint = cterm->faint;
 		uint32_t                save_flags = cterm->cell_flags;
 		char                   *save_fg_tc = cterm->fg_tc_str ? strdup(cterm->fg_tc_str) : NULL;
 		char                   *save_bg_tc = cterm->bg_tc_str ? strdup(cterm->bg_tc_str) : NULL;
@@ -387,6 +388,7 @@ cterm_handle_deccara(struct cterminal *cterm, int *speed) /* CSI Pt;Pl;Pb;Pr;...
 					                        | ST_CONSOLE_CELL_LEGACY_FOREGROUND
 					                        | ST_CONSOLE_CELL_LEGACY_BACKGROUND);
 					cterm->negative   = false;
+					cterm->faint      = rowbuf[c].foreground - cterm_faint_base(cterm) < 8;
 					CTERM_FREE_AND_CLEAR(cterm->fg_tc_str);
 					CTERM_FREE_AND_CLEAR(cterm->bg_tc_str);
 					cterm_apply_sgr(cterm, 4);
@@ -404,6 +406,7 @@ cterm_handle_deccara(struct cterminal *cterm, int *speed) /* CSI Pt;Pl;Pb;Pr;...
 		cterm->bg_color   = save_bg;
 		cterm->cell_flags = save_flags;
 		cterm->negative   = save_neg;
+		cterm->faint      = save_faint;
 		cterm->fg_tc_str  = save_fg_tc;
 		cterm->bg_tc_str  = save_bg_tc;
 	}
@@ -2188,7 +2191,7 @@ cterm_parse_sixel_intro(struct cterminal *cterm)
 			cterm_dec_sixel_cancel(cterm);
 			return;
 		}
-		cterm_render_attribute_colours(cterm, cterm->attr, &cterm->sx_fg, &cterm->sx_bg);
+		cterm_current_palette_colours(cterm, &cterm->sx_fg, &cterm->sx_bg);
 		if (cterm->extattr & CTERM_EXTATTR_SXSCROLL) {
 			TERM_XY(&cterm->sx_start_x, &cterm->sx_start_y);
 			cterm->sx_left = cterm->sx_x = (cterm->sx_start_x - 1) * cell_width;
@@ -2385,6 +2388,8 @@ cterm_dec_dcs_finish(struct cterminal *cterm)
 					strcpy(tmp, "\x1bP1$r0");
 					if (cterm->attr & 8)
 						strcat(tmp, ";1");
+					else if (cterm->faint)
+						strcat(tmp, ";2");
 					if (cterm->attr & 128)
 						strcat(tmp, ";5");
 					if (cterm->negative)

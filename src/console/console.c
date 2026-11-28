@@ -147,8 +147,12 @@ default_palette_entry(uint32_t index)
 		value = 8 + (index - 232) * 10;
 		return (value << 16) | (value << 8) | value;
 	}
-	if (index < 256 + sizeof(legacy_tail) / sizeof(legacy_tail[0]))
+	const uint32_t faint_base = 256 + sizeof(legacy_tail) / sizeof(legacy_tail[0]);
+	if (index < faint_base)
 		return legacy_tail[index - 256];
+	/* Eight independent faint entries follow the legacy mode palettes. */
+	if (index < faint_base + 8)
+		return (system[index - faint_base] & 0xfefefe) >> 1;
 	return 0;
 }
 

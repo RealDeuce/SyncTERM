@@ -1891,7 +1891,7 @@ bytes, case trace, coherent snapshot and PPM under the build's
 | `DECCKSR` | 1820 | queries | Empty and defined-macro CRC-16 with echoed request IDs |
 | `DECSTBMScroll` | 1831 | margins | Expected cursor/cells or exact mode replies across margin/wrap transitions |
 | `DECSLRMScroll` | 1852 | margins | Expected cursor/cells or exact mode replies across margin/wrap transitions |
-| `SGRDim` | 1866 | attributes | Logical RGB cell colours and rendered planes |
+| `SGRDim` | 1866 | attributes | Eight indexed faint colours, intensity changes, reverse video, explicit colours, palette edits and resets, and rendition reports |
 | `CR.2` | 1884 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
 | `LF.2` | 1896 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
 | `BS.2` | 1909 | movement | Expected cursor coordinates; defaults, clamping and tab stops |

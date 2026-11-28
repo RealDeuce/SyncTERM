@@ -553,8 +553,7 @@ cell_attributes(const struct curses_state *state, const struct st_console_cell *
 	attr_t attributes = A_NORMAL;
 
 	if ((cell->flags & ST_CONSOLE_CELL_BOLD) != 0
-	    || (!ST_CONSOLE_COLOR_IS_RGB(cell->foreground) && (cell->foreground & 8) != 0
-	        && state->colour_count < 16))
+	    || (cell->foreground >= 8 && cell->foreground < 16 && state->colour_count < 16))
 		attributes |= A_BOLD;
 	if ((cell->flags & ST_CONSOLE_CELL_UNDERLINE) != 0)
 		attributes |= A_UNDERLINE;

@@ -20,7 +20,7 @@ struct st_cterm_window_definition {
 	int                              top_margin, bottom_margin, left_margin, right_margin;
 	int                              cursor, cursor_style, visible_cursor, fetm, ttm;
 	unsigned char                    attr;
-	bool                             negative, default_tabs;
+	bool                             negative, faint, default_tabs;
 	uint32_t                         fg_color, bg_color, cell_flags, extattr, last_column_flag, video_flags;
 	int32_t                          saved_mode, saved_mode_mask;
 	uint8_t                          decsace, g0_designation, g1_designation;
@@ -31,7 +31,7 @@ struct st_cterm_window_definition {
 	uint16_t                         font_indices[256], selectors[5];
 	bool                             font_valid[256];
 	enum st_codepage                 font_codepages[256];
-	uint32_t                         mode_palette[16];
+	uint32_t                         mode_palette[16], faint_defaults[8];
 	struct st_console_font_snapshot *resources[260];
 	size_t                           count;
 };
@@ -113,6 +113,7 @@ create_definition(struct st_cterm_window_definition **result, const st_cterm_t *
 	d->g1_designation      = source->g1_designation;
 	d->attr                = source->attr;
 	d->negative            = source->negative;
+	d->faint               = source->faint;
 	d->fg_color            = source->fg_color;
 	d->bg_color            = source->bg_color;
 	d->cell_flags          = source->cell_flags;
@@ -130,6 +131,7 @@ create_definition(struct st_cterm_window_definition **result, const st_cterm_t *
 	memcpy(d->font_codepages, source->screen.font_codepages, sizeof(d->font_codepages));
 	memcpy(d->selectors, source->screen.selectors, sizeof(d->selectors));
 	memcpy(d->mode_palette, source->screen.mode_palette, sizeof(d->mode_palette));
+	memcpy(d->faint_defaults, source->screen.faint_defaults, sizeof(d->faint_defaults));
 	if (d->tab_count != 0)
 		d->tabs = malloc((size_t)d->tab_count * sizeof(int));
 	if (d->vtab_count != 0)
@@ -280,6 +282,7 @@ restore_definition(st_cterm_t *destination, const struct st_cterm_window_definit
 	destination->g1_designation      = d->g1_designation;
 	destination->attr                = d->attr;
 	destination->negative            = d->negative;
+	destination->faint               = d->faint;
 	destination->fg_color            = d->fg_color;
 	destination->bg_color            = d->bg_color;
 	destination->cell_flags          = d->cell_flags;
@@ -303,6 +306,7 @@ restore_definition(st_cterm_t *destination, const struct st_cterm_window_definit
 				destination->screen.font_identifiers[i] = mapped[d->font_indices[i]];
 		memcpy(destination->screen.selectors, d->selectors, sizeof(d->selectors));
 		memcpy(destination->screen.mode_palette, d->mode_palette, sizeof(d->mode_palette));
+		memcpy(destination->screen.faint_defaults, d->faint_defaults, sizeof(d->faint_defaults));
 	}
 	else {
 		/* Resolve only the logical selections against live compatible resources.

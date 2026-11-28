@@ -228,6 +228,7 @@ struct cterminal {
 	bool          c64reversemode;   // Commodore 64 reverse mode state
 	enum st_codepage petscii_connection_codepage; /* Keyboard mapping and bank restored by local reset. */
 	bool          negative;
+	bool          faint;
 	bool          lf_expand;
 	unsigned char attr;   // Current attribute
 	/* Native Atari console words; effective display colors remain indexed. */

@@ -515,7 +515,7 @@ ansi_window_save(void)
 	target.text->escape_extension = st_term_rip3_escape;
 	/* CSI's old save remains independent of the live cursor captured by ESC7. */
 	const char setup[] =
-	    "\x1b[1;1H\x1b[s\x1b[3g\x1b[1;6H\x1bH\x1b[3;1H\x1bJ\x1b[2;4H\x1b(A\x1b)0\x1b[31;44m\x1b[38;2;12;34;56m\x1b[48;2;65;43;21m";
+	    "\x1b[1;1H\x1b[s\x1b[3g\x1b[1;6H\x1bH\x1b[3;1H\x1bJ\x1b[2;4H\x1b(A\x1b)0\x1b[2;31;44m\x1b[38;2;12;34;56m\x1b[48;2;65;43;21m";
 	CHECK(feed(&source, setup, sizeof(setup) - 1) == 0);
 	static const char save_sequence[] =
 	    "\x1b"
@@ -563,7 +563,7 @@ ansi_window_save(void)
 	target.text->screen.font_valid[0] = valid;
 	target.text->wire_encoding        = ST_CTERM_ENCODING_UTF8;
 	CHECK(st_cterm_window_ansi_restore(target.text, saved, target.text) == 0 && position(&target, 4, 2) == 0);
-	CHECK(target.text->attr == 0x14 && target.text->g0_designation == 'A' && target.text->g1_designation == '0'
+	CHECK(target.text->attr == 0x14 && target.text->faint && target.text->g0_designation == 'A' && target.text->g1_designation == '0'
 	      && target.text->wire_encoding == ST_CTERM_ENCODING_UTF8
 	      && target.text->fg_color == UINT32_C(0x800c2238) && target.text->bg_color == UINT32_C(0x80412b15));
 	CHECK(feed(&target, "\x1b[H\x1b[u", 6) == 0 && position(&target, 4, 2) == 0);

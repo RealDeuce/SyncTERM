@@ -723,6 +723,8 @@ test_profile_presentation(void)
 			CHECK(state.has_palette_override == (custom != 0));
 			CHECK(st_console_get_palette(console, 19, &actual, 1) == 0);
 			CHECK(actual == (custom ? palette[6] : 0xa8a800));
+			CHECK(st_console_get_palette(console, 16 + 285, &actual, 1) == 0);
+			CHECK(actual == (custom ? 0x091a03 : 0x545400));
 			CHECK(st_cterm_music_mode(terminal) == 1);
 			st_cterm_set_music_mode(terminal, 2);
 			CHECK(st_cterm_music_mode(terminal) == 2);

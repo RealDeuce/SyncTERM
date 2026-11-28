@@ -412,7 +412,7 @@ def attributes(t):
         ("SGRBright", "91;104", 0xff5454, 0x5454ff),
         ("SGRNeg", "31;44;7", 0x0000a8, 0xa80000),
         ("SGRConceal", "31;44;8", 0x0000a8, 0x0000a8),
-        ("SGRDim", "1;2", 0xa8a8a8, 0),
+        ("SGRDim", "1;2", 0x545454, 0),
         ("SGRNormInt", "1;22", 0xa8a8a8, 0),
         ("SGRDefFG", "31;39", 0xa8a8a8, 0),
         ("SGRDefBG", "44;49", 0xa8a8a8, 0),
@@ -430,6 +430,36 @@ def attributes(t):
             assert len(pixels) == 1, (name, pixels)
         else:
             assert len(pixels) == 2, (name, pixels)
+    # Faint colours are independent, programmable ANSI-order registers.
+    stream = b"".join(f"\x1b[{30+i};2mX".encode() for i in range(8))
+    stream += (b"\x1b[2;33mA\x1b[1mB\x1b[22mC\x1b[2;7mD\x1b[27;93mE"
+               b"\x1b[2;38;5;196mF\x1b[22mG\x1b[38;2;12;34;56;2mH"
+               b"\x1b[22mI\x1b[2;32mJ")
+    frame = t.check("SGRDim", stream + ESC + b"P$qm" + ST, (19, 1),
+                    ((1, 1, "XXXXXXXXABCDEFGHIJ"),), expected=ESC + b"P1$r0;2;32m" + ST)
+    faint = [0, 0x540000, 0x005400, 0x542a00, 0x000054, 0x540054, 0x005454, 0x545454]
+    for x, fg in enumerate(faint + [0x542a00, 0xffff54, 0xa85400, 0, 0xffff54,
+                                    0xff0000, 0xff0000, 0x0c2238, 0x0c2238, 0x005400]):
+        cell = cell_at(frame, x, 0)
+        assert colour(frame, cell) == fg and colour(frame, cell, True) == (0x542a00 if x == 11 else 0)
+        assert set(tile(frame, x+1, 1)) == {cell.foreground, cell.background}
+    frame = t.exchange(ESC + b"]4;285;rgb:12/34/56" + ST + ESC + b"]4;285;?" + ST,
+                       expected=ESC + b"]4;285;rgb:12/34/56" + ST)
+    assert [colour(frame, cell_at(frame, x, 0)) for x in (3, 8, 9, 10)] == [
+        0x123456, 0x123456, 0xffff54, 0xa85400]
+    frame = t.exchange(ESC + b"]104;285" + ST)
+    assert colour(frame, cell_at(frame, 3, 0)) == 0x542a00
+    frame = t.check("SGRDim", b"\x1b[34mA\x1b[38;5;196mB\x1b[2;32mC\x1b[1;1;1;2;2$rD",
+                    (5, 1), ((1, 1, "ABCD"),))
+    assert [colour(frame, cell_at(frame, x, 0)) for x in range(4)] == [
+        0x000054, 0xff0000, 0x005400, 0x005400]
+    selection = b"\x1bF\x1b[2;31mA\x1b[34mB\x1b[22mC\x1bS"
+    attributed = b"\x1b[2;31mA\x1b[34mB\x1b[0;34;40mC"
+    frame = t.check("SGRDim", selection, (4, 1), ((1, 1, "ABC"),),
+                    expected=ESC + b"XCTerm:STS:0:" + attributed + ST)
+    replay = t.exchange(attributed, reset=True)
+    for x in range(3):
+        assert tile(replay, x+1, 1) == tile(frame, x+1, 1)
     frame = t.check("plain-text-wrap-rendition", cup(79, 1) + ESC + b"[31;44mABCD"
                     + ESC + b"[0mE" + ESC + b"[6n", (4, 2), ((79, 1, "AB"), (1, 2, "CDE")),
                     expected=ESC + b"[2;4R")

@@ -97,6 +97,25 @@ pixels(struct fixture *f, unsigned red_width, unsigned red_height, unsigned back
 }
 
 static void
+palette_banks(struct fixture *f)
+{
+	uint16_t offset = (f->terminal->screen.capabilities & ST_CONSOLE_CAP_EXTENDED_PALETTE) ? 16 : 0;
+	uint32_t colours[10];
+	reset(f);
+	text(f, "\033]4;282;rgb:12/34/56;289;rgb:65/43/21\033\\");
+	text(f, "\033P7;1q#0;2;100;0;0#1;2;0;0;100\033\\");
+	CHECK(st_console_get_palette(f->console, 282 + offset, colours, 10) == 0);
+	CHECK(colours[0] == 0x123456 && colours[7] == 0x654321);
+	CHECK(colours[8] == 0xff0000 && colours[9] == 0x0000ff);
+	text(f, "\033]104\033\\");
+	CHECK(st_console_get_palette(f->console, 282 + offset, colours, 10) == 0);
+	CHECK(colours[0] == 0 && colours[7] == 0x545454);
+	CHECK(colours[8] == 0xff0000 && colours[9] == 0x0000ff);
+	text(f, "\033P7;1q#0@\033\\");
+	pixels(f, 1, 1, 0, 0);
+}
+
+static void
 numeric_bounds(struct fixture *f)
 {
 	reset(f);
@@ -138,7 +157,7 @@ numeric_bounds(struct fixture *f)
 
 	/* The last native palette entry is usable; one past it is ignored. */
 	reset(f);
-	unsigned base = 282 + ((f->terminal->screen.capabilities & ST_CONSOLE_CAP_EXTENDED_PALETTE) ? 16 : 0);
+	unsigned base = 290 + ((f->terminal->screen.capabilities & ST_CONSOLE_CAP_EXTENDED_PALETTE) ? 16 : 0);
 	char     sequence[128];
 	CHECK(snprintf(sequence, sizeof(sequence), "\x1bP7;1q#%u;2;100;0;0#%u;2;0;0;100@\x1b\\", UINT16_MAX - base,
 		  UINT16_MAX - base + 1)
@@ -235,16 +254,18 @@ st_cterm_sixel_test_main(void)
 	struct fixture                 f        = {0};
 	CHECK(st_console_create(&f.console, &display, &geometry) == 0);
 	CHECK(st_font_catalog_create(&f.fonts, f.console) == 0);
-	for (unsigned utf8 = 0; utf8 < 2; ++utf8) {
+	for (unsigned variant = 0; variant < 4; ++variant) {
 		const struct st_cterm_config config = {
 		    .console   = f.console,
 		    .fonts     = f.fonts,
 		    .emulation = ST_CTERM_ANSI_BBS,
-		    .encoding  = utf8 ? ST_CTERM_ENCODING_UTF8 : ST_CTERM_ENCODING_CODEPAGE,
+		    .encoding  = (variant & 1) ? ST_CTERM_ENCODING_UTF8 : ST_CTERM_ENCODING_CODEPAGE,
 		    .codepage  = ST_CODEPAGE_CP437,
 		    .quiet     = true,
+		    .disabled_capabilities = (variant & 2) ? ST_CONSOLE_CAP_EXTENDED_PALETTE : 0,
 		};
 		CHECK(st_cterm_create(&f.terminal, &config) == 0);
+		palette_banks(&f);
 		numeric_bounds(&f);
 		rendering_and_splits(&f);
 		cancel_and_destroy(&f);

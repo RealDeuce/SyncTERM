@@ -2895,8 +2895,7 @@ cterm_igs_set_resolution(struct cterm_igs *igs, unsigned resolution)
 	    (int)(config.rows - t->api_reserved_rows - (t->status_display_type >= 1 ? 1u : 0u)), false);
 	if (t->status_sub != NULL) {
 		memcpy(t->status_sub->screen.mode_palette, t->screen.mode_palette, sizeof(t->screen.mode_palette));
-		cterm_render_attribute_colours(t->status_sub, t->status_sub->attr, &t->status_sub->fg_color,
-		    &t->status_sub->bg_color);
+		cterm_current_palette_colours(t->status_sub, &t->status_sub->fg_color, &t->status_sub->bg_color);
 		t->status_sub->y = t->y + t->height;
 		cterm_resize_parser_geometry(t->status_sub, (int)config.columns, 1, false);
 	}
@@ -2906,6 +2905,7 @@ cterm_igs_set_resolution(struct cterm_igs *igs, unsigned resolution)
 	t->sequence                           = 0;
 	t->escbuf[0]                          = 0;
 	t->negative                           = false;
+	t->faint                              = false;
 	t->attr                               = 15;
 	cterm_vt52_reset_console(t);
 	CTERM_FREE_AND_CLEAR(t->fg_tc_str);

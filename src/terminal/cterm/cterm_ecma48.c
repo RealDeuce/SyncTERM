@@ -1168,25 +1168,30 @@ cterm_accumulate_ecma_seq(struct cterminal *cterm, unsigned char byte, int *spee
 static void
 sgr_diff(struct cterminal *cterm, const struct st_console_cell *prev, const struct st_console_cell *next)
 {
-	static const int cga2ansi[] = {0, 4, 2, 6, 1, 5, 3, 7};
-	int              need_reset = 0;
-	uint8_t          pa         = cterm_render_cell_attribute(cterm, prev);
-	uint8_t          na         = cterm_render_cell_attribute(cterm, next);
+	const uint32_t base       = cterm_faint_base(cterm);
+	const bool     prev_faint = prev->foreground - base < 8;
+	const bool     next_faint = next->foreground - base < 8;
+	const unsigned offset     = (cterm->screen.capabilities & ST_CONSOLE_CAP_EXTENDED_PALETTE) ? 16 : 0;
+	bool           need_reset = prev_faint && !next_faint;
+	uint8_t        pa         = cterm_render_cell_attribute(cterm, prev);
+	uint8_t        na         = cterm_render_cell_attribute(cterm, next);
 
 	/* Check if we need a reset — if any attribute was ON in prev but OFF in next */
 	if ((pa & 0x08) && !(na & 0x08)) /* bold off */
-		need_reset = 1;
+		need_reset = true;
 	if ((pa & 0x80) && !(na & 0x80)) /* blink off */
-		need_reset = 1;
+		need_reset = true;
 
 	if (need_reset) {
 		cterm_respond_printf(cterm, "\033[0");
 		if (na & 0x08)
 			cterm_respond_printf(cterm, ";1");
+		if (next_faint)
+			cterm_respond_printf(cterm, ";2");
 		if (na & 0x80)
 			cterm_respond_printf(cterm, ";5");
-		cterm_respond_printf(cterm, ";%d", 30 + cga2ansi[na & 0x07]);
-		cterm_respond_printf(cterm, ";%d", 40 + cga2ansi[(na >> 4) & 0x07]);
+		cterm_respond_printf(cterm, ";%d", 30 + cterm_ansi_colour_order[na & 0x07]);
+		cterm_respond_printf(cterm, ";%d", 40 + cterm_ansi_colour_order[(na >> 4) & 0x07]);
 		cterm_respond_printf(cterm, "m");
 	}
 	else {
@@ -1197,37 +1202,42 @@ sgr_diff(struct cterminal *cterm, const struct st_console_cell *prev, const stru
 		if ((na & 0x08) && !(pa & 0x08)) {
 			strcat(sgrbuf, params++ ? ";1" : "1");
 		}
+		if (next_faint && !prev_faint)
+			strcat(sgrbuf, params++ ? ";2" : "2");
 		if ((na & 0x80) && !(pa & 0x80)) {
 			strcat(sgrbuf, params++ ? ";5" : "5");
 		}
-		if ((na & 0x07) != (pa & 0x07)) {
+		if ((na & 0x07) != (pa & 0x07) || (next_faint && !prev_faint)) {
 			char tmp[16];
-			snprintf(tmp, sizeof(tmp), "%s%d", params++ ? ";" : "", 30 + cga2ansi[na & 0x07]);
+			snprintf(tmp, sizeof(tmp), "%s%d", params++ ? ";" : "", 30 + cterm_ansi_colour_order[na & 0x07]);
 			strcat(sgrbuf, tmp);
 		}
 		if (((na >> 4) & 0x07) != ((pa >> 4) & 0x07)) {
 			char tmp[16];
-			snprintf(tmp, sizeof(tmp), "%s%d", params++ ? ";" : "", 40 + cga2ansi[(na >> 4) & 0x07]);
+			snprintf(tmp, sizeof(tmp), "%s%d", params++ ? ";" : "", 40 + cterm_ansi_colour_order[(na >> 4) & 0x07]);
 			strcat(sgrbuf, tmp);
 		}
 		if (params > 0)
 			cterm_respond_printf(cterm, "\033[%sm", sgrbuf);
 	}
 
-	if (next->foreground != prev->foreground) {
+	uint32_t reset_fg = prev->foreground, reset_bg = prev->background;
+	if (need_reset)
+		cterm_render_attribute_colours(cterm, na, &reset_fg, &reset_bg);
+	if (!next_faint && next->foreground != reset_fg) {
 		if (next->foreground & 0x80000000)
 			cterm_respond_printf(cterm, "\033[38;2;%d;%d;%dm", (next->foreground >> 16) & 0xff,
 			    (next->foreground >> 8) & 0xff, next->foreground & 0xff);
 		else if (next->foreground >= 16)
-			cterm_respond_printf(cterm, "\033[38;5;%dm", next->foreground & 0xffff);
+			cterm_respond_printf(cterm, "\033[38;5;%um", (next->foreground & 0xffff) - offset);
 	}
 
-	if (next->background != prev->background) {
+	if (next->background != reset_bg) {
 		if (next->background & 0x80000000)
 			cterm_respond_printf(cterm, "\033[48;2;%d;%d;%dm", (next->background >> 16) & 0xff,
 			    (next->background >> 8) & 0xff, next->background & 0xff);
 		else if (next->background >= 16)
-			cterm_respond_printf(cterm, "\033[48;5;%dm", next->background & 0xffff);
+			cterm_respond_printf(cterm, "\033[48;5;%um", (next->background & 0xffff) - offset);
 	}
 
 	if (next->font != prev->font)
@@ -1618,27 +1628,35 @@ cterm_ecma48_apply_sgr(struct cterminal *cterm, int *pi)
 			if (cterm->device.reset_style != NULL)
 				cterm_render_record_error(cterm, cterm->device.reset_style(cterm->device.context));
 			cterm->negative = false;
+			cterm->faint    = false;
 			cterm->attr     = cterm->screen.default_attribute;
 			cterm_render_attribute_colours(cterm, cterm->attr, &cterm->fg_color, &cterm->bg_color);
 			CTERM_FREE_AND_CLEAR(cterm->fg_tc_str);
 			CTERM_FREE_AND_CLEAR(cterm->bg_tc_str);
 			break;
 		case 1:
-			if (cterm->device.sgr_palette == NULL)
-				cterm->attr |= 8;
-			if (!(flags & ST_CONSOLE_VIDEO_NO_BRIGHT)) {
-				cterm_render_attribute_colours(cterm, cterm->attr, &cterm->fg_color, NULL);
-				CTERM_FREE_AND_CLEAR(cterm->fg_tc_str);
-			}
-			break;
 		case 2:
-			if (cterm->device.sgr_palette == NULL)
-				cterm->attr &= 247;
-			if (!(flags & ST_CONSOLE_VIDEO_NO_BRIGHT)) {
-				cterm_render_attribute_colours(cterm, cterm->attr, &cterm->fg_color, NULL);
-				CTERM_FREE_AND_CLEAR(cterm->fg_tc_str);
+		case 22:
+		{
+			bool was_faint = cterm->faint;
+			/* DECCARA starts with retained cell colours and no saved SGR string. */
+			bool standard = cterm->fg_color == cterm->screen.mode_palette[cterm->attr & 15]
+			    || cterm->fg_color == cterm->screen.mode_palette[cterm->attr & 7]
+			    || cterm->fg_color - cterm_faint_base(cterm) < 8;
+			unsigned intensity = (unsigned)cterm->seq_param_int[*pi];
+			cterm->faint = intensity == 2 && cterm->device.sgr_palette == NULL;
+			if (cterm->device.sgr_palette == NULL || intensity == 22) {
+				if (intensity == 1)
+					cterm->attr |= 8;
+				else
+					cterm->attr &= ~8u;
 			}
+			/* Explicit indexed and RGB foregrounds survive rendition changes. */
+			if (cterm->fg_tc_str == NULL && standard
+			    && (cterm->faint || was_faint || !(flags & ST_CONSOLE_VIDEO_NO_BRIGHT)))
+				cterm_rendition_colours(cterm, cterm->attr, &cterm->fg_color, NULL);
 			break;
+		}
 		case 4: /* Underscore */
 			break;
 		case 5:
@@ -1663,13 +1681,6 @@ cterm_ecma48_apply_sgr(struct cterminal *cterm, int *pi)
 			CTERM_FREE_AND_CLEAR(cterm->fg_tc_str);
 			if (cterm->bg_tc_str != NULL)
 				cterm->fg_tc_str = strdup(cterm->bg_tc_str);
-			break;
-		case 22:
-			cterm->attr &= 0xf7;
-			if (!(flags & ST_CONSOLE_VIDEO_NO_BRIGHT)) {
-				cterm_render_attribute_colours(cterm, cterm->attr, &cterm->fg_color, NULL);
-				CTERM_FREE_AND_CLEAR(cterm->fg_tc_str);
-			}
 			break;
 		case 25:
 			cterm->attr &= 0x7f;

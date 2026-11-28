@@ -178,6 +178,7 @@ st_cterm_rip3_ansi_reset(st_cterm_t *terminal, bool active)
 	terminal->fg_tc_str = terminal->bg_tc_str = NULL;
 	terminal->attr                            = 7;
 	terminal->negative                        = false;
+	terminal->faint                           = false;
 	terminal->cell_flags                      = 0;
 	cterm_render_attribute_colours(terminal, 7, &terminal->fg_color, &terminal->bg_color);
 	terminal->save_xpos = terminal->save_ypos = 1;
@@ -273,6 +274,7 @@ st_cterm_copy_window_state(st_cterm_t *destination, const st_cterm_t *source)
 	destination->bg_color            = source->bg_color;
 	destination->cell_flags          = source->cell_flags;
 	destination->negative            = source->negative;
+	destination->faint               = source->faint;
 	destination->extattr             = source->extattr;
 	destination->last_column_flag    = source->last_column_flag;
 	destination->saved_mode          = source->saved_mode;
@@ -290,6 +292,7 @@ st_cterm_copy_window_state(st_cterm_t *destination, const st_cterm_t *source)
 	destination->fetm                = source->fetm;
 	destination->ttm                 = source->ttm;
 	memcpy(destination->screen.mode_palette, source->screen.mode_palette, sizeof(source->screen.mode_palette));
+	memcpy(destination->screen.faint_defaults, source->screen.faint_defaults, sizeof(source->screen.faint_defaults));
 	memcpy(destination->screen.selectors, source->screen.selectors, sizeof(source->screen.selectors));
 	uint32_t video_flags;
 	status = st_console_get_video_flags(source->screen.console, &video_flags);

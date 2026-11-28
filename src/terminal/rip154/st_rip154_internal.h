@@ -30,6 +30,7 @@ struct st_rip154 {
 		bool                         cursor_visible;
 		enum st_console_cursor_shape cursor_shape;
 		uint8_t                      attr;
+		bool                         faint;
 		uint32_t                     foreground;
 		uint32_t                     background;
 	} rip_saved_text;

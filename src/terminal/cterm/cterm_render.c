@@ -137,6 +137,26 @@ cterm_render_attribute_colours(struct cterminal *cterm, uint8_t attribute, uint3
 	attribute_colours(cterm, attribute, (uint32_t)cterm_render_get_video_flags(cterm), foreground, background);
 }
 
+/* Swapping the red and blue bits converts between CGA and ANSI order in either direction. */
+const uint8_t cterm_ansi_colour_order[8] = {0, 4, 2, 6, 1, 5, 3, 7};
+
+uint32_t
+cterm_faint_base(const struct cterminal *cterm)
+{
+	return CTERM_FAINT_BASE + ((cterm->screen.capabilities & ST_CONSOLE_CAP_EXTENDED_PALETTE) ? 16 : 0);
+}
+
+void
+cterm_rendition_colours(struct cterminal *cterm, uint8_t attribute, uint32_t *foreground, uint32_t *background)
+{
+	if (cterm->faint && foreground != NULL) {
+		*foreground = cterm_faint_base(cterm) + cterm_ansi_colour_order[attribute & 7];
+		foreground = NULL;
+	}
+	if (foreground != NULL || background != NULL)
+		cterm_render_attribute_colours(cterm, attribute, foreground, background);
+}
+
 static uint16_t
 font_identifier(const struct cterminal *cterm, uint8_t selector)
 {
@@ -268,6 +288,11 @@ cterm_render_cell_attribute(struct cterminal *cterm, const struct st_console_cel
 			break;
 		}
 	}
+	uint32_t base = cterm_faint_base(cterm);
+	if (cell->foreground - base < 8)
+		foreground = cterm_ansi_colour_order[cell->foreground - base];
+	if (cell->background - base < 8)
+		background = cterm_ansi_colour_order[cell->background - base];
 	attribute = (uint8_t)((foreground & 7U) | ((background & 7U) << 4));
 	if ((cell->flags & (ST_CONSOLE_CELL_BRIGHT | ST_CONSOLE_CELL_CONCEAL)) != 0)
 		attribute |= 8U;
@@ -828,18 +853,14 @@ cterm_render_hold_update(const struct cterminal *cterm)
 	return cterm->screen.hold_update;
 }
 
-int
-cterm_render_default_palette(uint32_t entry, uint8_t *red, uint8_t *green, uint8_t *blue)
+uint32_t
+cterm_default_colour(uint16_t entry, bool yellow_is_yellow)
 {
 	uint32_t colour;
-
-	if (entry >= CTERM_PALETTE_SIZE || red == NULL || green == NULL || blue == NULL
-	    || st_console_get_default_palette((uint16_t)entry, &colour, 1) != 0)
-		return 0;
-	*red   = (uint8_t)(colour >> 16);
-	*green = (uint8_t)(colour >> 8);
-	*blue  = (uint8_t)colour;
-	return 1;
+	(void)st_console_get_default_palette(entry, &colour, 1);
+	if (yellow_is_yellow && entry == 3)
+		colour = (colour & 0xff00ff) | ((colour >> 8) & 0xff00);
+	return colour;
 }
 
 int

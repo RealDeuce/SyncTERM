@@ -900,7 +900,7 @@ set_attr(struct cterminal *cterm, unsigned char colour, bool bg)
 		cterm->attr &= 0xF8;
 		cterm->attr |= (colour & 0x07);
 	}
-	cterm_render_attribute_colours(cterm, cterm->attr, bg ? NULL : &cterm->fg_color,
+	cterm_rendition_colours(cterm, cterm->attr, bg ? NULL : &cterm->fg_color,
 	    bg ? &cterm->bg_color : NULL);
 	if (cterm->emulation == CTERM_EMULATION_PRESTEL || cterm->emulation == CTERM_EMULATION_BEEB) {
 		if (cterm->extattr & CTERM_EXTATTR_PRESTEL_DOUBLE_HEIGHT)
@@ -1644,22 +1644,12 @@ int
 cterm_resetpalette(struct cterminal *cterm, uint32_t entry)
 {
 	const uint32_t palette_offset = cterm->screen.capabilities & ST_CONSOLE_CAP_EXTENDED_PALETTE ? 16 : 0;
-	uint8_t        red;
-	uint8_t        green;
-	uint8_t        blue;
-
-	if (!cterm_render_default_palette(entry, &red, &green, &blue))
+	if (entry >= CTERM_PALETTE_SIZE)
 		return 0;
-	if (cterm->yellow_is_yellow && entry == 3) {
-		uint32_t defaults[3];
-		if (st_console_get_default_palette(0, defaults, 3) == 0) {
-			red   = (uint8_t)(defaults[1] >> 16);
-			green = (uint8_t)(defaults[2] >> 8);
-			blue  = (uint8_t)defaults[0];
-		}
-	}
-	return cterm_setpalette(cterm, entry + palette_offset, (uint16_t)red << 8 | red,
-	    (uint16_t)green << 8 | green, (uint16_t)blue << 8 | blue);
+	uint32_t rgb = entry >= CTERM_FAINT_BASE ? cterm->screen.faint_defaults[entry - CTERM_FAINT_BASE]
+	    : cterm_default_colour((uint16_t)entry, cterm->yellow_is_yellow);
+	return cterm_setpalette(cterm, entry + palette_offset, ((rgb >> 16) & 255) * 257,
+	    ((rgb >> 8) & 255) * 257, (rgb & 255) * 257);
 }
 
 void
@@ -1868,9 +1858,9 @@ void
 cterm_current_palette_colours(struct cterminal *cterm, uint32_t *fg, uint32_t *bg)
 {
 	if (cterm->negative)
-		cterm_render_attribute_colours(cterm, reversed_attribute(cterm), bg, fg);
+		cterm_rendition_colours(cterm, reversed_attribute(cterm), bg, fg);
 	else
-		cterm_render_attribute_colours(cterm, cterm->attr, fg, bg);
+		cterm_rendition_colours(cterm, cterm->attr, fg, bg);
 }
 
 /* ------------------------------------------------------------------------
@@ -2111,6 +2101,7 @@ cterm_reset(struct cterminal *cterm)
 	cterm->saved_mode      = 0;
 	cterm->saved_mode_mask = 0;
 	cterm->negative        = false;
+	cterm->faint           = false;
 	cterm->c64reversemode  = false;
 	switch (cterm->screen.mode) {
 		case CTERM_MODE_C64_40:
@@ -2160,20 +2151,19 @@ cterm_reset(struct cterminal *cterm)
 
 	cterm->atascii_inverse = false;
 
-	/* Set up a shadow palette */
-	if (cterm->screen.capabilities & ST_CONSOLE_CAP_EXTENDED_PALETTE) {
-		for (i = 0; i < CTERM_PALETTE_SIZE; i++)
-			(void)cterm_resetpalette(cterm, (uint32_t)i);
-		if (cterm->has_palette_override) {
-			uint32_t op[16];
-			cterm_render_get_modepalette(cterm, op);
-			for (i = 0; i < 16; i++) {
-				uint32_t c = cterm->palette_override[i];
-				cterm_setpalette(cterm, op[i] + 16,
-				    ((c & 0x00FF0000) >> 8) | ((c & 0x00FF0000) >> 16),
-				    ((c & 0x0000FF00)) | ((c & 0x0000FF00) >> 8),
-				    ((c & 0x000000FF) << 8) | ((c & 0x000000FF)));
-			}
+	/* The normal palette is shared with the UI on consoles without a shadow. */
+	bool shadow = (cterm->screen.capabilities & ST_CONSOLE_CAP_EXTENDED_PALETTE) != 0;
+	for (i = shadow ? 0 : CTERM_FAINT_BASE; i < CTERM_PALETTE_SIZE; ++i)
+		(void)cterm_resetpalette(cterm, (uint32_t)i);
+	if (shadow && cterm->has_palette_override) {
+		uint32_t op[16];
+		cterm_render_get_modepalette(cterm, op);
+		for (i = 0; i < 16; i++) {
+			uint32_t c = cterm->palette_override[i];
+			cterm_setpalette(cterm, op[i] + 16,
+			    ((c & 0x00FF0000) >> 8) | ((c & 0x00FF0000) >> 16),
+			    ((c & 0x0000FF00)) | ((c & 0x0000FF00) >> 8),
+			    ((c & 0x000000FF) << 8) | ((c & 0x000000FF)));
 		}
 	}
 

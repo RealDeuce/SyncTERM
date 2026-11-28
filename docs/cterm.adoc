@@ -1416,8 +1416,10 @@ supported:
 | 
 
 |2
-|Dim intensity (clears the bright attribute; equivalent to SGR 22
-in PC text mode since there is no distinct dim state)
+|Faint intensity. Standard ANSI foregrounds use palette entries 282–289
+in ANSI colour order. SGR 1 selects bright intensity and SGR 22 restores
+normal intensity. Explicit indexed and RGB foregrounds retain their
+chosen colour. SkyPix uses its own pens.
 | 
 |√
 | 
@@ -2535,7 +2537,8 @@ The least significant bit is the topmost pixel.
 |`#`
 |`p1`
 |Colour Select
-|Selects the current foreground colour from the	sixel palette.
+|Selects sixel register p1 as the current foreground colour. Register 0
+corresponds to OSC 4 index 290, register 1 to index 291, and so on.
 
 |`#`
 |`p1 ; p2 ; p3 ; p4 ; p5`
@@ -2676,12 +2679,19 @@ index `pX` in the form `OSC 4;pX;rgb:RR/GG/BB ST` where
 `RR`, `GG`, and `BB` are two hex digit colour values reflecting
 the 8-bit-per-channel storage precision.
 
+Entries 282–289 hold the faint versions of black, red, green, yellow,
+blue, magenta, cyan, and white. Each defaults to half of each RGB
+channel of the corresponding normal profile colour, rounded down.
+This includes the profile's brown or yellow choice. Each faint entry
+can then be redefined independently with OSC 4.
+
 SOURCE: <<XTerm>>
 
 === `OSC 104 [ ; Ps ... ] ST` Reset Palette Entry (`OSC 104`)
 Resets palette entry to default.  If the entire string
-is "104" (ie: no `Ps` present), resets all colours.  Otherwise, only each index
-separated by a semicolon is reset.
+is "104" (ie: no `Ps` present), resets entries 0–289. Otherwise,
+only the specified entries in that range are reset. Sixel registers retain
+their definitions.
 SOURCE: <<XTerm>>
 
 === `OSC 10 ; ? ST` Query Default Foreground Color (`OSC 10`)

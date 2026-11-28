@@ -174,7 +174,7 @@
     {"id": "DECCKSR", "source_line": 1820, "suite": "queries", "scope": "Empty and defined-macro CRC-16 with echoed request IDs"},
     {"id": "DECSTBMScroll", "source_line": 1831, "suite": "margins", "scope": "Expected cursor/cells or exact mode replies across margin/wrap transitions"},
     {"id": "DECSLRMScroll", "source_line": 1852, "suite": "margins", "scope": "Expected cursor/cells or exact mode replies across margin/wrap transitions"},
-    {"id": "SGRDim", "source_line": 1866, "suite": "attributes", "scope": "Logical RGB cell colours and rendered planes"},
+    {"id": "SGRDim", "source_line": 1866, "suite": "attributes", "scope": "Eight indexed faint colours, intensity changes, reverse video, explicit colours, palette edits and resets, and rendition reports"},
     {"id": "CR.2", "source_line": 1884, "suite": "movement", "scope": "Expected cursor coordinates; defaults, clamping and tab stops"},
     {"id": "LF.2", "source_line": 1896, "suite": "movement", "scope": "Expected cursor coordinates; defaults, clamping and tab stops"},
     {"id": "BS.2", "source_line": 1909, "suite": "movement", "scope": "Expected cursor coordinates; defaults, clamping and tab stops"},

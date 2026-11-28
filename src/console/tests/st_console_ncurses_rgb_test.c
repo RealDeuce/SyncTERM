@@ -187,6 +187,10 @@ test_sgr_palette(void)
 	if (foreground != 1 || background != 0 || writer.length != sizeof(eight) - 1
 	    || memcmp(writer.data, eight, sizeof(eight) - 1) != 0)
 		goto done;
+	/* Bit 3 in a faint palette index is not an intensity flag. */
+	cell.foreground = 283;
+	if ((cell_attributes(&state, &cell) & A_BOLD) != 0)
+		goto done;
 	state.sgr_direct = true;
 	cell.foreground  = ST_CONSOLE_COLOR_RGB_VALUE(128, 0, 0);
 	cell.background  = ST_CONSOLE_COLOR_RGB_VALUE(0, 0, 255);

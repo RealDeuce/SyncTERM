@@ -893,6 +893,7 @@ cterm_skypix_reset(struct cterm_skypix *s)
 	s->font                               = s->default_data;
 	s->custom                             = false;
 	s->terminal->attr                     = 2;
+	s->terminal->faint                    = false;
 	s->terminal->screen.default_attribute = 2;
 	cterm_render_attribute_colours(s->terminal, 2, &s->terminal->fg_color, &s->terminal->bg_color);
 	status            = palette(s, NULL);
