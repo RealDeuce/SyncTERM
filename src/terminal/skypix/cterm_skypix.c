@@ -76,19 +76,21 @@ static void
 set_pen(struct cterm_skypix *s, unsigned colour, bool background)
 {
 	struct cterminal *t = s->terminal;
-	background ^= t->negative;
-	/* Generic ANSI setters preserve the intensity/blink bits. Native
-	 * SkyPix pens instead own the complete four-bit palette index. */
 	if (background) {
-		t->attr = (uint8_t)((t->attr & 15) | ((colour & 15) << 4));
+		t->colour_rendition &= ~CTERM_COLOUR_FIXED_BG;
 		free(t->bg_tc_str);
 		t->bg_tc_str = NULL;
 	}
 	else {
-		t->attr = (uint8_t)((t->attr & 240) | (colour & 15));
+		t->colour_rendition &= ~CTERM_COLOUR_BRIGHT_FG;
 		free(t->fg_tc_str);
 		t->fg_tc_str = NULL;
 	}
+	/* A native SkyPix pen owns the complete four-bit palette index. */
+	if (background != t->negative)
+		t->attr = (uint8_t)((t->attr & 15) | ((colour & 15) << 4));
+	else
+		t->attr = (uint8_t)((t->attr & 240) | (colour & 15));
 	cterm_render_attribute_colours(t, t->attr, &t->fg_color, &t->bg_color);
 }
 
@@ -891,6 +893,7 @@ cterm_skypix_reset(struct cterm_skypix *s)
 	s->custom                             = false;
 	s->terminal->attr                     = 2;
 	s->terminal->faint                    = false;
+	s->terminal->colour_rendition = 0;
 	s->terminal->screen.default_attribute = 2;
 	cterm_render_attribute_colours(s->terminal, 2, &s->terminal->fg_color, &s->terminal->bg_color);
 	status            = palette(s, NULL);

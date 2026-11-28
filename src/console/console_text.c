@@ -30,6 +30,7 @@ style_cell_locked(const st_console_t *console, uint32_t codepoint, uint8_t *colu
 	    .font       = console->style.font,
 	    .glyph_font = glyph_font,
 	    .hyperlink  = console->style.hyperlink,
+	    .colour_rendition = console->style.colour_rendition,
 	};
 	if (columns != NULL)
 		*columns = resolved_columns;
@@ -46,6 +47,7 @@ style_cluster_locked(const st_console_t *console, const char *text, size_t text_
 	    .font       = console->style.font,
 	    .glyph_font = console->style.font,
 	    .hyperlink  = console->style.hyperlink,
+	    .colour_rendition = console->style.colour_rendition,
 	};
 
 	(void)st_console_font_lookup_cluster_locked((st_console_t *)console, cell.font, text, text_size, &columns,
@@ -328,6 +330,7 @@ place_glyph_locked(st_console_t *console, struct st_console_text_glyph *glyph)
 	    .flags      = console->style.flags,
 	    .font       = console->style.font,
 	    .hyperlink  = console->style.hyperlink,
+	    .colour_rendition = console->style.colour_rendition,
 	};
 	uint8_t columns = 1;
 	if (!st_console_font_lookup_cluster_locked(console, cell.font, glyph->text, glyph->size, &columns,
@@ -362,7 +365,7 @@ st_console_end_text_edit(struct st_console_text_edit *edit, const struct st_cons
 		const struct st_console_style *current = &console->style;
 		if (current->foreground != edit->style.foreground || current->background != edit->style.background
 		    || current->flags != edit->style.flags || current->font != edit->style.font
-		    || current->hyperlink != edit->style.hyperlink)
+		    || current->hyperlink != edit->style.hyperlink || current->colour_rendition != edit->style.colour_rendition)
 			console->style = edit->style;
 		bool changed = cursor != NULL && set_custom_cursor_locked(console, cursor);
 		if (glyph != NULL)
@@ -1054,6 +1057,7 @@ st_console_put_decode_error(st_console_t *console)
 	    .font       = console->style.font,
 	    .glyph_font = 0,
 	    .hyperlink  = console->style.hyperlink,
+	    .colour_rendition = console->style.colour_rendition,
 	};
 	right = console->window.x + console->window.width;
 	st_console_set_cell_locked(console, (size_t)console->cursor_y * console->columns + console->cursor_x,

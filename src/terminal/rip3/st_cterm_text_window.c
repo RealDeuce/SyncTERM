@@ -179,6 +179,7 @@ st_cterm_rip3_ansi_reset(st_cterm_t *terminal, bool active)
 	terminal->attr                            = 7;
 	terminal->negative                        = false;
 	terminal->faint                           = false;
+	terminal->colour_rendition = 0;
 	terminal->cell_flags                      = 0;
 	cterm_render_attribute_colours(terminal, 7, &terminal->fg_color, &terminal->bg_color);
 	terminal->save_xpos = terminal->save_ypos = 1;
@@ -275,6 +276,7 @@ st_cterm_copy_window_state(st_cterm_t *destination, const st_cterm_t *source)
 	destination->cell_flags          = source->cell_flags;
 	destination->negative            = source->negative;
 	destination->faint               = source->faint;
+	destination->colour_rendition    = source->colour_rendition;
 	destination->extattr             = source->extattr;
 	destination->last_column_flag    = source->last_column_flag;
 	destination->saved_mode          = source->saved_mode;

@@ -893,12 +893,18 @@ static void
 set_attr(struct cterminal *cterm, unsigned char colour, bool bg)
 {
 	if (bg) {
-		cterm->attr &= 0x8F;
-		cterm->attr |= ((colour & 0x07) << 4);
+		cterm->colour_rendition &= ~CTERM_COLOUR_FIXED_BG;
+		if (cterm->device.sgr_palette != NULL)
+			cterm->attr = (uint8_t)((cterm->attr & 15) | ((colour & 15) << 4));
+		else
+			cterm->attr = (uint8_t)((cterm->attr & 0x8f) | ((colour & 7) << 4));
 	}
 	else {
-		cterm->attr &= 0xF8;
-		cterm->attr |= (colour & 0x07);
+		cterm->colour_rendition &= ~CTERM_COLOUR_BRIGHT_FG;
+		if (cterm->device.sgr_palette != NULL)
+			cterm->attr = (uint8_t)((cterm->attr & 0xf0) | (colour & 15));
+		else
+			cterm->attr = (uint8_t)((cterm->attr & 0xf8) | (colour & 7));
 	}
 	cterm_rendition_colours(cterm, cterm->attr, bg ? NULL : &cterm->fg_color,
 	    bg ? &cterm->bg_color : NULL);
@@ -1828,7 +1834,7 @@ static uint8_t
 reversed_attribute(const struct cterminal *cterm)
 {
 	uint8_t attr = cterm->attr;
-	if (cterm->emulation == CTERM_EMULATION_ATARIST_VT52)
+	if (cterm->emulation == CTERM_EMULATION_ATARIST_VT52 || cterm->device.sgr_palette != NULL)
 		return (attr >> 4) | (attr << 4);
 
 	/* Blink and alternate-font selection keep their original flag bits. */
@@ -1857,10 +1863,13 @@ cterm_set_negative(struct cterminal *cterm, bool on)
 void
 cterm_current_palette_colours(struct cterminal *cterm, uint32_t *fg, uint32_t *bg)
 {
-	if (cterm->negative)
-		cterm_rendition_colours(cterm, reversed_attribute(cterm), bg, fg);
-	else
-		cterm_rendition_colours(cterm, cterm->attr, fg, bg);
+	uint32_t *logical_fg = cterm->negative ? bg : fg;
+	uint32_t *logical_bg = cterm->negative ? fg : bg;
+	if (logical_bg != NULL && (cterm->colour_rendition & CTERM_COLOUR_FIXED_BG)) {
+		*logical_bg = cterm->negative ? cterm->fg_color : cterm->bg_color;
+		logical_bg = NULL;
+	}
+	cterm_rendition_colours(cterm, cterm->negative ? reversed_attribute(cterm) : cterm->attr, logical_fg, logical_bg);
 }
 
 /* ------------------------------------------------------------------------
@@ -2081,6 +2090,7 @@ cterm_reset(struct cterminal *cterm)
 	cterm->cursor_style        = 0;
 	cterm->extattr             = CTERM_EXTATTR_AUTOWRAP | CTERM_EXTATTR_SXSCROLL | CTERM_EXTATTR_DECBKM;
 	cterm->cell_flags          = 0;
+	cterm->colour_rendition    = 0;
 	if (cterm->emulation == CTERM_EMULATION_PRESTEL || cterm->emulation == CTERM_EMULATION_BEEB)
 		cterm->cell_flags |= ST_CONSOLE_CELL_SAA5050;
 	if (cterm->emulation == CTERM_EMULATION_PRESTEL)

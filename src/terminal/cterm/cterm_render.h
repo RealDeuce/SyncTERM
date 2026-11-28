@@ -46,6 +46,14 @@ enum {
 	CTERM_COLOR_WHITE
 };
 
+static inline void
+cterm_swap_cell_colours(struct st_console_cell *cell)
+{
+	uint32_t foreground = cell->foreground;
+	cell->foreground = cell->background;
+	cell->background = foreground;
+}
+
 static inline unsigned
 cterm_sgr_font_position(uint32_t cell_flags)
 {

@@ -249,13 +249,14 @@ test_cell_and_regions(void)
 
 	_Static_assert(sizeof(struct st_console_cell) == 24, "cell ABI size");
 	_Static_assert(offsetof(struct st_console_cell, reserved) == 22, "cell ABI reserved offset");
-	source[0].reserved = UINT16_MAX;
+	source[0].reserved = UINT8_MAX;
+	source[0].colour_rendition = 3;
 	CHECK(st_console_size(console, &columns, &rows) == 0);
 	CHECK(columns == 70000 && rows == 2);
 	CHECK(st_console_write_cells(console, &rect, source, 2) == 0);
 	CHECK(st_console_read_cells(console, &rect, result, 3) == 0);
 	CHECK(result[0].glyph == 'a' && result[1].glyph == 'b');
-	CHECK(result[0].reserved == 0);
+	CHECK(result[0].colour_rendition == 3 && result[0].reserved == 0);
 	CHECK(result[3].glyph == 'c' && result[4].glyph == 'd');
 	CHECK((result[1].flags & ST_CONSOLE_CELL_SAA5050_CONTROL_MASK) == ST_CONSOLE_CELL_SAA5050_CONTROL(0x1d));
 	CHECK(result[1].glyph == 'b');

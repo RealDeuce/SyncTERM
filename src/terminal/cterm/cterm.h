@@ -126,6 +126,12 @@ struct cterm_device_events {
 };
 struct cterm_apc_state;
 
+/* Colour selection is independent of intensity and blink. */
+#define CTERM_COLOUR_BRIGHT_FG  1U
+#define CTERM_COLOUR_FIXED_BG   2U
+#define CTERM_COLOUR_FAINT      4U
+#define CTERM_COLOUR_REVERSED   8U
+
 struct cterminal {
 	/* Rendering state */
 	struct cterm_render_state screen;
@@ -236,6 +242,7 @@ struct cterminal {
 	uint32_t     fg_color;
 	uint32_t     bg_color;
 	uint32_t     cell_flags;
+	uint8_t      colour_rendition;
 	uint32_t     default_fg_palette;
 	uint32_t     default_bg_palette;
 	unsigned int extattr;   // Extended attributes

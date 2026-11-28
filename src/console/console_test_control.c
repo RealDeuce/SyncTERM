@@ -228,7 +228,7 @@ encode_capture(struct test_bytes *b, const struct st_console_test_capture *c)
 		put32(b, cell->background);
 		put32(b, cell->flags);
 		put32(b, (uint32_t)cell->font | (uint32_t)cell->glyph_font << 16);
-		put32(b, (uint32_t)cell->hyperlink | (uint32_t)cell->reserved << 16);
+		put32(b, (uint32_t)cell->hyperlink | (uint32_t)cell->colour_rendition << 24);
 	}
 	end_section(b, start);
 	words(b, 3, c->palette, UINT16_MAX + 1U);

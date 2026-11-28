@@ -430,6 +430,71 @@ def attributes(t):
             assert len(pixels) == 1, (name, pixels)
         else:
             assert len(pixels) == 2, (name, pixels)
+    bright_backgrounds = (0x545454, 0xff5454, 0x54ff54, 0xffff54,
+                          0x5454ff, 0xff54ff, 0x54ffff, 0xffffff)
+    normal_colours = (0, 0xa80000, 0x00a800, 0xa85400, 0x0000a8, 0xa800a8, 0x00a8a8, 0xa8a8a8)
+    for mode in (b"\x1b[?32l", b"\x1b[?32h"):
+        stream = bytearray(mode)
+        for sgr in range(90, 98):
+            stream.extend(f"\x1b[0;{sgr}mX\x1b[1mX\x1b[2mX\x1b[2;{sgr}mX\x1b[22mX".encode())
+        frame = t.check("SGRBright", stream)
+        for x in range(40):
+            cell = cell_at(frame, x, 0)
+            bank = normal_colours if x % 5 in (2, 3) else bright_backgrounds
+            assert colour(frame, cell) == bank[x // 5], (mode, x, cell)
+            assert bool(cell.flags & (1 << 22)) == (x % 5 == 1)
+            assert set(tile(frame, x + 1)) == {cell.foreground, cell.background}
+    t.exchange(b"\x1b[?32l")
+    query = ESC + b"P$qm" + ST
+    t.check("SGRBright", b"\x1b[2;91m" + query + b"\x1b[22m" + query,
+            expected=ESC + b"P1$r0;2;91m" + ST + ESC + b"P1$r0;91m" + ST)
+    for mode in (b"\x1b[?33l", b"\x1b[?33h"):
+        stream = bytearray(mode)
+        for sgr in range(100, 108):
+            stream.extend(f"\x1b[0;{sgr}mX\x1b[5mX\x1b[6;{sgr}mX\x1b[25mX".encode())
+        frame = t.check("SGRBrightBG", stream)
+        for x in range(32):
+            cell = cell_at(frame, x, 0)
+            assert colour(frame, cell, True) == bright_backgrounds[x // 4], (mode, x, cell)
+            assert colour(frame, cell) == 0xa8a8a8
+            assert bool(cell.flags & 2) == (x % 4 in (1, 2))
+            assert bool(cell.flags & (1 << 25)) == (x % 4 == 2)
+            assert set(tile(frame, x + 1)) == {cell.foreground, cell.background}
+            if x % 4 in (0, 3):
+                assert tile(frame, x + 1) == tile(frame, x + 1, alternate=True)
+    frame = t.check("SGRBrightBG", b"\x1b[?33h\x1b[5;101m\x1b[?33s\x1b[?33lX"
+                    b"\x1b[?33u\x1b[25mX\x1b[7mX\x1b[27m" + ESC + b"P$qm" + ST
+                    + b"\x1b[41mX\x1b[102;49mX\x1b[103;0mX",
+                    expected=ESC + b"P1$r0;101m" + ST)
+    assert [colour(frame, cell_at(frame, x, 0), True) for x in range(6)] == [
+        0xff5454, 0xff5454, 0xa8a8a8, 0xa80000, 0, 0]
+    assert colour(frame, cell_at(frame, 2, 0)) == 0xff5454
+    # Rectangular blink edits must distinguish two visually identical backgrounds.
+    frame = t.check("SGRBrightBG", b"\x1b[?33h\x1b[5;101mA\x1b[41mB\x1b[101mC"
+                    b"\x1b[1;1;1;2;25$r\x1b[1;3;1;3;5$t")
+    assert [colour(frame, cell_at(frame, x, 0), True) for x in range(3)] == [0xff5454, 0xa80000, 0xff5454]
+    assert all(not (cell_at(frame, x, 0).flags & 2) for x in range(3))
+    frame = t.check("SGRBrightBG", b"\x1b[102m\x1b[2K" + ESC + b"]4;10;rgb:12/34/56" + ST)
+    assert all(colour(frame, cell_at(frame, x, 0), True) == 0x123456 for x in (0, 79))
+    assert set(tile(frame)) == set(tile(frame, 80)) == {cell_at(frame, 0, 0).background}
+    t.exchange(ESC + b"]104;10" + ST)
+    t.check("SGRBrightBG", b"\x1bF\x1b[91;101mA\x1b[31;41mB\x1bS",
+            expected=ESC + b"XCTerm:STS:0:\x1b[91;101mA\x1b[31;41mB" + ST)
+    frame = t.check("SGRBright", b"\x1b[2;91mAB\x1b[1;1;1;1;22$r\x1b[1;2;1;2;1$t")
+    assert [colour(frame, cell_at(frame, x, 0)) for x in (0, 1)] == [0xff5454, 0xff5454]
+    assert [bool(cell_at(frame, x, 0).flags & (1 << 22)) for x in (0, 1)] == [False, True]
+    t.check("SGRBright", b"\x1bF\x1b[2;91mA\x1b[22mB\x1bS",
+            expected=ESC + b"XCTerm:STS:0:\x1b[2;91mA\x1b[0;91;40mB" + ST)
+    frame = t.check("SGRBright", b"\x1b[2;91;104;7mAB\x1b[1;1;1;1;22$r")
+    assert [colour(frame, cell_at(frame, x, 0)) for x in (0, 1)] == [0x5454ff] * 2
+    assert [colour(frame, cell_at(frame, x, 0), True) for x in (0, 1)] == [0xff5454, 0xa80000]
+    # Only the intensity and blink attributes select the legacy alternate fonts.
+    frame = t.check("SGRBright", b"\x1b[0;0 D\x1b[1;1 D\x1b[2;2 D\x1b[?31;34h"
+                    b"A\x1b[91;101mB\x1b[1mC\x1b[92mD\x1b[22;5mE\x1b[102mF\x1b[25mG")
+    fonts = [cell_at(frame, x, 0).font for x in range(7)]
+    assert len({fonts[0], fonts[2], fonts[4]}) == 3
+    assert fonts == [fonts[0], fonts[0], fonts[2], fonts[2], fonts[4], fonts[4], fonts[0]]
+    t.exchange(b"\x1b[?31;34l")
     hidden_text = "界".encode() if t.encoding == "UTF-8" else b"XY"
     query = ESC + b"P$qm" + ST
     frame = t.check("SGRConceal", b"L\x1b[8m" + query + b"X\x1b[32;44;7;4;6m" + hidden_text
@@ -592,10 +657,10 @@ def attributes(t):
     frame = t.check("SGRDim", stream + ESC + b"P$qm" + ST, (19, 1),
                     ((1, 1, "XXXXXXXXABCDEFGHIJ"),), expected=ESC + b"P1$r0;2;32m" + ST)
     faint = [0, 0x540000, 0x005400, 0x542a00, 0x000054, 0x540054, 0x005454, 0x545454]
-    for x, fg in enumerate(faint + [0x542a00, 0xffff54, 0xa85400, 0, 0xffff54,
+    for x, fg in enumerate(faint + [0x542a00, 0xffff54, 0xa85400, 0, 0xa85400,
                                     0xff0000, 0xff0000, 0x0c2238, 0x0c2238, 0x005400]):
         cell = cell_at(frame, x, 0)
-        assert colour(frame, cell) == fg and colour(frame, cell, True) == (0x542a00 if x == 11 else 0)
+        assert colour(frame, cell) == fg and colour(frame, cell, True) == (0x542a00 if x == 11 else 0), (x, hex(fg), hex(colour(frame, cell)), hex(colour(frame, cell, True)))
         assert set(tile(frame, x+1, 1)) == {cell.foreground, cell.background}
     frame = t.exchange(ESC + b"]4;285;rgb:12/34/56" + ST + ESC + b"]4;285;?" + ST,
                        expected=ESC + b"]4;285;rgb:12/34/56" + ST)
@@ -761,12 +826,13 @@ def queries(t):
     # CTerm's documented checksum uses modern cells, not the DEC glyph sum.
     # Compute the CRC independently over the capture's serialized cell ABI.
     t.case("DECRQCRA")
-    frame = t.exchange(b"X", reset=True)
-    c = cell_at(frame, 0, 0)
-    raw = struct.pack("=IIIIHHHH", c.glyph, c.foreground, c.background, c.flags,
-                      c.font, c.glyph_font, c.hyperlink, c.reserved)
-    crc = binascii.crc_hqx(raw, 0)
-    t.exchange(ESC + b"[17;1;1;1;1;1*y", f"\x1bP17!~{crc:04X}\x1b\\".encode())
+    for text in (b"X", b"\x1b[2;91;104mX"):
+        frame = t.exchange(text, reset=True)
+        c = cell_at(frame, 0, 0)
+        raw = struct.pack("=IIIIHHHBB", c.glyph, c.foreground, c.background, c.flags,
+                          c.font, c.glyph_font, c.hyperlink, c.reserved, c.colour_rendition)
+        crc = binascii.crc_hqx(raw, 0)
+        t.exchange(ESC + b"[17;1;1;1;1;1*y", f"\x1bP17!~{crc:04X}\x1b\\".encode())
 
 
 def sixel_bounds(t):

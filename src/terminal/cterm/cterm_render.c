@@ -149,6 +149,10 @@ cterm_faint_base(const struct cterminal *cterm)
 void
 cterm_rendition_colours(struct cterminal *cterm, uint8_t attribute, uint32_t *foreground, uint32_t *background)
 {
+	if (foreground != NULL && (cterm->colour_rendition & CTERM_COLOUR_BRIGHT_FG)) {
+		*foreground = cterm->screen.mode_palette[(attribute & 7) + (cterm->faint ? 0 : 8)];
+		foreground = NULL;
+	}
 	if (cterm->faint && foreground != NULL) {
 		*foreground = cterm_faint_base(cterm) + cterm_ansi_colour_order[attribute & 7];
 		foreground = NULL;
@@ -252,6 +256,7 @@ cterm_render_make_cell(struct cterminal *cterm, struct st_console_cell *cell, ui
 	    .foreground = foreground,
 	    .background = background,
 	    .flags      = attribute_flags(cterm, attribute, flags),
+	    .colour_rendition = cterm->colour_rendition,
 	    .font       = selected,
 	    .glyph_font = selected,
 	    .hyperlink  = hyperlink,
@@ -280,8 +285,10 @@ cterm_render_restyle_cell(struct cterminal *cterm, struct st_console_cell *cell,
 		cell->flags      = attribute_flags(cterm, attribute, flags);
 	}
 	else {
+		uint8_t rendition = cell->colour_rendition;
 		cterm_render_make_cell(cterm, cell, cterm_render_cell_byte(cterm, cell), attribute,
 		    foreground, background, selector, cell->hyperlink, flags);
+		cell->colour_rendition = rendition;
 	}
 }
 
@@ -332,7 +339,7 @@ cterm_render_cell_attribute(struct cterminal *cterm, const struct st_console_cel
 			break;
 		}
 	}
-	for (size_t i = 0; i < 8; ++i) {
+	for (size_t i = 0; i < 16; ++i) {
 		if (cterm->screen.mode_palette[i] == cell->background) {
 			background = (uint32_t)i;
 			break;
@@ -474,6 +481,7 @@ static void
 set_colours(const struct cterminal *cterm, struct st_console_style *style, uint32_t foreground,
     uint32_t background)
 {
+	style->colour_rendition = cterm->colour_rendition;
 	style->foreground = foreground;
 	style->background = background;
 	style->flags &= ~(ST_CONSOLE_CELL_SAA5050 | ST_CONSOLE_CELL_DOUBLE_HEIGHT | ST_CONSOLE_CELL_SEPARATED
@@ -547,6 +555,7 @@ cterm_render_prepare_text(struct cterminal *cterm, struct st_console_style *styl
 	    || screen->prepared_text.cell_flags != cterm->cell_flags
 	    || screen->prepared_text.reveal != screen->prestel_reveal
 	    || screen->prepared_text.device_colours != device_colours || cached->font != font
+	    || cached->colour_rendition != cterm->colour_rendition
 	    || cached->hyperlink != screen->current_hyperlink || cached->foreground != cterm->fg_color
 	    || cached->background != cterm->bg_color) {
 		cached->flags = attribute_flags(cterm, cterm->attr, cterm->cell_flags);

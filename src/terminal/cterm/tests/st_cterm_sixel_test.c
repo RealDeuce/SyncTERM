@@ -102,6 +102,9 @@ palette_banks(struct fixture *f)
 	uint16_t offset = (f->terminal->screen.capabilities & ST_CONSOLE_CAP_EXTENDED_PALETTE) ? 16 : 0;
 	uint32_t colours[10];
 	reset(f);
+	text(f, "\x1b[101m\x1bP7;0q$");
+	CHECK(f->terminal->sx_bg == 9U + offset);
+	text(f, "\x1b\\\x1b[40m");
 	text(f, "\033]4;282;rgb:12/34/56;289;rgb:65/43/21\033\\");
 	text(f, "\033P7;1q#0;2;100;0;0#1;2;0;0;100\033\\");
 	CHECK(st_console_get_palette(f->console, 282 + offset, colours, 10) == 0);

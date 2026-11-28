@@ -21,6 +21,7 @@ struct st_cterm_window_definition {
 	int                              cursor, cursor_style, visible_cursor, fetm, ttm;
 	unsigned char                    attr;
 	bool                             negative, faint, default_tabs;
+	uint8_t                          colour_rendition;
 	uint32_t                         fg_color, bg_color, cell_flags, extattr, last_column_flag, video_flags;
 	int32_t                          saved_mode, saved_mode_mask;
 	uint8_t                          decsace, g0_designation, g1_designation;
@@ -117,6 +118,7 @@ create_definition(struct st_cterm_window_definition **result, const st_cterm_t *
 	d->fg_color            = source->fg_color;
 	d->bg_color            = source->bg_color;
 	d->cell_flags          = source->cell_flags;
+	d->colour_rendition    = source->colour_rendition;
 	d->extattr             = source->extattr;
 	d->last_column_flag    = source->last_column_flag;
 	d->saved_mode          = source->saved_mode;
@@ -289,6 +291,7 @@ restore_definition(st_cterm_t *destination, const struct st_cterm_window_definit
 	destination->fg_color            = d->fg_color;
 	destination->bg_color            = d->bg_color;
 	destination->cell_flags          = d->cell_flags;
+	destination->colour_rendition    = d->colour_rendition;
 	destination->extattr             = d->extattr;
 	if (d->ansi)
 		cterm_coord_conv_xy(destination, CTERM_COORD_ABSTERM, CTERM_COORD_CURR, &destination->save_xpos,

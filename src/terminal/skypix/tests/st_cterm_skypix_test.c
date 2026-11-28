@@ -294,6 +294,13 @@ depth_tests(struct cterm_skypix *sky)
 		CHECK(cterm_skypix_feed(sky, mode + split, strlen(mode) - split, &used) == 0);
 		CHECK(sky->colours == 16 && t->attr == 2);
 	}
+	feed(sky, "\x1b[101;6;25m");
+	CHECK(t->attr == 0xb2 && t->bg_color == 523);
+	feed(sky, "\x1b[41m");
+	CHECK(t->attr == 0x32 && t->bg_color == 515);
+	feed(sky, "\x1b[91;22m");
+	CHECK(t->attr == 0x3b && t->fg_color == 523);
+	feed(sky, "\x1b[0m");
 	uint32_t colours[16];
 	CHECK(st_console_get_palette(t->screen.console, 512, colours, 16) == 0);
 	CHECK(memcmp(colours, expected, sizeof(expected)) == 0);

@@ -399,6 +399,7 @@ rip_save_text_window(st_cterm_t *terminal)
 	device(terminal)->rip_saved_text.cursor_shape   = shape;
 	device(terminal)->rip_saved_text.attr           = terminal->attr;
 	device(terminal)->rip_saved_text.faint          = terminal->faint;
+	device(terminal)->rip_saved_text.colour_rendition = terminal->colour_rendition;
 	device(terminal)->rip_saved_text.foreground     = terminal->fg_color;
 	device(terminal)->rip_saved_text.background     = terminal->bg_color;
 	return 0;
@@ -453,6 +454,7 @@ rip_restore_text_window(st_cterm_t *terminal)
 	raster->y          = device(terminal)->rip_saved_text.y;
 	terminal->attr     = device(terminal)->rip_saved_text.attr;
 	terminal->faint    = device(terminal)->rip_saved_text.faint;
+	terminal->colour_rendition = device(terminal)->rip_saved_text.colour_rendition;
 	terminal->fg_color = device(terminal)->rip_saved_text.foreground;
 	terminal->bg_color = device(terminal)->rip_saved_text.background;
 	cterm_render_set_attribute(terminal, terminal->attr);
@@ -1454,6 +1456,7 @@ rip_transfer_rejected:
 			terminal->extattr |= CTERM_EXTATTR_ORIGINMODE | CTERM_EXTATTR_AUTOWRAP;
 			terminal->attr     = 15;
 			terminal->faint    = false;
+			terminal->colour_rendition = 0;
 			terminal->fg_color = raster->palette[15];
 			terminal->bg_color = raster->palette[0];
 			cterm_apply_window(terminal);

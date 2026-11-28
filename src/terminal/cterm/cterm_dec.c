@@ -354,6 +354,7 @@ cterm_handle_deccara(struct cterminal *cterm, int *speed) /* CSI Pt;Pl;Pb;Pr;...
 		bool                    save_neg   = cterm->negative;
 		bool                    save_faint = cterm->faint;
 		uint32_t                save_flags = cterm->cell_flags;
+		uint8_t                 save_colours = cterm->colour_rendition;
 		char                   *save_fg_tc = cterm->fg_tc_str ? strdup(cterm->fg_tc_str) : NULL;
 		char                   *save_bg_tc = cterm->bg_tc_str ? strdup(cterm->bg_tc_str) : NULL;
 		struct st_console_cell *rowbuf;
@@ -386,11 +387,14 @@ cterm_handle_deccara(struct cterminal *cterm, int *speed) /* CSI Pt;Pl;Pb;Pr;...
 					                    & ~(ST_CONSOLE_CELL_BRIGHT | ST_CONSOLE_CELL_BLINK
 					                        | ST_CONSOLE_CELL_LEGACY_FOREGROUND
 					                        | ST_CONSOLE_CELL_LEGACY_BACKGROUND);
-					cterm->negative   = false;
-					cterm->faint      = rowbuf[c].foreground - cterm_faint_base(cterm) < 8;
+					cterm->negative   = (rowbuf[c].colour_rendition & CTERM_COLOUR_REVERSED) != 0;
+					cterm->colour_rendition = rowbuf[c].colour_rendition;
+					cterm->faint      = (cterm->colour_rendition & CTERM_COLOUR_FAINT) != 0
+					    || rowbuf[c].foreground - cterm_faint_base(cterm) < 8;
 					CTERM_FREE_AND_CLEAR(cterm->fg_tc_str);
 					CTERM_FREE_AND_CLEAR(cterm->bg_tc_str);
 					cterm_apply_sgr(cterm, 4);
+					rowbuf[c].colour_rendition = cterm->colour_rendition;
 					cterm_render_restyle_cell(cterm, &rowbuf[c], cterm->attr,
 					    cterm->fg_color, cterm->bg_color, cterm->cell_flags);
 				}
@@ -404,11 +408,22 @@ cterm_handle_deccara(struct cterminal *cterm, int *speed) /* CSI Pt;Pl;Pb;Pr;...
 		cterm->fg_color   = save_fg;
 		cterm->bg_color   = save_bg;
 		cterm->cell_flags = save_flags;
+		cterm->colour_rendition = save_colours;
 		cterm->negative   = save_neg;
 		cterm->faint      = save_faint;
 		cterm->fg_tc_str  = save_fg_tc;
 		cterm->bg_tc_str  = save_bg_tc;
 	}
+}
+
+static void
+apply_cell_intensity(struct cterminal *cterm, struct st_console_cell *cell, uint8_t attribute)
+{
+	cell->colour_rendition &= ~CTERM_COLOUR_FAINT;
+	if (cell->colour_rendition & CTERM_COLOUR_BRIGHT_FG)
+		cell->foreground = cterm->screen.mode_palette[(attribute & 7) + 8];
+	else
+		cterm_render_attribute_colours(cterm, attribute, &cell->foreground, NULL);
 }
 
 void
@@ -467,6 +482,8 @@ cterm_handle_decrara(struct cterminal *cterm, int *speed) /* CSI Pt;Pl;Pb;Pr;...
 		cterm_render_read_cells(cterm, c_start, r, c_end, r, rowbuf);
 		int cnt = c_end - c_start + 1;
 		for (int c = 0; c < cnt; c++) {
+			if (rowbuf[c].colour_rendition & CTERM_COLOUR_REVERSED)
+				cterm_swap_cell_colours(&rowbuf[c]);
 			uint8_t attribute = cterm_render_cell_attribute(cterm, &rowbuf[c]);
 			for (int p = 4; p < cterm->seq_param_count; p++) {
 				cterm_seq_default(cterm, p, 0);
@@ -475,15 +492,11 @@ cterm_handle_decrara(struct cterminal *cterm, int *speed) /* CSI Pt;Pl;Pb;Pr;...
 						rowbuf[c].flags ^= ST_CONSOLE_CELL_CONCEAL | ST_CONSOLE_CELL_STRIKETHROUGH | ST_CONSOLE_CELL_OVERLINE;
 						rowbuf[c].flags &= ~ST_CONSOLE_CELL_FAST_BLINK;
 						attribute ^= 0x88;
-						cterm_render_attribute_colours(cterm, attribute,
-						    &rowbuf[c].foreground, NULL);
-						cterm_render_attribute_colours(cterm, attribute, NULL,
-						    &rowbuf[c].background);
-						{
-							uint32_t tfg         = rowbuf[c].foreground;
-							rowbuf[c].foreground = rowbuf[c].background;
-							rowbuf[c].background = tfg;
-						}
+						apply_cell_intensity(cterm, &rowbuf[c], attribute);
+						if (!(rowbuf[c].colour_rendition & CTERM_COLOUR_FIXED_BG))
+							cterm_render_attribute_colours(cterm, attribute, NULL,
+							    &rowbuf[c].background);
+						rowbuf[c].colour_rendition ^= CTERM_COLOUR_REVERSED;
 						/* fall through to toggle underline */
 					case 4:
 					case 21:
@@ -497,8 +510,7 @@ cterm_handle_decrara(struct cterminal *cterm, int *speed) /* CSI Pt;Pl;Pb;Pr;...
 					case 1:
 					case 22:
 						attribute ^= 0x08;
-						cterm_render_attribute_colours(cterm, attribute,
-						    &rowbuf[c].foreground, NULL);
+						apply_cell_intensity(cterm, &rowbuf[c], attribute);
 						break;
 					case 8:
 					case 28:
@@ -519,23 +531,18 @@ cterm_handle_decrara(struct cterminal *cterm, int *speed) /* CSI Pt;Pl;Pb;Pr;...
 						if (!(attribute & 0x80) && cterm->seq_param_int[p] == 6)
 							rowbuf[c].flags |= ST_CONSOLE_CELL_FAST_BLINK;
 						attribute ^= 0x80;
-						cterm_render_attribute_colours(cterm, attribute, NULL,
-						    &rowbuf[c].background);
+						if (!(rowbuf[c].colour_rendition & CTERM_COLOUR_FIXED_BG))
+							cterm_render_attribute_colours(cterm, attribute, NULL,
+							    &rowbuf[c].background);
 						break;
 					case 7:
 					case 27:
-					{
-						uint8_t a            = attribute;
-						uint8_t fg_nibble    = a & 0x0f;
-						uint8_t bg_nibble    = (a >> 4) & 0x0f;
-						attribute            = (fg_nibble << 4) | bg_nibble;
-						uint32_t tfg         = rowbuf[c].foreground;
-						rowbuf[c].foreground = rowbuf[c].background;
-						rowbuf[c].background = tfg;
+						rowbuf[c].colour_rendition ^= CTERM_COLOUR_REVERSED;
 						break;
-					}
 				}
 			}
+			if (rowbuf[c].colour_rendition & CTERM_COLOUR_REVERSED)
+				cterm_swap_cell_colours(&rowbuf[c]);
 			cterm_render_restyle_cell(cterm, &rowbuf[c], attribute, rowbuf[c].foreground, rowbuf[c].background,
 			    rowbuf[c].flags
 			        & ~(ST_CONSOLE_CELL_BRIGHT | ST_CONSOLE_CELL_BLINK
@@ -947,8 +954,8 @@ cterm_handle_restore_dec_modes(struct cterminal *cterm, int *speed) /* CSI ? u *
 	(void)speed;
 	flags = cterm_render_get_video_flags(cterm);
 	cterm_current_palette_colours(cterm, &oldfg, &oldbg);
-	updfg = (oldfg == cterm->fg_color);
-	updbg = (oldbg == cterm->bg_color);
+	updfg = oldfg == cterm->fg_color && (cterm->negative ? cterm->bg_tc_str : cterm->fg_tc_str) == NULL;
+	updbg = oldbg == cterm->bg_color && (cterm->negative ? cterm->fg_tc_str : cterm->bg_tc_str) == NULL;
 	if (cterm->seq_param_count == 0) {
 		restore_origin_mode(cterm);
 		if (cterm->saved_mode_mask & CTERM_SAVEMODE_AUTOWRAP) {
@@ -1209,18 +1216,6 @@ finish:
 		cterm_current_palette_colours(cterm, updfg ? &cterm->fg_color : NULL,
 		    updbg ? &cterm->bg_color : NULL);
 		cterm_render_set_colours(cterm, cterm->fg_color, cterm->bg_color);
-		if (updfg) {
-			if (cterm->negative)
-				CTERM_FREE_AND_CLEAR(cterm->bg_tc_str);
-			else
-				CTERM_FREE_AND_CLEAR(cterm->fg_tc_str);
-		}
-		if (updbg) {
-			if (cterm->negative)
-				CTERM_FREE_AND_CLEAR(cterm->fg_tc_str);
-			else
-				CTERM_FREE_AND_CLEAR(cterm->bg_tc_str);
-		}
 	}
 }
 
@@ -2215,7 +2210,8 @@ cterm_parse_sixel_intro(struct cterminal *cterm)
 			cterm_dec_sixel_cancel(cterm);
 			return;
 		}
-		cterm_current_palette_colours(cterm, &cterm->sx_fg, &cterm->sx_bg);
+		cterm->sx_fg = cterm->fg_color;
+		cterm->sx_bg = cterm->bg_color;
 		if (cterm->extattr & CTERM_EXTATTR_SXSCROLL) {
 			TERM_XY(&cterm->sx_start_x, &cterm->sx_start_y);
 			cterm->sx_left = cterm->sx_x = (cterm->sx_start_x - 1) * cell_width;
@@ -2410,13 +2406,13 @@ cterm_dec_dcs_finish(struct cterminal *cterm)
 			case 'm':
 				if (cterm->strbuf[3] == 0) {
 					strcpy(tmp, "\x1bP1$r0");
-					if (cterm->attr & 8)
+					if ((cterm->attr & 8) && cterm->device.sgr_palette == NULL)
 						strcat(tmp, ";1");
 					else if (cterm->faint)
 						strcat(tmp, ";2");
 					if (cterm->cell_flags & ST_CONSOLE_CELL_UNDERLINE_MASK)
 						strcat(tmp, (cterm->cell_flags & ST_CONSOLE_CELL_DOUBLE_UNDERLINE) ? ";21" : ";4");
-					if (cterm->attr & 128)
+					if ((cterm->attr & 128) && cterm->device.sgr_palette == NULL)
 						strcat(tmp, (cterm->cell_flags & ST_CONSOLE_CELL_FAST_BLINK) ? ";6" : ";5");
 					if (cterm->negative)
 						strcat(tmp, ";7");

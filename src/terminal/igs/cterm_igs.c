@@ -2906,6 +2906,7 @@ cterm_igs_set_resolution(struct cterm_igs *igs, unsigned resolution)
 	t->escbuf[0]                          = 0;
 	t->negative                           = false;
 	t->faint                              = false;
+	t->colour_rendition = 0;
 	t->attr                               = 15;
 	cterm_vt52_reset_console(t);
 	CTERM_FREE_AND_CLEAR(t->fg_tc_str);

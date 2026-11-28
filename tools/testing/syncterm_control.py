@@ -81,6 +81,7 @@ class Cell:
     glyph_font: int
     hyperlink: int
     reserved: int
+    colour_rendition: int = 0
 
 
 def words(data):
@@ -120,7 +121,7 @@ class Snapshot:
         self.title, self.clipboard, self.url = host.string(), host.string(), host.string()
         host.end()
         m = self.metadata
-        if (len(self._cell_data) != m["columns"] * m["rows"] * struct.calcsize("<IIIIHHHH") or len(self.palette) != 65536
+        if (len(self._cell_data) != m["columns"] * m["rows"] * struct.calcsize("<IIIIHHHBB") or len(self.palette) != 65536
                 or len(self.primary) != m["plane_width"] * m["plane_height"]
                 or len(self.alternate) != len(self.primary)
                 or (self.fast_blink is not None and len(self.fast_blink) != (len(self.primary) + 7) // 8)
@@ -130,7 +131,7 @@ class Snapshot:
     @property
     def cells(self):
         if self._cells is None:
-            self._cells = tuple(Cell(*values) for values in struct.iter_unpack("<IIIIHHHH", self._cell_data))
+            self._cells = tuple(Cell(*values) for values in struct.iter_unpack("<IIIIHHHBB", self._cell_data))
         return self._cells
 
     def cell_text(self, cell):

@@ -1741,10 +1741,14 @@ across the full cell width. Either underline style can be active at the same tim
 |End overline.
 | | | | | |
 
+|90
+|Bright Black foreground
+| | |√ | |√ |
+
 |91
 |Bright Red foreground
 | 
-|√
+|
 |√
 | 
 |√
@@ -1753,7 +1757,7 @@ across the full cell width. Either underline style can be active at the same tim
 |92
 |Bright Green foreground
 | 
-|√
+|
 |√
 | 
 |√
@@ -1762,7 +1766,7 @@ across the full cell width. Either underline style can be active at the same tim
 |93
 |Bright Yellow foreground
 | 
-|√
+|
 |√
 | 
 |√
@@ -1771,7 +1775,7 @@ across the full cell width. Either underline style can be active at the same tim
 |94
 |Bright Blue foreground
 | 
-|√
+|
 |√
 | 
 |√
@@ -1780,7 +1784,7 @@ across the full cell width. Either underline style can be active at the same tim
 |95
 |Bright Magenta foreground
 | 
-|√
+|
 |√
 | 
 |√
@@ -1789,7 +1793,7 @@ across the full cell width. Either underline style can be active at the same tim
 |96
 |Bright Cyan foreground
 | 
-|√
+|
 |√
 | 
 |√
@@ -1798,7 +1802,7 @@ across the full cell width. Either underline style can be active at the same tim
 |97
 |Bright White foreground
 | 
-|√
+|
 |√
 | 
 |√
@@ -1806,7 +1810,7 @@ across the full cell width. Either underline style can be active at the same tim
 
 |100
 |Bright Black background
-|√
+|
 | 
 | 
 |√
@@ -1815,7 +1819,7 @@ across the full cell width. Either underline style can be active at the same tim
 
 |101
 |Bright Red background
-|√
+|
 | 
 | 
 |√
@@ -1824,7 +1828,7 @@ across the full cell width. Either underline style can be active at the same tim
 
 |102
 |Bright Green background
-|√
+|
 | 
 | 
 |√
@@ -1833,7 +1837,7 @@ across the full cell width. Either underline style can be active at the same tim
 
 |103
 |Bright Yellow background
-|√
+|
 | 
 | 
 |√
@@ -1842,7 +1846,7 @@ across the full cell width. Either underline style can be active at the same tim
 
 |104
 |Bright Blue background
-|√
+|
 | 
 | 
 |√
@@ -1851,7 +1855,7 @@ across the full cell width. Either underline style can be active at the same tim
 
 |105
 |Bright Magenta background
-|√
+|
 | 
 | 
 |√
@@ -1860,7 +1864,7 @@ across the full cell width. Either underline style can be active at the same tim
 
 |106
 |Bright Cyan background
-|√
+|
 | 
 | 
 |√
@@ -1869,7 +1873,7 @@ across the full cell width. Either underline style can be active at the same tim
 
 |107
 |Bright White background
-|√
+|
 | 
 | 
 |√
@@ -1887,11 +1891,12 @@ BG indicates the background colour.
 TF indicates that the Tru Colour foreground is changed.
 TB indicates that the Tru Colour background is changed.
 
-NOTE: For 90-97, there is no effect unless bright foreground colours
-are enabled (i.e., DECSET mode 32 is not set, which is the default).
+NOTE: SGR 90-97 select a bright foreground independently of DECSET mode 32
+and preserve the current intensity. Faint (SGR 2) renders the corresponding
+normal palette colour. Normal intensity (SGR 22) restores the selected bright colour.
 
-NOTE: For 100-107, there is no effect unless bright background colours
-are enabled via DECSET mode 33.
+NOTE: SGR 100-107 select a bright background colour independently of blink
+and DECSET mode 33.
 
 NOTE: For 38 and 48, two additional formats are supported, a palette
 selection and a direct colour selection.

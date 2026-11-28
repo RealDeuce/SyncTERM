@@ -1905,7 +1905,7 @@ bytes, case trace, coherent snapshot and PPM under the build's
 | `SGR256BG` | 1479 | attributes | Logical RGB cell colours and rendered planes |
 | `SGRRGBFG` | 1497 | attributes | Logical RGB cell colours and rendered planes |
 | `SGRRGBBG` | 1515 | attributes | Logical RGB cell colours and rendered planes |
-| `SGRBright` | 1533 | attributes | Logical RGB cell colours and rendered planes |
+| `SGRBright` | 1533 | attributes | All eight bright foregrounds, bold and faint intensity, DEC mode 32 and SGR reports |
 | `SGRNeg` | 1569 | attributes | Cell colours and rendered glyphs with intensity applied before reversal, including repeated SGR 7, SGR 22, SGR 27 and reset |
 | `SGRConceal` | 1600 | attributes | Logical RGB cell colours and rendered planes |
 | `OSC4` | 1619 | attributes | Logical palette change and single-entry reset |
@@ -1955,7 +1955,7 @@ bytes, case trace, coherent snapshot and PPM under the build's
 | `SGRNormInt` | 2296 | attributes | Logical RGB cell colours and rendered planes |
 | `SGRDefFG` | 2308 | attributes | Logical RGB cell colours and rendered planes |
 | `SGRDefBG` | 2320 | attributes | Logical RGB cell colours and rendered planes |
-| `SGRBrightBG` | 2332 | attributes | Logical RGB cell colours and rendered planes |
+| `SGRBrightBG` | 2332 | attributes | All eight bright backgrounds, slow and rapid blink, DEC mode 33, reverse video, resets and SGR reports |
 | `DECRQSS_*x` | 2346 | queries | Exact reply; version and optional capability formats validated |
 | `DECRQSS_*r` | 2352 | queries | Exact reply; version and optional capability formats validated |
 | `OSC8` | 2359 | extensions | Hyperlink cell bounds and exact opened URI |

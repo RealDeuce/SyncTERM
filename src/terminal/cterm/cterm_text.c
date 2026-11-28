@@ -122,6 +122,7 @@ place(struct cterminal *cterm, const struct st_unicode_presentation_event *event
 	    .foreground = style.foreground,
 	    .background = style.background,
 	    .flags      = style.flags | glyph_flags,
+	    .colour_rendition = style.colour_rendition,
 	    .font       = style.font,
 	    .hyperlink  = style.hyperlink,
 	};

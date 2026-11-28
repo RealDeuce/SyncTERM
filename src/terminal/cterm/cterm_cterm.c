@@ -518,21 +518,27 @@ cterm_handle_csi_t(struct cterminal *cterm, int *speed) /* CSI Pc ; Pr ; Pg ; Pb
 {
 	/* CTerm private: set FG or BG RGB palette entry. Pc=0 sets BG,
 	 * Pc=1 sets FG; the remaining three parameters are 8-bit R/G/B. */
-	uint32_t *c = NULL;
-	uint32_t  nc;
 	(void)speed;
-	if (cterm->seq_param_count < 4)
+	if (cterm->seq_param_count < 4 || cterm->seq_param_int[0] > 1)
 		return;
-	if ((cterm->seq_param_int[0] == 0) ^ cterm->negative)
-		c = &cterm->bg_color;
-	else if ((cterm->seq_param_int[0] == 1) ^ cterm->negative)
-		c = &cterm->fg_color;
-	if (c == NULL)
-		return;
-	nc = cterm_render_map_rgb((uint16_t)(cterm->seq_param_int[1] << 8),
+	bool fg = cterm->seq_param_int[0] == 1;
+	uint32_t nc = cterm_render_map_rgb((uint16_t)(cterm->seq_param_int[1] << 8),
 	    (uint16_t)(cterm->seq_param_int[2] << 8), (uint16_t)(cterm->seq_param_int[3] << 8));
-	if (nc != UINT32_MAX)
-		*c = nc;
+	if (nc == UINT32_MAX)
+		return;
+	if (fg != cterm->negative)
+		cterm->fg_color = nc;
+	else
+		cterm->bg_color = nc;
+	if (fg)
+		cterm->colour_rendition &= ~CTERM_COLOUR_BRIGHT_FG;
+	else
+		cterm->colour_rendition |= CTERM_COLOUR_FIXED_BG;
+	char **seq = fg ? &cterm->fg_tc_str : &cterm->bg_tc_str;
+	CTERM_FREE_AND_CLEAR(*seq);
+	if (cterm_render_asprintf(seq, "%d:2::%u:%u:%u", fg ? 38 : 48, (nc >> 16) & 255U,
+	    (nc >> 8) & 255U, nc & 255U) < 0)
+		*seq = NULL;
 	cterm_render_set_colours(cterm, cterm->fg_color, cterm->bg_color);
 }
 
@@ -552,8 +558,8 @@ cterm_decset_reset_common(struct cterminal *cterm, bool set)
 	int      i, flags;
 
 	cterm_current_palette_colours(cterm, &oldfg, &oldbg);
-	updfg = (oldfg == cterm->fg_color);
-	updbg = (oldbg == cterm->bg_color);
+	updfg = oldfg == cterm->fg_color && (cterm->negative ? cterm->bg_tc_str : cterm->fg_tc_str) == NULL;
+	updbg = oldbg == cterm->bg_color && (cterm->negative ? cterm->fg_tc_str : cterm->bg_tc_str) == NULL;
 
 	for (i = 0; i < cterm->seq_param_count; i++) {
 		if (cterm_seq_param_consumed(cterm, i))
@@ -618,18 +624,6 @@ cterm_decset_reset_common(struct cterminal *cterm, bool set)
 		cterm_current_palette_colours(cterm, updfg ? &cterm->fg_color : NULL,
 		    updbg ? &cterm->bg_color : NULL);
 		cterm_render_set_colours(cterm, cterm->fg_color, cterm->bg_color);
-		if (updfg) {
-			if (cterm->negative)
-				CTERM_FREE_AND_CLEAR(cterm->bg_tc_str);
-			else
-				CTERM_FREE_AND_CLEAR(cterm->fg_tc_str);
-		}
-		if (updbg) {
-			if (cterm->negative)
-				CTERM_FREE_AND_CLEAR(cterm->fg_tc_str);
-			else
-				CTERM_FREE_AND_CLEAR(cterm->bg_tc_str);
-		}
 	}
 }
 
@@ -985,6 +979,10 @@ cterm_save_extended_colour_seq(struct cterminal *cterm, int fg, int seqoff, int 
 	char       **str = fg ? &cterm->fg_tc_str : &cterm->bg_tc_str;
 	const char **p   = cterm->seq_param_strs;
 
+	if (fg)
+		cterm->colour_rendition &= ~CTERM_COLOUR_BRIGHT_FG;
+	else
+		cterm->colour_rendition |= CTERM_COLOUR_FIXED_BG;
 	if (*str)
 		CTERM_FREE_AND_CLEAR(*str);
 
@@ -1207,36 +1205,9 @@ cterm_accumulate_font(struct cterminal *cterm, unsigned char byte, int *speed)
  * Anything else is passed down the chain to cterm_dec_apply_sgr.
  * ======================================================================== */
 
-static void
-set_bright_fg(struct cterminal *cterm, unsigned char colour, int flags)
-{
-	if (!(flags & ST_CONSOLE_VIDEO_NO_BRIGHT)) {
-		cterm->faint = false;
-		cterm_set_fgattr(cterm, colour);
-		if (cterm->device.sgr_palette == NULL)
-			cterm->attr |= 8;
-		cterm_render_attribute_colours(cterm, cterm->attr, &cterm->fg_color, NULL);
-		CTERM_FREE_AND_CLEAR(cterm->fg_tc_str);
-	}
-}
-
-static void
-set_bright_bg(struct cterminal *cterm, unsigned char colour, int flags)
-{
-	if (flags & ST_CONSOLE_VIDEO_BRIGHT_BACKGROUND) {
-		cterm_set_bgattr(cterm, colour);
-		if (cterm->device.sgr_palette == NULL)
-			cterm->attr |= 128;
-		cterm_render_attribute_colours(cterm, cterm->attr, NULL, &cterm->bg_color);
-		CTERM_FREE_AND_CLEAR(cterm->bg_tc_str);
-	}
-}
-
 void
 cterm_cterm_apply_sgr(struct cterminal *cterm, int *pi)
 {
-	int flags = cterm_render_get_video_flags(cterm);
-
 	switch (cterm->seq_param_int[*pi]) {
 		case 38:
 			cterm_parse_extended_colour(cterm, pi, true);
@@ -1245,53 +1216,48 @@ cterm_cterm_apply_sgr(struct cterminal *cterm, int *pi)
 			cterm_parse_extended_colour(cterm, pi, false);
 			return;
 		case 90:
-			set_bright_fg(cterm, CTERM_COLOR_BLACK, flags);
-			return;
 		case 91:
-			set_bright_fg(cterm, CTERM_COLOR_RED, flags);
-			return;
 		case 92:
-			set_bright_fg(cterm, CTERM_COLOR_GREEN, flags);
-			return;
 		case 93:
-			set_bright_fg(cterm, CTERM_COLOR_BROWN, flags);
-			return;
 		case 94:
-			set_bright_fg(cterm, CTERM_COLOR_BLUE, flags);
-			return;
 		case 95:
-			set_bright_fg(cterm, CTERM_COLOR_MAGENTA, flags);
-			return;
 		case 96:
-			set_bright_fg(cterm, CTERM_COLOR_CYAN, flags);
-			return;
 		case 97:
-			set_bright_fg(cterm, CTERM_COLOR_LIGHT_GRAY, flags);
-			return;
 		case 100:
-			set_bright_bg(cterm, CTERM_COLOR_BLACK, flags);
-			return;
 		case 101:
-			set_bright_bg(cterm, CTERM_COLOR_RED, flags);
-			return;
 		case 102:
-			set_bright_bg(cterm, CTERM_COLOR_GREEN, flags);
-			return;
 		case 103:
-			set_bright_bg(cterm, CTERM_COLOR_BROWN, flags);
-			return;
 		case 104:
-			set_bright_bg(cterm, CTERM_COLOR_BLUE, flags);
-			return;
 		case 105:
-			set_bright_bg(cterm, CTERM_COLOR_MAGENTA, flags);
-			return;
 		case 106:
-			set_bright_bg(cterm, CTERM_COLOR_CYAN, flags);
-			return;
 		case 107:
-			set_bright_bg(cterm, CTERM_COLOR_LIGHT_GRAY, flags);
+		{
+			unsigned sgr = (unsigned)cterm->seq_param_int[*pi];
+			bool fg = sgr < 100;
+			unsigned colour = cterm_ansi_colour_order[sgr - (fg ? 90 : 100)] + 8;
+			cterm_save_extended_colour_seq(cterm, fg, *pi, 1);
+			if (cterm->device.sgr_palette != NULL) {
+				unsigned pen = cterm_sgr_color(cterm, colour) & cterm->device.pen_mask;
+				if (fg) {
+					cterm->attr = (uint8_t)((cterm->attr & 0xf0) | pen);
+					cterm->fg_color = cterm->screen.mode_palette[pen];
+				}
+				else {
+					cterm->attr = (uint8_t)((cterm->attr & 15) | (pen << 4));
+					cterm->bg_color = cterm->screen.mode_palette[pen];
+				}
+			}
+			else if (fg) {
+				cterm->colour_rendition |= CTERM_COLOUR_BRIGHT_FG;
+				cterm->attr = (uint8_t)((cterm->attr & 0xf8) | (colour & 7));
+				cterm_rendition_colours(cterm, cterm->attr, &cterm->fg_color, NULL);
+			}
+			else {
+				cterm->attr = (uint8_t)((cterm->attr & 0x8f) | ((colour & 7) << 4));
+				cterm->bg_color = cterm->screen.mode_palette[colour];
+			}
 			return;
+		}
 	}
 	cterm_dec_apply_sgr(cterm, pi);
 }

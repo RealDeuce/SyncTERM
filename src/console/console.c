@@ -31,8 +31,9 @@ _Static_assert(
         && offsetof(struct st_console_cell, background) == 8 && offsetof(struct st_console_cell, flags) == 12
         && offsetof(struct st_console_cell, font) == 16 && offsetof(struct st_console_cell, glyph_font) == 18
         && offsetof(struct st_console_cell, hyperlink) == 20 && offsetof(struct st_console_cell, reserved) == 22
+        && offsetof(struct st_console_cell, colour_rendition) == 23
         && sizeof(struct st_console_cell)
-               == offsetof(struct st_console_cell, reserved) + sizeof(((struct st_console_cell *)0)->reserved),
+               == offsetof(struct st_console_cell, colour_rendition) + sizeof(((struct st_console_cell *)0)->colour_rendition),
     "st_console_cell layout must remain stable");
 
 static bool
@@ -191,6 +192,7 @@ initialize_cells(st_console_t *console, struct st_console_cell *cells, size_t co
 	console->style.foreground = blank.foreground;
 	console->style.background = blank.background;
 	console->style.flags      = 0;
+	console->style.colour_rendition = 0;
 	console->style.font       = 0;
 	console->style.hyperlink  = 0;
 }
@@ -1322,7 +1324,8 @@ cells_equal(const struct st_console_cell *left, const struct st_console_cell *ri
 	return left->glyph == right->glyph && left->foreground == right->foreground
 	       && left->background == right->background
 	       && ((left->flags ^ right->flags) & ST_CONSOLE_CELL_PUBLIC_FLAGS) == 0 && left->font == right->font
-	       && left->glyph_font == right->glyph_font && left->hyperlink == right->hyperlink;
+	       && left->glyph_font == right->glyph_font && left->hyperlink == right->hyperlink
+	       && left->colour_rendition == right->colour_rendition;
 }
 
 static void

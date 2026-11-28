@@ -563,6 +563,7 @@ install(void *context, const struct st_big_mode *mode)
 	t->escbuf[0]                          = 0;
 	t->negative                           = false;
 	t->faint                              = false;
+	t->colour_rendition = 0;
 	t->attr                               = 7;
 	CTERM_FREE_AND_CLEAR(t->fg_tc_str);
 	CTERM_FREE_AND_CLEAR(t->bg_tc_str);

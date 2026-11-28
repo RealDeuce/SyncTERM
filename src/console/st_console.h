@@ -103,13 +103,10 @@ struct st_console_cell {
 	uint16_t font;
 	uint16_t glyph_font;
 	uint16_t hyperlink;
-	/*
-	 * Reserved bytes make the serialized cell rectangle deterministic.
-	 * Callers must initialize this to zero; the console also clears it when
-	 * accepting cells so stack padding or future fields cannot affect a raw
-	 * rectangle checksum.
-	 */
-	uint16_t reserved;
+	/* The console clears the reserved byte when accepting cells. */
+	uint8_t reserved;
+	/* Terminal-owned logical colour selection for rendition edits and transmission. */
+	uint8_t colour_rendition;
 };
 
 static inline bool
@@ -142,6 +139,7 @@ struct st_console_style {
 	uint32_t flags;
 	uint16_t font;
 	uint16_t hyperlink;
+	uint8_t  colour_rendition;
 };
 
 /*
