@@ -2202,6 +2202,9 @@ cterm_reset(struct cterminal *cterm)
 	}
 	if (cterm->device.reset != NULL)
 		cterm_render_record_error(cterm, cterm->device.reset(cterm->device.context));
+	if (cterm->requested_synchronized_output
+	    || (cterm->parent && cterm->parent->requested_synchronized_output))
+		cterm_set_synchronized_output(cterm, false);
 }
 
 struct cterminal *
@@ -2626,6 +2629,8 @@ cterm_end(struct cterminal *cterm, int free_fonts)
 	(void)free_fonts;
 
 	if (cterm) {
+		if (cterm->requested_synchronized_output)
+			cterm_set_synchronized_output(cterm, false);
 		cterm_dec_sixel_cancel(cterm);
 		st_history_free_pixels(cterm->backpixels, (size_t)cterm->backlines);
 		st_pixel_buffer_destroy(cterm->backpartial);

@@ -905,7 +905,7 @@ test_lf_expand(void)
 static void
 test_disconnect_boundary(void)
 {
-	const struct st_console_display_config display  = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_display_config display  = {.backend = ST_CONSOLE_BACKEND_LIBRETRO};
 	const struct st_console_config         geometry = {
 	    .columns     = 40,
 	    .rows        = 4,
@@ -950,8 +950,18 @@ test_disconnect_boundary(void)
 		CHECK(st_cterm_copy_history(terminal, &before, &before_width, &before_rows) == 0);
 		struct st_cterm_state before_state, after_state;
 		CHECK(st_cterm_state(terminal, &before_state) == 0);
+		static const char begin[] = "\x1b[?2026h";
+		for (size_t split = 1; split < sizeof(begin) - 1; ++split) {
+			feed(terminal, begin, split);
+			CHECK(st_console_synchronized_output_mode(console) == 2);
+			feed(terminal, begin + split, sizeof(begin) - 1 - split);
+			CHECK(st_console_synchronized_output_mode(console) == 1);
+			feed(terminal, "\x1b[?2026l", 8);
+		}
+		feed(terminal, begin, sizeof(begin) - 1);
 		size_t output_size = output.size;
 		CHECK(st_cterm_prepare_disconnect(terminal) == 0);
+		CHECK(st_console_synchronized_output_mode(console) == 2);
 		CHECK(output.size == output_size && st_cterm_status_display(terminal) == status_type);
 		uint32_t after_columns, after_height;
 		CHECK(st_cterm_size(terminal, &after_columns, &after_height) == 0);
@@ -979,7 +989,9 @@ test_disconnect_boundary(void)
 		}
 		free(before);
 		free(after);
+		feed(terminal, begin, sizeof(begin) - 1);
 		rip_test_destroy(&terminal);
+		CHECK(st_console_synchronized_output_mode(console) == 2);
 		st_font_catalog_destroy(fonts);
 		st_console_destroy(console);
 	}

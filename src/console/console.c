@@ -19,7 +19,7 @@
 #include "string_compat.h"
 
 static int  present_locked(st_console_t *console, bool forced, bool backend_locked, bool *handoff);
-static int  present_and_unlock(st_console_t *console, bool forced);
+static int  present_and_unlock(st_console_t *console, bool forced, uint64_t hold_until);
 static void free_console(st_console_t *console);
 static void alt_keypad_cancel(st_console_display_t *display);
 static void font_registration_free(struct st_console_font_registration *registration);
@@ -264,7 +264,8 @@ st_console_display_reset_animation(st_console_display_t *display, enum st_consol
 	    || st_time_monotonic_ms(&now) != 0)
 		return;
 	(void)st_mutex_lock(&display->presentation_mutex);
-	if (restart || !display->presentation_animation_initialized || display->presentation_blink_mode != mode) {
+	if (!display->synchronized_wakeup
+	    && (restart || !display->presentation_animation_initialized || display->presentation_blink_mode != mode)) {
 		display->presentation_animation_initialized = false;
 		schedule_animation_locked(display, mode, now);
 		(void)st_condition_signal(&display->presentation_ready);
@@ -284,6 +285,38 @@ show_retained_frame(st_console_display_t *display, st_console_t *console, bool r
 		status = display->backend_ops->show_frame(display);
 	(void)st_mutex_unlock(&display->backend_mutex);
 	return status;
+}
+
+/* Only the active console owns the retained presenter. Its state lock protects
+ * the hold. The worker reads the matching deadline under presentation_mutex. */
+static void
+set_synchronized_deadline(st_console_t *console, uint64_t deadline)
+{
+	st_console_display_t *display = console->display;
+	console->synchronized_deadline = deadline;
+	(void)st_mutex_lock(&display->presentation_mutex);
+	display->synchronized_wakeup = deadline;
+	/* The live console may have changed blink modes during the hold. */
+	if (!deadline && display->presentation_animation_initialized
+	    && display->presentation_blink_mode != console->blink_mode) {
+		uint64_t now;
+		if (st_time_monotonic_ms(&now) == 0)
+			schedule_animation_locked(display, console->blink_mode, now);
+	}
+	(void)st_condition_signal(&display->presentation_ready);
+	(void)st_mutex_unlock(&display->presentation_mutex);
+}
+
+static bool
+synchronized_output_held(st_console_t *console)
+{
+	uint64_t now;
+	if (!console->synchronized_deadline)
+		return false;
+	if (st_time_monotonic_ms(&now) == 0 && now < console->synchronized_deadline)
+		return true;
+	set_synchronized_deadline(console, 0);
+	return false;
 }
 
 static int
@@ -312,7 +345,7 @@ presentation_worker(void *argument)
 			if (st_time_monotonic_ms(&now) != 0) {
 				content_due   = display->presentation_requested;
 				animation_due = false;
-				if (content_due)
+				if (content_due || display->synchronized_wakeup)
 					break;
 				if (st_time_utc_deadline_after_ms(&deadline, 10) == 0)
 					(void)st_condition_timedwait(&display->presentation_ready,
@@ -328,6 +361,10 @@ presentation_worker(void *argument)
 			animation_due = animate && now >= display->presentation_animation_deadline;
 			content_due =
 			    display->presentation_requested && now >= display->presentation_retry_deadline;
+			if (display->synchronized_wakeup && now >= display->synchronized_wakeup) {
+				display->synchronized_wakeup = 0;
+				break;
+			}
 			if (animation_due || content_due)
 				break;
 			next = UINT64_MAX;
@@ -335,6 +372,8 @@ presentation_worker(void *argument)
 				next = display->presentation_retry_deadline;
 			if (animate && display->presentation_animation_deadline < next)
 				next = display->presentation_animation_deadline;
+			if (display->synchronized_wakeup && display->synchronized_wakeup < next)
+				next = display->synchronized_wakeup;
 			if (next == UINT64_MAX) {
 				(void)st_condition_wait(&display->presentation_ready,
 				    &display->presentation_mutex);
@@ -360,13 +399,15 @@ presentation_worker(void *argument)
 		display->presentation_active = console;
 		(void)st_mutex_unlock(&display->presentation_mutex);
 		if (console != NULL && st_rwlock_write_lock(st_console_state_lock(console)) == ST_THREAD_SUCCESS) {
+			bool held = synchronized_output_held(console);
 			if (st_time_monotonic_ms(&now) == 0) {
 				(void)st_mutex_lock(&display->presentation_mutex);
-				schedule_animation_locked(display, console->blink_mode, now);
+				schedule_animation_locked(display,
+				    held ? display->presentation_blink_mode : console->blink_mode, now);
 				(void)st_mutex_unlock(&display->presentation_mutex);
 			}
-			if (display->window_presenter != NULL && (repaint || animation_due)
-			    && (!console->changed || console->update_depth != 0)) {
+			if (held || (display->window_presenter != NULL && (repaint || animation_due)
+			    && (!console->changed || console->update_depth != 0))) {
 				(void)st_rwlock_unlock(st_console_state_lock(console));
 				present_status = show_retained_frame(display, console, repaint);
 			}
@@ -387,7 +428,7 @@ presentation_worker(void *argument)
 						st_console_mark_all_locked(console);
 					console->pixel_surface_dirty = true;
 				}
-				present_status = present_and_unlock(console, repaint || animation_due);
+				present_status = present_and_unlock(console, repaint || animation_due, 0);
 			}
 		}
 		(void)st_mutex_lock(&display->presentation_mutex);
@@ -468,7 +509,7 @@ request_presentation_locked(st_console_t *console)
 	st_console_display_t *display = console->display;
 	bool                  wake;
 
-	if (!console->changed || console->update_depth != 0)
+	if (!console->changed || console->update_depth != 0 || console->synchronized_deadline)
 		return 0;
 	if (atomic_load_explicit(&display->active, memory_order_acquire) != console)
 		return 0;
@@ -1064,6 +1105,8 @@ activate_console(st_console_display_t *display, st_console_t *console)
 	}
 	bool setup = previous != console || display->backend_failed;
 
+	if (setup && previous && previous->synchronized_deadline)
+		set_synchronized_deadline(previous, 0);
 	display->backend_failed = false;
 	status                  = apply_console(display, console, setup);
 	if (status != 0) {
@@ -1606,7 +1649,7 @@ st_console_invalidate_text_locked(st_console_t *console)
 }
 
 static int
-prepare_backend_locked(st_console_t *console, bool *handoff)
+prepare_backend_locked(st_console_t *console, bool retained, bool *handoff)
 {
 	st_console_display_t                *display = console->display;
 	const struct st_console_backend_ops *ops     = display->backend_ops;
@@ -1618,7 +1661,7 @@ prepare_backend_locked(st_console_t *console, bool *handoff)
 		return IO_ERROR_IO;
 	if (ops->prepare_frame == NULL)
 		return ops->present(console);
-	status = ops->prepare_frame(console);
+	status = retained ? 0 : ops->prepare_frame(console);
 	if (status != 0)
 		return status;
 	if (handoff != NULL) {
@@ -1644,7 +1687,8 @@ present_locked(st_console_t *console, bool forced, bool backend_locked, bool *ha
 	size_t                i;
 	int                   status = 0;
 
-	if (console->update_depth != 0 && !forced)
+	bool held = synchronized_output_held(console);
+	if ((held || console->update_depth != 0) && !forced)
 		return 0;
 	if (!console->changed && !forced)
 		return 0;
@@ -1655,11 +1699,11 @@ present_locked(st_console_t *console, bool forced, bool backend_locked, bool *ha
 	    && display->backend_ops != NULL) {
 		if (!backend_locked && st_mutex_lock(&display->backend_mutex) != ST_THREAD_SUCCESS)
 			return IO_ERROR_IO;
-		status = prepare_backend_locked(console, handoff);
+		status = prepare_backend_locked(console, held, handoff);
 		if (!backend_locked && (handoff == NULL || !*handoff))
 			(void)st_mutex_unlock(&display->backend_mutex);
 	}
-	if (status != 0)
+	if (status != 0 || held)
 		return status;
 	count = (size_t)console->columns * console->rows;
 	for (i = 0; i < count; ++i)
@@ -1675,24 +1719,83 @@ present_locked(st_console_t *console, bool forced, bool backend_locked, bool *ha
 /* A successful handoff leaves backend_mutex held. Release the console before
  * showing the frame and never reacquire it while holding the backend mutex. */
 static int
-present_and_unlock(st_console_t *console, bool forced)
+present_and_unlock(st_console_t *console, bool forced, uint64_t hold_until)
 {
 	st_console_display_t *display = console->display;
 	bool                  handoff = false;
 	int                   status  = present_locked(console, forced, false, &handoff);
 
+	if (handoff && hold_until)
+		set_synchronized_deadline(console, hold_until);
 	(void)st_rwlock_unlock(st_console_state_lock(console));
 	if (handoff) {
 		status = display->backend_ops->show_frame(display);
+		if (status == 0 && hold_until)
+			status = st_console_bitmap_resolve_phases(display->window_presenter);
 		(void)st_mutex_unlock(&display->backend_mutex);
 		if (status != 0) {
 			if (st_rwlock_write_lock(st_console_state_lock(console)) != ST_THREAD_SUCCESS)
 				return IO_ERROR_IO;
+			if (hold_until && console->synchronized_deadline == hold_until)
+				set_synchronized_deadline(console, 0);
 			console->changed             = true;
 			console->pixel_surface_dirty = true;
 			(void)st_rwlock_unlock(st_console_state_lock(console));
 		}
 	}
+	return status;
+}
+
+int
+st_console_synchronized_output_mode(st_console_t *console)
+{
+	if (!console || st_rwlock_read_lock(st_console_state_lock(console)) != ST_THREAD_SUCCESS)
+		return 0;
+	if (console->raster_parent)
+		console = console->raster_parent;
+	int mode = 0;
+	if (console->display->window_presenter
+	    && atomic_load_explicit(&console->display->active, memory_order_acquire) == console) {
+		uint64_t now;
+		mode = console->synchronized_deadline && st_time_monotonic_ms(&now) == 0
+		    && now < console->synchronized_deadline ? 1 : 2;
+	}
+	(void)st_rwlock_unlock(st_console_state_lock(console));
+	return mode;
+}
+
+int
+st_console_set_synchronized_output(st_console_t *console, bool enabled)
+{
+	if (!console)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (st_rwlock_write_lock(st_console_state_lock(console)) != ST_THREAD_SUCCESS)
+		return IO_ERROR_IO;
+	st_console_t *root = console->raster_parent ? console->raster_parent : console;
+	int status = 0;
+	if (!root->display->window_presenter
+	    || atomic_load_explicit(&root->display->active, memory_order_acquire) != root
+	    || (enabled ? synchronized_output_held(root) : !root->synchronized_deadline))
+		goto done;
+	if (console != root && console->raster_enabled) {
+		status = st_console_publish_raster_view_locked(console);
+		if (status != 0)
+			goto done;
+	}
+	uint64_t deadline = 0;
+	if (enabled) {
+		if (st_time_monotonic_ms(&deadline) != 0) {
+			status = IO_ERROR_IO;
+			goto done;
+		}
+		deadline += 1000;
+	}
+	else
+		set_synchronized_deadline(root, 0);
+	return present_and_unlock(root, true, deadline);
+
+done:
+	(void)st_rwlock_unlock(st_console_state_lock(root));
 	return status;
 }
 
@@ -1706,7 +1809,7 @@ st_console_pull_frame(st_console_display_t *display)
 	st_console_t *console = atomic_load_explicit(&display->active, memory_order_acquire);
 	if (console != NULL && display->backend_ops != NULL && display->backend_ops->pull_present) {
 		if (st_rwlock_write_lock(st_console_state_lock(console)) == ST_THREAD_SUCCESS)
-			status = present_and_unlock(console, false);
+			status = present_and_unlock(console, false, 0);
 		else
 			status = IO_ERROR_IO;
 	}
@@ -2488,7 +2591,7 @@ st_console_present(st_console_t *console)
 	result = st_rwlock_write_lock(st_console_state_lock(console));
 	if (result != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
-	return present_and_unlock(console, true);
+	return present_and_unlock(console, true, 0);
 }
 
 int

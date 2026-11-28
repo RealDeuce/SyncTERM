@@ -118,6 +118,7 @@ struct st_console_display {
 	bool                       presentation_fast_blink;
 	enum st_console_blink_mode presentation_blink_mode;
 	uint64_t                   presentation_retry_deadline;
+	uint64_t                   synchronized_wakeup;
 	uint64_t                   presentation_animation_epoch;
 	uint64_t                   presentation_animation_deadline;
 };
@@ -210,6 +211,7 @@ struct st_console {
 	uint32_t                        cursor_x;
 	uint32_t                        cursor_y;
 	uint32_t                        update_depth;
+	uint64_t                        synchronized_deadline;
 	bool                            wrap;
 	bool                            cursor_visible;
 	enum st_console_cursor_shape    cursor_shape;
@@ -636,6 +638,7 @@ void st_console_bitmap_presenter_set_local_animation_clock(struct st_console_bit
     bool                                                                                       local);
 void st_console_bitmap_new_screen(struct st_console_bitmap_presenter *presenter);
 int  st_console_bitmap_prepare_window(st_console_t *console);
+int  st_console_bitmap_resolve_phases(struct st_console_bitmap_presenter *presenter);
 bool st_console_bitmap_retained_frame(struct st_console_bitmap_presenter *presenter, bool repaint);
 int  st_console_bitmap_prepare_frame(struct st_console_bitmap_presenter *presenter, const st_console_t *console,
     uint32_t now);

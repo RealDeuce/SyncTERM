@@ -1676,6 +1676,13 @@ optional capability replies have bounded format expectations; supported fixed
 replies are exact. Pixel assertions cover downloaded fonts, conceal, copy/paste,
 blink planes and palette changes without assuming physical palette-bank numbers.
 
+The `queries` group checks synchronized output (DEC private mode 2026) in
+CP437 and UTF-8. It verifies the frame boundary within a single write,
+live cursor and mode replies, repeated set/reset, and RIS. The native
+`st_console_test_backend` fixture checks all eight blink/cursor phases against
+literal colours, palette and cursor changes during a hold, console switching,
+and publication on an idle connection after the one-second timeout.
+
 The supplemental `syncterm_behavior_cterm_reset_cp437` and
 `syncterm_behavior_cterm_reset_utf8` tests invoke Wren's direct `CTerm.reset()`
 with RIP off/on. They check retained screen text, default modes/margins/colours,

@@ -331,6 +331,7 @@ void cterm_respond_printf(struct cterminal *cterm, const char *fmt, ...);
 int  cterm_setpalette(struct cterminal *cterm, uint32_t entry, uint16_t r, uint16_t g, uint16_t b);
 int  cterm_resetpalette(struct cterminal *cterm, uint32_t entry);
 
+void cterm_set_synchronized_output(struct cterminal *cterm, bool enabled);
 void cterm_reset(struct cterminal *cterm);
 void cterm_set_cursor_visible(struct cterminal *cterm, bool visible);
 void cterm_current_palette_colours(struct cterminal *cterm, uint32_t *fg, uint32_t *bg);

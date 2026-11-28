@@ -292,6 +292,8 @@ cterm_handle_ext_state_query(struct cterminal *cterm, int *speed) /* CSI = n */
 				strcat(tmp, ";1015");
 			if (cterm->mouse_state_query(1016, cterm->mouse_state_query_cbdata))
 				strcat(tmp, ";1016");
+			if (st_console_synchronized_output_mode(cterm->screen.console) == 1)
+				strcat(tmp, ";2026");
 			if (strlen(tmp) == 4)
 				strcat(tmp, ";");
 			strcat(tmp, "n");

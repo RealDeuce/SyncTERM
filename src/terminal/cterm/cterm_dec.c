@@ -674,6 +674,17 @@ cterm_handle_deccksr(struct cterminal *cterm, int *speed) /* CSI Pid;1;Pt;Pl;Pb;
 }
 
 void
+cterm_set_synchronized_output(struct cterminal *cterm, bool enabled)
+{
+	int status = st_console_set_synchronized_output(cterm->screen.console, enabled);
+	cterm_render_record_error(cterm, status);
+	/* The main screen and its host-writable status line share one display. */
+	while (cterm->parent)
+		cterm = cterm->parent;
+	cterm->requested_synchronized_output = enabled && status == 0;
+}
+
+void
 cterm_handle_decrqm_dec(struct cterminal *cterm, int *speed) /* CSI ? $ p */
 {
 	int pm = 0;
@@ -719,6 +730,9 @@ cterm_handle_decrqm_dec(struct cterminal *cterm, int *speed) /* CSI ? $ p */
 			break;
 		case 2004:
 			pm = (cterm->extattr & CTERM_EXTATTR_BRACKETPASTE) ? 1 : 2;
+			break;
+		case 2026:
+			pm = st_console_synchronized_output_mode(cterm->screen.console);
 			break;
 		case 9:
 		case 1000:
@@ -1317,6 +1331,9 @@ cterm_handle_decsm(struct cterminal *cterm, int *speed) /* CSI ? h */
 			case 2004:
 				cterm->extattr |= CTERM_EXTATTR_BRACKETPASTE;
 				break;
+			case 2026:
+				cterm_set_synchronized_output(cterm, true);
+				break;
 			default:
 				/* Unknown to this layer; leave unmarked so future
 				 * layers (if any) can claim it. */
@@ -1369,6 +1386,9 @@ cterm_handle_decrm(struct cterminal *cterm, int *speed) /* CSI ? l */
 				break;
 			case 2004:
 				cterm->extattr &= ~CTERM_EXTATTR_BRACKETPASTE;
+				break;
+			case 2026:
+				cterm_set_synchronized_output(cterm, false);
 				break;
 			default:
 				continue;

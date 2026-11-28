@@ -659,6 +659,10 @@ int st_console_begin_update(st_console_t *console);
 int st_console_end_update(st_console_t *console);
 /* Forces a synchronous presentation, including changes in an open batch. */
 int st_console_present(st_console_t *console);
+/* Retain the active bitmap frame until release or the one-second timeout. */
+int st_console_set_synchronized_output(st_console_t *console, bool enabled);
+/* DEC mode report: 0 unsupported, 1 set, 2 reset. */
+int st_console_synchronized_output_mode(st_console_t *console);
 
 int st_console_set_style(st_console_t *console, const struct st_console_style *style);
 int st_console_begin_text_edit(st_console_t *console, struct st_console_text_edit *edit);

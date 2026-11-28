@@ -855,6 +855,23 @@ def attributes(t):
 
 
 def queries(t):
+    t.case("synchronized-output")
+    begin, end, query = (ESC + b"[?2026" + suffix for suffix in (b"h", b"l", b"$p"))
+    on, off = (ESC + b"[?2026;" + value + b"$y" for value in (b"1", b"2"))
+    t.exchange(query, off, reset=True)
+    # The red background and cursor hide precede BSU in the same write.
+    # The second BSU must keep that frame, even though the live cell is green.
+    held = t.exchange(ESC + b"[?25l" + ESC + b"[41m " + begin + b"\r" + ESC + b"[42m "
+                      + begin + query + ESC + b"[6n", on + ESC + b"[1;2R")
+    def first_pixel(frame):
+        m = frame.metadata
+        return frame.rgb[m["destination_y"] * m["output_width"] + m["destination_x"]]
+    assert colour(held, cell_at(held, 0, 0), True) == 0x00a800
+    assert first_pixel(held) == 0xa80000
+    released = t.exchange(end + end + query, off)
+    assert first_pixel(released) == 0x00a800
+    t.exchange(begin + ESC + b"[=2n" + end, re.compile(rb"\x1b\[=2(?:;[0-9]+)*;2026n"))
+    t.exchange(begin + ESC + b"c" + query, off)
     for name, data, expected in (
         ("DSR", b"[5n", FENCE), ("BCDSR", b"[255n", ESC + b"[25;80R"),
         ("DA", b"[c", re.compile(rb"\x1b\[=67;84;101;114;109;[0-9]+;[0-9]+c")),

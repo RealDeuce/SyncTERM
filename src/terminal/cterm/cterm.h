@@ -229,6 +229,7 @@ struct cterminal {
 	int32_t saved_mode_mask;
 
 	/* emulation state */
+	bool          requested_synchronized_output;
 	int           started;          // Indicates that terminal output has started
 	bool          c64reversemode;   // Commodore 64 reverse mode state
 	enum st_codepage petscii_connection_codepage; /* Keyboard mapping and bank restored by local reset. */

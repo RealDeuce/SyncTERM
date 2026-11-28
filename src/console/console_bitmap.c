@@ -1112,6 +1112,18 @@ resolve_image(struct st_console_bitmap_presenter *p, unsigned identity, bool alt
 	return 0;
 }
 
+int
+st_console_bitmap_resolve_phases(struct st_console_bitmap_presenter *p)
+{
+	for (unsigned i = 0; i < BITMAP_IMAGE_COUNT; ++i) {
+		int status = resolve_image(p, i, i & BITMAP_SLOW_ALTERNATE, i & BITMAP_FAST_ALTERNATE,
+		    p->cursor_composed && (i & BITMAP_CURSOR));
+		if (status != 0)
+			return status;
+	}
+	return 0;
+}
+
 static int
 upload_image(struct st_console_bitmap_presenter *presenter, uint8_t identity, const struct st_rgb_buffer *pixels,
     const struct st_console_rect *rectangle, st_console_bitmap_upload_t upload, void *context)

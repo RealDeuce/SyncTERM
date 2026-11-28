@@ -1245,6 +1245,8 @@ st_cterm_finish(st_cterm_t *terminal)
 int
 st_cterm_prepare_disconnect(st_cterm_t *terminal)
 {
+	if (terminal && terminal->screen.console)
+		cterm_set_synchronized_output(terminal, false);
 	int status = st_cterm_finish(terminal);
 	if (status == 0 && terminal->device.cursor_mode != NULL) {
 		terminal->device.cursor_mode(terminal->device.context, true);

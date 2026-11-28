@@ -139,6 +139,8 @@ st_console_libretro_init(st_console_t *console)
 		libretro_destroy(console->display);
 		console->display->backend_ops = NULL;
 	}
+	else
+		console->display->window_presenter = state->presenter;
 	return status;
 }
 

@@ -1208,6 +1208,15 @@ SOURCE: <<XTerm>>
 |Set bracketed paste mode
 
 SOURCE: <<XTerm>>
+|2026
+|Begin synchronized output (BSU). Bitmap backends display all output received
+before this sequence and keep that screen animating while the host updates
+text, graphics, palette and cursor state. Queries see the live terminal state.
+Repeated BSU preserves the original frame and deadline. SyncTERM releases a
+hold after one second, on terminal reset or disconnect, or when switching the
+active console.
+
+SOURCE: https://contour-terminal.org/vt-extensions/synchronized-output/[Synchronized Output]
 |===
 
 === `CSI Pn j` Character Position Backward (`HPB`)
@@ -1412,6 +1421,9 @@ SOURCE: <<XTerm>>
 |Disable bracketed paste mode
 
 SOURCE: <<XTerm>> <<Paste64>>
+|2026
+|End synchronized output (ESU) and display the completed frame. Repeated ESU
+has no effect.
 |===
 
 === `CSI Ps... m` Select Graphic Rendition (`SGR`)
@@ -2170,6 +2182,7 @@ The following private modes can be queried:
 |80 |Sixel scrolling
 |1000–1007, 1015 |Mouse tracking modes
 |2004 |Bracketed paste mode
+|2026 |Synchronized output (bitmap backends only)
 |===
 
 Any unrecognized mode returns `Pm` = 0.
