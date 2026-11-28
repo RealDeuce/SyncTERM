@@ -430,6 +430,17 @@ def attributes(t):
             assert len(pixels) == 1, (name, pixels)
         else:
             assert len(pixels) == 2, (name, pixels)
+    frame = t.check("compound-sgr-colour",
+                    b"\x1b[38:2::18:52:86;48:2:7:154:188:222;4m " + ESC + b"P$qm" + ST
+                    + b"\x1b[m ", (3, 1),
+                    expected=ESC + b"P1$r0;4;38:2::18:52:86;48:2:7:154:188:222m" + ST)
+    cell = cell_at(frame, 0, 0)
+    assert (colour(frame, cell), colour(frame, cell, True)) == (0x123456, 0x9abcde)
+    expected = tuple(cell.foreground if y == 13 else cell.background for y in range(16) for _ in range(8))
+    assert tile(frame) == tile(frame, alternate=True) == expected
+    reset_cell = cell_at(frame, 1, 0)
+    assert (colour(frame, reset_cell), colour(frame, reset_cell, True)) == (0xa8a8a8, 0)
+    assert set(tile(frame, 2)) == {reset_cell.background}
     link = ESC + b"]8;;https://example.org/" + ST
     unlink = ESC + b"]8;;" + ST
     frame = t.check("sgr-underline", b"\x1b[4m " + link + b" \x1b[24m " + unlink

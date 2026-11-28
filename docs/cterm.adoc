@@ -1905,11 +1905,13 @@ The default palette is the XTerm 256-colour palette.  <<colors256,[256colors]>>
 For direct colour selection, an additional four parameters are required
 after that value.  They are considered part of the 38/48, not separate
 values.  The first additional parameter must be a 2.  The second,
-third, and fourth specify the R/G/B values respectively. CTerm handles
-this with an internal temporary palette, so scrollback may not have the
-correct colours.  The internal palette is large enough for all cells in
-a 132x60 screen to have unique foreground and background colours
-though, so the current screen should always be as expected.
+third, and fourth specify the R/G/B values respectively.
+
+The colon form groups the colour components into a single SGR parameter.
+The optional colour-space identifier between the `2` and the red component
+is ignored and may be left empty. For example, `CSI 38:2::18:52:86;4 m`
+sets the foreground to RGB (18, 52, 86) and enables underline.
+Use `48` in place of `38` for the background.
 
 SOURCE: <<ECMA-48>>, <<XTerm>>
 

@@ -2,6 +2,7 @@
   "reference": "Synchronet xtrn/termtest/termtest.js",
   "sha256": "a8bc360b2b1cd9c1b6041160d3e994a410132418fb568a369f3a10724915ab00",
   "supplemental": [
+    {"id": "compound-sgr-colour", "test": "cterm_numeric / syncterm_conformance_attributes_CP437 / syncterm_conformance_attributes_UTF-8", "scope": "Colon-delimited RGB foreground and background before underline, empty and explicit colour-space IDs, rendition reply, reset and both pixel planes. Native coverage includes every input split and mixed-delimiter indexed colours."},
     {"id": "sgr-fast-blink", "test": "st_console_animation / syncterm_conformance_attributes_CP437 / syncterm_conformance_attributes_UTF-8", "scope": "SGR 5/6 transitions, cancellation, reset, attributed selection and rendition reports. Slow text, fast text and the cursor share a 1064 ms repeat period on PC bitmap displays."},
     {"id": "sgr-strike", "test": "st_console / syncterm_conformance_attributes_CP437 / syncterm_conformance_attributes_UTF-8", "scope": "SGR 9, 29 and reset, centre-row placement at odd and even heights, both blink planes, wide text, line erasure, rectangle edits, status and attributed selection."},
     {"id": "sgr-overline", "test": "st_console / syncterm_conformance_attributes_CP437 / syncterm_conformance_attributes_UTF-8", "scope": "SGR 53, 55 and reset, top-row placement, underline composition, both blink planes, wide glyphs, line erasure, rectangle edits, rendition reports and attributed selection."},

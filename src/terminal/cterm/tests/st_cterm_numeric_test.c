@@ -110,6 +110,29 @@ music_numbers(st_cterm_t *terminal, st_audio_runtime_t *audio)
 }
 
 static void
+compound_sgr(st_cterm_t *terminal)
+{
+	const char input[] = "\x1b[38:2::18:52:86;48:2:7:154:188:222;4m";
+
+	for (size_t split = 0; split < sizeof(input); ++split) {
+		feed(terminal, "\x1b[m", 0);
+		feed(terminal, input, split);
+		CHECK(terminal->fg_color == ST_CONSOLE_COLOR_RGB_VALUE(18, 52, 86));
+		CHECK(terminal->bg_color == ST_CONSOLE_COLOR_RGB_VALUE(154, 188, 222));
+		CHECK((terminal->cell_flags & ST_CONSOLE_CELL_UNDERLINE) != 0);
+	}
+
+	feed(terminal, "\x1b[38;5:42;48:5:17;24m", 7);
+	CHECK(terminal->fg_color == 42 && terminal->bg_color == 17);
+	CHECK((terminal->cell_flags & ST_CONSOLE_CELL_UNDERLINE) == 0);
+
+	/* The empty element after blue still belongs to the colour parameter. */
+	feed(terminal, "\x1b[38:2::11:22:33:m", 0);
+	CHECK(terminal->fg_color == ST_CONSOLE_COLOR_RGB_VALUE(11, 22, 33));
+	CHECK(terminal->bg_color == 17);
+}
+
+static void
 font_and_macro_numbers(st_cterm_t *terminal)
 {
 	/* 2^32 + 48 must not become dynamic font slot 48 on a 64-bit host. */
@@ -158,6 +181,7 @@ st_cterm_numeric_test_main(void)
 		CHECK(st_cterm_create(&terminal, &config) == 0);
 		music_numbers(terminal, audio);
 		font_and_macro_numbers(terminal);
+		compound_sgr(terminal);
 		st_cterm_destroy(&terminal);
 	}
 	st_audio_runtime_destroy(audio);

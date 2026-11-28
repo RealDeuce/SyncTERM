@@ -22,6 +22,12 @@ uses a scaled seven-pixel font with disjoint underscore rows and nonzero padding
 bits to verify the extended rule reaches both edges. Double underline is checked
 at heights of 1, 2, 3, 9 and 16 pixels. Both orders of SGR 4 and 21 are covered.
 
+The CP437 and UTF-8 attributes suites check colon-delimited RGB foreground
+and background followed by underline in one SGR. They verify the rendition
+report, both pixel planes and the following reset. The native `cterm_numeric`
+test feeds that sequence at every input split and also checks indexed colours
+followed by SGR 24.
+
 The connected attributes suites also check SGR 5 and 6 in adjacent cells,
 cancellation by SGR 25 and reset, and the exact status and selection replies.
 The bitmap animation test checks slow text, fast text and the blinking cursor
