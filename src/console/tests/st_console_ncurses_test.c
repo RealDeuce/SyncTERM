@@ -297,7 +297,7 @@ child_test(int report, bool cp437)
 	struct st_console_cell       cells[7]   = {
 	    {.glyph = 'A', .foreground = 9, .background = 0},
 	    {.glyph = 'B', .foreground = ST_CONSOLE_COLOR_RGB_VALUE(0, 215, 175), .background = 0},
-	    {.glyph = 'C', .foreground = 7, .background = 0, .flags = ST_CONSOLE_CELL_BOLD | ST_CONSOLE_CELL_STRIKETHROUGH},
+	    {.glyph = 'C', .foreground = 7, .background = 0, .flags = ST_CONSOLE_CELL_BOLD | ST_CONSOLE_CELL_STRIKETHROUGH | ST_CONSOLE_CELL_DOUBLE_UNDERLINE},
 	    {.glyph = 127, .foreground = 7, .background = 0},
 	    {.glyph = 126, .foreground = 7, .background = 0},
 	    {.glyph = 128, .foreground = 7, .background = 0},
@@ -674,7 +674,7 @@ main(int argc, char **argv)
 	            || (!output_selects_colour(43) && !output_programs_colour(0, 215, 175))))
 	    || (direct_colour
 	        && (!output_contains("\033[38;2;255;84;84m") || !output_contains("\033[38;2;0;215;175m")))
-	    || (direct_colour && !output_contains("\033[9m"))
+	    || (direct_colour && (!output_contains("\033[9m") || !output_contains("\033[21m")))
 	    || (!output_contains("\033[1m") && !output_contains("\033[0;1m"))
 	    || (cp437
 	        && (!output_contains_byte(0x82) || !output_contains_byte(0xb3) || output_contains("\xc2\x82")

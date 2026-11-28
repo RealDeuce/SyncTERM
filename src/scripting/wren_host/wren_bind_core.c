@@ -4136,7 +4136,7 @@ fn_cell_attr_set(WrenVM *vm)
 /* Only independent drawing styles are writable. Serial attributes and
  * glyph/raster/colour-origin state belong to their existing owners. */
 #define CELL_STYLE_FLAGS                                                                                   \
-	(ST_CONSOLE_CELL_BRIGHT | ST_CONSOLE_CELL_BLINK | ST_CONSOLE_CELL_UNDERLINE | ST_CONSOLE_CELL_BOLD \
+	(ST_CONSOLE_CELL_BRIGHT | ST_CONSOLE_CELL_BLINK | ST_CONSOLE_CELL_UNDERLINE_MASK | ST_CONSOLE_CELL_BOLD \
 	    | ST_CONSOLE_CELL_REVERSE | ST_CONSOLE_CELL_CONCEAL | ST_CONSOLE_CELL_FAST_BLINK | ST_CONSOLE_CELL_STRIKETHROUGH)
 
 static void
@@ -4156,8 +4156,11 @@ cell_flag_set(WrenVM *vm, uint32_t flag)
 
 	if (cell == NULL || !slot_boolean(vm, 1, &value))
 		return;
-	if (value)
+	if (value) {
+		if (flag & ST_CONSOLE_CELL_UNDERLINE_MASK)
+			cell->flags &= ~ST_CONSOLE_CELL_UNDERLINE_MASK;
 		cell->flags |= flag;
+	}
 	else
 		cell->flags &= ~flag;
 }
@@ -4176,6 +4179,7 @@ CELL_STYLE_PROPERTY(blink, ST_CONSOLE_CELL_BLINK)
 CELL_STYLE_PROPERTY(fast_blink, ST_CONSOLE_CELL_FAST_BLINK)
 CELL_STYLE_PROPERTY(strikethrough, ST_CONSOLE_CELL_STRIKETHROUGH)
 CELL_STYLE_PROPERTY(underline, ST_CONSOLE_CELL_UNDERLINE)
+CELL_STYLE_PROPERTY(double_underline, ST_CONSOLE_CELL_DOUBLE_UNDERLINE)
 CELL_STYLE_PROPERTY(bold, ST_CONSOLE_CELL_BOLD)
 CELL_STYLE_PROPERTY(reverse, ST_CONSOLE_CELL_REVERSE)
 CELL_STYLE_PROPERTY(conceal, ST_CONSOLE_CELL_CONCEAL)
@@ -4213,7 +4217,10 @@ fn_cell_style_flags_set(WrenVM *vm)
 		st_wren_abort(vm, "Cell.styleFlags contains unsupported bits");
 		return;
 	}
-	cell->flags = (cell->flags & ~CELL_STYLE_FLAGS) | (uint32_t)value;
+	uint32_t flags = (uint32_t)value;
+	if (flags & ST_CONSOLE_CELL_DOUBLE_UNDERLINE)
+		flags &= ~ST_CONSOLE_CELL_UNDERLINE;
+	cell->flags = (cell->flags & ~CELL_STYLE_FLAGS) | flags;
 }
 
 static void
@@ -5532,6 +5539,8 @@ static const struct binding bindings[] = {
     {"Cell",             false, "styleFlags=(_)",                                fn_cell_style_flags_set                 },
     {"Cell",             false, "strikethrough",                                 fn_cell_strikethrough                   },
     {"Cell",             false, "strikethrough=(_)",                             fn_cell_strikethrough_set               },
+    {"Cell",             false, "doubleUnderline",                               fn_cell_double_underline                },
+    {"Cell",             false, "doubleUnderline=(_)",                           fn_cell_double_underline_set            },
     {"Cell",             false, "underline",                                     fn_cell_underline                       },
     {"Cell",             false, "underline=(_)",                                 fn_cell_underline_set                   },
     {"Cell",             false, "bold",                                          fn_cell_bold                            },

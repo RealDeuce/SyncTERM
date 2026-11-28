@@ -10,45 +10,52 @@ class CellStyleChecks {
     fiber.try()
     check(fiber.error is String)
   }
+  static allWithDouble { CellStyle.all & ~CellStyle.underline }
   static properties(c) {
-    return [c.bright, c.blink, c.underline, c.bold, c.reverse, c.conceal, c.fastBlink, c.strikethrough]
+    return [c.bright, c.blink, c.underline, c.bold, c.reverse, c.conceal, c.fastBlink, c.strikethrough, c.doubleUnderline]
   }
   static setters(c) {
     return [Fn.new {|v| c.bright = v }, Fn.new {|v| c.blink = v },
       Fn.new {|v| c.underline = v }, Fn.new {|v| c.bold = v },
       Fn.new {|v| c.reverse = v }, Fn.new {|v| c.conceal = v }, Fn.new {|v| c.fastBlink = v },
-      Fn.new {|v| c.strikethrough = v }]
+      Fn.new {|v| c.strikethrough = v }, Fn.new {|v| c.doubleUnderline = v }]
   }
   static run() {
     var bits = [CellStyle.bright, CellStyle.blink, CellStyle.underline,
-      CellStyle.bold, CellStyle.reverse, CellStyle.conceal, CellStyle.fastBlink, CellStyle.strikethrough]
+      CellStyle.bold, CellStyle.reverse, CellStyle.conceal, CellStyle.fastBlink, CellStyle.strikethrough, CellStyle.doubleUnderline]
     check(bits[0] == 0x400000 && bits[1] == 2 && bits[2] == 0x10000)
     check(bits[3] == 0x20000 && bits[4] == 0x40000 && bits[5] == 4)
-    check(bits[6] == 0x2000000 && bits[7] == 0x4000000 && CellStyle.all == 0x6470006)
+    check(bits[6] == 0x2000000 && bits[7] == 0x4000000 && bits[8] == 0x100000 && CellStyle.all == 0x6570006)
     var c = Cell.new()
     c.ch = "A"
     c.fgRgb = 0x112233
     c.bgRgb = 0x445566
     check(!c.teletext && !c.doubleHeight && !c.reveal && !c.separated)
     check(c.teletextControl == null && !c.pixelGraphics)
-    for (combination in 0...256) {
+    for (combination in 0...512) {
       var mask = 0
-      for (i in 0...8) {
+      for (i in 0...9) {
         if ((combination & (1 << i)) != 0) mask = mask | bits[i]
       }
       c.styleFlags = mask
-      check(c.styleFlags == mask)
+      var effective = (mask & CellStyle.doubleUnderline) != 0 ? mask & ~CellStyle.underline : mask
+      check(c.styleFlags == effective)
       var values = properties(c)
       var individual = Cell.new()
       var write = setters(individual)
-      for (i in 0...8) {
+      for (i in 0...9) {
         var expected = (combination & (1 << i)) != 0
-        check(values[i] == expected)
+        check(values[i] == ((effective & bits[i]) != 0))
         write[i].call(expected)
       }
-      check(individual.styleFlags == mask)
+      check(individual.styleFlags == effective)
       check(c.ch == "A" && c.fgRgb == 0x112233 && c.bgRgb == 0x445566)
     }
+    c.doubleUnderline = true
+    c.underline = true
+    check(c.underline && !c.doubleUnderline)
+    c.doubleUnderline = true
+    check(c.doubleUnderline && !c.underline)
     c.styleFlags = CellStyle.bold
     for (bad in [null, true, "1", [], {}, -1, 0.5, 0/0, 1/0, -1/0,
       1, 8, 0x10, 0x20, 0x40, 0x80, 0x100, 0x200, 0x80000,
@@ -67,11 +74,11 @@ class CellStyleChecks {
     var alias = s[0]
     alias.ch = "A"
     alias.styleFlags = CellStyle.all
-    check(s[0].styleFlags == CellStyle.all)
+    check(s[0].styleFlags == allWithDouble)
     check(s.cellAt(1, 0, alias))
     alias.ch = "B"
     alias.styleFlags = CellStyle.underline
-    check(s[0].styleFlags == CellStyle.all && s[1].underline)
+    check(s[0].styleFlags == allWithDouble && s[1].underline)
     check(!s.cellAt(2, 0, alias) && alias.underline)
     var copy = Surface.new(2, 1)
     copy.putRect(s, 0, 0)
@@ -79,9 +86,9 @@ class CellStyleChecks {
     alias = copy[0]
     copy = null
     System.gc()
-    check(alias.styleFlags == CellStyle.all)
+    check(alias.styleFlags == allWithDouble)
     alias.styleFlags = 0
-    check(!alias.bold && s[0].styleFlags == CellStyle.all)
+    check(!alias.bold && s[0].styleFlags == allWithDouble)
     var wide = Surface.new(2, 1)
     wide[0].font = 0
     wide[0].ch = "一"
@@ -104,7 +111,7 @@ class CellStyleChecks {
     var s = Screen.readRect(1, 1, 1, 1)
     var c = s[0]
     check(c.teletext && c.doubleHeight && c.reveal && c.separated)
-    check(c.teletextControl == 0x5d && c.styleFlags == CellStyle.all)
+    check(c.teletextControl == 0x5d && c.styleFlags == allWithDouble)
     var text = c.ch
     var font = c.font
     var fg = c.fgRgb
@@ -113,7 +120,7 @@ class CellStyleChecks {
       Fn.new { c.reveal = false }, Fn.new { c.separated = false },
       Fn.new { c.teletextControl = 0 }, Fn.new { c.pixelGraphics = false }]) rejects(write)
     rejects(Fn.new { c.styleFlags = CellStyle.bold | 0x10 })
-    check(c.styleFlags == CellStyle.all)
+    check(c.styleFlags == allWithDouble)
     c.styleFlags = CellStyle.bold | CellStyle.underline
     check(c.teletext && c.doubleHeight && c.reveal && c.separated)
     check(c.teletextControl == 0x5d && c.ch == text && c.font == font)

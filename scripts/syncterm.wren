@@ -887,11 +887,12 @@ class CellStyle {
   static blink { 2 }
   static fastBlink { 0x2000000 }
   static underline { 0x10000 }
+  static doubleUnderline { 0x100000 }
   static bold { 0x20000 }
   static reverse { 0x40000 }
   static conceal { 4 }
   static strikethrough { 0x4000000 }
-  static all { 0x6470006 }
+  static all { 0x6570006 }
 }
 
 foreign class Cell {
@@ -915,6 +916,8 @@ foreign class Cell {
   foreign strikethrough=(b)
   foreign underline
   foreign underline=(b)
+  foreign doubleUnderline
+  foreign doubleUnderline=(b)
   foreign bold
   foreign bold=(b)
   foreign reverse

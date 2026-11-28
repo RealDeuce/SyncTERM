@@ -14,12 +14,13 @@ one position on the line and preserves the cell, including its rendition.
 The native `cterm_text` test changes the shared console style, cursor, window
 and alternate font bank between printable characters in CP437 and UTF-8.
 The connected attributes suites check the text, colours, pixels and reported
-cursor across a deferred wrap followed by an SGR reset. They also check SGR 4
+cursor across a deferred wrap followed by an SGR reset. They also check SGR 4, 21
 and 24 on printed spaces, a whole erased line, and UTF-8 wide text. They
 verify both blink planes and the separate link dots. Attributed
 selection and rendition reports retain the underline. The native console test
 uses a scaled seven-pixel font with disjoint underscore rows and nonzero padding
-bits to verify the extended rule reaches both edges.
+bits to verify the extended rule reaches both edges. Double underline is checked
+at heights of 1, 2, 3, 9 and 16 pixels. Both orders of SGR 4 and 21 are covered.
 
 The connected attributes suites also check SGR 5 and 6 in adjacent cells,
 cancellation by SGR 25 and reset, and the exact status and selection replies.

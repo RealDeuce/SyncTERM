@@ -180,7 +180,7 @@ prepare_fast_cell(st_console_t *console, const struct st_console_cell *cell, str
 	    || (console->color_emoji && st_console_font_color_glyph(font, glyph_index) != NULL) || glyph_width != 8
 	    || font->height != console->cell_height || console->cell_width != 8
 	    || (cell->flags & (ST_CONSOLE_CELL_SEPARATED | ST_CONSOLE_CELL_CONTINUATION
-	                       | ST_CONSOLE_CELL_UNDERLINE | ST_CONSOLE_CELL_STRIKETHROUGH)) != 0)
+	                       | ST_CONSOLE_CELL_UNDERLINE_MASK | ST_CONSOLE_CELL_STRIKETHROUGH)) != 0)
 		return false;
 	if ((cell->flags & ST_CONSOLE_CELL_REVERSE) != 0) {
 		uint32_t swap = foreground;
@@ -633,7 +633,18 @@ decorate:
 			    (source->flags & ST_CONSOLE_CELL_BLINK) ? background : foreground);
 		}
 	}
-	if ((source->flags & ST_CONSOLE_CELL_UNDERLINE) != 0)
+	if ((source->flags & ST_CONSOLE_CELL_DOUBLE_UNDERLINE) != 0) {
+		for (uint32_t offset = 1; offset <= 3 && offset <= console->cell_height; offset += 2) {
+			uint32_t row = console->cell_height - offset;
+			if (row < draw_height) {
+				size_t at = render_pixel_position(console, pixels, x * console->cell_width,
+				    y * console->cell_height + row);
+				draw_rule(pixels, at, draw_width, foreground,
+				    (source->flags & ST_CONSOLE_CELL_BLINK) ? background : foreground);
+			}
+		}
+	}
+	else if ((source->flags & ST_CONSOLE_CELL_UNDERLINE) != 0)
 		render_underline(console, pixels, source, x, y, draw_width, draw_height, row_scale,
 		    &font_cache->underline, foreground, background);
 }

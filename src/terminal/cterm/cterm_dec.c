@@ -473,7 +473,7 @@ cterm_handle_decrara(struct cterminal *cterm, int *speed) /* CSI Pt;Pl;Pb;Pr;...
 				cterm_seq_default(cterm, p, 0);
 				switch (cterm->seq_param_int[p]) {
 					case 0:
-						rowbuf[c].flags ^= ST_CONSOLE_CELL_UNDERLINE | ST_CONSOLE_CELL_STRIKETHROUGH;
+						rowbuf[c].flags ^= ST_CONSOLE_CELL_STRIKETHROUGH;
 						rowbuf[c].flags &= ~ST_CONSOLE_CELL_FAST_BLINK;
 						attribute ^= 0x88;
 						cterm_render_attribute_colours(cterm, attribute,
@@ -485,16 +485,21 @@ cterm_handle_decrara(struct cterminal *cterm, int *speed) /* CSI Pt;Pl;Pb;Pr;...
 							rowbuf[c].foreground = rowbuf[c].background;
 							rowbuf[c].background = tfg;
 						}
+						/* fall through to toggle underline */
+					case 4:
+					case 21:
+					case 24:
+						if (rowbuf[c].flags & ST_CONSOLE_CELL_UNDERLINE_MASK)
+							rowbuf[c].flags &= ~ST_CONSOLE_CELL_UNDERLINE_MASK;
+						else
+							rowbuf[c].flags |= cterm->seq_param_int[p] == 21
+							    ? ST_CONSOLE_CELL_DOUBLE_UNDERLINE : ST_CONSOLE_CELL_UNDERLINE;
 						break;
 					case 1:
 					case 22:
 						attribute ^= 0x08;
 						cterm_render_attribute_colours(cterm, attribute,
 						    &rowbuf[c].foreground, NULL);
-						break;
-					case 4:
-					case 24:
-						rowbuf[c].flags ^= ST_CONSOLE_CELL_UNDERLINE;
 						break;
 					case 9:
 					case 29:
@@ -2404,8 +2409,8 @@ cterm_dec_dcs_finish(struct cterminal *cterm)
 						strcat(tmp, ";1");
 					else if (cterm->faint)
 						strcat(tmp, ";2");
-					if (cterm->cell_flags & ST_CONSOLE_CELL_UNDERLINE)
-						strcat(tmp, ";4");
+					if (cterm->cell_flags & ST_CONSOLE_CELL_UNDERLINE_MASK)
+						strcat(tmp, (cterm->cell_flags & ST_CONSOLE_CELL_DOUBLE_UNDERLINE) ? ";21" : ";4");
 					if (cterm->attr & 128)
 						strcat(tmp, (cterm->cell_flags & ST_CONSOLE_CELL_FAST_BLINK) ? ";6" : ";5");
 					if (cterm->negative)

@@ -467,6 +467,33 @@ def attributes(t):
     frame = t.check("sgr-underline", b"ABCD\x1b[1;1;1;3;4$r\x1b[1;2;1;2;4$t\x1b[1;3;1;3;24$r")
     assert [bool(cell_at(frame, x, 0).flags & (1 << 16)) for x in range(4)] == [
         True, False, False, False]
+    # SGR 21 replaces the font's single underline with two fixed pixel rows.
+    frame = t.check("sgr-underline", b"\x1b[4m \x1b[21m \x1b[4m \x1b[21;6m \x1b[24m \x1b[21;0m "
+                    + ESC + b"[21m" + ESC + b"P$qm" + ST, (7, 1), expected=ESC + b"P1$r0;21m" + ST)
+    for x, rows in enumerate(((13,), (13, 15), (13,), (13, 15), (), ())):
+        cell = cell_at(frame, x, 0)
+        for alternate in (False, True):
+            expected = tuple(cell.foreground if y in rows and not (alternate and x == 3)
+                             else cell.background for y in range(16) for _ in range(8))
+            assert tile(frame, x + 1, 1, alternate) == expected, (x, alternate)
+    t.check("sgr-underline", b"\x1b[4;21m" + ESC + b"P$qm" + ST + b"\x1b[21;4m" + ESC + b"P$qm" + ST,
+            expected=ESC + b"P1$r0;21m" + ST + ESC + b"P1$r0;4m" + ST)
+    if t.encoding == "UTF-8":
+        frame = t.check("sgr-underline", wide + b"\x1b[21m" + wide, (5, 1))
+        for half in (0, 1):
+            cell = cell_at(frame, 2 + half, 0)
+            expected = list(tile(frame, 1 + half))
+            for y in (13, 15):
+                expected[y * 8:(y + 1) * 8] = [cell.foreground] * 8
+            assert tile(frame, 3 + half) == tuple(expected)
+    t.check("sgr-underline", b"\x1bF\x1b[4mA\x1b[21mB\x1b[4mC\x1b[21mD\x1b[24mE\x1bS",
+            expected=ESC + b"XCTerm:STS:0:\x1b[4mA\x1b[21mB\x1b[4mC\x1b[21mD\x1b[24mE" + ST)
+    frame = t.check("sgr-underline", b"ABC\r\x1b[21m\x1b[2K\x1b[24m \x1b[1;2;1;2;4$r\x1b[1;3;1;3;24$t")
+    for x in range(80):
+        cell = cell_at(frame, x, 0)
+        rows = () if x in (0, 2) else (13,) if x == 1 else (13, 15)
+        assert tile(frame, x + 1) == tuple(cell.foreground if y in rows else cell.background
+                                            for y in range(16) for _ in range(8))
     frame = t.check("sgr-strike", b"\x1b[9m \x1b[4m \x1b[29m \x1b[24;6;9m \x1b[m \x1b[9m"
                     + ESC + b"P$qm" + ST, (6, 1), expected=ESC + b"P1$r0;9m" + ST)
     for x in range(5):

@@ -1175,7 +1175,7 @@ test_underline_strike(void)
 }
 
 static void
-test_strikethrough(void)
+test_fixed_rules(void)
 {
 	static const uint8_t bitmap[] = {0};
 	static const struct st_console_font_mapping mapping[] = {{' ', 0}};
@@ -1184,23 +1184,32 @@ test_strikethrough(void)
 	    .mapping = mapping, .mapping_count = 1};
 	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
 	const struct st_console_rect cell_area = {0, 0, 1, 1};
-	struct st_console_cell cell = {.glyph = 0, .foreground = 5, .background = 1,
-	    .flags = ST_CONSOLE_CELL_STRIKETHROUGH | ST_CONSOLE_CELL_REVERSE};
-	const unsigned heights[] = {1, 8, 9, 14, 16}, rows[] = {0, 4, 4, 7, 8};
-	for (size_t i = 0; i < sizeof(heights) / sizeof(*heights); ++i) {
+	struct st_console_cell cell = {.glyph = 0, .foreground = 5, .background = 1};
+	const struct {
+		uint32_t height, style;
+		unsigned row1, row2;
+	} cases[] = {
+	    {1, ST_CONSOLE_CELL_STRIKETHROUGH, 0, 0}, {8, ST_CONSOLE_CELL_STRIKETHROUGH, 4, 4},
+	    {9, ST_CONSOLE_CELL_STRIKETHROUGH, 4, 4}, {14, ST_CONSOLE_CELL_STRIKETHROUGH, 7, 7},
+	    {16, ST_CONSOLE_CELL_STRIKETHROUGH, 8, 8}, {1, ST_CONSOLE_CELL_DOUBLE_UNDERLINE, 0, 0},
+	    {2, ST_CONSOLE_CELL_DOUBLE_UNDERLINE, 1, 1}, {3, ST_CONSOLE_CELL_DOUBLE_UNDERLINE, 0, 2},
+	    {9, ST_CONSOLE_CELL_DOUBLE_UNDERLINE, 6, 8}, {16, ST_CONSOLE_CELL_DOUBLE_UNDERLINE, 13, 15},
+	};
+	for (size_t i = 0; i < sizeof(cases) / sizeof(*cases); ++i) {
 		const struct st_console_config config = {.columns = 1, .rows = 1, .cell_width = 7,
-		    .cell_height = heights[i]};
-		const struct st_console_rect area = {0, 0, 7, heights[i]};
+		    .cell_height = cases[i].height};
+		const struct st_console_rect area = {0, 0, 7, cases[i].height};
 		st_console_t *console = NULL;
 		struct st_pixel_buffer *pixels = NULL;
 		CHECK(st_console_create(&console, &display, &config) == 0);
 		cell.font = register_static_font(console, &font);
+		cell.flags = ST_CONSOLE_CELL_REVERSE | cases[i].style;
 		CHECK(st_console_write_cells(console, &cell_area, &cell, 1) == 0);
 		CHECK(st_console_get_pixels(&pixels, console, &area, false) == 0);
-		for (unsigned y = 0; y < heights[i]; ++y) {
+		for (unsigned y = 0; y < cases[i].height; ++y) {
 			for (unsigned x = 0; x < 7; ++x) {
 				size_t at = y * 7 + x;
-				CHECK(pixels->primary[at] == (y == rows[i] ? 1u : 5u));
+				CHECK(pixels->primary[at] == (y == cases[i].row1 || y == cases[i].row2 ? 1u : 5u));
 				CHECK(pixels->alternate[at] == pixels->primary[at]);
 			}
 		}
@@ -3667,7 +3676,7 @@ main(void)
 	test_pixels_and_font_rendering();
 	test_fast_font_attributes();
 	test_underline_strike();
-	test_strikethrough();
+	test_fixed_rules();
 	test_raster_margin_and_scroll();
 	test_partial_full_width_raster_scroll();
 	test_saa5050_double_height_raster();

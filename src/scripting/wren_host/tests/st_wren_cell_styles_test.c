@@ -31,7 +31,7 @@ static void
 exercise(WrenVM *vm, st_wren_connected_t *connected, st_console_t *console, const char *source, uint16_t hyperlink)
 {
 	interpret(vm, connected, source);
-	const uint32_t style_mask = ST_CONSOLE_CELL_BRIGHT | ST_CONSOLE_CELL_BLINK | ST_CONSOLE_CELL_UNDERLINE
+	const uint32_t style_mask = ST_CONSOLE_CELL_BRIGHT | ST_CONSOLE_CELL_BLINK | ST_CONSOLE_CELL_UNDERLINE_MASK
 	                            | ST_CONSOLE_CELL_BOLD | ST_CONSOLE_CELL_REVERSE | ST_CONSOLE_CELL_CONCEAL
 	                            | ST_CONSOLE_CELL_FAST_BLINK | ST_CONSOLE_CELL_STRIKETHROUGH;
 	const uint32_t metadata = ST_CONSOLE_CELL_SAA5050 | ST_CONSOLE_CELL_DOUBLE_HEIGHT | ST_CONSOLE_CELL_REVEAL
@@ -41,7 +41,7 @@ exercise(WrenVM *vm, st_wren_connected_t *connected, st_console_t *console, cons
 	    .glyph_font                              = 0,
 	    .foreground                              = ST_CONSOLE_COLOR_RGB_VALUE(17, 34, 51),
 	    .background                              = ST_CONSOLE_COLOR_RGB_VALUE(68, 85, 102),
-	    .flags                                   = metadata | style_mask,
+	    .flags                                   = metadata | (style_mask & ~ST_CONSOLE_CELL_UNDERLINE),
 	    .hyperlink                               = hyperlink};
 	const struct st_console_rect origin = {0, 0, 1, 1}, destination = {2, 0, 1, 1};
 	const uint32_t               metadata_bits[] = {ST_CONSOLE_CELL_SAA5050, ST_CONSOLE_CELL_DOUBLE_HEIGHT,

@@ -328,7 +328,9 @@ emit_style(struct ansi_writer *writer, const st_console_t *console, const struct
 	emit(writer, "\033[0m", 4);
 	if ((cell->flags & ST_CONSOLE_CELL_BOLD) != 0)
 		emit(writer, "\033[1m", 4);
-	if ((cell->flags & ST_CONSOLE_CELL_UNDERLINE) != 0)
+	if ((cell->flags & ST_CONSOLE_CELL_DOUBLE_UNDERLINE) != 0)
+		emit(writer, "\033[21m", 5);
+	else if ((cell->flags & ST_CONSOLE_CELL_UNDERLINE) != 0)
 		emit(writer, "\033[4m", 4);
 	if ((cell->flags & ST_CONSOLE_CELL_BLINK) != 0)
 		emit(writer, (cell->flags & ST_CONSOLE_CELL_FAST_BLINK) ? "\033[6m" : "\033[5m", 4);
@@ -394,7 +396,7 @@ emit_character(struct ansi_writer *writer, st_console_t *console, const struct s
 static bool
 styles_equal(const struct st_console_cell *left, const struct st_console_cell *right)
 {
-	const uint32_t flags = ST_CONSOLE_CELL_BOLD | ST_CONSOLE_CELL_UNDERLINE | ST_CONSOLE_CELL_BLINK
+	const uint32_t flags = ST_CONSOLE_CELL_BOLD | ST_CONSOLE_CELL_UNDERLINE_MASK | ST_CONSOLE_CELL_BLINK
 	                            | ST_CONSOLE_CELL_FAST_BLINK | ST_CONSOLE_CELL_STRIKETHROUGH
 	                       | ST_CONSOLE_CELL_REVERSE | ST_CONSOLE_CELL_CONCEAL;
 

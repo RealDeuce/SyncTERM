@@ -1190,8 +1190,8 @@ sgr_diff(struct cterminal *cterm, const struct st_console_cell *prev, const stru
 			cterm_respond_printf(cterm, ";1");
 		if (next_faint)
 			cterm_respond_printf(cterm, ";2");
-		if (next->flags & ST_CONSOLE_CELL_UNDERLINE)
-			cterm_respond_printf(cterm, ";4");
+		if (next->flags & ST_CONSOLE_CELL_UNDERLINE_MASK)
+			cterm_respond_printf(cterm, (next->flags & ST_CONSOLE_CELL_DOUBLE_UNDERLINE) ? ";21" : ";4");
 		if (na & 0x80)
 			cterm_respond_printf(cterm, ";%d", (next->flags & ST_CONSOLE_CELL_FAST_BLINK) ? 6 : 5);
 		if (next->flags & ST_CONSOLE_CELL_STRIKETHROUGH)
@@ -1212,10 +1212,11 @@ sgr_diff(struct cterminal *cterm, const struct st_console_cell *prev, const stru
 		}
 		if (next_faint && !prev_faint)
 			strcat(sgrbuf, params++ ? ";2" : "2");
-		if ((next->flags ^ prev->flags) & ST_CONSOLE_CELL_UNDERLINE) {
+		if ((next->flags ^ prev->flags) & ST_CONSOLE_CELL_UNDERLINE_MASK) {
 			if (params++)
 				strcat(sgrbuf, ";");
-			strcat(sgrbuf, (next->flags & ST_CONSOLE_CELL_UNDERLINE) ? "4" : "24");
+			strcat(sgrbuf, (next->flags & ST_CONSOLE_CELL_DOUBLE_UNDERLINE) ? "21" :
+			    (next->flags & ST_CONSOLE_CELL_UNDERLINE) ? "4" : "24");
 		}
 		if ((na & 0x80) && (!(pa & 0x80) || ((prev->flags ^ next->flags) & ST_CONSOLE_CELL_FAST_BLINK))) {
 			if (params++)
@@ -1661,7 +1662,7 @@ cterm_ecma48_apply_sgr(struct cterminal *cterm, int *pi)
 				cterm_render_record_error(cterm, cterm->device.reset_style(cterm->device.context));
 			cterm->negative = false;
 			cterm->faint    = false;
-			cterm->cell_flags &= ~(ST_CONSOLE_CELL_UNDERLINE | ST_CONSOLE_CELL_FAST_BLINK
+			cterm->cell_flags &= ~(ST_CONSOLE_CELL_UNDERLINE_MASK | ST_CONSOLE_CELL_FAST_BLINK
 			                       | ST_CONSOLE_CELL_STRIKETHROUGH | ST_CONSOLE_CELL_SGR_FONT_MASK);
 			cterm->attr     = cterm->screen.default_attribute;
 			cterm_render_attribute_colours(cterm, cterm->attr, &cterm->fg_color, &cterm->bg_color);
@@ -1692,10 +1693,13 @@ cterm_ecma48_apply_sgr(struct cterminal *cterm, int *pi)
 			break;
 		}
 		case 4:
-			cterm->cell_flags |= ST_CONSOLE_CELL_UNDERLINE;
+		case 21:
+			cterm->cell_flags &= ~ST_CONSOLE_CELL_UNDERLINE_MASK;
+			cterm->cell_flags |= cterm->seq_param_int[*pi] == 21
+			    ? ST_CONSOLE_CELL_DOUBLE_UNDERLINE : ST_CONSOLE_CELL_UNDERLINE;
 			break;
 		case 24:
-			cterm->cell_flags &= ~ST_CONSOLE_CELL_UNDERLINE;
+			cterm->cell_flags &= ~ST_CONSOLE_CELL_UNDERLINE_MASK;
 			break;
 		case 10:
 		case 11:

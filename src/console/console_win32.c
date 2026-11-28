@@ -108,7 +108,7 @@ cell_attributes(const st_console_t *console, struct win32_state *state, const st
 	}
 	result =
 	    console_colour(console, state, foreground, false) | console_colour(console, state, background, true);
-	if ((cell->flags & ST_CONSOLE_CELL_UNDERLINE) != 0)
+	if ((cell->flags & ST_CONSOLE_CELL_UNDERLINE_MASK) != 0)
 		result |= COMMON_LVB_UNDERSCORE;
 	return result;
 }
