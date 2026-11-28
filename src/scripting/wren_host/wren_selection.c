@@ -106,6 +106,7 @@ highlight_cell(const struct text_selection *selection, struct st_console_cell *c
 		foreground = selected_background | 8;
 	cell->foreground = foreground;
 	cell->background = selected_background;
+	cell->flags &= ~ST_CONSOLE_CELL_CONCEAL;
 }
 
 static uint32_t
@@ -217,7 +218,7 @@ append_cell(st_console_t *console, char **text, size_t *capacity, size_t *length
 	bool              broken;
 
 	*nonspace = false;
-	if ((cell->flags & ST_CONSOLE_CELL_CONTINUATION) != 0 || st_console_cell_is_concealed(cell))
+	if ((cell->flags & ST_CONSOLE_CELL_CONTINUATION) != 0)
 		return 0;
 	/* Font identifiers belong to their console. A positioned RIP3 grid's
 	 * bitmap mapping must not be interpreted through the entry font catalog. */

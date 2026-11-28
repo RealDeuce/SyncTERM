@@ -165,7 +165,7 @@
     {"id": "SGRRGBBG", "source_line": 1515, "suite": "attributes", "scope": "Logical RGB cell colours and rendered planes"},
     {"id": "SGRBright", "source_line": 1533, "suite": "attributes", "scope": "All eight bright foregrounds, bold and faint intensity, DEC mode 32 and SGR reports"},
     {"id": "SGRNeg", "source_line": 1569, "suite": "attributes", "scope": "Cell colours and rendered glyphs with intensity applied before reversal, including repeated SGR 7, SGR 22, SGR 27 and reset"},
-    {"id": "SGRConceal", "source_line": 1600, "suite": "attributes", "scope": "SGR 8/28, retained colours, bitmap planes, clipboard omission, STS, rectangle edits and reset"},
+    {"id": "SGRConceal", "source_line": 1600, "suite": "attributes", "scope": "SGR 8/28, retained colours, concealed pixels, selection reveal and restore, clipboard text, plain and attributed STS with codepage bytes and wide UTF-8 clusters, rectangle edits and reset"},
     {"id": "OSC4", "source_line": 1619, "suite": "attributes", "scope": "Logical palette change and single-entry reset"},
     {"id": "OSC104All", "source_line": 1651, "suite": "attributes", "scope": "Logical palette change and full palette reset"},
     {"id": "DECSCUSR", "source_line": 1676, "suite": "attributes", "scope": "Block/underline raster extents and blink state for styles 1 through 4"},

@@ -508,16 +508,34 @@ def attributes(t):
     assert [colour(frame, cell_at(frame, x, 0), True) for x in (2, 3, 4, 5)] == [
         0x00a800, 0x00a800, 0x112233, 0x112233]
     assert colour(frame, cell_at(frame, 5, 0)) == 0x5454ff and len(set(tile(frame, 6))) == 2
-    t.check("SGRConceal", b"\x1bFA\x1b[8mQ\x1b[28mB\x1bS",
-            expected=ESC + b"XCTerm:STS:0:A\x1b[8m \x1b[28mB" + ST)
-    t.check("SGRConceal", b"\x1b[14h\x1bFA\x1b[8mQ\x1b[28mB\x1bS",
-            expected=ESC + b"XCTerm:STS:1:A B" + ST)
+    transmitted = "界1\u20e3🫱🏻‍🫲🏼".encode() if t.encoding == "UTF-8" else b"Q\x82"
+    selected_text = b"\x1bFA\x1b[8m" + transmitted + b"\x1b[28mB\x1bS"
+    t.check("SGRConceal", selected_text,
+            expected=ESC + b"XCTerm:STS:0:A\x1b[8m" + transmitted + b"\x1b[28mB" + ST)
+    t.check("SGRConceal", b"\x1b[14h" + selected_text,
+            expected=ESC + b"XCTerm:STS:1:A" + transmitted + b"B" + ST)
+    if t.encoding == "UTF-8":
+        # A clipped wide glyph occupies one blank cell in the selected rectangle.
+        text = b"\x1b[8m" + "界".encode() + b"\x1b[28mB"
+        for mode, prefix, blank in ((b"14l", b"0:", b"\x1b[8m "), (b"14h", b"1:", b" ")):
+            t.check("SGRConceal", ESC + b"[" + mode + text + cup(1, 1) + ESC + b"F" + cup(2, 1) + ESC + b"S",
+                    expected=ESC + b"XCTerm:STS:" + prefix + blank + ST)
+            suffix = b"\x1b[28mB" if mode == b"14l" else b"B"
+            t.check("SGRConceal", ESC + b"[" + mode + text + cup(2, 1) + ESC + b"F" + cup(4, 1) + ESC + b"S",
+                    expected=ESC + b"XCTerm:STS:" + prefix + blank + suffix + ST)
+    else:
+        # DoorWay permits a literal ESC glyph; its byte must stay framed in the reply.
+        literal = b"\x1b[=255h\x00\x1b\x1b[=255l"
+        t.check("SGRConceal", ESC + b"F\x1b[8m" + literal + b"X\x1bS",
+                expected=ESC + b"XCTerm:STS:0:\x1b[8m" + literal + b"X" + ST)
+        t.check("SGRConceal", b"\x1b[14h\x1bF\x1b[8m" + literal + b"X\x1bS",
+                expected=ESC + b"XCTerm:STS:1: X" + ST)
     frame = t.check("SGRConceal", b"AB\r\x1b[8;44m\x1b[2K\x1b[28mC")
     assert not (cell_at(frame, 0, 0).flags & 4)
     assert all(cell_at(frame, x, 0).flags & 4 for x in range(1, 80))
     link = ESC + b"]8;;https://example.org/hidden" + ST
     t.check("SGRConceal", ESC + b"F" + link + b"\x1b[8mQ" + ESC + b"]8;;" + ST + ESC + b"S",
-            expected=ESC + b"XCTerm:STS:0:\x1b[8m " + ST)
+            expected=ESC + b"XCTerm:STS:0:\x1b[8m\x1b]8;;https://example.org/hidden\x1b:\\Q" + ST)
     frame = t.check("SGRConceal", hidden_text + b"\x1b[1;1;1;2;8$r")
     for x in (1, 2):
         assert set(tile(frame, x)) == {cell_at(frame, x-1, 0).background}
@@ -942,7 +960,8 @@ def extensions(t):
     # Copy across concealed text after position 9 is reassigned.
     first, second = ((b"\xc0", b"\xc0") if t.encoding == "CP437"
                      else ("└".encode(), "А".encode()))
-    frame = t.exchange(b"\x1b[?25l\x1b[9;1 D" + first + b"\x1b[8mhidden\x1b[28;19m" + second
+    concealed = "h界den" if t.encoding == "UTF-8" else "hidden"
+    frame = t.exchange(b"\x1b[?25l\x1b[9;1 D" + first + b"\x1b[8m" + concealed.encode() + b"\x1b[28;19m" + second
                        + b"\x1b[9;0 D\x1b[10m", reset=True)
     cells = [cell_at(frame, x, 0) for x in (0, 7)]
     assert [frame.cell_text(cell) for cell in cells] == ["└", "А"]
@@ -954,9 +973,16 @@ def extensions(t):
     y = m["destination_y"] + (m["pixel_top"] + m["cell_height"] // 2) * m["destination_height"] // m["plane_height"]
     t.client.mouse(x0, y, action=1, buttons=1)
     t.client.mouse(x1, y, buttons=1)
-    t.client.wait_for(lambda s: s.primary != frame.primary)
+    selected = t.client.wait_for(lambda s: cell_at(s, 7, 0).background != cells[1].background)
+    for x in range(1, 7):
+        cell = cell_at(selected, x, 0)
+        assert set(tile(frame, x + 1)) == {cell_at(frame, x, 0).background}
+        assert set(tile(selected, x + 1)) == {cell.foreground, cell.background}
+        assert cell.foreground != cell.background
     t.client.mouse(x1, y, action=1)
-    t.client.wait_for(lambda s: s.clipboard == "└А")
+    restored = t.client.wait_for(lambda s: s.clipboard == "└" + concealed + "А")
+    assert restored.primary == frame.primary and restored.alternate == frame.alternate
+    assert all(cell_at(restored, x, 0).flags & 4 for x in range(1, 7))
     # Change the primary assignment and select the same font through bright.
     # A UTF-8 box corner retains its Unicode meaning under either assignment.
     char = b"\xc0" if t.encoding == "CP437" else "└".encode()

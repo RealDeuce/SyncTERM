@@ -1907,7 +1907,7 @@ bytes, case trace, coherent snapshot and PPM under the build's
 | `SGRRGBBG` | 1515 | attributes | Logical RGB cell colours and rendered planes |
 | `SGRBright` | 1533 | attributes | All eight bright foregrounds, bold and faint intensity, DEC mode 32 and SGR reports |
 | `SGRNeg` | 1569 | attributes | Cell colours and rendered glyphs with intensity applied before reversal, including repeated SGR 7, SGR 22, SGR 27 and reset |
-| `SGRConceal` | 1600 | attributes | Logical RGB cell colours and rendered planes |
+| `SGRConceal` | 1600 | attributes | Concealed pixels, selection reveal and restore, clipboard text, plain and attributed STS with codepage bytes and wide UTF-8 clusters, rectangle edits and reset |
 | `OSC4` | 1619 | attributes | Logical palette change and single-entry reset |
 | `OSC104All` | 1651 | attributes | Logical palette change and full palette reset |
 | `DECSCUSR` | 1676 | attributes | Block/underline raster extents and blink state for styles 1 through 4 |

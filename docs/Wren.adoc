@@ -3109,7 +3109,7 @@ Unified blocking and nonblocking reader for keyboard and mouse events.
   the default for Wren UI chrome.  Holding Alt when pressing button one
   inverts that default for the drag, so Alt+Drag selects a block in line mode
   or lines in rectangular mode.  Changing Alt after the press has no effect.
-  Clipboard text omits concealed cells unless they are revealed.
+  Selected concealed characters become visible during the drag and are included in the clipboard text.
   Selection temporarily redraws text over pixel graphics. The complete screen,
   including both pixel planes, is restored when the drag finishes or is
   interrupted by another input event.

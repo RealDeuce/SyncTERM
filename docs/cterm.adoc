@@ -254,6 +254,11 @@ before replay.
 **With FETM=EXCLUDE (`CSI 14 h`):** Only graphic characters are
 transmitted.  C0 and DEL bytes in cells are replaced with SPACE.
 
+On UTF-8 connections, STS transmits the UTF-8 text mapped to the retained
+glyph, including multi-codepoint glyphs. A complete wide glyph is transmitted once. Selecting
+only one of its two cells transmits a space with that cell's rendition in attributed mode. On byte-oriented connections, STS encodes
+each cell using its font's codepage.
+
 The transmitted stream is a linear sequence of character positions in
 presentation order (left to right, top to bottom).  No line boundary
 markers are emitted — the host slices by the known screen width.
@@ -1479,8 +1484,9 @@ two slow blinks. Text backends delegate blink timing to the host terminal.
 |8
 |Conceal. Each character is drawn entirely in its effective background colour.
 Foreground, background and other rendition changes are retained while conceal
-is active. Clipboard selection omits concealed characters. STS substitutes a
-space for each concealed cell.
+is active. Selecting a concealed character reveals it for the duration of the
+selection. Clipboard copy and both STS modes include the character.
+Attributed STS also preserves its conceal rendition and hyperlink.
 | 
 | 
 |√

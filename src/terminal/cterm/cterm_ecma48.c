@@ -40,6 +40,7 @@
 #include "cterm_ecma48.h"
 #include "cterm_internal.h"
 #include "cterm_render.h"
+#include "io_error.h"
 
 /* Forward declarations for the incremental CSI parser + param-string
  * splitter — defined further down in this file and used by
@@ -1314,6 +1315,59 @@ sgr_diff(struct cterminal *cterm, const struct st_console_cell *prev, const stru
 	}
 }
 
+static void
+transmit_cell_text(struct cterminal *cterm, const struct st_console_cell *cell)
+{
+	char local[16];
+	char *text = local;
+	size_t length = 1;
+
+	if (cterm->wire_encoding == ST_CTERM_ENCODING_UTF8) {
+		int status = st_console_font_glyph_text(cterm->screen.console, cell->glyph_font, cell->glyph,
+		    local, sizeof(local), &length);
+		if (status == IO_ERROR_OUT_OF_RANGE) {
+			text = malloc(length);
+			if (text != NULL)
+				status = st_console_font_glyph_text(cterm->screen.console, cell->glyph_font, cell->glyph,
+				    text, length, &length);
+			else
+				status = IO_ERROR_OUT_OF_MEMORY;
+		}
+		if (status != 0) {
+			if (text != local)
+				free(text);
+			if (status != IO_ERROR_NOT_FOUND)
+				cterm_render_record_error(cterm, status);
+			cterm_respond(cterm, "\xef\xbf\xbd", 3);
+			return;
+		}
+	}
+	else
+		local[0] = (char)cterm_render_cell_byte(cterm, cell);
+
+	/* Preserve UTF-8 runs intact while escaping any literal control bytes. */
+	size_t start = 0;
+	for (size_t i = 0; i < length; ++i) {
+		unsigned char byte = (unsigned char)text[i];
+		if (byte >= 0x20 && byte != 0x7f)
+			continue;
+		if (i > start)
+			cterm_respond(cterm, text + start, i - start);
+		if (cterm->fetm)
+			cterm_respond(cterm, " ", 1);
+		else {
+			char doorway[] = "\033[=255h\x00X\033[=255l";
+			doorway[8] = text[i];
+			cterm_respond(cterm, doorway, sizeof(doorway) - 1);
+		}
+		start = i + 1;
+	}
+	if (length > start)
+		cterm_respond(cterm, text + start, length - start);
+	if (text != local)
+		free(text);
+}
+
 /*
  * STS — Transmit selected area content.
  * Framed as: SOS CTerm:STS:<N>: <content> ST
@@ -1423,12 +1477,10 @@ cterm_transmit_selected(struct cterminal *cterm)
 	}
 
 	if (cterm->fetm) {
-		/* FETM=EXCLUDE: text only, C0/DEL → SPACE */
 		for (i = 0; i < total_cells; i++) {
-			uint8_t ch = st_console_cell_is_concealed(&cells[i]) ? ' ' : cterm_render_cell_byte(cterm, &cells[i]);
-			if (ch < 0x20 || ch == 0x7f)
-				ch = ' ';
-			cterm_respond(cterm, (char *)&ch, 1);
+			if (cterm->wire_encoding == ST_CTERM_ENCODING_UTF8 && (cells[i].flags & ST_CONSOLE_CELL_CONTINUATION))
+				continue;
+			transmit_cell_text(cterm, &cells[i]);
 		}
 	}
 	else {
@@ -1446,9 +1498,8 @@ cterm_transmit_selected(struct cterminal *cterm)
 			transmitted_fonts[slot] = prev.font;
 
 		for (i = 0; i < total_cells; i++) {
-			bool hidden = st_console_cell_is_concealed(&cells[i]);
-			if (hidden)
-				cells[i].hyperlink = 0;
+			if (cterm->wire_encoding == ST_CTERM_ENCODING_UTF8 && (cells[i].flags & ST_CONSOLE_CELL_CONTINUATION))
+				continue;
 			if (cells[i].colour_rendition & CTERM_COLOUR_REVERSED)
 				cterm_swap_cell_colours(&cells[i]);
 			/* Emit SGR diff in logical colour order. */
@@ -1475,16 +1526,7 @@ cterm_transmit_selected(struct cterminal *cterm)
 				}
 			}
 
-			uint8_t ch = hidden ? ' ' : cterm_render_cell_byte(cterm, &cells[i]);
-			if (ch < 0x20 || ch == 0x7f) {
-				/* Doorway encode C0/DEL */
-				char doorway[] = "\033[=255h\x00X\033[=255l";
-				doorway[8]     = ch;
-				cterm_respond(cterm, doorway, sizeof(doorway) - 1);
-			}
-			else {
-				cterm_respond(cterm, (char *)&ch, 1);
-			}
+			transmit_cell_text(cterm, &cells[i]);
 			prev = cells[i];
 		}
 	}
