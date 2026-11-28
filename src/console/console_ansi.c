@@ -336,6 +336,8 @@ emit_style(struct ansi_writer *writer, const st_console_t *console, const struct
 		emit(writer, "\033[7m", 4);
 	if ((cell->flags & ST_CONSOLE_CELL_CONCEAL) != 0)
 		emit(writer, "\033[8m", 4);
+	if ((cell->flags & ST_CONSOLE_CELL_STRIKETHROUGH) != 0)
+		emit(writer, "\033[9m", 4);
 	emit_colour(writer, console, cell->foreground, false);
 	emit_colour(writer, console, cell->background, true);
 }
@@ -393,7 +395,7 @@ static bool
 styles_equal(const struct st_console_cell *left, const struct st_console_cell *right)
 {
 	const uint32_t flags = ST_CONSOLE_CELL_BOLD | ST_CONSOLE_CELL_UNDERLINE | ST_CONSOLE_CELL_BLINK
-	                            | ST_CONSOLE_CELL_FAST_BLINK
+	                            | ST_CONSOLE_CELL_FAST_BLINK | ST_CONSOLE_CELL_STRIKETHROUGH
 	                       | ST_CONSOLE_CELL_REVERSE | ST_CONSOLE_CELL_CONCEAL;
 
 	return left->foreground == right->foreground && left->background == right->background

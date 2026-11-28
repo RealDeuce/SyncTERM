@@ -1475,6 +1475,12 @@ two slow blinks. Text backends delegate blink timing to the host terminal.
 |√
 |√
 
+|9
+|Strikethrough. Bitmap displays draw one foreground-colour row across the
+cell. Counting from zero, the row is the cell height divided by two, rounded
+down. This is the centre row for odd heights and the lower middle row for even heights.
+| | | | | |
+
 |22
 |Normal intensity
 | 
@@ -1509,6 +1515,10 @@ implementation makes them equal
 |√
 |√
 |√
+
+|29
+|End strikethrough.
+| | | | | |
 
 |30
 |Black foreground
@@ -2254,11 +2264,12 @@ The remaining `Ps` parameters specify which attributes to toggle:
 |===
 | Ps | Action
 
-| 0 | Invert all toggleable attributes (bold, underline, blink, negative)
+| 0 | Invert all toggleable attributes (bold, underline, blink, negative, strikethrough)
 | 1 or 22 | Toggle bold (XOR legacy attribute bit 3)
 | 4 or 24 | Toggle underline
 | 5 or 25 | Toggle blink (XOR legacy attribute bit 7)
 | 7 or 27 | Toggle negative (swap foreground and background)
+| 9 or 29 | Toggle strikethrough
 |===
 
 All other `Ps` values are silently ignored.

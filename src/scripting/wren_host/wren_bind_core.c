@@ -4137,7 +4137,7 @@ fn_cell_attr_set(WrenVM *vm)
  * glyph/raster/colour-origin state belong to their existing owners. */
 #define CELL_STYLE_FLAGS                                                                                   \
 	(ST_CONSOLE_CELL_BRIGHT | ST_CONSOLE_CELL_BLINK | ST_CONSOLE_CELL_UNDERLINE | ST_CONSOLE_CELL_BOLD \
-	    | ST_CONSOLE_CELL_REVERSE | ST_CONSOLE_CELL_CONCEAL | ST_CONSOLE_CELL_FAST_BLINK)
+	    | ST_CONSOLE_CELL_REVERSE | ST_CONSOLE_CELL_CONCEAL | ST_CONSOLE_CELL_FAST_BLINK | ST_CONSOLE_CELL_STRIKETHROUGH)
 
 static void
 cell_flag_get(WrenVM *vm, uint32_t flag)
@@ -4174,6 +4174,7 @@ cell_flag_set(WrenVM *vm, uint32_t flag)
 CELL_STYLE_PROPERTY(bright, ST_CONSOLE_CELL_BRIGHT)
 CELL_STYLE_PROPERTY(blink, ST_CONSOLE_CELL_BLINK)
 CELL_STYLE_PROPERTY(fast_blink, ST_CONSOLE_CELL_FAST_BLINK)
+CELL_STYLE_PROPERTY(strikethrough, ST_CONSOLE_CELL_STRIKETHROUGH)
 CELL_STYLE_PROPERTY(underline, ST_CONSOLE_CELL_UNDERLINE)
 CELL_STYLE_PROPERTY(bold, ST_CONSOLE_CELL_BOLD)
 CELL_STYLE_PROPERTY(reverse, ST_CONSOLE_CELL_REVERSE)
@@ -5529,6 +5530,8 @@ static const struct binding bindings[] = {
     {"Cell",             false, "fastBlink=(_)",                                     fn_cell_fast_blink_set                       },
     {"Cell",             false, "styleFlags",                                    fn_cell_style_flags                     },
     {"Cell",             false, "styleFlags=(_)",                                fn_cell_style_flags_set                 },
+    {"Cell",             false, "strikethrough",                                 fn_cell_strikethrough                   },
+    {"Cell",             false, "strikethrough=(_)",                             fn_cell_strikethrough_set               },
     {"Cell",             false, "underline",                                     fn_cell_underline                       },
     {"Cell",             false, "underline=(_)",                                 fn_cell_underline_set                   },
     {"Cell",             false, "bold",                                          fn_cell_bold                            },

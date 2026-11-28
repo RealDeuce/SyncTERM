@@ -1175,6 +1175,41 @@ test_underline_strike(void)
 }
 
 static void
+test_strikethrough(void)
+{
+	static const uint8_t bitmap[] = {0};
+	static const struct st_console_font_mapping mapping[] = {{' ', 0}};
+	static const struct st_console_font font = {.bitmap = bitmap, .bitmap_size = sizeof(bitmap),
+	    .width = 1, .height = 1, .glyph_count = 1, .row_stride = 1, .glyph_stride = 1,
+	    .mapping = mapping, .mapping_count = 1};
+	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_rect cell_area = {0, 0, 1, 1};
+	struct st_console_cell cell = {.glyph = 0, .foreground = 5, .background = 1,
+	    .flags = ST_CONSOLE_CELL_STRIKETHROUGH | ST_CONSOLE_CELL_REVERSE};
+	const unsigned heights[] = {1, 8, 9, 14, 16}, rows[] = {0, 4, 4, 7, 8};
+	for (size_t i = 0; i < sizeof(heights) / sizeof(*heights); ++i) {
+		const struct st_console_config config = {.columns = 1, .rows = 1, .cell_width = 7,
+		    .cell_height = heights[i]};
+		const struct st_console_rect area = {0, 0, 7, heights[i]};
+		st_console_t *console = NULL;
+		struct st_pixel_buffer *pixels = NULL;
+		CHECK(st_console_create(&console, &display, &config) == 0);
+		cell.font = register_static_font(console, &font);
+		CHECK(st_console_write_cells(console, &cell_area, &cell, 1) == 0);
+		CHECK(st_console_get_pixels(&pixels, console, &area, false) == 0);
+		for (unsigned y = 0; y < heights[i]; ++y) {
+			for (unsigned x = 0; x < 7; ++x) {
+				size_t at = y * 7 + x;
+				CHECK(pixels->primary[at] == (y == rows[i] ? 1u : 5u));
+				CHECK(pixels->alternate[at] == pixels->primary[at]);
+			}
+		}
+		st_pixel_buffer_destroy(pixels);
+		st_console_destroy(console);
+	}
+}
+
+static void
 test_raster_margin_and_scroll(void)
 {
 	static const uint8_t                        glyphs[]  = {0x00, 0x00, 0xc0, 0xc0};
@@ -1448,6 +1483,14 @@ test_saa5050_double_height_raster(void)
 	CHECK(pixels->primary[8] == foreground);
 	CHECK(pixels->primary[16 + 7] == foreground);
 	CHECK(pixels->primary[24 + 7] == foreground);
+	st_pixel_buffer_destroy(pixels);
+	cells[0].flags |= ST_CONSOLE_CELL_STRIKETHROUGH;
+	CHECK(st_console_write_cells(console, &cells_rect, cells, 1) == 0);
+	CHECK(st_console_get_pixels(&pixels, console, &pixels_rect, false) == 0);
+	for (unsigned y = 0; y < 4; ++y) {
+		for (unsigned x = 0; x < 8; ++x)
+			CHECK(pixels->primary[y * 8 + x] == (y == 2 || x == (y < 2 ? 0u : 7u) ? foreground : 0u));
+	}
 	st_pixel_buffer_destroy(pixels);
 	st_console_cell_at(console, 0)->flags &= ~ST_CONSOLE_CELL_DIRTY;
 	st_console_cell_at(console, 1)->flags &= ~ST_CONSOLE_CELL_DIRTY;
@@ -3624,6 +3667,7 @@ main(void)
 	test_pixels_and_font_rendering();
 	test_fast_font_attributes();
 	test_underline_strike();
+	test_strikethrough();
 	test_raster_margin_and_scroll();
 	test_partial_full_width_raster_scroll();
 	test_saa5050_double_height_raster();

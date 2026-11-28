@@ -850,6 +850,8 @@ sgr_style(st_console_t *console, struct curses_state *state, struct sgr_writer *
 		sgr_emit(writer, "\033[7m", 4);
 	if ((cell->flags & ST_CONSOLE_CELL_CONCEAL) != 0)
 		sgr_emit(writer, "\033[8m", 4);
+	if ((cell->flags & ST_CONSOLE_CELL_STRIKETHROUGH) != 0)
+		sgr_emit(writer, "\033[9m", 4);
 	*foreground = sgr_colour(console, state, writer, cell->foreground, false, index);
 	*background = sgr_colour(console, state, writer, cell->background, true, index);
 }
@@ -899,7 +901,7 @@ static bool
 sgr_styles_equal(const struct st_console_cell *left, const struct st_console_cell *right)
 {
 	const uint32_t style_flags = ST_CONSOLE_CELL_BOLD | ST_CONSOLE_CELL_UNDERLINE | ST_CONSOLE_CELL_BLINK
-	                            | ST_CONSOLE_CELL_FAST_BLINK
+	                            | ST_CONSOLE_CELL_FAST_BLINK | ST_CONSOLE_CELL_STRIKETHROUGH
 	                             | ST_CONSOLE_CELL_REVERSE | ST_CONSOLE_CELL_CONCEAL;
 
 	return left->foreground == right->foreground && left->background == right->background

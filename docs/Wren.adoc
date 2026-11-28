@@ -3565,6 +3565,10 @@ hyperlink, and repairs overwritten wide pairs.
 | `fastBlink`, `fastBlink=(b)`
 | Selects the fast cadence when `blink` is enabled.
 
+| `strikethrough`, `strikethrough=(b)`
+| Draws a one-pixel foreground line across the centre row of an odd-height cell
+  or the lower middle row of an even-height cell.
+
 | `underline`, `bold`, `reverse`, `conceal`
 | Read/write Boolean drawing styles. Underline adds the bottom glyph row;
   bold thickens the glyph; reverse exchanges foreground/background when drawn;
@@ -3631,7 +3635,8 @@ instead.
 
 Named masks for `Cell.styleFlags`, available in all script VMs. `bright` is
 `0x400000`, `blink` is `2`, `underline` is `0x10000`, `bold` is `0x20000`,
-`reverse` is `0x40000`, `conceal` is `4`, and `fastBlink` is `0x2000000`. `all` is their union (`0x2470006`).
+`reverse` is `0x40000`, `conceal` is `4`, `fastBlink` is `0x2000000`, and `strikethrough` is `0x4000000`.
+`all` is their union (`0x6470006`).
 These native bit values fit Wren's ordinary bitwise operators. Renderer state,
 serial attributes and pixel-graphics ownership are excluded from this mask.
 

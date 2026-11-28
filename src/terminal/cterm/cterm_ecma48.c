@@ -1192,6 +1192,8 @@ sgr_diff(struct cterminal *cterm, const struct st_console_cell *prev, const stru
 			cterm_respond_printf(cterm, ";4");
 		if (na & 0x80)
 			cterm_respond_printf(cterm, ";%d", (next->flags & ST_CONSOLE_CELL_FAST_BLINK) ? 6 : 5);
+		if (next->flags & ST_CONSOLE_CELL_STRIKETHROUGH)
+			cterm_respond_printf(cterm, ";9");
 		cterm_respond_printf(cterm, ";%d", 30 + cterm_ansi_colour_order[na & 0x07]);
 		cterm_respond_printf(cterm, ";%d", 40 + cterm_ansi_colour_order[(na >> 4) & 0x07]);
 		cterm_respond_printf(cterm, "m");
@@ -1215,6 +1217,11 @@ sgr_diff(struct cterminal *cterm, const struct st_console_cell *prev, const stru
 			if (params++)
 				strcat(sgrbuf, ";");
 			strcat(sgrbuf, (next->flags & ST_CONSOLE_CELL_FAST_BLINK) ? "6" : "5");
+		}
+		if ((next->flags ^ prev->flags) & ST_CONSOLE_CELL_STRIKETHROUGH) {
+			if (params++)
+				strcat(sgrbuf, ";");
+			strcat(sgrbuf, (next->flags & ST_CONSOLE_CELL_STRIKETHROUGH) ? "9" : "29");
 		}
 		if ((na & 0x07) != (pa & 0x07) || (next_faint && !prev_faint)) {
 			char tmp[16];
@@ -1638,7 +1645,8 @@ cterm_ecma48_apply_sgr(struct cterminal *cterm, int *pi)
 				cterm_render_record_error(cterm, cterm->device.reset_style(cterm->device.context));
 			cterm->negative = false;
 			cterm->faint    = false;
-			cterm->cell_flags &= ~(ST_CONSOLE_CELL_UNDERLINE | ST_CONSOLE_CELL_FAST_BLINK);
+			cterm->cell_flags &= ~(ST_CONSOLE_CELL_UNDERLINE | ST_CONSOLE_CELL_FAST_BLINK
+			                       | ST_CONSOLE_CELL_STRIKETHROUGH);
 			cterm->attr     = cterm->screen.default_attribute;
 			cterm_render_attribute_colours(cterm, cterm->attr, &cterm->fg_color, &cterm->bg_color);
 			CTERM_FREE_AND_CLEAR(cterm->fg_tc_str);
@@ -1672,6 +1680,12 @@ cterm_ecma48_apply_sgr(struct cterminal *cterm, int *pi)
 			break;
 		case 24:
 			cterm->cell_flags &= ~ST_CONSOLE_CELL_UNDERLINE;
+			break;
+		case 9:
+			cterm->cell_flags |= ST_CONSOLE_CELL_STRIKETHROUGH;
+			break;
+		case 29:
+			cterm->cell_flags &= ~ST_CONSOLE_CELL_STRIKETHROUGH;
 			break;
 		case 5:
 		case 6:

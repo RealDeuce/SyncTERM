@@ -467,6 +467,33 @@ def attributes(t):
     frame = t.check("sgr-underline", b"ABCD\x1b[1;1;1;3;4$r\x1b[1;2;1;2;4$t\x1b[1;3;1;3;24$r")
     assert [bool(cell_at(frame, x, 0).flags & (1 << 16)) for x in range(4)] == [
         True, False, False, False]
+    frame = t.check("sgr-strike", b"\x1b[9m \x1b[4m \x1b[29m \x1b[24;6;9m \x1b[m \x1b[9m"
+                    + ESC + b"P$qm" + ST, (6, 1), expected=ESC + b"P1$r0;9m" + ST)
+    for x in range(5):
+        cell = cell_at(frame, x, 0)
+        strike, underline = x in (0, 1, 3), x in (1, 2)
+        assert bool(cell.flags & (1 << 26)) == strike
+        for alternate in (False, True):
+            expected = tuple(cell.foreground if ((strike and y == 8) or (underline and y == 13))
+                             and not (alternate and x == 3) else cell.background
+                             for y in range(16) for _ in range(8))
+            assert tile(frame, x+1, 1, alternate) == expected, (x, alternate)
+    frame = t.check("sgr-strike", b"\x1b[9mAAA\r\x1b[2K\x1b[29m ", (2, 1))
+    for x in range(80):
+        cell = cell_at(frame, x, 0)
+        assert bool(cell.flags & (1 << 26)) == (x != 0)
+        assert tile(frame, x+1) == tuple(cell.foreground if x and y == 8 else cell.background
+                                        for y in range(16) for _ in range(8))
+    t.check("sgr-strike", b"\x1bF\x1b[9mA\x1b[29mB\x1bS",
+            expected=ESC + b"XCTerm:STS:0:\x1b[9mA\x1b[29mB" + ST)
+    frame = t.check("sgr-strike", b"ABCD\x1b[1;1;1;3;9$r\x1b[1;2;1;2;9$t\x1b[1;3;1;3;29$r")
+    assert [bool(cell_at(frame, x, 0).flags & (1 << 26)) for x in range(4)] == [True, False, False, False]
+    if t.encoding == "UTF-8":
+        frame = t.check("sgr-strike", wide + ESC + b"[9m" + wide, (5, 1))
+        for half in (0, 1):
+            expected = list(tile(frame, 1 + half))
+            expected[64:72] = [cell_at(frame, 2 + half, 0).foreground] * 8
+            assert tile(frame, 3 + half) == tuple(expected)
     # Faint colours are independent, programmable ANSI-order registers.
     stream = b"".join(f"\x1b[{30+i};2mX".encode() for i in range(8))
     stream += (b"\x1b[2;33mA\x1b[1mB\x1b[22mC\x1b[2;7mD\x1b[27;93mE"

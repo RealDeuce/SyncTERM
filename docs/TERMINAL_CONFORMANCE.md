@@ -26,6 +26,10 @@ cancellation by SGR 25 and reset, and the exact status and selection replies.
 The bitmap animation test checks slow text, fast text and the blinking cursor
 at each millisecond of their 1064 ms period, including fractional tick boundaries.
 
+The SGR 9/29 tests check strike placement at cell heights of 1, 8, 9, 14 and
+16 pixels. The connected suites check both blink planes, underline composition,
+line erasure, rectangle edits, wide text, reset and rendition reports.
+
 The Unicode presenter tests cover all 95 printable ASCII characters at begin
 and commit, plus bytewise revisions to composed accents and two-column
 keycaps. The connected UTF-8 movement suite writes an ASCII letter over each

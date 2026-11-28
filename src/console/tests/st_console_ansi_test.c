@@ -252,6 +252,7 @@ child_test(int descriptor)
 		for (size_t i = 0; i < 7; ++i) {
 			marker[i].glyph      = (uint32_t)text[i];
 			marker[i].foreground = 7;
+			marker[i].flags = ST_CONSOLE_CELL_STRIKETHROUGH;
 		}
 		if (st_console_write_cells(console, &rectangle, marker, 7) != 0)
 			goto failed;
@@ -549,7 +550,7 @@ main(void)
 	           != (ssize_t)(sizeof("\033[999999999999999999999999999999A") - 1)
 	    || wait_report(reports[0], master, 'O') != 0)
 		goto failed;
-	if (!wait_text(master, "REPAINT"))
+	if (!wait_text(master, "REPAINT") || !output_contains("\033[9m"))
 		goto failed;
 	terminal_output_size = 0;
 	size.ws_row          = 10;

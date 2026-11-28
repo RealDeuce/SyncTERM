@@ -180,7 +180,7 @@ prepare_fast_cell(st_console_t *console, const struct st_console_cell *cell, str
 	    || (console->color_emoji && st_console_font_color_glyph(font, glyph_index) != NULL) || glyph_width != 8
 	    || font->height != console->cell_height || console->cell_width != 8
 	    || (cell->flags & (ST_CONSOLE_CELL_SEPARATED | ST_CONSOLE_CELL_CONTINUATION
-	                       | ST_CONSOLE_CELL_UNDERLINE)) != 0)
+	                       | ST_CONSOLE_CELL_UNDERLINE | ST_CONSOLE_CELL_STRIKETHROUGH)) != 0)
 		return false;
 	if ((cell->flags & ST_CONSOLE_CELL_REVERSE) != 0) {
 		uint32_t swap = foreground;
@@ -290,6 +290,15 @@ render_pixel_position(const st_console_t *console, const struct st_pixel_buffer 
 }
 
 static void
+draw_rule(struct st_pixel_buffer *pixels, size_t pixel, uint32_t width, uint32_t foreground, uint32_t alternate)
+{
+	for (uint32_t px = 0; px < width; ++px) {
+		pixels->primary[pixel + px] = foreground;
+		pixels->alternate[pixel + px] = alternate;
+	}
+}
+
+static void
 render_underline(st_console_t *console, struct st_pixel_buffer *pixels, const struct st_console_cell *cell,
     uint32_t x, uint32_t y, uint32_t draw_width, uint32_t draw_height, enum row_scale scale,
     struct underline_glyph *line, uint32_t foreground, uint32_t background)
@@ -325,10 +334,8 @@ render_underline(st_console_t *console, struct st_pixel_buffer *pixels, const st
 		else if (py + 1 != console->cell_height)
 			continue; /* Fonts without an underscore keep the single bottom rule. */
 		size_t pixel = render_pixel_position(console, pixels, x * console->cell_width, y * console->cell_height + py);
-		for (uint32_t px = 0; px < draw_width; ++px) {
-			pixels->primary[pixel + px] = foreground;
-			pixels->alternate[pixel + px] = (cell->flags & ST_CONSOLE_CELL_BLINK) ? background : foreground;
-		}
+		draw_rule(pixels, pixel, draw_width, foreground,
+		    (cell->flags & ST_CONSOLE_CELL_BLINK) ? background : foreground);
 	}
 }
 
@@ -615,6 +622,17 @@ render_cell_pixels(st_console_t *console, struct st_pixel_buffer *pixels, const 
 	}
 
 decorate:
+	if ((source->flags & ST_CONSOLE_CELL_STRIKETHROUGH) != 0
+	    && !(row_scale == ROW_SCALE_TOP && (source->flags & ST_CONSOLE_CELL_DOUBLE_HEIGHT))) {
+		/* A double-height character crosses its midpoint at the start of the lower half. */
+		uint32_t row = row_scale == ROW_SCALE_BOTTOM ? 0 : console->cell_height / 2;
+		if (row < draw_height) {
+			size_t at = render_pixel_position(console, pixels, x * console->cell_width,
+			    y * console->cell_height + row);
+			draw_rule(pixels, at, draw_width, foreground,
+			    (source->flags & ST_CONSOLE_CELL_BLINK) ? background : foreground);
+		}
+	}
 	if ((source->flags & ST_CONSOLE_CELL_UNDERLINE) != 0)
 		render_underline(console, pixels, source, x, y, draw_width, draw_height, row_scale,
 		    &font_cache->underline, foreground, background);
