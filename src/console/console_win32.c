@@ -175,7 +175,7 @@ write_run(struct win32_state *state, st_console_t *console, uint32_t y, uint32_t
 
 			st_console_effective_cell_locked(console, source, &effective);
 			cell                       = &effective;
-			buffer[i].Char.UnicodeChar = cell_character(console, cell);
+			buffer[i].Char.UnicodeChar = cell->flags & ST_CONSOLE_CELL_CONCEAL ? L' ' : cell_character(console, cell);
 			buffer[i].Attributes       = cell_attributes(console, state, cell);
 			if ((cell->flags & ST_CONSOLE_CELL_CONTINUATION) != 0)
 				buffer[i].Attributes |= COMMON_LVB_TRAILING_BYTE;

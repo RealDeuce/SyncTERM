@@ -1005,7 +1005,8 @@ sgr_present(st_console_t *console, struct curses_state *state, const struct st_c
 			state->drawn[index].flags &= ~ST_CONSOLE_CELL_DIRTY;
 			st_console_effective_cell_locked(console, source, &effective);
 			cell = &effective;
-			if ((cell->flags & ST_CONSOLE_CELL_CONTINUATION) != 0) {
+			bool hidden = (cell->flags & ST_CONSOLE_CELL_CONCEAL) != 0;
+			if (!hidden && (cell->flags & ST_CONSOLE_CELL_CONTINUATION) != 0) {
 				state->drawn_foreground[index] = -1;
 				state->drawn_background[index] = -1;
 				continue;
@@ -1018,12 +1019,15 @@ sgr_present(st_console_t *console, struct curses_state *state, const struct st_c
 				current_style = *cell;
 				style_known   = true;
 			}
-			sgr_character(&writer, console, state, cell);
+			if (hidden)
+				sgr_emit(&writer, " ", 1);
+			else
+				sgr_character(&writer, console, state, cell);
 			state->drawn_foreground[index] = foreground;
 			state->drawn_background[index] = background;
 			output_x                       = x + 1;
 			output_y                       = y;
-			if (x + 1 < console->columns
+			if (!hidden && x + 1 < console->columns
 			    && (st_console_display_cell(console, index + 1)->flags & ST_CONSOLE_CELL_CONTINUATION)
 			           != 0)
 				++output_x;
@@ -1353,7 +1357,7 @@ curses_present_inner(void *argument)
 			if ((source->flags & ST_CONSOLE_CELL_DIRTY) == 0 && !st_console_row_dirty(console, y)
 			    && st_console_cells_equal(source, &state->drawn[index]))
 				continue;
-			if ((source->flags & ST_CONSOLE_CELL_CONTINUATION) != 0) {
+			if ((source->flags & ST_CONSOLE_CELL_CONTINUATION) != 0 && !st_console_cell_is_concealed(source)) {
 				state->drawn[index] = *source;
 				state->drawn[index].flags &= ~ST_CONSOLE_CELL_DIRTY;
 				state->drawn_foreground[index] = -1;
@@ -1369,7 +1373,8 @@ curses_present_inner(void *argument)
 				   state->extended_pairs ? &pair : NULL)
 			           == ERR)
 				return IO_ERROR_IO;
-			write_result = write_cell(console, state, cell);
+			write_result = (cell->flags & ST_CONSOLE_CELL_CONCEAL)
+			    ? state->api.call_addch(state->window, ' ') : write_cell(console, state, cell);
 			if (write_result == ERR
 			    && !(view->x + x + 1 == host_columns && view->y + y + 1 == host_rows))
 				return IO_ERROR_IO;

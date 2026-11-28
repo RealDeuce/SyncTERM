@@ -217,7 +217,7 @@ append_cell(st_console_t *console, char **text, size_t *capacity, size_t *length
 	bool              broken;
 
 	*nonspace = false;
-	if ((cell->flags & ST_CONSOLE_CELL_CONTINUATION) != 0)
+	if ((cell->flags & ST_CONSOLE_CELL_CONTINUATION) != 0 || st_console_cell_is_concealed(cell))
 		return 0;
 	/* Font identifiers belong to their console. A positioned RIP3 grid's
 	 * bitmap mapping must not be interpreted through the entry font catalog. */

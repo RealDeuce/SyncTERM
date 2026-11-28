@@ -159,6 +159,8 @@ int cterm_render_make_cell(struct cterminal *cterm, struct st_console_cell *cell
     uint32_t foreground, uint32_t background, uint8_t font_selector, uint16_t hyperlink, uint32_t flags);
 int cterm_render_make_current_cell(struct cterminal *cterm, struct st_console_cell *cell, uint8_t byte,
     uint16_t hyperlink);
+void cterm_render_restyle_cell(struct cterminal *cterm, struct st_console_cell *cell, uint8_t attribute,
+    uint32_t foreground, uint32_t background, uint32_t flags);
 uint8_t cterm_render_cell_byte(struct cterminal *cterm, const struct st_console_cell *cell);
 uint8_t cterm_render_cell_attribute(struct cterminal *cterm, const struct st_console_cell *cell);
 uint8_t cterm_render_cell_font(struct cterminal *cterm, const struct st_console_cell *cell);

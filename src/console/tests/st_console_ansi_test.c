@@ -244,6 +244,15 @@ child_test(int descriptor)
 		goto failed;
 	report(descriptor, 'O');
 	{
+		const struct st_console_rect hidden = {0, 2, 6, 1};
+		struct st_console_cell concealed[6] = {0};
+		for (size_t i = 0; i < 6; ++i) {
+			concealed[i].glyph = (uint32_t)"SECRET"[i];
+			concealed[i].foreground = 7;
+			concealed[i].flags = ST_CONSOLE_CELL_CONCEAL;
+		}
+		if (st_console_write_cells(console, &hidden, concealed, 6) != 0)
+			goto failed;
 		const char                   text[]    = "REPAINT";
 		const struct st_console_rect rectangle = {0, 20, 7, 1};
 		const struct st_console_rect top       = {0, 1, 6, 1};
@@ -550,7 +559,7 @@ main(void)
 	           != (ssize_t)(sizeof("\033[999999999999999999999999999999A") - 1)
 	    || wait_report(reports[0], master, 'O') != 0)
 		goto failed;
-	if (!wait_text(master, "REPAINT") || !output_contains("\033[9m") || !output_contains("\033[21m") || !output_contains("\033[53m"))
+	if (!wait_text(master, "REPAINT") || output_contains("SECRET") || !output_contains("\033[9m") || !output_contains("\033[21m") || !output_contains("\033[53m"))
 		goto failed;
 	terminal_output_size = 0;
 	size.ws_row          = 10;

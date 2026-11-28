@@ -18,7 +18,8 @@ url_character(st_console_t *console, const struct st_console_cell *cell)
 {
 	char   text[4];
 	size_t length;
-	if (st_console_font_glyph_text(console, cell->glyph_font, cell->glyph, text, sizeof(text), &length) != 0
+	if (st_console_cell_is_concealed(cell)
+	    || st_console_font_glyph_text(console, cell->glyph_font, cell->glyph, text, sizeof(text), &length) != 0
 	    || length != 1)
 		return 0;
 	unsigned char ch = (unsigned char)text[0];
@@ -150,7 +151,7 @@ link_cell(struct st_wren_context *context, int32_t *x, int32_t *y, int32_t pixel
 	    || (uint32_t)*y - area->y >= height)
 		return false;
 	const struct st_console_rect point = {(uint32_t)*x, (uint32_t)*y, 1, 1};
-	return st_console_read_cells(*source, &point, cell, 1) == 0;
+	return st_console_read_cells(*source, &point, cell, 1) == 0 && !st_console_cell_is_concealed(cell);
 }
 
 char *

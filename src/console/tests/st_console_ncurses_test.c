@@ -440,6 +440,15 @@ child_test(int report, bool cp437)
 		child_result(report, 'r');
 	}
 	{
+		const struct st_console_rect hidden = {0, 2, 6, 1};
+		struct st_console_cell concealed[6] = {0};
+		for (size_t i = 0; i < 6; ++i) {
+			concealed[i].glyph = (uint32_t)"SECRET"[i];
+			concealed[i].foreground = 7;
+			concealed[i].flags = ST_CONSOLE_CELL_CONCEAL;
+		}
+		if (st_console_write_cells(console, &hidden, concealed, 6) != 0)
+			_exit(1);
 		const char                   text[]    = "REPAINT";
 		const struct st_console_rect rectangle = {0, 1, 7, 1};
 		struct st_console_cell       marker[7] = {0};
@@ -667,7 +676,7 @@ main(int argc, char **argv)
 		    || wait_report(report[0], master, 'r') != 0)
 			goto failed;
 	}
-	if (wait_report(report[0], master, 'O') != 0)
+	if (wait_report(report[0], master, 'O') != 0 || output_contains("SECRET"))
 		goto failed;
 	if ((!direct_colour
 	        && ((!output_selects_colour(203) && !output_programs_colour(255, 84, 84))

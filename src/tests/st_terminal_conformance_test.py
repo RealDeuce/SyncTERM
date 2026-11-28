@@ -411,7 +411,7 @@ def attributes(t):
         ("SGRRGBBG", "48;2;23;134;245", 0xa8a8a8, 0x1786f5),
         ("SGRBright", "91;104", 0xff5454, 0x5454ff),
         ("SGRNeg", "31;44;7", 0x0000a8, 0xa80000),
-        ("SGRConceal", "31;44;8", 0x0000a8, 0x0000a8),
+        ("SGRConceal", "31;44;8", 0xa80000, 0x0000a8),
         ("SGRDim", "1;2", 0x545454, 0),
         ("SGRNormInt", "1;22", 0xa8a8a8, 0),
         ("SGRDefFG", "31;39", 0xa8a8a8, 0),
@@ -430,6 +430,35 @@ def attributes(t):
             assert len(pixels) == 1, (name, pixels)
         else:
             assert len(pixels) == 2, (name, pixels)
+    hidden_text = "界".encode() if t.encoding == "UTF-8" else b"XY"
+    query = ESC + b"P$qm" + ST
+    frame = t.check("SGRConceal", b"L\x1b[8m" + query + b"X\x1b[32;44;7;4;6m" + hidden_text
+                    + b"\x1b[38:2::17:34:51mY\x1b[28mZ\x1b[8;0mR" + query, (8, 1),
+                    expected=ESC + b"P1$r0;8m" + ST + ESC + b"P1$r0m" + ST)
+    for x in range(7):
+        cell = cell_at(frame, x, 0)
+        assert bool(cell.flags & 4) == (1 <= x <= 4)
+        if 1 <= x <= 4:
+            assert set(tile(frame, x + 1)) == set(tile(frame, x + 1, alternate=True)) == {cell.background}
+    assert [colour(frame, cell_at(frame, x, 0), True) for x in (2, 3, 4, 5)] == [
+        0x00a800, 0x00a800, 0x112233, 0x112233]
+    assert colour(frame, cell_at(frame, 5, 0)) == 0x5454ff and len(set(tile(frame, 6))) == 2
+    t.check("SGRConceal", b"\x1bFA\x1b[8mQ\x1b[28mB\x1bS",
+            expected=ESC + b"XCTerm:STS:0:A\x1b[8m \x1b[28mB" + ST)
+    t.check("SGRConceal", b"\x1b[14h\x1bFA\x1b[8mQ\x1b[28mB\x1bS",
+            expected=ESC + b"XCTerm:STS:1:A B" + ST)
+    frame = t.check("SGRConceal", b"AB\r\x1b[8;44m\x1b[2K\x1b[28mC")
+    assert not (cell_at(frame, 0, 0).flags & 4)
+    assert all(cell_at(frame, x, 0).flags & 4 for x in range(1, 80))
+    link = ESC + b"]8;;https://example.org/hidden" + ST
+    t.check("SGRConceal", ESC + b"F" + link + b"\x1b[8mQ" + ESC + b"]8;;" + ST + ESC + b"S",
+            expected=ESC + b"XCTerm:STS:0:\x1b[8m " + ST)
+    frame = t.check("SGRConceal", hidden_text + b"\x1b[1;1;1;2;8$r")
+    for x in (1, 2):
+        assert set(tile(frame, x)) == {cell_at(frame, x-1, 0).background}
+    restored = t.exchange(b"\x1b[1;1;1;2;28$t")
+    assert restored.cell_text(cell_at(restored, 0, 0)) == ("界" if t.encoding == "UTF-8" else "X")
+    assert not (cell_at(restored, 0, 0).flags & 4) and len(set(tile(restored))) == 2
     frame = t.check("compound-sgr-colour",
                     b"\x1b[38:2::18:52:86;48:2:7:154:188:222;4m " + ESC + b"P$qm" + ST
                     + b"\x1b[m ", (3, 1),
@@ -844,18 +873,18 @@ def extensions(t):
         assert tile(source, x + 1) == tile(replay, x + 1)
     frame = t.exchange(b"ABCD\x1b[1;1;1;2;19$r\x1b[1;1;1;1;1$t", reset=True)
     assert [cell_at(frame, x, 0).flags >> 27 for x in range(4)] == [9, 9, 0, 0]
-    # The clipboard reads the retained characters after position 9 is reassigned.
+    # Copy across concealed text after position 9 is reassigned.
     first, second = ((b"\xc0", b"\xc0") if t.encoding == "CP437"
                      else ("└".encode(), "А".encode()))
-    frame = t.exchange(b"\x1b[?25l\x1b[9;1 D" + first + b"\x1b[19m" + second
+    frame = t.exchange(b"\x1b[?25l\x1b[9;1 D" + first + b"\x1b[8mhidden\x1b[28;19m" + second
                        + b"\x1b[9;0 D\x1b[10m", reset=True)
-    cells = [cell_at(frame, x, 0) for x in (0, 1)]
+    cells = [cell_at(frame, x, 0) for x in (0, 7)]
     assert [frame.cell_text(cell) for cell in cells] == ["└", "А"]
     assert all(cell.glyph == 0xc0 and cell.glyph_font == cell.font for cell in cells)
     assert cells[0].font != cells[1].font
     m = frame.metadata
     x0 = m["destination_x"] + m["cell_width"] * m["destination_width"] // (2 * m["plane_width"])
-    x1 = m["destination_x"] + 3 * m["cell_width"] * m["destination_width"] // (2 * m["plane_width"])
+    x1 = m["destination_x"] + 15 * m["cell_width"] * m["destination_width"] // (2 * m["plane_width"])
     y = m["destination_y"] + (m["pixel_top"] + m["cell_height"] // 2) * m["destination_height"] // m["plane_height"]
     t.client.mouse(x0, y, action=1, buttons=1)
     t.client.mouse(x1, y, buttons=1)

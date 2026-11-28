@@ -275,6 +275,15 @@ depth_tests(struct cterm_skypix *sky)
 	/* ANSI.TXT / SkyTERM RGB4 defaults, independent of the renderer. */
 	static const uint32_t expected[16] = {0x000000, 0x1111ff, 0xdddddd, 0xff0000, 0x00ff11, 0x33aaff, 0xffff22,
 	    0xcc00ee, 0x00bb66, 0x00dddd, 0x00aaff, 0x0077cc, 0x0000ff, 0x7700ff, 0xcc00ee, 0xcc0088};
+	CHECK(reset_without_cursor(sky) == 0);
+	feed(sky, "\x1b[10;8!Pearl.font!\x1b[19;8;8!\x1b[8m\x1b[18;3!A\x1b[28mA");
+	struct st_pixel_buffer *strike = NULL;
+	CHECK(st_console_get_pixels(&strike, t->screen.console, &(struct st_console_rect){8, 9, 16, 8}, false) == 0);
+	for (unsigned y = 0; y < 8; ++y)
+		for (unsigned x = 0; x < 8; ++x)
+			CHECK(strike->primary[y * 16 + x] == 515 && strike->alternate[y * 16 + x] == 515);
+	CHECK(strike->primary[8 + 3] == 514);
+	st_pixel_buffer_destroy(strike);
 	const char            mode[]       = "\x1b[17;2!";
 	for (size_t split = 0; split <= strlen(mode); ++split) {
 		CHECK(reset_without_cursor(sky) == 0);

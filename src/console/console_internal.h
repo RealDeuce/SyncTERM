@@ -443,6 +443,13 @@ st_console_effective_cell_locked(const st_console_t *console, const struct st_co
 	    && (source->flags & ST_CONSOLE_CELL_BLINK) != 0
 	    && (console->video_flags & ST_CONSOLE_VIDEO_BRIGHT_BACKGROUND) != 0)
 		effective->background = source->background + 8;
+	if (effective->flags & ST_CONSOLE_CELL_CONCEAL) {
+		if (effective->flags & ST_CONSOLE_CELL_REVERSE)
+			effective->background = effective->foreground;
+		effective->foreground = effective->background;
+		effective->flags &= ~(ST_CONSOLE_CELL_REVERSE | ST_CONSOLE_CELL_BOLD | ST_CONSOLE_CELL_BRIGHT
+		                      | ST_CONSOLE_CELL_UNDERLINE_MASK | ST_CONSOLE_CELL_STRIKETHROUGH | ST_CONSOLE_CELL_OVERLINE);
+	}
 	if ((console->video_flags & ST_CONSOLE_VIDEO_NO_BLINK) != 0)
 		effective->flags &= ~(ST_CONSOLE_CELL_BLINK | ST_CONSOLE_CELL_FAST_BLINK);
 }

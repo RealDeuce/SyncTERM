@@ -532,7 +532,8 @@ ansi_present(st_console_t *console)
 			state->drawn[index].flags &= ~ST_CONSOLE_CELL_DIRTY;
 			st_console_effective_cell_locked(console, source, &effective);
 			cell = &effective;
-			if ((cell->flags & ST_CONSOLE_CELL_CONTINUATION) != 0)
+			bool hidden = (cell->flags & ST_CONSOLE_CELL_CONCEAL) != 0;
+			if (!hidden && (cell->flags & ST_CONSOLE_CELL_CONTINUATION) != 0)
 				continue;
 			if (!position_known || output_x != x || output_y != y)
 				emit_format(&writer, "\033[%" PRIu32 ";%" PRIu32 "H", view.y + y + 1,
@@ -542,10 +543,13 @@ ansi_present(st_console_t *console)
 				current_style = *cell;
 				style_known   = true;
 			}
-			emit_character(&writer, console, cell);
+			if (hidden)
+				emit(&writer, " ", 1);
+			else
+				emit_character(&writer, console, cell);
 			output_x = x + 1;
 			output_y = y;
-			if (x + 1 < console->columns
+			if (!hidden && x + 1 < console->columns
 			    && (st_console_display_cell(console, index + 1)->flags & ST_CONSOLE_CELL_CONTINUATION)
 			           != 0)
 				++output_x;

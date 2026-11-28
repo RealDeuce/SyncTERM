@@ -28,6 +28,10 @@ report, both pixel planes and the following reset. The native `cterm_numeric`
 test feeds that sequence at every input split and also checks indexed colours
 followed by SGR 24.
 
+The CP437 and UTF-8 attributes suites check SGR 8 and 28 across colour changes,
+inverse video, selection, and reset. They verify both pixel planes, retained
+glyphs, rectangle edits, clipboard text and status replies.
+
 The connected attributes suites also check SGR 5 and 6 in adjacent cells,
 cancellation by SGR 25 and reset, and the exact status and selection replies.
 The bitmap animation test checks slow text, fast text and the blinking cursor

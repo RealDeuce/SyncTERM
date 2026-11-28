@@ -1477,10 +1477,10 @@ two slow blinks. Text backends delegate blink timing to the host terminal.
 |√
 
 |8
-|Concealed characters, sets the
-
-      foreground colour to the background
-      colour.
+|Conceal. Each character is drawn entirely in its effective background colour.
+Foreground, background and other rendition changes are retained while conceal
+is active. Clipboard selection omits concealed characters. STS substitutes a
+space for each concealed cell.
 | 
 | 
 |√
@@ -1543,6 +1543,10 @@ implementation makes them equal
 |√
 |√
 |√
+
+|28
+|End conceal. Subsequent characters use the current rendition.
+| | | | | |
 
 |29
 |End strikethrough.
@@ -2306,11 +2310,12 @@ The remaining `Ps` parameters specify which attributes to toggle:
 |===
 | Ps | Action
 
-| 0 | Invert all toggleable attributes (bold, underline, blink, negative, strikethrough, overline)
+| 0 | Invert all toggleable attributes (bold, underline, blink, negative, conceal, strikethrough, overline)
 | 1 or 22 | Toggle bold (XOR legacy attribute bit 3)
 | 4, 21 or 24 | Toggle underline. When enabling it, 21 selects double and 4 or 24 selects single.
 | 5 or 25 | Toggle blink (XOR legacy attribute bit 7)
 | 7 or 27 | Toggle negative (swap foreground and background)
+| 8 or 28 | Toggle conceal
 | 9 or 29 | Toggle strikethrough
 | 53 or 55 | Toggle overline
 |===

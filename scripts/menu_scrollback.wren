@@ -101,6 +101,7 @@ class OfflineScrollbackCanvas is Widget {
     var position = position_(event)
     if (position == null) return
     if (!_source.cellAt(position[0], position[1], _cell)) return
+    if (_cell.conceal && !_cell.reveal) return
     if (_cell.hyperlinkId != 0) {
       var result = Menu.openHyperlink(_cell.hyperlinkId)
       if (result is Error || !result) {
@@ -121,7 +122,7 @@ class OfflineScrollbackCanvas is Widget {
     var position = position_(event)
     if (position != null) {
       if (_source.cellAt(position[0], position[1], _cell)) {
-        id = _cell.hyperlinkId
+        if (!_cell.conceal || _cell.reveal) id = _cell.hyperlinkId
       }
     }
     var url = id == 0 ? null : Hyperlinks[id]

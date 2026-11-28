@@ -112,6 +112,12 @@ struct st_console_cell {
 	uint16_t reserved;
 };
 
+static inline bool
+st_console_cell_is_concealed(const struct st_console_cell *cell)
+{
+	return (cell->flags & (ST_CONSOLE_CELL_CONCEAL | ST_CONSOLE_CELL_REVEAL)) == ST_CONSOLE_CELL_CONCEAL;
+}
+
 struct st_console_font_mapping {
 	uint32_t codepoint;
 	uint32_t glyph;

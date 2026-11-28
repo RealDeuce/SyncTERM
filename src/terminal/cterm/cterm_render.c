@@ -268,6 +268,23 @@ cterm_render_make_current_cell(struct cterminal *cterm, struct st_console_cell *
 	    cterm_render_attribute_font(cterm, cterm->attr, cterm->cell_flags), hyperlink, cterm->cell_flags);
 }
 
+void
+cterm_render_restyle_cell(struct cterminal *cterm, struct st_console_cell *cell, uint8_t attribute,
+    uint32_t foreground, uint32_t background, uint32_t flags)
+{
+	uint8_t selector = cterm_render_attribute_font(cterm, attribute, flags);
+	/* A colour or rendition change preserves the glyph, including Unicode clusters. */
+	if (font_identifier(cterm, selector) == cell->font) {
+		cell->foreground = foreground;
+		cell->background = background;
+		cell->flags      = attribute_flags(cterm, attribute, flags);
+	}
+	else {
+		cterm_render_make_cell(cterm, cell, cterm_render_cell_byte(cterm, cell), attribute,
+		    foreground, background, selector, cell->hyperlink, flags);
+	}
+}
+
 uint8_t
 cterm_render_cell_byte(struct cterminal *cterm, const struct st_console_cell *cell)
 {
@@ -327,7 +344,8 @@ cterm_render_cell_attribute(struct cterminal *cterm, const struct st_console_cel
 	if (cell->background - base < 8)
 		background = cterm_ansi_colour_order[cell->background - base];
 	attribute = (uint8_t)((foreground & 7U) | ((background & 7U) << 4));
-	if ((cell->flags & (ST_CONSOLE_CELL_BRIGHT | ST_CONSOLE_CELL_CONCEAL)) != 0)
+	if ((cell->flags & ST_CONSOLE_CELL_BRIGHT) != 0
+	    || ((cell->flags & ST_CONSOLE_CELL_SAA5050) && (cell->flags & ST_CONSOLE_CELL_CONCEAL)))
 		attribute |= 8U;
 	if ((cell->flags & ST_CONSOLE_CELL_BLINK) != 0)
 		attribute |= CTERM_ATTR_BLINK;
@@ -463,6 +481,9 @@ set_colours(const struct cterminal *cterm, struct st_console_style *style, uint3
 			  | ST_CONSOLE_CELL_SAA5050_CONTROL_MASK | ST_CONSOLE_CELL_LEGACY_FOREGROUND
 			  | ST_CONSOLE_CELL_LEGACY_BACKGROUND | ST_CONSOLE_CELL_UNDERLINE_MASK | ST_CONSOLE_CELL_FAST_BLINK
 			  | ST_CONSOLE_CELL_STRIKETHROUGH | ST_CONSOLE_CELL_OVERLINE | ST_CONSOLE_CELL_SGR_FONT_MASK);
+	/* Teletext also derives conceal from its legacy attribute. */
+	if (!(cterm->cell_flags & ST_CONSOLE_CELL_SAA5050))
+		style->flags &= ~ST_CONSOLE_CELL_CONCEAL;
 	style->flags |= cterm->cell_flags;
 }
 
@@ -1085,7 +1106,8 @@ cterm_render_set_prestel_reveal(struct cterminal *cterm, bool reveal)
 	rect   = (struct st_console_rect) {0, 0, columns, rows};
 	status = st_console_read_cells(cterm->screen.console, &rect, cells, columns);
 	for (size_t i = 0; status == 0 && i < count; ++i) {
-		if ((cells[i].flags & ST_CONSOLE_CELL_CONCEAL) == 0)
+		if ((cells[i].flags & (ST_CONSOLE_CELL_SAA5050 | ST_CONSOLE_CELL_CONCEAL))
+		    != (ST_CONSOLE_CELL_SAA5050 | ST_CONSOLE_CELL_CONCEAL))
 			continue;
 		if (reveal)
 			cells[i].flags |= ST_CONSOLE_CELL_REVEAL;

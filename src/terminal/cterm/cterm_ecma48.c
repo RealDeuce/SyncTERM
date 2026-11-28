@@ -1194,6 +1194,8 @@ sgr_diff(struct cterminal *cterm, const struct st_console_cell *prev, const stru
 			cterm_respond_printf(cterm, (next->flags & ST_CONSOLE_CELL_DOUBLE_UNDERLINE) ? ";21" : ";4");
 		if (na & 0x80)
 			cterm_respond_printf(cterm, ";%d", (next->flags & ST_CONSOLE_CELL_FAST_BLINK) ? 6 : 5);
+		if (st_console_cell_is_concealed(next))
+			cterm_respond_printf(cterm, ";8");
 		if (next->flags & ST_CONSOLE_CELL_STRIKETHROUGH)
 			cterm_respond_printf(cterm, ";9");
 		if (position)
@@ -1224,6 +1226,11 @@ sgr_diff(struct cterminal *cterm, const struct st_console_cell *prev, const stru
 			if (params++)
 				strcat(sgrbuf, ";");
 			strcat(sgrbuf, (next->flags & ST_CONSOLE_CELL_FAST_BLINK) ? "6" : "5");
+		}
+		if (st_console_cell_is_concealed(next) != st_console_cell_is_concealed(prev)) {
+			if (params++)
+				strcat(sgrbuf, ";");
+			strcat(sgrbuf, st_console_cell_is_concealed(next) ? "8" : "28");
 		}
 		if ((next->flags ^ prev->flags) & ST_CONSOLE_CELL_STRIKETHROUGH) {
 			if (params++)
@@ -1391,7 +1398,7 @@ cterm_transmit_selected(struct cterminal *cterm)
 	if (cterm->fetm) {
 		/* FETM=EXCLUDE: text only, C0/DEL → SPACE */
 		for (i = 0; i < total_cells; i++) {
-			uint8_t ch = cterm_render_cell_byte(cterm, &cells[i]);
+			uint8_t ch = st_console_cell_is_concealed(&cells[i]) ? ' ' : cterm_render_cell_byte(cterm, &cells[i]);
 			if (ch < 0x20 || ch == 0x7f)
 				ch = ' ';
 			cterm_respond(cterm, (char *)&ch, 1);
@@ -1411,6 +1418,9 @@ cterm_transmit_selected(struct cterminal *cterm)
 			transmitted_fonts[slot] = prev.font;
 
 		for (i = 0; i < total_cells; i++) {
+			bool hidden = st_console_cell_is_concealed(&cells[i]);
+			if (hidden)
+				cells[i].hyperlink = 0;
 			/* Emit SGR diff */
 			sgr_diff(cterm, &prev, &cells[i], video_flags, transmitted_fonts);
 
@@ -1435,7 +1445,7 @@ cterm_transmit_selected(struct cterminal *cterm)
 				}
 			}
 
-			uint8_t ch = cterm_render_cell_byte(cterm, &cells[i]);
+			uint8_t ch = hidden ? ' ' : cterm_render_cell_byte(cterm, &cells[i]);
 			if (ch < 0x20 || ch == 0x7f) {
 				/* Doorway encode C0/DEL */
 				char doorway[] = "\033[=255h\x00X\033[=255l";
@@ -1648,7 +1658,7 @@ cterm_ecma48_apply_sgr(struct cterminal *cterm, int *pi)
 				cterm_render_record_error(cterm, cterm->device.reset_style(cterm->device.context));
 			cterm->negative = false;
 			cterm->faint    = false;
-			cterm->cell_flags &= ~(ST_CONSOLE_CELL_UNDERLINE_MASK | ST_CONSOLE_CELL_FAST_BLINK
+			cterm->cell_flags &= ~(ST_CONSOLE_CELL_CONCEAL | ST_CONSOLE_CELL_UNDERLINE_MASK | ST_CONSOLE_CELL_FAST_BLINK
 			                       | ST_CONSOLE_CELL_STRIKETHROUGH | ST_CONSOLE_CELL_OVERLINE | ST_CONSOLE_CELL_SGR_FONT_MASK);
 			cterm->attr     = cterm->screen.default_attribute;
 			cterm_render_attribute_colours(cterm, cterm->attr, &cterm->fg_color, &cterm->bg_color);
@@ -1729,15 +1739,10 @@ cterm_ecma48_apply_sgr(struct cterminal *cterm, int *pi)
 			cterm->negative = true;
 			break;
 		case 8:
-		{
-			int j = cterm->attr & 112;
-			cterm->attr &= 112;
-			cterm->attr |= j >> 4;
-		}
-			cterm->fg_color = cterm->bg_color;
-			CTERM_FREE_AND_CLEAR(cterm->fg_tc_str);
-			if (cterm->bg_tc_str != NULL)
-				cterm->fg_tc_str = strdup(cterm->bg_tc_str);
+			cterm->cell_flags |= ST_CONSOLE_CELL_CONCEAL;
+			break;
+		case 28:
+			cterm->cell_flags &= ~ST_CONSOLE_CELL_CONCEAL;
 			break;
 		case 25:
 			cterm->cell_flags &= ~ST_CONSOLE_CELL_FAST_BLINK;

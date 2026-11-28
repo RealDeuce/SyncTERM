@@ -379,7 +379,6 @@ cterm_handle_deccara(struct cterminal *cterm, int *speed) /* CSI Pt;Pl;Pb;Pr;...
 				cterm_render_read_cells(cterm, c_start, r, c_end, r, rowbuf);
 				int cnt = c_end - c_start + 1;
 				for (int c = 0; c < cnt; c++) {
-					uint8_t byte      = cterm_render_cell_byte(cterm, &rowbuf[c]);
 					cterm->attr       = cterm_render_cell_attribute(cterm, &rowbuf[c]);
 					cterm->fg_color   = rowbuf[c].foreground;
 					cterm->bg_color   = rowbuf[c].background;
@@ -392,8 +391,8 @@ cterm_handle_deccara(struct cterminal *cterm, int *speed) /* CSI Pt;Pl;Pb;Pr;...
 					CTERM_FREE_AND_CLEAR(cterm->fg_tc_str);
 					CTERM_FREE_AND_CLEAR(cterm->bg_tc_str);
 					cterm_apply_sgr(cterm, 4);
-					cterm_render_make_current_cell(cterm, &rowbuf[c], byte,
-					    rowbuf[c].hyperlink);
+					cterm_render_restyle_cell(cterm, &rowbuf[c], cterm->attr,
+					    cterm->fg_color, cterm->bg_color, cterm->cell_flags);
 				}
 				cterm_render_write_cells(cterm, c_start, r, c_end, r, rowbuf);
 			}
@@ -473,7 +472,7 @@ cterm_handle_decrara(struct cterminal *cterm, int *speed) /* CSI Pt;Pl;Pb;Pr;...
 				cterm_seq_default(cterm, p, 0);
 				switch (cterm->seq_param_int[p]) {
 					case 0:
-						rowbuf[c].flags ^= ST_CONSOLE_CELL_STRIKETHROUGH | ST_CONSOLE_CELL_OVERLINE;
+						rowbuf[c].flags ^= ST_CONSOLE_CELL_CONCEAL | ST_CONSOLE_CELL_STRIKETHROUGH | ST_CONSOLE_CELL_OVERLINE;
 						rowbuf[c].flags &= ~ST_CONSOLE_CELL_FAST_BLINK;
 						attribute ^= 0x88;
 						cterm_render_attribute_colours(cterm, attribute,
@@ -500,6 +499,10 @@ cterm_handle_decrara(struct cterminal *cterm, int *speed) /* CSI Pt;Pl;Pb;Pr;...
 						attribute ^= 0x08;
 						cterm_render_attribute_colours(cterm, attribute,
 						    &rowbuf[c].foreground, NULL);
+						break;
+					case 8:
+					case 28:
+						rowbuf[c].flags ^= ST_CONSOLE_CELL_CONCEAL;
 						break;
 					case 9:
 					case 29:
@@ -533,9 +536,7 @@ cterm_handle_decrara(struct cterminal *cterm, int *speed) /* CSI Pt;Pl;Pb;Pr;...
 					}
 				}
 			}
-			cterm_render_make_cell(cterm, &rowbuf[c], cterm_render_cell_byte(cterm, &rowbuf[c]),
-			    attribute, rowbuf[c].foreground, rowbuf[c].background,
-			    cterm_render_attribute_font(cterm, attribute, rowbuf[c].flags), rowbuf[c].hyperlink,
+			cterm_render_restyle_cell(cterm, &rowbuf[c], attribute, rowbuf[c].foreground, rowbuf[c].background,
 			    rowbuf[c].flags
 			        & ~(ST_CONSOLE_CELL_BRIGHT | ST_CONSOLE_CELL_BLINK
 			            | ST_CONSOLE_CELL_LEGACY_FOREGROUND | ST_CONSOLE_CELL_LEGACY_BACKGROUND));
@@ -2419,6 +2420,8 @@ cterm_dec_dcs_finish(struct cterminal *cterm)
 						strcat(tmp, (cterm->cell_flags & ST_CONSOLE_CELL_FAST_BLINK) ? ";6" : ";5");
 					if (cterm->negative)
 						strcat(tmp, ";7");
+					if (cterm->cell_flags & ST_CONSOLE_CELL_CONCEAL)
+						strcat(tmp, ";8");
 					if (cterm->cell_flags & ST_CONSOLE_CELL_STRIKETHROUGH)
 						strcat(tmp, ";9");
 					unsigned position = cterm_sgr_font_position(cterm->cell_flags);

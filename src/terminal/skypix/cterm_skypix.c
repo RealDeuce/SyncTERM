@@ -1415,7 +1415,8 @@ cterm_skypix_present(struct cterm_skypix *s, const struct st_unicode_presentatio
 	int next = cterm_skypix_word((unsigned)(s->x + glyph.advance));
 	int left = s->x + glyph.bearing, top = s->y + glyph.top;
 	int right = left + (int)glyph.width, bottom = top + (int)glyph.height;
-	if (!s->custom) {
+	bool concealed = (s->terminal->cell_flags & ST_CONSOLE_CELL_CONCEAL) != 0;
+	if (!s->custom || concealed) {
 		/* JAM2 paints the complete strike even for a compact blank mask. */
 		int strike_top    = s->y + font_descent(s->font);
 		int strike_bottom = strike_top + (int)st_amiga_font_height(s->font);
@@ -1444,9 +1445,16 @@ cterm_skypix_present(struct cterm_skypix *s, const struct st_unicode_presentatio
 		int status = st_console_get_pixels(&s->undo, s->terminal->screen.console, &area, false);
 		if (status != 0)
 			return status;
-		s->undo_rect                 = area;
-		struct glyph_drawing drawing = {s, &glyph, area, next};
-		status = st_console_modify_pixels(s->terminal->screen.console, draw_glyph, &drawing);
+		s->undo_rect = area;
+		if (concealed) {
+			unsigned bg = (s->terminal->attr >> 4) & (s->colours - 1);
+			struct erase_drawing erase = {area, CTERM_SKYPIX_PALETTE_FIRST + bg};
+			status = st_console_modify_pixels(s->terminal->screen.console, erase_pixels, &erase);
+		}
+		else {
+			struct glyph_drawing drawing = {s, &glyph, area, next};
+			status = st_console_modify_pixels(s->terminal->screen.console, draw_glyph, &drawing);
+		}
 		if (status != 0)
 			return status;
 	}
