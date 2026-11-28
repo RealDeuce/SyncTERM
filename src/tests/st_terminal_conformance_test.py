@@ -591,6 +591,17 @@ def extensions(t):
     frame = t.exchange(ESC + b"[0;1 D" + cup(1, 1) + b"X" + ESC + b"[=1n",
                        re.compile(rb"\x1b\[=1;[0-9]+;0;1;[0-9]+;[0-9]+;[0-9]+n"))
     assert tile(frame) != original
+    # The main display changes font while the status display keeps its own selection.
+    frame = t.exchange(ESC + b"[2$~" + cup(1, 1) + ESC + b"[0;0 DX" + ESC + b"[0;1 DX"
+                       + ESC + b"[1$}" + ESC + b"[0;0 DX" + ESC + b"[0$}XX")
+    main = [cell_at(frame, x, 0) for x in range(4)]
+    status = cell_at(frame, 0, 24)
+    assert all(frame.cell_text(cell) == "X" for cell in [*main, status])
+    assert status.font == main[0].font != main[1].font
+    assert main[1].font == main[2].font == main[3].font
+    assert tuple(p == status.foreground for p in tile(frame, 1, 25)) == tuple(
+        p == main[0].foreground for p in tile(frame, 1, 1))
+    assert tile(frame, 1, 1) != tile(frame, 2, 1) == tile(frame, 3, 1) == tile(frame, 4, 1)
     t.case("CTOSF")
     # Real font-download payloads include controls and are not UTF-8 text.
     data = b"".join(ESC + f"[=255;{size}{{".encode() + b"\x10" * length

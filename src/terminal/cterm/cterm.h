@@ -177,7 +177,6 @@ struct cterminal {
 	int                        x;   // X position of the left side on the screen
 	int                        y;   // Y position of the top pn the screen
 	int                        setfont_result;
-	int altfont[4];                 // The font slots successfully assigned to the 4 alt-font styles/attributes
 
 	/* emulation mode */
 	cterm_emulation_t        emulation;

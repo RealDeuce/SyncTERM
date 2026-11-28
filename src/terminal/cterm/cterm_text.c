@@ -71,11 +71,9 @@ place(struct cterminal *cterm, const struct st_unicode_presentation_event *event
 		return 0;
 	if (!cterm->started)
 		cterm_start(cterm);
-	for (int slot = 0; slot < 4; ++slot)
-		cterm_render_set_font_selector(cterm, cterm->altfont[slot], false, slot + 1);
-	cterm_render_set_attribute(cterm, cterm->attr);
-	cterm_render_set_colours(cterm, cterm->fg_color, cterm->bg_color);
-	cterm_render_set_cursor(cterm, cterm->cursor);
+	status = cterm_render_prepare_text(cterm, &style);
+	if (status != 0)
+		return status;
 	cterm_apply_window(cterm);
 	if (old_columns != 0) {
 		/* Scrolling tracks the glyph's screen position independently of the cursor. */
@@ -88,10 +86,6 @@ place(struct cterminal *cterm, const struct st_unicode_presentation_event *event
 	x = cterm->xpos;
 	y = cterm->ypos;
 	cterm_coord_conv_xy(cterm, CTERM_COORD_ABSTERM, CTERM_COORD_CURR, &x, &y);
-	cterm_render_set_position(cterm, x, y);
-	status = st_console_get_style(cterm->screen.console, &style);
-	if (status != 0)
-		return status;
 	cells[0] = (struct st_console_cell) {
 	    .foreground = style.foreground,
 	    .background = style.background,
@@ -100,17 +94,14 @@ place(struct cterminal *cterm, const struct st_unicode_presentation_event *event
 	    .hyperlink  = style.hyperlink,
 	};
 	if (event->kind == ST_UNICODE_PRESENTATION_DECODE_ERROR) {
+		columns             = 1;
 		cells[0].glyph_font = 0;
 		status              = st_console_font_lookup_decode_error(cterm->screen.console, &cells[0].glyph);
 	}
 	else
-		status = st_console_font_lookup_cluster_ex(cterm->screen.console, cells[0].font,
-		    (const char *)event->bytes, event->size, columns, &cells[0].glyph_font, &cells[0].glyph,
-		    &missing);
-	if (status != 0)
-		return status;
-	status =
-	    st_console_font_glyph_columns(cterm->screen.console, cells[0].glyph_font, cells[0].glyph, &columns);
+		status =
+		    st_console_resolve_cluster(cterm->screen.console, cells[0].font, (const char *)event->bytes,
+			event->size, &columns, &cells[0].glyph_font, &cells[0].glyph, &missing);
 	if (status != 0)
 		return status;
 	cterm_coord_conv_xy(cterm, CTERM_COORD_TERM, CTERM_COORD_CURR, &right, NULL);
@@ -122,7 +113,7 @@ place(struct cterminal *cterm, const struct st_unicode_presentation_event *event
 	}
 	if ((cterm->last_column_flag & (CTERM_LCF_ENABLED | CTERM_LCF_SET)) == (CTERM_LCF_ENABLED | CTERM_LCF_SET)
 	    && x == right) {
-		cterm_advance_char(cterm, &x, &y, 1);
+		cterm_advance_char(cterm, &x, &y);
 		cterm_clear_lcf(cterm);
 	}
 	if (columns > right - x + 1) {
@@ -141,20 +132,21 @@ place(struct cterminal *cterm, const struct st_unicode_presentation_event *event
 			if (status != 0)
 				return status;
 		}
-		if ((cterm->extattr & CTERM_EXTATTR_AUTOWRAP) == 0 || right < columns)
-			return 0;
+		if ((cterm->extattr & CTERM_EXTATTR_AUTOWRAP) == 0 || right < columns) {
+			cterm_render_set_position(cterm, x, y);
+			return cterm_render_take_error(cterm);
+		}
 		x = right;
-		cterm_render_set_position(cterm, x, y);
 		/* Crossing the margin must wrap even when deferred wrap is enabled. */
 		int lcf = cterm->last_column_flag;
 		cterm->last_column_flag &= ~CTERM_LCF_ENABLED;
-		cterm_advance_char(cterm, &x, &y, 1);
+		cterm_advance_char(cterm, &x, &y);
 		cterm->last_column_flag = lcf & ~CTERM_LCF_SET;
 	}
-	cterm_render_set_position(cterm, x, y);
-	status = st_console_get_position(cterm->screen.console, &area.x, &area.y);
-	if (status != 0)
-		return status;
+	int sx = x, sy = y;
+	cterm_coord_conv_xy(cterm, CTERM_COORD_CURR, CTERM_COORD_SCREEN, &sx, &sy);
+	area.x     = (uint32_t)(sx - 1);
+	area.y     = (uint32_t)(sy - 1);
 	area.width = columns;
 	if (columns == 2) {
 		cells[1] = cells[0];
@@ -178,12 +170,11 @@ place(struct cterminal *cterm, const struct st_unicode_presentation_event *event
 	cterm->screen.provisional_columns = provisional ? columns : 0;
 	if (missing && !provisional)
 		log_missing(cterm, event);
-	x = (int)area.x + 1;
-	y = (int)area.y + 1;
-	cterm_coord_conv_xy(cterm, CTERM_COORD_SCREEN, CTERM_COORD_CURR, &x, &y);
 	for (uint8_t i = 0; i < columns; ++i)
-		cterm_advance_char(cterm, &x, &y, 1);
-	cterm_coord_get_xy(cterm, CTERM_COORD_ABSTERM, &cterm->xpos, &cterm->ypos);
+		cterm_advance_char(cterm, &x, &y);
+	cterm->xpos = x;
+	cterm->ypos = y;
+	cterm_coord_conv_xy(cterm, CTERM_COORD_CURR, CTERM_COORD_ABSTERM, &cterm->xpos, &cterm->ypos);
 	if (cterm->emulation == CTERM_EMULATION_PRESTEL || cterm->emulation == CTERM_EMULATION_BEEB)
 		cterm_prestel_fix_line(cterm, x, y, true, false);
 	return cterm_render_take_error(cterm);

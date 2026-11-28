@@ -1198,6 +1198,34 @@ test_reentrant_replacement(void)
 }
 
 static void
+test_shared_text_rendition(void)
+{
+	for (int encoding = ST_CTERM_ENCODING_UTF8; encoding <= ST_CTERM_ENCODING_CODEPAGE; ++encoding) {
+		struct rig rig;
+		open_rig(&rig, (enum st_cterm_encoding)encoding);
+		const char setup[] = "\033[2$~\033[31m\033[2 qM\033[1$}\033[32m\033[?25lS\033[0$}";
+		feed(&rig, setup, sizeof(setup) - 1);
+		CHECK(st_console_set_position(rig.console, 5, 3) == 0);
+		CHECK(st_console_set_cursor(rig.console, false, ST_CONSOLE_CURSOR_BAR) == 0);
+		CHECK(st_console_set_style(rig.console, &(struct st_console_style) {0}) == 0);
+		feed(&rig, "N", 1);
+		struct st_console_cell cells[2], status;
+		CHECK(st_console_read_cells(rig.console, &(struct st_console_rect) {0, 0, 2, 1}, cells, 2) == 0);
+		CHECK(st_console_read_cells(rig.console, &(struct st_console_rect) {0, 3, 1, 1}, &status, 1) == 0);
+		CHECK(cells[0].glyph == 'M' && cells[1].glyph == 'N' && status.glyph == 'S');
+		CHECK(cells[0].foreground == cells[1].foreground && cells[1].foreground != status.foreground);
+		struct st_console_style style;
+		CHECK(st_console_get_style(rig.console, &style) == 0 && style.foreground == cells[1].foreground);
+		struct st_console_custom_cursor cursor;
+		CHECK(st_console_get_custom_cursor(rig.console, &cursor) == 0 && cursor.visible && !cursor.blink
+		      && cursor.start == 0 && cursor.end == cursor.range - 1);
+		uint32_t x, y;
+		CHECK(st_console_get_position(rig.console, &x, &y) == 0 && x == 2 && y == 0);
+		close_rig(&rig);
+	}
+}
+
+static void
 test_font_selection(void)
 {
 	for (int encoding = ST_CTERM_ENCODING_UTF8; encoding <= ST_CTERM_ENCODING_CODEPAGE; ++encoding) {
@@ -1346,6 +1374,7 @@ st_cterm_text_test_main(void)
 	test_shutdown_and_errors();
 	test_reentrant_replacement();
 	test_font_selection();
+	test_shared_text_rendition();
 
 	static const struct {
 		const char *codepage;

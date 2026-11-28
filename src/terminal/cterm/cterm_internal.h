@@ -335,7 +335,7 @@ void cterm_reset(struct cterminal *cterm);
 void cterm_current_palette_colours(struct cterminal *cterm, uint32_t *fg, uint32_t *bg);
 void cterm_set_negative(struct cterminal *cterm, bool on);
 void cterm_cond_scrollup(struct cterminal *cterm);
-void cterm_advance_char(struct cterminal *cterm, int *x, int *y, int move);
+void cterm_advance_char(struct cterminal *cterm, int *x, int *y);
 
 /* Uchar wrapper for cterm_ctputs — the print-batch buffer holds
  * unsigned chars but cterm_ctputs takes a signed char*. */

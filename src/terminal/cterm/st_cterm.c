@@ -1676,7 +1676,7 @@ st_cterm_state(const st_cterm_t *terminal, struct st_cterm_state *state)
 			   },
 	};
 	for (size_t i = 0; i < 4; ++i)
-		state->alt_fonts[i] = terminal->altfont[i];
+		state->alt_fonts[i] = terminal->screen.selectors[i + 1];
 	if (terminal->has_palette_override) {
 		for (size_t i = 0; i < 16; ++i)
 			state->palette_override[i] = terminal->palette_override[i] & 0xFFFFFFu;
@@ -1698,7 +1698,6 @@ st_cterm_set_fonts(st_cterm_t *terminal, uint8_t selector, unsigned mask)
 		if ((mask & (1U << i)) == 0)
 			continue;
 		terminal->screen.selectors[i + 1] = selector;
-		terminal->altfont[i]              = selector;
 	}
 	return 0;
 }

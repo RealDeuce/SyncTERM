@@ -557,8 +557,6 @@ install(void *context, const struct st_big_mode *mode)
 	    .bright_blink                                             = identifier};
 	for (size_t i = 0; i < 5; ++i)
 		t->screen.selectors[i] = 0;
-	for (size_t i = 0; i < 4; ++i)
-		t->altfont[i] = 0;
 	cterm_text_forget(t);
 	st_unicode_presentation_reset(t->screen.unicode);
 	t->accumulator = t->saved_accumulator = NULL;

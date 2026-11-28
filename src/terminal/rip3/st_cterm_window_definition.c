@@ -31,7 +31,6 @@ struct st_cterm_window_definition {
 	uint16_t                         font_indices[256], selectors[5];
 	bool                             font_valid[256];
 	enum st_codepage                 font_codepages[256];
-	int                              altfont[4];
 	uint32_t                         mode_palette[16];
 	struct st_console_font_snapshot *resources[260];
 	size_t                           count;
@@ -130,7 +129,6 @@ create_definition(struct st_cterm_window_definition **result, const st_cterm_t *
 	memcpy(d->font_valid, source->screen.font_valid, sizeof(d->font_valid));
 	memcpy(d->font_codepages, source->screen.font_codepages, sizeof(d->font_codepages));
 	memcpy(d->selectors, source->screen.selectors, sizeof(d->selectors));
-	memcpy(d->altfont, source->altfont, sizeof(d->altfont));
 	memcpy(d->mode_palette, source->screen.mode_palette, sizeof(d->mode_palette));
 	if (d->tab_count != 0)
 		d->tabs = malloc((size_t)d->tab_count * sizeof(int));
@@ -304,7 +302,6 @@ restore_definition(st_cterm_t *destination, const struct st_cterm_window_definit
 			if (d->font_valid[i])
 				destination->screen.font_identifiers[i] = mapped[d->font_indices[i]];
 		memcpy(destination->screen.selectors, d->selectors, sizeof(d->selectors));
-		memcpy(destination->altfont, d->altfont, sizeof(d->altfont));
 		memcpy(destination->screen.mode_palette, d->mode_palette, sizeof(d->mode_palette));
 	}
 	else {
@@ -317,7 +314,6 @@ restore_definition(st_cterm_t *destination, const struct st_cterm_window_definit
 			destination->screen.font_codepages[selector] = resources->screen.font_codepages[selector];
 		}
 		memcpy(destination->screen.selectors, d->selectors, sizeof(d->selectors));
-		memcpy(destination->altfont, d->altfont, sizeof(d->altfont));
 		destination->screen.fonts = (struct st_console_font_selection) {.normal = logical[1],
 		    .bright                                                             = logical[2],
 		    .blink                                                              = logical[3],

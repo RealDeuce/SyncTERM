@@ -48,7 +48,7 @@ style_cluster_locked(const st_console_t *console, const char *text, size_t text_
 	    .hyperlink  = console->style.hyperlink,
 	};
 
-	(void)st_console_font_lookup_cluster_locked((st_console_t *)console, cell.font, text, text_size, columns,
+	(void)st_console_font_lookup_cluster_locked((st_console_t *)console, cell.font, text, text_size, &columns,
 	    &cell.glyph_font, &cell.glyph, NULL);
 	return cell;
 }
@@ -115,8 +115,8 @@ restart_cursor_animation(st_console_t *console)
 		st_console_display_reset_animation(console->display, console->blink_mode, true);
 }
 
-int
-st_console_set_position(st_console_t *console, uint32_t x, uint32_t y)
+static int
+set_position(st_console_t *console, uint32_t x, uint32_t y, bool relative)
 {
 	int result;
 
@@ -125,9 +125,15 @@ st_console_set_position(st_console_t *console, uint32_t x, uint32_t y)
 	result = st_rwlock_write_lock(st_console_state_lock(console));
 	if (result != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
-	if (!position_in_window(console, x, y))
+	if (relative && (x >= console->window.width || y >= console->window.height))
+		result = IO_ERROR_OUT_OF_RANGE;
+	else if (!relative && !position_in_window(console, x, y))
 		result = IO_ERROR_OUT_OF_RANGE;
 	else {
+		if (relative) {
+			x += console->window.x;
+			y += console->window.y;
+		}
 		if (!console->pixel_cursor.enabled && console->cursor_custom && console->custom_cursor.visible
 		    && console->custom_cursor.index_xor != 0 && (console->cursor_x != x || console->cursor_y != y))
 			restart_cursor_animation(console);
@@ -140,6 +146,25 @@ st_console_set_position(st_console_t *console, uint32_t x, uint32_t y)
 	}
 	(void)st_rwlock_unlock(st_console_state_lock(console));
 	return result;
+}
+
+int
+st_console_set_position(st_console_t *console, uint32_t x, uint32_t y)
+{
+	return set_position(console, x, y, false);
+}
+
+int
+st_console_set_window_position(st_console_t *console, uint32_t x, uint32_t y)
+{
+	return set_position(console, x, y, true);
+}
+
+static bool
+custom_cursors_equal(const struct st_console_custom_cursor *a, const struct st_console_custom_cursor *b)
+{
+	return a->start == b->start && a->end == b->end && a->range == b->range && a->visible == b->visible
+	       && a->blink == b->blink && a->index_base == b->index_base && a->index_xor == b->index_xor;
 }
 
 int
@@ -165,13 +190,7 @@ st_console_set_cursor(st_console_t *console, bool visible, enum st_console_curso
 	}
 	if (console->cursor_visible != visible || console->cursor_shape != shape
 	    || console->cursor_custom != (shape != ST_CONSOLE_CURSOR_BAR)
-	    || (shape != ST_CONSOLE_CURSOR_BAR
-	        && (console->custom_cursor.start != cursor.start || console->custom_cursor.end != cursor.end
-	            || console->custom_cursor.range != cursor.range
-	            || console->custom_cursor.visible != cursor.visible
-	            || console->custom_cursor.blink != cursor.blink
-	            || console->custom_cursor.index_base != cursor.index_base
-	            || console->custom_cursor.index_xor != cursor.index_xor))) {
+	    || (shape != ST_CONSOLE_CURSOR_BAR && !custom_cursors_equal(&console->custom_cursor, &cursor))) {
 		console->cursor_visible = visible;
 		console->cursor_shape   = shape;
 		console->cursor_custom  = shape != ST_CONSOLE_CURSOR_BAR;
@@ -249,6 +268,70 @@ st_console_get_cursor(st_console_t *console, bool *visible, enum st_console_curs
 	return 0;
 }
 
+static bool
+set_custom_cursor_locked(st_console_t *console, const struct st_console_custom_cursor *cursor)
+{
+	bool changed = false;
+
+	if (console->pixel_cursor.enabled) {
+		console->pixel_cursor.enabled = false;
+		changed                       = true;
+	}
+	if (!console->cursor_custom || !custom_cursors_equal(&console->custom_cursor, cursor)) {
+		if (cursor->visible && cursor->index_xor != 0
+		    && (!console->cursor_custom || !console->custom_cursor.visible
+		        || console->custom_cursor.index_base != cursor->index_base
+		        || console->custom_cursor.index_xor != cursor->index_xor))
+			restart_cursor_animation(console);
+		console->custom_cursor  = *cursor;
+		console->cursor_custom  = true;
+		console->cursor_visible = cursor->visible;
+		console->cursor_shape = cursor->start == 0 ? ST_CONSOLE_CURSOR_BLOCK : ST_CONSOLE_CURSOR_UNDERLINE;
+		changed                 = true;
+	}
+	if (changed)
+		console->changed = true;
+	return changed;
+}
+
+int
+st_console_begin_text_edit(st_console_t *console, struct st_console_text_edit *edit)
+{
+	if (console == NULL || edit == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (st_rwlock_write_lock(st_console_state_lock(console)) != ST_THREAD_SUCCESS)
+		return IO_ERROR_IO;
+	edit->console        = console;
+	edit->style          = console->style;
+	edit->video_flags    = console->video_flags;
+	edit->default_cursor = console->default_cursor;
+	return 0;
+}
+
+int
+st_console_end_text_edit(struct st_console_text_edit *edit, const struct st_console_custom_cursor *cursor)
+{
+	if (edit == NULL || edit->console == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	st_console_t *console = edit->console;
+	int           result  = 0;
+	if (cursor != NULL && (cursor->range == 0 || !valid_cursor_indices(cursor)))
+		result = IO_ERROR_INVALID_ARGUMENT;
+	else {
+		edit->style.flags &= ST_CONSOLE_CELL_PUBLIC_FLAGS;
+		const struct st_console_style *current = &console->style;
+		if (current->foreground != edit->style.foreground || current->background != edit->style.background
+		    || current->flags != edit->style.flags || current->font != edit->style.font
+		    || current->hyperlink != edit->style.hyperlink)
+			console->style = edit->style;
+		if (cursor != NULL && set_custom_cursor_locked(console, cursor))
+			result = st_console_finish_change_locked(console);
+	}
+	edit->console = NULL;
+	(void)st_rwlock_unlock(st_console_state_lock(console));
+	return result;
+}
+
 int
 st_console_set_custom_cursor(st_console_t *console, const struct st_console_custom_cursor *cursor)
 {
@@ -259,26 +342,7 @@ st_console_set_custom_cursor(st_console_t *console, const struct st_console_cust
 	result = st_rwlock_write_lock(st_console_state_lock(console));
 	if (result != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
-	if (console->pixel_cursor.enabled) {
-		console->pixel_cursor.enabled = false;
-		console->changed              = true;
-	}
-	if (!console->cursor_custom || console->custom_cursor.start != cursor->start
-	    || console->custom_cursor.end != cursor->end || console->custom_cursor.range != cursor->range
-	    || console->custom_cursor.visible != cursor->visible || console->custom_cursor.blink != cursor->blink
-	    || console->custom_cursor.index_base != cursor->index_base
-	    || console->custom_cursor.index_xor != cursor->index_xor) {
-		if (cursor->visible && cursor->index_xor != 0
-		    && (!console->cursor_custom || !console->custom_cursor.visible
-		        || console->custom_cursor.index_base != cursor->index_base
-		        || console->custom_cursor.index_xor != cursor->index_xor))
-			restart_cursor_animation(console);
-		console->custom_cursor  = *cursor;
-		console->cursor_custom  = true;
-		console->cursor_visible = cursor->visible;
-		console->cursor_shape = cursor->start == 0 ? ST_CONSOLE_CURSOR_BLOCK : ST_CONSOLE_CURSOR_UNDERLINE;
-		console->changed      = true;
-	}
+	(void)set_custom_cursor_locked(console, cursor);
 	result = st_console_finish_change_locked(console);
 	(void)st_rwlock_unlock(st_console_state_lock(console));
 	return result;
@@ -560,8 +624,8 @@ st_console_get_aspect_ratio(st_console_t *console, uint32_t *width, uint32_t *he
 	return 0;
 }
 
-int
-st_console_get_position(st_console_t *console, uint32_t *x, uint32_t *y)
+static int
+get_position(st_console_t *console, uint32_t *x, uint32_t *y, bool relative)
 {
 	int result;
 
@@ -570,10 +634,22 @@ st_console_get_position(st_console_t *console, uint32_t *x, uint32_t *y)
 	result = st_rwlock_read_lock(st_console_state_lock(console));
 	if (result != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
-	*x = console->cursor_x;
-	*y = console->cursor_y;
+	*x = console->cursor_x - (relative ? console->window.x : 0);
+	*y = console->cursor_y - (relative ? console->window.y : 0);
 	(void)st_rwlock_unlock(st_console_state_lock(console));
 	return 0;
+}
+
+int
+st_console_get_position(st_console_t *console, uint32_t *x, uint32_t *y)
+{
+	return get_position(console, x, y, false);
+}
+
+int
+st_console_get_window_position(st_console_t *console, uint32_t *x, uint32_t *y)
+{
+	return get_position(console, x, y, true);
 }
 
 int
@@ -588,6 +664,9 @@ st_console_set_window(st_console_t *console, const struct st_console_rect *windo
 		return IO_ERROR_IO;
 	if (!st_console_rect_valid(console, window))
 		result = IO_ERROR_OUT_OF_RANGE;
+	else if (console->window.x == window->x && console->window.y == window->y
+		 && console->window.width == window->width && console->window.height == window->height)
+		result = 0;
 	else {
 		console->window = *window;
 		if (!position_in_window(console, console->cursor_x, console->cursor_y)) {

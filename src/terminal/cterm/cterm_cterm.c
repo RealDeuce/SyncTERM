@@ -68,8 +68,6 @@ cterm_handle_fnt(struct cterminal *cterm, int *speed) /* CSI SP D — Font Selec
 				cterm->setfont_result = 1;
 			else
 				cterm->setfont_result = 0;
-			if (cterm->setfont_result == 0)
-				cterm->altfont[cterm->seq_param_int[0]] = (int)cterm->seq_param_int[1];
 			break;
 	}
 }
@@ -255,8 +253,9 @@ cterm_handle_ext_state_query(struct cterminal *cterm, int *speed) /* CSI = n */
 	switch (cterm->seq_param_int[0]) {
 		case 1:
 			sprintf(tmp, "\x1b[=1;%u;%u;%u;%u;%u;%un", CTERM_FIRST_DYNAMIC_FONT,
-			    (uint8_t)cterm->setfont_result, (uint8_t)cterm->altfont[0], (uint8_t)cterm->altfont[1],
-			    (uint8_t)cterm->altfont[2], (uint8_t)cterm->altfont[3]);
+			    (uint8_t)cterm->setfont_result, (unsigned)cterm->screen.selectors[1],
+			    (unsigned)cterm->screen.selectors[2], (unsigned)cterm->screen.selectors[3],
+			    (unsigned)cterm->screen.selectors[4]);
 			break;
 		case 2:
 			vidflags = cterm_render_get_video_flags(cterm);

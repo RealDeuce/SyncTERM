@@ -1157,15 +1157,12 @@ cterm_scrolldown(struct cterminal *cterm)
 	int                    miny = TERM_MINY;
 	int                    maxx = TERM_MAXX;
 	int                    maxy = TERM_MAXY;
-	int                    x, y;
 	struct st_console_cell fill;
 	cterm_render_make_current_cell(cterm, &fill, ' ', 0);
 
 	cterm_coord_conv_xy(cterm, CTERM_COORD_TERM, CTERM_COORD_SCREEN, &minx, &miny);
 	cterm_coord_conv_xy(cterm, CTERM_COORD_TERM, CTERM_COORD_SCREEN, &maxx, &maxy);
-	CURR_XY(&x, &y);
 	cterm_render_move_cells_clear(cterm, minx, miny, maxx, maxy - 1, minx, miny + 1, &fill);
-	cterm_render_set_position(cterm, x, y);
 }
 
 static int
@@ -1431,7 +1428,6 @@ cterm_scrollup(struct cterminal *cterm)
 	int                    miny = TERM_MINY;
 	int                    maxx = TERM_MAXX;
 	int                    maxy = TERM_MAXY;
-	int                    x, y;
 	struct st_console_cell fill;
 	cterm_render_make_current_cell(cterm, &fill, ' ', 0);
 	if (cterm->vt52_plane_mask != 0)
@@ -1440,10 +1436,8 @@ cterm_scrollup(struct cterminal *cterm)
 	cterm_coord_conv_xy(cterm, CTERM_COORD_TERM, CTERM_COORD_SCREEN, &minx, &miny);
 	cterm_coord_conv_xy(cterm, CTERM_COORD_TERM, CTERM_COORD_SCREEN, &maxx, &maxy);
 	cterm_line_to_scrollback(cterm, miny);
-	CURR_XY(&x, &y);
 	if (cterm_render_move_cells_clear(cterm, minx, miny + 1, maxx, maxy, minx, miny, &fill))
 		cterm_text_scrolled(cterm, miny, maxy);
-	cterm_render_set_position(cterm, x, y);
 }
 
 void
@@ -2060,8 +2054,8 @@ cterm_reset(struct cterminal *cterm)
 		cterm->screen.codepage = cterm->petscii_connection_codepage;
 		cterm_render_set_font_selector(cterm, cterm_render_font_selector(cterm, 0), false, 1);
 	}
-	cterm->altfont[0] = cterm->altfont[1] = cterm->altfont[2] = cterm->altfont[3] =
-	    cterm_render_font_selector(cterm, 1);
+	for (int slot = 2; slot <= 4; ++slot)
+		cterm->screen.selectors[slot] = cterm->screen.selectors[1];
 	cterm->top_margin        = 1;
 	cterm->bottom_margin     = cterm->height;
 	cterm->left_margin       = 1;
@@ -2367,7 +2361,7 @@ cterm_start(struct cterminal *cterm)
 }
 
 void
-cterm_advance_char(struct cterminal *cterm, int *x, int *y, int move)
+cterm_advance_char(struct cterminal *cterm, int *x, int *y)
 {
 	int  lm = TERM_MINX, rm = TERM_MAXX;
 	int  tm = TERM_MINY, bm = TERM_MAXY;
@@ -2399,50 +2393,27 @@ cterm_advance_char(struct cterminal *cterm, int *x, int *y, int move)
 		cterm_render_set_attribute(cterm, cterm->attr);
 		cterm_render_set_colours(cterm, cterm->fg_color, cterm->bg_color);
 	}
-	if ((*x == rm || *x == maxx) && (!(cterm->extattr & CTERM_EXTATTR_AUTOWRAP))) {
-		cterm_render_set_position(cterm, *x, *y);
-		return;
-	}
-	else {
-		if ((*x == rm || *x == maxx)
-		    && ((cterm->last_column_flag & (CTERM_LCF_ENABLED | CTERM_LCF_SET)) == CTERM_LCF_ENABLED)) {
+	if (*x != rm && *x != maxx)
+		(*x)++;
+	else if (cterm->extattr & CTERM_EXTATTR_AUTOWRAP) {
+		if ((cterm->last_column_flag & (CTERM_LCF_ENABLED | CTERM_LCF_SET)) == CTERM_LCF_ENABLED)
 			cterm->last_column_flag |= CTERM_LCF_SET;
-			cterm_render_set_position(cterm, *x, *y);
-		}
-		else if (scroll_at_margin && *y == bm && (*x == rm || *x == maxx)) {
-			if (cterm->emulation == CTERM_EMULATION_PRESTEL) {
-				*y   = tm;
-				move = 1;
-				*x   = lm;
-				cterm_prestel_new_line(cterm);
-			}
-			else {
-				cterm_cond_scrollup(cterm);
-				move = 1;
-				*x   = lm;
-				if (cterm->emulation == CTERM_EMULATION_BEEB)
-					cterm_prestel_new_line(cterm);
-			}
-		}
 		else {
-			if (*x == rm || *x == maxx) {
-				if (cterm->emulation == CTERM_EMULATION_PRESTEL
-				    || cterm->emulation == CTERM_EMULATION_BEEB) {
-					cterm_prestel_new_line(cterm);
-				}
-				*x = lm;
-				if (*y < maxy)
-					(*y)++;
-				if (move)
-					cterm_render_set_position(cterm, *x, *y);
+			if (scroll_at_margin && *y == bm) {
+				if (cterm->emulation == CTERM_EMULATION_PRESTEL)
+					*y = tm;
+				else if (*x >= lm && *x <= rm)
+					cterm_scrollup(cterm);
 			}
-			else {
-				(*x)++;
-			}
+			else if (*y < maxy)
+				(*y)++;
+			*x = lm;
+			if (cterm->emulation == CTERM_EMULATION_PRESTEL
+			    || cterm->emulation == CTERM_EMULATION_BEEB)
+				cterm_prestel_new_line(cterm);
 		}
 	}
-	if (move)
-		cterm_render_set_position(cterm, *x, *y);
+	cterm_render_set_position(cterm, *x, *y);
 }
 
 void
@@ -2556,7 +2527,6 @@ cterm_parse_byte(struct cterminal *cterm, unsigned char byte, int *speed)
 	int      olddmc;
 	uint32_t palette[16];
 	int      mpalette;
-	int      orig_fonts[4];
 	int      palette_offset = 0;
 
 	if (!cterm->started)
@@ -2572,16 +2542,6 @@ cterm_parse_byte(struct cterminal *cterm, unsigned char byte, int *speed)
 		cterm_render_set_modepalette(cterm, palette);
 	}
 
-	/* Deedle up the fonts */
-	orig_fonts[0] = cterm_render_font_selector(cterm, 1);
-	orig_fonts[1] = cterm_render_font_selector(cterm, 2);
-	orig_fonts[2] = cterm_render_font_selector(cterm, 3);
-	orig_fonts[3] = cterm_render_font_selector(cterm, 4);
-	cterm_render_set_font_selector(cterm, cterm->altfont[0], false, 1);
-	cterm_render_set_font_selector(cterm, cterm->altfont[1], false, 2);
-	cterm_render_set_font_selector(cterm, cterm->altfont[2], false, 3);
-	cterm_render_set_font_selector(cterm, cterm->altfont[3], false, 4);
-
 	olddmc = cterm_render_hold_update(cterm);
 	(void)cterm_render_set_hold_update(cterm, 1);
 	cterm_apply_window(cterm);
@@ -2589,9 +2549,7 @@ cterm_parse_byte(struct cterminal *cterm, unsigned char byte, int *speed)
 	y = cterm->ypos;
 	cterm_coord_conv_xy(cterm, CTERM_COORD_ABSTERM, CTERM_COORD_CURR, &x, &y);
 	cterm_render_set_position(cterm, x, y);
-	cterm_render_set_attribute(cterm, cterm->attr);
-	cterm_render_set_colours(cterm, cterm->fg_color, cterm->bg_color);
-	cterm_render_set_cursor(cterm, cterm->cursor);
+	cterm_render_record_error(cterm, cterm_render_prepare_text(cterm, NULL));
 	cterm->print_buf[0] = 0;
 	cterm->print_pos    = cterm->print_buf;
 	if (cterm->emulation == CTERM_EMULATION_PRESTEL || cterm->emulation == CTERM_EMULATION_BEEB)
@@ -2611,8 +2569,6 @@ cterm_parse_byte(struct cterminal *cterm, unsigned char byte, int *speed)
 	ABS_XY(&cterm->xpos, &cterm->ypos);
 
 	(void)cterm_render_set_hold_update(cterm, olddmc);
-	CURR_XY(&x, &y);
-	cterm_render_set_position(cterm, x, y);
 	cterm_render_set_cursor(cterm, cterm->cursor);
 
 	/* Now rejigger the current modes palette... */
@@ -2621,12 +2577,6 @@ cterm_parse_byte(struct cterminal *cterm, unsigned char byte, int *speed)
 			palette[i] -= palette_offset;
 		cterm_render_set_modepalette(cterm, palette);
 	}
-
-	/* De-doodle the fonts */
-	cterm_render_set_font_selector(cterm, orig_fonts[0], false, 1);
-	cterm_render_set_font_selector(cterm, orig_fonts[1], false, 2);
-	cterm_render_set_font_selector(cterm, orig_fonts[2], false, 3);
-	cterm_render_set_font_selector(cterm, orig_fonts[3], false, 4);
 
 	return consumed;
 }

@@ -247,7 +247,6 @@ petscii_select_bank(struct cterminal *cterm, bool lower)
 	int font = lower ? upper_font + 1 : upper_font;
 	cterm->screen.codepage = lower ? ST_CODEPAGE_PETSCII_LOWER : ST_CODEPAGE_PETSCII_UPPER;
 	cterm_render_set_font_selector(cterm, font, false, 1);
-	cterm->altfont[0] = font;
 }
 
 static void

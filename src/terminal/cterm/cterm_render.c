@@ -107,11 +107,10 @@ render_succeeded(struct cterminal *cterm, int status)
 	return status == 0;
 }
 
-void
-cterm_render_attribute_colours(struct cterminal *cterm, uint8_t attribute, uint32_t *foreground,
+static void
+attribute_colours(struct cterminal *cterm, uint8_t attribute, uint32_t flags, uint32_t *foreground,
     uint32_t *background)
 {
-	int      flags = cterm_render_get_video_flags(cterm);
 	unsigned fg    = attribute & 15U;
 	unsigned bg    = (attribute >> 4) & 15U;
 
@@ -131,12 +130,59 @@ cterm_render_attribute_colours(struct cterminal *cterm, uint8_t attribute, uint3
 		*background = cterm->screen.mode_palette[bg];
 }
 
+void
+cterm_render_attribute_colours(struct cterminal *cterm, uint8_t attribute, uint32_t *foreground,
+    uint32_t *background)
+{
+	attribute_colours(cterm, attribute, (uint32_t)cterm_render_get_video_flags(cterm), foreground, background);
+}
+
 static uint16_t
 font_identifier(const struct cterminal *cterm, uint8_t selector)
 {
 	if (cterm->screen.font_valid[selector])
 		return cterm->screen.font_identifiers[selector];
 	return cterm->screen.fonts.normal;
+}
+
+static uint8_t
+attribute_font(const struct cterminal *cterm, uint8_t attribute, uint32_t flags)
+{
+	/* IGS uses color-register bits, not ANSI intensity/blink font banks. */
+	if (cterm->vt52_plane_mask != 0)
+		return (uint8_t)cterm->screen.selectors[1];
+	int slot = 1;
+
+	if ((attribute & 8U) != 0 && (flags & ST_CONSOLE_VIDEO_ALT_CHARS) != 0)
+		slot += 1;
+	if ((attribute & CTERM_ATTR_BLINK) != 0 && (flags & ST_CONSOLE_VIDEO_BLINK_ALT_CHARS) != 0)
+		slot += 2;
+	return (uint8_t)cterm->screen.selectors[slot];
+}
+
+uint8_t
+cterm_render_attribute_font(struct cterminal *cterm, uint8_t attribute)
+{
+	if ((attribute & (8U | CTERM_ATTR_BLINK)) == 0 || cterm->vt52_plane_mask != 0)
+		return (uint8_t)cterm->screen.selectors[1];
+	return attribute_font(cterm, attribute, (uint32_t)cterm_render_get_video_flags(cterm));
+}
+
+static uint32_t
+attribute_flags(const struct cterminal *cterm, uint8_t attribute, uint32_t flags)
+{
+	if ((flags & ST_CONSOLE_CELL_SAA5050) != 0 && (attribute & 8U) != 0) {
+		flags |= ST_CONSOLE_CELL_CONCEAL;
+		if (cterm->screen.prestel_reveal)
+			flags |= ST_CONSOLE_CELL_REVEAL;
+	}
+	else if ((attribute & 8U) != 0)
+		flags |= ST_CONSOLE_CELL_BRIGHT;
+	if ((attribute & CTERM_ATTR_BLINK) != 0)
+		flags |= ST_CONSOLE_CELL_BLINK;
+	if (cterm->device.sgr_palette != NULL || cterm->vt52_plane_mask != 0)
+		flags &= ~(ST_CONSOLE_CELL_BRIGHT | ST_CONSOLE_CELL_BLINK);
+	return flags;
 }
 
 int
@@ -152,21 +198,10 @@ cterm_render_make_cell(struct cterminal *cterm, struct st_console_cell *cell, ui
 	selected = font_identifier(cterm, font_selector);
 	scalar   = st_codepage_to_unicode(cterm->screen.codepage, byte, true);
 	/* CTerm has already resolved attributes through its mode palette. */
-	if ((flags & ST_CONSOLE_CELL_SAA5050) != 0 && (attribute & 8U) != 0) {
-		flags |= ST_CONSOLE_CELL_CONCEAL;
-		if (cterm->screen.prestel_reveal)
-			flags |= ST_CONSOLE_CELL_REVEAL;
-	}
-	else if ((attribute & 8U) != 0)
-		flags |= ST_CONSOLE_CELL_BRIGHT;
-	if ((attribute & CTERM_ATTR_BLINK) != 0)
-		flags |= ST_CONSOLE_CELL_BLINK;
-	if (cterm->device.sgr_palette != NULL || cterm->vt52_plane_mask != 0)
-		flags &= ~(ST_CONSOLE_CELL_BRIGHT | ST_CONSOLE_CELL_BLINK);
 	*cell = (struct st_console_cell) {
 	    .foreground = foreground,
 	    .background = background,
-	    .flags      = flags,
+	    .flags      = attribute_flags(cterm, attribute, flags),
 	    .font       = selected,
 	    .glyph_font = selected,
 	    .hyperlink  = hyperlink,
@@ -276,39 +311,17 @@ cterm_render_set_window(struct cterminal *cterm, int left, int top, int right, i
 		physical = (struct st_console_rect) {(uint32_t)(cterm->x - 1), (uint32_t)(cterm->y - 1),
 		    (uint32_t)cterm->width, (uint32_t)cterm->height};
 	}
-	/* The status line and local UI can select another window on this console. */
-	struct st_console_rect active;
-	if (!render_succeeded(cterm, st_console_get_window(cterm->screen.console, &active)))
+	if (!render_succeeded(cterm, st_console_set_window(cterm->screen.console, &physical)))
 		return;
-	if (active.x != physical.x || active.y != physical.y || active.width != physical.width
-	    || active.height != physical.height) {
-		if (!render_succeeded(cterm, st_console_set_window(cterm->screen.console, &physical)))
-			return;
-	}
 	if (rip_window)
 		cterm->screen.addressing_window = window;
-}
-
-static bool
-addressing_window(struct cterminal *cterm, struct st_console_rect *window)
-{
-	if (cterm->screen.addressing_window.width != 0) {
-		*window = cterm->screen.addressing_window;
-		return true;
-	}
-	return render_succeeded(cterm, st_console_get_window(cterm->screen.console, window));
 }
 
 void
 cterm_render_set_position(struct cterminal *cterm, int x, int y)
 {
-	struct st_console_rect window;
-
-	if (cterm->screen.addressing_window.width == 0 && (x < 1 || y < 1))
-		return;
-	if (!addressing_window(cterm, &window))
-		return;
-	if (cterm->screen.addressing_window.width != 0) {
+	struct st_console_rect window = cterm->screen.addressing_window;
+	if (window.width != 0) {
 		int64_t physical_x = (int64_t)window.x + x - 1;
 		int64_t physical_y = (int64_t)window.y + y - 1;
 		if (physical_x < cterm->x - 1 || physical_y < cterm->y - 1
@@ -317,28 +330,33 @@ cterm_render_set_position(struct cterminal *cterm, int x, int y)
 			return;
 		(void)render_succeeded(cterm,
 		    st_console_set_position(cterm->screen.console, (uint32_t)physical_x, (uint32_t)physical_y));
-		return;
 	}
-	(void)render_succeeded(cterm, st_console_set_position(cterm->screen.console, window.x + (uint32_t)x - 1,
-					  window.y + (uint32_t)y - 1));
+	else if (x >= 1 && y >= 1)
+		(void)render_succeeded(cterm,
+		    st_console_set_window_position(cterm->screen.console, (uint32_t)x - 1, (uint32_t)y - 1));
 }
 
 void
 cterm_render_get_position(struct cterminal *cterm, int *x, int *y)
 {
-	struct st_console_rect window;
-	uint32_t               screen_x, screen_y;
-	int                    column = 1, row = 1;
+	const struct st_console_rect *window = &cterm->screen.addressing_window;
+	uint32_t                      screen_x, screen_y;
+	int                           column = 1, row = 1;
 
 	if (x == NULL && y == NULL)
 		return;
-	if (addressing_window(cterm, &window)
-	    && st_console_get_position(cterm->screen.console, &screen_x, &screen_y) == 0) {
-		column = (int)screen_x - (int)window.x + 1;
-		row    = (int)screen_y - (int)window.y + 1;
+	if (window->width != 0) {
+		if (render_succeeded(cterm,
+			st_console_get_position(cterm->screen.console, &screen_x, &screen_y))) {
+			column += (int)screen_x - (int)window->x;
+			row += (int)screen_y - (int)window->y;
+		}
 	}
-	else
-		cterm_render_record_error(cterm, IO_ERROR_IO);
+	else if (render_succeeded(cterm,
+		     st_console_get_window_position(cterm->screen.console, &screen_x, &screen_y))) {
+		column += (int)screen_x;
+		row += (int)screen_y;
+	}
 	if (x != NULL)
 		*x = column;
 	if (y != NULL)
@@ -364,53 +382,61 @@ cterm_render_position_y(struct cterminal *cterm)
 void
 cterm_render_set_attribute(struct cterminal *cterm, int attribute)
 {
-	struct st_console_style style;
-
-	if (!render_succeeded(cterm, st_console_get_style(cterm->screen.console, &style)))
+	struct st_console_text_edit edit;
+	if (!render_succeeded(cterm, st_console_begin_text_edit(cterm->screen.console, &edit)))
 		return;
 	cterm->attr = (uint8_t)attribute;
-	cterm_render_attribute_colours(cterm, cterm->attr, &style.foreground, &style.background);
-	style.flags = ST_CONSOLE_CELL_LEGACY_FOREGROUND | ST_CONSOLE_CELL_LEGACY_BACKGROUND | cterm->cell_flags;
-	if ((cterm->attr & 8U) != 0) {
-		if ((cterm->cell_flags & ST_CONSOLE_CELL_SAA5050) != 0) {
-			style.flags |= ST_CONSOLE_CELL_CONCEAL;
-			if (cterm->screen.prestel_reveal)
-				style.flags |= ST_CONSOLE_CELL_REVEAL;
-		}
-		else
-			style.flags |= ST_CONSOLE_CELL_BRIGHT;
-	}
-	if ((cterm->attr & CTERM_ATTR_BLINK) != 0)
-		style.flags |= ST_CONSOLE_CELL_BLINK;
-	if (cterm->device.sgr_palette != NULL || cterm->vt52_plane_mask != 0)
-		style.flags &= ~(ST_CONSOLE_CELL_BRIGHT | ST_CONSOLE_CELL_BLINK);
-	style.font      = font_identifier(cterm, cterm_render_attribute_font(cterm, cterm->attr));
-	style.hyperlink = cterm->screen.current_hyperlink;
-	(void)render_succeeded(cterm, st_console_set_style(cterm->screen.console, &style));
+	attribute_colours(cterm, cterm->attr, edit.video_flags, &edit.style.foreground, &edit.style.background);
+	edit.style.flags = attribute_flags(cterm, cterm->attr, cterm->cell_flags)
+	                   | ST_CONSOLE_CELL_LEGACY_FOREGROUND | ST_CONSOLE_CELL_LEGACY_BACKGROUND;
+	edit.style.font      = font_identifier(cterm, attribute_font(cterm, cterm->attr, edit.video_flags));
+	edit.style.hyperlink = cterm->screen.current_hyperlink;
+	(void)render_succeeded(cterm, st_console_end_text_edit(&edit, NULL));
+}
+
+static void
+set_colours(const struct cterminal *cterm, struct st_console_style *style, uint32_t foreground,
+    uint32_t background)
+{
+	style->foreground = foreground;
+	style->background = background;
+	style->flags &= ~(ST_CONSOLE_CELL_SAA5050 | ST_CONSOLE_CELL_DOUBLE_HEIGHT | ST_CONSOLE_CELL_SEPARATED
+			  | ST_CONSOLE_CELL_TERMINAL_FONT | ST_CONSOLE_CELL_PIXEL_GRAPHICS | ST_CONSOLE_CELL_REVEAL
+			  | ST_CONSOLE_CELL_SAA5050_CONTROL_MASK | ST_CONSOLE_CELL_LEGACY_FOREGROUND
+			  | ST_CONSOLE_CELL_LEGACY_BACKGROUND);
+	style->flags |= cterm->cell_flags;
 }
 
 void
 cterm_render_set_colours(struct cterminal *cterm, uint32_t foreground, uint32_t background)
 {
-	struct st_console_style style;
-
-	if (!render_succeeded(cterm, st_console_get_style(cterm->screen.console, &style)))
+	struct st_console_text_edit edit;
+	if (!render_succeeded(cterm, st_console_begin_text_edit(cterm->screen.console, &edit)))
 		return;
-	style.foreground = foreground;
-	style.background = background;
-	style.flags &= ~(ST_CONSOLE_CELL_SAA5050 | ST_CONSOLE_CELL_DOUBLE_HEIGHT | ST_CONSOLE_CELL_SEPARATED
-	                 | ST_CONSOLE_CELL_TERMINAL_FONT | ST_CONSOLE_CELL_PIXEL_GRAPHICS | ST_CONSOLE_CELL_REVEAL
-	                 | ST_CONSOLE_CELL_SAA5050_CONTROL_MASK | ST_CONSOLE_CELL_LEGACY_FOREGROUND
-	                 | ST_CONSOLE_CELL_LEGACY_BACKGROUND);
-	style.flags |= cterm->cell_flags;
-	(void)render_succeeded(cterm, st_console_set_style(cterm->screen.console, &style));
+	set_colours(cterm, &edit.style, foreground, background);
+	(void)render_succeeded(cterm, st_console_end_text_edit(&edit, NULL));
+}
+
+static void
+text_cursor(const struct cterminal *cterm, int cursor, struct st_console_custom_cursor *custom)
+{
+	custom->visible = cursor != CTERM_CURSOR_HIDDEN;
+	if (cterm->cursor_style != 0)
+		custom->blink = (cterm->cursor_style & 1) != 0;
+	if (cterm->cursor_style == 3 || cterm->cursor_style == 4) {
+		custom->start = custom->range - (custom->range > 8 ? 2U : 1U);
+		custom->end   = custom->range - 1;
+	}
+	else if (cursor == CTERM_CURSOR_BLOCK || cterm->cursor_style == 1 || cterm->cursor_style == 2) {
+		custom->start = 0;
+		custom->end   = custom->range - 1;
+	}
 }
 
 void
 cterm_render_set_cursor(struct cterminal *cterm, int cursor)
 {
-	struct st_console_custom_cursor custom;
-
+	struct st_console_text_edit edit;
 	if (cterm->vt52_plane_mask != 0) {
 		cterm_vt52_render_cursor(cterm, cursor);
 		return;
@@ -419,20 +445,35 @@ cterm_render_set_cursor(struct cterminal *cterm, int cursor)
 		cterm->device.cursor_mode(cterm->device.context, cursor == CTERM_CURSOR_HIDDEN);
 		return;
 	}
-	if (!render_succeeded(cterm, st_console_get_default_cursor(cterm->screen.console, &custom)))
+	if (!render_succeeded(cterm, st_console_begin_text_edit(cterm->screen.console, &edit)))
 		return;
-	custom.visible = cursor != CTERM_CURSOR_HIDDEN;
-	if (cterm->cursor_style != 0)
-		custom.blink = (cterm->cursor_style & 1) != 0;
-	if (cterm->cursor_style == 3 || cterm->cursor_style == 4) {
-		custom.start = custom.range - (custom.range > 8 ? 2U : 1U);
-		custom.end   = custom.range - 1;
+	text_cursor(cterm, cursor, &edit.default_cursor);
+	(void)render_succeeded(cterm, st_console_end_text_edit(&edit, &edit.default_cursor));
+}
+
+int
+cterm_render_prepare_text(struct cterminal *cterm, struct st_console_style *style)
+{
+	struct st_console_text_edit edit;
+	int                         status = st_console_begin_text_edit(cterm->screen.console, &edit);
+	if (status != 0)
+		return status;
+	edit.style.flags     = attribute_flags(cterm, cterm->attr, cterm->cell_flags);
+	edit.style.font      = font_identifier(cterm, attribute_font(cterm, cterm->attr, edit.video_flags));
+	edit.style.hyperlink = cterm->screen.current_hyperlink;
+	set_colours(cterm, &edit.style, cterm->fg_color, cterm->bg_color);
+	if (cterm->vt52_plane_mask != 0 || cterm->device.cursor_mode != NULL) {
+		status = st_console_end_text_edit(&edit, NULL);
+		if (status == 0)
+			cterm_render_set_cursor(cterm, cterm->cursor);
 	}
-	else if (cursor == CTERM_CURSOR_BLOCK || cterm->cursor_style == 1 || cterm->cursor_style == 2) {
-		custom.start = 0;
-		custom.end   = custom.range - 1;
+	else {
+		text_cursor(cterm, cterm->cursor, &edit.default_cursor);
+		status = st_console_end_text_edit(&edit, &edit.default_cursor);
 	}
-	(void)render_succeeded(cterm, st_console_set_custom_cursor(cterm->screen.console, &custom));
+	if (status == 0 && style != NULL)
+		*style = edit.style;
+	return status;
 }
 
 bool
@@ -467,10 +508,9 @@ void
 cterm_render_clear_window(struct cterminal *cterm)
 {
 	if (cterm->screen.addressing_window.width != 0) {
-		struct st_console_rect window;
+		struct st_console_rect window = cterm->screen.addressing_window;
 		struct st_console_cell blank;
-		if (addressing_window(cterm, &window)
-		    && render_succeeded(cterm, cterm_render_make_current_cell(cterm, &blank, ' ', 0))
+		if (render_succeeded(cterm, cterm_render_make_current_cell(cterm, &blank, ' ', 0))
 		    && render_succeeded(cterm, st_console_fill(cterm->screen.console, &window, &blank)))
 			cterm_render_set_position(cterm, 1, 1);
 		return;
@@ -482,11 +522,10 @@ void
 cterm_render_clear_line(struct cterminal *cterm)
 {
 	if (cterm->screen.addressing_window.width != 0) {
-		struct st_console_rect window;
+		struct st_console_rect window = cterm->screen.addressing_window;
 		struct st_console_cell blank;
 		uint32_t               x, y;
-		if (!addressing_window(cterm, &window)
-		    || !render_succeeded(cterm, st_console_get_position(cterm->screen.console, &x, &y))
+		if (!render_succeeded(cterm, st_console_get_position(cterm->screen.console, &x, &y))
 		    || x >= window.x + window.width)
 			return;
 		window = (struct st_console_rect) {x, y, window.x + window.width - x, 1};
@@ -802,22 +841,6 @@ cterm_render_set_font_selector(struct cterminal *cterm, int selector, int force,
 	return 1;
 }
 
-uint8_t
-cterm_render_attribute_font(struct cterminal *cterm, uint8_t attribute)
-{
-	/* IGS uses color-register bits, not ANSI intensity/blink font banks. */
-	if (cterm->vt52_plane_mask != 0)
-		return (uint8_t)cterm->screen.selectors[1];
-	int      slot  = 1;
-	uint32_t flags = (uint32_t)cterm_render_get_video_flags(cterm);
-
-	if ((attribute & 8U) != 0 && (flags & ST_CONSOLE_VIDEO_ALT_CHARS) != 0)
-		slot += 1;
-	if ((attribute & CTERM_ATTR_BLINK) != 0 && (flags & ST_CONSOLE_VIDEO_BLINK_ALT_CHARS) != 0)
-		slot += 2;
-	return (uint8_t)cterm->screen.selectors[slot];
-}
-
 uint16_t
 cterm_render_add_hyperlink(struct cterminal *cterm, const char *uri, const char *parameter)
 {
@@ -864,12 +887,12 @@ cterm_render_hyperlink_params(struct cterminal *cterm, uint16_t identifier)
 void
 cterm_render_set_hyperlink(struct cterminal *cterm, uint16_t identifier)
 {
-	struct st_console_style style;
+	struct st_console_text_edit edit;
 
 	cterm->screen.current_hyperlink = identifier;
-	if (render_succeeded(cterm, st_console_get_style(cterm->screen.console, &style))) {
-		style.hyperlink = identifier;
-		(void)render_succeeded(cterm, st_console_set_style(cterm->screen.console, &style));
+	if (render_succeeded(cterm, st_console_begin_text_edit(cterm->screen.console, &edit))) {
+		edit.style.hyperlink = identifier;
+		(void)render_succeeded(cterm, st_console_end_text_edit(&edit, NULL));
 	}
 }
 

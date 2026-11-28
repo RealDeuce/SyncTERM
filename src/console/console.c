@@ -2920,15 +2920,18 @@ font_lookup_text_locked(st_console_t *console, uint16_t identifier, bool scalar,
 
 bool
 st_console_font_lookup_cluster_locked(st_console_t *console, uint16_t identifier, const char *text,
-    size_t text_size, uint8_t columns, uint16_t *glyph_font, uint32_t *glyph, bool *missing)
+    size_t text_size, uint8_t *columns, uint16_t *glyph_font, uint32_t *glyph, bool *missing)
 {
 	uint32_t codepoint = 0;
 	size_t   consumed;
 	bool     scalar = st_utf8_decode_one(&codepoint, &consumed, text, text_size) == 0 && consumed == text_size;
 
-	return font_lookup_text_locked(console, identifier, scalar, codepoint, text, text_size, columns,
-		   glyph_font, glyph, missing)
-	       != NULL;
+	const struct st_console_font *font = font_lookup_text_locked(console, identifier, scalar, codepoint, text,
+	    text_size, *columns, glyph_font, glyph, missing);
+	if (font == NULL)
+		return false;
+	*columns = *glyph < font->glyph_count ? 1 : 2;
+	return true;
 }
 
 bool
@@ -3463,11 +3466,19 @@ int
 st_console_font_lookup_cluster_ex(st_console_t *console, uint16_t identifier, const char *text, size_t text_size,
     uint8_t columns, uint16_t *glyph_font, uint32_t *glyph, bool *missing)
 {
+	return st_console_resolve_cluster(console, identifier, text, text_size, &columns, glyph_font, glyph,
+	    missing);
+}
+
+int
+st_console_resolve_cluster(st_console_t *console, uint16_t identifier, const char *text, size_t text_size,
+    uint8_t *columns, uint16_t *glyph_font, uint32_t *glyph, bool *missing)
+{
 	int  result;
 	bool found;
 
-	if (console == NULL || (text == NULL && text_size != 0) || text_size == 0 || (columns != 1 && columns != 2)
-	    || glyph_font == NULL || glyph == NULL)
+	if (console == NULL || text == NULL || text_size == 0 || columns == NULL
+	    || (*columns != 1 && *columns != 2) || glyph_font == NULL || glyph == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	result = st_rwlock_read_lock(st_console_state_lock(console));
 	if (result != ST_THREAD_SUCCESS)

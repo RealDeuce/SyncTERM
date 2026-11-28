@@ -146,6 +146,7 @@ uint8_t cterm_render_cell_font(struct cterminal *cterm, const struct st_console_
 int  cterm_render_get_video_flags(struct cterminal *cterm);
 void cterm_render_set_video_flags(struct cterminal *cterm, int flags);
 void cterm_render_set_window(struct cterminal *cterm, int left, int top, int right, int bottom);
+int      cterm_render_prepare_text(struct cterminal *cterm, struct st_console_style *style);
 void cterm_render_set_position(struct cterminal *cterm, int x, int y);
 void cterm_render_get_position(struct cterminal *cterm, int *x, int *y);
 int  cterm_render_position_x(struct cterminal *cterm);

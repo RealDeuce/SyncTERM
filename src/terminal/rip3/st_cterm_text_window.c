@@ -290,7 +290,6 @@ st_cterm_copy_window_state(st_cterm_t *destination, const st_cterm_t *source)
 	destination->fetm                = source->fetm;
 	destination->ttm                 = source->ttm;
 	memcpy(destination->screen.mode_palette, source->screen.mode_palette, sizeof(source->screen.mode_palette));
-	memcpy(destination->altfont, source->altfont, sizeof(source->altfont));
 	memcpy(destination->screen.selectors, source->screen.selectors, sizeof(source->screen.selectors));
 	uint32_t video_flags;
 	status = st_console_get_video_flags(source->screen.console, &video_flags);

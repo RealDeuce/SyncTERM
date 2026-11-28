@@ -282,6 +282,40 @@ test_build_features(void)
 	CHECK((features & ST_CONSOLE_BUILD_XINERAMA) == 0 || (features & ST_CONSOLE_BUILD_X11) != 0);
 }
 
+static int
+increment_foreground(void *context)
+{
+	for (unsigned i = 0; i < 1000; ++i) {
+		struct st_console_text_edit edit;
+		CHECK(st_console_begin_text_edit(context, &edit) == 0);
+		++edit.style.foreground;
+		CHECK(st_console_end_text_edit(&edit, NULL) == 0);
+	}
+	return 0;
+}
+
+static void
+test_text_edit(void)
+{
+	st_console_t                 *console = create_headless(4, 2);
+	const struct st_console_style initial = {.foreground = 0, .hyperlink = 9};
+	CHECK(st_console_set_style(console, &initial) == 0);
+	struct st_console_text_edit edit;
+	CHECK(st_console_begin_text_edit(console, &edit) == 0);
+	edit.style.hyperlink = 0;
+	CHECK(
+	    st_console_end_text_edit(&edit, &(struct st_console_custom_cursor) {0}) == IO_ERROR_INVALID_ARGUMENT);
+
+	st_thread_t writer;
+	CHECK(st_thread_create(&writer, increment_foreground, console) == ST_THREAD_SUCCESS);
+	increment_foreground(console);
+	CHECK(st_thread_join(writer, NULL) == ST_THREAD_SUCCESS);
+	struct st_console_style style;
+	CHECK(st_console_get_style(console, &style) == 0);
+	CHECK(style.foreground == 2000 && style.hyperlink == initial.hyperlink);
+	st_console_destroy(console);
+}
+
 static void
 test_text_window_and_scroll(void)
 {
@@ -300,6 +334,9 @@ test_text_window_and_scroll(void)
 
 	CHECK(st_console_set_window(console, &window) == 0);
 	CHECK(st_console_get_position(console, &x, &y) == 0 && x == window.x && y == window.y);
+	CHECK(st_console_set_window_position(console, UINT32_MAX, 0) == IO_ERROR_OUT_OF_RANGE);
+	CHECK(st_console_set_window_position(console, 2, 1) == 0);
+	CHECK(st_console_get_window_position(console, &x, &y) == 0 && x == 2 && y == 1);
 	CHECK(st_console_set_position(console, 4, 2) == 0);
 	CHECK(st_console_set_window(console, &window) == 0);
 	CHECK(st_console_get_position(console, &x, &y) == 0 && x == 4 && y == 2);
@@ -3451,6 +3488,7 @@ main(void)
 	test_default_cursor_geometry();
 	test_video_flags();
 	test_cell_and_regions();
+	test_text_edit();
 	test_text_window_and_scroll();
 	test_move_and_line_operations();
 	test_invalid_scalar_mutations();

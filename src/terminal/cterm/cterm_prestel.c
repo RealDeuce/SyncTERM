@@ -452,7 +452,7 @@ cterm_prestel_handle_escaped(struct cterminal *cterm, uint8_t ctrl)
 	cterm_prestel_apply_ctrl_after(cterm, ctrl);
 	cterm_render_set_attribute(cterm, cterm->attr);
 	cterm_render_set_colours(cterm, cterm->fg_color, cterm->bg_color);
-	cterm_advance_char(cterm, &x, &y, 1);
+	cterm_advance_char(cterm, &x, &y);
 }
 
 /* ------------------------------------------------------------------------

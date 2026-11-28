@@ -1035,8 +1035,6 @@ cterm_skypix_create(struct cterm_skypix **result, struct cterminal *t, const str
 		t->screen.font_identifiers[0] = s->default_font;
 		t->screen.font_valid[0]       = true;
 		t->screen.font_codepages[0]   = s->font_codepage;
-		for (unsigned i = 0; i < 4; ++i)
-			t->altfont[i] = 0;
 		for (unsigned i = 0; i < 5; ++i)
 			t->screen.selectors[i] = 0;
 		static const uint8_t ansi_pens[16] = {0, 1, 4, 5, 3, 7, 6, 2, 8, 9, 12, 13, 11, 15, 14, 10};

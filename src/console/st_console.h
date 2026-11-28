@@ -232,6 +232,16 @@ struct st_console_custom_cursor {
 	uint16_t index_xor;
 };
 
+/* A successful begin holds the console write lock until the matching end.
+ * Only edit these values in between. Never call into the console or a device,
+ * wait, or hand the edit to another thread while the lock is held. */
+struct st_console_text_edit {
+	st_console_t                   *console;
+	struct st_console_style         style;
+	uint32_t                        video_flags;
+	struct st_console_custom_cursor default_cursor;
+};
+
 /* A separately composed bitmap cursor. It never changes cells or raster
  * capture. Standard cursor setters disable it; snapshots retain it. */
 struct st_console_pixel_cursor {
@@ -625,7 +635,13 @@ int st_console_end_update(st_console_t *console);
 int st_console_present(st_console_t *console);
 
 int st_console_set_style(st_console_t *console, const struct st_console_style *style);
+int st_console_begin_text_edit(st_console_t *console, struct st_console_text_edit *edit);
+/* Commit the style and optionally the custom cursor, then release the lock. */
+int st_console_end_text_edit(struct st_console_text_edit *edit, const struct st_console_custom_cursor *cursor);
 int st_console_get_style(st_console_t *console, struct st_console_style *style);
+/* Zero-based coordinates relative to the active text window. */
+int st_console_set_window_position(st_console_t *console, uint32_t x, uint32_t y);
+int st_console_get_window_position(st_console_t *console, uint32_t *x, uint32_t *y);
 int st_console_set_position(st_console_t *console, uint32_t x, uint32_t y);
 int st_console_get_position(st_console_t *console, uint32_t *x, uint32_t *y);
 int st_console_set_cursor(st_console_t *console, bool visible, enum st_console_cursor_shape shape);
@@ -724,6 +740,10 @@ int st_console_font_lookup_cluster(st_console_t *console, uint16_t identifier, c
  * A mapped glyph whose index equals the fallback is not missing. */
 int st_console_font_lookup_cluster_ex(st_console_t *console, uint16_t identifier, const char *text,
     size_t text_size, uint8_t columns, uint16_t *glyph_font, uint32_t *glyph, bool *missing);
+/* Use the requested column count for fallback selection, and return the width
+ * of the resolved glyph under the same font registry lock. */
+int st_console_resolve_cluster(st_console_t *console, uint16_t identifier, const char *text, size_t text_size,
+    uint8_t *columns, uint16_t *glyph_font, uint32_t *glyph, bool *missing);
 /* Select tofu without mapping lookup. columns must be 1 or 2. Uses a
  * size-matched fallback, otherwise the selected font. Outputs unchanged on
  * failure (INVALID_ARGUMENT, IO, or NOT_FOUND); returns zero on success.
