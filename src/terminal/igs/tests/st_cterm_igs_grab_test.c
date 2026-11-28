@@ -82,11 +82,22 @@ literal(void)
 	const struct st_console_rect source = {0, 0, 16, 1}, destination = {32, 0, 16, 1};
 	seed(&f, &source, 769, 770);
 	seed(&f, &destination, 772, 776);
+	struct st_pixel_buffer *seed_rates = NULL;
+	CHECK(st_console_get_pixels(&seed_rates, f.console, &source, false) == 0);
+	CHECK(st_pixel_buffer_ensure_fast_blink(seed_rates) == 0);
+	seed_rates->fast_blink[0] = 0xac;
+	CHECK(st_console_restore_pixel_region(f.console, seed_rates, source.x, source.y) == 0);
+	st_pixel_buffer_destroy(seed_rates);
+	CHECK(st_console_get_pixels(&seed_rates, f.console, &destination, false) == 0);
+	seed_rates->fast_blink[0] = 0x69;
+	CHECK(st_console_restore_pixel_region(f.console, seed_rates, destination.x, destination.y) == 0);
+	st_pixel_buffer_destroy(seed_rates);
 	feed(&f, "G#G 0,6,0,0,15,0,32,0:");
 	struct st_pixel_buffer *b = NULL;
 	CHECK(st_console_get_pixels(&b, f.console, &destination, false) == 0);
 	for (unsigned x = 0; x < 16; ++x)
 		CHECK(b->primary[x] == 773 && b->alternate[x] == 778);
+	CHECK(b->fast_blink && b->fast_blink[0] == 0x28);
 	st_pixel_buffer_destroy(b);
 	destroy(&f);
 }

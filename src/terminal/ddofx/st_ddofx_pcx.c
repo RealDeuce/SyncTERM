@@ -114,7 +114,7 @@ load_visual(void *context, const struct st_pixel_buffer *pixels, const uint32_t 
 			uint8_t index;
 			if (y < image->height && x < image->width) {
 				index                = image->pixels[y * image->width + x];
-				pixels->primary[pos] = pixels->alternate[pos] = index;
+				st_pixel_buffer_set_solid(pixels, pos, index);
 			}
 			else
 				index = st_console_palette_index256(palette, pixels->primary[pos]);

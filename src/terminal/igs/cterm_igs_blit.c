@@ -178,14 +178,19 @@ boolean_pixel(int logic, unsigned source, unsigned destination, unsigned mask)
  * Fetch each new source group before writing the output; keep the carried
  * group across fringes, including overlapping/self and aliased-row copies.
  * This is a small source cache, not a planar image or whole-source snapshot. */
+struct pen {
+	uint32_t primary, alternate;
+	bool fast;
+};
+
 struct source_cache {
 	size_t   key[2];
 	unsigned next;
-	uint32_t pixels[2][16];
+	struct pen pixels[2][16];
 };
 
-static const uint32_t *
-source_group(struct source_cache *cache, const struct bank *source, unsigned phase, size_t key)
+static const struct pen *
+source_group(struct source_cache *cache, const struct bank *source, size_t key)
 {
 	for (unsigned i = 0; i < 2; ++i)
 		if (cache->key[i] == key)
@@ -193,9 +198,12 @@ source_group(struct source_cache *cache, const struct bank *source, unsigned pha
 	unsigned slot = cache->next;
 	cache->next ^= 1;
 	cache->key[slot]       = key;
-	const uint32_t *pixels = phase_pixels(source, phase);
-	for (unsigned i = 0; i < 16; ++i)
-		cache->pixels[slot][i] = pixels[key + i] - source->base;
+	const uint32_t *alternate = phase_pixels(source, 1);
+	for (unsigned i = 0; i < 16; ++i) {
+		size_t at = key + i;
+		cache->pixels[slot][i] = (struct pen) {source->pixels->primary[at] - source->base,
+		    alternate[at] - source->base, st_pixel_bit(source->pixels->fast_blink, at)};
+	}
 	return cache->pixels[slot];
 }
 
@@ -223,6 +231,8 @@ transfer_pixels(void *context, const struct st_pixel_buffer *screen, struct st_c
 		status = check_region(&destination, r.dx, r.dy, r.width, r.height, true);
 	if (status == 0 && destination.id != 2 && source.pixels->alternate != NULL)
 		status = st_pixel_buffer_ensure_alternate(igs->memory[destination.id]->pixels);
+	if (status == 0 && destination.id != 2 && source.pixels->fast_blink && !unary)
+		status = st_pixel_buffer_ensure_fast_blink(igs->memory[destination.id]->pixels);
 	if (status != 0)
 		return status;
 	size_t source_start      = (size_t)r.sy * source.stride + (unsigned)r.sx / 16 * 16;
@@ -234,40 +244,49 @@ transfer_pixels(void *context, const struct st_pixel_buffer *screen, struct st_c
 	                       && (source_start < destination_start
 	                           || (source_start == destination_start && r.sx % 16 < r.dx % 16)));
 	unsigned mask    = cterm_igs_plane_mask(igs->resolution);
-	unsigned phases  = destination.pixels->alternate == NULL ? 1 : 2;
-	for (unsigned phase = 0; phase < phases; ++phase) {
-		uint32_t *output = phase_pixels(&destination, phase);
-		for (int row = 0; row < r.height; ++row) {
-			int                 y     = reverse ? r.height - 1 - row : row;
-			struct source_cache cache = {
-			    .key = {SIZE_MAX, SIZE_MAX}
+	for (int row = 0; row < r.height; ++row) {
+		int                 y     = reverse ? r.height - 1 - row : row;
+		struct source_cache cache = {
+		    .key = {SIZE_MAX, SIZE_MAX}
                         };
-			int first = r.dx / 16, last = (r.dx + r.width - 1) / 16;
-			for (int group = reverse ? last : first; reverse ? group >= first : group <= last;
-			    group += reverse ? -1 : 1) {
-				int left = group * 16 > r.dx ? group * 16 : r.dx;
-				int right =
-				    group * 16 + 15 < r.dx + r.width - 1 ? group * 16 + 15 : r.dx + r.width - 1;
-				int             sx = r.sx + left - r.dx, ex = r.sx + right - r.dx;
-				size_t          base = (size_t)(r.sy + y) * source.stride;
-				const uint32_t *low = NULL, *high = NULL;
-				if (!unary) {
-					if (reverse)
-						high = source_group(&cache, &source, phase,
-						    base + (unsigned)ex / 16 * 16);
-					low = source_group(&cache, &source, phase, base + (unsigned)sx / 16 * 16);
-					if (!reverse)
-						high = source_group(&cache, &source, phase,
-						    base + (unsigned)ex / 16 * 16);
+		int first = r.dx / 16, last = (r.dx + r.width - 1) / 16;
+		for (int group = reverse ? last : first; reverse ? group >= first : group <= last;
+		    group += reverse ? -1 : 1) {
+			int left = group * 16 > r.dx ? group * 16 : r.dx;
+			int right =
+			    group * 16 + 15 < r.dx + r.width - 1 ? group * 16 + 15 : r.dx + r.width - 1;
+			int             sx = r.sx + left - r.dx, ex = r.sx + right - r.dx;
+			size_t          base = (size_t)(r.sy + y) * source.stride;
+			const struct pen *low = NULL, *high = NULL;
+			if (!unary) {
+				if (reverse)
+					high = source_group(&cache, &source,
+					    base + (unsigned)ex / 16 * 16);
+				low = source_group(&cache, &source, base + (unsigned)sx / 16 * 16);
+				if (!reverse)
+					high = source_group(&cache, &source,
+					    base + (unsigned)ex / 16 * 16);
+			}
+			for (int x = left; x <= right; ++x) {
+				int      input = r.sx + x - r.dx;
+				struct pen s = {0};
+				if (!unary)
+					s = (input / 16 == sx / 16 ? low : high)[input % 16];
+				size_t at = (size_t)(r.dy + y) * destination.stride + x;
+				unsigned d = (destination.pixels->primary[at] - destination.base) & mask;
+				if (destination.pixels->alternate) {
+					unsigned off = (destination.pixels->alternate[at] - destination.base) & mask;
+					if (destination.pixels->fast_blink && logic != 10) {
+						bool fast = logic == 3 || logic == 12 ? s.fast :
+						    !unary && st_pixel_combined_fast(s.primary != s.alternate, s.fast,
+						        d != off, st_pixel_bit(destination.pixels->fast_blink, at));
+						st_pixel_set_bit(destination.pixels->fast_blink, at, fast);
+					}
+					destination.pixels->alternate[at] =
+					    destination.base + boolean_pixel(logic, s.alternate & mask, off, mask);
 				}
-				for (int x = left; x <= right; ++x) {
-					int      input = r.sx + x - r.dx;
-					unsigned s =
-					    unary ? 0 : (input / 16 == sx / 16 ? low : high)[input % 16] & mask;
-					size_t   index = (size_t)(r.dy + y) * destination.stride + x;
-					unsigned d     = (output[index] - destination.base) & mask;
-					output[index]  = destination.base + boolean_pixel(logic, s, d, mask);
-				}
+				destination.pixels->primary[at] =
+				    destination.base + boolean_pixel(logic, s.primary & mask, d, mask);
 			}
 		}
 	}
@@ -294,7 +313,9 @@ cterm_igs_blit(struct cterm_igs *igs, int logic, int source_id, int destination_
 	if (status != 0 || request.rect.width <= 0 || request.rect.height <= 0)
 		return status;
 	if (source_id == 2 || destination_id == 2)
-		return st_console_modify_pixels(igs->terminal->screen.console, transfer_pixels, &request);
+		return st_console_modify_pixels_from(igs->terminal->screen.console,
+		    source_id < 2 && igs->memory[source_id] ? igs->memory[source_id]->pixels : NULL,
+		    transfer_pixels, &request);
 	return transfer_pixels(&request, NULL, NULL);
 }
 

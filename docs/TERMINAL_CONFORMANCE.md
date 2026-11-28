@@ -21,6 +21,11 @@ selection and rendition reports retain the underline. The native console test
 uses a scaled seven-pixel font with disjoint underscore rows and nonzero padding
 bits to verify the extended rule reaches both edges.
 
+The connected attributes suites also check SGR 5 and 6 in adjacent cells,
+cancellation by SGR 25 and reset, and the exact status and selection replies.
+The bitmap animation test checks slow text, fast text and the blinking cursor
+at each millisecond of their 1064 ms period, including fractional tick boundaries.
+
 The Unicode presenter tests cover all 95 printable ASCII characters at begin
 and commit, plus bytewise revisions to composed accents and two-column
 keycaps. The connected UTF-8 movement suite writes an ASCII letter over each

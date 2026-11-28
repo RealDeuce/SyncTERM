@@ -197,8 +197,7 @@ paint(void *context, const struct st_pixel_buffer *pixels, struct st_console_rec
 					continue;
 				uint8_t colour = (uint8_t)(ink ? run->ink : run->paper);
 				if (pixels)
-					pixels->primary[row * WIDTH + col] = pixels->alternate[row * WIDTH + col] =
-					    colour;
+					st_pixel_buffer_set_solid(pixels, row * WIDTH + col, colour);
 				else
 					run->target.data[row * run->target.width + col] = colour;
 			}
@@ -236,7 +235,7 @@ paint_box(void *context, const struct st_pixel_buffer *pixels, struct st_console
 				continue;
 			size_t offset = (size_t)y * run.target.width + x;
 			if (pixels)
-				pixels->primary[offset] = pixels->alternate[offset] = 10;
+				st_pixel_buffer_set_solid(pixels, offset, 10);
 			else
 				run.target.data[offset] = 10;
 		}

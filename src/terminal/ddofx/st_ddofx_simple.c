@@ -110,7 +110,7 @@ publish(void *context, const struct st_pixel_buffer *pixels, struct st_console_r
 		for (int y = r.top; y <= r.bottom; ++y) {
 			size_t row = (size_t)y * WIDTH;
 			for (int x = r.left; x <= r.right; ++x)
-				pixels->primary[row + x] = pixels->alternate[row + x] = g->page[WORK][y][x];
+				st_pixel_buffer_set_solid(pixels, row + x, g->page[WORK][y][x]);
 		}
 		if (r.left < damage.left)
 			damage.left = r.left;

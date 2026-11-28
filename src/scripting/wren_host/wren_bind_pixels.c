@@ -613,6 +613,32 @@ ensure_alternate(WrenVM *vm, struct st_pixel_buffer *pixels)
 }
 
 static void
+fn_pixel_buffer_fast_blink_at(WrenVM *vm)
+{
+	struct st_pixel_buffer *pixels = pixel_buffer(vm);
+	size_t index;
+	if (pixels && buffer_index(vm, pixels, 1, &index))
+		wrenSetSlotBool(vm, 0, st_pixel_bit(pixels->fast_blink, index));
+}
+
+static void
+fn_pixel_buffer_set_fast_blink(WrenVM *vm)
+{
+	struct st_pixel_buffer *pixels = pixel_buffer(vm);
+	size_t index;
+	bool fast;
+	if (!pixels || !buffer_position(vm, pixels, 1, 2, &index)
+	    || !slot_bool(vm, 3, &fast, "setFastBlink: expected Bool"))
+		return;
+	if (fast && st_pixel_buffer_ensure_fast_blink(pixels) != 0) {
+		st_wren_abort(vm, "PixelBuffer: out of memory creating blink planes");
+		return;
+	}
+	if (pixels->fast_blink)
+		st_pixel_set_bit(pixels->fast_blink, index, fast);
+}
+
+static void
 fn_pixel_buffer_set_alternate(WrenVM *vm)
 {
 	struct st_pixel_buffer *pixels = pixel_buffer(vm);
@@ -1473,6 +1499,8 @@ static const struct pixel_binding bindings[] = {
     BIND("PixelBuffer", false, "blit(_,_)", fn_pixel_buffer_blit),
     BIND("PixelBuffer", false, "blit(_,_,_)", fn_pixel_buffer_blit),
     BIND("PixelBuffer", false, "rgb24", fn_pixel_buffer_rgb24),
+    BIND("PixelBuffer", false, "fastBlinkAt(_)", fn_pixel_buffer_fast_blink_at),
+    BIND("PixelBuffer", false, "setFastBlink(_,_,_)", fn_pixel_buffer_set_fast_blink),
     BIND("PixelBuffer", false, "hasAlternate", fn_pixel_buffer_has_alternate),
     BIND("PixelBuffer", false, "alternateAt(_)", fn_pixel_buffer_alternate_at),
     BIND("PixelBuffer", false, "setAlternate(_,_,_)", fn_pixel_buffer_set_alternate),

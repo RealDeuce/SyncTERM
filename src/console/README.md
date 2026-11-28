@@ -278,15 +278,18 @@ cells identifies text which still needs rasterization.  Prestel lower halves
 also depend on the cell above, while Mode 7 lower halves remain independently
 sourced.
 
-Bitmap presentation caches up to four native RGB images for the two text
-blink phases, each with and without the cursor. A completed batch retains
+The PC bitmap presenter uses one 133/3 ms clock. Cursor, fast text, and slow
+text toggle every 3, 4, and 6 ticks respectively. An optional packed one-bit-per-pixel rate
+selector travels with the two ink planes through raster moves and overlays.
+Bitmap presentation caches up to eight native RGB images for the independent
+slow, fast, and cursor phases. A completed batch retains
 the damaged source pixels and accumulates damage for each image. The
 presenter allocates and updates an image when its phase is selected. A warm
 image can be reused on a blink tick within the same generation. When the
 fitted destination matches the native raster in both dimensions, the presenter uploads the composed RGB image directly.
 Each image has its own lazy software-scaling cache, so a warm
 phase change performs no scaling.  Damage in the immediately preceding
-generation makes all four caches stale but can update a selected cache
+generation makes all phase caches stale but can update a selected cache
 regionally; skipped generations and
 geometry or scaling-policy changes cause a full rescale.  Integer stages
 multiply the rectangle, pointy and xBR stages expand it by their one- and

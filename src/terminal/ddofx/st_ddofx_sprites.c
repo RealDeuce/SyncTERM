@@ -160,7 +160,7 @@ paint(const struct sprite_draw *d, uint8_t *page, unsigned stride, const struct 
 			if (page)
 				page[dest + col] = index;
 			else
-				pixels->primary[dest + col] = pixels->alternate[dest + col] = index;
+				st_pixel_buffer_set_solid(pixels, dest + col, index);
 		}
 	}
 }

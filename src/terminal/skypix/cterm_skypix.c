@@ -302,8 +302,7 @@ raster_point(struct raster *r, int x, int y, uint32_t colour)
 	if (x < 0 || x >= (int)r->width || y < 0 || y >= (int)r->height)
 		return;
 	size_t at                = (size_t)y * r->buffer->width + (unsigned)x;
-	r->buffer->primary[at]   = colour;
-	r->buffer->alternate[at] = colour;
+	st_pixel_buffer_set_solid(r->buffer, at, colour);
 	damage(r, (unsigned)x, (unsigned)y, (unsigned)x + 1, (unsigned)y + 1);
 }
 
@@ -320,8 +319,7 @@ span(struct raster *r, int x1, int x2, int y, unsigned colour)
 		return;
 	size_t row = (size_t)y * r->buffer->width;
 	for (int x = x1; x <= x2; ++x) {
-		r->buffer->primary[row + (unsigned)x]   = CTERM_SKYPIX_PALETTE_FIRST + colour;
-		r->buffer->alternate[row + (unsigned)x] = CTERM_SKYPIX_PALETTE_FIRST + colour;
+		st_pixel_buffer_set_solid(r->buffer, row + (unsigned)x, CTERM_SKYPIX_PALETTE_FIRST + colour);
 	}
 	damage(r, (unsigned)x1, (unsigned)y, (unsigned)x2 + 1, (unsigned)y + 1);
 }
@@ -483,8 +481,7 @@ draw_command(void *context, const struct st_pixel_buffer *buffer, struct st_cons
 					uint32_t bits       = (terms[0] & ~src & ~dst) | (terms[1] & ~src & dst)
 					                      | (terms[2] & src & ~dst) | (terms[3] & src & dst);
 					uint32_t value      = (dst & ~mask) | (bits & mask);
-					buffer->primary[at] = buffer->alternate[at] =
-					    CTERM_SKYPIX_PALETTE_FIRST + (value & 15);
+					st_pixel_buffer_set_solid(buffer, at, CTERM_SKYPIX_PALETTE_FIRST + (value & 15));
 				}
 			damage(&r, p[3], p[4], p[3] + width, p[4] + height);
 			break;
@@ -1194,18 +1191,13 @@ scroll_pixels(struct cterm_skypix *s, uint32_t distance)
 	if (status == 0) {
 		for (uint32_t y = 0; y < height - distance; ++y) {
 			size_t to = (size_t)y * image->width, from = (size_t)(y + distance) * image->width;
-			memmove(image->primary + to, image->primary + from, s->width * sizeof(uint32_t));
-			if (image->alternate != NULL)
-				memmove(image->alternate + to, image->alternate + from,
-				    s->width * sizeof(uint32_t));
+			st_pixel_buffer_copy_span(image, to, image, from, s->width);
 		}
 		uint32_t bg = CTERM_SKYPIX_PALETTE_FIRST + ((s->terminal->attr >> 4 & 15) & (s->colours - 1));
 		for (uint32_t y = height - distance; y < height; ++y)
 			for (uint32_t x = 0; x < s->width; ++x) {
 				size_t at          = (size_t)y * image->width + x;
-				image->primary[at] = bg;
-				if (image->alternate != NULL)
-					image->alternate[at] = bg;
+				st_pixel_buffer_set_solid(image, at, bg);
 			}
 		const struct st_pixel_blit blit = {.width = image->width,
 		    .height                               = image->height,
@@ -1306,7 +1298,7 @@ erase_pixels(void *context, const struct st_pixel_buffer *buffer, struct st_cons
 	for (uint32_t y = area->y; y < area->y + area->height; ++y)
 		for (uint32_t x = area->x; x < area->x + area->width; ++x) {
 			size_t at           = (size_t)y * buffer->width + x;
-			buffer->primary[at] = buffer->alternate[at] = erase->colour;
+			st_pixel_buffer_set_solid(buffer, at, erase->colour);
 		}
 	*changed = *area;
 	return 0;

@@ -87,8 +87,7 @@ st_ddofx_repaint_desktop_bars(const struct st_ddofx_graphics *g, const struct st
 			bottom = clip.bottom;
 		for (int y = top; y <= bottom; ++y)
 			for (int x = left; x <= right; ++x)
-				pixels->primary[y * WIDTH + x] = pixels->alternate[y * WIDTH + x] =
-				    bar->painted_colour;
+				st_pixel_buffer_set_solid(pixels, y * WIDTH + x, bar->painted_colour);
 	}
 }
 

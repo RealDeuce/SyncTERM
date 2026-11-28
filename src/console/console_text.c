@@ -791,8 +791,7 @@ clear_full_surface_scroll_strip_locked(st_console_t *console, uint32_t first_row
 		size_t position = st_console_pixel_position_locked(console, text_width, y);
 
 		for (uint32_t x = 0; x < strip_width; ++x) {
-			console->pixels->primary[position + x]   = background;
-			console->pixels->alternate[position + x] = background;
+			st_pixel_buffer_set_solid(console->pixels, position + x, background);
 		}
 	}
 	console->pixel_surface_dirty = true;

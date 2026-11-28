@@ -11,28 +11,28 @@ class CellStyleChecks {
     check(fiber.error is String)
   }
   static properties(c) {
-    return [c.bright, c.blink, c.underline, c.bold, c.reverse, c.conceal]
+    return [c.bright, c.blink, c.underline, c.bold, c.reverse, c.conceal, c.fastBlink]
   }
   static setters(c) {
     return [Fn.new {|v| c.bright = v }, Fn.new {|v| c.blink = v },
       Fn.new {|v| c.underline = v }, Fn.new {|v| c.bold = v },
-      Fn.new {|v| c.reverse = v }, Fn.new {|v| c.conceal = v }]
+      Fn.new {|v| c.reverse = v }, Fn.new {|v| c.conceal = v }, Fn.new {|v| c.fastBlink = v }]
   }
   static run() {
     var bits = [CellStyle.bright, CellStyle.blink, CellStyle.underline,
-      CellStyle.bold, CellStyle.reverse, CellStyle.conceal]
+      CellStyle.bold, CellStyle.reverse, CellStyle.conceal, CellStyle.fastBlink]
     check(bits[0] == 0x400000 && bits[1] == 2 && bits[2] == 0x10000)
     check(bits[3] == 0x20000 && bits[4] == 0x40000 && bits[5] == 4)
-    check(CellStyle.all == 0x470006)
+    check(bits[6] == 0x2000000 && CellStyle.all == 0x2470006)
     var c = Cell.new()
     c.ch = "A"
     c.fgRgb = 0x112233
     c.bgRgb = 0x445566
     check(!c.teletext && !c.doubleHeight && !c.reveal && !c.separated)
     check(c.teletextControl == null && !c.pixelGraphics)
-    for (combination in 0...64) {
+    for (combination in 0...128) {
       var mask = 0
-      for (i in 0...6) {
+      for (i in 0...7) {
         if ((combination & (1 << i)) != 0) mask = mask | bits[i]
       }
       c.styleFlags = mask
@@ -40,7 +40,7 @@ class CellStyleChecks {
       var values = properties(c)
       var individual = Cell.new()
       var write = setters(individual)
-      for (i in 0...6) {
+      for (i in 0...7) {
         var expected = (combination & (1 << i)) != 0
         check(values[i] == expected)
         write[i].call(expected)
@@ -138,7 +138,7 @@ class CellStyleChecks {
   }
   static bitmap() {
     var s = Screen.readRect(1, 6, 4, 6)
-    var masks = [CellStyle.bold, CellStyle.underline, CellStyle.reverse, CellStyle.conceal]
+    var masks = [CellStyle.bold, CellStyle.underline, CellStyle.reverse, CellStyle.conceal, CellStyle.fastBlink]
     for (i in 0...4) {
       s[i].fgRgb = 0x112233
       s[i].bgRgb = 0x445566

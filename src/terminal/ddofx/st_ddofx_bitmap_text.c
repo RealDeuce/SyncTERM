@@ -226,7 +226,7 @@ draw_image(void *context, const struct st_pixel_buffer *pixels, struct st_consol
 			if (!ink)
 				continue;
 			if (pixels)
-				pixels->alternate[y * WIDTH + x] = pixels->primary[y * WIDTH + x] = ink - 1u;
+				st_pixel_buffer_set_solid(pixels, y * WIDTH + x, ink - 1u);
 			else
 				image->target.data[y * image->target.width + x] = (uint8_t)(ink - 1);
 		}

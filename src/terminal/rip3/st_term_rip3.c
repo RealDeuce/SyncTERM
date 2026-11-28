@@ -300,6 +300,8 @@ modify(void *context, const struct st_pixel_buffer *destination, struct st_conso
 			    destination->alternate != NULL && (!palette_only || destination->alternate[to] == old);
 			if (!primary && !alternate)
 				continue;
+			if (!palette_only && destination->fast_blink)
+				st_pixel_set_bit(destination->fast_blink, to, false);
 			if (primary)
 				destination->primary[to] = source->primary[i];
 			if (alternate)
@@ -571,9 +573,7 @@ paint_window_background(void *context, const struct st_pixel_buffer *pixels, str
 	for (uint32_t y = top; y < top + height; y++)
 		for (uint32_t x = left; x < left + width; x++) {
 			size_t at           = (size_t)y * pixels->width + x;
-			pixels->primary[at] = fill->color;
-			if (pixels->alternate != NULL)
-				pixels->alternate[at] = fill->color;
+			st_pixel_buffer_set_solid(pixels, at, fill->color);
 		}
 	*changed = (struct st_console_rect) {left, top, width, height};
 	return 0;
@@ -1276,6 +1276,10 @@ screen_capture(void *context, struct st_pixel_buffer *pixels)
 	status = st_console_get_palette(rip->config.console, 0, palette, maximum + 1);
 	if (status == 0 && native->alternate != NULL)
 		status = st_pixel_buffer_ensure_alternate(pixels);
+	if (status == 0 && native->fast_blink)
+		status = st_pixel_buffer_ensure_fast_blink(pixels);
+	if (status == 0 && pixels->fast_blink)
+		st_pixel_copy_bits(pixels->fast_blink, 0, native->fast_blink, 0, count);
 	if (status == 0)
 		for (size_t i = 0; i < count; i++) {
 			uint32_t expected  = rip->previous->primary[i];
@@ -1324,6 +1328,8 @@ screen_read(void *context, const struct st_rip3_rect *area, struct st_pixel_buff
 		return IO_ERROR_OUT_OF_MEMORY;
 	}
 	status = st_console_get_palette(rip->config.console, 0, palette, maximum + 1);
+	if (status == 0 && native->fast_blink && pixels->alternate)
+		status = st_pixel_buffer_ensure_fast_blink(pixels);
 	if (status == 0)
 		for (uint32_t y = 0; y < pixels->height; y++)
 			for (uint32_t x = 0; x < pixels->width; x++) {
@@ -1335,6 +1341,8 @@ screen_read(void *context, const struct st_rip3_rect *area, struct st_pixel_buff
 		 * ink over it. Reuse the existing paint bits, with no new damage map. */
 				if (rip->damage[absolute] != 0)
 					continue;
+				if (pixels->fast_blink)
+					st_pixel_set_bit(pixels->fast_blink, at, st_pixel_bit(native->fast_blink, at));
 				uint32_t expected = rip->previous->primary[absolute];
 				if (native->primary[at] != expected)
 					pixels->primary[at] = native_rgb(native->primary[at], palette);
@@ -1433,12 +1441,18 @@ screen_restore(void *context, const struct st_pixel_buffer *pixels, const struct
 	if (height > pixels->height)
 		height = pixels->height;
 	struct st_pixel_buffer *native = NULL;
-	status                         = st_pixel_buffer_create(&native, width, height, pixels->alternate != NULL);
-	if (status != 0)
+	status = st_pixel_buffer_create(&native, width, height, pixels->alternate != NULL);
+	if (status == 0 && pixels->fast_blink)
+		status = st_pixel_buffer_ensure_fast_blink(native);
+	if (status != 0) {
+		st_pixel_buffer_destroy(native);
 		return status;
+	}
 	for (uint32_t y = 0; y < height; y++)
 		for (uint32_t x = 0; x < width; x++) {
 			size_t from = (size_t)y * pixels->width + x, to = (size_t)y * width + x;
+			if (native->fast_blink)
+				st_pixel_set_bit(native->fast_blink, to, st_pixel_bit(pixels->fast_blink, from));
 			native->primary[to] =
 			    native_rgb(pixels->primary[from], palette->rgb) | ST_CONSOLE_COLOR_RIP3_RGB;
 			if (native->alternate != NULL)

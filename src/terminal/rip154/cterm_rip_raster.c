@@ -396,7 +396,7 @@ write_pixel(struct cterm_rip_raster *rip, uint32_t x, uint32_t y, uint32_t colou
 		return;
 	}
 	size_t at           = (size_t)y * pixels->width + x;
-	pixels->primary[at] = pixels->alternate[at] = colour;
+	st_pixel_buffer_set_solid(pixels, at, colour);
 	damage_pixels(rip, x, y, 1, 1);
 }
 
@@ -1200,13 +1200,17 @@ copy_region(struct cterm_rip_raster *rip, const int fields[6])
 	    pixels->alternate != NULL);
 	if (rip->error != 0)
 		return;
-	size_t row_bytes = (size_t)source->width * sizeof(*source->primary);
+	if (pixels->fast_blink) {
+		rip->error = st_pixel_buffer_ensure_fast_blink(source);
+		if (rip->error != 0) {
+			st_pixel_buffer_destroy(source);
+			return;
+		}
+	}
 	for (uint32_t row = 0; row < source->height; ++row) {
 		size_t from = (size_t)((uint32_t)sy + row) * pixels->width + (uint32_t)sx;
 		size_t to   = (size_t)row * source->width;
-		memcpy(source->primary + to, pixels->primary + from, row_bytes);
-		if (source->alternate != NULL)
-			memcpy(source->alternate + to, pixels->alternate + from, row_bytes);
+		st_pixel_buffer_copy_span(source, to, pixels, from, source->width);
 	}
 	/* Independent coordinate rounding can alias logical rows on a reduced
 	 * display. Read the original snapshot and keep ascending logical order:
@@ -1214,9 +1218,7 @@ copy_region(struct cterm_rip_raster *rip, const int fields[6])
 	for (int row = 0; row < height; ++row) {
 		size_t from = (size_t)(map_y(rip, top + row) - sy) * source->width;
 		size_t to   = (size_t)map_y(rip, destination + row) * pixels->width + (uint32_t)sx;
-		memcpy(pixels->primary + to, source->primary + from, row_bytes);
-		if (source->alternate != NULL)
-			memcpy(pixels->alternate + to, source->alternate + from, row_bytes);
+		st_pixel_buffer_copy_span(pixels, to, source, from, source->width);
 	}
 	damage_pixels(rip, (uint32_t)sx, (uint32_t)dy, source->width, (uint32_t)(end_y - dy + 1));
 	st_pixel_buffer_destroy(source);
@@ -1312,8 +1314,16 @@ paste_pixels(void *context)
 			size_t   from         = (size_t)y * draw->source->width + x;
 			size_t   to           = (size_t)(y + area->y) * pixels->width + x + area->x;
 			uint32_t source       = draw->source->primary[from];
+			uint32_t other = draw->source->alternate ? draw->source->alternate[from] : source;
+			if (pixels->fast_blink) {
+				bool fast = st_pixel_bit(draw->source->fast_blink, from);
+				if (draw->mode != 4)
+					fast = st_pixel_combined_fast(source != other, fast,
+					    pixels->primary[to] != pixels->alternate[to], st_pixel_bit(pixels->fast_blink, to));
+				st_pixel_set_bit(pixels->fast_blink, to, fast);
+			}
 			pixels->primary[to]   = combine_pixels(rip, source, pixels->primary[to], draw->mode);
-			pixels->alternate[to] = combine_pixels(rip, source, pixels->alternate[to], draw->mode);
+			pixels->alternate[to] = combine_pixels(rip, other, pixels->alternate[to], draw->mode);
 		}
 	}
 	damage_pixels(rip, area->x, area->y, area->width, area->height);
@@ -1359,7 +1369,12 @@ paste_buffer(struct cterm_rip_raster *rip, struct st_pixel_buffer *source, int x
 	    rip, source, {(uint32_t)actual_x, (uint32_t)actual_y, width, height},
               mode
         };
-	draw_in_place(rip, paste_pixels, &draw);
+	if (rip->drawing_pixels)
+		paste_pixels(&draw);
+	else {
+		struct raster_edit edit = {rip, paste_pixels, &draw};
+		rip->error = st_console_modify_pixels_from(rip->console, source, edit_raster, &edit);
+	}
 }
 
 static void
@@ -2416,9 +2431,12 @@ flood_fill(struct cterm_rip_raster *rip, int x, int y, int border)
 	/* v1.10a drops pix->pixelsb before publishing: primary replaces BOTH
 	 * phases throughout the viewport, including pixels outside the fill.
 	 * Synchronize the live planes without a captured framebuffer round trip. */
-	for (uint32_t row = 0; row < pixels.height; row++)
+	for (uint32_t row = 0; row < pixels.height; row++) {
+		if (raster->fast_blink)
+			st_pixel_fill_bits(raster->fast_blink, offset + (size_t)row * state->stride, pixels.width, false);
 		memcpy(pixels.alternate + (size_t)row * state->stride,
 		    pixels.primary + (size_t)row * state->stride, (size_t)pixels.width * sizeof(*pixels.primary));
+	}
 	damage_pixels(rip, (uint32_t)rip->viewport.sx, (uint32_t)rip->viewport.sy, pixels.width, pixels.height);
 	free(state);
 }

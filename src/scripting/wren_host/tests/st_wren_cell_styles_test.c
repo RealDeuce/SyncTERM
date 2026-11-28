@@ -32,7 +32,8 @@ exercise(WrenVM *vm, st_wren_connected_t *connected, st_console_t *console, cons
 {
 	interpret(vm, connected, source);
 	const uint32_t style_mask = ST_CONSOLE_CELL_BRIGHT | ST_CONSOLE_CELL_BLINK | ST_CONSOLE_CELL_UNDERLINE
-	                            | ST_CONSOLE_CELL_BOLD | ST_CONSOLE_CELL_REVERSE | ST_CONSOLE_CELL_CONCEAL;
+	                            | ST_CONSOLE_CELL_BOLD | ST_CONSOLE_CELL_REVERSE | ST_CONSOLE_CELL_CONCEAL
+	                            | ST_CONSOLE_CELL_FAST_BLINK;
 	const uint32_t metadata = ST_CONSOLE_CELL_SAA5050 | ST_CONSOLE_CELL_DOUBLE_HEIGHT | ST_CONSOLE_CELL_REVEAL
 	                          | ST_CONSOLE_CELL_SEPARATED | ST_CONSOLE_CELL_SAA5050_CONTROL(0x5d);
 	struct st_console_cell       input  = {.glyph = 'A',

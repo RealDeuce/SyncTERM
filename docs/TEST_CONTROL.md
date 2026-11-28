@@ -106,7 +106,8 @@ plane followed by the full palette from the same snapshot, both serialized as
 little-endian 32-bit words. This works independently of scaling, cursor
 visibility and presentation time. Record the native dimensions with the test
 profile. A previously captured frame also exposes this pair through
-`frame.blink_checksums()`.
+`frame.blink_checksums()`. Compare `frame.fast_blink` separately when
+checking the cadence of alternating pixels.
 
 For BBC Mode 7 and Prestel, `art_checksums()` returns a pair under each of
 `concealed` and `revealed`. It uses the local F3 toggle in the terminal,
@@ -180,6 +181,7 @@ Snapshot sections each begin with u32 tag and u32 payload byte length:
 | 7 | u32 glyph count; entries of u32 font, u32 glyph, string |
 | 8 | Application fields |
 | 9 | Title, clipboard, latest requested URL: three strings |
+| 10 | Optional fast-blink mask, one bit per primary pixel, MSB first, contiguous across rows. When absent, alternating pixels use slow blink. |
 
 A string is a u32 byte length followed by UTF-8 bytes. A field collection is a
 u32 count followed by entries of string name, u32 kind, and value. Kind 0 is a

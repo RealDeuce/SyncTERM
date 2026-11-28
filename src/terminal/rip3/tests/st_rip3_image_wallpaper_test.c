@@ -40,7 +40,7 @@ create(struct fixture *f, enum st_rip3_canvas canvas, uint32_t width, uint32_t h
 	f->offscreen = offscreen;
 	f->source[0] = 0x80404040;
 	f->source[1] = 0x80c0c0c0;
-	f->image     = (struct st_pixel_buffer) {f->source, NULL, 2, 1};
+	f->image     = (struct st_pixel_buffer) {.primary = f->source, .width = 2, .height = 1};
 	for (unsigned i = 0; i < 256; i++)
 		f->palette.rgb[i] = i * UINT32_C(0x010101);
 	CHECK(st_rip3_ports_create(&f->ports, canvas) == 0);

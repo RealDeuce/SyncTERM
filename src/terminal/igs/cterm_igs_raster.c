@@ -132,6 +132,8 @@ plot(struct raster *raster, struct point p, bool pattern)
 	}
 	size_t    offset   = (size_t)p.y * raster->pixels->width + (unsigned)p.x;
 	uint32_t *phases[] = {raster->pixels->primary, raster->pixels->alternate};
+	if (!raster->phase_mask && raster->mode != 3 && raster->pixels->fast_blink)
+		st_pixel_set_bit(raster->pixels->fast_blink, offset, false);
 	for (unsigned phase = 0; phase < 2; ++phase) {
 		if (raster->phase_mask != 0 && !(raster->phase_mask & (1u << phase)))
 			continue;

@@ -13,12 +13,14 @@ enum {
 struct st_big_video {
 	uint32_t *primary, *alternate;
 	size_t    count;
+	uint8_t  *fast_blink;
 };
 
 struct st_big_video_view {
 	uint32_t *primary, *alternate;
 	size_t    count;
 	uint16_t  start; /* BIOS display-start byte address, separate from CPU ES. */
+	uint8_t  *fast_blink;
 };
 
 struct st_big_video_pixel {
@@ -32,7 +34,7 @@ struct st_big_video_pixel {
  * backing entries there may be stale. Other addresses use actual backing.
  * Zero backing permits a visible-only binding. No allocation/initialization.
  * All calls are serialized; arrays must outlive their use. */
-int      st_big_video_bind(struct st_big_video *, uint32_t *primary, uint32_t *alternate, size_t count);
+int      st_big_video_bind(struct st_big_video *, uint32_t *primary, uint32_t *alternate, size_t count, uint8_t *fast_blink);
 uint16_t st_big_video_active_segment(uint8_t page, uint16_t paragraphs);
 uint16_t st_big_video_display_start(uint8_t page, uint16_t bios_page_bytes);
 /* CPU segment+WORD offset must actually lie in A0000..AFFFF. Bit0 is the

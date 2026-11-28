@@ -150,7 +150,7 @@ map_io(void *context, const struct st_pixel_buffer *pixels, const uint32_t *pale
 				                      : colour;
 			}
 			else if (pixels)
-				pixels->primary[at] = pixels->alternate[at] = terrain_colour(l->height[y][x]);
+				st_pixel_buffer_set_solid(pixels, at, terrain_colour(l->height[y][x]));
 			else if (sx >= target->clip.left && sx <= target->clip.right && sy >= target->clip.top
 			         && sy <= target->clip.bottom)
 				target->data[at] = terrain_colour(l->height[y][x]);

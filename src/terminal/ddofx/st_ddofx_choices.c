@@ -72,7 +72,7 @@ fill_visible(void *context, const struct st_pixel_buffer *pixels, const uint32_t
 		for (unsigned x = 0; x < r->width; ++x) {
 			uint8_t index = indices[y * r->width + x];
 			if (index != st_console_palette_index256(palette, pixels->primary[offset + x]))
-				pixels->primary[offset + x] = pixels->alternate[offset + x] = index;
+				st_pixel_buffer_set_solid(pixels, offset + x, index);
 		}
 	}
 	free(indices);

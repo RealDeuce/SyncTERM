@@ -502,7 +502,7 @@ clear_pixels(void *context, const struct st_pixel_buffer *pixels, struct st_cons
 {
 	(void)context;
 	for (size_t i = 0; i < (size_t)pixels->width * pixels->height; ++i)
-		pixels->primary[i] = pixels->alternate[i] = CTERM_BIG_PALETTE_FIRST;
+		st_pixel_buffer_set_solid(pixels, i, CTERM_BIG_PALETTE_FIRST);
 	*changed = (struct st_console_rect) {0, 0, pixels->width, pixels->height};
 	return 0;
 }

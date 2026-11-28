@@ -969,7 +969,7 @@ test_pixels_and_font_rendering(void)
 	    .glyph      = 1,
 	    .foreground = ST_CONSOLE_COLOR_RGB_VALUE(255, 0, 0),
 	    .background = 0,
-	    .flags      = ST_CONSOLE_CELL_BLINK,
+	    .flags      = ST_CONSOLE_CELL_BLINK | ST_CONSOLE_CELL_FAST_BLINK,
 	    .font       = 3,
 	};
 	const struct st_console_rect cell_rect  = {0, 0, 1, 1};
@@ -1008,6 +1008,24 @@ test_pixels_and_font_rendering(void)
 	st_pixel_buffer_destroy(pixels);
 	pixels = NULL;
 
+	/* Nine pixels per row pack across the byte boundary. Restore them at a
+	 * different bit offset and check the untouched pixels on either side. */
+	const struct st_console_rect mixed = {5, 0, 9, 2}, restored_area = {0, 2, 16, 2};
+	struct st_pixel_buffer *restored_pixels = NULL;
+	CHECK(st_console_get_pixels(&pixels, console, &mixed, false) == 0);
+	CHECK(pixels->fast_blink && pixels->fast_blink[0] == 0xe0 && pixels->fast_blink[1] == 0x70);
+	CHECK(st_console_restore_pixel_region(console, pixels, 3, 2) == 0);
+	CHECK(st_console_get_pixels(&restored_pixels, console, &restored_area, false) == 0);
+	for (unsigned row = 0; row < 2; ++row) {
+		CHECK(restored_pixels->fast_blink[2 * row] == 0x1c && restored_pixels->fast_blink[2 * row + 1] == 0);
+		for (unsigned x = 0; x < 9; ++x) {
+			CHECK(restored_pixels->primary[16 * row + 3 + x] == pixels->primary[9 * row + x]);
+			CHECK(restored_pixels->alternate[16 * row + 3 + x] == pixels->alternate[9 * row + x]);
+		}
+	}
+	st_pixel_buffer_destroy(restored_pixels);
+	st_pixel_buffer_destroy(pixels);
+	pixels = NULL;
 	CHECK(st_console_set_pixel(console, 2, 0, overlay) == 0);
 	CHECK((read_cell(console, 0, 0).flags & ST_CONSOLE_CELL_PIXEL_GRAPHICS) != 0);
 	CHECK(st_console_snapshot_create(&snapshot, console) == 0);

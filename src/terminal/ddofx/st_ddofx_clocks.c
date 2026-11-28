@@ -112,7 +112,7 @@ static void
 clock_pixel(const struct st_ddofx_surface *target, const struct st_pixel_buffer *pixels, int pos, uint8_t colour)
 {
 	if (pixels)
-		pixels->primary[pos] = pixels->alternate[pos] = colour;
+		st_pixel_buffer_set_solid(pixels, pos, colour);
 	else
 		target->data[pos] = colour;
 }

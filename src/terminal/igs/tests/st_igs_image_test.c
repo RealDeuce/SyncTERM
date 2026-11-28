@@ -122,12 +122,19 @@ captured_phases(void)
 	CHECK(st_pixel_buffer_ensure_alternate(image->pixels) == 0);
 	image->pixels->primary[0]   = 1;
 	image->pixels->alternate[0] = 8;
+	CHECK(st_pixel_buffer_ensure_fast_blink(image->pixels) == 0);
+	st_pixel_set_bit(image->pixels->fast_blink, 0, true);
 	CHECK(st_igs_image_clone_layout(&copy, image, 1) == 0);
 	/* A four-plane pixel at bit15 goes to bit15 of its own native word. */
 	CHECK(copy->pixels->primary[0] == 1 && copy->pixels->alternate[0] == 0);
 	CHECK(copy->pixels->primary[48] == 0 && copy->pixels->alternate[48] == 1);
+	CHECK(st_pixel_bit(copy->pixels->fast_blink, 0));
+	CHECK(!st_pixel_bit(copy->pixels->fast_blink, 16));
+	CHECK(st_pixel_bit(copy->pixels->fast_blink, 48));
+	st_pixel_set_bit(copy->pixels->fast_blink, 48, false);
 	CHECK(st_igs_image_replane(copy, 4) == 0);
 	CHECK(copy->pixels->primary[0] == 1 && copy->pixels->alternate[0] == 8);
+	CHECK(!st_pixel_bit(copy->pixels->fast_blink, 0));
 	const uint8_t byte = 0xff;
 	CHECK(st_igs_image_import(copy, 0, &byte, 1) == 0);
 	CHECK(copy->pixels->primary[0] == 1 && copy->pixels->alternate[0] == 9);

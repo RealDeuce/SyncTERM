@@ -94,7 +94,7 @@ render(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	struct st_rip3_palette  palette;
 	struct st_pixel_buffer *capture = NULL;
 	uint32_t                rgb[]   = {ST_PIXEL_COLOR_RGB_TAG | 0xff0000, ST_PIXEL_COLOR_RGB_TAG | 0x00ff00};
-	const struct st_pixel_buffer image     = {rgb, NULL, 2, 1};
+	const struct st_pixel_buffer image     = {.primary = rgb, .width = 2, .height = 1};
 	const struct st_rip3_rect    onscreen  = {10, 10, 17, 17};
 	const struct st_rip3_rect    view      = {1, 1, 6, 6};
 	const struct st_rip3_rect    square    = {0, 0, 5, 5};
@@ -119,7 +119,7 @@ render(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	CHECK(st_rip3_ports_erase(ports, 9) == 0);
 	CHECK(rip3_test_image_area(ports, 2, NULL, 1) == 0);
 	uint32_t vertical_rgb[] = {ST_PIXEL_COLOR_RGB_TAG | 0x0000ff, ST_PIXEL_COLOR_RGB_TAG | 0xffffff};
-	const struct st_pixel_buffer vertical = {vertical_rgb, NULL, 1, 2};
+	const struct st_pixel_buffer vertical = {.primary = vertical_rgb, .width = 1, .height = 2};
 	CHECK(st_rip3_draw_image(ports, &vertical, NULL, 0, &palette) == 0);
 	for (int32_t y = 0; y < 6; y++) {
 		for (int32_t x = 0; x < 6; x++) {
@@ -195,7 +195,7 @@ compositing(void)
 	const struct st_rip3_rect extreme     = {INT32_MIN, INT32_MIN, INT32_MAX, INT32_MAX};
 	uint32_t                  samples[]   = {0, 1, 2};
 	uint32_t                  colors[]    = {0xff0000, 0x00ff00, 0};
-	struct st_pixel_buffer    image       = {samples, NULL, 3, 1};
+	struct st_pixel_buffer    image       = {.primary = samples, .width = 3, .height = 1};
 	const uint8_t             stretched[] = {3, 3, 3, 5, 5, 7, 7, 7};
 	uint8_t                   value;
 
@@ -433,8 +433,8 @@ measured_regions(enum st_rip3_canvas canvas)
 	      && st_rip3_ports_switch(ports, 1) == 0);
 	for (unsigned aspect = 0; aspect < 2; aspect++)
 		for (unsigned flags = 1; flags <= 5; flags += 4) {
-			struct st_pixel_buffer image   = {pixels, NULL, aspect == 0 ? 10u : 5u,
-			    aspect == 0 ? 5u : 10u};
+			struct st_pixel_buffer image   = {.primary = pixels, .width = aspect == 0 ? 10u : 5u,
+			    .height = aspect == 0 ? 5u : 10u};
 			struct st_rip3_bitmap *capture = NULL;
 			CHECK(st_rip3_ports_erase(ports, 9) == 0
 			      && rip3_test_image_area(ports, 1, &area, flags) == 0);

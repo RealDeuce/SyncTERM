@@ -2863,6 +2863,12 @@ the native array directly.
 | Inspect the optional alternate blink-phase plane.  `alternateAt` returns
   `null` while no explicit plane exists.
 
+| `fastBlinkAt(i)`, `setFastBlink(x, y, fast)`
+| Read or set a pixel's Boolean blink rate. False selects slow blink. The first
+  true bit allocates a packed rate mask and, if needed, an alternate plane
+  initialized from the primary colours. Clearing the alternate plane releases
+  the mask. Edits to individual colours preserve the pixel's chosen rate.
+
 | `setAlternate(x, y, color)`, `fillAlternate(color)`,
   `setAlternateRgb24(bytes)`
 | Create or update the alternate plane.  Its first creation copies the
@@ -2896,7 +2902,7 @@ Decoder `source` may be a binary Wren `String` or a readable, consent-bounded
 first copy its contents into a Wren string.  Decoded images contain only a
 primary plane.
 
-Capture and clone preserve ciolib's primary and alternate planes exactly.
+Capture and clone preserve the primary and alternate colours and the packed blink-rate mask.
 RGB24 export is a conversion and resolves palette references at export time;
 use native indexing when palette identity must survive a round trip.
 
@@ -2908,14 +2914,13 @@ blending. Native palette words and tagged RGB values are copied without palette
 resolution. Source, mask and descriptor remain unchanged, except that a self-blit
 also changes its source because source and destination are the same object.
 
-Both blink planes are preserved. A source alternate plane causes the destination
+The two colour planes and the optional blink-rate bits are preserved. A source alternate plane causes the destination
 to acquire one, initially copying its whole primary plane; unpainted pixels keep
 those values. Without a source alternate plane, primary pixels supply both
 destination phases. Native plane creation happens before clipping/mask drawing,
 so a blit that paints no pixels can still create a plane or fail its allocation.
-Overlapping self-blits use a temporary snapshot of both source planes.
-Other distinct-buffer blits allocate only when a destination alternate plane is
-needed. No screen, file or network operation is performed, and no arguments are
+Overlapping self-blits snapshot the source colours and rate bits before drawing.
+Distinct-buffer blits allocate missing alternate or rate storage as needed. No screen, file or network operation is performed, and no arguments are
 retained after the synchronous call.
 
 Wrong argument types abort the calling fiber. The masked overload requires a
@@ -3034,8 +3039,7 @@ X and Y.  If the source has no alternate plane, its primary pixels are used
 for both destination blink phases.  Masks are the transparency mechanism;
 there is no alpha blending.
 
-Blitting uses the supplied native buffers directly and performs no per-blit
-allocation.  Keep decoded or constructed buffers and descriptors for repeated
+Blitting uses the supplied native buffers directly and provisions missing rate storage as needed.  Keep decoded or constructed buffers and descriptors for repeated
 sprite draws rather than rebuilding RGB strings.  Capture, decode, clone,
 RGB24 conversion, and first alternate-plane creation do allocate.
 
@@ -3558,15 +3562,17 @@ hyperlink, and repairs overwritten wide pairs.
 | `blink`, `blink=(b)`
 | Blink bit.
 
+| `fastBlink`, `fastBlink=(b)`
+| Selects the fast cadence when `blink` is enabled.
+
 | `underline`, `bold`, `reverse`, `conceal`
 | Read/write Boolean drawing styles. Underline adds the bottom glyph row;
   bold thickens the glyph; reverse exchanges foreground/background when drawn;
   conceal hides the glyph unless its retained reveal flag is set. Bold is
-  independent of the source-bright attribute. All six style setters, including
-  `bright` and `blink`, require Bool; wrong types abort rather than being ignored.
+  independent of the source-bright attribute. All style setters require Bool; wrong types abort rather than being ignored.
 
 | `styleFlags`, `styleFlags=(mask)`
-| Read or replace the six independent styles together using `CellStyle` bits.
+| Read or replace the drawing styles together using `CellStyle` bits.
   The getter returns only these bits. Assignment requires a finite, exact,
   nonnegative integer containing no other bits; invalid input aborts before
   mutation. Individual setters change just their own bit. This edits only the
@@ -3625,7 +3631,7 @@ instead.
 
 Named masks for `Cell.styleFlags`, available in all script VMs. `bright` is
 `0x400000`, `blink` is `2`, `underline` is `0x10000`, `bold` is `0x20000`,
-`reverse` is `0x40000`, and `conceal` is `4`. `all` is their union (`0x470006`).
+`reverse` is `0x40000`, `conceal` is `4`, and `fastBlink` is `0x2000000`. `all` is their union (`0x2470006`).
 These native bit values fit Wren's ordinary bitwise operators. Renderer state,
 serial attributes and pixel-graphics ownership are excluded from this mask.
 

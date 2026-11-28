@@ -90,7 +90,15 @@ draw_pointer(void *context, const struct st_pixel_buffer *screen, struct st_cons
 	if (left > screen->width || saved->width > screen->width - left || top > screen->height
 	    || saved->height > screen->height - top)
 		return IO_ERROR_OUT_OF_RANGE;
+	if (screen->fast_blink) {
+		int status = st_pixel_buffer_ensure_fast_blink(saved);
+		if (status != 0)
+			return status;
+	}
 	for (unsigned row = 0; row < saved->height; ++row) {
+		if (saved->fast_blink)
+			st_pixel_copy_bits(saved->fast_blink, (size_t)row * saved->width, screen->fast_blink,
+			    (size_t)(top + row) * screen->width + left, saved->width);
 		unsigned y = (unsigned)(p->top - draw->top) + row;
 		for (unsigned col = 0; col < saved->width; ++col) {
 			unsigned x     = (unsigned)(p->left - draw->left) + col;

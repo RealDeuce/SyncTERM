@@ -30,6 +30,20 @@ st_history_free_pixels(struct st_pixel_buffer **pixels, size_t lines)
 	free(pixels);
 }
 
+void
+st_history_compact_pixels(struct st_pixel_buffer *pixels)
+{
+	size_t count = (size_t)pixels->width * pixels->height;
+	if (!pixels->alternate || memcmp(pixels->primary, pixels->alternate, count * sizeof(*pixels->primary)))
+		return;
+	if (pixels->fast_blink) {
+		for (size_t i = 0; i < count / 8 + (count % 8 != 0); ++i)
+			if (pixels->fast_blink[i])
+				return;
+	}
+	st_pixel_buffer_remove_alternate(pixels);
+}
+
 int
 st_history_capture_pixels(struct st_pixel_buffer **result, st_console_t *console,
     const struct st_console_cell *cells, uint32_t columns, const struct st_console_rect *pixels)
@@ -78,8 +92,7 @@ st_history_capture_pixels(struct st_pixel_buffer **result, st_console_t *console
 			if (!ST_PIXEL_COLOR_IS_RGB(copy->alternate[i]))
 				copy->alternate[i] = ST_PIXEL_COLOR_RGB_TAG | palette[copy->alternate[i]];
 		}
-		if (memcmp(copy->primary, copy->alternate, count * sizeof(*copy->primary)) == 0)
-			st_pixel_buffer_remove_alternate(copy);
+		st_history_compact_pixels(copy);
 	}
 	free(palette);
 	if (status != 0) {
@@ -102,6 +115,13 @@ st_history_resize_pixels(struct st_pixel_buffer **result, const struct st_pixel_
 	int status = st_pixel_buffer_create(&copy, columns * cell_width, cell_height, source->alternate != NULL);
 	if (status != 0)
 		return status;
+	if (source->fast_blink != NULL) {
+		status = st_pixel_buffer_ensure_fast_blink(copy);
+		if (status != 0) {
+			st_pixel_buffer_destroy(copy);
+			return status;
+		}
+	}
 	st_pixel_buffer_fill(copy, ST_PIXEL_COLOR_RGB_TAG, ST_PIXEL_COLOR_RGB_TAG);
 	uint32_t old_width = source->width / source_columns;
 	uint32_t retained  = columns < source_columns ? columns : source_columns;
@@ -111,6 +131,8 @@ st_history_resize_pixels(struct st_pixel_buffer **result, const struct st_pixel_
 			size_t from       = sy + (size_t)((uint64_t)x * old_width / cell_width);
 			size_t to         = (size_t)y * copy->width + x;
 			copy->primary[to] = source->primary[from];
+			if (copy->fast_blink != NULL)
+				st_pixel_set_bit(copy->fast_blink, to, st_pixel_bit(source->fast_blink, from));
 			if (copy->alternate != NULL)
 				copy->alternate[to] = source->alternate[from];
 		}

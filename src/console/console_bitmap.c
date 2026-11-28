@@ -18,11 +18,15 @@
 #include "st_time.h"
 
 enum bitmap_image {
-	BITMAP_PRIMARY,
-	BITMAP_PRIMARY_CURSOR,
-	BITMAP_ALTERNATE,
-	BITMAP_ALTERNATE_CURSOR,
-	BITMAP_IMAGE_COUNT
+	BITMAP_CURSOR = 1,
+	BITMAP_SLOW_ALTERNATE = 2,
+	BITMAP_FAST_ALTERNATE = 4,
+	BITMAP_IMAGE_COUNT = 8
+};
+
+enum blink_rates {
+	BLINK_SLOW = 1,
+	BLINK_FAST = 2
 };
 
 struct st_console_bitmap_presenter {
@@ -33,8 +37,8 @@ struct st_console_bitmap_presenter {
 	bool                            gl_failed, reset_history;
 	/* Screen-ordered source pixels from the last completed batch. */
 	struct st_pixel_buffer           *source;
-	bool                             *blink_rows;
-	size_t                            blink_row_count;
+	uint8_t                          *blink_rows;
+	size_t                            blink_row_count, fast_row_count;
 	struct st_console_rect            image_damage[BITMAP_IMAGE_COUNT];
 	bool                              image_dirty[BITMAP_IMAGE_COUNT];
 	struct st_console_rect            indicator_rect, pointer_rect;
@@ -189,18 +193,21 @@ inks_differ(const struct st_console_bitmap_presenter *p, uint32_t x, uint32_t y,
 	return packed_colour(left_palette, a) != packed_colour(right_palette, b);
 }
 
-static bool
-blink_row_differs(const struct st_console_bitmap_presenter *p, const uint32_t *palette, uint32_t y)
+static unsigned
+blink_row_modes(const struct st_console_bitmap_presenter *p, const uint32_t *palette, uint32_t y)
 {
 	uint32_t        width   = p->source->width;
 	size_t          row     = (size_t)y * width;
 	const uint32_t *primary = p->source->primary + row, *alternate = p->source->alternate + row;
 	if (memcmp(primary, alternate, (size_t)width * sizeof(*primary)) == 0)
-		return false;
-	for (uint32_t x = 0; x < width; ++x)
+		return 0;
+	const uint8_t *fast = p->source->fast_blink;
+	unsigned modes = 0;
+	unsigned possible = fast ? BLINK_SLOW | BLINK_FAST : BLINK_SLOW;
+	for (uint32_t x = 0; x < width && modes != possible; ++x)
 		if (primary[x] != alternate[x] && inks_differ(p, x, y, palette, primary[x], palette, alternate[x]))
-			return true;
-	return false;
+			modes |= st_pixel_bit(fast, row + x) ? BLINK_FAST : BLINK_SLOW;
+	return modes;
 }
 
 /* Copy a screen-ordered span while the completed console raster is locked.
@@ -243,7 +250,8 @@ retain_raster(struct st_console_bitmap_presenter *p, const st_console_t *console
 		size_t   row      = (size_t)y * pixels->width;
 		uint32_t source_y = st_console_display_source_y(console, y);
 		uint32_t x = rectangle->x, end = x + rectangle->width;
-		bool     row_changed = false;
+		bool     row_changed = false, rates_changed = false;
+		uint8_t *rates = p->source->fast_blink;
 		if (indicator && y >= p->indicator_rect.y && y - p->indicator_rect.y < indicator->height
 		    && x < indicator->width) {
 			uint32_t count  = (end < indicator->width ? end : indicator->width) - x;
@@ -252,6 +260,8 @@ retain_raster(struct st_console_bitmap_presenter *p, const st_console_t *console
 			    indicator->primary + offset, count, x, y, &changed);
 			row_changed |= retain_span(p, palette, p->source->alternate + row + x,
 			    indicator->alternate + offset, count, x, y, &changed);
+			if (rates)
+				rates_changed |= st_pixel_copy_bits(rates, row + x, indicator->fast_blink, offset, count);
 			x += count;
 		}
 		while (x < end) {
@@ -260,22 +270,30 @@ retain_raster(struct st_console_bitmap_presenter *p, const st_console_t *console
 			if (count > pixels->width - column)
 				count = pixels->width - column;
 			const uint32_t *primary = NULL, *alternate = NULL;
+			const uint8_t *fast = NULL;
+			size_t offset = 0;
 			if (source_y != UINT32_MAX) {
-				size_t offset = st_console_pixel_position_locked(console, 0, source_y) + column;
+				offset = st_console_pixel_position_locked(console, 0, source_y) + column;
+				fast          = pixels->fast_blink;
 				primary       = pixels->primary + offset;
 				alternate     = pixels->alternate ? pixels->alternate + offset : primary;
 			}
+			if (rates)
+				rates_changed |= st_pixel_copy_bits(rates, row + x, fast, offset, count);
 			row_changed |=
 			    retain_span(p, palette, p->source->primary + row + x, primary, count, x, y, &changed);
 			row_changed |= retain_span(p, palette, p->source->alternate + row + x, alternate, count, x,
 			    y, &changed);
 			x += count;
 		}
-		if (row_changed || palette != p->palette || overlays_changed) {
-			bool differs = blink_row_differs(p, palette, y);
-			p->blink_row_count -= p->blink_rows[y];
-			p->blink_row_count += differs;
-			p->blink_rows[y] = differs;
+		if (row_changed || rates_changed || palette != p->palette || overlays_changed) {
+			unsigned modes = blink_row_modes(p, palette, y);
+			p->blink_row_count -= (p->blink_rows[y] & BLINK_SLOW) != 0;
+			p->blink_row_count += (modes & BLINK_SLOW) != 0;
+			p->fast_row_count -= (p->blink_rows[y] & BLINK_FAST) != 0;
+			p->fast_row_count += (modes & BLINK_FAST) != 0;
+			p->blink_rows[y] = (uint8_t)modes;
+			changed |= rates_changed;
 		}
 	}
 	return changed;
@@ -327,7 +345,7 @@ cursor_rectangle(const struct st_console_bitmap_presenter *presenter)
 }
 
 static void
-animation_state(enum st_console_blink_mode mode, uint32_t elapsed, bool *alternate, bool *cursor)
+animation_state(enum st_console_blink_mode mode, uint32_t elapsed, bool *alternate, bool *fast, bool *cursor)
 {
 	switch (mode) {
 		case ST_CONSOLE_BLINK_PRESTEL:
@@ -352,10 +370,15 @@ animation_state(enum st_console_blink_mode mode, uint32_t elapsed, bool *alterna
 			break;
 		case ST_CONSOLE_BLINK_PC:
 		default:
-			*alternate = ((elapsed / 266U) & 1U) != 0;
-			*cursor    = ((elapsed / 133U) & 1U) == 0;
-			break;
+		{
+			unsigned tick = st_console_pc_tick(elapsed);
+			*alternate = ((tick / 6U) & 1U) != 0;
+			*fast      = ((tick / 4U) & 1U) != 0;
+			*cursor    = ((tick / 3U) & 1U) == 0;
+			return;
+		}
 	}
+	*fast = *alternate;
 }
 
 int
@@ -759,7 +782,7 @@ replace_buffers(struct st_console_bitmap_presenter *presenter, const struct st_p
 	int                     status = st_pixel_buffer_create(&source, pixels->width, pixels->height, true);
 	if (status != 0)
 		return status;
-	bool *blink_rows = calloc(pixels->height, sizeof(*blink_rows));
+	uint8_t *blink_rows = calloc(pixels->height, sizeof(*blink_rows));
 	if (blink_rows == NULL) {
 		st_pixel_buffer_destroy(source);
 		return IO_ERROR_OUT_OF_MEMORY;
@@ -769,6 +792,7 @@ replace_buffers(struct st_console_bitmap_presenter *presenter, const struct st_p
 	free(presenter->blink_rows);
 	presenter->blink_rows      = blink_rows;
 	presenter->blink_row_count = 0;
+	presenter->fast_row_count  = 0;
 	for (size_t i = 0; i < BITMAP_IMAGE_COUNT; ++i) {
 		st_rgb_buffer_destroy(presenter->images[i]);
 		presenter->images[i]            = NULL;
@@ -1027,7 +1051,8 @@ collect_cell_damage(struct st_console_bitmap_presenter *presenter, const st_cons
 /* Resolve the selected blink/cursor combination from the last prepared raster.
  * Status pixels cover the cursor. The indexed pointer is the topmost layer. */
 static int
-resolve_image(struct st_console_bitmap_presenter *p, unsigned identity, bool alternate, bool cursor)
+resolve_image(struct st_console_bitmap_presenter *p, unsigned identity, bool alternate, bool fast_alternate,
+    bool cursor)
 {
 	if (!p->image_dirty[identity])
 		return 0;
@@ -1038,21 +1063,37 @@ resolve_image(struct st_console_bitmap_presenter *p, unsigned identity, bool alt
 	}
 	const struct st_console_rect *damage = &p->image_damage[identity];
 	const uint32_t               *plane  = alternate ? p->source->alternate : p->source->primary;
+	const uint32_t               *fast_plane = fast_alternate ? p->source->alternate : p->source->primary;
 	uint32_t                      width  = p->source->width;
 	uint32_t                      offset = p->origin_x < width ? p->origin_x : 0;
 	uint32_t                     *pixels = p->images[identity]->pixels;
 	for (uint32_t y = damage->y; y < damage->y + damage->height; ++y) {
 		size_t   row = (size_t)y * width;
 		uint32_t end = damage->x + damage->width;
-		for (uint32_t x = damage->x; x < end; ++x)
-			pixels[row + x] = colour_value(p, plane[row + x]);
+		const uint8_t *fast = alternate != fast_alternate && (p->blink_rows[y] & BLINK_FAST)
+		    ? p->source->fast_blink : NULL;
+		const uint32_t *row_plane = plane;
+		if (fast && !(p->blink_rows[y] & BLINK_SLOW)) {
+			row_plane = fast_plane;
+			fast = NULL;
+		}
+		if (fast) {
+			for (uint32_t x = damage->x; x < end; ++x)
+				pixels[row + x] = colour_value(p, (st_pixel_bit(fast, row + x) ? fast_plane : plane)[row + x]);
+		}
+		else {
+			for (uint32_t x = damage->x; x < end; ++x)
+				pixels[row + x] = colour_value(p, row_plane[row + x]);
+		}
 		if (cursor && y >= p->cursor_rectangle.y
 		    && y - p->cursor_rectangle.y < p->cursor_rectangle.height) {
 			for (uint32_t i = 0; i < p->cursor_rectangle.width; ++i) {
 				uint32_t col = p->cursor_rectangle.x + i;
 				uint32_t x   = col >= offset ? col - offset : width - (offset - col);
-				if (x >= damage->x && x < end && !contains_pixel(&p->indicator_rect, x, y))
-					pixels[row + x] = colour_value(p, cursor_ink(p, plane[row + x]));
+				if (x >= damage->x && x < end && !contains_pixel(&p->indicator_rect, x, y)) {
+					uint32_t ink = (st_pixel_bit(fast, row + x) ? fast_plane : row_plane)[row + x];
+					pixels[row + x] = colour_value(p, cursor_ink(p, ink));
+				}
 			}
 		}
 		const struct st_console_rect *rect = &p->pointer_rect;
@@ -1061,7 +1102,7 @@ resolve_image(struct st_console_bitmap_presenter *p, unsigned identity, bool alt
 		for (uint32_t x = rect->x; x < rect->x + rect->width; ++x) {
 			if (x < damage->x || x >= end)
 				continue;
-			uint32_t ink = plane[row + x];
+			uint32_t ink = (st_pixel_bit(fast, row + x) ? fast_plane : row_plane)[row + x];
 			if (cursor && cursor_covers(p, x, y))
 				ink = cursor_ink(p, ink);
 			pixels[row + x] = colour_value(p, pointer_ink(p, p->palette, ink, x, y));
@@ -1125,6 +1166,7 @@ st_console_bitmap_prepare_frame(struct st_console_bitmap_presenter *presenter, c
 	uint64_t                     previous_damage_generation;
 	enum st_console_scaling_mode previous_scaling;
 	bool                         cursor_changed, content_changed = false;
+	bool                         had_fast_blink = presenter->fast_row_count != 0;
 	int                          status;
 
 	old_cursor                 = presenter->cursor_rectangle;
@@ -1205,6 +1247,12 @@ st_console_bitmap_prepare_frame(struct st_console_bitmap_presenter *presenter, c
 		}
 	}
 	if (presenter->damage_valid) {
+		if (!presenter->source->fast_blink
+		    && (console->pixels->fast_blink || (indicator && indicator->fast_blink))) {
+			status = st_pixel_buffer_ensure_fast_blink(presenter->source);
+			if (status != 0)
+				return status;
+		}
 		if (horizontal_offset(console)) {
 			presenter->damage.x     = 0;
 			presenter->damage.width = console->pixels->width;
@@ -1228,6 +1276,9 @@ st_console_bitmap_prepare_frame(struct st_console_bitmap_presenter *presenter, c
 			presenter->pending_damage = true;
 		}
 	}
+	if (had_fast_blink != (presenter->fast_row_count != 0) && console->display->backend_ops
+	    && console->display->backend_ops->animated_present)
+		st_console_display_set_fast_blink(console->display, presenter->fast_row_count != 0);
 	if (!content_changed) {
 		presenter->damage            = previous_damage;
 		presenter->damage_valid      = previous_damage_valid;
@@ -1245,21 +1296,23 @@ compose_frame(struct st_console_bitmap_presenter *presenter, enum st_console_sca
 {
 	struct st_console_rect      destination, upload_damage;
 	const struct st_rgb_buffer *pixels;
-	bool                        layout_changed, alternate, cursor_phase, use_cursor;
+	bool                        layout_changed, alternate, fast_alternate, cursor_phase, use_cursor;
 	bool                        selection_changed, full_upload, uploaded = false;
 	uint8_t                     identity;
 	int                         status = 0;
 
-	animation_state(presenter->blink_mode, now - presenter->epoch, &alternate, &cursor_phase);
-	if (presenter->blink_row_count == 0)
-		alternate = false;
+	animation_state(presenter->blink_mode, now - presenter->epoch, &alternate, &fast_alternate, &cursor_phase);
+	alternate &= presenter->blink_row_count != 0;
+	fast_alternate &= presenter->fast_row_count != 0;
 	use_cursor = presenter->cursor_composed;
 	if (use_cursor && !presenter->pixel_cursor_enabled
 	    && (!presenter->cursor_custom || presenter->custom_cursor.blink))
 		use_cursor = cursor_phase;
-	identity = (uint8_t)(alternate ? BITMAP_ALTERNATE : BITMAP_PRIMARY);
+	identity = alternate ? BITMAP_SLOW_ALTERNATE : 0;
+	if (fast_alternate)
+		identity |= BITMAP_FAST_ALTERNATE;
 	if (use_cursor)
-		++identity;
+		identity |= BITMAP_CURSOR;
 	selection_changed         = !presenter->upload_initialized || identity != presenter->selected_image;
 	presenter->selected_image = identity;
 	destination =
@@ -1273,7 +1326,7 @@ compose_frame(struct st_console_bitmap_presenter *presenter, enum st_console_sca
 	presenter->output_height = output_height;
 
 	presenter->invalid_colour = false;
-	status                    = resolve_image(presenter, identity, alternate, use_cursor);
+	status                    = resolve_image(presenter, identity, alternate, fast_alternate, use_cursor);
 	if (status != 0)
 		return status;
 	if (presenter->invalid_colour)

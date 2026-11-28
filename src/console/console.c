@@ -195,28 +195,32 @@ initialize_cells(st_console_t *console, struct st_console_cell *cells, size_t co
 	console->style.hyperlink  = 0;
 }
 
-static uint32_t
-animation_interval(enum st_console_blink_mode mode)
+static unsigned
+animation_delay(enum st_console_blink_mode mode, uint64_t elapsed, bool fast_blink)
 {
+	unsigned interval;
 	switch (mode) {
 		case ST_CONSOLE_BLINK_PRESTEL:
-			return 314;
+			interval = 314;
+			break;
 		case ST_CONSOLE_BLINK_COMMODORE:
-			return 333;
+			interval = 333;
+			break;
 		case ST_CONSOLE_BLINK_ATARI_ST:
-			return 500;
+			interval = 500;
+			break;
 		case ST_CONSOLE_BLINK_ATARI:
 			return 0;
 		case ST_CONSOLE_BLINK_PC:
 		default:
-			return 133;
+			return st_console_pc_animation_delay(elapsed, fast_blink);
 	}
+	return interval - (unsigned)(elapsed % interval);
 }
 
 static void
 schedule_animation_locked(st_console_display_t *display, enum st_console_blink_mode mode, uint64_t now)
 {
-	uint32_t interval = animation_interval(mode);
 	uint64_t elapsed;
 
 	if (!display->presentation_animation_initialized || display->presentation_blink_mode != mode) {
@@ -231,12 +235,22 @@ schedule_animation_locked(st_console_display_t *display, enum st_console_blink_m
 		display->presentation_animation_deadline = now + (1000 - phase + 59) / 60;
 		return;
 	}
-	if (interval == 0) {
-		display->presentation_animation_deadline = UINT64_MAX;
-		return;
+	unsigned delay = animation_delay(mode, elapsed, display->presentation_fast_blink);
+	display->presentation_animation_deadline = delay ? now + delay : UINT64_MAX;
+}
+
+void
+st_console_display_set_fast_blink(st_console_display_t *display, bool fast)
+{
+	(void)st_mutex_lock(&display->presentation_mutex);
+	if (display->presentation_fast_blink != fast) {
+		uint64_t now;
+		display->presentation_fast_blink = fast;
+		if (display->presentation_animation_initialized && st_time_monotonic_ms(&now) == 0)
+			schedule_animation_locked(display, display->presentation_blink_mode, now);
+		(void)st_condition_signal(&display->presentation_ready);
 	}
-	display->presentation_animation_deadline =
-	    display->presentation_animation_epoch + (elapsed / interval + 1U) * interval;
+	(void)st_mutex_unlock(&display->presentation_mutex);
 }
 
 void
@@ -3625,10 +3639,7 @@ st_console_snapshot_create(st_console_snapshot_t **result, st_console_t *console
 			if (status == 0) {
 				const struct st_console_rect area = {0, 0, console->pixels->width,
 				    console->pixels->height};
-				st_console_copy_pixels_locked(console, snapshot->pixels->primary,
-				    snapshot->pixels->width, false, &area);
-				st_console_copy_pixels_locked(console, snapshot->pixels->alternate,
-				    snapshot->pixels->width, true, &area);
+				status = st_console_copy_pixels_locked(console, snapshot->pixels, &area);
 			}
 		}
 		if (status != 0) {
@@ -3696,6 +3707,13 @@ st_console_snapshot_restore(st_console_t *console, const st_console_snapshot_t *
 		(void)st_rwlock_unlock(st_console_state_lock(console));
 		return IO_ERROR_OUT_OF_RANGE;
 	}
+	if (snapshot->pixels && snapshot->pixels->fast_blink) {
+		result = st_pixel_buffer_ensure_fast_blink(console->pixels);
+		if (result != 0) {
+			(void)st_rwlock_unlock(st_console_state_lock(console));
+			return result;
+		}
+	}
 	count = (size_t)console->columns * console->rows;
 	for (uint32_t i = 0; i <= UINT16_MAX; ++i) {
 		if (console->palette[i] == snapshot->palette[i])
@@ -3735,20 +3753,14 @@ st_console_snapshot_restore(st_console_t *console, const st_console_snapshot_t *
 		size_t pixels_count = (size_t)console->pixels->width * console->pixels->height;
 
 		if (console->raster_parent == NULL) {
-			memcpy(console->pixels->primary, snapshot->pixels->primary,
-			    pixels_count * sizeof(console->pixels->primary[0]));
-			memcpy(console->pixels->alternate, snapshot->pixels->alternate,
-			    pixels_count * sizeof(console->pixels->alternate[0]));
+			st_pixel_buffer_copy_span(console->pixels, 0, snapshot->pixels, 0, pixels_count);
 		}
 		else {
 			struct st_console_rect v = st_console_visible_pixels(console);
 			for (uint32_t y = v.y; v.width && y < v.y + v.height; ++y) {
 				size_t to   = st_console_pixel_position_locked(console, v.x, y);
 				size_t from = (size_t)y * snapshot->pixels->width + v.x;
-				memcpy(console->pixels->primary + to, snapshot->pixels->primary + from,
-				    v.width * sizeof(*console->pixels->primary));
-				memcpy(console->pixels->alternate + to, snapshot->pixels->alternate + from,
-				    v.width * sizeof(*console->pixels->alternate));
+				st_pixel_buffer_copy_span(console->pixels, to, snapshot->pixels, from, v.width);
 			}
 			st_console_view_pixels_written_locked(console, v.x, v.y, v.width, v.height);
 			for (size_t i = 0; i < count; ++i)

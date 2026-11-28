@@ -24,6 +24,49 @@ storage_count(uint32_t width, uint32_t height, size_t element_size, size_t *coun
 	return pixel_count(width, height, element_size, count);
 }
 
+static size_t
+packed_bytes(size_t count)
+{
+	return count / 8 + (count % 8 != 0);
+}
+
+void
+st_pixel_fill_bits(uint8_t *bits, size_t at, size_t count, bool value)
+{
+	while (count && at % 8) {
+		st_pixel_set_bit(bits, at++, value);
+		--count;
+	}
+	size_t bytes = count / 8;
+	memset(bits + at / 8, value ? 0xff : 0, bytes);
+	at += bytes * 8;
+	for (size_t i = 0; i < count % 8; ++i)
+		st_pixel_set_bit(bits, at + i, value);
+}
+
+bool
+st_pixel_copy_bits(uint8_t *dst, size_t to, const uint8_t *src, size_t from, size_t count)
+{
+	if ((to | from | count) % 8 == 0 && src) {
+		size_t bytes = count / 8;
+		if (memcmp(dst + to / 8, src + from / 8, bytes) == 0)
+			return false;
+		memmove(dst + to / 8, src + from / 8, bytes);
+		return true;
+	}
+	bool backwards = src == dst && to > from && to - from < count;
+	bool changed = false;
+	for (size_t i = 0; i < count; ++i) {
+		size_t offset = backwards ? count - 1 - i : i;
+		bool value = st_pixel_bit(src, from + offset);
+		if (st_pixel_bit(dst, to + offset) != value) {
+			st_pixel_set_bit(dst, to + offset, value);
+			changed = true;
+		}
+	}
+	return changed;
+}
+
 int
 st_pixel_buffer_create(struct st_pixel_buffer **result, uint32_t width, uint32_t height, bool alternate)
 {
@@ -101,6 +144,14 @@ st_pixel_buffer_clone(struct st_pixel_buffer **result, const struct st_pixel_buf
 	memcpy(copy->primary, source->primary, count * sizeof(copy->primary[0]));
 	if (source->alternate != NULL)
 		memcpy(copy->alternate, source->alternate, count * sizeof(copy->alternate[0]));
+	if (source->fast_blink != NULL) {
+		status = st_pixel_buffer_ensure_fast_blink(copy);
+		if (status != 0) {
+			st_pixel_buffer_destroy(copy);
+			return status;
+		}
+		memcpy(copy->fast_blink, source->fast_blink, packed_bytes(count));
+	}
 	*result = copy;
 	return 0;
 }
@@ -125,10 +176,44 @@ st_pixel_buffer_ensure_alternate(struct st_pixel_buffer *buffer)
 }
 
 void
+st_pixel_buffer_copy_span(const struct st_pixel_buffer *destination, size_t to,
+    const struct st_pixel_buffer *source, size_t from, size_t count)
+{
+	memmove(destination->primary + to, source->primary + from, count * sizeof(*source->primary));
+	if (destination->alternate) {
+		const uint32_t *alternate = source->alternate ? source->alternate : source->primary;
+		memmove(destination->alternate + to, alternate + from, count * sizeof(*alternate));
+	}
+	if (destination->fast_blink)
+		st_pixel_copy_bits(destination->fast_blink, to, source->fast_blink, from, count);
+}
+
+int
+st_pixel_buffer_ensure_fast_blink(struct st_pixel_buffer *buffer)
+{
+	size_t count;
+	if (buffer == NULL || !storage_count(buffer->width, buffer->height, 1, &count))
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (buffer->fast_blink != NULL)
+		return 0;
+	uint8_t *bits = calloc(count ? packed_bytes(count) : 1, 1);
+	if (bits == NULL)
+		return IO_ERROR_OUT_OF_MEMORY;
+	int status = st_pixel_buffer_ensure_alternate(buffer);
+	if (status != 0)
+		free(bits);
+	else
+		buffer->fast_blink = bits;
+	return status;
+}
+
+void
 st_pixel_buffer_remove_alternate(struct st_pixel_buffer *buffer)
 {
 	if (buffer == NULL)
 		return;
+	free(buffer->fast_blink);
+	buffer->fast_blink = NULL;
 	free(buffer->alternate);
 	buffer->alternate = NULL;
 }
@@ -183,23 +268,17 @@ st_pixel_mask_get(const struct st_pixel_mask *mask, uint32_t x, uint32_t y, bool
 
 	if (value == NULL || !mask_position(mask, x, y, &position))
 		return IO_ERROR_OUT_OF_RANGE;
-	*value = (mask->bits[position / 8] & (uint8_t)(UINT8_C(0x80) >> (position % 8))) != 0;
+	*value = st_pixel_bit(mask->bits, position);
 	return 0;
 }
 
 int
 st_pixel_mask_set(struct st_pixel_mask *mask, uint32_t x, uint32_t y, bool value)
 {
-	size_t  position;
-	uint8_t bit;
-
+	size_t position;
 	if (!mask_position(mask, x, y, &position))
 		return IO_ERROR_OUT_OF_RANGE;
-	bit = (uint8_t)(UINT8_C(0x80) >> (position % 8));
-	if (value)
-		mask->bits[position / 8] |= bit;
-	else
-		mask->bits[position / 8] &= (uint8_t)~bit;
+	st_pixel_set_bit(mask->bits, position, value);
 	return 0;
 }
 
@@ -220,6 +299,8 @@ st_pixel_buffer_fill(struct st_pixel_buffer *buffer, uint32_t primary, uint32_t 
 	if (buffer == NULL || buffer->primary == NULL
 	    || !storage_count(buffer->width, buffer->height, sizeof(uint32_t), &count))
 		return IO_ERROR_INVALID_ARGUMENT;
+	if (buffer->fast_blink != NULL)
+		memset(buffer->fast_blink, 0, packed_bytes(count));
 	for (size_t i = 0; i < count; ++i)
 		buffer->primary[i] = primary;
 	if (buffer->alternate != NULL)
@@ -267,7 +348,7 @@ mask_set(const struct st_pixel_mask *mask, uint32_t x, uint32_t y)
 {
 	size_t position = (size_t)y * mask->width + x;
 
-	return (mask->bits[position / 8] & (uint8_t)(UINT8_C(0x80) >> (position % 8))) != 0;
+	return st_pixel_bit(mask->bits, position);
 }
 
 int
@@ -285,11 +366,12 @@ st_pixel_buffer_blit(struct st_pixel_buffer *destination, const struct st_pixel_
 	status = st_pixel_buffer_validate_blit(destination, source, mask, blit, &right, &bottom);
 	if (status != 0)
 		return status;
-	if (source->alternate != NULL && destination->alternate == NULL) {
+	if (source->fast_blink && !destination->fast_blink)
+		status = st_pixel_buffer_ensure_fast_blink(destination);
+	else if (source->alternate && !destination->alternate)
 		status = st_pixel_buffer_ensure_alternate(destination);
-		if (status != 0)
-			return status;
-	}
+	if (status != 0)
+		return status;
 	if (destination == source) {
 		status = st_pixel_buffer_clone(&copy, source);
 		if (status != 0)
@@ -327,6 +409,9 @@ st_pixel_buffer_blit(struct st_pixel_buffer *destination, const struct st_pixel_
 			                       + blit->source_x + source_relative_x;
 			destination_position = (size_t)y * destination->width + (size_t)x;
 			destination->primary[destination_position] = input->primary[source_position];
+			if (destination->fast_blink != NULL)
+				st_pixel_set_bit(destination->fast_blink, destination_position,
+				    st_pixel_bit(input->fast_blink, source_position));
 			if (destination->alternate != NULL) {
 				const uint32_t *alternate =
 				    input->alternate != NULL ? input->alternate : input->primary;

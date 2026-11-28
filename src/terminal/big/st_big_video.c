@@ -4,6 +4,7 @@
 
 #include "io_error.h"
 #include "st_big_video.h"
+#include "st_pixels.h"
 
 static bool
 valid(const struct st_big_video *v, const struct st_big_video_view *view)
@@ -16,13 +17,13 @@ valid(const struct st_big_video *v, const struct st_big_video_view *view)
 }
 
 int
-st_big_video_bind(struct st_big_video *v, uint32_t *primary, uint32_t *alternate, size_t count)
+st_big_video_bind(struct st_big_video *v, uint32_t *primary, uint32_t *alternate, size_t count, uint8_t *fast_blink)
 {
 	if (v == NULL || (count != 0 && (primary == NULL || alternate == NULL)))
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (count > ST_BIG_VIDEO_PENS)
 		return IO_ERROR_OUT_OF_RANGE;
-	*v = (struct st_big_video) {primary, alternate, count};
+	*v = (struct st_big_video) {primary, alternate, count, fast_blink};
 	return 0;
 }
 
@@ -93,6 +94,9 @@ st_big_video_write(struct st_big_video *v, const struct st_big_video_view *view,
 	size_t at   = visible == SIZE_MAX ? index : visible;
 	a[at]       = primary;
 	b[at]       = alternate;
+	uint8_t *rates = visible == SIZE_MAX ? v->fast_blink : view->fast_blink;
+	if (primary == alternate && rates)
+		st_pixel_set_bit(rates, at, false);
 	if (displayed != NULL)
 		*displayed = visible;
 	return 0;
@@ -113,10 +117,14 @@ transfer(const struct st_big_video *v, const struct st_big_video_view *view, siz
 		if (save) {
 			v->primary[index]   = view->primary[i];
 			v->alternate[index] = view->alternate[i];
+			if (v->fast_blink)
+				st_pixel_set_bit(v->fast_blink, index, st_pixel_bit(view->fast_blink, i));
 		}
 		else {
 			view->primary[i]   = v->primary[index];
 			view->alternate[i] = v->alternate[index];
+			if (view->fast_blink)
+				st_pixel_set_bit(view->fast_blink, i, st_pixel_bit(v->fast_blink, index));
 		}
 		++*accepted;
 		if (++index == ST_BIG_VIDEO_PENS)

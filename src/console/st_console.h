@@ -58,13 +58,15 @@ typedef struct st_console_snapshot st_console_snapshot_t;
 /* Colour was supplied by a legacy attribute and follows VideoFlags. */
 #define ST_CONSOLE_CELL_LEGACY_FOREGROUND (UINT32_C(1) << 23)
 #define ST_CONSOLE_CELL_LEGACY_BACKGROUND (UINT32_C(1) << 24)
+/* Selects the rapid cadence when CELL_BLINK is effective. */
+#define ST_CONSOLE_CELL_FAST_BLINK (UINT32_C(1) << 25)
 #define ST_CONSOLE_CELL_PUBLIC_FLAGS                                                                           \
 	(ST_CONSOLE_CELL_BLINK | ST_CONSOLE_CELL_CONCEAL | ST_CONSOLE_CELL_PIXEL_GRAPHICS                      \
 	    | ST_CONSOLE_CELL_DOUBLE_HEIGHT | ST_CONSOLE_CELL_SAA5050 | ST_CONSOLE_CELL_REVEAL                 \
 	    | ST_CONSOLE_CELL_SEPARATED | ST_CONSOLE_CELL_TERMINAL_FONT | ST_CONSOLE_CELL_SAA5050_CONTROL_MASK \
 	    | ST_CONSOLE_CELL_UNDERLINE | ST_CONSOLE_CELL_BOLD | ST_CONSOLE_CELL_REVERSE                       \
 	    | ST_CONSOLE_CELL_CONTINUATION | ST_CONSOLE_CELL_BRIGHT | ST_CONSOLE_CELL_LEGACY_FOREGROUND        \
-	    | ST_CONSOLE_CELL_LEGACY_BACKGROUND)
+	    | ST_CONSOLE_CELL_LEGACY_BACKGROUND | ST_CONSOLE_CELL_FAST_BLINK)
 
 /* The source attribute bits retain these independently composable meanings. */
 #define ST_CONSOLE_VIDEO_ALT_CHARS            (UINT32_C(1) << 0)
@@ -604,11 +606,11 @@ struct st_console_viewport {
 int st_console_place_raster_view(st_console_t *, uint64_t x, uint64_t y, const struct st_console_viewport *);
 int st_console_raster_view_origin(st_console_t *, uint32_t *x, uint32_t *y);
 /* Mirror the pixels written by this view, in parent coordinates. Each rectangle
- * has contiguous scanlines at the supplied pixel stride. The pointers are
+ * starts at the supplied offset, with a scanline stride of pixels->width. The pointers are
  * borrowed under the parent lock; the observer must not re-enter this console
  * or its parent. Set a null observer to detach. */
-typedef void st_console_view_output(void *, st_console_t *, struct st_console_rect, const uint32_t *primary,
-    const uint32_t *alternate, uint32_t stride, const uint32_t *palette);
+typedef void st_console_view_output(void *, st_console_t *, struct st_console_rect, const struct st_pixel_buffer *pixels,
+    size_t offset, const uint32_t *palette);
 int          st_console_set_view_output(st_console_t *, st_console_view_output *, void *);
 int st_console_redraw_raster_view(st_console_t *);
 int st_console_raster_view_adopt(st_console_t *console);
@@ -810,6 +812,9 @@ int st_console_restore_pixel_region(st_console_t *console, const struct st_pixel
  * to the cells those pixels touch. */
 int st_console_restore_masked_pixel_region(st_console_t *console, const struct st_pixel_buffer *source,
     const struct st_pixel_mask *mask, uint32_t x, uint32_t y);
+/* Prepare rate storage for a native edit that imports pixels from source. */
+int st_console_modify_pixels_from(st_console_t *console, const struct st_pixel_buffer *source,
+    int (*edit)(void *, const struct st_pixel_buffer *, struct st_console_rect *), void *context);
 int st_console_modify_pixels(st_console_t *console,
     int   (*edit)(void *context, const struct st_pixel_buffer *pixels, struct st_console_rect *changed),
     void *context);

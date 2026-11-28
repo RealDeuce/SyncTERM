@@ -314,6 +314,8 @@ foreign class PixelBuffer is Sequence {
   foreign rgb24
   foreign hasAlternate
   foreign alternateAt(index)
+  foreign fastBlinkAt(index)
+  foreign setFastBlink(x, y, fast)
   foreign setAlternate(x, y, color)
   foreign fillAlternate(color)
   foreign alternateRgb24
@@ -883,11 +885,12 @@ class REPL {
 class CellStyle {
   static bright { 0x400000 }
   static blink { 2 }
+  static fastBlink { 0x2000000 }
   static underline { 0x10000 }
   static bold { 0x20000 }
   static reverse { 0x40000 }
   static conceal { 4 }
-  static all { 0x470006 }
+  static all { 0x2470006 }
 }
 
 foreign class Cell {
@@ -903,6 +906,8 @@ foreign class Cell {
   foreign bright=(b)
   foreign blink
   foreign blink=(b)
+  foreign fastBlink
+  foreign fastBlink=(b)
   foreign styleFlags
   foreign styleFlags=(mask)
   foreign underline

@@ -202,6 +202,8 @@ attribute_flags(const struct cterminal *cterm, uint8_t attribute, uint32_t flags
 		flags |= ST_CONSOLE_CELL_BLINK;
 	if (cterm->device.sgr_palette != NULL || cterm->vt52_plane_mask != 0)
 		flags &= ~(ST_CONSOLE_CELL_BRIGHT | ST_CONSOLE_CELL_BLINK);
+	if (!(flags & ST_CONSOLE_CELL_BLINK))
+		flags &= ~ST_CONSOLE_CELL_FAST_BLINK;
 	return flags;
 }
 
@@ -428,7 +430,7 @@ set_colours(const struct cterminal *cterm, struct st_console_style *style, uint3
 	style->flags &= ~(ST_CONSOLE_CELL_SAA5050 | ST_CONSOLE_CELL_DOUBLE_HEIGHT | ST_CONSOLE_CELL_SEPARATED
 			  | ST_CONSOLE_CELL_TERMINAL_FONT | ST_CONSOLE_CELL_PIXEL_GRAPHICS | ST_CONSOLE_CELL_REVEAL
 			  | ST_CONSOLE_CELL_SAA5050_CONTROL_MASK | ST_CONSOLE_CELL_LEGACY_FOREGROUND
-			  | ST_CONSOLE_CELL_LEGACY_BACKGROUND | ST_CONSOLE_CELL_UNDERLINE);
+			  | ST_CONSOLE_CELL_LEGACY_BACKGROUND | ST_CONSOLE_CELL_UNDERLINE | ST_CONSOLE_CELL_FAST_BLINK);
 	style->flags |= cterm->cell_flags;
 }
 

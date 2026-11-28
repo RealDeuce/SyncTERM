@@ -283,6 +283,10 @@ transfer_pixel(uint32_t destination, uint32_t source, enum st_rip3_transfer_mode
 		   : write_pixel(destination, source, (enum st_rip3_write_mode)mode, palette);
 }
 
+static int copy_projected(struct st_rip3_surface *, const struct st_rip3_rect *, const struct st_rip3_surface *,
+    const struct st_rip3_rect *, enum st_rip3_transfer_mode, const struct st_rip3_palette *,
+    struct st_pixel_buffer *destination_pixels, const struct st_pixel_buffer *source_pixels);
+
 int
 st_rip3_surface_copy_snapshots(struct st_pixel_buffer *destination, const struct st_rip3_rect *to,
     const struct st_pixel_buffer *source, const struct st_rip3_rect *from, enum st_rip3_transfer_mode mode,
@@ -292,7 +296,20 @@ st_rip3_surface_copy_snapshots(struct st_pixel_buffer *destination, const struct
 	    .width                            = destination->width,
 	    .height                           = destination->height};
 	struct st_rip3_surface src = {.pixels = source->primary, .width = source->width, .height = source->height};
-	int                    status = st_rip3_surface_copy_projected_colors(&dst, to, &src, from, mode, palette);
+	if (source == destination) {
+		struct st_pixel_buffer *snapshot = NULL;
+		int status = st_pixel_buffer_clone(&snapshot, source);
+		if (status == 0)
+			status = st_rip3_surface_copy_snapshots(destination, to, snapshot, from, mode, palette);
+		st_pixel_buffer_destroy(snapshot);
+		return status;
+	}
+	if (source->fast_blink && destination->alternate) {
+		int status = st_pixel_buffer_ensure_fast_blink(destination);
+		if (status != 0)
+			return status;
+	}
+	int status = copy_projected(&dst, to, &src, from, mode, palette, destination, source);
 	if (status != 0 || destination->alternate == NULL)
 		return status;
 	dst.pixels = destination->alternate;
@@ -422,6 +439,8 @@ st_rip3_surface_fill_screen(struct st_rip3_surface *surface, const struct st_rip
 				if (visible_other != previous)
 					alternate = native_literal(visible_other, drawing->native_palette);
 			}
+			if (native->fast_blink && (mode == ST_RIP3_COPY || surface->damage[at]))
+				st_pixel_set_bit(native->fast_blink, target, false);
 			primary             = write_pixel(primary, color, mode, palette);
 			surface->pixels[at] = primary;
 			if (!ST_PIXEL_COLOR_IS_RGB(primary))
@@ -557,10 +576,11 @@ st_rip3_surface_copy(struct st_rip3_surface *destination, const struct st_rip3_r
 	return 0;
 }
 
-int
-st_rip3_surface_copy_projected_colors(struct st_rip3_surface *destination,
+static int
+copy_projected(struct st_rip3_surface *destination,
     const struct st_rip3_rect *destination_area, const struct st_rip3_surface *source,
-    const struct st_rip3_rect *source_area, enum st_rip3_transfer_mode mode, const struct st_rip3_palette *palette)
+    const struct st_rip3_rect *source_area, enum st_rip3_transfer_mode mode, const struct st_rip3_palette *palette,
+    struct st_pixel_buffer *destination_pixels, const struct st_pixel_buffer *source_pixels)
 {
 	struct st_rip3_rect src, dst;
 	uint32_t           *saved = NULL;
@@ -608,7 +628,17 @@ st_rip3_surface_copy_projected_colors(struct st_rip3_surface *destination,
 			uint32_t pixel  = saved != NULL
 			                      ? saved[(size_t)(sy - src.y0) * saved_width + (size_t)(sx - src.x0)]
 			                      : source->pixels[(size_t)sy * source->width + (size_t)sx];
-			size_t   offset = (size_t)y * destination->width + (uint32_t)x;
+			size_t offset = (size_t)y * destination->width + (uint32_t)x;
+			if (destination_pixels && destination_pixels->fast_blink) {
+				size_t at = (size_t)sy * source->width + (size_t)sx;
+				bool fast = st_pixel_bit(source_pixels->fast_blink, at);
+				if (mode != ST_RIP3_TRANSFER_COPY && mode != ST_RIP3_TRANSFER_INVERT)
+					fast = st_pixel_combined_fast(source_pixels->alternate &&
+					    source_pixels->alternate[at] != pixel, fast,
+					    destination_pixels->alternate[offset] != destination->pixels[offset],
+					    st_pixel_bit(destination_pixels->fast_blink, offset));
+				st_pixel_set_bit(destination_pixels->fast_blink, offset, fast);
+			}
 			destination->pixels[offset] =
 			    transfer_pixel(destination->pixels[offset], pixel, mode, palette);
 			if (destination->damage != NULL)
@@ -617,6 +647,14 @@ st_rip3_surface_copy_projected_colors(struct st_rip3_surface *destination,
 	}
 	free(saved);
 	return 0;
+}
+
+int
+st_rip3_surface_copy_projected_colors(struct st_rip3_surface *destination,
+    const struct st_rip3_rect *destination_area, const struct st_rip3_surface *source,
+    const struct st_rip3_rect *source_area, enum st_rip3_transfer_mode mode, const struct st_rip3_palette *palette)
+{
+	return copy_projected(destination, destination_area, source, source_area, mode, palette, NULL, NULL);
 }
 
 int

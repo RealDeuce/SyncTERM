@@ -84,6 +84,18 @@ class PixelVmTest {
     op.scaleX = 4294967295
     check.call(clipped.blit(source, op) == null && clipped[0] == 8 &&
         clipped.hasAlternate && clipped.alternateAt(0) == 8, "fully clipped allocation")
+    var rates = PixelBuffer.new(11, 1, 9)
+    rates.setFastBlink(3, 0, false)
+    check.call(!rates.hasAlternate && !rates.fastBlinkAt(3), "slow needs no planes")
+    rates.setFastBlink(8, 0, true)
+    check.call(rates.hasAlternate && rates.alternateAt(8) == 9 && rates.fastBlinkAt(8), "setting fast initializes alternate")
+    rates.setAlternate(8, 0, 7)
+    var copyRates = rates.clone()
+    rates.clearAlternate()
+    check.call(!rates.fastBlinkAt(8) && copyRates.fastBlinkAt(8), "clone owns its rate mask")
+    check.call(rates.blit(copyRates, PixelBlit.new()) == null && rates.fastBlinkAt(8), "blit copies rate")
+    rates.setFastBlink(8, 0, false)
+    check.call(!rates.fastBlinkAt(8) && rates.alternateAt(8) == 7, "clearing rate preserves alternate")
     var self = PixelBuffer.new(4, 1)
     for (i in 0...4) self[i] = i + 1
     self.fillAlternate(7)

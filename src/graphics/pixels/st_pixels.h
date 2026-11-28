@@ -18,7 +18,48 @@ struct st_pixel_buffer {
 	uint32_t *alternate;
 	uint32_t  width;
 	uint32_t  height;
+	/* Optional packed rate mask, MSB first, contiguous across rows. NULL means slow. */
+	uint8_t  *fast_blink;
 };
+
+/* Packed masks use physical pixel offsets, including for borrowed raster views. */
+static inline bool
+st_pixel_bit(const uint8_t *bits, size_t at)
+{
+	return bits && (bits[at / 8] & (0x80U >> (at % 8))) != 0;
+}
+
+static inline void
+st_pixel_set_bit(uint8_t *bits, size_t at, bool value)
+{
+	uint8_t mask = (uint8_t)(0x80U >> (at % 8));
+	if (value)
+		bits[at / 8] |= mask;
+	else
+		bits[at / 8] &= (uint8_t)~mask;
+}
+
+/* A binary raster operation follows its changing operand. When both
+ * operands blink, a conflict selects the slow clock. */
+static inline bool
+st_pixel_combined_fast(bool source_blinks, bool source_fast, bool dest_blinks, bool dest_fast)
+{
+	return (source_blinks || dest_blinks) && (!source_blinks || source_fast) && (!dest_blinks || dest_fast);
+}
+
+static inline void
+st_pixel_buffer_set_solid(const struct st_pixel_buffer *pixels, size_t at, uint32_t colour)
+{
+	pixels->primary[at] = colour;
+	if (pixels->alternate)
+		pixels->alternate[at] = colour;
+	if (pixels->fast_blink)
+		st_pixel_set_bit(pixels->fast_blink, at, false);
+}
+
+void st_pixel_fill_bits(uint8_t *bits, size_t at, size_t count, bool value);
+/* A NULL source supplies zero bits. Returns whether the destination changed. */
+bool st_pixel_copy_bits(uint8_t *dst, size_t to, const uint8_t *src, size_t from, size_t count);
 
 struct st_rgb_buffer {
 	/* Pixels are packed 0x00RRGGBB with no tag or palette indexes. */
@@ -83,6 +124,11 @@ struct st_pixel_blit {
 int  st_pixel_buffer_create(struct st_pixel_buffer **result, uint32_t width, uint32_t height, bool alternate);
 int  st_pixel_buffer_clone(struct st_pixel_buffer **result, const struct st_pixel_buffer *source);
 int  st_pixel_buffer_ensure_alternate(struct st_pixel_buffer *buffer);
+/* Copy between allocated planes, including overlapping spans. When the source
+ * has a rate selector the caller must first ensure one on the destination. */
+void st_pixel_buffer_copy_span(const struct st_pixel_buffer *destination, size_t to,
+    const struct st_pixel_buffer *source, size_t from, size_t count);
+int  st_pixel_buffer_ensure_fast_blink(struct st_pixel_buffer *buffer);
 void st_pixel_buffer_remove_alternate(struct st_pixel_buffer *buffer);
 void st_pixel_buffer_destroy(struct st_pixel_buffer *buffer);
 int  st_rgb_buffer_create(struct st_rgb_buffer **result, uint32_t width, uint32_t height);

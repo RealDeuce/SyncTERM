@@ -1,4 +1,5 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
+#include "io_error.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -185,6 +186,8 @@ blank(void *context, const struct st_pixel_buffer *pixels, struct st_console_rec
 	size_t size = (size_t)pixels->width * pixels->height * sizeof(*pixels->primary);
 	memset(pixels->primary, 0, size);
 	memset(pixels->alternate, 0, size);
+	if (pixels->fast_blink)
+		st_pixel_fill_bits(pixels->fast_blink, 0, size / sizeof(*pixels->primary), false);
 	*changed = (struct st_console_rect) {0, 0, pixels->width, pixels->height};
 	return 0;
 }
@@ -312,7 +315,7 @@ copy_region(void *context, const struct st_pixel_buffer *pixels, const uint32_t 
 			if (dst)
 				dst[x] = index;
 			else
-				pixels->primary[to + x] = pixels->alternate[to + x] = index;
+				st_pixel_buffer_set_solid(pixels, to + x, index);
 		}
 	}
 	if (t->dest == VISUAL) {
@@ -477,6 +480,25 @@ scroll_visible(void *context, const struct st_pixel_buffer *pixels, struct st_co
 {
 	const struct scroll *s = context;
 	if (pixels->width == WIDTH && pixels->height == HEIGHT) {
+		if (pixels->fast_blink && s->area.height && s->area.width) {
+			/* Snapshot just the packed rectangle before overlapping or circular moves. */
+			size_t width = s->area.width, height = s->area.height;
+			uint8_t *saved = calloc((width * height + 7) / 8, 1);
+			if (!saved)
+				return IO_ERROR_OUT_OF_MEMORY;
+			for (size_t y = 0; y < height; ++y)
+				st_pixel_copy_bits(saved, y * width, pixels->fast_blink,
+				    (s->area.y + y) * pixels->width + s->area.x, width);
+			for (size_t y = 0; y < height; ++y) {
+				int64_t from = (int64_t)y - s->jump;
+				if (s->circular)
+					from = (from % (int64_t)height + (int64_t)height) % (int64_t)height;
+				bool valid = from >= 0 && (uint64_t)from < height;
+				st_pixel_copy_bits(pixels->fast_blink, (s->area.y + y) * pixels->width + s->area.x,
+				    valid ? saved : NULL, valid ? (size_t)from * width : 0, width);
+			}
+			free(saved);
+		}
 		scroll_rows(pixels->primary, pixels->width, sizeof(*pixels->primary), s);
 		scroll_rows(pixels->alternate, pixels->width, sizeof(*pixels->alternate), s);
 		*changed = s->area;

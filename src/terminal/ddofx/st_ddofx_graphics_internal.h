@@ -237,7 +237,7 @@ struct bounds  st_ddofx_text_bounds(const struct st_ddofx_graphics *, unsigned o
     unsigned columns, unsigned rows, unsigned padding);
 typedef void   st_ddofx_region_painter(void *context, const struct st_pixel_buffer *, struct bounds);
 void           st_ddofx_draw_text_control(struct st_ddofx *, unsigned owner, bool work, struct bounds,
-    st_ddofx_region_painter *, void *context);
+    const struct st_pixel_buffer *source, st_ddofx_region_painter *, void *context);
 const uint8_t *st_ddofx_vga_bitmap(const struct st_ddofx *);
 bool st_ddofx_read_vga_font(const struct st_ddofx_sink *, const char *, uint8_t bitmap[4096]);
 void st_ddofx_print_text_box(struct st_ddofx *, enum page, struct bounds, const uint8_t *, size_t length);

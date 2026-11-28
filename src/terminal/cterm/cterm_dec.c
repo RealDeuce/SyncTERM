@@ -474,6 +474,7 @@ cterm_handle_decrara(struct cterminal *cterm, int *speed) /* CSI Pt;Pl;Pb;Pr;...
 				switch (cterm->seq_param_int[p]) {
 					case 0:
 						rowbuf[c].flags ^= ST_CONSOLE_CELL_UNDERLINE;
+						rowbuf[c].flags &= ~ST_CONSOLE_CELL_FAST_BLINK;
 						attribute ^= 0x88;
 						cterm_render_attribute_colours(cterm, attribute,
 						    &rowbuf[c].foreground, NULL);
@@ -496,7 +497,11 @@ cterm_handle_decrara(struct cterminal *cterm, int *speed) /* CSI Pt;Pl;Pb;Pr;...
 						rowbuf[c].flags ^= ST_CONSOLE_CELL_UNDERLINE;
 						break;
 					case 5:
+					case 6:
 					case 25:
+						rowbuf[c].flags &= ~ST_CONSOLE_CELL_FAST_BLINK;
+						if (!(attribute & 0x80) && cterm->seq_param_int[p] == 6)
+							rowbuf[c].flags |= ST_CONSOLE_CELL_FAST_BLINK;
 						attribute ^= 0x80;
 						cterm_render_attribute_colours(cterm, attribute, NULL,
 						    &rowbuf[c].background);
@@ -2398,7 +2403,7 @@ cterm_dec_dcs_finish(struct cterminal *cterm)
 					if (cterm->cell_flags & ST_CONSOLE_CELL_UNDERLINE)
 						strcat(tmp, ";4");
 					if (cterm->attr & 128)
-						strcat(tmp, ";5");
+						strcat(tmp, (cterm->cell_flags & ST_CONSOLE_CELL_FAST_BLINK) ? ";6" : ";5");
 					if (cterm->negative)
 						strcat(tmp, ";7");
 					if (cterm->fg_tc_str == NULL) {

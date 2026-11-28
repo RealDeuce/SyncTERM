@@ -1435,7 +1435,7 @@ row and coincide with the underline when the font draws it there.
 | | | | | |
 
 |5
-|Blink (By definition, slow blink)
+|Slow blink. On PC bitmap displays the text is visible for 266 ms and hidden for 266 ms.
 |√
 | 
 | 
@@ -1444,9 +1444,9 @@ row and coincide with the underline when the font draws it there.
 |√
 
 |6
-|Blink (By definition, fast blink)
-
-NOTE: Both blinks are the same speed.
+|Fast blink. On PC bitmap displays each half-cycle lasts 177⅓ ms
+(about 169.17 cycles per minute). Fast text completes three blinks for every
+two slow blinks. Text backends delegate blink timing to the host terminal.
 |√
 | 
 | 

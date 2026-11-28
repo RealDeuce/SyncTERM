@@ -132,7 +132,7 @@ paint(const struct marquee *m, const uint8_t *font, const struct st_ddofx_graphi
 			    (font[ch * 16 + row] & (0x80u >> (position % g->cell_width))) ? m->ink : m->paper;
 			if (pixels) {
 				size_t at           = y * WIDTH + x;
-				pixels->primary[at] = pixels->alternate[at] = colour;
+				st_pixel_buffer_set_solid(pixels, at, colour);
 			}
 			else
 				target->data[y * target->width + x] = (uint8_t)colour;

@@ -248,7 +248,7 @@ paint_map(void *context, const struct st_pixel_buffer *pixels, const uint32_t *p
 				if (o->target.data)
 					o->target.data[at] = (uint8_t)colour;
 				else
-					pixels->primary[at] = pixels->alternate[at] = colour;
+					st_pixel_buffer_set_solid(pixels, at, colour);
 			}
 		}
 	}

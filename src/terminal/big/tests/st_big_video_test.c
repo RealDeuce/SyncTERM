@@ -47,8 +47,8 @@ init(struct fixture *f)
 		f->shown[i]     = UINT32_C(0x40000000) + (uint32_t)i;
 		f->blink[i]     = UINT32_C(0x20000000) + (uint32_t)i;
 	}
-	CHECK(st_big_video_bind(&f->video, f->primary, f->alternate, ST_BIG_VIDEO_PENS) == 0);
-	f->view = (struct st_big_video_view) {f->shown, f->blink, 0, 0};
+	CHECK(st_big_video_bind(&f->video, f->primary, f->alternate, ST_BIG_VIDEO_PENS, NULL) == 0);
+	f->view = (struct st_big_video_view) {f->shown, f->blink, 0, 0, NULL};
 }
 
 static void
@@ -181,7 +181,7 @@ visible_authority(void)
 	CHECK(st_big_video_write(&f.video, &f.view, 0xa000, 1, 0, 44, 45, &visible) == 0 && visible == SIZE_MAX);
 	CHECK(f.primary[8] == 44 && f.alternate[8] == 45);
 	/* A visible-only owner needs no redundant indexed framebuffer copy. */
-	CHECK(st_big_video_bind(&f.video, NULL, NULL, 0) == 0);
+	CHECK(st_big_video_bind(&f.video, NULL, NULL, 0, NULL) == 0);
 	CHECK(st_big_video_read(&f.video, &f.view, 0xa000, 0, 0, &p) == 0 && p.primary == 42 && p.alternate == 43);
 	p = (struct st_big_video_pixel) {1, 2, 3};
 	CHECK(st_big_video_read(&f.video, &f.view, 0xa000, 1, 0, &p) == IO_ERROR_OUT_OF_RANGE && p.primary == 1);
@@ -275,10 +275,13 @@ prefixes_and_guards(void)
 		blink[i] = 70 + i;
 	}
 	struct st_big_video v;
-	CHECK(st_big_video_bind(&v, a, b, 12) == 0);
-	struct st_big_video_view view  = {shown, blink, 8, 1};
+	uint8_t backing_rates[2] = {0x55, 0x0f}, visible_rates = 0xa5;
+	CHECK(st_big_video_bind(&v, a, b, 12, backing_rates) == 0);
+	struct st_big_video_view view  = {shown, blink, 8, 1, &visible_rates};
 	size_t                   count = 99;
 	CHECK(st_big_video_save(&v, &view, &count) == IO_ERROR_OUT_OF_RANGE && count == 4);
+	CHECK(backing_rates[0] == 0x55 && backing_rates[1] == 0xaf);
+	visible_rates = 0x0c;
 	for (unsigned i = 0; i < 16; ++i)
 		CHECK(a[i] == (i >= 8 && i < 12 ? 50 + i - 8 : 10 + i)
 		      && b[i] == (i >= 8 && i < 12 ? 70 + i - 8 : 30 + i));
@@ -289,13 +292,14 @@ prefixes_and_guards(void)
 	CHECK(st_big_video_load(&v, &view, &count) == IO_ERROR_OUT_OF_RANGE && count == 4);
 	for (unsigned i = 0; i < 16; ++i)
 		CHECK(shown[i] == (i < 4 ? 50 + i : 90 + i) && blink[i] == (i < 4 ? 70 + i : 110 + i));
+	CHECK(visible_rates == 0xac);
 	CHECK(view.start == 1 && view.count == 8);
 	struct st_big_video       saved = v;
 	struct st_big_video_pixel pixel = {1, 2, 3};
-	CHECK(st_big_video_bind(&v, a, b, ST_BIG_VIDEO_PENS + 1) == IO_ERROR_OUT_OF_RANGE && v.count == saved.count
+	CHECK(st_big_video_bind(&v, a, b, ST_BIG_VIDEO_PENS + 1, NULL) == IO_ERROR_OUT_OF_RANGE && v.count == saved.count
 	      && v.primary == saved.primary);
-	CHECK(st_big_video_bind(&v, NULL, b, 12) == IO_ERROR_INVALID_ARGUMENT && v.primary == saved.primary);
-	CHECK(st_big_video_bind(NULL, a, b, 12) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_big_video_bind(&v, NULL, b, 12, NULL) == IO_ERROR_INVALID_ARGUMENT && v.primary == saved.primary);
+	CHECK(st_big_video_bind(NULL, a, b, 12, NULL) == IO_ERROR_INVALID_ARGUMENT);
 	CHECK(st_big_video_read(&v, &view, 0xa000, 1, 8, &pixel) == IO_ERROR_OUT_OF_RANGE && pixel.primary == 1);
 	CHECK(st_big_video_read(NULL, &view, 0xa000, 0, 0, &pixel) == IO_ERROR_INVALID_ARGUMENT);
 	CHECK(st_big_video_read(&v, &view, 0xa000, 0, 0, NULL) == IO_ERROR_INVALID_ARGUMENT);

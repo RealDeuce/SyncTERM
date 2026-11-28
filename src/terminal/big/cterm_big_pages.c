@@ -18,7 +18,7 @@ ensure_backing(struct cterm_big *big)
 		return status;
 	for (size_t i = 0; i < ST_BIG_VIDEO_PENS; ++i)
 		p->primary[i] = p->alternate[i] = CTERM_BIG_PALETTE_FIRST;
-	status = st_big_video_bind(&big->video, p->primary, p->alternate, ST_BIG_VIDEO_PENS);
+	status = st_big_video_bind(&big->video, p->primary, p->alternate, ST_BIG_VIDEO_PENS, p->fast_blink);
 	if (status != 0)
 		st_pixel_buffer_destroy(p);
 	else
@@ -43,13 +43,12 @@ cterm_big_video_reset(struct cterm_big *big)
 	for (size_t i = 0; i < 4; ++i)
 		big->video_cursors[i][0] = big->video_cursors[i][1] = 1;
 	if (big->video_backing == NULL) {
-		(void)st_big_video_bind(&big->video, NULL, NULL, 0);
+		(void)st_big_video_bind(&big->video, NULL, NULL, 0, NULL);
 		return;
 	}
-	for (size_t i = 0; i < ST_BIG_VIDEO_PENS; ++i)
-		big->video_backing->primary[i] = big->video_backing->alternate[i] = CTERM_BIG_PALETTE_FIRST;
+	(void)st_pixel_buffer_fill(big->video_backing, CTERM_BIG_PALETTE_FIRST, CTERM_BIG_PALETTE_FIRST);
 	(void)st_big_video_bind(&big->video, big->video_backing->primary, big->video_backing->alternate,
-	    ST_BIG_VIDEO_PENS);
+	    ST_BIG_VIDEO_PENS, big->video_backing->fast_blink);
 }
 
 struct st_big_video_view
@@ -58,7 +57,7 @@ cterm_big_video_view(const struct cterm_big *big, const struct st_pixel_buffer *
 	const struct st_big_mode *mode = st_big_mode((unsigned)big->state.bgi.mode + 1);
 	uint32_t reserved = big->terminal->status_display_type >= 1 && mode != NULL ? mode->cell_height : 0;
 	size_t   count    = p->height >= reserved ? (size_t)p->width * (p->height - reserved) : 0;
-	return (struct st_big_video_view) {p->primary, p->alternate, count, big->video_start};
+	return (struct st_big_video_view) {p->primary, p->alternate, count, big->video_start, p->fast_blink};
 }
 
 int
@@ -127,7 +126,13 @@ display(void *context, const struct st_pixel_buffer *p, struct st_console_rect *
 	struct cterm_big        *big     = request->big;
 	struct st_big_video_view view    = cterm_big_video_view(big, p);
 	size_t                   accepted;
-	int                      status = st_big_video_save(&big->video, &view, &accepted);
+	if (p->fast_blink && !big->video.fast_blink) {
+		int status = st_pixel_buffer_ensure_fast_blink(big->video_backing);
+		if (status != 0)
+			return status;
+		big->video.fast_blink = big->video_backing->fast_blink;
+	}
+	int status = st_big_video_save(&big->video, &view, &accepted);
 	if (status != 0)
 		return status;
 	big->video_start           = request->start;
@@ -173,7 +178,7 @@ cterm_big_page(struct cterm_big *big, bool visual, uint16_t requested)
 		if (status != 0)
 			return status;
 		struct display request = {big, page, start};
-		status = st_console_modify_pixels(big->terminal->screen.console, display, &request);
+		status = st_console_modify_pixels_from(big->terminal->screen.console, big->video_backing, display, &request);
 	}
 	else {
 		big->video_visual_page     = page;

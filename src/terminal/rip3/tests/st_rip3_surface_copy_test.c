@@ -324,9 +324,37 @@ alias_test(void)
 	return 0;
 }
 
+static int
+blink_transfers(void)
+{
+	struct st_pixel_buffer *src = NULL, *dst = NULL;
+	struct st_rip3_rect row = {0, 0, 4, 0};
+	CHECK(st_pixel_buffer_create(&src, 5, 1, true) == 0);
+	CHECK(st_pixel_buffer_create(&dst, 5, 1, true) == 0);
+	CHECK(st_pixel_buffer_ensure_fast_blink(src) == 0);
+	CHECK(st_pixel_buffer_ensure_fast_blink(dst) == 0);
+	CHECK(st_pixel_buffer_fill(src, 1, 2) == 0);
+	CHECK(st_pixel_buffer_fill(dst, 4, 8) == 0);
+	src->alternate[3] = 1;
+	dst->alternate[4] = 4;
+	/* Opposing clocks in both orders, two fast clocks, then each
+	 * blinking operand in isolation. */
+	src->fast_blink[0] = 0xa8;
+	dst->fast_blink[0] = 0x70;
+	CHECK(st_rip3_surface_copy_snapshots(dst, &row, src, &row, ST_RIP3_TRANSFER_XOR, NULL) == 0);
+	CHECK(dst->fast_blink[0] == 0x38);
+	CHECK(dst->primary[0] == 5 && dst->alternate[0] == 10);
+	CHECK(st_rip3_surface_copy_snapshots(dst, &row, src, &row, ST_RIP3_TRANSFER_COPY, NULL) == 0);
+	CHECK(dst->fast_blink[0] == 0xa8);
+	st_pixel_buffer_destroy(src);
+	st_pixel_buffer_destroy(dst);
+	return 0;
+}
+
 int
 main(void)
 {
+	CHECK(blink_transfers() == 0);
 	CHECK(copy_test() == 0);
 	CHECK(transfer_test() == 0);
 	CHECK(alias_test() == 0);

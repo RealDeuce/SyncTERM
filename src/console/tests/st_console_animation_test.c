@@ -182,6 +182,65 @@ check_deferred_images(void)
 }
 
 static void
+check_pc_blink_clock(void)
+{
+	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_config config = {
+	    .columns = 3, .rows = 1, .cell_width = 1, .cell_height = 1, .blink_mode = ST_CONSOLE_BLINK_PC,
+	};
+	static const struct {
+		unsigned ms;
+		bool slow, fast, cursor;
+	} edges[] = {
+	    {0, true, true, true}, {133, true, true, false}, {178, true, false, false},
+	    {266, false, false, true}, {355, false, true, true}, {399, false, true, false},
+	    {532, true, false, true}, {665, true, false, false}, {710, true, true, false},
+	    {798, false, true, true}, {887, false, false, true}, {931, false, false, false},
+	    {1064, true, true, true},
+	};
+	st_console_t *console = NULL;
+	struct st_console_bitmap_presenter *presenter = NULL;
+	struct st_console_bitmap_frame frame;
+	CHECK(st_console_create(&console, &display, &config) == 0);
+	CHECK(st_pixel_buffer_ensure_fast_blink(console->pixels) == 0);
+	console->pixels->primary[0] = console->pixels->primary[1] = ST_PIXEL_COLOR_RGB_TAG | 1;
+	console->pixels->alternate[0] = console->pixels->alternate[1] = ST_PIXEL_COLOR_RGB_TAG | 2;
+	console->pixels->fast_blink[0] = 0x40;
+	console->style.foreground = ST_PIXEL_COLOR_RGB_TAG | 3;
+	console->cursor_x = 2;
+	CHECK(st_console_bitmap_presenter_create(&presenter, console) == 0);
+	const struct st_rgb_buffer *cached[8] = {0};
+	unsigned edge = 0;
+	for (unsigned ms = 0; ms < 1064; ++ms) {
+		if (ms == edges[edge + 1].ms)
+			++edge;
+		CHECK(st_console_pc_animation_delay(ms, true) == edges[edge + 1].ms - ms);
+		CHECK(st_console_bitmap_presenter_frame(presenter, ms ? NULL : console, 3, 1,
+		    1000 + ms, NULL, NULL, &frame) == 0);
+		CHECK(frame.pixels->pixels[0] == (edges[edge].slow ? 1U : 2U));
+		CHECK(frame.pixels->pixels[1] == (edges[edge].fast ? 1U : 2U));
+		CHECK(frame.pixels->pixels[2] == (edges[edge].cursor ? 3U : 0U));
+		unsigned phase = edges[edge].slow * 4U + edges[edge].fast * 2U + edges[edge].cursor;
+		if (!cached[phase])
+			cached[phase] = frame.pixels;
+		CHECK(frame.pixels == cached[phase]);
+	}
+	for (unsigned i = 0; i < 8; ++i) {
+		CHECK(cached[i] != NULL);
+		for (unsigned j = 0; j < i; ++j)
+			CHECK(cached[i] != cached[j]);
+	}
+	/* Changing only the rate must invalidate the mixed-phase image. */
+	console->pixels->fast_blink[0] = 0x80;
+	console->pixel_damage = (struct st_console_rect){0, 0, 2, 1};
+	console->pixel_damage_valid = true;
+	CHECK(st_console_bitmap_presenter_frame(presenter, console, 3, 1, 2242, NULL, NULL, &frame) == 0);
+	CHECK(frame.pixels->pixels[0] == 2 && frame.pixels->pixels[1] == 1);
+	st_console_bitmap_presenter_destroy(presenter);
+	st_console_destroy(console);
+}
+
+static void
 check_identical_planes_do_not_animate(void)
 {
 	const struct st_console_display_config display = {
@@ -292,6 +351,7 @@ main(void)
 	check_mode(ST_CONSOLE_BLINK_COMMODORE, commodore, sizeof(commodore) / sizeof(commodore[0]), false);
 	check_mode(ST_CONSOLE_BLINK_ATARI, atari, sizeof(atari) / sizeof(atari[0]), false);
 	check_mode(ST_CONSOLE_BLINK_ATARI_ST, atari_st, sizeof(atari_st) / sizeof(atari_st[0]), false);
+	check_pc_blink_clock();
 	check_warm_scaled_cache();
 	check_deferred_images();
 	check_identical_planes_do_not_animate();

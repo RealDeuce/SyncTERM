@@ -528,6 +528,37 @@ def attributes(t):
     frame = t.check("SGRNoBlink", ESC + b"[5;25mX")
     assert not cell_at(frame, 0, 0).flags & 2
     assert tile(frame) == tile(frame, alternate=True)
+    frame = t.check("sgr-fast-blink", b"\x1b[?33l\x1b[5mX\x1b[6mX\x1b[25mX\x1b[6;5mX\x1b[6;0mX\x1b[6m"
+                    + ESC + b"P$qm" + ST, (6, 1), expected=ESC + b"P1$r0;6m" + ST)
+    for x, rate in enumerate((5, 6, 0, 5, 0)):
+        cell = cell_at(frame, x, 0)
+        assert bool(cell.flags & 2) == bool(rate)
+        assert bool(cell.flags & (1 << 25)) == (rate == 6)
+        start = x * frame.metadata["cell_width"]
+        for col in range(start, start + frame.metadata["cell_width"]):
+            assert bool(frame.fast_blink[col // 8] & (0x80 >> (col % 8))) == (rate == 6)
+        visible, hidden = tile(frame, x+1), tile(frame, x+1, alternate=True)
+        assert set(visible) == {cell.foreground, cell.background}
+        assert hidden == ((cell.background,) * len(visible) if rate else visible)
+    # Inspect both cells in each composed frame, with the presenter clock frozen.
+    for elapsed, visible in ((0, (True, True)), (178, (True, False)),
+                             (266, (False, False)), (355, (False, True))):
+        t.client.presentation_time(1000 + elapsed)
+        phase = t.client.capture()
+        m = phase.metadata
+        width = m["destination_width"] * m["cell_width"] // m["plane_width"]
+        height = m["destination_height"] * m["cell_height"] // m["plane_height"]
+        for x in range(2):
+            pixels = [phase.rgb[(m["destination_y"] + y) * m["output_width"]
+                                + m["destination_x"] + x * width + col]
+                      for y in range(height) for col in range(width)]
+            assert any(pixels) == visible[x], (elapsed, x, set(pixels))
+    t.client.presentation_time()
+    t.check("sgr-fast-blink", b"\x1b[?33l\x1bF\x1b[5mA\x1b[6mB\x1b[5mC\x1bS",
+            expected=ESC + b"XCTerm:STS:0:\x1b[5mA\x1b[6mB\x1b[5mC" + ST)
+    frame = t.check("sgr-fast-blink", b"ABCD\x1b[1;1;1;3;6$r\x1b[1;2;1;2;5$r\x1b[1;3;1;3;25$r")
+    assert [cell_at(frame, x, 0).flags & (2 | (1 << 25)) for x in range(4)] == [
+        2 | (1 << 25), 2, 0, 0]
     for name, seq in (("DECCARA", b"$r"), ("DECRARA", b"$t")):
         frame = t.check(name, b"ABCDE" + ESC + b"[1;2;1;4;1" + seq, lines=((1, 1, "ABCDE"),))
         assert [colour(frame, cell_at(frame, x, 0)) for x in range(5)] == [0xa8a8a8, 0xffffff, 0xffffff, 0xffffff, 0xa8a8a8]

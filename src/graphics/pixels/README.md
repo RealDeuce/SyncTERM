@@ -20,6 +20,14 @@ created by this library are nonempty, contiguous, row-major allocations.
 primary plane.  The matching removal and buffer-destruction functions keep
 allocation and deallocation on the same component boundary.
 
+A buffer with an alternate plane can also carry a packed blink-rate mask,
+one bit per pixel, MSB first and contiguous across rows. A set bit selects
+fast blink. A missing mask selects slow blink throughout. Removing the
+alternate plane releases the mask. Copies, moves, and scaled or masked blits
+carry each selected pixel's rate along with its colours. A binary raster
+operation with one blinking input follows that input. When both inputs blink
+at different rates, the result uses slow blink.
+
 Masks are contiguous row-major bit arrays.  The first pixel is the high bit of
 the first byte.  Blits use nearest-neighbour integer scaling, independently
 clip against the destination, support horizontal and vertical reflection, and

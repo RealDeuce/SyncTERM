@@ -63,10 +63,13 @@ main(void)
 	image->primary[2]   = 3;
 	image->primary[3]   = 4;
 	image->alternate[0] = 5;
+	CHECK(st_pixel_buffer_ensure_fast_blink(image) == 0);
+	image->fast_blink[0] = 0x80;
 	CHECK(st_history_resize_pixels(&scaled, image, 2, 3, 4, 4) == 0);
 	CHECK(scaled->width == 12 && scaled->height == 4);
 	CHECK(scaled->primary[0] == 1 && scaled->primary[1] == 1 && scaled->primary[2] == 2);
 	CHECK(scaled->primary[4] == 3 && scaled->primary[6] == 4);
+	CHECK(scaled->fast_blink && scaled->fast_blink[0] == 0xc0 && scaled->fast_blink[1] == 0x0c);
 	CHECK(scaled->primary[8] == ST_PIXEL_COLOR_RGB_TAG && scaled->alternate[0] == 5);
 	st_pixel_buffer_destroy(scaled);
 	scaled = NULL;

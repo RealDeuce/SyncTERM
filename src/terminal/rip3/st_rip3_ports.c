@@ -818,7 +818,7 @@ store_pixels(struct st_rip3_ports *ports, struct st_rip3_surface *surface, const
 static void
 scroll_corner(const struct st_rip3_ports *ports, const struct st_rip3_surface *surface,
     const struct st_rip3_rect *bounds, bool screen, const struct st_rip3_surface_blit_area *source, bool down,
-    uint32_t color[2])
+    uint32_t color[2], bool *fast)
 {
 	int64_t x = down ? source->x0 : source->x1;
 	int64_t y = down ? source->y0 : source->y1;
@@ -830,12 +830,14 @@ scroll_corner(const struct st_rip3_ports *ports, const struct st_rip3_surface *s
 	uint32_t alternate = primary;
 	if (screen && ports->screen_reader != NULL) {
 		const struct st_rip3_rect point  = {(int32_t)x, (int32_t)y, (int32_t)x, (int32_t)y};
+		uint8_t rate = 0;
 		struct st_pixel_buffer    sample = {.width = 1,
 		    .height                                = 1,
 		    .primary                               = &primary,
-		    .alternate                             = &alternate};
+		    .alternate                             = &alternate, .fast_blink = &rate};
 		if (ports->screen_reader(ports->screen_reader_context, &point, &sample) != 0)
 			return;
+		*fast = st_pixel_bit(&rate, 0);
 	}
 	color[0] = primary;
 	color[1] = alternate;
@@ -843,11 +845,13 @@ scroll_corner(const struct st_rip3_ports *ports, const struct st_rip3_surface *s
 
 static int
 blit_fill(struct blit_patch *patch, const struct st_rip3_surface_blit_fill *fill, const uint32_t ink[2],
-    bool alternate)
+    bool alternate, bool fast)
 {
 	const struct st_rip3_rect *a     = &patch->area;
 	uint32_t                   width = (uint32_t)(a->x1 - a->x0) + 1, height = (uint32_t)(a->y1 - a->y0) + 1;
 	int                        status = st_pixel_buffer_create(&patch->pixels, width, height, alternate);
+	if (status == 0 && alternate && fast)
+		status = st_pixel_buffer_ensure_fast_blink(patch->pixels);
 	if (status != 0)
 		return status;
 	for (uint32_t y = 0; y < height; y++)
@@ -858,6 +862,8 @@ blit_fill(struct blit_patch *patch, const struct st_rip3_surface_blit_fill *fill
 			    && (fill->pattern[((uint32_t)a->y0 + y) & 7] & (0x80u >> (((uint32_t)a->x0 + x) & 7)))
 			           == 0;
 			patch->pixels->primary[at] = background ? fill->background : ink[0];
+			if (patch->pixels->fast_blink)
+				st_pixel_set_bit(patch->pixels->fast_blink, at, !background);
 			if (alternate)
 				patch->pixels->alternate[at] = background ? fill->background : ink[1];
 		}
@@ -940,10 +946,11 @@ st_rip3_ports_blit_surface(struct st_rip3_ports *ports, const struct st_rip3_sur
 	}
 	if (status == 0 && count > copies) {
 		uint32_t ink[2] = {fill->ink, fill->ink};
+		bool fast = false;
 		if (fill->mode == ST_RIP3_BLIT_SCROLL_CORNER)
-			scroll_corner(ports, surface, &bounds, screen, source, dy > 0, ink);
+			scroll_corner(ports, surface, &bounds, screen, source, dy > 0, ink, &fast);
 		for (size_t i = copies; status == 0 && i < count; i++)
-			status = blit_fill(&patches[i], fill, ink, screen && ports->screen_writer != NULL);
+			status = blit_fill(&patches[i], fill, ink, screen && ports->screen_writer != NULL, fast);
 	}
 	/* All source reads and scratch allocations finish before the first
 	 * write, including a corner that will itself be replaced. */

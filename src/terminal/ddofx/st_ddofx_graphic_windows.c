@@ -157,7 +157,7 @@ paint_controls(const struct st_ddofx_graphic_window *w, const struct bounds *dam
 				else if ((unsigned)(x - left) < 5 && (unsigned)(y - top) < 5
 				    && (glyph[y - top] & (16 >> (x - left))))
 					colour = 0;
-				p->primary[y * WIDTH + x] = p->alternate[y * WIDTH + x] = colour;
+				st_pixel_buffer_set_solid(p, y * WIDTH + x, colour);
 			}
 	}
 }
@@ -189,7 +189,7 @@ paint_windows(void *context, const struct st_pixel_buffer *pixels, struct st_con
 				if (x >= view.left && x <= view.right && y >= view.top && y <= view.bottom)
 					colour =
 					    w->visual[(w->y + y - view.top) * w->width + w->x + x - view.left];
-				pixels->primary[y * WIDTH + x] = pixels->alternate[y * WIDTH + x] = colour;
+				st_pixel_buffer_set_solid(pixels, y * WIDTH + x, colour);
 			}
 		struct bounds  title = {w->frame.left + 2, w->frame.right - (w->icon && !w->no_icon ? 54 : 42), w->frame.top, view.top - 1};
 		const uint8_t *font  = st_ddofx_vga_bitmap(ddo);
@@ -213,7 +213,7 @@ paint(void *context, const struct st_pixel_buffer *pixels, struct st_console_rec
 		return -1;
 	for (int y = b.top; y <= b.bottom; ++y)
 		for (int x = b.left; x <= b.right; ++x)
-			pixels->primary[y * WIDTH + x] = pixels->alternate[y * WIDTH + x] = g->page[HIDDEN][y][x];
+			st_pixel_buffer_set_solid(pixels, y * WIDTH + x, g->page[HIDDEN][y][x]);
 
 	if (r->text)
 		st_ddofx_composite_desktop_text(r->ddo, r->text, pixels, b);
@@ -231,7 +231,7 @@ paint_with_text(void *context, const struct st_pixel_buffer *text, struct st_con
 	struct repaint *r = context;
 	(void)changed;
 	r->text = text;
-	return st_console_modify_pixels(r->ddo->graphics->display, paint, r);
+	return st_console_modify_pixels_from(r->ddo->graphics->display, text, paint, r);
 }
 
 static void
@@ -303,7 +303,7 @@ copy_region(void *context, const struct st_pixel_buffer *pixels, struct bounds b
 		for (int y = b.top; y <= b.bottom; ++y) {
 			const uint8_t *src = source + (y - r->dy) * stride + (b.left - r->dx);
 			for (int x = b.left; x <= b.right; ++x)
-				pixels->primary[y * WIDTH + x] = pixels->alternate[y * WIDTH + x] = *src++;
+				st_pixel_buffer_set_solid(pixels, y * WIDTH + x, *src++);
 		}
 	}
 	if (!r->owner) {
@@ -383,7 +383,7 @@ paint_visible_area(void *context, const struct st_pixel_buffer *pixels, struct s
 
 void
 st_ddofx_draw_text_control(struct st_ddofx *ddo, unsigned owner, bool work, struct bounds area,
-    st_ddofx_region_painter *painter, void *context)
+    const struct st_pixel_buffer *source, st_ddofx_region_painter *painter, void *context)
 {
 	struct st_ddofx_graphic_window *w = &ddo->graphics->graphic_windows[owner];
 	if ((owner && !w->visual) || area.left > area.right || area.top > area.bottom)
@@ -392,7 +392,7 @@ st_ddofx_draw_text_control(struct st_ddofx *ddo, unsigned owner, bool work, stru
 		painter(context, NULL, area);
 	if (owner ? !w->hidden : !work) {
 		struct visual_update control = {ddo, owner, area, painter, context};
-		(void)st_console_modify_pixels(ddo->graphics->display, paint_visible_area, &control);
+		(void)st_console_modify_pixels_from(ddo->graphics->display, source, paint_visible_area, &control);
 	}
 }
 

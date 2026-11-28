@@ -92,6 +92,8 @@ st_rip3_wallpaper(struct st_rip3_ports *ports, const struct st_rip3_bitmap_desti
 		    .height                           = rows,
 		    .primary                          = pixels,
 		    .alternate                        = planes == 2 ? pixels + (size_t)width * rows : NULL};
+		if (tile->fast_blink)
+			status = st_pixel_buffer_ensure_fast_blink(&band);
 		for (uint32_t offset = 0; status == 0 && offset < height; offset += rows) {
 			int32_t y = info.clip.y0 + (int32_t)offset;
 			if (mask != NULL)
@@ -107,6 +109,11 @@ st_rip3_wallpaper(struct st_rip3_ports *ports, const struct st_rip3_bitmap_desti
 				if (sy < rectangle.y0 || sy > rectangle.y1)
 					continue;
 				size_t from = (size_t)(sy - rectangle.y0) * tile->width;
+				if (mask == NULL && band.fast_blink) {
+					for (uint32_t x = 0; x < width; ++x)
+						st_pixel_set_bit(band.fast_blink, to + x,
+						    st_pixel_bit(tile->fast_blink, from + ((uint64_t)sx + x) % period_x));
+				}
 				if (mask == NULL) {
 					tile_row(band.primary + to, width, tile->primary + from, period_x, sx);
 					if (band.alternate != NULL)
@@ -124,6 +131,8 @@ st_rip3_wallpaper(struct st_rip3_ports *ports, const struct st_rip3_bitmap_desti
 							continue;
 						size_t at            = from + (size_t)(sample - rectangle.x0);
 						band.primary[to + x] = tile->primary[at];
+						if (band.fast_blink)
+							st_pixel_set_bit(band.fast_blink, to + x, st_pixel_bit(tile->fast_blink, at));
 						if (band.alternate != NULL)
 							band.alternate[to + x] = tile->alternate[at];
 						(void)st_pixel_mask_set(mask, x, row, true);
@@ -133,6 +142,7 @@ st_rip3_wallpaper(struct st_rip3_ports *ports, const struct st_rip3_bitmap_desti
 			status = st_rip3_ports_write_viewport_pixels(ports, current, info.clip.x0, y, &band, mask,
 			    palette);
 		}
+		free(band.fast_blink);
 	}
 	st_pixel_mask_destroy(mask);
 	free(pixels);

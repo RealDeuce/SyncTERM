@@ -169,7 +169,7 @@ draw(struct st_ddofx *ddo, const struct list_box *box, bool work)
 	if (im.font) {
 		struct bounds area =
 		    st_ddofx_text_bounds(g, owner, box->x, box->bottom, box->columns, box->rows, 0);
-		st_ddofx_draw_text_control(ddo, owner, work, area, paint, &im);
+		st_ddofx_draw_text_control(ddo, owner, work, area, NULL, paint, &im);
 	}
 }
 

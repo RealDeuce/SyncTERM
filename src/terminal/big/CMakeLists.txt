@@ -3,7 +3,7 @@ add_library(st_big STATIC st_big_number.c st_big_random.c st_big_loop.c st_big_n
 	st_big_console.c st_big_clear.c st_big_speaker.c st_big_effect.c st_big_music.c
 	st_big_polygon.c st_big_curve.c st_big_profile.c st_big_state.c st_big_palette.c st_big_control.c st_big_stream.c st_big_draw.c st_big_spray.c st_big_text.c st_big_bitmap.c st_big_font.c st_big_collect.c st_big_fill.c st_big_flood.c st_big_video.c st_big_image.c)
 target_include_directories(st_big PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(st_big PUBLIC syncterm_io_error st_graphics_protocol PRIVATE st_time st_fonts st_bgi)
+target_link_libraries(st_big PUBLIC syncterm_io_error st_graphics_protocol PRIVATE st_time st_fonts st_bgi st_pixels)
 set_target_properties(st_big PROPERTIES
 	C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 if(MSVC)

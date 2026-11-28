@@ -109,6 +109,7 @@ class Snapshot:
         # from this same transaction and decode the tuple on first access.
         self._cell_data, self._cells = bytes(sections[2]), None
         self.palette, self.primary, self.alternate, self.rgb = (words(sections[i]) for i in (3, 4, 5, 6))
+        self.fast_blink = sections.get(10)
         glyphs = Reader(sections[7])
         self.glyphs = {}
         for _ in range(glyphs.u32()):
@@ -122,6 +123,7 @@ class Snapshot:
         if (len(self._cell_data) != m["columns"] * m["rows"] * struct.calcsize("<IIIIHHHH") or len(self.palette) != 65536
                 or len(self.primary) != m["plane_width"] * m["plane_height"]
                 or len(self.alternate) != len(self.primary)
+                or (self.fast_blink is not None and len(self.fast_blink) != (len(self.primary) + 7) // 8)
                 or len(self.rgb) != m["output_width"] * m["output_height"]):
             raise ProtocolError("Snapshot dimensions disagree with its buffers")
 

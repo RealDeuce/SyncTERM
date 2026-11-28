@@ -38,100 +38,59 @@ st_console_pixel_position_locked(const st_console_t *console, uint32_t x, uint32
 	return (size_t)physical_y * console->pixels->width + x;
 }
 
-void
-st_console_copy_pixels_locked(const st_console_t *console, uint32_t *destination, uint32_t destination_stride,
-    bool alternate, const struct st_console_rect *rectangle)
+/* The caller provides a zero-initialized region, including clipped view margins. */
+int
+st_console_copy_pixels_locked(const st_console_t *console, struct st_pixel_buffer *destination,
+    const struct st_console_rect *rectangle)
 {
-	const uint32_t *plane = alternate && console->pixels->alternate != NULL ? console->pixels->alternate
-	                                                                        : console->pixels->primary;
-	if (console->raster_parent != NULL) {
-		struct st_console_rect v     = st_console_visible_pixels(console);
-		uint32_t               left  = rectangle->x > v.x ? rectangle->x : v.x;
-		uint32_t               right = rectangle->x + rectangle->width;
-		if (right > v.x + v.width)
-			right = v.x + v.width;
-		for (uint32_t y = 0; y < rectangle->height; y++) {
-			uint32_t *row = destination + (size_t)y * destination_stride;
-			memset(row, 0, rectangle->width * sizeof(*row));
-			uint32_t sy = rectangle->y + y;
-			if (sy - v.y < v.height && left < right)
-				memcpy(row + (left - rectangle->x),
-				    plane + st_console_pixel_position_locked(console, left, sy),
-				    (right - left) * sizeof(*row));
-		}
-		return;
+	const struct st_console_rect visible = st_console_visible_pixels(console);
+	uint32_t left = rectangle->x > visible.x ? rectangle->x : visible.x;
+	uint32_t right = rectangle->x + rectangle->width;
+	if (right > visible.x + visible.width)
+		right = visible.x + visible.width;
+	if (console->pixels->fast_blink) {
+		int status = st_pixel_buffer_ensure_fast_blink(destination);
+		if (status != 0)
+			return status;
 	}
-	uint32_t text_width  = console->columns * console->cell_width;
-	uint32_t text_height = console->rows * console->cell_height;
-
 	for (uint32_t y = 0; y < rectangle->height; ++y) {
-		uint32_t logical_y = rectangle->y + y;
-		if (console->full_surface_scroll) {
-			size_t from = st_console_pixel_position_locked(console, rectangle->x, logical_y);
-
-			memcpy(&destination[(size_t)y * destination_stride], &plane[from],
-			    (size_t)rectangle->width * sizeof(plane[0]));
+		uint32_t sy = rectangle->y + y;
+		if (sy - visible.y >= visible.height)
 			continue;
-		}
-		uint32_t text_part = rectangle->x < text_width && logical_y < text_height
-		                         ? rectangle->width < text_width - rectangle->x ? rectangle->width
-		                                                                        : text_width - rectangle->x
-		                         : 0;
-		size_t   to        = (size_t)y * destination_stride;
-
-		if (text_part != 0) {
-			size_t from = st_console_pixel_position_locked(console, rectangle->x, logical_y);
-
-			memcpy(&destination[to], &plane[from], (size_t)text_part * sizeof(plane[0]));
-		}
-		if (text_part < rectangle->width) {
-			size_t from = (size_t)logical_y * console->pixels->width + rectangle->x + text_part;
-
-			memcpy(&destination[to + text_part], &plane[from],
-			    (size_t)(rectangle->width - text_part) * sizeof(plane[0]));
+		for (uint32_t x = left; x < right;) {
+			/* A fixed right margin sits outside the scrolling text ring. */
+			uint32_t text_width = console->columns * console->cell_width;
+			uint32_t end = x < text_width && text_width < right ? text_width : right;
+			size_t from = st_console_pixel_position_locked(console, x, sy);
+			size_t to = (size_t)y * destination->width + x - rectangle->x;
+			st_pixel_buffer_copy_span(destination, to, console->pixels, from, end - x);
+			x = end;
 		}
 	}
+	return 0;
 }
 
 int
 st_console_normalize_raster_locked(st_console_t *console)
 {
-	uint32_t  width;
-	uint32_t  height;
-	size_t    count;
-	uint32_t *primary;
-	uint32_t *alternate;
-
 	if (console->pixels == NULL || console->pixel_top == 0 || console->raster_parent != NULL)
 		return 0;
-	width     = console->full_surface_scroll ? console->pixels->width : console->columns * console->cell_width;
-	height    = console->full_surface_scroll ? console->pixels->height : console->rows * console->cell_height;
-	count     = (size_t)width * height;
-	primary   = malloc(count * sizeof(primary[0]));
-	alternate = malloc(count * sizeof(alternate[0]));
-	if (primary == NULL || alternate == NULL) {
-		free(alternate);
-		free(primary);
-		return IO_ERROR_OUT_OF_MEMORY;
+	uint32_t width = console->full_surface_scroll ? console->pixels->width : console->columns * console->cell_width;
+	uint32_t height = console->full_surface_scroll ? console->pixels->height : console->rows * console->cell_height;
+	struct st_pixel_buffer *copy;
+	int status = st_pixel_buffer_create(&copy, width, height, true);
+	if (status != 0)
+		return status;
+	const struct st_console_rect area = {0, 0, width, height};
+	status = st_console_copy_pixels_locked(console, copy, &area);
+	if (status == 0) {
+		console->pixel_top = 0;
+		for (uint32_t y = 0; y < height; ++y)
+			st_pixel_buffer_copy_span(console->pixels, (size_t)y * console->pixels->width,
+			    copy, (size_t)y * width, width);
 	}
-	for (uint32_t y = 0; y < height; ++y) {
-		size_t from = st_console_pixel_position_locked(console, 0, y);
-		size_t to   = (size_t)y * width;
-
-		memcpy(&primary[to], &console->pixels->primary[from], (size_t)width * sizeof(primary[0]));
-		memcpy(&alternate[to], &console->pixels->alternate[from], (size_t)width * sizeof(alternate[0]));
-	}
-	console->pixel_top = 0;
-	for (uint32_t y = 0; y < height; ++y) {
-		size_t from = (size_t)y * width;
-		size_t to   = (size_t)y * console->pixels->width;
-
-		memcpy(&console->pixels->primary[to], &primary[from], (size_t)width * sizeof(primary[0]));
-		memcpy(&console->pixels->alternate[to], &alternate[from], (size_t)width * sizeof(alternate[0]));
-	}
-	free(alternate);
-	free(primary);
-	return 0;
+	st_pixel_buffer_destroy(copy);
+	return status;
 }
 
 int
@@ -277,6 +236,9 @@ render_fast_cells(st_console_t *console, uint32_t x, uint32_t y, size_t count, s
 			uint8_t bits  = state->hidden ? 0 : state->glyph[(size_t)py * state->row_stride];
 			bool    blink = (state->flags & ST_CONSOLE_CELL_BLINK) != 0;
 
+			if (console->pixels->fast_blink)
+				st_pixel_fill_bits(console->pixels->fast_blink, pixel, 8,
+				    (state->flags & ST_CONSOLE_CELL_FAST_BLINK) != 0);
 			if ((state->flags & ST_CONSOLE_CELL_BOLD) != 0)
 				bits |= bits >> 1;
 			if (!state->hidden && last && state->hyperlink)
@@ -467,6 +429,14 @@ render_cell_pixels(st_console_t *console, struct st_pixel_buffer *pixels, const 
 
 	st_console_effective_cell_locked(console, source, &effective);
 	source      = &effective;
+	if (pixels->fast_blink) {
+		for (uint32_t py = 0; py < draw_height; ++py) {
+			size_t at = render_pixel_position(console, pixels, x * console->cell_width,
+			    y * console->cell_height + py);
+			st_pixel_fill_bits(pixels->fast_blink, at, draw_width,
+			    (source->flags & ST_CONSOLE_CELL_FAST_BLINK) != 0);
+		}
+	}
 	glyph_font  = st_console_cell_glyph_font(source);
 	glyph_index = source->glyph;
 	font        = draw_glyph ? cached_font(console, font_cache, glyph_font, &glyph_index) : NULL;
@@ -732,6 +702,13 @@ st_console_write_status_row(st_console_t *console, const struct st_console_cell 
 			console->status_pixels = row;
 		}
 	}
+	if (status == 0 && !row->fast_blink) {
+		for (size_t x = 0; x < count; ++x)
+			if (cells[x].flags & ST_CONSOLE_CELL_FAST_BLINK) {
+				status = st_pixel_buffer_ensure_fast_blink(row);
+				break;
+			}
+	}
 	if (status == 0) {
 		struct font_cache cache = {0};
 		if (console->aspect_width != 0)
@@ -830,13 +807,20 @@ st_console_rasterize_locked(st_console_t *console, bool force)
 				++x;
 				continue;
 			}
+			uint32_t flags = cell->flags;
 			end = x + 1;
 			while (end < console->columns) {
 				cell = &cells[end];
 				if (!force && !row_changed && (drawn[end].flags & ST_CONSOLE_RASTER_INVALID) == 0
 				    && st_console_cells_equal(cell, &drawn[end]))
 					break;
+				flags |= cell->flags;
 				++end;
+			}
+			if ((flags & ST_CONSOLE_CELL_FAST_BLINK) && !console->pixels->fast_blink) {
+				int status = st_pixel_buffer_ensure_fast_blink(console->pixels);
+				if (status != 0)
+					return status;
 			}
 			uint32_t first = x;
 			while (x < end) {
@@ -884,8 +868,7 @@ copy_pixel_row_locked(st_console_t *console, uint32_t from, uint32_t to, size_t 
 	size_t source = st_console_pixel_position_locked(console, 0, from);
 	size_t target = st_console_pixel_position_locked(console, 0, to);
 
-	memmove(console->pixels->primary + target, console->pixels->primary + source, bytes);
-	memmove(console->pixels->alternate + target, console->pixels->alternate + source, bytes);
+	st_pixel_buffer_copy_span(console->pixels, target, console->pixels, source, bytes / sizeof(uint32_t));
 }
 
 static void
@@ -962,9 +945,7 @@ move_raster_locked(st_console_t *console, const struct st_console_rect *source, 
 					continue;
 				size_t from  = st_console_pixel_position_locked(console, sx + first, from_y);
 				size_t to    = st_console_pixel_position_locked(console, dx + first, to_y);
-				size_t bytes = (size_t)(end - first) * sizeof(*console->pixels->primary);
-				memmove(console->pixels->primary + to, console->pixels->primary + from, bytes);
-				memmove(console->pixels->alternate + to, console->pixels->alternate + from, bytes);
+				st_pixel_buffer_copy_span(console->pixels, to, console->pixels, from, end - first);
 			}
 		}
 		uint32_t sy = source->y * console->cell_height, dy = destination_y * console->cell_height;
@@ -1048,10 +1029,8 @@ move_raster_locked(st_console_t *console, const struct st_console_rect *source, 
 			size_t target_pixel = st_console_pixel_position_locked(console,
 			    destination_x * console->cell_width, target_y * console->cell_height + py);
 
-			memmove(&console->pixels->primary[target_pixel], &console->pixels->primary[source_pixel],
-			    pixel_bytes);
-			memmove(&console->pixels->alternate[target_pixel],
-			    &console->pixels->alternate[source_pixel], pixel_bytes);
+			st_pixel_buffer_copy_span(console->pixels, target_pixel, console->pixels, source_pixel,
+			    pixel_bytes / sizeof(uint32_t));
 		}
 	}
 }
@@ -1203,8 +1182,7 @@ st_console_view_pixels_written_locked(st_console_t *console, uint32_t x, uint32_
 			              == first + (size_t)area.height * stride)
 				++area.height;
 			console->view_output(console->view_output_context, console, area,
-			    parent->pixels->primary + first, parent->pixels->alternate + first, stride,
-			    console->palette);
+			    parent->pixels, first, console->palette);
 			area.y += area.height;
 		}
 	}
@@ -1251,9 +1229,8 @@ st_console_set_pixel(st_console_t *console, uint32_t x, uint32_t y, uint32_t col
 		}
 		status = console->raster_current ? 0 : st_console_rasterize_locked(console, false);
 		if (status == 0) {
-			position                             = st_console_pixel_position_locked(console, x, y);
-			console->pixels->primary[position]   = st_console_raster_colour(console, colour);
-			console->pixels->alternate[position] = st_console_raster_colour(console, colour);
+			position = st_console_pixel_position_locked(console, x, y);
+			st_pixel_buffer_set_solid(console->pixels, position, st_console_raster_colour(console, colour));
 			mark_pixel_cells(console, x, y, (int64_t)x + 1, (int64_t)y + 1);
 			status = st_console_finish_change_locked(console);
 		}
@@ -1335,6 +1312,8 @@ restore_pixel_region(st_console_t *console, const struct st_pixel_buffer *source
 			right = console->pixels->width;
 		if (bottom > console->pixels->height)
 			bottom = console->pixels->height;
+		if (status == 0 && source->fast_blink)
+			status = st_pixel_buffer_ensure_fast_blink(console->pixels);
 		if (status == 0 && right > x && bottom > y) {
 			uint32_t text_width = console->columns * console->cell_width;
 			for (uint32_t row = y; row < bottom; row++) {
@@ -1363,12 +1342,7 @@ restore_pixel_region(st_console_t *console, const struct st_pixel_buffer *source
 					}
 					size_t to    = st_console_pixel_position_locked(console, left, row);
 					size_t from  = (size_t)(row - y) * source->width + left - x;
-					size_t bytes = (size_t)(end - left) * sizeof(*source->primary);
-					memcpy(console->pixels->primary + to, source->primary + from, bytes);
-					memcpy(console->pixels->alternate + to,
-					    (source->alternate != NULL ? source->alternate : source->primary)
-					        + from,
-					    bytes);
+					st_pixel_buffer_copy_span(console->pixels, to, source, from, end - left);
 					left = end;
 				}
 			}
@@ -1407,7 +1381,7 @@ st_console_raster_view_restore_transient(st_console_t *console, const struct st_
 }
 
 static int
-modify_pixels(st_console_t *console,
+modify_pixels(st_console_t *console, const struct st_pixel_buffer *source,
     int   (*edit)(void *context, const struct st_pixel_buffer *pixels, struct st_console_rect *changed),
     int   (*edit_with_palette)(void *context, const struct st_pixel_buffer *pixels, const uint32_t *palette,
 	struct st_console_rect *changed),
@@ -1429,6 +1403,8 @@ modify_pixels(st_console_t *console,
 		status = console->raster_current ? 0 : st_console_rasterize_locked(console, false);
 		if (status == 0)
 			status = st_console_normalize_raster_locked(console);
+		if (status == 0 && source && source->fast_blink)
+			status = st_pixel_buffer_ensure_fast_blink(console->pixels);
 		if (status == 0) {
 			struct st_console_rect changed = {0};
 
@@ -1449,17 +1425,24 @@ modify_pixels(st_console_t *console,
 }
 
 int
+st_console_modify_pixels_from(st_console_t *console, const struct st_pixel_buffer *source,
+    int (*edit)(void *, const struct st_pixel_buffer *, struct st_console_rect *), void *context)
+{
+	return modify_pixels(console, source, edit, NULL, context);
+}
+
+int
 st_console_modify_pixels(st_console_t *console,
     int (*edit)(void *, const struct st_pixel_buffer *, struct st_console_rect *), void *context)
 {
-	return modify_pixels(console, edit, NULL, context);
+	return modify_pixels(console, NULL, edit, NULL, context);
 }
 
 int
 st_console_modify_pixels_with_palette(st_console_t *console,
     int (*edit)(void *, const struct st_pixel_buffer *, const uint32_t *, struct st_console_rect *), void *context)
 {
-	return modify_pixels(console, NULL, edit, context);
+	return modify_pixels(console, NULL, NULL, edit, context);
 }
 
 int
@@ -1487,10 +1470,8 @@ st_console_get_pixels(struct st_pixel_buffer **result, st_console_t *console, co
 		}
 		if (status == 0)
 			status = st_pixel_buffer_create(&copy, source->width, source->height, true);
-		if (status == 0) {
-			st_console_copy_pixels_locked(console, copy->primary, copy->width, false, source);
-			st_console_copy_pixels_locked(console, copy->alternate, copy->width, true, source);
-		}
+		if (status == 0)
+			status = st_console_copy_pixels_locked(console, copy, source);
 	}
 	(void)st_rwlock_unlock(st_console_state_lock(console));
 	if (status != 0) {
@@ -1539,6 +1520,8 @@ blit_view_locked(st_console_t *console, const struct st_pixel_buffer *source, co
 			}
 			size_t from = (size_t)(blit->source_y + sy) * source->width + blit->source_x + sx;
 			size_t to   = st_console_pixel_position_locked(console, (uint32_t)x, (uint32_t)y);
+			if (console->pixels->fast_blink)
+				st_pixel_set_bit(console->pixels->fast_blink, to, st_pixel_bit(source->fast_blink, from));
 			console->pixels->primary[to]   = st_console_raster_colour(console, source->primary[from]);
 			console->pixels->alternate[to] = st_console_raster_colour(console,
 			    source->alternate == NULL ? source->primary[from] : source->alternate[from]);

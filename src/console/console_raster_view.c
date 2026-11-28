@@ -50,7 +50,9 @@ st_console_create_clipped_raster_view(st_console_t **result, st_console_t *paren
 	else {
 		if (parent->pixels == NULL || parent->pixels->alternate == NULL)
 			status = IO_ERROR_NOT_SUPPORTED;
-		else {
+		/* Views borrow all three arrays and use the parent's physical pixel offsets. */
+		else if ((status = st_pixel_buffer_ensure_fast_blink(parent->pixels)) == 0) {
+			pixels->fast_blink     = parent->pixels->fast_blink;
 			pixels->width          = columns * cell_width;
 			pixels->height         = rows * cell_height;
 			pixels->primary        = parent->pixels->primary;

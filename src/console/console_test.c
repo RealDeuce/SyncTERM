@@ -450,8 +450,9 @@ st_console_test_capture(st_console_display_t *display, struct st_console_test_ca
 	if (status != 0)
 		goto finished;
 	struct st_console_rect all = {0, 0, console->pixels->width, console->pixels->height};
-	st_console_copy_pixels_locked(console, capture->planes->primary, all.width, false, &all);
-	st_console_copy_pixels_locked(console, capture->planes->alternate, all.width, true, &all);
+	status = st_console_copy_pixels_locked(console, capture->planes, &all);
+	if (status != 0)
+		goto finished;
 	status = st_rgb_buffer_create(&capture->rgb, state->width, state->height);
 	if (status != 0)
 		goto finished;

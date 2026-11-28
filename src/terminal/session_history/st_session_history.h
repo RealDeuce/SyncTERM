@@ -22,6 +22,7 @@ typedef struct st_session_history st_session_history_t;
  * A text-only row returns NULL. All outputs are unchanged on failure. */
 int  st_history_capture_pixels(struct st_pixel_buffer **result, st_console_t *console,
     const struct st_console_cell *cells, uint32_t columns, const struct st_console_rect *pixels);
+void st_history_compact_pixels(struct st_pixel_buffer *pixels);
 void st_history_free_pixels(struct st_pixel_buffer **pixels, size_t lines);
 /* Regrid a row by nearest-neighbour sampling within its original columns;
  * added columns are black. Source is borrowed; result is owned. */

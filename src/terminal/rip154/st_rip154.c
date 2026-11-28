@@ -98,6 +98,8 @@ rip_text_mode(st_cterm_t *terminal, struct st_console_config *mode)
 	uint32_t chrome_top    = (old_height - chrome_rows) * old_cell_height;
 	uint32_t chrome_bottom = old_height * old_cell_height;
 	for (uint32_t y = chrome_top; y < chrome_bottom && y < saved->height; y++) {
+		if (saved->fast_blink)
+			st_pixel_fill_bits(saved->fast_blink, (size_t)y * saved->width, saved->width, false);
 		memset(saved->primary + (size_t)y * saved->width, 0, saved->width * sizeof(saved->primary[0]));
 		memset(saved->alternate + (size_t)y * saved->width, 0, saved->width * sizeof(saved->alternate[0]));
 	}

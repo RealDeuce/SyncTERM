@@ -41,7 +41,7 @@ write_index(struct image_op *im, int x, int y, uint8_t colour)
 		return;
 	}
 	size_t offset               = (size_t)y * WIDTH + x;
-	im->screen->primary[offset] = im->screen->alternate[offset] = colour;
+	st_pixel_buffer_set_solid(im->screen, offset, colour);
 	if (im->damage.left > x)
 		im->damage.left = x;
 	if (im->damage.right < x)

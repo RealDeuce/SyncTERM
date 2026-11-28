@@ -235,6 +235,11 @@ encode_capture(struct test_bytes *b, const struct st_console_test_capture *c)
 	size_t pixels = (size_t)c->planes->width * c->planes->height;
 	words(b, 4, c->planes->primary, pixels);
 	words(b, 5, c->planes->alternate, pixels);
+	if (c->planes->fast_blink) {
+		start = section(b, 10);
+		bytes(b, c->planes->fast_blink, pixels / 8 + (pixels % 8 != 0));
+		end_section(b, start);
+	}
 	words(b, 6, c->rgb->pixels, (size_t)c->rgb->width * c->rgb->height);
 	start = section(b, 7);
 	put32(b, (uint32_t)c->glyph_count);

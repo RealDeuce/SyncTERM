@@ -159,8 +159,9 @@ struct window_text_output {
 	struct st_ddofx_graphics *g;
 	unsigned                  owner;
 	struct bounds             area;
-	const uint32_t           *source, *alternate, *palette;
-	uint32_t                  stride;
+	const struct st_pixel_buffer *pixels;
+	size_t                    offset;
+	const uint32_t           *palette;
 };
 
 static void
@@ -169,13 +170,12 @@ copy_text_pixels(void *context, const struct st_pixel_buffer *pixels, struct bou
 	const struct window_text_output *output = context;
 	struct st_ddofx_graphic_window  *w      = &output->g->graphic_windows[output->owner];
 	for (int y = area.top; y <= area.bottom; ++y) {
-		size_t from = (size_t)(y - output->area.top) * output->stride + area.left - output->area.left;
-		const uint32_t *src = output->source + from;
+		size_t from = output->offset + (size_t)(y - output->area.top) * output->pixels->width
+		    + area.left - output->area.left;
+		const uint32_t *src = output->pixels->primary + from;
 		if (pixels) {
 			size_t to    = (size_t)y * WIDTH + area.left;
-			size_t bytes = (area.right - area.left + 1) * sizeof(*src);
-			memcpy(pixels->primary + to, src, bytes);
-			memcpy(pixels->alternate + to, output->alternate + from, bytes);
+			st_pixel_buffer_copy_span(pixels, to, output->pixels, from, area.right - area.left + 1);
 			continue;
 		}
 		uint8_t *dst = w->visual + (size_t)y * w->width + area.left;
@@ -189,8 +189,8 @@ copy_text_pixels(void *context, const struct st_pixel_buffer *pixels, struct bou
 }
 
 static void
-output_text(void *context, st_console_t *view, struct st_console_rect local, const uint32_t *source,
-    const uint32_t *alternate, uint32_t stride, const uint32_t *palette)
+output_text(void *context, st_console_t *view, struct st_console_rect local, const struct st_pixel_buffer *pixels,
+    size_t offset, const uint32_t *palette)
 {
 	struct st_ddofx          *ddo = context;
 	struct st_ddofx_graphics *g   = ddo->graphics;
@@ -203,11 +203,11 @@ output_text(void *context, st_console_t *view, struct st_console_rect local, con
 		int                                   x = (int)local.x + (p->owner ? p->x : 0);
 		int                                   y = (int)local.y + (p->owner ? p->y : 0);
 		struct bounds             area   = {x, x + (int)local.width - 1, y, y + (int)local.height - 1};
-		struct window_text_output output = {g, p->owner, area, source, alternate, palette, stride};
+		struct window_text_output output = {g, p->owner, area, pixels, offset, palette};
 		struct bounds             limits = {0, (p->owner ? w->width : WIDTH) - 1, 0,
 		    (p->owner ? w->height : HEIGHT) - 1};
 		if (!p->hidden && st_ddofx_intersect_bounds(&area, &limits))
-			st_ddofx_draw_text_control(ddo, p->owner, false, area, copy_text_pixels, &output);
+			st_ddofx_draw_text_control(ddo, p->owner, false, area, pixels, copy_text_pixels, &output);
 		break;
 	}
 }
@@ -230,7 +230,7 @@ restore_page(void *context, const struct st_pixel_buffer *pixels, struct bounds 
 		else {
 			for (int x = area.left; x <= area.right; ++x) {
 				size_t i           = (size_t)y * WIDTH + x;
-				pixels->primary[i] = pixels->alternate[i] = repair->g->page[HIDDEN][y][x];
+				st_pixel_buffer_set_solid(pixels, i, repair->g->page[HIDDEN][y][x]);
 			}
 		}
 	}
@@ -255,7 +255,7 @@ paint_outer_area(struct st_ddofx *ddo, const struct st_ddofx_text_page *page, st
 	    (page->owner ? w->height : HEIGHT) - 1};
 	struct bounds                         area   = outer_area(page);
 	if (st_ddofx_intersect_bounds(&area, &limits))
-		st_ddofx_draw_text_control(ddo, page->owner, false, area, paint, context);
+		st_ddofx_draw_text_control(ddo, page->owner, false, area, NULL, paint, context);
 }
 
 static void
@@ -342,11 +342,10 @@ st_ddofx_composite_desktop_text(struct st_ddofx *ddo, const struct st_pixel_buff
 		    p->y + (int)p->rows * p->cell_height - 1};
 		if (!st_ddofx_intersect_bounds(&clip, &interior))
 			continue;
-		size_t bytes = (clip.right - clip.left + 1) * sizeof(*text->primary);
+		size_t count = clip.right - clip.left + 1;
 		for (int y = clip.top; y <= clip.bottom; ++y) {
 			size_t i = (size_t)y * WIDTH + clip.left;
-			memcpy(display->primary + i, text->primary + i, bytes);
-			memcpy(display->alternate + i, text->alternate + i, bytes);
+			st_pixel_buffer_copy_span(display, i, text, i, count);
 		}
 	}
 }
@@ -451,7 +450,7 @@ rebuild_text_owner(struct st_ddofx *ddo, unsigned owner)
 	struct st_ddofx_surface   surface = st_ddofx_surface(g, owner, HIDDEN);
 	struct bounds             area    = {0, surface.width - 1, 0, surface.height - 1};
 	struct page_repair        repair  = {g, owner};
-	st_ddofx_draw_text_control(ddo, owner, false, area, restore_page, &repair);
+	st_ddofx_draw_text_control(ddo, owner, false, area, NULL, restore_page, &repair);
 	st_ddofx_repaint_text_windows(ddo, owner);
 }
 

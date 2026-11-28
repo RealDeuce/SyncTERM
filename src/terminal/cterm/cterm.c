@@ -1221,6 +1221,8 @@ cterm_history_append_pixels(struct cterminal *cterm, const struct st_pixel_buffe
 	    strip->alternate != NULL || (cterm->backpartial != NULL && cterm->backpartial->alternate != NULL);
 	for (size_t row = 0; row < count && status == 0; ++row) {
 		status = st_pixel_buffer_create(&prepared[row], strip->width, cell_height, alternate);
+		if (status == 0 && (strip->fast_blink || (old_rows && cterm->backpartial->fast_blink)))
+			status = st_pixel_buffer_ensure_fast_blink(prepared[row]);
 		if (status == 0)
 			status =
 			    st_pixel_buffer_fill(prepared[row], ST_PIXEL_COLOR_RGB_TAG, ST_PIXEL_COLOR_RGB_TAG);
@@ -1238,11 +1240,7 @@ cterm_history_append_pixels(struct cterminal *cterm, const struct st_pixel_buffe
 			size_t                        from   = (y < old_rows ? y : y - old_rows) * strip->width;
 			struct st_pixel_buffer       *target = prepared[y / cell_height];
 			size_t                        to     = y % cell_height * strip->width;
-			memcpy(target->primary + to, source->primary + from, strip->width * sizeof(uint32_t));
-			if (alternate)
-				memcpy(target->alternate + to,
-				    (source->alternate == NULL ? source->primary : source->alternate) + from,
-				    strip->width * sizeof(uint32_t));
+			st_pixel_buffer_copy_span(target, to, source, from, strip->width);
 		}
 		if (table != NULL) {
 			cterm->backpixels = table;
@@ -1325,14 +1323,16 @@ cterm_history_copy_pixels(const struct cterminal *cterm, size_t row, struct st_p
 		}
 		else
 			sy = at - complete;
-		memcpy(copy->primary + y * copy->width, source->primary + sy * source->width,
-		    copy->width * sizeof(uint32_t));
-		memcpy(copy->alternate + y * copy->width,
-		    (source->alternate == NULL ? source->primary : source->alternate) + sy * source->width,
-		    copy->width * sizeof(uint32_t));
+		if (source->fast_blink && !copy->fast_blink) {
+			status = st_pixel_buffer_ensure_fast_blink(copy);
+			if (status != 0) {
+				st_pixel_buffer_destroy(copy);
+				return status;
+			}
+		}
+		st_pixel_buffer_copy_span(copy, y * copy->width, source, sy * source->width, copy->width);
 	}
-	if (memcmp(copy->primary, copy->alternate, (size_t)copy->width * copy->height * sizeof(uint32_t)) == 0)
-		st_pixel_buffer_remove_alternate(copy);
+	st_history_compact_pixels(copy);
 	*result = copy;
 	return 0;
 }

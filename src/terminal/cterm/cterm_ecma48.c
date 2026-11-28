@@ -1191,7 +1191,7 @@ sgr_diff(struct cterminal *cterm, const struct st_console_cell *prev, const stru
 		if (next->flags & ST_CONSOLE_CELL_UNDERLINE)
 			cterm_respond_printf(cterm, ";4");
 		if (na & 0x80)
-			cterm_respond_printf(cterm, ";5");
+			cterm_respond_printf(cterm, ";%d", (next->flags & ST_CONSOLE_CELL_FAST_BLINK) ? 6 : 5);
 		cterm_respond_printf(cterm, ";%d", 30 + cterm_ansi_colour_order[na & 0x07]);
 		cterm_respond_printf(cterm, ";%d", 40 + cterm_ansi_colour_order[(na >> 4) & 0x07]);
 		cterm_respond_printf(cterm, "m");
@@ -1211,8 +1211,10 @@ sgr_diff(struct cterminal *cterm, const struct st_console_cell *prev, const stru
 				strcat(sgrbuf, ";");
 			strcat(sgrbuf, (next->flags & ST_CONSOLE_CELL_UNDERLINE) ? "4" : "24");
 		}
-		if ((na & 0x80) && !(pa & 0x80)) {
-			strcat(sgrbuf, params++ ? ";5" : "5");
+		if ((na & 0x80) && (!(pa & 0x80) || ((prev->flags ^ next->flags) & ST_CONSOLE_CELL_FAST_BLINK))) {
+			if (params++)
+				strcat(sgrbuf, ";");
+			strcat(sgrbuf, (next->flags & ST_CONSOLE_CELL_FAST_BLINK) ? "6" : "5");
 		}
 		if ((na & 0x07) != (pa & 0x07) || (next_faint && !prev_faint)) {
 			char tmp[16];
@@ -1636,7 +1638,7 @@ cterm_ecma48_apply_sgr(struct cterminal *cterm, int *pi)
 				cterm_render_record_error(cterm, cterm->device.reset_style(cterm->device.context));
 			cterm->negative = false;
 			cterm->faint    = false;
-			cterm->cell_flags &= ~ST_CONSOLE_CELL_UNDERLINE;
+			cterm->cell_flags &= ~(ST_CONSOLE_CELL_UNDERLINE | ST_CONSOLE_CELL_FAST_BLINK);
 			cterm->attr     = cterm->screen.default_attribute;
 			cterm_render_attribute_colours(cterm, cterm->attr, &cterm->fg_color, &cterm->bg_color);
 			CTERM_FREE_AND_CLEAR(cterm->fg_tc_str);
@@ -1673,8 +1675,12 @@ cterm_ecma48_apply_sgr(struct cterminal *cterm, int *pi)
 			break;
 		case 5:
 		case 6:
-			if (cterm->device.sgr_palette == NULL)
+			cterm->cell_flags &= ~ST_CONSOLE_CELL_FAST_BLINK;
+			if (cterm->device.sgr_palette == NULL) {
 				cterm->attr |= 128;
+				if (cterm->seq_param_int[*pi] == 6)
+					cterm->cell_flags |= ST_CONSOLE_CELL_FAST_BLINK;
+			}
 			if (flags & ST_CONSOLE_VIDEO_BRIGHT_BACKGROUND) {
 				cterm_render_attribute_colours(cterm, cterm->attr, NULL, &cterm->bg_color);
 				CTERM_FREE_AND_CLEAR(cterm->bg_tc_str);
@@ -1695,6 +1701,7 @@ cterm_ecma48_apply_sgr(struct cterminal *cterm, int *pi)
 				cterm->fg_tc_str = strdup(cterm->bg_tc_str);
 			break;
 		case 25:
+			cterm->cell_flags &= ~ST_CONSOLE_CELL_FAST_BLINK;
 			cterm->attr &= 0x7f;
 			if (flags & ST_CONSOLE_VIDEO_BRIGHT_BACKGROUND) {
 				cterm_render_attribute_colours(cterm, cterm->attr, NULL, &cterm->bg_color);

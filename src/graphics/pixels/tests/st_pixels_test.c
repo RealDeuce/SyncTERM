@@ -27,9 +27,28 @@ position(const struct st_pixel_buffer *buffer, uint32_t x, uint32_t y)
 	return (size_t)y * buffer->width + x;
 }
 
+static void
+packed_overlap(void)
+{
+	/* Verify both copying directions, every alignment, and untouched edge bits. */
+	for (size_t from = 0; from < 16; ++from) {
+		for (size_t to = 0; to < 16; ++to) {
+			const uint8_t original[] = {0x96, 0x3d, 0x17, 0xc5};
+			uint8_t bits[4];
+			memcpy(bits, original, sizeof(bits));
+			st_pixel_copy_bits(bits, to, bits, from, 16);
+			for (size_t i = 0; i < 32; ++i) {
+				size_t expected = i >= to && i < to + 16 ? from + i - to : i;
+				CHECK(st_pixel_bit(bits, i) == st_pixel_bit(original, expected));
+			}
+		}
+	}
+}
+
 int
 main(void)
 {
+	packed_overlap();
 	struct st_pixel_buffer *empty      = NULL;
 	struct st_pixel_mask   *empty_mask = NULL;
 
@@ -71,6 +90,8 @@ main(void)
 		source->primary[i]   = (uint32_t)i + 1;
 		source->alternate[i] = (uint32_t)i + 11;
 	}
+	CHECK(st_pixel_buffer_ensure_fast_blink(source) == 0);
+	source->fast_blink[0] = 0x10;
 	CHECK(st_pixel_buffer_fill(destination, 9, 19) == 0);
 	CHECK(st_pixel_mask_set(mask, 0, 0, true) == 0);
 	CHECK(st_pixel_mask_set(mask, 1, 1, true) == 0);
@@ -84,6 +105,7 @@ main(void)
 	/* The second source row's flipped x=1 lands in the clipped left pixel. */
 	CHECK(destination->primary[position(destination, 0, 3)] == 4);
 	CHECK(destination->alternate[position(destination, 0, 3)] == 14);
+	CHECK(destination->fast_blink && destination->fast_blink[1] == 0x08);
 	CHECK(destination->primary[position(destination, 1, 3)] == 9);
 
 	CHECK(st_pixel_buffer_clone(&copy, source) == 0);
@@ -103,8 +125,9 @@ main(void)
 	};
 	CHECK(st_pixel_buffer_blit(copy, copy, NULL, &blit) == 0);
 	CHECK(copy->primary[0] == 4 && copy->primary[3] == 1);
+	CHECK(copy->fast_blink != source->fast_blink && copy->fast_blink[0] == 0x80);
 	st_pixel_buffer_remove_alternate(copy);
-	CHECK(copy->alternate == NULL);
+	CHECK(copy->alternate == NULL && copy->fast_blink == NULL);
 	CHECK(st_pixel_buffer_ensure_alternate(copy) == 0);
 	CHECK(copy->alternate[0] == copy->primary[0]);
 	blit.width = 3;
@@ -116,15 +139,17 @@ main(void)
 	uint32_t saved_pixels[16];
 	memcpy(saved_pixels, destination->primary, sizeof(saved_pixels));
 	uint32_t *saved_primary        = destination->primary;
-	st_pixels_test_allocations     = 0;
-	st_pixels_test_fail_allocation = 1;
-	CHECK(st_pixel_buffer_blit(destination, source, NULL, &blit) == IO_ERROR_OUT_OF_MEMORY);
-	CHECK(destination->alternate == NULL && destination->primary == saved_primary
-	      && memcmp(destination->primary, saved_pixels, sizeof(saved_pixels)) == 0);
-	CHECK(st_pixels_test_allocations == 1);
-	st_pixels_test_fail_allocation = 0;
+	for (size_t allocation = 1; allocation <= 2; ++allocation) {
+		st_pixels_test_allocations = 0;
+		st_pixels_test_fail_allocation = allocation;
+		CHECK(st_pixel_buffer_blit(destination, source, NULL, &blit) == IO_ERROR_OUT_OF_MEMORY);
+		CHECK(destination->alternate == NULL && destination->fast_blink == NULL
+		    && destination->primary == saved_primary
+		    && memcmp(destination->primary, saved_pixels, sizeof(saved_pixels)) == 0);
+		CHECK(st_pixels_test_allocations == allocation);
+	}
 	/* A self-blit snapshots both planes. Fail each real clone allocation. */
-	for (size_t allocation = 1; allocation <= 3; ++allocation) {
+	for (size_t allocation = 1; allocation <= 4; ++allocation) {
 		st_pixels_test_allocations     = 0;
 		st_pixels_test_fail_allocation = allocation;
 		CHECK(st_pixel_buffer_blit(source, source, NULL, &blit) == IO_ERROR_OUT_OF_MEMORY);
@@ -135,7 +160,7 @@ main(void)
 	st_pixels_test_fail_allocation = 0;
 	st_pixels_test_allocations     = 0;
 	CHECK(st_pixel_buffer_blit(source, source, NULL, &blit) == 0);
-	CHECK(st_pixels_test_allocations == 3 && source->primary[0] == 4 && source->alternate[0] == 14);
+	CHECK(st_pixels_test_allocations == 4 && source->primary[0] == 4 && source->alternate[0] == 14);
 	/* Ordinary distinct-buffer blits without a missing plane allocate nothing. */
 	st_pixels_test_allocations = 0;
 	CHECK(st_pixel_buffer_blit(destination, copy, NULL, &blit) == 0);

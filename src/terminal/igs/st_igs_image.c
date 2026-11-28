@@ -86,6 +86,8 @@ st_igs_image_import(struct st_igs_image *image, size_t offset, const uint8_t *by
 			if (image->pixels->alternate != NULL) {
 				pixel  = &image->pixels->alternate[first + bit];
 				*pixel = (*pixel & ~mask) | (((bytes[i] >> (7 - bit)) & 1u) << plane);
+				if (image->pixels->fast_blink && *pixel == image->pixels->primary[first + bit])
+					st_pixel_set_bit(image->pixels->fast_blink, first + bit, false);
 			}
 		}
 	}
@@ -128,7 +130,9 @@ st_igs_image_clone_layout(struct st_igs_image **result, const struct st_igs_imag
 	status                    = st_igs_image_create(&next, planes);
 	if (status != 0)
 		return status;
-	if (image->pixels->alternate != NULL)
+	if (image->pixels->fast_blink)
+		status = st_pixel_buffer_ensure_fast_blink(next->pixels);
+	else if (image->pixels->alternate)
 		status = st_pixel_buffer_ensure_alternate(next->pixels);
 	uint8_t *native = malloc(ST_IGS_IMAGE_BYTES);
 	if (native == NULL)
@@ -141,6 +145,7 @@ st_igs_image_clone_layout(struct st_igs_image **result, const struct st_igs_imag
 			destination.primary = destination.alternate;
 		}
 		source.alternate = destination.alternate = NULL;
+		source.fast_blink = destination.fast_blink = NULL;
 		const struct st_igs_image from           = {.pixels = &source, .planes = image->planes};
 		struct st_igs_image       to             = {.pixels = &destination, .planes = planes};
 		status = st_igs_image_export(&from, 0, native, ST_IGS_IMAGE_BYTES);
@@ -151,6 +156,26 @@ st_igs_image_clone_layout(struct st_igs_image **result, const struct st_igs_imag
 	if (status != 0) {
 		st_igs_image_destroy(next);
 		return status;
+	}
+	if (next->pixels->fast_blink && planes == image->planes)
+		st_pixel_copy_bits(next->pixels->fast_blink, 0, image->pixels->fast_blink, 0, next->pixels->width);
+	else if (next->pixels->fast_blink) {
+		/* Words keep their native addresses as the number of planes per group changes. */
+		for (size_t at = 0; at < next->pixels->width; ++at) {
+			bool slow = false, fast = false;
+			for (unsigned plane = 0; plane < planes; ++plane) {
+				size_t word = (at / 16) * planes + plane;
+				size_t src = (word / image->planes) * 16 + at % 16;
+				unsigned varying = image->pixels->primary[src] ^ image->pixels->alternate[src];
+				if (varying & (1u << (word % image->planes))) {
+					if (st_pixel_bit(image->pixels->fast_blink, src))
+						fast = true;
+					else
+						slow = true;
+				}
+			}
+			st_pixel_set_bit(next->pixels->fast_blink, at, fast && !slow);
+		}
 	}
 	*result = next;
 	return 0;

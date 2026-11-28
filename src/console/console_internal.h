@@ -115,6 +115,7 @@ struct st_console_display {
 	bool                       repaint_requested;
 	bool                       presentation_stop;
 	bool                       presentation_animation_initialized;
+	bool                       presentation_fast_blink;
 	enum st_console_blink_mode presentation_blink_mode;
 	uint64_t                   presentation_retry_deadline;
 	uint64_t                   presentation_animation_epoch;
@@ -443,7 +444,7 @@ st_console_effective_cell_locked(const st_console_t *console, const struct st_co
 	    && (console->video_flags & ST_CONSOLE_VIDEO_BRIGHT_BACKGROUND) != 0)
 		effective->background = source->background + 8;
 	if ((console->video_flags & ST_CONSOLE_VIDEO_NO_BLINK) != 0)
-		effective->flags &= ~ST_CONSOLE_CELL_BLINK;
+		effective->flags &= ~(ST_CONSOLE_CELL_BLINK | ST_CONSOLE_CELL_FAST_BLINK);
 }
 
 static inline uint16_t
@@ -511,6 +512,26 @@ st_console_t *st_console_display_active_console(st_console_t *console);
 int           st_console_start_presentation_worker(st_console_t *console);
 void          st_console_display_set_window_hidden(st_console_display_t *display, bool hidden);
 void          st_console_display_request_repaint(st_console_display_t *display);
+/* PC timing is expressed in thirds of a millisecond. All phases repeat
+ * after 24 ticks (1064 ms). Reducing first keeps the arithmetic bounded. */
+static inline unsigned
+st_console_pc_tick(uint64_t elapsed)
+{
+	return (unsigned)(elapsed % 1064U) * 3U / 133U;
+}
+
+static inline unsigned
+st_console_pc_animation_delay(uint64_t elapsed, bool fast_blink)
+{
+	unsigned tick = st_console_pc_tick(elapsed);
+	unsigned next = (tick / 3U + 1U) * 3U; /* Every slow edge is also a cursor edge. */
+	unsigned fast = (tick / 4U + 1U) * 4U;
+	if (fast_blink && fast < next)
+		next = fast;
+	return (next * 133U + 2U) / 3U - (unsigned)(elapsed % 1064U);
+}
+
+void st_console_display_set_fast_blink(st_console_display_t *display, bool fast);
 void          st_console_display_reset_animation(st_console_display_t *display, enum st_console_blink_mode mode,
     bool restart);
 void          st_console_follow_view_locked(st_console_t *, uint32_t x, uint32_t y);
@@ -546,8 +567,8 @@ bool   st_console_font_glyph_text_locked(st_console_t *console, uint16_t identif
     size_t text_size, size_t *required);
 int    st_console_rasterize_locked(st_console_t *console, bool force);
 size_t st_console_pixel_position_locked(const st_console_t *console, uint32_t x, uint32_t y);
-void st_console_copy_pixels_locked(const st_console_t *console, uint32_t *destination, uint32_t destination_stride,
-    bool alternate, const struct st_console_rect *rectangle);
+int st_console_copy_pixels_locked(const st_console_t *console, struct st_pixel_buffer *destination,
+    const struct st_console_rect *rectangle);
 int  st_console_normalize_raster_locked(st_console_t *console);
 void st_console_move_raster_locked(st_console_t *console, const struct st_console_rect *source,
     uint32_t destination_x, uint32_t destination_y);

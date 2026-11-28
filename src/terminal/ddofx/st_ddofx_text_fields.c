@@ -75,7 +75,7 @@ paint(void *context, const struct st_pixel_buffer *pixels, struct bounds clip)
 		size_t at = (size_t)y * target.width + clip.left;
 		if (pixels) {
 			for (int x = clip.left; x <= clip.right; ++x, ++at)
-				pixels->primary[at] = pixels->alternate[at] = paper;
+				st_pixel_buffer_set_solid(pixels, at, paper);
 		}
 		else
 			memset(target.data + at, (int)paper, clip.right - clip.left + 1);
@@ -94,7 +94,7 @@ paint(void *context, const struct st_pixel_buffer *pixels, struct bounds clip)
 		for (int x = left < clip.left ? clip.left : left; x < end && x <= clip.right; ++x) {
 			size_t at = (size_t)f->bottom * target.width + x;
 			if (pixels)
-				pixels->primary[at] = pixels->alternate[at] = 15;
+				st_pixel_buffer_set_solid(pixels, at, 15);
 			else
 				target.data[at] = 15;
 		}
@@ -110,7 +110,7 @@ draw(struct st_ddofx *ddo, unsigned id, bool work)
 	unsigned                     owner = work && f->owner != g->active_graphic_window ? 0 : f->owner;
 	struct field_image           image = {g, f, !work && t->active == id ? (int)t->cursor : -1, owner};
 	struct bounds                area  = st_ddofx_text_bounds(g, owner, f->x, f->bottom, f->limit + 1, 1, 2);
-	st_ddofx_draw_text_control(ddo, owner, work, area, paint, &image);
+	st_ddofx_draw_text_control(ddo, owner, work, area, NULL, paint, &image);
 }
 
 static size_t
