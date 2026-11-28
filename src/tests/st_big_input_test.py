@@ -1732,7 +1732,7 @@ def editor(executable, reports):
     with fixture(executable, entries="[BIG editor]\nAddress=example.invalid\nFont=Atari ST\n", reports=reports) as (client, root):
         client.wait_text("BIG editor"); client.key("f2")
         click_text(client, client.wait_text("Graphics"), "Graphics")
-        client.wait_text("Enter Select"); client.key("end"); client.key("enter")
+        click_text(client, client.wait_text("BIG (1.03)"), "BIG (1.03)")
         frame = client.wait_for(lambda f: "BIG (1.03)" in f.text and "EGA 80x25" in f.text)
         assert "Codepage 437 English" in frame.text and "CP437" in frame.text
         click_text(client, frame, "Screen Mode")

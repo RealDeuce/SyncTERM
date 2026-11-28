@@ -298,6 +298,10 @@ def keyboard(executable, reports):
                 if label in line:
                     x = line.index(label)
                     editor = line.find("[", x + len(label))
+                    cursor = snapshot.metadata
+                    if editor >= 0 and cursor["cursor_visible"] and cursor["cursor_y"] == y:
+                        if editor < cursor["cursor_x"] < line.find("]", editor):
+                            return True
                     return cell_at(snapshot, editor if editor >= 0 else x, y).background == highlight
             return False
 
@@ -329,27 +333,34 @@ def keyboard(executable, reports):
         client.wait_for(lambda s: focused(s, "Confirm Program Exit"))
         client.key("up")
         client.grid_resize(132, 50)
-        client.wait_for(lambda s: s.metadata["columns"] == 132 and "Main Interface" in s.text)
+        form = client.wait_for(lambda s: s.metadata["columns"] == 132 and "Main Interface" in s.text)
+        # The right column varies with the available audio and MIDI backends.
+        def row_mate(label):
+            line = next(line for line in form.lines if label in line)
+            mate = line.split("]", 1)[1].split("[", 1)[0].strip()
+            assert mate, line
+            return mate
+
         # The two columns form a grid, with no vertical wrapping on Left/Right.
         client.key("right")
-        client.wait_for(lambda s: focused(s, "Audio: PortAudio"))
+        client.wait_for(lambda s: focused(s, row_mate("Main Interface")))
         client.key("down")
-        client.wait_for(lambda s: focused(s, "Audio: PulseAudio"))
+        client.wait_for(lambda s: focused(s, row_mate("Confirm Program Exit")))
         client.key("left")
         client.wait_for(lambda s: focused(s, "Confirm Program Exit"))
         client.key("down")
         client.wait_for(lambda s: focused(s, "Prompt to Save"))
         client.key("right")
-        client.wait_for(lambda s: focused(s, "Audio: ALSA"))
+        client.wait_for(lambda s: focused(s, row_mate("Prompt to Save")))
         client.key("left")
         client.wait_for(lambda s: focused(s, "Prompt to Save"))
         client.key("down")
         client.wait_for(lambda s: focused(s, "Colour Emoji"))
         client.key("right")
-        client.wait_for(lambda s: focused(s, "Audio: OSS"))
+        client.wait_for(lambda s: focused(s, row_mate("Colour Emoji")))
         client.key("right")  # The end of a row does not wrap vertically.
         client.key("up")
-        client.wait_for(lambda s: focused(s, "Audio: ALSA"))
+        client.wait_for(lambda s: focused(s, row_mate("Prompt to Save")))
         client.key("left")
         client.wait_for(lambda s: focused(s, "Prompt to Save"))
         client.key("tab")

@@ -1147,7 +1147,9 @@ def graphics(executable, encoding, reports):
                         script='import "syncterm" for CTerm\nCTerm.ooiiMode = 1\n') as (client, root, peer, send):
             send(b"\xabX|Z\xbd?_2|")
             receive(peer, b"\xaf2|", root / "wire.bin")
-            client.wait_text("«X|Z")
+            # The profile decodes the OO][ marker. The default CP437 font
+            # displays byte 0xab as one half.
+            client.wait_text("½X|Z")
     with connection(executable, reports, encoding=encoding,
                     options="RIP=RIPv1\n") as (client, root, peer, send):
         send(b"!|*\r\n!|X2S2S\r")

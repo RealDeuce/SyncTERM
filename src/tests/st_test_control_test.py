@@ -63,9 +63,12 @@ def basic(executable):
                 assert any(method in line for line in options.lines), (method, options.lines)
         client.grid_resize(80, 25)
         client.key("end")
-        for _ in range(4):
-            client.key("up")
-        options = client.wait_text("Testing bitmap backend")
+        options = client.wait_text("MIDI")
+        while "Testing bitmap backend" not in options.text:
+            assert "SyncTERM Build Options" not in options.text, options.lines
+            previous = options.lines[1:-1]
+            client.key("page_up")
+            options = client.wait_for(lambda s: s.lines[1:-1] != previous)
         assert any("Testing bitmap backend" in line and "√" in line for line in options.lines)
         client.key("escape")
         client.wait_text("Directory: Name")

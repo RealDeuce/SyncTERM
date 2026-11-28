@@ -68,6 +68,7 @@ def main():
             connected = False
             peer = None
             checked_layout = layout is None
+            marker = re.compile(rb"\033\[38;2;17;34;51m(?:\033\[[0-9;]*m)*~")
             selected = False
             exiting = False
             resized = False
@@ -82,7 +83,8 @@ def main():
                         if layout is None:
                             peer.close()
                         else:
-                            peer.sendall(b"\033[2J\033[HCTERMCENTRE")
+                            # A coloured cell identifies the origin even across partial repaints.
+                            peer.sendall(b"\033[2J\033[H\033[38;2;17;34;51m~")
                     if master in ready:
                         try:
                             data = os.read(master, 65536)
@@ -102,8 +104,8 @@ def main():
                                 # directory. URL cases verify normal exit.
                                 process.terminate()
                                 exiting = True
-                        if not checked_layout and b"CTERMCENTRE" in output:
-                            before = output[:output.index(b"CTERMCENTRE")]
+                        if not checked_layout and (match := marker.search(output)):
+                            before = output[:match.start()]
                             positions = re.findall(rb"\033\[(\d+);(\d+)H", before)
                             expected = ((b"10" if resized else b"7"),
                                         b"1" if layout == "left" else

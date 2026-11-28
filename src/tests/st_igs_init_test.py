@@ -104,11 +104,7 @@ def editor(executable, reports):
         client.key('f2')
         screen = client.wait_text('Graphics')
         click_text(client, screen, 'Graphics')
-        client.wait_text('Enter Select')
-        client.key('end')
-        client.key('up')  # BIG follows IGS in the graphics catalog.
-        client.wait_text('IGS (2.21)')
-        client.key('enter')
+        click_text(client, client.wait_text('IGS (2.21)'), 'IGS (2.21)')
         screen = client.wait_for(lambda s: 'Atari ST 40x25' in s.text and 'IGS (2.21)' in s.text)
         click_text(client, screen, 'Screen Mode')
         client.wait_text('Enter Select')

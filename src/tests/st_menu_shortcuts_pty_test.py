@@ -69,7 +69,9 @@ MainMenu.registerCommand(121, Mod.control, "Ctrl-Y", "Capture selection", Fn.new
                     raise AssertionError(f"{backend}: exited waiting for {text!r}\n{transcript[-6000:]!r}")
                 pending.extend(data)
                 transcript.extend(data)
+            matched = ESCAPES.sub(b"", pending)
             pending.clear()
+            return matched
 
         def send(data):
             pending.clear()
@@ -97,7 +99,9 @@ MainMenu.registerCommand(121, Mod.control, "Ctrl-Y", "Capture selection", Fn.new
             # Byte-stream terminals have no distinct Ctrl+` physical event.
             # The shipped console shortcut in these backends is Ctrl+Q.
             send(b"\x11")
-            wait("(main_menu) wren>")
+            # The renderer can position the cursor across the prompt's space.
+            prompt = wait("wren>")
+            assert b"(main_menu)" in prompt[:prompt.index(b"wren>")], prompt
             send(b"\x1b")
             wait("Directory: Name")
             send(b"\x1b")

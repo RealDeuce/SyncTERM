@@ -916,34 +916,42 @@ if(BUILD_TESTING)
 		set_target_properties(st_console_x11_test PROPERTIES
 			C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 		st_console_warnings(st_console_x11_test)
+		# These tests observe windows and framebuffer pixels on the same X display.
 		add_test(NAME st_console_x11_scaler_fallback COMMAND st_console_x11_test --gl-fallback)
-		set_tests_properties(st_console_x11_scaler_fallback PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 30)
+		set_tests_properties(st_console_x11_scaler_fallback PROPERTIES
+			RESOURCE_LOCK x11_display SKIP_RETURN_CODE 77 TIMEOUT 30)
 		add_test(NAME st_console_x11 COMMAND st_console_x11_test)
 		add_test(NAME st_console_x11_resize COMMAND st_console_x11_test --resize-pixels)
-		set_tests_properties(st_console_x11_resize PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 20)
+		set_tests_properties(st_console_x11_resize PROPERTIES
+			RESOURCE_LOCK x11_display SKIP_RETURN_CODE 77 TIMEOUT 20)
 		add_test(NAME st_console_x11_mode_changes
 			COMMAND st_console_x11_test --mode-changes)
 		set_tests_properties(st_console_x11_mode_changes PROPERTIES
+			RESOURCE_LOCK x11_display
 			SKIP_RETURN_CODE 77 TIMEOUT 60)
 		set_tests_properties(st_console_x11 PROPERTIES
+			RESOURCE_LOCK x11_display
 			SKIP_RETURN_CODE 77
 			TIMEOUT 20)
 		if(ST_CONSOLE_HAVE_GLX)
 			add_test(NAME st_console_x11_opengl COMMAND st_console_x11_test --gl-pixels)
 			add_test(NAME st_console_x11_pointy COMMAND st_console_x11_test --gl-preset Pointy)
-			set_tests_properties(st_console_x11_opengl st_console_x11_pointy PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 30)
+			set_tests_properties(st_console_x11_opengl st_console_x11_pointy PROPERTIES
+				RESOURCE_LOCK x11_display SKIP_RETURN_CODE 77 TIMEOUT 30)
 			if(ST_CONSOLE_HAVE_SLANG)
 				add_test(NAME st_console_x11_slang COMMAND st_console_x11_test --gl-preset
 					"${CMAKE_CURRENT_SOURCE_DIR}/tests/slang/crt/test.slangp")
 				add_test(NAME st_console_x11_slang_animation COMMAND st_console_x11_test --gl-animate
 					"${CMAKE_CURRENT_SOURCE_DIR}/tests/slang/frame.slangp")
-				set_tests_properties(st_console_x11_slang st_console_x11_slang_animation PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 60)
+				set_tests_properties(st_console_x11_slang st_console_x11_slang_animation PROPERTIES
+					RESOURCE_LOCK x11_display SKIP_RETURN_CODE 77 TIMEOUT 60)
 			endif()
 		endif()
 		if(ST_CONSOLE_HAVE_XRENDER)
 			add_test(NAME st_console_x11_xrender
 				COMMAND st_console_x11_test --xrender-pixels)
 			set_tests_properties(st_console_x11_xrender PROPERTIES
+				RESOURCE_LOCK x11_display
 				SKIP_RETURN_CODE 77
 				TIMEOUT 20)
 		endif()
