@@ -2,6 +2,7 @@
   "reference": "Synchronet xtrn/termtest/termtest.js",
   "sha256": "a8bc360b2b1cd9c1b6041160d3e994a410132418fb568a369f3a10724915ab00",
   "supplemental": [
+    {"id": "plain-text-wrap-rendition", "test": "cterm_text / syncterm_conformance_attributes_CP437 / syncterm_conformance_attributes_UTF-8", "scope": "Native shared window, cursor, style and font-bank changes between glyphs. Connected captures verify cells, colours, pixels and cursor reports across deferred wrap and SGR reset."},
     {"id": "origin-mode-cursor", "test": "syncterm_conformance_margins_CP437 / syncterm_conformance_margins_UTF-8", "scope": "Cursor and cell positions after origin selection, mode save, and restoration of changed, unchanged or unsaved origin mode."},
     {"id": "petscii-banks", "test": "cterm_text / syncterm_behavior_petscii_banks", "scope": "C64 startup bank, C64 and C128 upper/graphics and lowercase shifts, split input, corner pixels, retained text, outgoing keyboard mapping and local reset."},
     {"id": "controller-input", "test": "term / controller_mapping / syncterm_controller_mapper / syncterm_controller_CP437 / syncterm_controller_UTF-8", "scope": "Concurrent HID and wired XUSB fixtures, independent analog triggers, physical-first and target-first mapping, persisted assignments, evdev ranges, local input filtering, keyboard/controller dispatch, device inventory, hotplug, on-demand polling, first-enable inventory, mode query and reset."},

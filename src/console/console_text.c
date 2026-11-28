@@ -115,6 +115,19 @@ restart_cursor_animation(st_console_t *console)
 		st_console_display_reset_animation(console->display, console->blink_mode, true);
 }
 
+static void
+move_cursor_locked(st_console_t *console, uint32_t x, uint32_t y)
+{
+	if (!console->pixel_cursor.enabled && console->cursor_custom && console->custom_cursor.visible
+	    && console->custom_cursor.index_xor != 0 && (console->cursor_x != x || console->cursor_y != y))
+		restart_cursor_animation(console);
+	if (console->view_follow_x || console->view_follow_y)
+		st_console_follow_view_locked(console, x, y);
+	console->cursor_x = x;
+	console->cursor_y = y;
+	console->changed  = true;
+}
+
 static int
 set_position(st_console_t *console, uint32_t x, uint32_t y, bool relative)
 {
@@ -134,14 +147,7 @@ set_position(st_console_t *console, uint32_t x, uint32_t y, bool relative)
 			x += console->window.x;
 			y += console->window.y;
 		}
-		if (!console->pixel_cursor.enabled && console->cursor_custom && console->custom_cursor.visible
-		    && console->custom_cursor.index_xor != 0 && (console->cursor_x != x || console->cursor_y != y))
-			restart_cursor_animation(console);
-		if (console->view_follow_x || console->view_follow_y)
-			st_console_follow_view_locked(console, x, y);
-		console->cursor_x = x;
-		console->cursor_y = y;
-		console->changed  = true;
+		move_cursor_locked(console, x, y);
 		result            = st_console_finish_change_locked(console);
 	}
 	(void)st_rwlock_unlock(st_console_state_lock(console));
@@ -305,7 +311,37 @@ st_console_begin_text_edit(st_console_t *console, struct st_console_text_edit *e
 	edit->style          = console->style;
 	edit->video_flags    = console->video_flags;
 	edit->default_cursor = console->default_cursor;
+	edit->glyph          = NULL;
 	return 0;
+}
+
+static int
+place_glyph_locked(st_console_t *console, struct st_console_text_glyph *glyph)
+{
+	if (!st_console_rects_equal(&glyph->window, &console->window)
+	    || !position_in_window(console, glyph->x, glyph->y)
+	    || glyph->x - console->window.x == console->window.width - 1)
+		return 0;
+	struct st_console_cell cell = {
+	    .foreground = console->style.foreground,
+	    .background = console->style.background,
+	    .flags      = console->style.flags,
+	    .font       = console->style.font,
+	    .hyperlink  = console->style.hyperlink,
+	};
+	uint8_t columns = 1;
+	if (!st_console_font_lookup_cluster_locked(console, cell.font, glyph->text, glyph->size, &columns,
+		&cell.glyph_font, &cell.glyph, &glyph->missing))
+		return IO_ERROR_NOT_FOUND;
+	if (columns != 1)
+		return 0;
+	int result =
+	    st_console_write_cells_locked(console, &(struct st_console_rect) {glyph->x, glyph->y, 1, 1}, &cell, 1);
+	if (result == 0) {
+		move_cursor_locked(console, glyph->x + 1, glyph->y);
+		glyph->placed = true;
+	}
+	return result;
 }
 
 int
@@ -314,8 +350,12 @@ st_console_end_text_edit(struct st_console_text_edit *edit, const struct st_cons
 	if (edit == NULL || edit->console == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	st_console_t *console = edit->console;
-	int           result  = 0;
-	if (cursor != NULL && (cursor->range == 0 || !valid_cursor_indices(cursor)))
+	struct st_console_text_glyph *glyph   = edit->glyph;
+	int                           result  = 0;
+	if (glyph != NULL)
+		glyph->placed = false;
+	if ((cursor != NULL && (cursor->range == 0 || !valid_cursor_indices(cursor)))
+	    || (glyph != NULL && (glyph->text == NULL || glyph->size == 0)))
 		result = IO_ERROR_INVALID_ARGUMENT;
 	else {
 		edit->style.flags &= ST_CONSOLE_CELL_PUBLIC_FLAGS;
@@ -324,8 +364,14 @@ st_console_end_text_edit(struct st_console_text_edit *edit, const struct st_cons
 		    || current->flags != edit->style.flags || current->font != edit->style.font
 		    || current->hyperlink != edit->style.hyperlink)
 			console->style = edit->style;
-		if (cursor != NULL && set_custom_cursor_locked(console, cursor))
-			result = st_console_finish_change_locked(console);
+		bool changed = cursor != NULL && set_custom_cursor_locked(console, cursor);
+		if (glyph != NULL)
+			result = place_glyph_locked(console, glyph);
+		if (changed || (glyph != NULL && glyph->placed)) {
+			int finish = st_console_finish_change_locked(console);
+			if (result == 0)
+				result = finish;
+		}
 	}
 	edit->console = NULL;
 	(void)st_rwlock_unlock(st_console_state_lock(console));

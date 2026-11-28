@@ -452,16 +452,34 @@ cterm_render_set_cursor(struct cterminal *cterm, int cursor)
 }
 
 int
-cterm_render_prepare_text(struct cterminal *cterm, struct st_console_style *style)
+cterm_render_prepare_text(struct cterminal *cterm, struct st_console_style *style,
+    struct st_console_text_glyph *glyph)
 {
 	struct st_console_text_edit edit;
 	int                         status = st_console_begin_text_edit(cterm->screen.console, &edit);
 	if (status != 0)
 		return status;
-	edit.style.flags     = attribute_flags(cterm, cterm->attr, cterm->cell_flags);
-	edit.style.font      = font_identifier(cterm, attribute_font(cterm, cterm->attr, edit.video_flags));
-	edit.style.hyperlink = cterm->screen.current_hyperlink;
-	set_colours(cterm, &edit.style, cterm->fg_color, cterm->bg_color);
+	struct cterm_render_state *screen = &cterm->screen;
+	struct st_console_style   *cached = &screen->prepared_text.style;
+	uint16_t font           = font_identifier(cterm, attribute_font(cterm, cterm->attr, edit.video_flags));
+	bool     device_colours = cterm->device.sgr_palette != NULL || cterm->vt52_plane_mask != 0;
+	if (!screen->prepared_text.valid || screen->prepared_text.attr != cterm->attr
+	    || screen->prepared_text.cell_flags != cterm->cell_flags
+	    || screen->prepared_text.reveal != screen->prestel_reveal
+	    || screen->prepared_text.device_colours != device_colours || cached->font != font
+	    || cached->hyperlink != screen->current_hyperlink || cached->foreground != cterm->fg_color
+	    || cached->background != cterm->bg_color) {
+		cached->flags = attribute_flags(cterm, cterm->attr, cterm->cell_flags);
+		set_colours(cterm, cached, cterm->fg_color, cterm->bg_color);
+		cached->font                         = font;
+		cached->hyperlink                    = screen->current_hyperlink;
+		screen->prepared_text.attr           = cterm->attr;
+		screen->prepared_text.cell_flags     = cterm->cell_flags;
+		screen->prepared_text.reveal         = screen->prestel_reveal;
+		screen->prepared_text.device_colours = device_colours;
+		screen->prepared_text.valid          = true;
+	}
+	edit.style = *cached;
 	if (cterm->vt52_plane_mask != 0 || cterm->device.cursor_mode != NULL) {
 		status = st_console_end_text_edit(&edit, NULL);
 		if (status == 0)
@@ -469,9 +487,10 @@ cterm_render_prepare_text(struct cterminal *cterm, struct st_console_style *styl
 	}
 	else {
 		text_cursor(cterm, cterm->cursor, &edit.default_cursor);
+		edit.glyph = glyph;
 		status = st_console_end_text_edit(&edit, &edit.default_cursor);
 	}
-	if (status == 0 && style != NULL)
+	if (style != NULL)
 		*style = edit.style;
 	return status;
 }

@@ -523,6 +523,8 @@ int                    st_console_publish_raster_view_locked(st_console_t *conso
 void st_console_store_cell_locked(st_console_t *console, size_t index, const struct st_console_cell *source);
 void st_console_view_pixels_written_locked(st_console_t *console, uint32_t x, uint32_t y, uint32_t width,
     uint32_t height);
+int  st_console_write_cells_locked(st_console_t *console, const struct st_console_rect *destination,
+     const struct st_console_cell *cells, size_t stride);
 void st_console_set_cell_locked(st_console_t *console, size_t index, const struct st_console_cell *source);
 const struct st_console_font        *st_console_font_locked(st_console_t *console, uint16_t identifier);
 const struct st_console_color_glyph *st_console_font_color_glyph(const struct st_console_font *font,

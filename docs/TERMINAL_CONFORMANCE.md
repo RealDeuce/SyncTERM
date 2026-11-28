@@ -11,6 +11,11 @@ the meaning of terminal controls. Graphics adapters may observe terminal state
 and use existing terminal operations. Received ANSI BS moves the cursor back
 one position on the line and preserves the cell, including its rendition.
 
+The native `cterm_text` test changes the shared console style, cursor, window
+and alternate font bank between printable characters in CP437 and UTF-8.
+The connected attributes suites check the text, colours, pixels and reported
+cursor across a deferred wrap followed by an SGR reset.
+
 Connected console input reaches Wren claims and hooks first. Keys passed by
 Wren go through local session controls, graphics and then CTerm. A script
 can forward a replacement with `CTerm.sendKey` at the graphics stage. Both

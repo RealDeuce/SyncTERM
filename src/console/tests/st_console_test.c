@@ -306,6 +306,19 @@ test_text_edit(void)
 	CHECK(
 	    st_console_end_text_edit(&edit, &(struct st_console_custom_cursor) {0}) == IO_ERROR_INVALID_ARGUMENT);
 
+	/* The lookup fails on a console with no font. The edit must release
+	 * its lock and leave the insertion point at the failed glyph. */
+	struct st_console_text_glyph glyph = {
+	    .window = {0, 0, 4, 2},
+	    .text   = "A",
+	    .size   = 1,
+	};
+	CHECK(st_console_begin_text_edit(console, &edit) == 0);
+	edit.glyph = &glyph;
+	CHECK(st_console_end_text_edit(&edit, NULL) == IO_ERROR_NOT_FOUND && !glyph.placed);
+	uint32_t x, y;
+	CHECK(st_console_get_position(console, &x, &y) == 0 && x == 0 && y == 0);
+
 	st_thread_t writer;
 	CHECK(st_thread_create(&writer, increment_foreground, console) == ST_THREAD_SUCCESS);
 	increment_foreground(console);
@@ -1714,6 +1727,20 @@ test_clipboard_wait_presentation(void)
 	st_mutex_destroy(&state.mutex);
 }
 
+/* A synchronous presenter sees every publication, including any intermediate
+ * frame emitted before the cursor and cell have both been updated. */
+static int
+present_glyph_edit(st_console_t *console)
+{
+	unsigned *frames = console->display->backend_state;
+	++*frames;
+	const struct st_console_cell *cell = st_console_cell_at(console, 0);
+	CHECK(cell->glyph == 1 && cell->foreground == 12);
+	CHECK(console->style.foreground == 12 && console->cursor_x == 1 && console->cursor_y == 0);
+	CHECK(console->cursor_custom && !console->custom_cursor.visible);
+	return 0;
+}
+
 static void
 test_unicode_wide_cells(void)
 {
@@ -1808,6 +1835,33 @@ test_unicode_wide_cells(void)
 	}
 	CHECK(st_console_get_position(console, &x, &y) == 0);
 	CHECK(x == 2 && y == 1);
+
+	unsigned                                   frames      = 0;
+	const struct st_console_backend_ops       *saved_ops   = console->display->backend_ops;
+	void                                      *saved_state = console->display->backend_state;
+	static const struct st_console_backend_ops ops         = {.present = present_glyph_edit};
+
+	console->display->backend_ops   = &ops;
+	console->display->backend_state = &frames;
+	struct st_console_text_edit  edit;
+	struct st_console_text_glyph glyph = {
+	    .window = {0, 0, 4, 2},
+	    .text   = "A",
+	    .size   = 1,
+	};
+	CHECK(st_console_begin_text_edit(console, &edit) == 0);
+	edit.style.foreground       = 12;
+	edit.default_cursor.visible = false;
+	edit.glyph                  = &glyph;
+	CHECK(st_console_end_text_edit(&edit, &edit.default_cursor) == 0 && glyph.placed && !glyph.missing);
+	CHECK(frames == 1);
+	glyph.text = "\xe4\xb8\x80";
+	glyph.size = 3;
+	CHECK(st_console_begin_text_edit(console, &edit) == 0);
+	edit.glyph = &glyph;
+	CHECK(st_console_end_text_edit(&edit, NULL) == 0 && !glyph.placed && frames == 1);
+	console->display->backend_ops   = saved_ops;
+	console->display->backend_state = saved_state;
 	st_console_destroy(console);
 
 	console    = create_headless(4, 2);

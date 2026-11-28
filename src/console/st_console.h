@@ -240,6 +240,18 @@ struct st_console_text_edit {
 	struct st_console_style         style;
 	uint32_t                        video_flags;
 	struct st_console_custom_cursor default_cursor;
+	struct st_console_text_glyph   *glyph;
+};
+
+/* Optional single-column placement in a text edit. Coordinates are absolute.
+ * A changed window, a wide glyph or the right edge leaves placed false so
+ * the caller can apply its window and margin policy. */
+struct st_console_text_glyph {
+	struct st_console_rect window;
+	uint32_t               x, y;
+	const char            *text;
+	size_t                 size;
+	bool                   placed, missing;
 };
 
 /* A separately composed bitmap cursor. It never changes cells or raster
@@ -636,7 +648,7 @@ int st_console_present(st_console_t *console);
 
 int st_console_set_style(st_console_t *console, const struct st_console_style *style);
 int st_console_begin_text_edit(st_console_t *console, struct st_console_text_edit *edit);
-/* Commit the style and optionally the custom cursor, then release the lock. */
+/* Apply the style, optional cursor and optional glyph, then release the lock. */
 int st_console_end_text_edit(struct st_console_text_edit *edit, const struct st_console_custom_cursor *cursor);
 int st_console_get_style(st_console_t *console, struct st_console_style *style);
 /* Zero-based coordinates relative to the active text window. */

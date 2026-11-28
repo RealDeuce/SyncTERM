@@ -420,6 +420,14 @@ def attributes(t):
             assert len(pixels) == 1, (name, pixels)
         else:
             assert len(pixels) == 2, (name, pixels)
+    frame = t.check("plain-text-wrap-rendition", cup(79, 1) + ESC + b"[31;44mABCD"
+                    + ESC + b"[0mE" + ESC + b"[6n", (4, 2), ((79, 1, "AB"), (1, 2, "CDE")),
+                    expected=ESC + b"[2;4R")
+    for x, y in ((79, 1), (80, 1), (1, 2), (2, 2), (3, 2)):
+        cell = cell_at(frame, x - 1, y - 1)
+        expected = (0xa8a8a8, 0) if (x, y) == (3, 2) else (0xa80000, 0x0000a8)
+        assert (colour(frame, cell), colour(frame, cell, True)) == expected
+        assert set(tile(frame, x, y)) == {cell.foreground, cell.background}
     # Ticket 305. The first shortcut starts from reset, the other two from reverse blue.
     shortcuts = (b"\x1b[H\x1b[J\x1b[s\x1b[1;1H\x1b[47m\x1b[K\x1b[49m\x1b[7;44mZeile\x1b[m"
                  b"\x1b[1;49H\x1b[1;7;43mCTRL-Q\x1b[m\x1b[7;44m=Beenden   \x1b[1;7;43mCTRL-K"

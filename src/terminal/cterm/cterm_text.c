@@ -53,6 +53,18 @@ remember(struct cterminal *cterm, const uint8_t *bytes, size_t size)
 	return 0;
 }
 
+static void
+record_placement(struct cterminal *cterm, uint32_t x, uint32_t y, uint16_t font, bool missing,
+    uint8_t provisional_columns)
+{
+	cterm->screen.missing_glyph       = missing;
+	cterm->screen.missing_font        = font;
+	cterm->screen.provisional_x       = x;
+	cterm->screen.provisional_y       = y;
+	cterm->screen.provisional_lcf     = cterm->last_column_flag;
+	cterm->screen.provisional_columns = provisional_columns;
+}
+
 static int
 place(struct cterminal *cterm, const struct st_unicode_presentation_event *event, bool provisional,
     uint32_t glyph_flags)
@@ -71,7 +83,27 @@ place(struct cterminal *cterm, const struct st_unicode_presentation_event *event
 		return 0;
 	if (!cterm->started)
 		cterm_start(cterm);
-	status = cterm_render_prepare_text(cterm, &style);
+	/* Interior ANSI text has no wrap, scrolling or emulation-specific
+	 * advance action. A revision still needs the previous glyph geometry. */
+	struct st_console_text_glyph glyph = {0};
+	bool interior = provisional && event->kind == ST_UNICODE_PRESENTATION_BEGIN && columns == 1
+	                && cterm->emulation == CTERM_EMULATION_ANSI_BBS && glyph_flags == 0
+	                && cterm->screen.addressing_window.width == 0
+	                && !(cterm->extattr & CTERM_EXTATTR_ORIGINMODE) && cterm->xpos >= 1
+	                && cterm->xpos < cterm->right_margin;
+	if (interior) {
+		glyph.window = (struct st_console_rect) {cterm->x - 1, cterm->y - 1, cterm->width, cterm->height};
+		glyph.x      = glyph.window.x + cterm->xpos - 1;
+		glyph.y      = glyph.window.y + cterm->ypos - 1;
+		glyph.text   = (const char *)event->bytes;
+		glyph.size   = event->size;
+	}
+	status = cterm_render_prepare_text(cterm, &style, interior ? &glyph : NULL);
+	if (glyph.placed) {
+		record_placement(cterm, glyph.x, glyph.y, style.font, glyph.missing, 1);
+		++cterm->xpos;
+		return status != 0 ? status : cterm_render_take_error(cterm);
+	}
 	if (status != 0)
 		return status;
 	cterm_apply_window(cterm);
@@ -162,12 +194,7 @@ place(struct cterminal *cterm, const struct st_unicode_presentation_event *event
 	status = st_console_write_cells(cterm->screen.console, &area, cells, area.width);
 	if (status != 0)
 		return status;
-	cterm->screen.missing_glyph       = missing;
-	cterm->screen.missing_font        = cells[0].font;
-	cterm->screen.provisional_x       = area.x;
-	cterm->screen.provisional_y       = area.y;
-	cterm->screen.provisional_lcf     = cterm->last_column_flag;
-	cterm->screen.provisional_columns = provisional ? columns : 0;
+	record_placement(cterm, area.x, area.y, cells[0].font, missing, provisional ? columns : 0);
 	if (missing && !provisional)
 		log_missing(cterm, event);
 	for (uint8_t i = 0; i < columns; ++i)

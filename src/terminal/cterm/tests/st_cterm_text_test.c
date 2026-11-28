@@ -1225,6 +1225,58 @@ test_shared_text_rendition(void)
 	}
 }
 
+/* A plain-text run keeps going while another console user changes its
+ * rendition, cursor and window. Both cached and newly selected banks matter. */
+static void
+test_interrupted_plain_text(void)
+{
+	for (int encoding = ST_CTERM_ENCODING_UTF8; encoding <= ST_CTERM_ENCODING_CODEPAGE; ++encoding) {
+		struct rig rig;
+		open_rig(&rig, (enum st_cterm_encoding)encoding);
+		const char setup[] = "\033[1;31;44mAB";
+		feed(&rig, setup, sizeof(setup) - 1);
+		struct st_console_style expected;
+		CHECK(st_console_get_style(rig.console, &expected) == 0);
+		CHECK(expected.foreground != expected.background && (expected.flags & ST_CONSOLE_CELL_BRIGHT));
+		const struct st_console_style other = {.flags = ST_CONSOLE_CELL_REVERSE, .hyperlink = 123};
+		CHECK(st_console_set_style(rig.console, &other) == 0);
+		CHECK(st_console_set_cursor(rig.console, false, ST_CONSOLE_CURSOR_BAR) == 0);
+		feed(&rig, "C", 1);
+		struct st_console_style restored;
+		CHECK(st_console_get_style(rig.console, &restored) == 0);
+		CHECK(restored.font == expected.font && restored.flags == expected.flags
+		      && restored.foreground == expected.foreground && restored.background == expected.background
+		      && restored.hyperlink == expected.hyperlink);
+		struct st_console_custom_cursor cursor;
+		CHECK(st_console_get_custom_cursor(rig.console, &cursor) == 0 && cursor.visible);
+		CHECK(st_console_set_window(rig.console, &(struct st_console_rect) {8, 2, 4, 1}) == 0);
+		unsigned selector = 1;
+		while (selector < 256
+		       && (!rig.terminal->screen.font_valid[selector]
+			   || rig.terminal->screen.font_identifiers[selector] == expected.font))
+			++selector;
+		CHECK(selector < 256);
+		rig.terminal->screen.selectors[2] = selector;
+		uint32_t flags;
+		CHECK(st_console_get_video_flags(rig.console, &flags) == 0);
+		CHECK(st_console_set_video_flags(rig.console, flags | ST_CONSOLE_VIDEO_ALT_CHARS) == 0);
+		feed(&rig, "DE", 2);
+		struct st_console_cell cells[3];
+		CHECK(st_console_read_cells(rig.console, &(struct st_console_rect) {2, 0, 3, 1}, cells, 3) == 0);
+		CHECK(cells[0].glyph == 'C' && cells[0].font == expected.font);
+		for (unsigned i = 0; i < 3; ++i) {
+			CHECK(cells[i].flags == expected.flags && cells[i].foreground == expected.foreground
+			      && cells[i].background == expected.background
+			      && cells[i].hyperlink == expected.hyperlink);
+			if (i != 0)
+				CHECK(cells[i].font == rig.terminal->screen.font_identifiers[selector]);
+		}
+		uint32_t x, y;
+		CHECK(st_console_get_position(rig.console, &x, &y) == 0 && x == 5 && y == 0);
+		close_rig(&rig);
+	}
+}
+
 static void
 test_font_selection(void)
 {
@@ -1375,6 +1427,7 @@ st_cterm_text_test_main(void)
 	test_reentrant_replacement();
 	test_font_selection();
 	test_shared_text_rendition();
+	test_interrupted_plain_text();
 
 	static const struct {
 		const char *codepage;

@@ -2246,27 +2246,16 @@ st_console_reconfigure(st_console_t *console, const struct st_console_config *co
 }
 
 int
-st_console_write_cells(st_console_t *console, const struct st_console_rect *destination,
+st_console_write_cells_locked(st_console_t *console, const struct st_console_rect *destination,
     const struct st_console_cell *cells, size_t stride)
 {
-	uint32_t x;
-	uint32_t y;
-	int      result;
+	uint32_t x, y;
 
-	if (console == NULL || destination == NULL || cells == NULL)
-		return IO_ERROR_INVALID_ARGUMENT;
-	result = st_rwlock_write_lock(st_console_state_lock(console));
-	if (result != ST_THREAD_SUCCESS)
-		return IO_ERROR_IO;
-	if (!st_console_rect_valid(console, destination) || stride < destination->width) {
-		(void)st_rwlock_unlock(st_console_state_lock(console));
+	if (!st_console_rect_valid(console, destination) || stride < destination->width)
 		return IO_ERROR_OUT_OF_RANGE;
-	}
 	for (y = 0; y < destination->height; ++y) {
-		if (!row_cells_valid_locked(console, &cells[(size_t)y * stride], destination->width)) {
-			(void)st_rwlock_unlock(st_console_state_lock(console));
+		if (!row_cells_valid_locked(console, &cells[(size_t)y * stride], destination->width))
 			return IO_ERROR_INVALID_ARGUMENT;
-		}
 	}
 	for (y = 0; y < destination->height; ++y) {
 		for (x = 0; x < destination->width; ++x) {
@@ -2274,7 +2263,23 @@ st_console_write_cells(st_console_t *console, const struct st_console_rect *dest
 			st_console_set_cell_locked(console, target, &cells[(size_t)y * stride + x]);
 		}
 	}
-	result = st_console_finish_change_locked(console);
+	return 0;
+}
+
+int
+st_console_write_cells(st_console_t *console, const struct st_console_rect *destination,
+    const struct st_console_cell *cells, size_t stride)
+{
+	int result;
+
+	if (console == NULL || destination == NULL || cells == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	result = st_rwlock_write_lock(st_console_state_lock(console));
+	if (result != ST_THREAD_SUCCESS)
+		return IO_ERROR_IO;
+	result = st_console_write_cells_locked(console, destination, cells, stride);
+	if (result == 0)
+		result = st_console_finish_change_locked(console);
 	(void)st_rwlock_unlock(st_console_state_lock(console));
 	return result;
 }

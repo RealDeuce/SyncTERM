@@ -106,6 +106,15 @@ struct cterm_render_state {
 		bool             original_valid;
 	} remote_fonts[UINT8_MAX + 1U];
 
+	/* Last desired style. The live console rendition is checked under its
+	 * write lock even when these terminal inputs still match. */
+	struct {
+		struct st_console_style style;
+		uint32_t                cell_flags;
+		uint8_t                 attr;
+		bool                    device_colours, reveal, valid;
+	} prepared_text;
+
 	uint16_t selectors[5];
 	uint16_t current_hyperlink;
 	uint32_t mode_palette[16];
@@ -146,7 +155,8 @@ uint8_t cterm_render_cell_font(struct cterminal *cterm, const struct st_console_
 int  cterm_render_get_video_flags(struct cterminal *cterm);
 void cterm_render_set_video_flags(struct cterminal *cterm, int flags);
 void cterm_render_set_window(struct cterminal *cterm, int left, int top, int right, int bottom);
-int      cterm_render_prepare_text(struct cterminal *cterm, struct st_console_style *style);
+int      cterm_render_prepare_text(struct cterminal *cterm, struct st_console_style *style,
+	 struct st_console_text_glyph *glyph);
 void cterm_render_set_position(struct cterminal *cterm, int x, int y);
 void cterm_render_get_position(struct cterminal *cterm, int *x, int *y);
 int  cterm_render_position_x(struct cterminal *cterm);

@@ -2556,7 +2556,7 @@ cterm_execute_byte(struct cterminal *cterm, unsigned char byte, int *speed, cter
 	y = cterm->ypos;
 	cterm_coord_conv_xy(cterm, CTERM_COORD_ABSTERM, CTERM_COORD_CURR, &x, &y);
 	cterm_render_set_position(cterm, x, y);
-	cterm_render_record_error(cterm, cterm_render_prepare_text(cterm, NULL));
+	cterm_render_record_error(cterm, cterm_render_prepare_text(cterm, NULL, NULL));
 	cterm->print_buf[0] = 0;
 	cterm->print_pos    = cterm->print_buf;
 	if (cterm->emulation == CTERM_EMULATION_PRESTEL || cterm->emulation == CTERM_EMULATION_BEEB)
