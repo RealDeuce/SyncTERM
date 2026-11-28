@@ -1676,6 +1676,11 @@ optional capability replies have bounded format expectations; supported fixed
 replies are exact. Pixel assertions cover downloaded fonts, conceal, copy/paste,
 blink planes and palette changes without assuming physical palette-bank numbers.
 
+The `queries` group checks all four XTWINOPS size reports in CP437 and UTF-8,
+including a reserved status row, scrolling margins, interleaved CT24BC colours
+and ignored malformed queries. The native `cterm` test splits the input at every
+byte and checks a 640×350 raster with 43 cell rows and 42 terminal text rows.
+
 The `queries` group checks synchronized output (DEC private mode 2026) in
 CP437 and UTF-8. It verifies the frame boundary within a single write,
 live cursor and mode replies, repeated set/reset, and RIS. The native

@@ -22,7 +22,7 @@
  *   - Query sequences:      xterm_gfx_query, ext_state_query,
  *                           macro_query, decrqm_syncterm
  *   - Extended device-attr: syncterm_ext_da
- *   - CSI t (RGB palette set for FG/BG)
+ *   - CSI t (XTWINOPS size reports and CT24BC foreground/background colour)
  *
  * Every handler uses the cterm_handle_* signature and is registered in
  * cterm_ansi_dispatch[] via keys from cterm_internal.h.
@@ -515,9 +515,45 @@ cterm_handle_csi_s(struct cterminal *cterm, int *speed) /* CSI s */
 		cterm_handle_scosc(cterm, speed);
 }
 
-void
-cterm_handle_csi_t(struct cterminal *cterm, int *speed) /* CSI Pc ; Pr ; Pg ; Pb t */
+/* Read the whole selector so subparameters and overflowing decimal values
+ * cannot alias a supported XTWINOPS report. */
+static void
+report_window_size(struct cterminal *cterm)
 {
+	char *end;
+	unsigned long op = strtoul(cterm->seq_param_strs[0], &end, 10);
+	if (*end != '\0')
+		return;
+
+	uint32_t width, height;
+	int status;
+	switch (op) {
+		case 15:
+			status = st_console_pixel_size(cterm->screen.console, &width, &height);
+			break;
+		case 16:
+			status = st_console_cell_pixel_size(cterm->screen.console, &width, &height);
+			break;
+		case 18:
+			status = st_cterm_size(cterm, &width, &height);
+			break;
+		case 19:
+			status = st_console_size(cterm->screen.console, &width, &height);
+			break;
+		default:
+			return;
+	}
+	if (status == 0 && height && width)
+		cterm_respond_printf(cterm, "\x1b[%lu;%u;%ut", op - 10, height, width);
+}
+
+void
+cterm_handle_csi_t(struct cterminal *cterm, int *speed)
+{
+	if (cterm->seq_param_count == 1) {
+		report_window_size(cterm);
+		return;
+	}
 	/* CTerm private: set FG or BG RGB palette entry. Pc=0 sets BG,
 	 * Pc=1 sets FG; the remaining three parameters are 8-bit R/G/B. */
 	(void)speed;

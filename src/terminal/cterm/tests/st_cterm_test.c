@@ -903,6 +903,39 @@ test_lf_expand(void)
 }
 
 static void
+test_window_size_reports(void)
+{
+	/* The raster includes six scanlines below the grid. One text row belongs to the local status bar. */
+	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_config geometry = {
+	    .columns = 80, .rows = 43, .cell_width = 8, .cell_height = 8, .pixel_width = 640, .pixel_height = 350,
+	};
+	st_console_t *console;
+	st_font_catalog_t *fonts;
+	st_cterm_t *terminal;
+	struct output output = {0};
+	CHECK(st_console_create(&console, &display, &geometry) == 0);
+	CHECK(st_font_catalog_create(&fonts, console) == 0);
+	const struct st_cterm_config config = {
+	    .console = console, .fonts = fonts, .status_line = true, .emulation = ST_CTERM_ANSI_BBS,
+	    .encoding = ST_CTERM_ENCODING_CODEPAGE, .codepage = ST_CODEPAGE_CP437,
+	    .quiet = true, .output = capture, .output_context = &output,
+	};
+	CHECK(rip_test_create(&terminal, &config) == 0);
+	static const char sizes[] = "\x1b[15t\x1b[16t\x1b[18t\x1b[19t";
+	static const char expected[] = "\x1b[5;350;640t\x1b[6;8;8t\x1b[8;42;80t\x1b[9;43;80t";
+	for (size_t split = 0; split < sizeof(sizes); ++split) {
+		feed(terminal, sizes, split);
+		feed(terminal, sizes + split, sizeof(sizes) - 1 - split);
+		CHECK(output.size == sizeof(expected) - 1 && memcmp(output.bytes, expected, output.size) == 0);
+		output.size = 0;
+	}
+	rip_test_destroy(&terminal);
+	st_font_catalog_destroy(fonts);
+	st_console_destroy(console);
+}
+
+static void
 test_disconnect_boundary(void)
 {
 	const struct st_console_display_config display  = {.backend = ST_CONSOLE_BACKEND_LIBRETRO};
@@ -1276,6 +1309,7 @@ st_cterm_test_main(void)
 	test_direct_reset();
 	test_lf_expand();
 	test_profile_presentation();
+	test_window_size_reports();
 	test_disconnect_boundary();
 	test_zero_width_text();
 	const struct st_console_display_config display = {

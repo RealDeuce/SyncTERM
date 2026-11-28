@@ -855,6 +855,19 @@ def attributes(t):
 
 
 def queries(t):
+    sizes = b"\x1b[15t\x1b[16t\x1b[18t\x1b[19t"
+    screen = b"\x1b[5;400;640t\x1b[6;16;8t"
+    t.check("XTWINOPS", sizes, expected=screen + b"\x1b[8;25;80t\x1b[9;25;80t")
+    # Reserve the host status line, then set smaller scrolling margins.
+    t.exchange(b"\x1b[2$~\x1b[4;9r\x1b[?6h" + sizes,
+               screen + b"\x1b[8;24;80t\x1b[9;25;80t")
+    # Interleave colours, valid queries, malformed requests and echoed replies.
+    frame = t.check("XTWINOPS", b"\x1b[1;18;52;86t\x1b[016t\x1b[0;171;205;239t"
+                    b"\x1b[15;2t\x1b[18;t\x1b[16:2t\x1b[18446744073709551631t"
+                    b"\x1b[19;0;0;0t\x1b[8;24;80tX",
+                    (2, 1), ((1, 1, "X"),), expected=b"\x1b[6;16;8t")
+    cell = cell_at(frame, 0, 0)
+    assert (colour(frame, cell), colour(frame, cell, True)) == (0x123456, 0xabcdef)
     t.case("synchronized-output")
     begin, end, query = (ESC + b"[?2026" + suffix for suffix in (b"h", b"l", b"$p"))
     on, off = (ESC + b"[?2026;" + value + b"$y" for value in (b"1", b"2"))
