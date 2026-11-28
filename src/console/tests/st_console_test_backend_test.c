@@ -75,13 +75,13 @@ synchronized_output(void)
 	 * synchronized update expire with no further input or capture requests. */
 	CHECK(st_console_set_blink_mode(console, ST_CONSOLE_BLINK_ATARI) == 0);
 	CHECK(st_console_set_synchronized_output(console, false) == 0);
+	uint64_t start, now;
+	CHECK(st_time_monotonic_ms(&start) == 0);
 	CHECK(st_console_set_synchronized_output(console, true) == 0);
 	CHECK(st_console_set_palette(console, 1, &red, 1) == 0);
 	(void)st_mutex_lock(&display->backend_mutex);
 	CHECK(state->frame.pixels->pixels[0] == green);
 	(void)st_mutex_unlock(&display->backend_mutex);
-	uint64_t start, now;
-	CHECK(st_time_monotonic_ms(&start) == 0);
 	for (;;) {
 		(void)st_mutex_lock(&display->backend_mutex);
 		bool published = state->frame.pixels->pixels[0] == red;
@@ -89,10 +89,11 @@ synchronized_output(void)
 		CHECK(st_time_monotonic_ms(&now) == 0);
 		if (published)
 			break;
-		CHECK(now - start < 3000);
+		CHECK(now - start < 5000);
 		const struct timespec pause = {.tv_nsec = 10000000};
 		(void)st_thread_sleep(&pause, NULL);
 	}
+	CHECK(now - start >= 3000);
 	CHECK(st_console_synchronized_output_mode(console) == 2);
 	st_pixel_buffer_destroy(art);
 	st_console_destroy(console);

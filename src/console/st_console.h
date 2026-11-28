@@ -659,7 +659,7 @@ int st_console_begin_update(st_console_t *console);
 int st_console_end_update(st_console_t *console);
 /* Forces a synchronous presentation, including changes in an open batch. */
 int st_console_present(st_console_t *console);
-/* Retain the active bitmap frame until release or the one-second timeout. */
+/* Retain the active bitmap frame until release or the three-second timeout. */
 int st_console_set_synchronized_output(st_console_t *console, bool enabled);
 /* DEC mode report: 0 unsupported, 1 set, 2 reset. */
 int st_console_synchronized_output_mode(st_console_t *console);

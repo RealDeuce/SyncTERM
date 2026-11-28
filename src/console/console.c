@@ -1788,7 +1788,7 @@ st_console_set_synchronized_output(st_console_t *console, bool enabled)
 			status = IO_ERROR_IO;
 			goto done;
 		}
-		deadline += 1000;
+		deadline += 3000;
 	}
 	else
 		set_synchronized_deadline(root, 0);

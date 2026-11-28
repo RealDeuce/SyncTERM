@@ -1681,7 +1681,7 @@ CP437 and UTF-8. It verifies the frame boundary within a single write,
 live cursor and mode replies, repeated set/reset, and RIS. The native
 `st_console_test_backend` fixture checks all eight blink/cursor phases against
 literal colours, palette and cursor changes during a hold, console switching,
-and publication on an idle connection after the one-second timeout.
+and publication on an idle connection after the three-second timeout.
 
 The supplemental `syncterm_behavior_cterm_reset_cp437` and
 `syncterm_behavior_cterm_reset_utf8` tests invoke Wren's direct `CTerm.reset()`

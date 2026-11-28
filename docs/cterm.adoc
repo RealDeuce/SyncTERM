@@ -1213,7 +1213,7 @@ SOURCE: <<XTerm>>
 before this sequence and keep that screen animating while the host updates
 text, graphics, palette and cursor state. Queries see the live terminal state.
 Repeated BSU preserves the original frame and deadline. SyncTERM releases a
-hold after one second, on terminal reset or disconnect, or when switching the
+hold after three seconds, on terminal reset or disconnect, or when switching the
 active console.
 
 SOURCE: https://contour-terminal.org/vt-extensions/synchronized-output/[Synchronized Output]
