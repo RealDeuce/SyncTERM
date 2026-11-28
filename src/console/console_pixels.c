@@ -180,7 +180,7 @@ prepare_fast_cell(st_console_t *console, const struct st_console_cell *cell, str
 	    || (console->color_emoji && st_console_font_color_glyph(font, glyph_index) != NULL) || glyph_width != 8
 	    || font->height != console->cell_height || console->cell_width != 8
 	    || (cell->flags & (ST_CONSOLE_CELL_SEPARATED | ST_CONSOLE_CELL_CONTINUATION
-	                       | ST_CONSOLE_CELL_UNDERLINE_MASK | ST_CONSOLE_CELL_STRIKETHROUGH)) != 0)
+	                       | ST_CONSOLE_CELL_UNDERLINE_MASK | ST_CONSOLE_CELL_STRIKETHROUGH | ST_CONSOLE_CELL_OVERLINE)) != 0)
 		return false;
 	if ((cell->flags & ST_CONSOLE_CELL_REVERSE) != 0) {
 		uint32_t swap = foreground;
@@ -622,6 +622,11 @@ render_cell_pixels(st_console_t *console, struct st_pixel_buffer *pixels, const 
 	}
 
 decorate:
+	if ((source->flags & ST_CONSOLE_CELL_OVERLINE) != 0 && row_scale != ROW_SCALE_BOTTOM) {
+		size_t at = render_pixel_position(console, pixels, x * console->cell_width, y * console->cell_height);
+		draw_rule(pixels, at, draw_width, foreground,
+		    (source->flags & ST_CONSOLE_CELL_BLINK) ? background : foreground);
+	}
 	if ((source->flags & ST_CONSOLE_CELL_STRIKETHROUGH) != 0
 	    && !(row_scale == ROW_SCALE_TOP && (source->flags & ST_CONSOLE_CELL_DOUBLE_HEIGHT))) {
 		/* A double-height character crosses its midpoint at the start of the lower half. */

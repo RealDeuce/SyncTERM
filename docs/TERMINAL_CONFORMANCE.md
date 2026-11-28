@@ -31,6 +31,11 @@ The SGR 9/29 tests check strike placement at cell heights of 1, 8, 9, 14 and
 16 pixels. The connected suites check both blink planes, underline composition,
 line erasure, rectangle edits, wide text, reset and rendition reports.
 
+The SGR 53/55 tests check a full-width top row at cell heights of 1, 9 and 16
+pixels. Connected CP437 and UTF-8 tests cover both underline styles, blink,
+reset, erasure, rectangle edits, rendition reports and attributed selection.
+The UTF-8 test also checks both halves of a wide glyph.
+
 The Unicode presenter tests cover all 95 printable ASCII characters at begin
 and commit, plus bytewise revisions to composed accents and two-column
 keycaps. The connected UTF-8 movement suite writes an ASCII letter over each

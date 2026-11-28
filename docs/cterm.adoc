@@ -1728,6 +1728,15 @@ implementation makes them equal
 | 
 |√
 
+|53
+|Overline. Bitmap displays draw the top pixel row in the foreground colour
+across the full cell width. Either underline style can be active at the same time.
+| | | | | |
+
+|55
+|End overline.
+| | | | | |
+
 |91
 |Bright Red foreground
 | 
@@ -2295,12 +2304,13 @@ The remaining `Ps` parameters specify which attributes to toggle:
 |===
 | Ps | Action
 
-| 0 | Invert all toggleable attributes (bold, underline, blink, negative, strikethrough)
+| 0 | Invert all toggleable attributes (bold, underline, blink, negative, strikethrough, overline)
 | 1 or 22 | Toggle bold (XOR legacy attribute bit 3)
 | 4, 21 or 24 | Toggle underline. When enabling it, 21 selects double and 4 or 24 selects single.
 | 5 or 25 | Toggle blink (XOR legacy attribute bit 7)
 | 7 or 27 | Toggle negative (swap foreground and background)
 | 9 or 29 | Toggle strikethrough
+| 53 or 55 | Toggle overline
 |===
 
 All other `Ps` values are silently ignored.

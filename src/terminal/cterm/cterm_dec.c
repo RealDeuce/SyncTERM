@@ -473,7 +473,7 @@ cterm_handle_decrara(struct cterminal *cterm, int *speed) /* CSI Pt;Pl;Pb;Pr;...
 				cterm_seq_default(cterm, p, 0);
 				switch (cterm->seq_param_int[p]) {
 					case 0:
-						rowbuf[c].flags ^= ST_CONSOLE_CELL_STRIKETHROUGH;
+						rowbuf[c].flags ^= ST_CONSOLE_CELL_STRIKETHROUGH | ST_CONSOLE_CELL_OVERLINE;
 						rowbuf[c].flags &= ~ST_CONSOLE_CELL_FAST_BLINK;
 						attribute ^= 0x88;
 						cterm_render_attribute_colours(cterm, attribute,
@@ -504,6 +504,10 @@ cterm_handle_decrara(struct cterminal *cterm, int *speed) /* CSI Pt;Pl;Pb;Pr;...
 					case 9:
 					case 29:
 						rowbuf[c].flags ^= ST_CONSOLE_CELL_STRIKETHROUGH;
+						break;
+					case 53:
+					case 55:
+						rowbuf[c].flags ^= ST_CONSOLE_CELL_OVERLINE;
 						break;
 					case 5:
 					case 6:
@@ -2420,6 +2424,8 @@ cterm_dec_dcs_finish(struct cterminal *cterm)
 					unsigned position = cterm_sgr_font_position(cterm->cell_flags);
 					if (position)
 						snprintf(tmp + strlen(tmp), sizeof(tmp) - strlen(tmp), ";%u", 10 + position);
+					if (cterm->cell_flags & ST_CONSOLE_CELL_OVERLINE)
+						strcat(tmp, ";53");
 					if (cterm->fg_tc_str == NULL) {
 						switch ((cterm->attr >> (cterm->negative ? 4 : 0)) & 7) {
 							case 0:

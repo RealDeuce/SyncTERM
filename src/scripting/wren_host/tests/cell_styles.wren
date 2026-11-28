@@ -12,29 +12,30 @@ class CellStyleChecks {
   }
   static allWithDouble { CellStyle.all & ~CellStyle.underline }
   static properties(c) {
-    return [c.bright, c.blink, c.underline, c.bold, c.reverse, c.conceal, c.fastBlink, c.strikethrough, c.doubleUnderline]
+    return [c.bright, c.blink, c.underline, c.bold, c.reverse, c.conceal, c.fastBlink, c.strikethrough, c.doubleUnderline, c.overline]
   }
   static setters(c) {
     return [Fn.new {|v| c.bright = v }, Fn.new {|v| c.blink = v },
       Fn.new {|v| c.underline = v }, Fn.new {|v| c.bold = v },
       Fn.new {|v| c.reverse = v }, Fn.new {|v| c.conceal = v }, Fn.new {|v| c.fastBlink = v },
-      Fn.new {|v| c.strikethrough = v }, Fn.new {|v| c.doubleUnderline = v }]
+      Fn.new {|v| c.strikethrough = v }, Fn.new {|v| c.doubleUnderline = v }, Fn.new {|v| c.overline = v }]
   }
   static run() {
     var bits = [CellStyle.bright, CellStyle.blink, CellStyle.underline,
-      CellStyle.bold, CellStyle.reverse, CellStyle.conceal, CellStyle.fastBlink, CellStyle.strikethrough, CellStyle.doubleUnderline]
+      CellStyle.bold, CellStyle.reverse, CellStyle.conceal, CellStyle.fastBlink, CellStyle.strikethrough, CellStyle.doubleUnderline, CellStyle.overline]
     check(bits[0] == 0x400000 && bits[1] == 2 && bits[2] == 0x10000)
     check(bits[3] == 0x20000 && bits[4] == 0x40000 && bits[5] == 4)
-    check(bits[6] == 0x2000000 && bits[7] == 0x4000000 && bits[8] == 0x100000 && CellStyle.all == 0x6570006)
+    check(bits[6] == 0x2000000 && bits[7] == 0x4000000 && bits[8] == 0x100000)
+    check(bits[9] == 0x200000 && CellStyle.all == 0x6770006)
     var c = Cell.new()
     c.ch = "A"
     c.fgRgb = 0x112233
     c.bgRgb = 0x445566
     check(!c.teletext && !c.doubleHeight && !c.reveal && !c.separated)
     check(c.teletextControl == null && !c.pixelGraphics)
-    for (combination in 0...512) {
+    for (combination in 0...1024) {
       var mask = 0
-      for (i in 0...9) {
+      for (i in 0...10) {
         if ((combination & (1 << i)) != 0) mask = mask | bits[i]
       }
       c.styleFlags = mask
@@ -43,7 +44,7 @@ class CellStyleChecks {
       var values = properties(c)
       var individual = Cell.new()
       var write = setters(individual)
-      for (i in 0...9) {
+      for (i in 0...10) {
         var expected = (combination & (1 << i)) != 0
         check(values[i] == ((effective & bits[i]) != 0))
         write[i].call(expected)

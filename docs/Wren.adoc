@@ -3569,6 +3569,9 @@ hyperlink, and repairs overwritten wide pairs.
 | Draws a one-pixel foreground line across the centre row of an odd-height cell
   or the lower middle row of an even-height cell.
 
+| `overline`, `overline=(b)`
+| Draws a foreground line across the top pixel row of the cell.
+
 | `doubleUnderline`, `doubleUnderline=(b)`
 | Draws the bottom pixel row and the row two pixels above it when present.
 Enabling either underline style replaces the other.
@@ -3639,8 +3642,8 @@ instead.
 
 Named masks for `Cell.styleFlags`, available in all script VMs. `bright` is
 `0x400000`, `blink` is `2`, `underline` is `0x10000`, `bold` is `0x20000`,
-`reverse` is `0x40000`, `conceal` is `4`, `fastBlink` is `0x2000000`, `strikethrough` is `0x4000000`, and `doubleUnderline` is `0x100000`.
-`all` is their union (`0x6570006`).
+`reverse` is `0x40000`, `conceal` is `4`, `fastBlink` is `0x2000000`, `strikethrough` is `0x4000000`, `doubleUnderline` is `0x100000`, and `overline` is `0x200000`.
+`all` is their union (`0x6770006`).
 These native bit values fit Wren's ordinary bitwise operators. Renderer state,
 serial attributes and pixel-graphics ownership are excluded from this mask.
 

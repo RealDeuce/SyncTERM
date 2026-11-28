@@ -1194,6 +1194,7 @@ test_fixed_rules(void)
 	    {16, ST_CONSOLE_CELL_STRIKETHROUGH, 8, 8}, {1, ST_CONSOLE_CELL_DOUBLE_UNDERLINE, 0, 0},
 	    {2, ST_CONSOLE_CELL_DOUBLE_UNDERLINE, 1, 1}, {3, ST_CONSOLE_CELL_DOUBLE_UNDERLINE, 0, 2},
 	    {9, ST_CONSOLE_CELL_DOUBLE_UNDERLINE, 6, 8}, {16, ST_CONSOLE_CELL_DOUBLE_UNDERLINE, 13, 15},
+	    {1, ST_CONSOLE_CELL_OVERLINE, 0, 0}, {9, ST_CONSOLE_CELL_OVERLINE, 0, 0}, {16, ST_CONSOLE_CELL_OVERLINE, 0, 0},
 	};
 	for (size_t i = 0; i < sizeof(cases) / sizeof(*cases); ++i) {
 		const struct st_console_config config = {.columns = 1, .rows = 1, .cell_width = 7,

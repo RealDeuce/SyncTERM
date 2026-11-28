@@ -521,6 +521,29 @@ def attributes(t):
             expected = list(tile(frame, 1 + half))
             expected[64:72] = [cell_at(frame, 2 + half, 0).foreground] * 8
             assert tile(frame, 3 + half) == tuple(expected)
+    frame = t.check("sgr-overline", b"\x1b[53m \x1b[4m \x1b[21m \x1b[55m \x1b[24;53;6m \x1b[m "
+                    + b"\x1b[53m" + ESC + b"P$qm" + ST, (7, 1), expected=ESC + b"P1$r0;53m" + ST)
+    for x, rows in enumerate(((0,), (0, 13), (0, 13, 15), (13, 15), (0,), ())):
+        cell = cell_at(frame, x, 0)
+        for alternate in (False, True):
+            expected = tuple(cell.foreground if y in rows and not (alternate and x == 4)
+                             else cell.background for y in range(16) for _ in range(8))
+            assert tile(frame, x + 1, 1, alternate) == expected, (x, alternate)
+    t.check("sgr-overline", b"\x1bF\x1b[5;53mA\x1b[25mB\x1b[55mC\x1bS",
+            expected=ESC + b"XCTerm:STS:0:\x1b[5;53m\x1b[48;5;8mA\x1b[0;53;37;40mB\x1b[55mC" + ST)
+    frame = t.check("sgr-overline", b"ABCD\r\x1b[53m\x1b[2K\x1b[55m "
+                    b"\x1b[1;2;1;4;55$r\x1b[1;2;1;2;53$r\x1b[1;4;1;5;55$t")
+    for x in range(80):
+        cell = cell_at(frame, x, 0)
+        expected = tuple(cell.foreground if (x in (1, 3) or x >= 5) and y == 0 else cell.background
+                         for y in range(16) for _ in range(8))
+        assert tile(frame, x + 1) == expected
+    if t.encoding == "UTF-8":
+        frame = t.check("sgr-overline", wide + b"\x1b[53m" + wide, (5, 1))
+        for half in (0, 1):
+            expected = list(tile(frame, 1 + half))
+            expected[:8] = [cell_at(frame, 2 + half, 0).foreground] * 8
+            assert tile(frame, 3 + half) == tuple(expected)
     # Faint colours are independent, programmable ANSI-order registers.
     stream = b"".join(f"\x1b[{30+i};2mX".encode() for i in range(8))
     stream += (b"\x1b[2;33mA\x1b[1mB\x1b[22mC\x1b[2;7mD\x1b[27;93mE"

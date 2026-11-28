@@ -1198,6 +1198,8 @@ sgr_diff(struct cterminal *cterm, const struct st_console_cell *prev, const stru
 			cterm_respond_printf(cterm, ";9");
 		if (position)
 			cterm_respond_printf(cterm, ";%u", 10 + position);
+		if (next->flags & ST_CONSOLE_CELL_OVERLINE)
+			cterm_respond_printf(cterm, ";53");
 		cterm_respond_printf(cterm, ";%d", 30 + cterm_ansi_colour_order[na & 0x07]);
 		cterm_respond_printf(cterm, ";%d", 40 + cterm_ansi_colour_order[(na >> 4) & 0x07]);
 		cterm_respond_printf(cterm, "m");
@@ -1232,6 +1234,11 @@ sgr_diff(struct cterminal *cterm, const struct st_console_cell *prev, const stru
 			char tmp[16];
 			snprintf(tmp, sizeof(tmp), "%s%u", params++ ? ";" : "", 10 + position);
 			strcat(sgrbuf, tmp);
+		}
+		if ((next->flags ^ prev->flags) & ST_CONSOLE_CELL_OVERLINE) {
+			if (params++)
+				strcat(sgrbuf, ";");
+			strcat(sgrbuf, (next->flags & ST_CONSOLE_CELL_OVERLINE) ? "53" : "55");
 		}
 		if ((na & 0x07) != (pa & 0x07) || (next_faint && !prev_faint)) {
 			char tmp[16];
@@ -1663,7 +1670,7 @@ cterm_ecma48_apply_sgr(struct cterminal *cterm, int *pi)
 			cterm->negative = false;
 			cterm->faint    = false;
 			cterm->cell_flags &= ~(ST_CONSOLE_CELL_UNDERLINE_MASK | ST_CONSOLE_CELL_FAST_BLINK
-			                       | ST_CONSOLE_CELL_STRIKETHROUGH | ST_CONSOLE_CELL_SGR_FONT_MASK);
+			                       | ST_CONSOLE_CELL_STRIKETHROUGH | ST_CONSOLE_CELL_OVERLINE | ST_CONSOLE_CELL_SGR_FONT_MASK);
 			cterm->attr     = cterm->screen.default_attribute;
 			cterm_render_attribute_colours(cterm, cterm->attr, &cterm->fg_color, &cterm->bg_color);
 			CTERM_FREE_AND_CLEAR(cterm->fg_tc_str);
@@ -1719,6 +1726,12 @@ cterm_ecma48_apply_sgr(struct cterminal *cterm, int *pi)
 			break;
 		case 29:
 			cterm->cell_flags &= ~ST_CONSOLE_CELL_STRIKETHROUGH;
+			break;
+		case 53:
+			cterm->cell_flags |= ST_CONSOLE_CELL_OVERLINE;
+			break;
+		case 55:
+			cterm->cell_flags &= ~ST_CONSOLE_CELL_OVERLINE;
 			break;
 		case 5:
 		case 6:

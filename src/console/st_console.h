@@ -56,6 +56,7 @@ typedef struct st_console_snapshot st_console_snapshot_t;
 #define ST_CONSOLE_CELL_CONTINUATION (UINT32_C(1) << 19)
 #define ST_CONSOLE_CELL_DOUBLE_UNDERLINE (UINT32_C(1) << 20)
 #define ST_CONSOLE_CELL_UNDERLINE_MASK (ST_CONSOLE_CELL_UNDERLINE | ST_CONSOLE_CELL_DOUBLE_UNDERLINE)
+#define ST_CONSOLE_CELL_OVERLINE (UINT32_C(1) << 21)
 #define ST_CONSOLE_CELL_BRIGHT       (UINT32_C(1) << 22)
 /* Colour was supplied by a legacy attribute and follows VideoFlags. */
 #define ST_CONSOLE_CELL_LEGACY_FOREGROUND (UINT32_C(1) << 23)
@@ -73,7 +74,7 @@ typedef struct st_console_snapshot st_console_snapshot_t;
 	    | ST_CONSOLE_CELL_UNDERLINE_MASK | ST_CONSOLE_CELL_BOLD | ST_CONSOLE_CELL_REVERSE                       \
 	    | ST_CONSOLE_CELL_CONTINUATION | ST_CONSOLE_CELL_BRIGHT | ST_CONSOLE_CELL_LEGACY_FOREGROUND        \
 	    | ST_CONSOLE_CELL_LEGACY_BACKGROUND | ST_CONSOLE_CELL_FAST_BLINK | ST_CONSOLE_CELL_STRIKETHROUGH \
-	    | ST_CONSOLE_CELL_SGR_FONT_MASK)
+	    | ST_CONSOLE_CELL_OVERLINE | ST_CONSOLE_CELL_SGR_FONT_MASK)
 
 /* The source attribute bits retain these independently composable meanings. */
 #define ST_CONSOLE_VIDEO_ALT_CHARS            (UINT32_C(1) << 0)

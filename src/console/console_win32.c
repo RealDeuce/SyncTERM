@@ -110,6 +110,8 @@ cell_attributes(const st_console_t *console, struct win32_state *state, const st
 	    console_colour(console, state, foreground, false) | console_colour(console, state, background, true);
 	if ((cell->flags & ST_CONSOLE_CELL_UNDERLINE_MASK) != 0)
 		result |= COMMON_LVB_UNDERSCORE;
+	if ((cell->flags & ST_CONSOLE_CELL_OVERLINE) != 0)
+		result |= COMMON_LVB_GRID_HORIZONTAL;
 	return result;
 }
 
@@ -806,6 +808,12 @@ st_console_win32_init(st_console_t *console)
 		goto fail;
 	}
 	state->input_mode_changed = true;
+#ifdef ENABLE_LVB_GRID_WORLDWIDE
+	/* Enable cell decorations in every codepage on our private output buffer. */
+	DWORD output_mode;
+	if (GetConsoleMode(state->output, &output_mode))
+		(void)SetConsoleMode(state->output, output_mode | ENABLE_LVB_GRID_WORLDWIDE);
+#endif
 	if (!SetConsoleActiveScreenBuffer(state->output)) {
 		status = IO_ERROR_IO;
 		goto fail;
