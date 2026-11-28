@@ -4802,14 +4802,14 @@ exercise_font_api(st_wren_host_t *public_host, st_console_t *shared_console, con
 			"FontProbe.check(Font.codepageFor(46) == Codepage.cp1251)\n"
 			"Screen.font[0] = 46\n"
 			"FontProbe.check(Font.codepage == Codepage.cp1251 && Codepage.encodes_(\"А\"))\n"
-			"var old = (0...4).map {|i| CTerm.font[i] }.toList\n"
+			"var old = (0...10).map {|i| CTerm.font[i] }.toList\n"
 			"FontProbe.check(file.open() == null)\n"
 			"file.offset = 17\n"
 			"var selector = Font.load(file)\n"
 			"FontProbe.check(selector is Num && file.isOpen && file.offset == 17)\n"
 			"file.close()\n"
 			"FontProbe.check(Font.codepageFor(selector) == Codepage.cp437)\n"
-			"for (i in 0...4) FontProbe.check(CTerm.font[i] == old[i])\n"
+			"for (i in 0...10) FontProbe.check(CTerm.font[i] == old[i])\n"
 			"var explicit = Font.load(file, Codepage.cp1251)\n"
 			"FontProbe.check(explicit is Num)\n"
 			"FontProbe.check(Font.available(explicit) && Font.name(explicit) != \"\" && Font.count > explicit)\n"
@@ -4819,13 +4819,13 @@ exercise_font_api(st_wren_host_t *public_host, st_console_t *shared_console, con
 			"CTerm.font[3] = selector\n"
 			"FontProbe.check(CTerm.font[3] == selector && CTerm.font[0] == old[0])\n"
 			"FontProbe.check(CTerm.setFont(explicit, CTermFontMask.all) == null)\n"
-			"for (i in 0...4) FontProbe.check(CTerm.font[i] == explicit)\n"
+			"for (i in 0...10) FontProbe.check(CTerm.font[i] == explicit)\n"
 			"var missing = CTerm.setFont(249, CTermFontMask.all)\n"
 			"FontProbe.check(missing is FontError && missing.code == FontErr.notLoaded && missing.nativeCode < 0)\n"
 			"var f = Fiber.new { CTerm.font[0] = 249 }\n"
 			"f.try()\n"
 			"FontProbe.check(f.error is FontError)\n"
-			"for (i in 0...4) FontProbe.check(CTerm.font[i] == explicit)\n"
+			"for (i in 0...10) FontProbe.check(CTerm.font[i] == explicit)\n"
 			"\n")
 		    == 0);
 		CHECK(
@@ -4835,8 +4835,8 @@ exercise_font_api(st_wren_host_t *public_host, st_console_t *shared_console, con
 			"FontProbe.bad(Fn.new { CTerm.altFonts })\n"
 			"FontProbe.bad(Fn.new { CTerm.altFont })\n"
 			"FontProbe.bad(Fn.new { CTerm.altFont = 0 })\n"
-			"for (mask in [0, 16, -1, 0.5, \"1\", 9007199254740992]) FontProbe.bad(Fn.new { CTerm.setFont(selector, mask) })\n"
-			"for (index in [-1, 4, 0.5, null]) FontProbe.bad(Fn.new { CTerm.font[index] })\n"
+			"for (mask in [0, 1024, -1, 0.5, \"1\", 9007199254740992]) FontProbe.bad(Fn.new { CTerm.setFont(selector, mask) })\n"
+			"for (index in [-1, 10, 0.5, null]) FontProbe.bad(Fn.new { CTerm.font[index] })\n"
 			"for (value in [-1, 256, 0.5, null]) FontProbe.bad(Fn.new { CTerm.font[0] = value })\n"
 			"for (value in [-1, 29, 0.5, null]) FontProbe.bad(Fn.new { Font.load(file, value) })\n"
 			"FontProbe.bad(Fn.new { Font.load(\"unapproved path\") })\n"
@@ -4844,7 +4844,7 @@ exercise_font_api(st_wren_host_t *public_host, st_console_t *shared_console, con
 			"Screen.font[0] = 249\n"
 			"FontProbe.check(Font.codepage == null && !Codepage.encodes_(\"A\"))\n"
 			"Screen.font[0] = 0\n"
-			"for (i in 0...4) CTerm.font[i] = old[i]\n")
+			"for (i in 0...10) CTerm.font[i] = old[i]\n")
 		    == 0);
 		CHECK(st_cterm_set_encoding(terminal, ST_CTERM_ENCODING_UTF8, ST_CODEPAGE_CP1251) == 0);
 		CHECK(

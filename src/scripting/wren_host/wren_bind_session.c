@@ -1082,7 +1082,7 @@ static void
 fn_cterm_font_get(WrenVM *vm)
 {
 	int64_t slot;
-	if (!font_integer(vm, 1, 3, &slot))
+	if (!font_integer(vm, 1, ST_CTERM_FONT_COUNT - 1, &slot))
 		return;
 	struct st_cterm_state state = cterm_state(vm);
 	wrenSetSlotDouble(vm, 0, state.alt_fonts[slot]);
@@ -1092,7 +1092,7 @@ static void
 fn_cterm_font_set(WrenVM *vm)
 {
 	int64_t slot, selector;
-	if (!font_integer(vm, 1, 3, &slot) || !font_integer(vm, 2, UINT8_MAX, &selector))
+	if (!font_integer(vm, 1, ST_CTERM_FONT_COUNT - 1, &slot) || !font_integer(vm, 2, UINT8_MAX, &selector))
 		return;
 	set_terminal_fonts(vm, (uint8_t)selector, 1U << slot);
 	if (wrenGetSlotType(vm, 0) != WREN_TYPE_NULL)
@@ -1105,7 +1105,7 @@ static void
 fn_cterm_set_font(WrenVM *vm)
 {
 	int64_t selector, mask;
-	if (!font_integer(vm, 1, UINT8_MAX, &selector) || !font_integer(vm, 2, 15, &mask))
+	if (!font_integer(vm, 1, UINT8_MAX, &selector) || !font_integer(vm, 2, ST_CTERM_FONT_ALL, &mask))
 		return;
 	if (mask == 0) {
 		st_wren_abort(vm, "font assignment mask must not be zero");

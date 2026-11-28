@@ -61,13 +61,17 @@ typedef struct st_console_snapshot st_console_snapshot_t;
 /* Selects the rapid cadence when CELL_BLINK is effective. */
 #define ST_CONSOLE_CELL_FAST_BLINK (UINT32_C(1) << 25)
 #define ST_CONSOLE_CELL_STRIKETHROUGH (UINT32_C(1) << 26)
+/* Logical FNT position retained for terminal rendition editing and transmission. */
+#define ST_CONSOLE_CELL_SGR_FONT_SHIFT 27
+#define ST_CONSOLE_CELL_SGR_FONT_MASK  (UINT32_C(15) << ST_CONSOLE_CELL_SGR_FONT_SHIFT)
 #define ST_CONSOLE_CELL_PUBLIC_FLAGS                                                                           \
 	(ST_CONSOLE_CELL_BLINK | ST_CONSOLE_CELL_CONCEAL | ST_CONSOLE_CELL_PIXEL_GRAPHICS                      \
 	    | ST_CONSOLE_CELL_DOUBLE_HEIGHT | ST_CONSOLE_CELL_SAA5050 | ST_CONSOLE_CELL_REVEAL                 \
 	    | ST_CONSOLE_CELL_SEPARATED | ST_CONSOLE_CELL_TERMINAL_FONT | ST_CONSOLE_CELL_SAA5050_CONTROL_MASK \
 	    | ST_CONSOLE_CELL_UNDERLINE | ST_CONSOLE_CELL_BOLD | ST_CONSOLE_CELL_REVERSE                       \
 	    | ST_CONSOLE_CELL_CONTINUATION | ST_CONSOLE_CELL_BRIGHT | ST_CONSOLE_CELL_LEGACY_FOREGROUND        \
-	    | ST_CONSOLE_CELL_LEGACY_BACKGROUND | ST_CONSOLE_CELL_FAST_BLINK | ST_CONSOLE_CELL_STRIKETHROUGH)
+	    | ST_CONSOLE_CELL_LEGACY_BACKGROUND | ST_CONSOLE_CELL_FAST_BLINK | ST_CONSOLE_CELL_STRIKETHROUGH \
+	    | ST_CONSOLE_CELL_SGR_FONT_MASK)
 
 /* The source attribute bits retain these independently composable meanings. */
 #define ST_CONSOLE_VIDEO_ALT_CHARS            (UINT32_C(1) << 0)

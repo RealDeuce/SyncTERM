@@ -165,27 +165,37 @@ font_identifier(const struct cterminal *cterm, uint8_t selector)
 	return cterm->screen.fonts.normal;
 }
 
-static uint8_t
-attribute_font(const struct cterminal *cterm, uint8_t attribute, uint32_t flags)
+unsigned
+cterm_render_font_position(const struct cterminal *cterm, uint8_t attribute, uint32_t video_flags, uint32_t cell_flags)
 {
 	/* IGS uses color-register bits, not ANSI intensity/blink font banks. */
 	if (cterm->vt52_plane_mask != 0)
-		return (uint8_t)cterm->screen.selectors[1];
-	int slot = 1;
+		return 0;
+	unsigned position = cterm_sgr_font_position(cell_flags);
+	if (position)
+		return position;
+	if ((attribute & 8U) && (video_flags & ST_CONSOLE_VIDEO_ALT_CHARS))
+		position += 1;
+	if ((attribute & CTERM_ATTR_BLINK) && (video_flags & ST_CONSOLE_VIDEO_BLINK_ALT_CHARS))
+		position += 2;
+	return position;
+}
 
-	if ((attribute & 8U) != 0 && (flags & ST_CONSOLE_VIDEO_ALT_CHARS) != 0)
-		slot += 1;
-	if ((attribute & CTERM_ATTR_BLINK) != 0 && (flags & ST_CONSOLE_VIDEO_BLINK_ALT_CHARS) != 0)
-		slot += 2;
-	return (uint8_t)cterm->screen.selectors[slot];
+static uint8_t
+attribute_font(const struct cterminal *cterm, uint8_t attribute, uint32_t video_flags, uint32_t cell_flags)
+{
+	unsigned position = cterm_render_font_position(cterm, attribute, video_flags, cell_flags);
+	return (uint8_t)cterm->screen.selectors[position + 1];
 }
 
 uint8_t
-cterm_render_attribute_font(struct cterminal *cterm, uint8_t attribute)
+cterm_render_attribute_font(struct cterminal *cterm, uint8_t attribute, uint32_t cell_flags)
 {
-	if ((attribute & (8U | CTERM_ATTR_BLINK)) == 0 || cterm->vt52_plane_mask != 0)
-		return (uint8_t)cterm->screen.selectors[1];
-	return attribute_font(cterm, attribute, (uint32_t)cterm_render_get_video_flags(cterm));
+	uint32_t video_flags = 0;
+	if ((attribute & (8U | CTERM_ATTR_BLINK)) && cterm->vt52_plane_mask == 0
+	    && cterm_sgr_font_position(cell_flags) == 0)
+		video_flags = (uint32_t)cterm_render_get_video_flags(cterm);
+	return attribute_font(cterm, attribute, video_flags, cell_flags);
 }
 
 static uint32_t
@@ -237,7 +247,7 @@ cterm_render_make_current_cell(struct cterminal *cterm, struct st_console_cell *
     uint16_t hyperlink)
 {
 	return cterm_render_make_cell(cterm, cell, byte, cterm->attr, cterm->fg_color, cterm->bg_color,
-	    cterm_render_attribute_font(cterm, cterm->attr), hyperlink, cterm->cell_flags);
+	    cterm_render_attribute_font(cterm, cterm->attr, cterm->cell_flags), hyperlink, cterm->cell_flags);
 }
 
 uint8_t
@@ -416,7 +426,7 @@ cterm_render_set_attribute(struct cterminal *cterm, int attribute)
 	attribute_colours(cterm, cterm->attr, edit.video_flags, &edit.style.foreground, &edit.style.background);
 	edit.style.flags = attribute_flags(cterm, cterm->attr, cterm->cell_flags)
 	                   | ST_CONSOLE_CELL_LEGACY_FOREGROUND | ST_CONSOLE_CELL_LEGACY_BACKGROUND;
-	edit.style.font      = font_identifier(cterm, attribute_font(cterm, cterm->attr, edit.video_flags));
+	edit.style.font      = font_identifier(cterm, attribute_font(cterm, cterm->attr, edit.video_flags, cterm->cell_flags));
 	edit.style.hyperlink = cterm->screen.current_hyperlink;
 	(void)render_succeeded(cterm, st_console_end_text_edit(&edit, NULL));
 }
@@ -431,7 +441,7 @@ set_colours(const struct cterminal *cterm, struct st_console_style *style, uint3
 			  | ST_CONSOLE_CELL_TERMINAL_FONT | ST_CONSOLE_CELL_PIXEL_GRAPHICS | ST_CONSOLE_CELL_REVEAL
 			  | ST_CONSOLE_CELL_SAA5050_CONTROL_MASK | ST_CONSOLE_CELL_LEGACY_FOREGROUND
 			  | ST_CONSOLE_CELL_LEGACY_BACKGROUND | ST_CONSOLE_CELL_UNDERLINE | ST_CONSOLE_CELL_FAST_BLINK
-			  | ST_CONSOLE_CELL_STRIKETHROUGH);
+			  | ST_CONSOLE_CELL_STRIKETHROUGH | ST_CONSOLE_CELL_SGR_FONT_MASK);
 	style->flags |= cterm->cell_flags;
 }
 
@@ -489,7 +499,7 @@ cterm_render_prepare_text(struct cterminal *cterm, struct st_console_style *styl
 		return status;
 	struct cterm_render_state *screen = &cterm->screen;
 	struct st_console_style   *cached = &screen->prepared_text.style;
-	uint16_t font           = font_identifier(cterm, attribute_font(cterm, cterm->attr, edit.video_flags));
+	uint16_t font           = font_identifier(cterm, attribute_font(cterm, cterm->attr, edit.video_flags, cterm->cell_flags));
 	bool     device_colours = cterm->device.sgr_palette != NULL || cterm->vt52_plane_mask != 0;
 	if (!screen->prepared_text.valid || screen->prepared_text.attr != cterm->attr
 	    || screen->prepared_text.cell_flags != cterm->cell_flags
@@ -869,7 +879,7 @@ cterm_default_colour(uint16_t entry, bool yellow_is_yellow)
 int
 cterm_render_font_selector(struct cterminal *cterm, int slot)
 {
-	if (slot < 0 || slot >= 5)
+	if (slot < 0 || slot > ST_CTERM_FONT_COUNT)
 		return 0;
 	return cterm->screen.selectors[slot];
 }
@@ -878,7 +888,7 @@ int
 cterm_render_set_font_selector(struct cterminal *cterm, int selector, int force, int slot)
 {
 	(void)force;
-	if (selector < 0 || selector > UINT8_MAX || slot < 0 || slot >= 5 || !cterm->screen.font_valid[selector])
+	if (selector < 0 || selector > UINT8_MAX || slot < 0 || slot > ST_CTERM_FONT_COUNT || !cterm->screen.font_valid[selector])
 		return 0;
 	cterm->screen.selectors[slot] = (uint16_t)selector;
 	return 1;

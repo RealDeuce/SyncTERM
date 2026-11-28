@@ -2044,7 +2044,7 @@ cterm_reset(struct cterminal *cterm)
 		cterm->screen.codepage = cterm->petscii_connection_codepage;
 		cterm_render_set_font_selector(cterm, cterm_render_font_selector(cterm, 0), false, 1);
 	}
-	for (int slot = 2; slot <= 4; ++slot)
+	for (int slot = 2; slot <= ST_CTERM_FONT_COUNT; ++slot)
 		cterm->screen.selectors[slot] = cterm->screen.selectors[1];
 	cterm->top_margin        = 1;
 	cterm->bottom_margin     = cterm->height;

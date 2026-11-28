@@ -17,6 +17,7 @@
 #include "st_audio_runtime.h"
 #include "st_codepage.h"
 #include "st_console.h"
+#include "st_cterm.h"
 #include "st_hyperlink.h"
 #include "st_unicode_text.h"
 
@@ -44,6 +45,13 @@ enum {
 	CTERM_COLOR_YELLOW,
 	CTERM_COLOR_WHITE
 };
+
+static inline unsigned
+cterm_sgr_font_position(uint32_t cell_flags)
+{
+	unsigned position = (cell_flags & ST_CONSOLE_CELL_SGR_FONT_MASK) >> ST_CONSOLE_CELL_SGR_FONT_SHIFT;
+	return position < ST_CTERM_FONT_COUNT ? position : 0;
+}
 
 #define CTERM_ATTR_BLINK       128
 #define CTERM_CURSOR_HIDDEN    0
@@ -116,7 +124,8 @@ struct cterm_render_state {
 		bool                    device_colours, reveal, valid;
 	} prepared_text;
 
-	uint16_t selectors[5];
+	/* Entry zero saves the initial font. FNT position i uses entry i + 1. */
+	uint16_t selectors[ST_CTERM_FONT_COUNT + 1];
 	uint16_t current_hyperlink;
 	uint32_t mode_palette[16];
 	uint32_t faint_defaults[8];
@@ -192,7 +201,9 @@ void     cterm_render_refresh_remote_fonts(struct cterminal *cterm);
 int      cterm_render_get_modepalette(struct cterminal *cterm, uint32_t *palette);
 int      cterm_render_font_selector(struct cterminal *cterm, int slot);
 int      cterm_render_set_font_selector(struct cterminal *cterm, int selector, int force, int slot);
-uint8_t  cterm_render_attribute_font(struct cterminal *cterm, uint8_t attribute);
+unsigned cterm_render_font_position(const struct cterminal *cterm, uint8_t attribute, uint32_t video_flags,
+    uint32_t cell_flags);
+uint8_t  cterm_render_attribute_font(struct cterminal *cterm, uint8_t attribute, uint32_t cell_flags);
 void     cterm_render_attribute_colours(struct cterminal *cterm, uint8_t attribute, uint32_t *foreground,
     uint32_t *background);
 int      cterm_render_set_modepalette(struct cterminal *cterm, const uint32_t *palette);

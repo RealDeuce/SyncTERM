@@ -1276,7 +1276,7 @@ class CTermFontMask {
   static bright      { 2 }
   static blink       { 4 }
   static brightBlink { 8 }
-  static all         { 15 }
+  static all         { 1023 }
 }
 class CTermFonts {
   foreign static [slot]

@@ -1295,6 +1295,7 @@ st_cterm_test_main(void)
 		    .emulation      = ST_CTERM_ANSI_BBS,
 		    .encoding       = encoding ? ST_CTERM_ENCODING_CODEPAGE : ST_CTERM_ENCODING_UTF8,
 		    .codepage       = ST_CODEPAGE_CP437,
+		    .font_selector  = 1,
 		    .quiet          = true,
 		    .output         = capture,
 		    .output_context = &output,
@@ -1307,6 +1308,11 @@ st_cterm_test_main(void)
 		    "\x1bP1$r;0*r\x1b\\\x1bP1$r;1*r\x1b\\"
 		    "\x1bP1$r;1*r\x1b\\\x1bP1$r;3*r\x1b\\";
 		CHECK(rip_test_create(&terminal, &config) == 0);
+		static const char font_query[] = "\033[=8n";
+		static const char defaults[] = "\033[=8;1;1;1;1;1;1;1;1;1;1n";
+		feed(terminal, font_query, sizeof(font_query) - 1);
+		CHECK(output.size == sizeof(defaults) - 1 && memcmp(output.bytes, defaults, output.size) == 0);
+		output.size = 0;
 		check_incomplete_csi(terminal, console);
 		/* Both displays share the standalone terminal's communication speed. */
 		feed(terminal, input, sizeof(input) - 1);
@@ -1387,7 +1393,7 @@ st_cterm_test_main(void)
 		CHECK(st_cterm_font_info(terminal, 250, &actual, &mapping));
 		CHECK(actual == identifier && mapping == ST_CODEPAGE_CP1251);
 		CHECK(st_cterm_set_fonts(terminal, 0, 0) == IO_ERROR_INVALID_ARGUMENT);
-		CHECK(st_cterm_set_fonts(terminal, 0, 16) == IO_ERROR_INVALID_ARGUMENT);
+		CHECK(st_cterm_set_fonts(terminal, 0, 1U << ST_CTERM_FONT_COUNT) == IO_ERROR_INVALID_ARGUMENT);
 		CHECK(st_cterm_state(terminal, &state) == 0 && state.alt_fonts[0] == 250);
 		CHECK(st_cterm_set_fonts(terminal, 0, ST_CTERM_FONT_ALL) == 0);
 		CHECK(st_cterm_set_fonts(terminal, 251, ST_CTERM_FONT_ALL) == IO_ERROR_NOT_FOUND);

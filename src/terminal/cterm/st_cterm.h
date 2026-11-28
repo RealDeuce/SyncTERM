@@ -269,6 +269,8 @@ int st_cterm_resize(st_cterm_t *terminal, uint32_t columns, uint32_t rows);
 int st_cterm_size(const st_cterm_t *terminal, uint32_t *columns, uint32_t *rows);
 int st_cterm_origin(const st_cterm_t *terminal, uint32_t *x, uint32_t *y);
 
+enum { ST_CTERM_FONT_COUNT = 10 };
+
 /* Read-only parser state for connected Wren scripts. Values are a snapshot;
  * callers never receive pointers into the terminal. */
 struct st_cterm_state {
@@ -286,7 +288,7 @@ struct st_cterm_state {
 	int          font_slot;
 	/* RIP3 designation final bytes (A/B/0); invocation stays G0. */
 	uint8_t                     rip3_g0, rip3_g1;
-	int                         alt_fonts[4];
+	int                         alt_fonts[ST_CTERM_FONT_COUNT];
 	int                         scrollback_lines;
 	int                         scrollback_width;
 	int                         scrollback_pos;
@@ -325,11 +327,12 @@ enum st_cterm_font_mask {
 	ST_CTERM_FONT_BRIGHT       = 2,
 	ST_CTERM_FONT_BLINK        = 4,
 	ST_CTERM_FONT_BRIGHT_BLINK = 8,
-	ST_CTERM_FONT_ALL          = 15,
+	ST_CTERM_FONT_ALL          = (1U << ST_CTERM_FONT_COUNT) - 1,
 };
 
 /* Validate all inputs, finish pending output, then change exactly the masked
- * assignments. Retained cells keep their resolved fonts. Zero is invalid. */
+ * assignments (bit i selects FNT position i). Retained cells keep their resolved fonts.
+ * Zero is invalid. */
 int st_cterm_set_fonts(st_cterm_t *terminal, uint8_t selector, unsigned mask);
 /* Copies the current registration, including remote font variants. */
 bool st_cterm_font_info(const st_cterm_t *terminal, uint8_t selector, uint16_t *identifier,

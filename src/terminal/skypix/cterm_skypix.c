@@ -1033,8 +1033,7 @@ cterm_skypix_create(struct cterm_skypix **result, struct cterminal *t, const str
 		t->screen.font_identifiers[0] = s->default_font;
 		t->screen.font_valid[0]       = true;
 		t->screen.font_codepages[0]   = s->font_codepage;
-		for (unsigned i = 0; i < 5; ++i)
-			t->screen.selectors[i] = 0;
+		memset(t->screen.selectors, 0, sizeof(t->screen.selectors));
 		static const uint8_t ansi_pens[16] = {0, 1, 4, 5, 3, 7, 6, 2, 8, 9, 12, 13, 11, 15, 14, 10};
 		t->fixed_geometry                  = true;
 		t->graphics_mode = sky->kick13 ? ST_CTERM_GRAPHICS_SKYPIX_13 : ST_CTERM_GRAPHICS_SKYPIX_31;

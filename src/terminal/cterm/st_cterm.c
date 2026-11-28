@@ -530,7 +530,7 @@ st_cterm_create(st_cterm_t **result, const struct st_cterm_config *config)
 			    st_font_catalog_codepage(config->fonts, (uint8_t)selector);
 		}
 	}
-	for (size_t slot = 0; slot < 5; ++slot)
+	for (size_t slot = 0; slot <= ST_CTERM_FONT_COUNT; ++slot)
 		screen.selectors[slot] = config->font_selector;
 	terminal = cterm_init((int)terminal_rows, (int)columns, 1, 1, (int)config->scrollback_lines, (int)columns,
 	    scrollback, config->emulation, &screen, config);
@@ -1680,7 +1680,7 @@ st_cterm_state(const st_cterm_t *terminal, struct st_cterm_state *state)
 			   .forced  = (terminal->last_column_flag & CTERM_LCF_FORCED) != 0,
 			   },
 	};
-	for (size_t i = 0; i < 4; ++i)
+	for (size_t i = 0; i < ST_CTERM_FONT_COUNT; ++i)
 		state->alt_fonts[i] = terminal->screen.selectors[i + 1];
 	if (terminal->has_palette_override) {
 		for (size_t i = 0; i < 16; ++i)
@@ -1699,7 +1699,7 @@ st_cterm_set_fonts(st_cterm_t *terminal, uint8_t selector, unsigned mask)
 	int status = st_cterm_finish(terminal);
 	if (status != 0)
 		return status;
-	for (size_t i = 0; i < 4; ++i) {
+	for (size_t i = 0; i < ST_CTERM_FONT_COUNT; ++i) {
 		if ((mask & (1U << i)) == 0)
 			continue;
 		terminal->screen.selectors[i + 1] = selector;

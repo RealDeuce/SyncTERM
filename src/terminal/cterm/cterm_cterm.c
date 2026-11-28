@@ -57,19 +57,10 @@ cterm_handle_fnt(struct cterminal *cterm, int *speed) /* CSI SP D — Font Selec
 	(void)speed;
 	cterm_seq_default(cterm, 0, 0);
 	cterm_seq_default(cterm, 1, 0);
-	switch (cterm->seq_param_int[0]) {
-		case 0:
-		case 1:
-		case 2:
-		case 3:
-			if (cterm_render_set_font_selector(cterm, (int)cterm->seq_param_int[1], false,
-				(int)cterm->seq_param_int[0] + 1)
-			    == 0)
-				cterm->setfont_result = 1;
-			else
-				cterm->setfont_result = 0;
-			break;
-	}
+	if (cterm->seq_param_int[0] < ST_CTERM_FONT_COUNT)
+		cterm->setfont_result = !(cterm->seq_param_int[1] <= UINT8_MAX
+		    && cterm_render_set_font_selector(cterm, (int)cterm->seq_param_int[1], false,
+		        (int)cterm->seq_param_int[0] + 1));
 }
 
 void
@@ -245,9 +236,7 @@ cterm_handle_ext_state_query(struct cterminal *cterm, int *speed) /* CSI = n */
 	(void)speed;
 	tmp[0] = 0;
 	cterm_seq_default(cterm, 0, 1);
-	/* Cases 1..6 are single-parameter queries; case 7 (audio DSR) accepts
-	 * sub-parameters (query-all / query-one channel).  Reject extra
-	 * parameters only for the single-parameter cases. */
+	/* Only the audio report accepts a channel parameter. */
 	if (cterm->seq_param_int[0] != 7 && cterm->seq_param_count > 1)
 		return;
 	switch (cterm->seq_param_int[0]) {
@@ -323,6 +312,14 @@ cterm_handle_ext_state_query(struct cterminal *cterm, int *speed) /* CSI = n */
 		case 7:
 			cterm_apc_audio_query(cterm, cterm->seq_param_count, cterm->seq_param_int);
 			break;
+		case 8: {
+			size_t used = (size_t)snprintf(tmp, sizeof(tmp), "\x1b[=8");
+			for (size_t i = 1; i <= ST_CTERM_FONT_COUNT; ++i)
+				used += (size_t)snprintf(tmp + used, sizeof(tmp) - used, ";%u",
+				    (unsigned)cterm->screen.selectors[i]);
+			strcpy(tmp + used, "n");
+			break;
+		}
 	}
 	if (*tmp)
 		cterm_respond(cterm, tmp, strlen(tmp));

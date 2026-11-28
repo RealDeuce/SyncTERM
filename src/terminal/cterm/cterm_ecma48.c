@@ -1166,12 +1166,14 @@ cterm_accumulate_ecma_seq(struct cterminal *cterm, unsigned char byte, int *spee
  * Legacy SGR first, then extended colors if needed.
  */
 static void
-sgr_diff(struct cterminal *cterm, const struct st_console_cell *prev, const struct st_console_cell *next)
+sgr_diff(struct cterminal *cterm, const struct st_console_cell *prev, const struct st_console_cell *next,
+    uint32_t video_flags, uint16_t transmitted_fonts[ST_CTERM_FONT_COUNT])
 {
 	const uint32_t base       = cterm_faint_base(cterm);
 	const bool     prev_faint = prev->foreground - base < 8;
 	const bool     next_faint = next->foreground - base < 8;
 	const unsigned offset     = (cterm->screen.capabilities & ST_CONSOLE_CAP_EXTENDED_PALETTE) ? 16 : 0;
+	const unsigned position   = cterm_sgr_font_position(next->flags);
 	bool           need_reset = prev_faint && !next_faint;
 	uint8_t        pa         = cterm_render_cell_attribute(cterm, prev);
 	uint8_t        na         = cterm_render_cell_attribute(cterm, next);
@@ -1194,6 +1196,8 @@ sgr_diff(struct cterminal *cterm, const struct st_console_cell *prev, const stru
 			cterm_respond_printf(cterm, ";%d", (next->flags & ST_CONSOLE_CELL_FAST_BLINK) ? 6 : 5);
 		if (next->flags & ST_CONSOLE_CELL_STRIKETHROUGH)
 			cterm_respond_printf(cterm, ";9");
+		if (position)
+			cterm_respond_printf(cterm, ";%u", 10 + position);
 		cterm_respond_printf(cterm, ";%d", 30 + cterm_ansi_colour_order[na & 0x07]);
 		cterm_respond_printf(cterm, ";%d", 40 + cterm_ansi_colour_order[(na >> 4) & 0x07]);
 		cterm_respond_printf(cterm, "m");
@@ -1222,6 +1226,11 @@ sgr_diff(struct cterminal *cterm, const struct st_console_cell *prev, const stru
 			if (params++)
 				strcat(sgrbuf, ";");
 			strcat(sgrbuf, (next->flags & ST_CONSOLE_CELL_STRIKETHROUGH) ? "9" : "29");
+		}
+		if (position != cterm_sgr_font_position(prev->flags)) {
+			char tmp[16];
+			snprintf(tmp, sizeof(tmp), "%s%u", params++ ? ";" : "", 10 + position);
+			strcat(sgrbuf, tmp);
 		}
 		if ((na & 0x07) != (pa & 0x07) || (next_faint && !prev_faint)) {
 			char tmp[16];
@@ -1256,8 +1265,11 @@ sgr_diff(struct cterminal *cterm, const struct st_console_cell *prev, const stru
 			cterm_respond_printf(cterm, "\033[48;5;%um", (next->background & 0xffff) - offset);
 	}
 
-	if (next->font != prev->font)
-		cterm_respond_printf(cterm, "\033[0;%d D", cterm_render_cell_font(cterm, next));
+	unsigned slot = cterm_render_font_position(cterm, na, video_flags, next->flags);
+	if (next->font != transmitted_fonts[slot]) {
+		cterm_respond_printf(cterm, "\033[%u;%d D", slot, cterm_render_cell_font(cterm, next));
+		transmitted_fonts[slot] = next->font;
+	}
 }
 
 /*
@@ -1385,10 +1397,14 @@ cterm_transmit_selected(struct cterminal *cterm)
 
 		cterm_render_attribute_colours(cterm, 7, &foreground, &background);
 		cterm_render_make_cell(cterm, &prev, ' ', 7, foreground, background, 0, 0, 0);
+		uint32_t video_flags = (uint32_t)cterm_render_get_video_flags(cterm);
+		uint16_t transmitted_fonts[ST_CTERM_FONT_COUNT];
+		for (size_t slot = 0; slot < ST_CTERM_FONT_COUNT; ++slot)
+			transmitted_fonts[slot] = prev.font;
 
 		for (i = 0; i < total_cells; i++) {
 			/* Emit SGR diff */
-			sgr_diff(cterm, &prev, &cells[i]);
+			sgr_diff(cterm, &prev, &cells[i], video_flags, transmitted_fonts);
 
 			/* Emit hyperlink change.
 			 * OSC 8 normally ends with ST (ESC \), but ST would
@@ -1646,7 +1662,7 @@ cterm_ecma48_apply_sgr(struct cterminal *cterm, int *pi)
 			cterm->negative = false;
 			cterm->faint    = false;
 			cterm->cell_flags &= ~(ST_CONSOLE_CELL_UNDERLINE | ST_CONSOLE_CELL_FAST_BLINK
-			                       | ST_CONSOLE_CELL_STRIKETHROUGH);
+			                       | ST_CONSOLE_CELL_STRIKETHROUGH | ST_CONSOLE_CELL_SGR_FONT_MASK);
 			cterm->attr     = cterm->screen.default_attribute;
 			cterm_render_attribute_colours(cterm, cterm->attr, &cterm->fg_color, &cterm->bg_color);
 			CTERM_FREE_AND_CLEAR(cterm->fg_tc_str);
@@ -1680,6 +1696,19 @@ cterm_ecma48_apply_sgr(struct cterminal *cterm, int *pi)
 			break;
 		case 24:
 			cterm->cell_flags &= ~ST_CONSOLE_CELL_UNDERLINE;
+			break;
+		case 10:
+		case 11:
+		case 12:
+		case 13:
+		case 14:
+		case 15:
+		case 16:
+		case 17:
+		case 18:
+		case 19:
+			cterm->cell_flags &= ~ST_CONSOLE_CELL_SGR_FONT_MASK;
+			cterm->cell_flags |= (uint32_t)(cterm->seq_param_int[*pi] - 10) << ST_CONSOLE_CELL_SGR_FONT_SHIFT;
 			break;
 		case 9:
 			cterm->cell_flags |= ST_CONSOLE_CELL_STRIKETHROUGH;

@@ -526,7 +526,7 @@ cterm_handle_decrara(struct cterminal *cterm, int *speed) /* CSI Pt;Pl;Pb;Pr;...
 			}
 			cterm_render_make_cell(cterm, &rowbuf[c], cterm_render_cell_byte(cterm, &rowbuf[c]),
 			    attribute, rowbuf[c].foreground, rowbuf[c].background,
-			    cterm_render_attribute_font(cterm, attribute), rowbuf[c].hyperlink,
+			    cterm_render_attribute_font(cterm, attribute, rowbuf[c].flags), rowbuf[c].hyperlink,
 			    rowbuf[c].flags
 			        & ~(ST_CONSOLE_CELL_BRIGHT | ST_CONSOLE_CELL_BLINK
 			            | ST_CONSOLE_CELL_LEGACY_FOREGROUND | ST_CONSOLE_CELL_LEGACY_BACKGROUND));
@@ -2412,6 +2412,9 @@ cterm_dec_dcs_finish(struct cterminal *cterm)
 						strcat(tmp, ";7");
 					if (cterm->cell_flags & ST_CONSOLE_CELL_STRIKETHROUGH)
 						strcat(tmp, ";9");
+					unsigned position = cterm_sgr_font_position(cterm->cell_flags);
+					if (position)
+						snprintf(tmp + strlen(tmp), sizeof(tmp) - strlen(tmp), ";%u", 10 + position);
 					if (cterm->fg_tc_str == NULL) {
 						switch ((cterm->attr >> (cterm->negative ? 4 : 0)) & 7) {
 							case 0:

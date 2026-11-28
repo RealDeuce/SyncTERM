@@ -262,7 +262,7 @@ ddofx_lite_layout(st_term_session_t *session, unsigned mode, bool clear)
 			uint32_t               fg, bg;
 			cterm_render_attribute_colours(term, 0x0f, &fg, &bg);
 			if (!cterm_render_make_cell(term, &blank, ' ', 0x0f, fg, bg,
-				cterm_render_attribute_font(term, 0x0f), 0, 0)) {
+				cterm_render_attribute_font(term, 0x0f, 0), 0, 0)) {
 				struct st_console_rect area = {term->x - 1, term->y - 1, term->width,
 				    term->height};
 				(void)st_console_fill(session->config.console, &area, &blank);

@@ -28,7 +28,7 @@ struct st_cterm_window_definition {
 	int                             *tabs, *vtabs, tab_count, vtab_count, tab_width;
 	enum st_codepage                 codepage;
 	struct st_console_font_selection fonts;
-	uint16_t                         font_indices[256], selectors[5];
+	uint16_t                         font_indices[256], selectors[ST_CTERM_FONT_COUNT + 1];
 	bool                             font_valid[256];
 	enum st_codepage                 font_codepages[256];
 	uint32_t                         mode_palette[16], faint_defaults[8];
@@ -220,22 +220,25 @@ restore_definition(st_cterm_t *destination, const struct st_cterm_window_definit
 		return IO_ERROR_OUT_OF_MEMORY;
 	}
 	uint16_t mapped[260];
-	int      status     = 0;
-	uint16_t logical[5] = {0};
+	int      status = 0;
 	if (d->ansi) {
+		bool copied[UINT8_MAX + 1U] = {false};
 		uint32_t cw, ch;
 		status = resources == NULL ? IO_ERROR_NOT_FOUND
 		                           : st_console_cell_pixel_size(resources->screen.console, &cw, &ch);
 		if (status == 0 && (cw != d->cell_width || ch != d->cell_height))
 			status = IO_ERROR_NOT_SUPPORTED;
-		for (size_t i = 0; status == 0 && i < 5; i++) {
+		for (size_t i = 0; status == 0 && i <= ST_CTERM_FONT_COUNT; i++) {
 			unsigned selector = d->selectors[i];
 			if (selector > UINT8_MAX || !resources->screen.font_valid[selector]) {
 				status = IO_ERROR_NOT_FOUND;
 				break;
 			}
-			status = st_console_copy_font(destination->screen.console, resources->screen.console,
-			    resources->screen.font_identifiers[selector], &logical[i]);
+			if (!copied[selector]) {
+				status = st_console_copy_font(destination->screen.console, resources->screen.console,
+				    resources->screen.font_identifiers[selector], &mapped[selector]);
+				copied[selector] = status == 0;
+			}
 		}
 	}
 	for (size_t i = 0; status == 0 && i < d->count; i++)
@@ -311,17 +314,17 @@ restore_definition(st_cterm_t *destination, const struct st_cterm_window_definit
 	else {
 		/* Resolve only the logical selections against live compatible resources.
 		 * Unselected resources and connection encoding remain live. */
-		for (size_t i = 0; i < 5; i++) {
+		for (size_t i = 0; i <= ST_CTERM_FONT_COUNT; i++) {
 			unsigned selector                              = d->selectors[i];
 			destination->screen.font_valid[selector]       = true;
-			destination->screen.font_identifiers[selector] = logical[i];
+			destination->screen.font_identifiers[selector] = mapped[selector];
 			destination->screen.font_codepages[selector] = resources->screen.font_codepages[selector];
 		}
 		memcpy(destination->screen.selectors, d->selectors, sizeof(d->selectors));
-		destination->screen.fonts = (struct st_console_font_selection) {.normal = logical[1],
-		    .bright                                                             = logical[2],
-		    .blink                                                              = logical[3],
-		    .bright_blink                                                       = logical[4],
+		destination->screen.fonts = (struct st_console_font_selection) {.normal = mapped[d->selectors[1]],
+		    .bright                                                             = mapped[d->selectors[2]],
+		    .blink                                                              = mapped[d->selectors[3]],
+		    .bright_blink                                                       = mapped[d->selectors[4]],
 		    .bright_selects_font = d->fonts.bright_selects_font,
 		    .blink_selects_font  = d->fonts.blink_selects_font};
 	}

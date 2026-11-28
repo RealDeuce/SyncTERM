@@ -305,7 +305,7 @@ cterm_prestel_fix_line(struct cterminal *cterm, int x, int y, bool restore, bool
 				}
 			}
 			cterm_render_make_cell(cterm, &line[i], byte, cterm->attr, cterm->fg_color,
-			    cterm->bg_color, cterm_render_attribute_font(cterm, cterm->attr), hyperlink,
+			    cterm->bg_color, cterm_render_attribute_font(cterm, cterm->attr, 0), hyperlink,
 			    cterm->cell_flags | ST_CONSOLE_CELL_SAA5050_CONTROL(control));
 			cterm_prestel_apply_ctrl_after(cterm, control);
 			if (cterm->extattr & CTERM_EXTATTR_PRESTEL_DOUBLE_HEIGHT)
@@ -445,7 +445,7 @@ cterm_prestel_handle_escaped(struct cterminal *cterm, uint8_t ctrl)
 	else
 		byte = ' ';
 	cterm_render_make_cell(cterm, &tmpvc[0], byte, cterm->attr, cterm->fg_color, cterm->bg_color,
-	    cterm_render_attribute_font(cterm, cterm->attr), cterm_render_get_hyperlink(cterm), flags);
+	    cterm_render_attribute_font(cterm, cterm->attr, 0), cterm_render_get_hyperlink(cterm), flags);
 	SCR_XY(&sx, &sy);
 	CURR_XY(&x, &y);
 	cterm_render_write_cells(cterm, sx, sy, sx, sy, tmpvc);

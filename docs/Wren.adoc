@@ -4438,13 +4438,16 @@ canvas, which retains the entry's configured video mode. `CTerm.write` and
 |===
 
 `CTerm.font[i]` is a live, writable view of terminal font assignments. Indices
-0 through 3 mean normal, source-bright, source-blink, and bright-plus-blink.
+0 through 9 correspond to SGR 10 through 19. All ten start with the configured
+default font. In the primary rendition, positions 0 through 3 also supply the
+normal, source-bright, source-blink, and bright-plus-blink fonts.
 Reading returns a selector; writing changes only that assignment. This is
 independent of the five `Screen.font` slots for script drawing.
 
 `CTerm.setFont(selector, mask)` changes all requested assignments together.
 `CTermFontMask.normal` is 1, `.bright` is 2, `.blink` is 4, `.brightBlink` is 8,
-and `.all` is 15. Combine bits with `|`; zero and unknown bits are invalid.
+and `.all` is 1023. Use `1 << i` for an individual position. Combine bits with
+`|`; zero and unknown bits are invalid.
 Selection requires an available registration and a capable backend. It finishes
 pending output before committing; failed selection leaves every assignment
 unchanged. Existing cells retain their resolved fonts. Selection does not change

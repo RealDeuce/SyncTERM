@@ -514,7 +514,12 @@ ansi_window_save(void)
 	source.text->escape_extension = st_term_rip3_escape;
 	target.text->escape_extension = st_term_rip3_escape;
 	/* CSI's old save remains independent of the live cursor captured by ESC7. */
+	unsigned alternate = 1;
+	while (alternate <= UINT8_MAX && !source.text->screen.font_valid[alternate])
+		++alternate;
+	CHECK(alternate <= UINT8_MAX && st_cterm_set_fonts(source.text, (uint8_t)alternate, 1U << 9) == 0);
 	const char setup[] =
+	    "\x1b[19m"
 	    "\x1b[1;1H\x1b[s\x1b[3g\x1b[1;6H\x1bH\x1b[3;1H\x1bJ\x1b[2;4H\x1b(A\x1b)0\x1b[2;31;44m\x1b[38;2;12;34;56m\x1b[48;2;65;43;21m";
 	CHECK(feed(&source, setup, sizeof(setup) - 1) == 0);
 	static const char save_sequence[] =
@@ -543,7 +548,8 @@ ansi_window_save(void)
 		st_cterm_window_test_tracking = false;
 		st_cterm_window_test_fail_at  = SIZE_MAX;
 	}
-	for (size_t fail = 0; fail < 9; fail++) {
+	/* Four state allocations and two distinct font selectors. */
+	for (size_t fail = 0; fail < 6; fail++) {
 		st_cterm_window_test_tracking = true;
 		st_cterm_window_test_attempts = 0;
 		st_cterm_window_test_fail_at  = fail;
@@ -556,13 +562,14 @@ ansi_window_save(void)
 	/* Font resources stay live: resolve the logical selector, or fail without
 	 * reviving saved glyph resources. The snapshot itself survives the source. */
 	destroy(&source);
-	bool valid                        = target.text->screen.font_valid[0];
-	target.text->screen.font_valid[0] = false;
+	bool valid                        = target.text->screen.font_valid[alternate];
+	target.text->screen.font_valid[alternate] = false;
 	CHECK(st_cterm_window_ansi_restore(target.text, saved, target.text) == IO_ERROR_NOT_FOUND
 	      && target.text->attr == 7);
-	target.text->screen.font_valid[0] = valid;
+	target.text->screen.font_valid[alternate] = valid;
 	target.text->wire_encoding        = ST_CTERM_ENCODING_UTF8;
 	CHECK(st_cterm_window_ansi_restore(target.text, saved, target.text) == 0 && position(&target, 4, 2) == 0);
+	CHECK(target.text->screen.selectors[10] == alternate && cterm_sgr_font_position(target.text->cell_flags) == 9);
 	CHECK(target.text->attr == 0x14 && target.text->faint && target.text->g0_designation == 'A' && target.text->g1_designation == '0'
 	      && target.text->wire_encoding == ST_CTERM_ENCODING_UTF8
 	      && target.text->fg_color == UINT32_C(0x800c2238) && target.text->bg_color == UINT32_C(0x80412b15));

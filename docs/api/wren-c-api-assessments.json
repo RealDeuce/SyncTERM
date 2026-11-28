@@ -3340,7 +3340,7 @@
     },
     "fonts.assignments": {
       "status": "covered",
-      "wren": "CTerm.font[0..3] and CTerm.setFont(selector, mask); CTermFontMask",
+      "wren": "CTerm.font[0..9] and CTerm.setFont(selector, mask); CTermFontMask",
       "reason": "A live indexed view reads/writes each assignment, and one mask operation updates any combination together after validation and pending-output completion. Failure preserves all assignments; retained cells keep resolved fonts. The detached altFonts snapshot and singular altFont alias are removed. Script-output Screen.font slots remain independent. Indexed setter operational errors abort with FontError so they cannot be lost as assignment results.",
       "vm": "connected",
       "evidence": [

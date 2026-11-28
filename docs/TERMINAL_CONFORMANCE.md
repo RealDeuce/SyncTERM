@@ -1815,7 +1815,7 @@ bytes, case trace, coherent snapshot and PPM under the build's
 | `CUD` | 357 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
 | `CUF` | 370 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
 | `CUB` | 383 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
-| `FNT` | 396 | extensions | Font selection report, glyph raster, and independent main/status fonts across display switches |
+| `FNT` | 396 | extensions | Ten SGR font positions, bright/blink precedence, attributed selection, glyph raster, and independent main/status fonts |
 | `CNL` | 414 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
 | `CPL` | 429 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
 | `CHA` | 444 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
@@ -1853,7 +1853,7 @@ bytes, case trace, coherent snapshot and PPM under the build's
 | `SGR` | 970 | attributes | Logical RGB cell colours and rendered planes. Connected RIP3 tests also check indexed foreground and background colours on entry in Custom screen mode. |
 | `DSR` | 992 | queries | Exact reply; version and optional capability formats validated |
 | `BCDSR` | 1004 | queries | Exact reply; version and optional capability formats validated |
-| `CTSMRR` | 1018 | queries | Font selection, cell dimensions and exact enabled-mode report; both mode-80 states |
+| `CTSMRR` | 1018 | queries | Legacy and ten-position font reports, rejected assignments, reset, cell dimensions and enabled-mode report; both mode-80 states |
 | `DECDSR` | 1039 | queries | Exact reply; version and optional capability formats validated |
 | `DECSTBM` | 1060 | margins | Expected cursor/cells or exact mode replies across margin/wrap transitions |
 | `DECSCS` | 1081 | queries | Partial: speed setting/report; physical pacing remains a timing test |

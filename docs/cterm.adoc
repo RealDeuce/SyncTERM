@@ -423,9 +423,10 @@ SOURCE: <<ECMA-48>>
 === `CSI Ps1 ; Ps2 sp D` Font Selection (`FNT`)
 Defaults: `Ps1` = 0  Ps2 = 0
 "sp" indicates a single space character.
-Sets font `Ps1` to be the one indicated by `Ps2`.  Currently four fonts are
-supported.  `Ps2` must be between 0 and 255.  Not all output types support
-font selection.  Only X11 and SDL currently do.
+Assigns the registered font selector `Ps2` (0–255) to position `Ps1`
+(0–9). All ten positions start with the configured default font.
+Assignments affect subsequent text. SGR 0 and SGR 10 select the primary
+rendition and preserve the assignments.
 
 .Supported `Ps1` values
 [%autowidth,cols="1,2"]
@@ -441,7 +442,13 @@ font selection.  Only X11 and SDL currently do.
 
 |3
 |Font selected by both the high intensity and blink bits when both `CSI ? 31 h` and `CSI ? 34 h` are enabled
+
+|4–9
+|Alternate fonts selected by SGR 14–19
 |===
+
+SGR 11–19 explicitly select positions 1–9. The intensity and blink bits
+select a font only in the primary rendition.
 
 .Currently included fonts
 [%autowidth,cols="1,2"]
@@ -1481,6 +1488,14 @@ cell. Counting from zero, the row is the cell height divided by two, rounded
 down. This is the centre row for odd heights and the lower middle row for even heights.
 | | | | | |
 
+|10
+|Primary font. Modes 31 and 34 can select positions 1–3 for bright or blinking text.
+| | | | | |
+
+|11–19
+|Select FNT position 1–9 regardless of intensity or blink.
+| | | | | |
+
 |22
 |Normal intensity
 | 
@@ -1928,8 +1943,7 @@ When `Ps` is 1, CTerm will respond with a Font State Report of the form
 |===
 
 `pS0` - `pS3` contain the font slots numbers of previously successful
-"Font Selection" requests into the 4 available alternate-font
-style/attribute values:
+"Font Selection" requests for the four attribute-based positions:
 [%autowidth,cols="1,2"]
 |===
 |`pS0`
@@ -1994,6 +2008,10 @@ emits exactly one `(pC, pS)` pair.
 `CSI = 7 ; pC ; pS n` may also be emitted asynchronously when an audio
 channel armed via `APC SyncTERM:A;Update` transitions from running to
 stopped.
+
+When `Ps` is 8, CTerm reports all ten font assignments in position order:
+`CSI = 8 ;pS0 ;pS1 ;pS2 ;pS3 ;pS4 ;pS5 ;pS6 ;pS7 ;pS8 ;pS9 n`.
+Each value is the font selector assigned to the corresponding FNT position.
 
 === `CSI ? Ps [ ; Pn ] n` Device Status Report (`DECDSR`)
 When `Ps` is 62 (`DECMSR`) and there is no `Pn`, CTerm will respond

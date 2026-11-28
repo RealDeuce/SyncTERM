@@ -548,9 +548,9 @@ allocated selector, FileError for file I/O, or FontError for font-specific
 failures. Failure origin and native status are retained. Loading changes no
 assignments, File stream position, consent grant or persisted settings.
 
-+fonts.assignments+ covers the approved related interface: CTerm.font[0..3]
++fonts.assignments+ covers the approved related interface: CTerm.font[0..9]
 is live and writable; CTerm.setFont(selector, mask) changes exactly the requested
-assignments together. CTermFontMask names all four bits and their union. Indexed
+assignments together. CTermFontMask names the four attribute-based positions and the union of all ten positions. Indexed
 operational failures raise FontError; method failures return it. Invalid masks
 and arguments abort. Existing cells retain fonts. The detached altFonts List and
 singular altFont alias were removed. Screen.font remains independent, and direct

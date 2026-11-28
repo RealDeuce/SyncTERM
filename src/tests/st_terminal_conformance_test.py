@@ -644,6 +644,15 @@ def queries(t):
         t.check(name, ESC + data, expected=expected)
     t.check("CTSMRR", ESC + b"[0;0 D" + ESC + b"[=1n",
             expected=re.compile(rb"\x1b\[=1;[0-9]+;0;0;0;0;0n"))
+    assignments = b"".join(f"\x1b[{i};{i} D".encode() for i in range(10))
+    report = ESC + b"[=8;0;1;2;3;4;5;6;7;8;9n"
+    t.check("CTSMRR", assignments + ESC + b"[=8;1n" + ESC + b"[=8n" + ESC + b"[=1n",
+            expected=report + ESC + b"[=1;46;0;0;1;2;3n")
+    for selector in (250, 256, 4294967296):
+        t.exchange(f"\x1b[9;{selector} D".encode() + ESC + b"[=1n" + ESC + b"[=8n",
+                   ESC + b"[=1;46;1;0;1;2;3n" + report)
+    t.exchange(ESC + b"[10;1 D" + ESC + b"[=8n", report)
+    t.exchange(ESC + b"[=8n", ESC + b"[=8;0;0;0;0;0;0;0;0;0;0n", reset=True)
     # Explicitly establish every reported mode; compare the complete report.
     t.check("CTSMRR", ESC + b"[?6;9;25;31;32;33;34;35;69;80;1000;1001;1002;1003;1004;1005;1006;1007;1015;1016l"
             + ESC + b"[?7;33;69h" + ESC + b"[=2n", expected=ESC + b"[=2;7;33;69n")
@@ -748,6 +757,32 @@ def extensions(t):
     assert tuple(p == status.foreground for p in tile(frame, 1, 25)) == tuple(
         p == main[0].foreground for p in tile(frame, 1, 1))
     assert tile(frame, 1, 1) != tile(frame, 2, 1) == tile(frame, 3, 1) == tile(frame, 4, 1)
+    # Resolve each selector through the primary position for a reference row.
+    references = b"".join(f"\x1b[0;{i} DX".encode() for i in range(10))
+    assignments = b"".join(f"\x1b[{i};{i} D".encode() for i in range(10))
+    explicit = b"".join(f"\x1b[{10+i}mX".encode() for i in range(1, 10))
+    legacy = b"\x1b[0mX\x1b[1mX\x1b[22;5mX\x1b[1mX"
+    frame = t.exchange(references + assignments + cup(1, 2) + ESC + b"[?31;34h"
+                       + legacy + explicit + ESC + b"[10mX" + ESC + b"[0mX"
+                       + ESC + b"[?31;34l" + ESC + b"[1;5mX" + ESC + b"[19mX"
+                       + ESC + b"P$qm" + ST, ESC + b"P1$r0;1;5;19m" + ST, reset=True)
+    fonts = [cell_at(frame, i, 0).font for i in range(10)]
+    assert len(set(fonts)) == 10, fonts
+    for x, position in enumerate([0, 1, 2, 3, *range(1, 10), 3, 0, 0, 9]):
+        assert cell_at(frame, x, 1).font == fonts[position], (x, position, fonts)
+    # Two positions assigned the same font still have distinct SGR renditions.
+    t.exchange(b"\x1bF\x1b[19mA\x1b[11mB\x1b[10mC\x1bS",
+               ESC + b"XCTerm:STS:0:\x1b[19mA\x1b[11mB\x1b[10mC" + ST, reset=True)
+    # A retained cell keeps its original font after a reassignment. The
+    # attributed selection must assign each captured font to the replay slot.
+    payload = b"\x1b[19m\x1b[9;1 DAB\x1b[9;2 DC\x1b[10mD"
+    source = t.exchange(b"\x1bF\x1b[9;1 D\x1b[19mAB\x1b[9;2 DC\x1b[10mD\x1bS",
+                        ESC + b"XCTerm:STS:0:" + payload + ST, reset=True)
+    replay = t.exchange(payload, reset=True)
+    for x in range(4):
+        assert tile(source, x + 1) == tile(replay, x + 1)
+    frame = t.exchange(b"ABCD\x1b[1;1;1;2;19$r\x1b[1;1;1;1;1$t", reset=True)
+    assert [cell_at(frame, x, 0).flags >> 27 for x in range(4)] == [9, 9, 0, 0]
     t.case("CTOSF")
     # Real font-download payloads include controls and are not UTF-8 text.
     data = b"".join(ESC + f"[=255;{size}{{".encode() + b"\x10" * length
