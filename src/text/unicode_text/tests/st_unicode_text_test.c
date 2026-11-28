@@ -398,6 +398,7 @@ struct presentation_log {
 		enum st_unicode_presentation_event_kind kind;
 		uint8_t                                 bytes[8];
 		uint8_t                                 columns;
+		bool                                    rgi_emoji;
 		size_t                                  size;
 	} events[8];
 
@@ -412,11 +413,52 @@ record_presentation(void *context, const struct st_unicode_presentation_event *e
 	if (log->count >= sizeof(log->events) / sizeof(log->events[0])
 	    || event->size > sizeof(log->events[0].bytes))
 		return IO_ERROR_OUT_OF_RANGE;
-	log->events[log->count].kind    = event->kind;
-	log->events[log->count].columns = event->columns;
-	log->events[log->count].size    = event->size;
+	log->events[log->count].kind      = event->kind;
+	log->events[log->count].columns   = event->columns;
+	log->events[log->count].size      = event->size;
+	log->events[log->count].rgi_emoji = event->rgi_emoji;
 	memcpy(log->events[log->count].bytes, event->bytes, event->size);
 	++log->count;
+	return 0;
+}
+
+static int
+check_printable_ascii(void)
+{
+	struct presentation_log    log          = {0};
+	st_unicode_presentation_t *presentation = NULL;
+	size_t                     consumed;
+
+	CHECK(st_unicode_presentation_create(&presentation, record_presentation, &log) == 0);
+	for (uint8_t c = 0x20; c <= 0x7e; ++c) {
+		const uint8_t pair[] = {c, '~'};
+		log.count = 0;
+		CHECK(st_unicode_presentation_feed(presentation, pair, sizeof(pair), &consumed) == 0
+		      && consumed == sizeof(pair));
+		CHECK(st_unicode_presentation_commit(presentation) == 0 && log.count == 4);
+		for (size_t i = 0; i < 4; ++i) {
+			CHECK(log.events[i].kind == (i % 2 == 0 ? ST_UNICODE_PRESENTATION_BEGIN
+			                                        : ST_UNICODE_PRESENTATION_COMMIT));
+			CHECK(log.events[i].size == 1 && log.events[i].bytes[0] == pair[i / 2]
+			      && log.events[i].columns == 1 && !log.events[i].rgi_emoji);
+		}
+	}
+	static const char keycap[] = "#\xef\xb8\x8f\xe2\x83\xa3";
+	log.count                  = 0;
+	for (size_t i = 0; i < sizeof(keycap) - 1; ++i)
+		CHECK(st_unicode_presentation_feed(presentation, keycap + i, 1, &consumed) == 0 && consumed == 1);
+	CHECK(st_unicode_presentation_feed(presentation, "~", 1, &consumed) == 0 && consumed == 1);
+	CHECK(st_unicode_presentation_boundary(presentation) == 0 && log.count == 6);
+	CHECK(log.events[0].kind == ST_UNICODE_PRESENTATION_BEGIN && log.events[0].columns == 1);
+	CHECK(log.events[2].kind == ST_UNICODE_PRESENTATION_REVISE);
+	CHECK(log.events[3].kind == ST_UNICODE_PRESENTATION_COMMIT);
+	for (size_t i = 2; i <= 3; ++i)
+		CHECK(log.events[i].columns == 2 && log.events[i].rgi_emoji
+		      && log.events[i].size == sizeof(keycap) - 1
+		      && memcmp(log.events[i].bytes, keycap, sizeof(keycap) - 1) == 0);
+	CHECK(log.events[5].kind == ST_UNICODE_PRESENTATION_COMMIT && log.events[5].bytes[0] == '~'
+	      && log.events[5].size == 1 && log.events[5].columns == 1 && !log.events[5].rgi_emoji);
+	st_unicode_presentation_destroy(&presentation);
 	return 0;
 }
 
@@ -579,6 +621,7 @@ main(void)
 	CHECK(check_graphemes() == 0);
 	CHECK(check_errors() == 0);
 	CHECK(check_provisional_presentation() == 0);
+	CHECK(check_printable_ascii() == 0);
 	CHECK(check_large_presentation() == 0);
 	CHECK(check_zero_width() == 0);
 	CHECK(check_normalization_conformance() == 0);

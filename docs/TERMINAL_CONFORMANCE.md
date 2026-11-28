@@ -16,6 +16,11 @@ and alternate font bank between printable characters in CP437 and UTF-8.
 The connected attributes suites check the text, colours, pixels and reported
 cursor across a deferred wrap followed by an SGR reset.
 
+The Unicode presenter tests cover all 95 printable ASCII characters at begin
+and commit, plus bytewise revisions to composed accents and two-column
+keycaps. The connected UTF-8 movement suite writes an ASCII letter over each
+half of a keycap and checks the cleared neighbour's pixels and the cursor report.
+
 Connected console input reaches Wren claims and hooks first. Keys passed by
 Wren go through local session controls, graphics and then CTerm. A script
 can forward a replacement with `CTerm.sendKey` at the graphics stage. Both

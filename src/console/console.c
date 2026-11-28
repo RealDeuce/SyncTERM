@@ -1481,8 +1481,8 @@ clear_boundary_pairs_locked(st_console_t *console, size_t first, size_t last)
 	}
 }
 
-void
-st_console_store_cell_locked(st_console_t *console, size_t index, const struct st_console_cell *source)
+static void
+store_cell_locked(st_console_t *console, size_t index, const struct st_console_cell *source, bool known_narrow)
 {
 	struct st_console_cell value = *source;
 	struct st_console_cell continuation;
@@ -1491,8 +1491,8 @@ st_console_store_cell_locked(st_console_t *console, size_t index, const struct s
 	value = cell_for_storage(source);
 	if (cells_equal(st_console_cell_at(console, index), &value))
 		return;
-	wide = (value.flags & ST_CONSOLE_CELL_CONTINUATION) == 0 && cell_is_wide_locked(console, &value)
-	       && index % console->columns + 1 < console->columns;
+	wide = !known_narrow && (value.flags & ST_CONSOLE_CELL_CONTINUATION) == 0
+	       && cell_is_wide_locked(console, &value) && index % console->columns + 1 < console->columns;
 	clear_boundary_pairs_locked(console, index, index + (wide ? 1 : 0));
 	set_cell_raw_locked(console, index, &value);
 	if (wide) {
@@ -1500,6 +1500,12 @@ st_console_store_cell_locked(st_console_t *console, size_t index, const struct s
 		continuation.flags |= ST_CONSOLE_CELL_CONTINUATION;
 		set_cell_raw_locked(console, index + 1, &continuation);
 	}
+}
+
+void
+st_console_store_cell_locked(st_console_t *console, size_t index, const struct st_console_cell *source)
+{
+	store_cell_locked(console, index, source, false);
 }
 
 /* A second writer may have changed the shared pixels even when the glyph
@@ -1512,10 +1518,10 @@ rewrite_view_cell_locked(st_console_t *console, size_t index)
 	console->raster_current = false;
 }
 
-void
-st_console_set_cell_locked(st_console_t *console, size_t index, const struct st_console_cell *source)
+static void
+set_cell_locked(st_console_t *console, size_t index, const struct st_console_cell *source, bool known_narrow)
 {
-	st_console_store_cell_locked(console, index, source);
+	store_cell_locked(console, index, source, known_narrow);
 	if (console->raster_enabled && !(source->flags & ST_CONSOLE_CELL_PIXEL_GRAPHICS)) {
 		rewrite_view_cell_locked(console, index);
 		if (!(source->flags & ST_CONSOLE_CELL_CONTINUATION)
@@ -1523,6 +1529,23 @@ st_console_set_cell_locked(st_console_t *console, size_t index, const struct st_
 		    && (st_console_cell_at(console, index + 1)->flags & ST_CONSOLE_CELL_CONTINUATION))
 			rewrite_view_cell_locked(console, index + 1);
 	}
+}
+
+void
+st_console_set_cell_locked(st_console_t *console, size_t index, const struct st_console_cell *source)
+{
+	set_cell_locked(console, index, source, false);
+}
+
+/* The caller checked the position and resolved a one-column glyph from the
+ * registered font while holding this write lock. */
+int
+st_console_write_narrow_glyph_locked(st_console_t *console, size_t index, const struct st_console_cell *cell)
+{
+	if (cell->flags & ST_CONSOLE_CELL_CONTINUATION)
+		return IO_ERROR_INVALID_ARGUMENT;
+	set_cell_locked(console, index, cell, true);
+	return 0;
 }
 
 void
@@ -2245,8 +2268,8 @@ st_console_reconfigure(st_console_t *console, const struct st_console_config *co
 	return result;
 }
 
-int
-st_console_write_cells_locked(st_console_t *console, const struct st_console_rect *destination,
+static int
+write_cells_locked(st_console_t *console, const struct st_console_rect *destination,
     const struct st_console_cell *cells, size_t stride)
 {
 	uint32_t x, y;
@@ -2277,7 +2300,7 @@ st_console_write_cells(st_console_t *console, const struct st_console_rect *dest
 	result = st_rwlock_write_lock(st_console_state_lock(console));
 	if (result != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
-	result = st_console_write_cells_locked(console, destination, cells, stride);
+	result = write_cells_locked(console, destination, cells, stride);
 	if (result == 0)
 		result = st_console_finish_change_locked(console);
 	(void)st_rwlock_unlock(st_console_state_lock(console));

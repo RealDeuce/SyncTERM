@@ -1862,6 +1862,25 @@ test_unicode_wide_cells(void)
 	CHECK(st_console_end_text_edit(&edit, NULL) == 0 && !glyph.placed && frames == 1);
 	console->display->backend_ops   = saved_ops;
 	console->display->backend_state = saved_state;
+
+	glyph.text = "A";
+	glyph.size = 1;
+	for (uint32_t half = 0; half < 2; ++half) {
+		CHECK(st_console_set_position(console, 0, 0) == 0);
+		CHECK(st_console_put_codepoint(console, UINT32_C(0x4e00)) == 0);
+		glyph.x = half;
+		CHECK(st_console_begin_text_edit(console, &edit) == 0);
+		edit.glyph = &glyph;
+		CHECK(st_console_end_text_edit(&edit, NULL) == 0 && glyph.placed);
+		CHECK(st_console_read_cells(console, &row, cells, 4) == 0);
+		CHECK(cells[half].glyph == 1 && cells[1 - half].glyph == 0);
+		CHECK(((cells[0].flags | cells[1].flags) & ST_CONSOLE_CELL_CONTINUATION) == 0);
+		CHECK(st_console_get_position(console, &x, &y) == 0 && x == half + 1 && y == 0);
+	}
+	CHECK(st_console_begin_text_edit(console, &edit) == 0);
+	edit.style.flags |= ST_CONSOLE_CELL_CONTINUATION;
+	edit.glyph = &glyph;
+	CHECK(st_console_end_text_edit(&edit, NULL) == IO_ERROR_INVALID_ARGUMENT && !glyph.placed);
 	st_console_destroy(console);
 
 	console    = create_headless(4, 2);

@@ -193,6 +193,16 @@ def movement(t):
     t.check("encoded-text", text.encode("utf-8" if t.encoding == "UTF-8" else "cp437")
             + ESC + b"[2b", (5, 1), ((1, 1, "é│││"),))
 
+    if t.encoding == "UTF-8":
+        keycap = "1\ufe0f\u20e3".encode()
+        # Write both halves of separate wide keycaps and retain the following sentinels.
+        data = b"e\xcc\x81" + keycap + b"!" + keycap + b"?" + cup(2, 1) + b"A" + cup(6, 1) + b"B"
+        frame = t.check("ascii-wide-overwrite", data + ESC + b"[6n", (7, 1),
+                        ((1, 1, "éA ! B?"),), expected=ESC + b"[1;7R")
+        for col in (3, 5):
+            blank = cell_at(frame, col - 1, 0)
+            assert set(tile(frame, col, 1)) == {blank.background}
+
 
 def editing(t):
     for name, stream, text in (

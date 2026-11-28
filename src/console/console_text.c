@@ -336,7 +336,7 @@ place_glyph_locked(st_console_t *console, struct st_console_text_glyph *glyph)
 	if (columns != 1)
 		return 0;
 	int result =
-	    st_console_write_cells_locked(console, &(struct st_console_rect) {glyph->x, glyph->y, 1, 1}, &cell, 1);
+	    st_console_write_narrow_glyph_locked(console, (size_t)glyph->y * console->columns + glyph->x, &cell);
 	if (result == 0) {
 		move_cursor_locked(console, glyph->x + 1, glyph->y);
 		glyph->placed = true;

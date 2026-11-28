@@ -20,6 +20,7 @@ struct st_unicode_presentation {
 	size_t                                  count;
 	size_t                                  capacity;
 	st_unicode_text_t                      *normalizer;
+	uint8_t                                 ascii; /* Backs event.bytes for a single printable ASCII scalar. */
 	struct st_unicode_presentation_event    event;
 	st_unicode_presentation_callback_t      callback;
 	void                                   *context;
@@ -161,11 +162,12 @@ publish(st_unicode_presentation_t *presentation, enum st_unicode_presentation_ev
 static void
 discard_cluster(st_unicode_presentation_t *presentation)
 {
+	if (presentation->event.bytes != &presentation->ascii)
+		st_unicode_text_reset(presentation->normalizer);
 	presentation->count       = 0;
 	presentation->event.bytes = NULL;
 	presentation->cluster =
 	    trim_empty_buffer(presentation->cluster, &presentation->capacity, sizeof(*presentation->cluster));
-	st_unicode_text_reset(presentation->normalizer);
 }
 
 static int
@@ -184,10 +186,14 @@ commit(st_unicode_presentation_t *presentation)
 static int
 accept(st_unicode_presentation_t *presentation, uint32_t scalar)
 {
+	bool ascii  = scalar >= 0x20 && scalar <= 0x7e;
 	bool revise = presentation->count != 0;
 	int  status;
 
-	if (break_before(presentation->cluster, presentation->count, scalar)) {
+	/* Two individual printable ASCII characters always break. A following
+	 * non-ASCII scalar can still extend the provisional cluster. */
+	if ((ascii && presentation->event.bytes == &presentation->ascii)
+	    || break_before(presentation->cluster, presentation->count, scalar)) {
 		status = commit(presentation);
 		if (status != 0)
 			return status;
@@ -195,7 +201,16 @@ accept(st_unicode_presentation_t *presentation, uint32_t scalar)
 	}
 	if (!append_scalar(presentation, scalar))
 		return IO_ERROR_OUT_OF_MEMORY;
-	presentation->event.bytes = NULL;
+	if (ascii && presentation->count == 1) {
+		presentation->ascii = (uint8_t)scalar;
+		presentation->event = (struct st_unicode_presentation_event) {
+		    .bytes   = &presentation->ascii,
+		    .size    = 1,
+		    .columns = 1,
+		};
+	}
+	else
+		presentation->event.bytes = NULL;
 	return publish(presentation, revise ? ST_UNICODE_PRESENTATION_REVISE : ST_UNICODE_PRESENTATION_BEGIN);
 }
 
