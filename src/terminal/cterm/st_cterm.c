@@ -1675,6 +1675,7 @@ st_cterm_state(const st_cterm_t *terminal, struct st_cterm_state *state)
 	    .graphics_mode        = terminal->graphics_mode,
 	    .ext_attr =
 		{
+			   .insert_mode           = (terminal->extattr & CTERM_EXTATTR_INSERT_MODE) != 0,
 			   .auto_wrap             = (terminal->extattr & CTERM_EXTATTR_AUTOWRAP) != 0,
 			   .origin_mode           = (terminal->extattr & CTERM_EXTATTR_ORIGINMODE) != 0,
 			   .sx_scroll             = (terminal->extattr & CTERM_EXTATTR_SXSCROLL) != 0,

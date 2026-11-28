@@ -601,12 +601,14 @@ compound_ansi_modes(void)
 {
 	struct fixture f = {0};
 	CHECK(create(&f, 17) == 0);
-	const char modes[] = "\x1b[2;14;16h";
-	const char reset[] = "\x1b[16;2;14l";
+	const char modes[] = "\x1b[2;14;4;16h";
+	const char reset[] = "\x1b[16;4;2;14l";
 	for (size_t split = 0; split < sizeof(modes); ++split) {
-		CHECK(feed(&f, reset, sizeof(reset) - 1) == 0 && !f.text->fetm && !f.text->ttm);
+		CHECK(feed(&f, reset, sizeof(reset) - 1) == 0 && !f.text->fetm && !f.text->ttm
+		    && !(f.text->extattr & CTERM_EXTATTR_INSERT_MODE));
 		CHECK(feed(&f, modes, split) == 0);
-		CHECK(feed(&f, modes + split, sizeof(modes) - 1 - split) == 0 && f.text->fetm && f.text->ttm);
+		CHECK(feed(&f, modes + split, sizeof(modes) - 1 - split) == 0 && f.text->fetm && f.text->ttm
+		    && (f.text->extattr & CTERM_EXTATTR_INSERT_MODE));
 	}
 	destroy(&f);
 	return 0;

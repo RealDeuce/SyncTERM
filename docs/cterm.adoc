@@ -923,6 +923,12 @@ Sets one or more ANSI modes.  The following modes are supported:
 
 [%autowidth,cols="1,2"]
 |===
+|4
+|INSERTION REPLACEMENT MODE (IRM) = INSERT.
+Each graphic shifts the cells from the cursor through the right margin
+to the right by its displayed width. Cells shifted past the margin are lost.
+After autowrap, insertion continues at the beginning of the next line.
+
 |14
 |FORMAT EFFECTOR TRANSFER MODE (FETM) = EXCLUDE.
 When set, transmitted data (via STS) contains only graphic characters.
@@ -1233,8 +1239,9 @@ SOURCE: CTerm only.
 
 === `CSI Ps... l` Reset Mode (`RM`)
 Resets ANSI modes.  Same parameter values as SM above.  Resetting
-mode 14 restores FETM=INSERT (attributed transmission).  Resetting
-mode 16 restores TTM=CURSOR (cursor-exclusive termination).
+mode 4 selects replacement (the default). Resetting mode 14 restores
+FETM=INSERT (attributed transmission). Resetting mode 16 restores
+TTM=CURSOR (cursor-exclusive termination).
 
 SOURCE: <<ECMA-48>>
 
@@ -2079,7 +2086,7 @@ The following ANSI modes can be queried:
 |1  |GATM — permanently reset (Pm=4)
 |2  |KAM — permanently reset (Pm=4)
 |3  |CRM — permanently reset (Pm=4)
-|4  |IRM — permanently reset (Pm=4)
+|4  |IRM — insert (Pm=1) or replace (Pm=2)
 |5  |SRTM — permanently reset (Pm=4)
 |6  |ERM — permanently reset (Pm=4)
 |7  |VEM — permanently reset (Pm=4)

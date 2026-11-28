@@ -222,6 +222,7 @@ inspect_application(void *context, struct st_console_test_application *app)
 		st_console_test_number(app, "cterm.igs_marker_cycle_restart", igs->marker_cycle_restart);
 	}
 	FIELD(ext_attr.auto_wrap);
+	FIELD(ext_attr.insert_mode);
 	FIELD(ext_attr.origin_mode);
 	FIELD(ext_attr.sx_scroll);
 	FIELD(ext_attr.dec_lrmm);

@@ -257,6 +257,7 @@ struct cterminal {
 #define CTERM_EXTATTR_PRESTEL_SEPARATED     0x0200
 #define CTERM_EXTATTR_PRESTEL_HOLD          0x0400
 #define CTERM_EXTATTR_ALTERNATE_KEYPAD      0x0800
+#define CTERM_EXTATTR_INSERT_MODE           0x1000
 	int      save_xpos;           // Saved position (for later restore)
 	int      save_ypos;
 	bool     vt52_cursor_saved;   // Atari IGS one-shot restore flag

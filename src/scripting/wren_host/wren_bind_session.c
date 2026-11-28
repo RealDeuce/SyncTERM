@@ -1159,6 +1159,7 @@ fn_cterm_last_column_flag(WrenVM *vm)
 		wrenSetSlotBool(vm, 0, ((struct st_cterm_state *)wrenGetSlotForeign(vm, 0))->ext_attr.member); \
 	}
 EXT_ATTR_BOOL(auto_wrap, auto_wrap)
+EXT_ATTR_BOOL(insert_mode, insert_mode)
 EXT_ATTR_BOOL(origin_mode, origin_mode)
 EXT_ATTR_BOOL(sx_scroll, sx_scroll)
 EXT_ATTR_BOOL(dec_lrmm, dec_lrmm)
@@ -1765,6 +1766,7 @@ st_wren_session_bind_method(const char *class_name, bool is_static, const char *
 			WrenForeignMethodFn method;
 		} attrs[] = {
 		    {"autoWrap",            fn_ext_attr_auto_wrap            },
+		    {"insertMode",          fn_ext_attr_insert_mode          },
 		    {"originMode",          fn_ext_attr_origin_mode          },
 		    {"sxScroll",            fn_ext_attr_sx_scroll            },
 		    {"decLrmm",             fn_ext_attr_dec_lrmm             },

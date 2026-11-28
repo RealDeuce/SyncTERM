@@ -17,6 +17,7 @@ void cterm_text_atascii_byte(struct cterminal *cterm, uint8_t byte);
 void cterm_text_byte(struct cterminal *cterm, uint8_t byte);
 void cterm_text_literal(struct cterminal *cterm, uint8_t byte);
 void cterm_text_literal_scalar(struct cterminal *cterm, uint32_t scalar);
+void cterm_text_overwrite_space(struct cterminal *cterm);
 void cterm_text_repeat(struct cterminal *cterm, size_t count);
 void cterm_text_forget(struct cterminal *cterm);
 void cterm_text_destroy(struct cterminal *cterm);

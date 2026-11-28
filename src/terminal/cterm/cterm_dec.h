@@ -19,6 +19,8 @@
 #include "cterm.h"
 
 void cterm_handle_decscusr(struct cterminal *cterm, int *speed);
+void cterm_handle_sm(struct cterminal *cterm, int *speed);
+void cterm_handle_rm(struct cterminal *cterm, int *speed);
 void cterm_handle_decrqm_public(struct cterminal *cterm, int *speed);
 void cterm_handle_dectabsr(struct cterminal *cterm, int *speed);
 void cterm_handle_decera(struct cterminal *cterm, int *speed);

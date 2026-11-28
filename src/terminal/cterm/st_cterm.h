@@ -311,6 +311,7 @@ struct st_cterm_state {
 		bool prestel_separated;
 		bool prestel_hold;
 		bool alternate_keypad;
+		bool insert_mode;
 	} ext_attr;
 
 	struct {

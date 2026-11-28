@@ -150,6 +150,8 @@ struct cterm_render_state {
 	uint32_t                   provisional_x;
 	uint32_t                   provisional_y;
 	uint8_t                    provisional_columns; /* Zero when no visible glyph can be revised. */
+	/* Cells clipped at the insertion edge which a grapheme revision may uncover. */
+	struct st_console_cell     insert_edge[2];
 	int                        provisional_lcf;
 	bool                       provisional_discarded;
 	bool                       missing_glyph;

@@ -4663,6 +4663,7 @@ read-only Booleans reflecting the corresponding terminal mode.
 | Member                | Description
 | `autoWrap`            | DECAWM — characters past the right margin
                           wrap to the next line.
+| `insertMode`          | IRM — graphic characters shift text to the right when inserted.
 | `originMode`          | DECOM — cursor coordinates are relative to
                           the active scroll region rather than the
                           screen.

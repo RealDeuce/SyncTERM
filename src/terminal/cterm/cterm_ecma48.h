@@ -58,8 +58,6 @@ void cterm_handle_bansi_music(struct cterminal *cterm, int *speed);
 /* Reporting / modes / SGR */
 void cterm_handle_da(struct cterminal *cterm, int *speed);
 void cterm_handle_tbc(struct cterminal *cterm, int *speed);
-void cterm_handle_sm(struct cterminal *cterm, int *speed);
-void cterm_handle_rm(struct cterminal *cterm, int *speed);
 void cterm_handle_dsr(struct cterminal *cterm, int *speed);
 void cterm_handle_dsr_cterm(struct cterminal *cterm, int *speed);
 void cterm_handle_decstbm(struct cterminal *cterm, int *speed);

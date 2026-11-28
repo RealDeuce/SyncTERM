@@ -205,6 +205,51 @@ def movement(t):
 
 
 def editing(t):
+    insert, replace, query = b"\x1b[4h", b"\x1b[4l", b"\x1b[4$p"
+    on, off = b"\x1b[4;1$y", b"\x1b[4;2$y"
+    frame = t.check("IRM", query + b"ABCDE" + cup(2, 1) + insert + query + b"X"
+                    + replace + query + b"Y", (4, 1), ((1, 1, "AXYCDE"),), expected=off + on + off)
+    assert frame.application["cterm.ext_attr.insert_mode"] == 0
+    # ICH opens its own blanks and REP inserts each repeated graphic.
+    frame = t.check("IRM", b"ABCD" + cup(2, 1) + insert + b"\x1b[2@X\x1b[2b",
+                    (5, 1), ((1, 1, "AXXX  BCD"),))
+    assert frame.application["cterm.ext_attr.insert_mode"] == 1
+    for lcf in (b"\x1b[=4l", b"\x1b[=4h"):
+        t.check("IRM", b"12345!\r\nabcde?" + b"\x1b[?69h\x1b[2;5s" + lcf + cup(4, 1)
+                + insert + b"XYZ", (3, 2), ((1, 1, "123XY!"), (1, 2, "aZbcd?")))
+        t.check("IRM", lcf + cup(1, 25) + b"bottom" + cup(80, 25) + insert + b"XY",
+                (2, 25), ((1, 24, "bottom"), (80, 24, "X"), (1, 25, "Y ")))
+    t.check("IRM", b"\x1b[?7l" + cup(79, 1) + b"AB" + cup(79, 1) + insert + b"XYZ",
+            (80, 1), ((79, 1, "XZ"), (1, 2, " ")))
+    t.check("IRM", insert + ESC + b"c" + query, expected=off)
+    # Changing IRM while wrap is pending preserves that pending wrap.
+    t.check("IRM", b"NEXT" + cup(1, 2) + b"ABCD" + b"\x1b[=4h" + cup(80, 1)
+            + b"!" + insert + query + b"X", (2, 2), ((80, 1, "!"), (1, 2, "XABCD")), expected=on)
+    frame = t.check("IRM", b"\x1b[41m \x1b[42m \x1b[0m" + cup(1, 1) + insert + b"X")
+    for col, background in ((2, 0xa80000), (3, 0x00a800)):
+        assert colour(frame, cell_at(frame, col - 1, 0), True) == background
+        background_pixel = cell_at(frame, col - 1, 0).background
+        assert set(tile(frame, col)) == set(tile(frame, col, alternate=True)) == {background_pixel}
+    if t.encoding == "UTF-8":
+        # A combining mark revises one inserted cell. A keycap grows from one cell to two.
+        frame = t.check("IRM", b"ABCDEF" + cup(2, 1) + insert + "e\u03011\u20e3界".encode(), (7, 1))
+        assert [frame.cell_text(cell_at(frame, x, 0)) for x in (0, 1, 2, 4, 6, 7)] == [
+            "A", "é", "1\u20e3", "界", "B", "C"]
+        # Widening at the last column restores its old glyph, then inserts on row two.
+        frame = t.check("IRM", cup(79, 1) + "界".encode() + cup(1, 2) + b"NEXT" + cup(80, 1)
+                        + insert + "1\u20e3".encode(), (3, 2), ((3, 2, "NEXT"),))
+        assert frame.cell_text(cell_at(frame, 78, 0)) == "界"
+        assert frame.cell_text(cell_at(frame, 0, 1)) == "1\u20e3"
+        # A keycap followed by an unmapped mark narrows back to a single cell.
+        # The original wide glyph now fits at the right edge again.
+        frame = t.check("IRM", cup(77, 1) + "界AB".encode() + cup(74, 1) + insert
+                        + "1\u20e3\u0301".encode(), (75, 1))
+        assert frame.cell_text(cell_at(frame, 77, 0)) == "界"
+        assert frame.cell_text(cell_at(frame, 79, 0)) == "A"
+        frame = t.check("IRM", cup(78, 1) + "界A".encode() + cup(74, 1) + insert
+                        + "1\u20e3\u0301".encode(), (75, 1))
+        assert frame.cell_text(cell_at(frame, 78, 0)) == "界"
+        assert cell_at(frame, 79, 0).flags & (1 << 19)
     for name, stream, text in (
         ("ICH", b"[2@", "AB  CDEFGHIJ"), ("DCH", b"[2P", "ABEFGHIJ  "),
         ("ECH", b"[3X", "AB   FGHIJ"), ("EL", b"[K", "AB        "),

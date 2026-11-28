@@ -270,7 +270,7 @@ cterm_handle_ich(struct cterminal *cterm, int *speed) /* CSI @ */
 	cterm_render_move_cells(cterm, col, row, max_col - (int)cterm->seq_param_int[0], row,
 	    col + (int)cterm->seq_param_int[0], row);
 	for (l = 0; l < (int)cterm->seq_param_int[0]; l++)
-		cterm_text_literal(cterm, ' ');
+		cterm_text_overwrite_space(cterm);
 	cterm_set_position(cterm, i, j);
 }
 
@@ -499,42 +499,6 @@ cterm_handle_tbc(struct cterminal *cterm, int *speed) /* CSI g */
 			cterm->default_tabs = false;
 			cterm->vtab_count   = 0;
 			break;
-	}
-}
-
-void
-cterm_handle_sm(struct cterminal *cterm, int *speed) /* CSI h */
-{
-	int i;
-	(void)speed;
-	for (i = 0; i < cterm->seq_param_count; i++) {
-		cterm_seq_default(cterm, i, 0);
-		switch (cterm->seq_param_int[i]) {
-			case 14: /* FETM = EXCLUDE */
-				cterm->fetm = 1;
-				break;
-			case 16: /* TTM = ALL */
-				cterm->ttm = 1;
-				break;
-		}
-	}
-}
-
-void
-cterm_handle_rm(struct cterminal *cterm, int *speed) /* CSI l */
-{
-	int i;
-	(void)speed;
-	for (i = 0; i < cterm->seq_param_count; i++) {
-		cterm_seq_default(cterm, i, 0);
-		switch (cterm->seq_param_int[i]) {
-			case 14: /* FETM = INSERT */
-				cterm->fetm = 0;
-				break;
-			case 16: /* TTM = CURSOR */
-				cterm->ttm = 0;
-				break;
-		}
 	}
 }
 

@@ -39,7 +39,7 @@
 #include "cterm.h"
 #include "cterm_cterm.h"  /* SyncTERM DECSM extensions chained from DEC */
 #include "cterm_dec.h"
-#include "cterm_ecma48.h" /* cterm_handle_sm/rm chained from DECSM/DECRM */
+#include "cterm_ecma48.h"
 #include "cterm_internal.h"
 #include "cterm_render.h"
 #include "io_error.h"
@@ -59,6 +59,42 @@ cterm_handle_decscusr(struct cterminal *cterm, int *speed) /* CSI SP q */
 	cterm_render_set_cursor(cterm, cterm->cursor);
 }
 
+static void
+set_ansi_modes(struct cterminal *cterm, bool enabled)
+{
+	for (int i = 0; i < cterm->seq_param_count; ++i) {
+		cterm_seq_default(cterm, i, 0);
+		switch (cterm->seq_param_int[i]) {
+			case 4: /* IRM */
+				if (enabled)
+					cterm->extattr |= CTERM_EXTATTR_INSERT_MODE;
+				else
+					cterm->extattr &= ~CTERM_EXTATTR_INSERT_MODE;
+				break;
+			case 14: /* FETM */
+				cterm->fetm = enabled;
+				break;
+			case 16: /* TTM */
+				cterm->ttm = enabled;
+				break;
+		}
+	}
+}
+
+void
+cterm_handle_sm(struct cterminal *cterm, int *speed)
+{
+	(void)speed;
+	set_ansi_modes(cterm, true);
+}
+
+void
+cterm_handle_rm(struct cterminal *cterm, int *speed)
+{
+	(void)speed;
+	set_ansi_modes(cterm, false);
+}
+
 void
 cterm_handle_decrqm_public(struct cterminal *cterm, int *speed) /* CSI Ps $ p */
 {
@@ -71,7 +107,6 @@ cterm_handle_decrqm_public(struct cterminal *cterm, int *speed) /* CSI Ps $ p */
 		case 1:
 		case 2:
 		case 3:
-		case 4:
 		case 5:
 		case 6:
 		case 7:
@@ -85,6 +120,9 @@ cterm_handle_decrqm_public(struct cterminal *cterm, int *speed) /* CSI Ps $ p */
 		case 17:
 		case 18:
 			pm = 4; /* permanently reset */
+			break;
+		case 4:
+			pm = (cterm->extattr & CTERM_EXTATTR_INSERT_MODE) ? 1 : 2;
 			break;
 		case 14:
 			pm = cterm->fetm ? 1 : 2;

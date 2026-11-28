@@ -5063,7 +5063,10 @@ exercise_connected_scrollback(st_wren_host_t *host, st_console_t *console, struc
 		"if (CTerm.hasPaletteOverride || CTerm.paletteOverride.count != 0) Fiber.abort(\"palette\")\n"
 		"if (CTerm.scrollbackLines != 2 || CTerm.scrollbackWidth != CTerm.width) Fiber.abort(\"scrollback\")\n"
 		"if (CTerm.emulation != 0 || !CTerm.started || CTerm.skypix) Fiber.abort(\"mode\")\n"
+		"CTerm.write(\"\\e[4h\")\n"
 		"var ea = CTerm.extAttr\n"
+		"CTerm.write(\"\\e[4l\")\n"
+		"if (!ea.insertMode || CTerm.extAttr.insertMode) Fiber.abort(\"insert mode snapshot\")\n"
 		"var lc = CTerm.lastColumnFlag\n"
 		"if ((ea.autoWrap != true && ea.autoWrap != false) || (ea.alternateKeypad != true && ea.alternateKeypad != false)) Fiber.abort(\"ext attr\")\n"
 		"if ((lc.set != true && lc.set != false) || (lc.enabled != true && lc.enabled != false) || (lc.forced != true && lc.forced != false)) Fiber.abort(\"last column\")\n")

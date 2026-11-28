@@ -65,9 +65,58 @@ record_placement(struct cterminal *cterm, uint32_t x, uint32_t y, uint16_t font,
 	cterm->screen.provisional_columns = provisional_columns;
 }
 
+/* Keep the displaced cell at index 1, with its lead at index 0 if wide.
+ * A grapheme can narrow after presentation or grow across the right margin. */
+static int
+remember_insert_edge(struct cterminal *cterm, uint32_t left, uint32_t end, uint32_t y)
+{
+	uint32_t count = end > left ? 2 : 1;
+	struct st_console_rect tail = {end + 1 - count, y, count, 1};
+	return st_console_read_cells(cterm->screen.console, &tail, &cterm->screen.insert_edge[2 - count], count);
+}
+
+static int
+restore_insert_edge(struct cterminal *cterm, uint32_t end, uint32_t y)
+{
+	uint32_t count = (cterm->screen.insert_edge[1].flags & ST_CONSOLE_CELL_CONTINUATION) ? 2 : 1;
+	struct st_console_rect tail = {end + 1 - count, y, count, 1};
+	return st_console_write_cells(cterm->screen.console, &tail, &cterm->screen.insert_edge[2 - count], count);
+}
+
+static int
+make_insert_room(struct cterminal *cterm, const struct st_console_rect *glyph, uint32_t available,
+    uint32_t old_width, bool provisional)
+{
+	uint32_t end = glyph->x + available - 1;
+	int status;
+	if (provisional && glyph->width == 2 && old_width == 0) {
+		/* If the glyph narrows, the original penultimate cell fits again. */
+		status = remember_insert_edge(cterm, glyph->x, end - 1, glyph->y);
+		if (status != 0)
+			return status;
+	}
+	else if (provisional && (old_width == 1 || available == 1)) {
+		/* Growing a narrow prefix displaces one further cell. A prefix
+		 * placed at the margin may instead need to vacate that cell. */
+		status = remember_insert_edge(cterm, available == 1 ? 0 : glyph->x + 1, end, glyph->y);
+		if (status != 0)
+			return status;
+	}
+	uint32_t occupied = glyph->width > old_width ? glyph->width : old_width;
+	if (available > occupied) {
+		struct st_console_rect tail = {glyph->x + old_width, glyph->y, available - occupied, 1};
+		status = st_console_move_cells(cterm->screen.console, &tail, glyph->x + glyph->width, glyph->y);
+		if (status != 0)
+			return status;
+	}
+	if (old_width > glyph->width)
+		return restore_insert_edge(cterm, end, glyph->y);
+	return 0;
+}
+
 static int
 place(struct cterminal *cterm, const struct st_unicode_presentation_event *event, bool provisional,
-    uint32_t glyph_flags)
+    uint32_t glyph_flags, bool insert)
 {
 	struct st_console_style style;
 	struct st_console_cell  cells[2];
@@ -86,7 +135,7 @@ place(struct cterminal *cterm, const struct st_unicode_presentation_event *event
 	/* Interior ANSI text has no wrap, scrolling or emulation-specific
 	 * advance action. A revision still needs the previous glyph geometry. */
 	struct st_console_text_glyph glyph = {0};
-	bool interior = provisional && event->kind == ST_UNICODE_PRESENTATION_BEGIN && columns == 1
+	bool interior = !insert && provisional && event->kind == ST_UNICODE_PRESENTATION_BEGIN && columns == 1
 	                && cterm->emulation == CTERM_EMULATION_ANSI_BBS && glyph_flags == 0
 	                && cterm->screen.addressing_window.width == 0
 	                && !(cterm->extattr & CTERM_EXTATTR_ORIGINMODE) && cterm->xpos >= 1
@@ -159,9 +208,14 @@ place(struct cterminal *cterm, const struct st_unicode_presentation_event *event
 			    1,
 			};
 			struct st_console_cell blank;
-			status = cterm_render_make_current_cell(cterm, &blank, ' ', style.hyperlink);
-			if (status == 0)
-				status = st_console_write_cells(cterm->screen.console, &vacated, &blank, 1);
+			if (insert)
+				status = restore_insert_edge(cterm, vacated.x, vacated.y);
+			else {
+				status = cterm_render_make_current_cell(cterm, &blank, ' ', style.hyperlink);
+				if (status == 0)
+					status = st_console_write_cells(cterm->screen.console, &vacated, &blank, 1);
+			}
+			old_columns = 0;
 			if (status != 0)
 				return status;
 		}
@@ -185,12 +239,17 @@ place(struct cterminal *cterm, const struct st_unicode_presentation_event *event
 		cells[1] = cells[0];
 		cells[1].flags |= ST_CONSOLE_CELL_CONTINUATION;
 	}
-	else if (old_columns > columns) {
+	else if (!insert && old_columns > columns) {
 		/* Overwrite the old continuation, but advance only past the new glyph. */
 		status = cterm_render_make_current_cell(cterm, &cells[1], ' ', style.hyperlink);
 		if (status != 0)
 			return status;
 		area.width = old_columns;
+	}
+	if (insert && columns != old_columns) {
+		status = make_insert_room(cterm, &area, (uint32_t)(right - x + 1), old_columns, provisional);
+		if (status != 0)
+			return status;
 	}
 	status = st_console_write_cells(cterm->screen.console, &area, cells, area.width);
 	if (status != 0)
@@ -253,7 +312,8 @@ present(void *context, const struct st_unicode_presentation_event *event)
 	}
 	if (event->kind == ST_UNICODE_PRESENTATION_REVISE && cterm->screen.provisional_discarded)
 		return 0;
-	status = place(cterm, event, event->kind != ST_UNICODE_PRESENTATION_DECODE_ERROR, 0);
+	status = place(cterm, event, event->kind != ST_UNICODE_PRESENTATION_DECODE_ERROR, 0,
+	    (cterm->extattr & CTERM_EXTATTR_INSERT_MODE) != 0);
 	if (status == 0 && cterm->device.present_cell != NULL)
 		status = cterm->device.present_cell(cterm->device.context);
 	return status;
@@ -321,7 +381,7 @@ cterm_text_literal(struct cterminal *cterm, uint8_t byte)
 }
 
 static void
-place_literal(struct cterminal *cterm, uint32_t scalar, uint32_t glyph_flags, bool received)
+place_literal(struct cterminal *cterm, uint32_t scalar, uint32_t glyph_flags, bool received, bool insert)
 {
 	char                                 text[4];
 	ptrdiff_t                            size  = st_utf8_encode_one(text, sizeof(text), scalar);
@@ -334,7 +394,7 @@ place_literal(struct cterminal *cterm, uint32_t scalar, uint32_t glyph_flags, bo
 	int status = cterm_text_boundary(cterm);
 	cterm_coord_get_xy(cterm, CTERM_COORD_ABSTERM, &cterm->xpos, &cterm->ypos);
 	if (status == 0)
-		status = place(cterm, &event, false, glyph_flags);
+		status = place(cterm, &event, false, glyph_flags, insert);
 	if (status == 0 && received && cterm->log == CTERM_LOG_ASCII && cterm->logfile != NULL)
 		fwrite(text, event.size, 1, cterm->logfile);
 	cterm_render_record_error(cterm, status);
@@ -343,7 +403,14 @@ place_literal(struct cterminal *cterm, uint32_t scalar, uint32_t glyph_flags, bo
 void
 cterm_text_literal_scalar(struct cterminal *cterm, uint32_t scalar)
 {
-	place_literal(cterm, scalar, 0, false);
+	place_literal(cterm, scalar, 0, false, (cterm->extattr & CTERM_EXTATTR_INSERT_MODE) != 0);
+}
+
+void
+cterm_text_overwrite_space(struct cterminal *cterm)
+{
+	/* ICH has already shifted the row. */
+	place_literal(cterm, byte_scalar(cterm, ' '), 0, false, false);
 }
 
 void
@@ -359,7 +426,7 @@ cterm_text_atascii_byte(struct cterminal *cterm, uint8_t byte)
 	}
 	/* The byte parser has selected the session palette, including after reset. */
 	cterm_render_attribute_colours(cterm, cterm->attr, &cterm->fg_color, &cterm->bg_color);
-	place_literal(cterm, st_codepage_to_unicode(cterm->screen.codepage, byte, true), flags, true);
+	place_literal(cterm, st_codepage_to_unicode(cterm->screen.codepage, byte, true), flags, true, false);
 }
 
 void

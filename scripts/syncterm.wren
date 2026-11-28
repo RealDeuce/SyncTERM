@@ -1375,6 +1375,7 @@ foreign class CTermError is Error {
 
 foreign class ExtAttr {
   foreign autoWrap
+  foreign insertMode
   foreign originMode
   foreign sxScroll
   foreign decLrmm

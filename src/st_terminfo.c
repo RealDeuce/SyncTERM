@@ -41,6 +41,7 @@ static const char *const parts[] = {
     "\tBD=\\E[?2004l,BE=\\E[?2004h,PE=\\E[201~,PS=\\E[200~,\n",
     "syncterm-bitmap|SyncTERM in Bitmap Mode,\n",
     "\tccc,\n",
+    "\tsmir=\\E[4h,rmir=\\E[4l,\n",
     "\tcolors#256,pairs#65535,\n",
     "\tdim=\\E[2m,norm=\\E[22m,blink2=\\E[6m,\n",
     "\tsmul=\\E[4m,smul2=\\E[21m,rmul=\\E[24m,\n",

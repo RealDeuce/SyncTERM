@@ -11,6 +11,11 @@ the meaning of terminal controls. Graphics adapters may observe terminal state
 and use existing terminal operations. Received ANSI BS moves the cursor back
 one position on the line and preserves the cell, including its rendition.
 
+The editing suites check ANSI mode 4 insertion, replacement and DECRPM
+in CP437 and UTF-8, including clipping at horizontal margins, autowrap,
+both last-column policies, ICH, REP and reset. UTF-8 cases also check how
+the row shifts when a grapheme changes width.
+
 The native `cterm_text` test changes the shared console style, cursor, window
 and alternate font bank between printable characters in CP437 and UTF-8.
 The connected attributes suites check the text, colours, pixels and reported
