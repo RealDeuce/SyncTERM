@@ -1325,10 +1325,7 @@ st_cterm_set_text_cursor_visible(st_cterm_t *terminal, bool visible)
 	int status = cterm_text_boundary(terminal);
 	if (status != 0)
 		return status;
-	if (terminal->cursor != CTERM_CURSOR_HIDDEN)
-		terminal->visible_cursor = terminal->cursor;
-	terminal->cursor = visible ? terminal->visible_cursor : CTERM_CURSOR_HIDDEN;
-	cterm_render_set_cursor(terminal, terminal->cursor);
+	cterm_set_cursor_visible(terminal, visible);
 	return cterm_render_take_error(terminal);
 }
 

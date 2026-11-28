@@ -255,7 +255,7 @@ cterm_handle_ext_state_query(struct cterminal *cterm, int *speed) /* CSI = n */
 				strcat(tmp, ";7");
 			if (cterm->mouse_state_query(9, cterm->mouse_state_query_cbdata))
 				strcat(tmp, ";9");
-			if (cterm->cursor == CTERM_CURSOR_UNDERLINE)
+			if (cterm->cursor != CTERM_CURSOR_HIDDEN)
 				strcat(tmp, ";25");
 			if (vidflags & ST_CONSOLE_VIDEO_ALT_CHARS)
 				strcat(tmp, ";31");

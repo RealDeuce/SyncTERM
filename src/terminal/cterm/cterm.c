@@ -2038,6 +2038,15 @@ const struct seq_dispatch cterm_ansi_dispatch[] = {
 const size_t cterm_ansi_dispatch_len = SEQ_ARRAY_SIZE(cterm_ansi_dispatch);
 
 void
+cterm_set_cursor_visible(struct cterminal *cterm, bool visible)
+{
+	if (cterm->cursor != CTERM_CURSOR_HIDDEN)
+		cterm->visible_cursor = cterm->cursor;
+	cterm->cursor = visible ? cterm->visible_cursor : CTERM_CURSOR_HIDDEN;
+	cterm_render_set_cursor(cterm, cterm->cursor);
+}
+
+void
 cterm_reset(struct cterminal *cterm)
 {
 	cterm_pad_mode(cterm, false);

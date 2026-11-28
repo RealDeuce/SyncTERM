@@ -332,6 +332,7 @@ int  cterm_setpalette(struct cterminal *cterm, uint32_t entry, uint16_t r, uint1
 int  cterm_resetpalette(struct cterminal *cterm, uint32_t entry);
 
 void cterm_reset(struct cterminal *cterm);
+void cterm_set_cursor_visible(struct cterminal *cterm, bool visible);
 void cterm_current_palette_colours(struct cterminal *cterm, uint32_t *fg, uint32_t *bg);
 void cterm_set_negative(struct cterminal *cterm, bool on);
 void cterm_cond_scrollup(struct cterminal *cterm);

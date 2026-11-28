@@ -52,8 +52,10 @@ cterm_handle_decscusr(struct cterminal *cterm, int *speed) /* CSI SP q */
 	uint64_t style = cterm->seq_param_int[0];
 	if (style < 1 || style > 4)
 		style = 1;
-	cterm->cursor_style = (int)style;
-	cterm->cursor       = style <= 2 ? CTERM_CURSOR_BLOCK : CTERM_CURSOR_UNDERLINE;
+	cterm->cursor_style   = (int)style;
+	cterm->visible_cursor = style <= 2 ? CTERM_CURSOR_BLOCK : CTERM_CURSOR_UNDERLINE;
+	if (cterm->cursor != CTERM_CURSOR_HIDDEN)
+		cterm->cursor = cterm->visible_cursor;
 	cterm_render_set_cursor(cterm, cterm->cursor);
 }
 
@@ -651,7 +653,7 @@ cterm_handle_decrqm_dec(struct cterminal *cterm, int *speed) /* CSI ? $ p */
 			pm = (cterm->extattr & CTERM_EXTATTR_AUTOWRAP) ? 1 : 2;
 			break;
 		case 25:
-			pm = (cterm->cursor == CTERM_CURSOR_UNDERLINE) ? 1 : 2;
+			pm = (cterm->cursor != CTERM_CURSOR_HIDDEN) ? 1 : 2;
 			break;
 		case 31:
 			pm = (vidflags & ST_CONSOLE_VIDEO_ALT_CHARS) ? 1 : 2;
@@ -719,7 +721,7 @@ cterm_handle_save_dec_modes(struct cterminal *cterm, int *speed) /* CSI ? s */
 		        | CTERM_SAVEMODE_MOUSE_SGR_PIXELS | CTERM_SAVEMODE_DECLRMM | CTERM_SAVEMODE_DECBKM);
 		cterm->saved_mode &= ~cterm->saved_mode_mask;
 		cterm->saved_mode |= (cterm->extattr & CTERM_EXTATTR_AUTOWRAP) ? CTERM_SAVEMODE_AUTOWRAP : 0;
-		cterm->saved_mode |= (cterm->cursor == CTERM_CURSOR_UNDERLINE) ? CTERM_SAVEMODE_CURSOR : 0;
+		cterm->saved_mode |= (cterm->cursor != CTERM_CURSOR_HIDDEN) ? CTERM_SAVEMODE_CURSOR : 0;
 		cterm->saved_mode |= (flags & ST_CONSOLE_VIDEO_ALT_CHARS) ? CTERM_SAVEMODE_ALTCHARS : 0;
 		cterm->saved_mode |= (flags & ST_CONSOLE_VIDEO_NO_BRIGHT) ? CTERM_SAVEMODE_NOBRIGHT : 0;
 		cterm->saved_mode |= (flags & ST_CONSOLE_VIDEO_BRIGHT_BACKGROUND) ? CTERM_SAVEMODE_BGBRIGHT : 0;
@@ -789,7 +791,7 @@ cterm_handle_save_dec_modes(struct cterminal *cterm, int *speed) /* CSI ? s */
 				cterm->saved_mode_mask |= CTERM_SAVEMODE_CURSOR;
 				cterm->saved_mode &= ~CTERM_SAVEMODE_CURSOR;
 				cterm->saved_mode |=
-				    (cterm->cursor == CTERM_CURSOR_UNDERLINE) ? CTERM_SAVEMODE_CURSOR : 0;
+				    (cterm->cursor != CTERM_CURSOR_HIDDEN) ? CTERM_SAVEMODE_CURSOR : 0;
 				break;
 			case 31:
 				cterm->saved_mode_mask |= CTERM_SAVEMODE_ALTCHARS;
@@ -970,11 +972,8 @@ cterm_handle_restore_dec_modes(struct cterminal *cterm, int *speed) /* CSI ? u *
 			else
 				cterm->extattr &= ~CTERM_EXTATTR_SXSCROLL;
 		}
-		if (cterm->saved_mode_mask & CTERM_SAVEMODE_CURSOR) {
-			cterm->cursor = (cterm->saved_mode & CTERM_SAVEMODE_CURSOR) ? CTERM_CURSOR_UNDERLINE
-			                                                            : CTERM_CURSOR_HIDDEN;
-			cterm_render_set_cursor(cterm, cterm->cursor);
-		}
+		if (cterm->saved_mode_mask & CTERM_SAVEMODE_CURSOR)
+			cterm_set_cursor_visible(cterm, (cterm->saved_mode & CTERM_SAVEMODE_CURSOR) != 0);
 		if (cterm->saved_mode_mask & CTERM_SAVEMODE_ALTCHARS) {
 			if (cterm->saved_mode & CTERM_SAVEMODE_ALTCHARS)
 				flags |= ST_CONSOLE_VIDEO_ALT_CHARS;
@@ -1073,12 +1072,8 @@ cterm_handle_restore_dec_modes(struct cterminal *cterm, int *speed) /* CSI ? u *
 					    cterm->mouse_state_change_cbdata);
 				break;
 			case 25:
-				if (cterm->saved_mode_mask & CTERM_SAVEMODE_CURSOR) {
-					cterm->cursor = (cterm->saved_mode & CTERM_SAVEMODE_CURSOR)
-					                    ? CTERM_CURSOR_UNDERLINE
-					                    : CTERM_CURSOR_HIDDEN;
-					cterm_render_set_cursor(cterm, cterm->cursor);
-				}
+				if (cterm->saved_mode_mask & CTERM_SAVEMODE_CURSOR)
+					cterm_set_cursor_visible(cterm, (cterm->saved_mode & CTERM_SAVEMODE_CURSOR) != 0);
 				break;
 			case 31:
 				if (cterm->saved_mode_mask & CTERM_SAVEMODE_ALTCHARS) {
@@ -1258,8 +1253,7 @@ cterm_handle_decsm(struct cterminal *cterm, int *speed) /* CSI ? h */
 				cterm->extattr |= CTERM_EXTATTR_AUTOWRAP;
 				break;
 			case 25:
-				cterm->cursor = CTERM_CURSOR_UNDERLINE;
-				cterm_render_set_cursor(cterm, cterm->cursor);
+				cterm_set_cursor_visible(cterm, true);
 				break;
 			case 67:
 				cterm->extattr |= CTERM_EXTATTR_DECBKM;
@@ -1312,8 +1306,7 @@ cterm_handle_decrm(struct cterminal *cterm, int *speed) /* CSI ? l */
 				cterm->extattr &= ~CTERM_EXTATTR_AUTOWRAP;
 				break;
 			case 25:
-				cterm->cursor = CTERM_CURSOR_HIDDEN;
-				cterm_render_set_cursor(cterm, cterm->cursor);
+				cterm_set_cursor_visible(cterm, false);
 				break;
 			case 67:
 				cterm->extattr &= ~CTERM_EXTATTR_DECBKM;
@@ -2600,17 +2593,13 @@ cterm_dec_dcs_finish(struct cterminal *cterm)
 				break;
 			case ' ':
 				if (cterm->strbuf[3] == 'q' && cterm->strbuf[4] == 0) {
-					int                             style;
-					struct st_console_custom_cursor custom = {0};
+					int shape = cterm->cursor == CTERM_CURSOR_HIDDEN ? cterm->visible_cursor : cterm->cursor;
+					int style = shape == CTERM_CURSOR_BLOCK ? 2 : 4;
 					if (cterm->screen.capabilities & ST_CONSOLE_CAP_CUSTOM_CURSOR) {
+						struct st_console_custom_cursor custom = {0};
 						cterm_render_get_custom_cursor(cterm, &custom);
-						if (cterm->cursor == CTERM_CURSOR_BLOCK)
-							style = custom.blink ? 1 : 2;
-						else
-							style = custom.blink ? 3 : 4;
-					}
-					else {
-						style = (cterm->cursor == CTERM_CURSOR_BLOCK) ? 2 : 4;
+						if (custom.blink)
+							style--;
 					}
 					sprintf(tmp, "\x1bP1$r%d q\x1b\\", style);
 					cterm_respond(cterm, tmp, strlen(tmp));

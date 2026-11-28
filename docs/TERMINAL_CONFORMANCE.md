@@ -1910,7 +1910,7 @@ bytes, case trace, coherent snapshot and PPM under the build's
 | `SGRConceal` | 1600 | attributes | Concealed pixels, selection reveal and restore, clipboard text, plain and attributed STS with codepage bytes and wide UTF-8 clusters, rectangle edits and reset |
 | `OSC4` | 1619 | attributes | Logical palette change and single-entry reset |
 | `OSC104All` | 1651 | attributes | Logical palette change and full palette reset |
-| `DECSCUSR` | 1676 | attributes | Block/underline raster extents and blink state for styles 1 through 4 |
+| `DECSCUSR` | 1676 | attributes | Block/underline raster and blink for styles 1 through 4, DECTCEM visibility and mode reports, style changes while hidden, and saved visibility |
 | `AutoWrap` | 1698 | margins | Expected cursor/cells or exact mode replies across margin/wrap transitions |
 | `RIScroll` | 1720 | editing | Expected edited/scrolled cell contents and cursor coordinates |
 | `LFScroll` | 1733 | editing | Expected edited/scrolled cell contents and cursor coordinates |

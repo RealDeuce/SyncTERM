@@ -780,10 +780,28 @@ def attributes(t):
     assert colour(frame, cell_at(frame, 0, 0)) == 0xffff00
     frame = t.exchange(ESC + b"]104" + ST)
     assert colour(frame, cell_at(frame, 0, 0)) == 0x0000a8
+    t.case("DECSCUSR")
+    def check_cursor(commands, style, visible):
+        reports = b"\x1b[?25$p\x1bP$q q" + ST
+        expected = f"\x1b[?25;{1 if visible else 2}$y\x1bP1$r{style} q".encode() + ST
+        m = t.exchange(commands + reports, expected).metadata
+        assert m["cursor_visible"] == visible
+        if visible:
+            assert (m["cursor_start"], m["cursor_end"], m["cursor_blink"]) == (
+                0 if style <= 2 else 14, 15, style % 2)
+
     for style in range(1, 5):
-        frame = t.check("DECSCUSR", f"\x1b[{style} q".encode())
-        m = frame.metadata
-        assert (m["cursor_start"], m["cursor_end"], m["cursor_blink"]) == (0 if style <= 2 else 14, 15, style % 2)
+        select = f"\x1b[{style} q".encode()
+        check_cursor(RESET + select, style, True)
+        # Both the individual and the all-modes save/restore forms save visibility.
+        mode = b"25" if style % 2 else b""
+        save, restore = (b"\x1b[?" + mode + op for op in (b"s", b"u"))
+        check_cursor(save + b"\x1b[?25l\x1b[?25l", style, False)
+        check_cursor(restore, style, True)
+        check_cursor(b"\x1b[?25l" + save + b"\x1b[?25h" + restore, style, False)
+        new_style = 5 - style
+        check_cursor(f"\x1b[{new_style} q".encode(), new_style, False)
+        check_cursor(b"\x1b[?25h\x1b[?25h", new_style, True)
     frame = t.check("DECSETBlinkBG", ESC + b"[?33h" + ESC + b"[0;5;41m ")
     assert colour(frame, cell_at(frame, 0, 0), True) == 0xff5454
     assert tile(frame) == tile(frame, alternate=True)
@@ -829,6 +847,7 @@ def queries(t):
     # Explicitly establish every reported mode; compare the complete report.
     t.check("CTSMRR", ESC + b"[?6;9;25;31;32;33;34;35;69;80;1000;1001;1002;1003;1004;1005;1006;1007;1015;1016l"
             + ESC + b"[?7;33;69h" + ESC + b"[=2n", expected=ESC + b"[=2;7;33;69n")
+    t.exchange(b"\x1b[2 q\x1b[?25h\x1b[=2n", ESC + b"[=2;7;25;33;69n")
     t.check("CTSMRR", ESC + b"[?6;9;25;31;32;33;34;35;69;1000;1001;1002;1003;1004;1005;1006;1007;1015;1016l"
             + ESC + b"[?7;80h" + ESC + b"[=2n" + ESC + b"[?80$p",
             expected=ESC + b"[=2;7;80n" + ESC + b"[?80;1$y")

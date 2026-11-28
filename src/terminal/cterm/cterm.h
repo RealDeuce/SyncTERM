@@ -146,7 +146,6 @@ struct cterminal {
 	enum st_cterm_graphics_mode graphics_mode;
 	bool                        (*escape_extension)(void *context, st_cterm_t *target, uint8_t byte);
 	void                       *escape_context;
-	int                         visible_cursor;
 	/* G0/G1 designation final bytes retained for window snapshots. */
 	uint8_t                     g0_designation, g1_designation;
 	/* An escape extension can yield input after consuming this final byte. */
@@ -301,7 +300,8 @@ struct cterminal {
 	bool                   pk_mode;
 	bool                   suppress_translated_keys;
 	uint8_t                pk_reported[CTERM_PK_MAX_EVDEV / 8];
-	int                    cursor;       // Current cursor mode (Normal or None)
+	int                    cursor;
+	int                    visible_cursor; /* Shape to use when showing a hidden cursor. */
 	int                    cursor_style; /* DECSCUSR 1..4, or 0 for the configured default. */
 	char                  *fg_tc_str;
 	char                  *bg_tc_str;
