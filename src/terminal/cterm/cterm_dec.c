@@ -473,6 +473,7 @@ cterm_handle_decrara(struct cterminal *cterm, int *speed) /* CSI Pt;Pl;Pb;Pr;...
 				cterm_seq_default(cterm, p, 0);
 				switch (cterm->seq_param_int[p]) {
 					case 0:
+						rowbuf[c].flags ^= ST_CONSOLE_CELL_UNDERLINE;
 						attribute ^= 0x88;
 						cterm_render_attribute_colours(cterm, attribute,
 						    &rowbuf[c].foreground, NULL);
@@ -489,6 +490,10 @@ cterm_handle_decrara(struct cterminal *cterm, int *speed) /* CSI Pt;Pl;Pb;Pr;...
 						attribute ^= 0x08;
 						cterm_render_attribute_colours(cterm, attribute,
 						    &rowbuf[c].foreground, NULL);
+						break;
+					case 4:
+					case 24:
+						rowbuf[c].flags ^= ST_CONSOLE_CELL_UNDERLINE;
 						break;
 					case 5:
 					case 25:
@@ -2390,6 +2395,8 @@ cterm_dec_dcs_finish(struct cterminal *cterm)
 						strcat(tmp, ";1");
 					else if (cterm->faint)
 						strcat(tmp, ";2");
+					if (cterm->cell_flags & ST_CONSOLE_CELL_UNDERLINE)
+						strcat(tmp, ";4");
 					if (cterm->attr & 128)
 						strcat(tmp, ";5");
 					if (cterm->negative)

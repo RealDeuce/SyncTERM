@@ -14,7 +14,12 @@ one position on the line and preserves the cell, including its rendition.
 The native `cterm_text` test changes the shared console style, cursor, window
 and alternate font bank between printable characters in CP437 and UTF-8.
 The connected attributes suites check the text, colours, pixels and reported
-cursor across a deferred wrap followed by an SGR reset.
+cursor across a deferred wrap followed by an SGR reset. They also check SGR 4
+and 24 on printed spaces, a whole erased line, and UTF-8 wide text. They
+verify both blink planes and the separate link dots. Attributed
+selection and rendition reports retain the underline. The native console test
+uses a scaled seven-pixel font with disjoint underscore rows and nonzero padding
+bits to verify the extended rule reaches both edges.
 
 The Unicode presenter tests cover all 95 printable ASCII characters at begin
 and commit, plus bytewise revisions to composed accents and two-column

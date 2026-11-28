@@ -430,6 +430,43 @@ def attributes(t):
             assert len(pixels) == 1, (name, pixels)
         else:
             assert len(pixels) == 2, (name, pixels)
+    link = ESC + b"]8;;https://example.org/" + ST
+    unlink = ESC + b"]8;;" + ST
+    frame = t.check("sgr-underline", b"\x1b[4m " + link + b" \x1b[24m " + unlink
+                    + b"\x1b[4;5m \x1b[m \x1b[4m" + ESC + b"P$qm" + ST, (6, 1),
+                    expected=ESC + b"P1$r0;4m" + ST)
+    assert (frame.metadata["cell_width"], frame.metadata["cell_height"]) == (8, 16)
+    for x in range(5):
+        cell = cell_at(frame, x, 0)
+        underlined, linked = x in (0, 1, 3), x in (1, 2)
+        assert bool(cell.flags & (1 << 16)) == underlined and bool(cell.hyperlink) == linked
+        for alternate in (False, True):
+            expected = tuple(cell.foreground if ((underlined and y == 13) or
+                             (linked and y == 15 and i % 4 == 0)) and not (x == 3 and alternate)
+                             else cell.background for y in range(16) for i in range(8))
+            assert tile(frame, x+1, 1, alternate) == expected, (x, alternate)
+    if t.encoding == "UTF-8":
+        wide = "中".encode()
+        frame = t.check("sgr-underline", wide + ESC + b"[4m" + wide, (5, 1))
+        for half in (0, 1):
+            cell = cell_at(frame, 2 + half, 0)
+            assert cell.flags & (1 << 16)
+            for alternate in (False, True):
+                reference = list(tile(frame, 1 + half, 1, alternate))
+                reference[13 * 8:14 * 8] = [cell.foreground] * 8
+                assert tile(frame, 3 + half, 1, alternate) == tuple(reference)
+    t.check("sgr-underline", b"\x1bF\x1b[4mA\x1b[24mB\x1bS",
+                    expected=ESC + b"XCTerm:STS:0:\x1b[4mA\x1b[24mB" + ST)
+    frame = t.check("sgr-underline", b"\x1b[4mAAA\r\x1b[2K\x1b[24m ", (2, 1))
+    for x in range(80):
+        cell = cell_at(frame, x, 0)
+        assert bool(cell.flags & (1 << 16)) == (x != 0)
+        expected = tuple(cell.foreground if x != 0 and y == 13 else cell.background
+                         for y in range(16) for _ in range(8))
+        assert tile(frame, x+1) == tile(frame, x+1, alternate=True) == expected, x
+    frame = t.check("sgr-underline", b"ABCD\x1b[1;1;1;3;4$r\x1b[1;2;1;2;4$t\x1b[1;3;1;3;24$r")
+    assert [bool(cell_at(frame, x, 0).flags & (1 << 16)) for x in range(4)] == [
+        True, False, False, False]
     # Faint colours are independent, programmable ANSI-order registers.
     stream = b"".join(f"\x1b[{30+i};2mX".encode() for i in range(8))
     stream += (b"\x1b[2;33mA\x1b[1mB\x1b[22mC\x1b[2;7mD\x1b[27;93mE"

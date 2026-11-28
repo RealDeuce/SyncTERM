@@ -1427,6 +1427,13 @@ chosen colour. SkyPix uses its own pens.
 |√
 | 
 
+|4
+|Single underline in the foreground colour. Bitmap displays extend each inked
+row of the selected font's underscore glyph across the cell. A font without
+a mapped underscore uses a single bottom row. Link dots occupy the bottom
+row and coincide with the underline when the font draws it there.
+| | | | | |
+
 |5
 |Blink (By definition, slow blink)
 |√
@@ -1476,6 +1483,10 @@ NOTE: Both blinks are the same speed.
 | 
 |√
 | 
+
+|24
+|End underline
+| | | | | |
 
 |25
 |Steady (Not blinking)
@@ -2243,8 +2254,9 @@ The remaining `Ps` parameters specify which attributes to toggle:
 |===
 | Ps | Action
 
-| 0 | Invert all toggleable attributes (bold, blink, negative)
+| 0 | Invert all toggleable attributes (bold, underline, blink, negative)
 | 1 or 22 | Toggle bold (XOR legacy attribute bit 3)
+| 4 or 24 | Toggle underline
 | 5 or 25 | Toggle blink (XOR legacy attribute bit 7)
 | 7 or 27 | Toggle negative (swap foreground and background)
 |===

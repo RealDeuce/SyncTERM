@@ -287,7 +287,8 @@ The `wire` suite checks both exact query replies and visible results:
   `RIP_RESET`. Viewport clipping, world-coordinate scaling, the last drawable
   pixel, the executable's nonpositive-count Bézier step (`0.005`), malformed polygon counts
   and missing reserved font parameters.
-- All five RIP 1.54 text-window font sizes, preservation of graphics across text
+- All five RIP 1.54 text-window font sizes, SGR 4 covering the full cell on the
+  single or double scanline of each strike’s underscore, preservation of graphics across text
   window reinitialization, disabled ordinary text, and a fixed bitmap expectation
   for connection-encoded RIP graphic text.
 

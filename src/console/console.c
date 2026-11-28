@@ -2764,6 +2764,18 @@ font_lookup_exact(const struct st_console_font *font, uint32_t codepoint, uint32
 	return true;
 }
 
+const uint8_t *
+st_console_font_underscore(const struct st_console_font *font, uint32_t *width, size_t *stride)
+{
+	uint8_t columns;
+	uint32_t glyph;
+	const uint8_t *bitmap;
+	if (font == NULL || !font_lookup_exact(font, '_', &glyph, &columns)
+	    || !st_console_font_glyph(font, glyph, &bitmap, width, stride))
+		return NULL;
+	return bitmap;
+}
+
 static bool
 font_lookup_cluster_exact(const struct st_console_font *font, const char *text, size_t text_size, uint32_t *glyph)
 {

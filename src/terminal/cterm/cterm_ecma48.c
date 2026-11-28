@@ -1188,6 +1188,8 @@ sgr_diff(struct cterminal *cterm, const struct st_console_cell *prev, const stru
 			cterm_respond_printf(cterm, ";1");
 		if (next_faint)
 			cterm_respond_printf(cterm, ";2");
+		if (next->flags & ST_CONSOLE_CELL_UNDERLINE)
+			cterm_respond_printf(cterm, ";4");
 		if (na & 0x80)
 			cterm_respond_printf(cterm, ";5");
 		cterm_respond_printf(cterm, ";%d", 30 + cterm_ansi_colour_order[na & 0x07]);
@@ -1204,6 +1206,11 @@ sgr_diff(struct cterminal *cterm, const struct st_console_cell *prev, const stru
 		}
 		if (next_faint && !prev_faint)
 			strcat(sgrbuf, params++ ? ";2" : "2");
+		if ((next->flags ^ prev->flags) & ST_CONSOLE_CELL_UNDERLINE) {
+			if (params++)
+				strcat(sgrbuf, ";");
+			strcat(sgrbuf, (next->flags & ST_CONSOLE_CELL_UNDERLINE) ? "4" : "24");
+		}
 		if ((na & 0x80) && !(pa & 0x80)) {
 			strcat(sgrbuf, params++ ? ";5" : "5");
 		}
@@ -1629,6 +1636,7 @@ cterm_ecma48_apply_sgr(struct cterminal *cterm, int *pi)
 				cterm_render_record_error(cterm, cterm->device.reset_style(cterm->device.context));
 			cterm->negative = false;
 			cterm->faint    = false;
+			cterm->cell_flags &= ~ST_CONSOLE_CELL_UNDERLINE;
 			cterm->attr     = cterm->screen.default_attribute;
 			cterm_render_attribute_colours(cterm, cterm->attr, &cterm->fg_color, &cterm->bg_color);
 			CTERM_FREE_AND_CLEAR(cterm->fg_tc_str);
@@ -1657,7 +1665,11 @@ cterm_ecma48_apply_sgr(struct cterminal *cterm, int *pi)
 				cterm_rendition_colours(cterm, cterm->attr, &cterm->fg_color, NULL);
 			break;
 		}
-		case 4: /* Underscore */
+		case 4:
+			cterm->cell_flags |= ST_CONSOLE_CELL_UNDERLINE;
+			break;
+		case 24:
+			cterm->cell_flags &= ~ST_CONSOLE_CELL_UNDERLINE;
 			break;
 		case 5:
 		case 6:

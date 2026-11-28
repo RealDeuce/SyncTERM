@@ -530,6 +530,7 @@ const struct st_console_color_glyph *st_console_font_color_glyph(const struct st
     uint32_t                                                                                   glyph);
 const struct st_console_font *st_console_resolve_font_raster_locked(st_console_t *console,
     uint16_t identifier, const struct st_console_font **source);
+const uint8_t *st_console_font_underscore(const struct st_console_font *font, uint32_t *width, size_t *stride);
 bool   st_console_font_remap_glyph(const struct st_console_font *source, const struct st_console_font *destination,
     uint32_t *glyph);
 void   st_console_invalidate_text_locked(st_console_t *console);

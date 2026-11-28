@@ -358,10 +358,16 @@ def wire_cases(t):
         (3, 91, 25, 7, 14), (4, 40, 25, 16, 14)):
         t.case(f"text-window-font-{style}")
         window = point(0, 0) + point(columns - 1, rows - 1) + b"1" + mega(style, 1)
-        frame = scene(t, b"!|X2S2S\r\n!|w" + window + b"\r\nA")
+        frame = scene(t, b"!|X2S2S\r\n!|w" + window + b"\r\nA\x1b[4m \x1b[24m ")
         m = frame.metadata
         assert (m["columns"], m["rows"], m["cell_width"], m["cell_height"]) == (columns, rows, width, height)
         assert frame.lines[0].startswith("A") and pixel(frame, 100, 100) == 0xffffff
+        # RIPterm's 8-high strikes have a one-row underscore, the 14-high strikes two.
+        for phase in ("primary", "alternate"):
+            for y in range(height):
+                for x in range(width, 3 * width):
+                    ink = x < 2 * width and (y == 7 if height == 8 else y in (12, 13))
+                    assert pixel(frame, x, y, phase) == (0xffffff if ink else 0), (style, phase, x, y)
     t.case("text-window-disabled")
     frame = scene(t, b"!|w0000000000\r\nHIDDEN\r\n!|X2S2S\r\n")
     assert "HIDDEN" not in frame.text and pixel(frame, 100, 100) == 0xffffff

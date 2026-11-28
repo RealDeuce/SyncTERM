@@ -1124,6 +1124,38 @@ test_fast_font_attributes(void)
 	st_console_destroy(console);
 }
 
+/* The mapped underscore has two partial, nonadjacent ink rows. Bit zero is
+ * padding in this seven-pixel strike. Stretching it must never paint padding. */
+static void
+test_underline_strike(void)
+{
+	const uint8_t bitmap[] = {0, 0, 0, 0, 0, 1, 0x10, 1, 0x02, 1};
+	const struct st_console_font_mapping mapping[] = {{' ', 0}, {'_', 1}};
+	const struct st_console_font font = {.bitmap = bitmap, .bitmap_size = sizeof(bitmap),
+	    .width = 7, .height = 5, .glyph_count = 2, .row_stride = 1, .glyph_stride = 5,
+	    .mapping = mapping, .mapping_count = 2};
+	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_config config = {.columns = 1, .rows = 1, .cell_width = 9, .cell_height = 10};
+	const struct st_console_rect area = {0, 0, 1, 1}, raster = {0, 0, 9, 10};
+	st_console_t *console = NULL;
+	CHECK(st_console_create(&console, &display, &config) == 0);
+	struct st_console_cell cell = {.font = register_static_font(console, &font), .glyph = 0,
+	    .foreground = 5, .background = 1, .flags = ST_CONSOLE_CELL_UNDERLINE | ST_CONSOLE_CELL_BLINK,
+	    .hyperlink = 1};
+	struct st_pixel_buffer *pixels;
+	CHECK(st_console_write_cells(console, &area, &cell, 1) == 0);
+	CHECK(st_console_get_pixels(&pixels, console, &raster, false) == 0);
+	for (unsigned y = 0; y < 10; ++y) {
+		for (unsigned x = 0; x < 9; ++x) {
+			bool ink = y == 2 || y == 3 || y == 6 || y == 7 || (y == 9 && x % 4 == 0);
+			CHECK(pixels->primary[y * 9 + x] == (ink ? 5u : 1u));
+			CHECK(pixels->alternate[y * 9 + x] == 1);
+		}
+	}
+	st_pixel_buffer_destroy(pixels);
+	st_console_destroy(console);
+}
+
 static void
 test_raster_margin_and_scroll(void)
 {
@@ -3573,6 +3605,7 @@ main(void)
 	test_resize_palette_and_errors();
 	test_pixels_and_font_rendering();
 	test_fast_font_attributes();
+	test_underline_strike();
 	test_raster_margin_and_scroll();
 	test_partial_full_width_raster_scroll();
 	test_saa5050_double_height_raster();
