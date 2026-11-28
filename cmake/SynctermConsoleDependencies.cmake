@@ -40,7 +40,8 @@ if(NOT WIN32 AND NOT ST_CONSOLE_X11 STREQUAL "OFF" AND NOT (APPLE AND ST_CONSOLE
 	endif()
 	st_console_dependency(X11 x11 X11/Xlib.h X11 RUNTIME ${required} HEADERS X11/Xutil.h X11/XKBlib.h
 		SYMBOLS XInitThreads XOpenDisplay XCloseDisplay XDefaultScreen XRootWindow XDefaultVisual
-		XDefaultDepth XBlackPixel XConnectionNumber XCreateSimpleWindow XDestroyWindow XMapWindow
+		XDefaultDepth XBlackPixel XConnectionNumber XAddConnectionWatch XProcessInternalConnection
+		XCreateSimpleWindow XDestroyWindow XMapWindow
 		XResizeWindow XStoreName XSelectInput XPending XNextEvent XFlush XSync XCreateGC XFreeGC
 		XCreateImage XPutImage XFree XInternAtom XSetWMProtocols XGetWindowProperty
 		XChangeProperty XDeleteProperty XConvertSelection XSetSelectionOwner XGetSelectionOwner XSendEvent)

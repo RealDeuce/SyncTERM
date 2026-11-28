@@ -87,8 +87,12 @@ main(int argc, char **argv)
 	st_thread_t           threads[2];
 	int                   status;
 
-	(void)argc;
-	(void)argv;
+	/* Give the main thread time to enter its pre-SDL wait. Exercise both
+	 * wake sources: application exit and the first display command. */
+	const struct timespec idle = {0, 100000000L};
+	(void)st_thread_sleep(&idle, NULL);
+	if (argc == 2 && strcmp(argv[1], "--idle-exit") == 0)
+		return 0;
 
 	status = st_console_display_create(&first_display, &config_display);
 	if (status == 0)

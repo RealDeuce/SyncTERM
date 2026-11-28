@@ -167,7 +167,8 @@ if(NOT WIN32 AND NOT ST_CONSOLE_WAYLAND STREQUAL "OFF"
 	st_console_dependency(WAYLAND wayland-client wayland-client.h wayland-client RUNTIME ${required} SYMBOLS
 		wl_proxy_marshal_flags wl_proxy_add_listener wl_proxy_destroy wl_proxy_get_version
 		wl_display_connect wl_display_disconnect wl_display_get_fd wl_display_dispatch
-		wl_display_dispatch_pending wl_display_roundtrip wl_display_flush)
+		wl_display_dispatch_pending wl_display_prepare_read wl_display_cancel_read wl_display_read_events
+		wl_display_roundtrip wl_display_flush)
 	st_console_dependency(XKBCOMMON xkbcommon xkbcommon/xkbcommon.h xkbcommon RUNTIME ${required} SYMBOLS
 		xkb_context_new xkb_context_unref xkb_keymap_new_from_string xkb_keymap_unref
 		xkb_state_new xkb_state_unref xkb_state_update_mask xkb_state_key_get_one_sym
@@ -864,6 +865,8 @@ if(BUILD_TESTING)
 			C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 		st_console_warnings(st_console_sdl_test)
 		add_test(NAME st_console_sdl COMMAND st_console_sdl_test)
+		add_test(NAME st_console_sdl_idle_exit COMMAND st_console_sdl_test --idle-exit)
+		set_tests_properties(st_console_sdl_idle_exit PROPERTIES TIMEOUT 5)
 		set_tests_properties(st_console_sdl PROPERTIES
 			ENVIRONMENT
 				"SDL_VIDEODRIVER=dummy;DISPLAY=;WAYLAND_DISPLAY="

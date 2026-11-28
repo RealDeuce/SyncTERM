@@ -17,6 +17,9 @@ typedef void               (*st_wl_display_disconnect_fn)(struct wl_display *);
 typedef int                (*st_wl_display_get_fd_fn)(struct wl_display *);
 typedef int                (*st_wl_display_dispatch_fn)(struct wl_display *);
 typedef int                (*st_wl_display_dispatch_pending_fn)(struct wl_display *);
+typedef int                (*st_wl_display_prepare_read_fn)(struct wl_display *);
+typedef void               (*st_wl_display_cancel_read_fn)(struct wl_display *);
+typedef int                (*st_wl_display_read_events_fn)(struct wl_display *);
 typedef int                (*st_wl_display_roundtrip_fn)(struct wl_display *);
 typedef int                (*st_wl_display_flush_fn)(struct wl_display *);
 
@@ -30,6 +33,9 @@ struct st_wayland_api {
 	st_wl_display_get_fd_fn           display_get_fd;
 	st_wl_display_dispatch_fn         display_dispatch;
 	st_wl_display_dispatch_pending_fn display_dispatch_pending;
+	st_wl_display_prepare_read_fn     display_prepare_read;
+	st_wl_display_cancel_read_fn      display_cancel_read;
+	st_wl_display_read_events_fn      display_read_events;
 	st_wl_display_roundtrip_fn        display_roundtrip;
 	st_wl_display_flush_fn            display_flush;
 };
@@ -46,6 +52,9 @@ int                          st_wayland_loader_init(void);
 #define wl_display_get_fd           st_wayland_api.display_get_fd
 #define wl_display_dispatch         st_wayland_api.display_dispatch
 #define wl_display_dispatch_pending st_wayland_api.display_dispatch_pending
+#define wl_display_prepare_read     st_wayland_api.display_prepare_read
+#define wl_display_cancel_read      st_wayland_api.display_cancel_read
+#define wl_display_read_events      st_wayland_api.display_read_events
 #define wl_display_roundtrip        st_wayland_api.display_roundtrip
 #define wl_display_flush            st_wayland_api.display_flush
 

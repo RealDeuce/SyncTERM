@@ -34,6 +34,9 @@ load_client(void)
  #undef wl_display_get_fd
  #undef wl_display_dispatch
  #undef wl_display_dispatch_pending
+ #undef wl_display_prepare_read
+ #undef wl_display_cancel_read
+ #undef wl_display_read_events
  #undef wl_display_roundtrip
  #undef wl_display_flush
 	st_wayland_api.proxy_marshal_flags      = wl_proxy_marshal_flags;
@@ -45,6 +48,9 @@ load_client(void)
 	st_wayland_api.display_get_fd           = wl_display_get_fd;
 	st_wayland_api.display_dispatch         = wl_display_dispatch;
 	st_wayland_api.display_dispatch_pending = wl_display_dispatch_pending;
+	st_wayland_api.display_prepare_read     = wl_display_prepare_read;
+	st_wayland_api.display_cancel_read      = wl_display_cancel_read;
+	st_wayland_api.display_read_events      = wl_display_read_events;
 	st_wayland_api.display_roundtrip        = wl_display_roundtrip;
 	st_wayland_api.display_flush            = wl_display_flush;
 	load_status                             = 0;
@@ -56,6 +62,7 @@ load_client(void)
 	if (!LOAD(proxy_marshal_flags) || !LOAD(proxy_add_listener) || !LOAD(proxy_destroy)
 	    || !LOAD(proxy_get_version) || !LOAD(display_connect) || !LOAD(display_disconnect)
 	    || !LOAD(display_get_fd) || !LOAD(display_dispatch) || !LOAD(display_dispatch_pending)
+	    || !LOAD(display_prepare_read) || !LOAD(display_cancel_read) || !LOAD(display_read_events)
 	    || !LOAD(display_roundtrip) || !LOAD(display_flush)) {
 		(void)dynamic_library_close(library);
 		library = NULL;

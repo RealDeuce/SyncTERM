@@ -5,18 +5,22 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <poll.h>
 #include <stddef.h>
 #include <sys/mman.h>
 
 static size_t       unmapped_size;
 static unsigned int unmap_count;
 static int          test_munmap(void *, size_t);
+static int          test_poll(struct pollfd *, nfds_t, int);
 
 #define munmap                  test_munmap
+#define poll                    test_poll
 #define st_console_wayland_init st_console_wayland_test_unused_init
 #include "../console_wayland.c"
 #undef st_console_wayland_init
 #undef munmap
+#undef poll
 
 #include <signal.h>
 #include <stdarg.h>
@@ -49,6 +53,24 @@ static int               pending_result;
 static int               flush_result;
 static int               flush_error;
 static int               dispatch_result;
+static bool              prepare_again;
+static unsigned int      prepared_reads, cancelled_reads, completed_reads;
+static struct pollfd     waited_fds[3];
+static nfds_t            waited_count;
+static int               waited_timeout;
+static bool              record_wait;
+
+static int
+test_poll(struct pollfd *fds, nfds_t count, int timeout)
+{
+	if (record_wait) {
+		waited_count   = count;
+		waited_timeout = timeout;
+		if (count <= 3)
+			memcpy(waited_fds, fds, count * sizeof(*fds));
+	}
+	return poll(fds, count, timeout);
+}
 
 static int
 test_munmap(void *address, size_t size)
@@ -113,6 +135,34 @@ fake_flush(struct wl_display *display)
 	if (flush_result < 0)
 		errno = flush_error;
 	return flush_result;
+}
+
+static int
+fake_prepare_read(struct wl_display *display)
+{
+	(void)display;
+	if (prepare_again) {
+		prepare_again = false;
+		errno = EAGAIN;
+		return -1;
+	}
+	++prepared_reads;
+	return 0;
+}
+
+static void
+fake_cancel_read(struct wl_display *display)
+{
+	(void)display;
+	++cancelled_reads;
+}
+
+static int
+fake_read_events(struct wl_display *display)
+{
+	(void)display;
+	++completed_reads;
+	return dispatch_result;
 }
 
 static int
@@ -258,6 +308,9 @@ prepare_worker_state(struct state *state, int display_pair[2])
 	dispatch_result    = 0;
 	memset(&st_wayland_api, 0, sizeof(st_wayland_api));
 	st_wayland_api.display_get_fd           = fake_get_fd;
+	st_wayland_api.display_prepare_read     = fake_prepare_read;
+	st_wayland_api.display_cancel_read      = fake_cancel_read;
+	st_wayland_api.display_read_events      = fake_read_events;
 	st_wayland_api.display_dispatch_pending = fake_dispatch_pending;
 	st_wayland_api.display_flush            = fake_flush;
 	st_wayland_api.display_dispatch         = fake_dispatch;
@@ -275,6 +328,61 @@ close_worker_state(struct state *state, int display_pair[2])
 		(void)close(display_pair[0]);
 	if (display_pair[1] >= 0)
 		(void)close(display_pair[1]);
+}
+
+static int
+test_worker_waits(void)
+{
+	struct st_wayland_api saved = st_wayland_api;
+	struct state          state;
+	int                   display_pair[2], clipboard_pipe[2];
+	static char           clipboard[65538];
+
+	CHECK(prepare_worker_state(&state, display_pair) == 0);
+	/* A readable display ends each wait through fake_read_events(). */
+	CHECK(write(display_pair[1], "x", 1) == 1);
+	dispatch_result = -1;
+	record_wait = true;
+	prepare_again = true;
+	prepared_reads = cancelled_reads = completed_reads = 0;
+	CHECK(worker_loop(&state) == IO_ERROR_IO);
+	CHECK(!prepare_again && prepared_reads == 1 && completed_reads == 1 && cancelled_reads == 0);
+	CHECK(waited_count == 2 && waited_timeout == -1);
+	CHECK(waited_fds[0].events == POLLIN && waited_fds[1].events == POLLIN);
+
+	flush_result = -1;
+	flush_error  = EAGAIN;
+	CHECK(worker_loop(&state) == IO_ERROR_IO);
+	CHECK(waited_timeout == -1 && waited_fds[0].events == (POLLIN | POLLOUT));
+
+	flush_result      = 0;
+	state.repeat_key  = 1;
+	state.repeat_rate = 5;
+	state.repeat_next = now_ms() + 60000;
+	CHECK(worker_loop(&state) == IO_ERROR_IO);
+	CHECK(waited_timeout > 2000 && waited_timeout <= 60000);
+
+	memset(clipboard, 'x', sizeof(clipboard) - 1);
+	state.clipboard = clipboard;
+	CHECK(pipe(clipboard_pipe) == 0);
+	source_send(&state, NULL, "text/plain", clipboard_pipe[1]);
+	CHECK(worker_loop(&state) == IO_ERROR_IO);
+	CHECK(waited_count == 3 && waited_timeout > 0 && waited_timeout <= 2000);
+	CHECK(waited_fds[2].fd == clipboard_pipe[1] && waited_fds[2].events == POLLOUT);
+	close_clipboard_send(state.clipboard_sends);
+	state.clipboard_sends = NULL;
+	(void)close(clipboard_pipe[0]);
+
+	state.repeat_next = now_ms() - 500;
+	CHECK(worker_loop(&state) == IO_ERROR_IO);
+	CHECK(waited_count == 2 && waited_timeout > 0 && waited_timeout <= 200);
+	state.repeat_key = 0;
+	CHECK(worker_loop(&state) == IO_ERROR_IO);
+	CHECK(waited_timeout == -1);
+	record_wait = false;
+	close_worker_state(&state, display_pair);
+	st_wayland_api = saved;
+	return 0;
 }
 
 static int
@@ -318,6 +426,8 @@ test_worker_failures(void)
 	CHECK(worker_loop(&state) == IO_ERROR_IO);
 	close_worker_state(&state, display_pair);
 
+	CHECK(prepared_reads == completed_reads + cancelled_reads);
+	CHECK(cancelled_reads > 0);
 	CHECK(!terminal_poll_event(0));
 	CHECK(!terminal_poll_event(POLLIN));
 	CHECK(terminal_poll_event(POLLHUP));
@@ -947,6 +1057,7 @@ main(void)
 	CHECK(test_mouse_presence() == 0);
 	CHECK(test_busy_buffers_skip() == 0);
 	CHECK(test_worker_failures() == 0);
+	CHECK(test_worker_waits() == 0);
 	CHECK(test_pointer_surface_coordinates() == 0);
 	CHECK(test_clipboard_send() == 0);
 	CHECK(test_clipboard_protocol() == 0);

@@ -1648,12 +1648,15 @@ next_command(bool *application_done)
 	static const struct timespec idle = {0, 10000000L};
 	struct sdl_command          *command;
 	struct timespec              deadline;
-	int                          deadline_status;
 
-	deadline_status = st_time_utc_deadline_after_ms(&deadline, 10);
 	(void)st_mutex_lock(&manager.mutex);
-	if (manager.commands_head == NULL && !manager.application_done) {
-		if (deadline_status == 0) {
+	while (manager.commands_head == NULL && !manager.application_done) {
+		/* Only the SDL and Quartz event pumps need a polling deadline. */
+		if (!ST_CONSOLE_HAVE_QUARTZ && !manager.initialized) {
+			(void)st_condition_wait(&manager.changed, &manager.mutex);
+			continue;
+		}
+		if (st_time_utc_deadline_after_ms(&deadline, 10) == 0) {
 			(void)st_condition_timedwait(&manager.changed, &manager.mutex, &deadline);
 		}
 		else {
@@ -1661,6 +1664,7 @@ next_command(bool *application_done)
 			(void)st_thread_sleep(&idle, NULL);
 			(void)st_mutex_lock(&manager.mutex);
 		}
+		break;
 	}
 	command = manager.commands_head;
 	if (command != NULL) {

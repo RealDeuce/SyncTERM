@@ -126,6 +126,8 @@ struct xkb_api {
 	int (*state_mod_name_is_active)(struct xkb_state *, const char *, enum xkb_state_component);
 };
 
+enum { MAX_CLIPBOARD_SENDS = 16, CLIPBOARD_SEND_TIMEOUT_MS = 2000 };
+
 struct clipboard_send {
 	int                    fd;
 	char                  *text;
@@ -1111,9 +1113,9 @@ service_clipboard_sends(struct state *state)
 		}
 	while (*link != NULL) {
 		struct clipboard_send *send     = *link;
-		bool                   finished = (uint32_t)(now_ms() - send->started) >= 2000;
+		bool                   finished = (uint32_t)(now_ms() - send->started) >= CLIPBOARD_SEND_TIMEOUT_MS;
 		if (!finished) {
-			/* One bounded, non-blocking write per transfer and UI tick. */
+			/* Bound each write so the worker can service other events. */
 			size_t count = send->size - send->sent;
 			if (count > 65536)
 				count = 65536;
@@ -1145,7 +1147,8 @@ source_send(void *data, struct wl_data_source *source, const char *mime, int32_t
 	for (struct clipboard_send *send = state->clipboard_sends; send != NULL; send = send->next)
 		++count;
 	int flags = fcntl(fd, F_GETFL);
-	if (count >= 16 || state->clipboard == NULL || flags < 0 || fcntl(fd, F_SETFL, flags | O_NONBLOCK) != 0) {
+	if (count >= MAX_CLIPBOARD_SENDS || state->clipboard == NULL || flags < 0
+	    || fcntl(fd, F_SETFL, flags | O_NONBLOCK) != 0) {
 		(void)close(fd);
 		return;
 	}
@@ -1959,40 +1962,83 @@ terminal_poll_event(short events)
 }
 
 static int
+key_repeat_timeout(struct state *s)
+{
+	if (s->repeat_key == 0 || s->repeat_rate <= 0)
+		return -1;
+
+	uint32_t now = now_ms();
+	int32_t delay = (int32_t)(s->repeat_next - now);
+	if (delay > 0)
+		return delay;
+
+	emit_key(s, s->repeat_key - 1, true, true);
+	uint32_t interval = 1000U / (uint32_t)s->repeat_rate;
+	if (interval == 0)
+		interval = 1;
+	/* Resume at the next repeat deadline, even after a delayed wakeup. */
+	uint32_t remaining = interval - (now - s->repeat_next) % interval;
+	s->repeat_next = now + remaining;
+	return (int)remaining;
+}
+
+static int
+wait_for_events(struct wl_display *display, struct pollfd *fds, nfds_t count, int timeout)
+{
+	/* EGL can read the socket for its own queue. Prepare the read so events
+	 * queued for us between dispatch_pending and poll also wake the worker. */
+	if (wl_display_prepare_read(display) < 0)
+		return errno == EAGAIN ? 0 : -1;
+	int ready = poll(fds, count, timeout);
+	if (ready < 0 && errno == EINTR)
+		ready = 0;
+	if (ready > 0 && (fds[0].revents & POLLIN) != 0) {
+		if (wl_display_read_events(display) < 0)
+			return -1;
+	}
+	else
+		wl_display_cancel_read(display);
+	return ready;
+}
+
+static int
 worker_loop(struct state *s)
 {
-	struct pollfd fds[2];
+	struct pollfd fds[2 + MAX_CLIPBOARD_SENDS];
 
 	fds[0] = (struct pollfd) {.fd = wl_display_get_fd(s->display), .events = POLLIN};
 	fds[1] = (struct pollfd) {.fd = s->wake[0], .events = POLLIN};
 	while (!s->stop) {
-		int ready;
+		nfds_t count = 2;
 
-		service_clipboard_sends(s);
 		if (wl_display_dispatch_pending(s->display) < 0)
 			return IO_ERROR_IO;
-		if (s->repeat_key && s->repeat_rate > 0 && (int32_t)(now_ms() - s->repeat_next) >= 0) {
-			uint32_t interval = 1000U / (uint32_t)s->repeat_rate;
-
-			if (interval == 0)
-				interval = 1;
-			emit_key(s, s->repeat_key - 1, true, true);
-			s->repeat_next += interval;
+		service_clipboard_sends(s);
+		int timeout = key_repeat_timeout(s);
+		for (struct clipboard_send *send = s->clipboard_sends; send != NULL; send = send->next) {
+			uint32_t elapsed = now_ms() - send->started;
+			int remaining = elapsed >= CLIPBOARD_SEND_TIMEOUT_MS
+			                ? 0 : CLIPBOARD_SEND_TIMEOUT_MS - (int)elapsed;
+			if (timeout < 0 || remaining < timeout)
+				timeout = remaining;
+			fds[count++] = (struct pollfd) {.fd = send->fd, .events = POLLOUT};
 		}
-		if (wl_display_flush(s->display) < 0 && errno != EAGAIN)
-			return IO_ERROR_IO;
-		do
-			ready = poll(fds, 2, 20);
-		while (ready < 0 && errno == EINTR);
+		fds[0].events = POLLIN;
+		if (wl_display_flush(s->display) < 0) {
+			if (errno != EAGAIN)
+				return IO_ERROR_IO;
+			fds[0].events |= POLLOUT;
+		}
+		int ready = wait_for_events(s->display, fds, count, timeout);
 		if (ready < 0)
 			return IO_ERROR_IO;
+		if (ready == 0)
+			continue;
 		if ((fds[1].revents & POLLIN) != 0)
 			pending(s);
 		if (s->stop)
 			return 0;
 		if (terminal_poll_event(fds[1].revents))
-			return IO_ERROR_IO;
-		if ((fds[0].revents & POLLIN) != 0 && wl_display_dispatch(s->display) < 0)
 			return IO_ERROR_IO;
 		if (terminal_poll_event(fds[0].revents))
 			return IO_ERROR_IO;

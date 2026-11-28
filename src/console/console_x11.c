@@ -55,6 +55,8 @@ typedef Visual       *(*x11_default_visual_fn)(Display *, int);
 typedef int           (*x11_default_depth_fn)(Display *, int);
 typedef unsigned long (*x11_black_pixel_fn)(Display *, int);
 typedef int           (*x11_connection_number_fn)(Display *);
+typedef Status        (*x11_add_connection_watch_fn)(Display *, XConnectionWatchProc, XPointer);
+typedef void          (*x11_process_internal_connection_fn)(Display *, int);
 typedef Window        (*x11_create_simple_window_fn)(Display *, Window, int, int, unsigned int, unsigned int,
     unsigned int, unsigned long, unsigned long);
 typedef int           (*x11_destroy_window_fn)(Display *, Window);
@@ -144,6 +146,8 @@ struct x11_api {
 	int           (*default_depth)(Display *, int);
 	unsigned long (*black_pixel)(Display *, int);
 	int           (*connection_number)(Display *);
+	Status        (*add_connection_watch)(Display *, XConnectionWatchProc, XPointer);
+	void          (*process_internal_connection)(Display *, int);
 	Window  (*create_simple_window)(Display *, Window, int, int, unsigned int, unsigned int, unsigned int,
 	    unsigned long, unsigned long);
 	int     (*destroy_window)(Display *, Window);
@@ -674,6 +678,8 @@ load_xlib(struct x11_state *state)
 	state->api.default_depth           = XDefaultDepth;
 	state->api.black_pixel             = XBlackPixel;
 	state->api.connection_number       = XConnectionNumber;
+	state->api.add_connection_watch    = XAddConnectionWatch;
+	state->api.process_internal_connection = XProcessInternalConnection;
 	state->api.create_simple_window    = XCreateSimpleWindow;
 	state->api.destroy_window          = XDestroyWindow;
 	state->api.map_window              = XMapWindow;
@@ -745,6 +751,8 @@ load_xlib(struct x11_state *state)
 	    || !LOAD_REQUIRED(state, default_depth, "XDefaultDepth")
 	    || !LOAD_REQUIRED(state, black_pixel, "XBlackPixel")
 	    || !LOAD_REQUIRED(state, connection_number, "XConnectionNumber")
+	    || !LOAD_REQUIRED(state, add_connection_watch, "XAddConnectionWatch")
+	    || !LOAD_REQUIRED(state, process_internal_connection, "XProcessInternalConnection")
 	    || !LOAD_REQUIRED(state, create_simple_window, "XCreateSimpleWindow")
 	    || !LOAD_REQUIRED(state, destroy_window, "XDestroyWindow")
 	    || !LOAD_REQUIRED(state, map_window, "XMapWindow")
@@ -2444,12 +2452,63 @@ create_x11_objects(struct x11_state *state)
 	return draw_state(state, state->console, true);
 }
 
+/* Xlib can open additional connections for an input method. The display
+ * thread owns the watch and its descriptors until XCloseDisplay returns. */
+struct x11_wait {
+	struct pollfd *fds;
+	nfds_t         count;
+	bool           failed;
+};
+
+static void
+watch_connection(Display *display, XPointer data, int fd, Bool opening, XPointer *watch_data)
+{
+	struct x11_wait *wait = (struct x11_wait *)data;
+
+	(void)display;
+	(void)watch_data;
+	if (opening) {
+		struct pollfd *fds = realloc(wait->fds, (wait->count + 1) * sizeof(*fds));
+		if (fds == NULL) {
+			wait->failed = true;
+			return;
+		}
+		wait->fds = fds;
+		fds[wait->count++] = (struct pollfd) {.fd = fd, .events = POLLIN};
+	}
+	else {
+		for (nfds_t i = 2; i < wait->count; ++i) {
+			if (wait->fds[i].fd == fd) {
+				wait->fds[i] = wait->fds[--wait->count];
+				break;
+			}
+		}
+	}
+}
+
+static int
+start_connection_watch(struct x11_state *state, struct x11_wait *wait)
+{
+	wait->count = 2;
+	wait->fds = calloc(wait->count, sizeof(*wait->fds));
+	if (wait->fds == NULL)
+		return IO_ERROR_OUT_OF_MEMORY;
+	wait->fds[0] = (struct pollfd) {.fd = state->api.connection_number(state->display), .events = POLLIN};
+	wait->fds[1] = (struct pollfd) {.fd = state->wake_pipe[0], .events = POLLIN};
+	if (!state->api.add_connection_watch(state->display, watch_connection, (XPointer)wait) || wait->failed)
+		return IO_ERROR_OUT_OF_MEMORY;
+	return 0;
+}
+
 static int
 x11_thread(void *argument)
 {
-	struct x11_state *state = argument;
-	struct pollfd     descriptors[2];
+	struct x11_state *state  = argument;
+	struct x11_wait   wait   = {0};
 	int               status = create_x11_objects(state);
+
+	if (status == 0)
+		status = start_connection_watch(state, &wait);
 
 	(void)st_mutex_lock(&state->mutex);
 	state->start_status = status;
@@ -2458,16 +2517,9 @@ x11_thread(void *argument)
 	(void)st_mutex_unlock(&state->mutex);
 	if (status != 0) {
 		destroy_x11_objects(state);
+		free(wait.fds);
 		return 1;
 	}
-	descriptors[0] = (struct pollfd) {
-	    .fd     = state->api.connection_number(state->display),
-	    .events = POLLIN,
-	};
-	descriptors[1] = (struct pollfd) {
-	    .fd     = state->wake_pipe[0],
-	    .events = POLLIN,
-	};
 	while (!state->stop) {
 		while (state->api.pending(state->display) != 0) {
 			XEvent event;
@@ -2476,9 +2528,24 @@ x11_thread(void *argument)
 			if (!state->api.filter_event(&event, state->window))
 				handle_event(state, &event);
 		}
-		if (poll(descriptors, 2, 20) < 0 && errno != EINTR)
+		if (wait.failed)
 			break;
-		if ((descriptors[1].revents & POLLIN) != 0)
+		if (poll(wait.fds, wait.count, -1) < 0) {
+			if (errno == EINTR)
+				continue;
+			break;
+		}
+		if (((wait.fds[0].revents | wait.fds[1].revents) & (POLLHUP | POLLERR | POLLNVAL)) != 0)
+			break;
+		bool command_ready = (wait.fds[1].revents & POLLIN) != 0;
+		for (nfds_t i = 2; i < wait.count; ++i) {
+			if (wait.fds[i].revents != 0) {
+				/* Dispatch can open or close further connections. */
+				state->api.process_internal_connection(state->display, wait.fds[i].fd);
+				break;
+			}
+		}
+		if (command_ready)
 			process_pending_command(state);
 	}
 	(void)st_mutex_lock(&state->mutex);
@@ -2491,6 +2558,7 @@ x11_thread(void *argument)
 	(void)st_condition_broadcast(&state->changed);
 	(void)st_mutex_unlock(&state->mutex);
 	destroy_x11_objects(state);
+	free(wait.fds);
 	return 0;
 }
 
